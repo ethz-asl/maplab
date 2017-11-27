@@ -1,0 +1,54 @@
+# Compiled Object files.
+*.slo
+*.lo
+*.o
+*.obj
+
+# Compiled Dynamic libraries.
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries.
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Temporary editor files.
+*~
+*.orig
+
+# Compiled python.
+tools/lint/autolintc
+*.pyc
+
+# Eclipse
+.pydevproject
+.project
+.cproject
+.settings
+CATKIN_IGNORE
+
+# CLion
+.idea
+cmake-build-debug
+
+# QtCreator
+CMakeLists.txt.user
+
+*.mat
+*.csv
+*.asv
+*.jpg
+
+# MacOS Desktop Services Store.
+.DS_Store
+
+# Maplab temporary files.
+*.vi_command_history

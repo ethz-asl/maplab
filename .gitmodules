@@ -1,0 +1,9 @@
+[submodule "tools/maplab_test_data"]
+	path = tools/maplab_test_data
+	url = https://github.com/ethz-asl/maplab_test_data.git
+[submodule "tools/linter"]
+	path = tools/linter
+	url = https://github.com/ethz-asl/linter.git
+[submodule "aslam_cv2"]
+	path = aslam_cv2
+	url = https://github.com/ethz-asl/aslam_cv2.git
