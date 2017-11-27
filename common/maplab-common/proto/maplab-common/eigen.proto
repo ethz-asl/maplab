@@ -1,0 +1,26 @@
+package common.proto;
+
+// column-major representation of Eigen objects
+// use only for fully dynamic matrices! Otherwise, use repeated double.
+// You can also use SemiStaticMatrix below if you need a self-contained message,
+// but don't use for message members.
+// See eigen-proto.h
+message MatrixXf {
+  optional uint32 rows = 1;
+  optional uint32 cols = 2;
+  repeated float data = 3;
+}
+
+message MatrixXd {
+  optional uint32 rows = 1;
+  optional uint32 cols = 2;
+  repeated double data = 3;
+}
+
+message SemiStaticMatrixd {
+  repeated double data = 1;
+}
+
+message SemiStaticMatrixf {
+  repeated float data = 1;
+}

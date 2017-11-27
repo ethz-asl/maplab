@@ -1,0 +1,10 @@
+package metadata.proto;
+
+message MetaData {
+  optional string map_folder = 1;
+  optional string map_description = 2;
+
+  optional int32 resource_folder_in_use = 3;
+  optional string map_resource_folder = 4;
+  repeated string external_resource_folders = 5;
+}

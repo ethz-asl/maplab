@@ -1,0 +1,38 @@
+package matching_based_loopclosure.proto;
+import "maplab-common/id.proto";
+import "inverted-multi-index/inverted_multi_index.proto";
+import "descriptor-projection/projected_image.proto";
+
+message MatchingBasedLoopDetector {
+  message DescriptorIndexToKeypoint {
+    optional int32 descriptor_index = 1;
+    optional common.proto.Id vertex_id = 2;
+    optional uint32 frame_index = 3;
+    optional uint32 keypoint_index = 4;
+  }
+  repeated DescriptorIndexToKeypoint descriptor_index_to_keypoint = 1;
+
+  message DatabaseEntry {
+    optional common.proto.Id vertex_id = 1;
+    optional uint32 frame_index = 2;
+    optional loop_closure.proto.ProjectedImage projected_image = 3;
+  }
+  repeated DatabaseEntry database_entries = 2;
+
+  optional int32 descriptor_index = 3;
+
+  message InvertedMultiIndexInterface {
+    optional loop_closure.proto.InvertedMultiIndex inverted_multi_index = 1;
+  }
+  optional InvertedMultiIndexInterface inverted_multi_index_interface = 4;
+
+  message KeyframeIdToNumDescriptors {
+    message KeyframeId {
+      optional common.proto.Id vertex_id = 1;
+      optional uint32 frame_index = 2;
+    }
+    optional KeyframeId keyframe_id = 1;
+    optional uint32 num_descriptors = 3;
+  }
+  repeated KeyframeIdToNumDescriptors keyframe_id_to_num_descriptors = 5;
+}

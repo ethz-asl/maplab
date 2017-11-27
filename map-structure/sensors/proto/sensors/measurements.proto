@@ -1,0 +1,21 @@
+package measurements.proto;
+
+import "maplab-common/id.proto";
+
+message Measurement {
+  optional int64 timestamp_nanoseconds = 1;
+  optional common.proto.Id sensor_id = 2;
+}
+
+message GpsWgsMeasurement {
+  optional Measurement measurement_base = 1;
+  optional double latitude_deg = 2;
+  optional double longitude_deg = 3;
+  optional double altitude_meters = 4;
+}
+
+message GpsUtmMeasurement {
+  optional Measurement measurement_base = 1;
+  repeated double t_utm_s = 2;
+  optional string utm_zone = 3;
+}

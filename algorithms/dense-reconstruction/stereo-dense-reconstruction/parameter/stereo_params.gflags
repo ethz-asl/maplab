@@ -1,0 +1,55 @@
+# General options
+--v=1
+--overwrite=true
+
+# Debugging / tuning options
+--dense_stereo_debug_reconstruction_start_fraction_of_trajectory=0.0
+--dense_stereo_debug_reconstruction_end_fraction_of_trajectory=1.0
+--dense_stereo_images_and_result_in_ocv_windows=true
+
+# General dense reconstruction options
+--dense_result_mesh_output_file=output_mesh.ply
+--dense_depth_resource_output_type=17
+--dense_depth_resource_input_type=17
+--dense_use_distorted_camera=false
+--dense_image_export_path=tmp_image_export
+
+# Stereo options
+--dense_stereo_adapt_params_to_image_size=true
+--dense_stereo_use_sgbm=true
+--dense_stereo_downscaling_factor=1.0
+
+# SGBM options
+--dense_stereo_sgbm_min_disparity=0
+--dense_stereo_sgbm_num_disparities=128
+--dense_stereo_sgbm_sad_window_size=3
+--dense_stereo_sgbm_p1=72
+--dense_stereo_sgbm_p2=288
+--dense_stereo_sgbm_disp12_max_diff=1
+--dense_stereo_sgbm_pre_filter_cap=31
+--dense_stereo_sgbm_uniqueness_ratio=10
+--dense_stereo_sgbm_speckle_window_size=500
+--dense_stereo_sgbm_speckle_range=3
+--dense_stereo_sgbm_mode=0
+
+# BM options
+--dense_stereo_bm_pre_filter_size=9
+--dense_stereo_bm_pre_filter_cap=31
+--dense_stereo_bm_prefilter_type
+--dense_stereo_bm_texture_threshold=10
+--dense_stereo_bm_uniqueness_ratio=15
+--dense_stereo_bm_sad_window_size=9
+--dense_stereo_bm_min_disparity=0
+--dense_stereo_bm_num_disparities=128
+--dense_stereo_bm_speckle_window_size=500
+--dense_stereo_bm_speckle_range=3
+--dense_stereo_bm_disp12_max_diff=1
+
+# Voxblox TSDF params
+--dense_tsdf_voxel_size_m=0.1
+--dense_tsdf_voxels_per_side=16
+--dense_tsdf_carving_enabled=true
+--dense_tsdf_use_clearing_rays=true
+--dense_tsdf_truncation_distance_m=0.3
+--dense_tsdf_min_ray_length_m=0.05
+--dense_tsdf_max_ray_length_m=7

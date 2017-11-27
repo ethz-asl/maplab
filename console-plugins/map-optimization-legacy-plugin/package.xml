@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>map_optimization_legacy_plugin</name>
+  <version>0.0.0</version>
+  <description>
+    Vi map optimization plugin using the algorithms from the 
+    map_optimization_legacy package. 
+    
+    WARNING: Only use this package if you know what you are doing. Otherwise
+             prefer the map_optimization_plugin.
+  </description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>ceres_catkin</depend>
+  <depend>ceres_error_terms</depend>
+  <depend>console_common</depend>
+  <depend>glog_catkin</depend>
+  <depend>map_manager</depend>
+  <depend>map_optimization_legacy</depend>
+  <depend>maplab_common</depend>
+  <depend>maplab_test_data</depend>
+  <depend>vi_map</depend>
+  <depend>vi_mapping_test_app</depend>
+  <depend>visualization</depend>
+</package>

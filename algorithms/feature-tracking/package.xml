@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>feature_tracking</name>
+  <version>0.0.0</version>
+  <description>Code to run feature tracking on vi maps.</description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>aslam_cv_cameras</depend>
+  <depend>aslam_cv_common</depend>
+  <depend>aslam_cv_frames</depend>
+  <depend>aslam_cv_geometric_vision</depend>
+  <depend>aslam_cv_matcher</depend>
+  <depend>aslam_cv_pipeline</depend>
+  <depend>aslam_cv_tracker</depend>
+  <depend>aslam_cv_triangulation</depend>
+  <depend>aslam_cv_visualization</depend>
+  <depend>eigen_catkin</depend>
+  <depend>gflags_catkin</depend>
+  <depend>glog_catkin</depend>
+  <depend>minkindr</depend>
+  <depend>maplab_common</depend>
+  <depend>posegraph</depend>
+  <depend>vi_map</depend>
+  <depend>visualization</depend>
+  <depend>yaml_cpp_catkin</depend>
+</package>

@@ -1,0 +1,14 @@
+package summary_map.proto;
+import "maplab-common/eigen.proto";
+
+message UncompressedLocalizationSummaryMap {
+  optional common.proto.MatrixXf descriptors = 1;
+  repeated float G_observer_position = 2;
+  repeated uint32 observer_indices = 3;
+  repeated uint32 observation_to_landmark_index = 4;
+}
+
+message LocalizationSummaryMap {
+  repeated float G_landmark_position = 1;
+  optional UncompressedLocalizationSummaryMap uncompressed_map = 2;
+}

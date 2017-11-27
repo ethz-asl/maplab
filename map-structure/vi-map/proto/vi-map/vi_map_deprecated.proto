@@ -1,0 +1,121 @@
+package vi_map_deprecated.proto;
+
+import "aslam-serialization/camera.proto";
+import "maplab-common/id.proto";
+import "vi-map/optional_camera_resources.proto";
+import "vi-map/vi_map.proto";
+
+message ImuSigmas {
+  optional double gyro_noise = 1;
+  optional double gyro_bias = 2;
+  optional double acc_noise = 3;
+  optional double acc_bias = 4;
+}
+
+message Mission {
+  optional common.proto.Id baseframe_id = 1;
+  optional common.proto.Id root_vertex_id = 2;
+  optional aslam.proto.NCamera n_camera = 3;
+
+  // Warning: These fields are deprecated and are only kept for compatibility
+  // with older maps. Use field imu_sigmas instead.
+  optional double gyro_noise_sigma = 4;
+  optional double gyro_bias_sigma = 5;
+  optional double acc_noise_sigma = 6;
+  optional double acc_bias_sigma = 7;
+
+  enum BackBone {
+    kViwls = 0;
+    kOdometry = 1;
+  }
+  optional BackBone backbone = 8 [default = kViwls];
+
+  repeated common.proto.Id mission_resource_ids = 9;
+  repeated int32 mission_resource_types = 10;
+
+  optional ImuSigmas imu_sigmas = 11;
+
+  repeated opt_cam_res.proto.OptionalCameraResources optional_camera_resources =
+      12;
+  repeated opt_cam_res.proto.CamerasWithExtrinsics
+      optional_cameras_with_extrinsics = 13;
+}
+
+message OptionalSensorExtrinsics {
+  optional common.proto.Id id = 1;
+  repeated double T_S_I = 2;
+  repeated double T_S_I_covariance = 3;
+  optional uint32 sensor_type = 4;
+}
+
+message GPSMeasurementWGS {
+  optional int64 timestamp_nanoseconds = 1;
+  optional double latitude_deg = 2;
+  optional double longitude_deg = 3;
+  optional double altitude_meters = 4;
+  optional common.proto.Id sensor_id = 5;
+}
+
+message GPSMeasurementUTM {
+  optional int64 timestamp_nanoseconds = 1;
+  repeated double t_r_s = 2;
+  optional common.proto.Id sensor_id = 3;
+}
+
+message MissionIdWithGPSWGSData {
+  optional common.proto.Id mission_id = 1;
+  repeated GPSMeasurementWGS wgs_measurements = 2;
+}
+
+message MissionIdWithGPSUTMData {
+  optional common.proto.Id mission_id = 1;
+  repeated GPSMeasurementUTM utm_measurements = 2;
+}
+
+message GPSDataStorage {
+  repeated MissionIdWithGPSWGSData mission_ids_with_gps_wgs_data = 1;
+  repeated MissionIdWithGPSUTMData mission_ids_with_gps_utm_data = 2;
+}
+
+message TransformationEdge {
+  optional common.proto.Id from = 1;
+  optional common.proto.Id to = 2;
+  optional common.proto.Id mission_id = 3;
+  repeated double T_A_B = 4;
+  repeated double T_A_B_covariance = 5;
+  optional common.proto.Id optional_sensor_extrinsics_id = 6;
+}
+
+message Edge {
+  optional vi_map.proto.ViwlsEdge viwls = 1;
+  optional TransformationEdge odometry = 2;
+  optional vi_map.proto.LoopclosureEdge loopclosure = 3;
+  optional vi_map.proto.TransformationEdge transformation = 4;
+  optional vi_map.proto.LaserEdge laser = 5;
+  optional vi_map.proto.TrajectoryEdge trajectory = 6;
+}
+
+message VIMap {
+  repeated common.proto.Id vertex_ids = 1;
+  repeated vi_map.proto.ViwlsVertex vertices = 2;
+
+  repeated common.proto.Id edge_ids = 3;
+  repeated vi_map.proto.Edge edges = 4;
+
+  repeated common.proto.Id mission_ids = 5;
+  repeated Mission missions = 6;
+
+  repeated common.proto.Id mission_base_frame_ids = 7;
+  repeated vi_map.proto.MissionBaseframe mission_base_frames = 8;
+
+  repeated common.proto.Id landmark_index_ids = 9;
+  repeated vi_map.proto.LandmarkToVertexReference landmark_index = 10;
+
+  // Fields 11-14 are reserved for backwards compatibility with maps from
+  // multiagent_mapping. These fields contained the vertex and edge merge maps,
+  // which are no longer in use.
+
+  repeated OptionalSensorExtrinsics optional_sensors_extrinsics = 15;
+
+  optional GPSDataStorage gps_data_storage = 16;
+}

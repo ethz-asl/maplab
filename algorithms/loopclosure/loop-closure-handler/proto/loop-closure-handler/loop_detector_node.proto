@@ -1,0 +1,9 @@
+package loop_detector_node.proto;
+import "maplab-common/id.proto";
+import "matching-based-loopclosure/matching_based_loop_detector.proto";
+
+message LoopDetectorNode {
+  optional matching_based_loopclosure.proto.MatchingBasedLoopDetector
+      matching_based_loop_detector = 1;
+  repeated common.proto.Id mission_ids = 2;
+}

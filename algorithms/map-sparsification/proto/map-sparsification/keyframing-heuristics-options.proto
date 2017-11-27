@@ -1,0 +1,8 @@
+package map_sparsification.proto;
+
+message KeyframingHeuristicsOptions {
+  optional double kf_distance_threshold_m = 1;
+  optional double kf_rotation_threshold_deg = 2;
+  optional uint64 kf_every_nth_vertex = 3;
+  optional uint64 kf_min_shared_landmarks_obs = 4;
+}

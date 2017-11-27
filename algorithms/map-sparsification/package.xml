@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package format="2">
+  <name>map_sparsification</name>
+  <version>0.0.0</version>
+  <description>Map sparsification.</description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>aslam_cv_common</depend>
+  <depend>eigen_catkin</depend>
+  <depend>gflags_catkin</depend>
+  <depend>glog_catkin</depend>
+  <depend>lpsolve_catkin</depend>
+  <depend>maplab_common</depend>
+  <depend>protobuf_catkin</depend>
+  <depend>vi_map</depend>
+  <depend>vi_map_helpers</depend>
+  <depend>vi_mapping_test_app</depend>
+  <depend>visualization</depend>
+</package>

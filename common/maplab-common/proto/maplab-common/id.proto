@@ -1,0 +1,5 @@
+package common.proto;
+
+message Id {
+  repeated uint64 uint = 1;
+}

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package format="2">
+  <name>rovioli</name>
+  <version>0.0.0</version>
+  <description>
+    ROVIO with Localization Integrated (ROVIO-LI): Integration of ROVIO into
+    Maplab to extend it with localization and mapping capabilities.
+  </description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin_simple</buildtool_depend>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>aslam_cv_pipeline</depend>
+  <depend>cv_bridge</depend>
+  <depend>end_to_end_common</depend>
+  <depend>feature_tracking</depend>
+  <depend>gflags_catkin</depend>
+  <depend>glog_catkin</depend>
+  <depend>localization_summary_map</depend>
+  <depend>loop_closure_handler</depend>
+  <depend>maplab_common</depend>
+  <depend>mapping_workflows_plugin</depend>
+  <depend>message_flow</depend>
+  <depend>online_map_builders</depend>
+  <depend>rovio</depend>
+  <depend>sensors</depend>
+  <depend>vi_map</depend>
+  <depend>vi_mapping_test_app</depend>
+  <depend>vio_common</depend>
+  <depend>visualization</depend>
+</package>

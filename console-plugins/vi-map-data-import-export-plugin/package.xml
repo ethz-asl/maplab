@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>vi_map_data_import_export_plugin</name>
+  <version>0.0.0</version>
+  <description>
+    Plugin to import or export data to/from the VIMap such as the trajectory,
+    or sensor extrinsics.
+  </description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>console_common</depend>
+  <depend>csv_export</depend>
+  <depend>glog_catkin</depend>
+  <depend>map_manager</depend>
+  <depend>maplab_common</depend>
+  <depend>rosbag</depend>
+  <depend>roscpp</depend>
+  <depend>vi_map</depend>
+</package>

@@ -1,0 +1,17 @@
+package opt_cam_res.proto;
+
+import "aslam-serialization/camera.proto";
+import "maplab-common/id.proto";
+
+message OptionalCameraResources {
+  optional common.proto.Id camera_id = 1;
+  optional int64 timestamp_ns = 2;
+  optional common.proto.Id resource_id = 3;
+  optional int32 resource_type = 4;
+}
+
+message CamerasWithExtrinsics {
+  optional common.proto.Id camera_id = 1;
+  repeated double T_C_B = 2;
+  optional aslam.proto.Camera camera = 3;
+}

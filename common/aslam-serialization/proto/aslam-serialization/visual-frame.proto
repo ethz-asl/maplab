@@ -1,0 +1,22 @@
+package aslam.proto;
+
+import "maplab-common/id.proto";
+
+message VisualFrame {
+  optional common.proto.Id id = 1;
+  optional int64 timestamp = 2;
+
+  repeated double keypoint_measurements = 3;
+  repeated double keypoint_measurement_sigmas = 4;
+  optional bytes keypoint_descriptors = 5;
+  optional uint32 keypoint_descriptor_size = 6;
+  repeated common.proto.Id landmark_ids = 7;
+  repeated double descriptor_scales = 8;
+  optional bool is_valid = 9;
+  repeated int32 track_ids = 10;
+}
+
+message VisualNFrame {
+  optional common.proto.Id id = 1;
+  repeated VisualFrame frames = 2;
+}

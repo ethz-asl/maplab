@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>stereo_dense_reconstruction</name>
+  <version>0.0.0</version>
+  <description>A stereo dense reconstruction package based on
+               https://github.com/ethz-asl/image_undistort by
+               Zachary Taylor (ztaylor (at) ethz.ch). Adapted to work on the
+               map structure of maplab and with the camera information of
+               aslam_cv.</description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>aslam_cv_cameras</depend>
+  <depend>aslam_cv_common</depend>
+  <depend>aslam_cv_frames</depend>
+  <depend>dense_reconstruction_common</depend>
+  <depend>eigen_catkin</depend>
+  <depend>gflags_catkin</depend>
+  <depend>glog_catkin</depend>
+  <depend>map_resources</depend>
+  <depend>maplab_common</depend>
+  <depend>opencv3_catkin</depend>
+  <depend>posegraph</depend>
+  <depend>vi_map</depend>
+</package>

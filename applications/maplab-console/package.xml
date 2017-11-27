@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package format="2">
+  <name>maplab_console</name>
+  <version>0.0.0</version>
+  <description>The maplab conosole package</description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin_simple</buildtool_depend>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>console_common</depend>
+  <depend>gflags_catkin</depend>
+  <depend>visualization</depend>
+</package>

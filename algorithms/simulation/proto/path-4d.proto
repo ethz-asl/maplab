@@ -1,0 +1,33 @@
+package mav_planning_utils.proto;
+
+message Segment {
+  repeated double polynomial_coefficients = 1;
+  optional double time_seconds = 2;
+}
+
+message SegmentVector {
+  repeated Segment segments = 1;
+}
+
+message Constraint {
+  optional int64 derivative = 1;
+  repeated double constraint_value = 2;
+}
+
+message Vertex4D {
+  optional double time_to_next = 1;
+  optional int64 derivative_to_optimize = 2;
+  repeated Constraint constraints = 3;
+}
+
+message Vertex4DList {
+  repeated Vertex4D vertices = 1;
+}
+
+message Path4D {
+  optional SegmentVector segments_x = 1;
+  optional SegmentVector segments_y = 2;
+  optional SegmentVector segments_z = 3;
+  optional SegmentVector segments_yaw = 4;
+  optional Vertex4DList vertices = 5;
+}

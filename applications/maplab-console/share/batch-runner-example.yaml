@@ -1,0 +1,18 @@
+vi_map_folder_paths:
+ - maps/map_1
+ - maps/map_2
+commands:
+ - load -vi_map_default_folder=<CURRENT_VIMAP_FOLDER>
+ - rtl
+ - optvi --ba_num_iterations=5 -ba_visualize_every_n_iterations=100
+ - rtl
+ - lc
+ - optvi --ba_num_iterations=5 -ba_visualize_every_n_iterations=100
+ - rtl
+ - lc
+ - optvi --ba_num_iterations=5 -ba_visualize_every_n_iterations=100
+ - rtl
+ - lc
+ - optvi --ba_num_iterations=30 -ba_visualize_every_n_iterations=100
+ - evaluate_landmark_quality
+ - save --overwrite

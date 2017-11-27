@@ -1,0 +1,14 @@
+package vio.proto;
+
+import "vio-common/vio_types.proto";
+
+message VioUpdate {
+  optional int64 timestamp_ns = 1;
+  optional int32 vio_state = 2;        // enum EstimatorState
+  optional int32 vio_update_type = 3;  // enum UpdateType
+  optional SynchronizedNFrameImu keyframe_and_imudata = 4;
+  optional ViNodeState vinode = 5;
+
+  optional int32 localization_state = 6;  // enum LocalizationState
+  repeated double T_G_M = 7;
+}

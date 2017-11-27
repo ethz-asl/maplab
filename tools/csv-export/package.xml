@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>csv_export</name>
+  <version>0.0.0</version>
+  <description>CSV export of the VI Map.</description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>descriptor_projection</depend>
+  <depend>eigen_catkin</depend>
+  <depend>gflags_catkin</depend>
+  <depend>glog_catkin</depend>
+  <depend>maplab_common</depend>
+  <depend>vi_map</depend>
+</package>

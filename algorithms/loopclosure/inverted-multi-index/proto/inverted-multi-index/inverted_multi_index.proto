@@ -1,0 +1,19 @@
+package loop_closure.proto;
+import "maplab-common/eigen.proto";
+
+message InvertedFile {
+  optional common.proto.MatrixXf descriptors = 1;
+  repeated int32 indices = 2;
+}
+
+message InvertedMultiIndex {
+  repeated InvertedFile inverted_files = 1;
+  optional int32 max_db_descriptor_index = 2;
+
+  message WordIndexMapEntry {
+    optional int32 visual_word_index = 1;
+    optional int32 inverted_file_index = 2;
+  }
+
+  repeated WordIndexMapEntry word_index_map = 3;
+}

@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>pmvs_interface</name>
+  <version>0.0.0</version>
+  <description>This package contains methods to:
+                 * export the maplab mapping data to a SFM file format
+                   that can be parsed by PMVS.
+                 * import PMVS reconstruction results and insert it into
+                  Voxblox for fusion and surface reconstruction.
+  </description>
+
+  <maintainer email="marius.b.fehr@gmail.com">mfehr</maintainer>
+
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>aslam_cv_cameras</depend>
+  <depend>aslam_cv_common</depend>
+  <depend>aslam_cv_frames</depend>
+  <depend>aslam_cv_pipeline</depend>
+  <depend>eigen_catkin</depend>
+  <depend>gflags_catkin</depend>
+  <depend>glog_catkin</depend>
+  <depend>landmark_triangulation</depend>
+  <depend>maplab_common</depend>
+  <depend>posegraph</depend>
+  <depend>vi_map</depend>
+  <depend>visualization</depend>
+  <depend>voxblox_interface</depend>
+</package>

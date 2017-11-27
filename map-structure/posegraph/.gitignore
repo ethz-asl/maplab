@@ -1,0 +1,29 @@
+*.pyc
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+build
+CMakeCache.txt
+msg_gen
+bin
+lib
+*~
+*cfg/cpp/*
+.project
+.cproject
+.settings
+doc
+*.cfgc
+/test.graph

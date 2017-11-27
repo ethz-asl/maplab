@@ -1,0 +1,17 @@
+package loop_closure.proto;
+import "maplab-common/eigen.proto";
+import "maplab-common/id.proto";
+
+message ProjectedImage {
+  optional int64 timestamp_nanoseconds = 1;
+  optional common.proto.Id vertex_id = 2;
+  optional uint32 frame_index = 3;
+  optional common.proto.Id dataset_id = 4;
+  optional common.proto.MatrixXf projected_descriptors = 5;
+  repeated double measurements = 6;
+  repeated common.proto.Id landmarks = 7;
+}
+
+message ProjectedImages {
+  repeated ProjectedImage projected_images = 1;
+}

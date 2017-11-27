@@ -1,0 +1,181 @@
+package vi_map.proto;
+
+import "aslam-serialization/visual-frame.proto";
+import "maplab-common/id.proto";
+import "sensors/measurements.proto";
+import "vi-map/optional_camera_resources.proto";
+
+message ViwlsVertex {
+  repeated common.proto.Id incoming = 1;
+  repeated common.proto.Id outgoing = 2;
+
+  repeated double T_M_I = 3;
+  repeated double v_M = 4;
+  repeated double accel_bias = 5;
+  repeated double gyro_bias = 6;
+
+  optional aslam.proto.VisualNFrame n_visual_frame = 7;
+  optional LandmarkStore landmark_store = 8;
+  repeated FrameResourceMap resource_map = 9;
+  optional common.proto.Id mission_id = 14;
+}
+
+message ViwlsEdge {
+  optional common.proto.Id from = 1;
+  optional common.proto.Id to = 2;
+  repeated int64 imu_timestamps = 3;
+  repeated double imu_data = 4;
+  optional common.proto.Id mission_id = 5;
+}
+
+message TransformationEdge {
+  optional common.proto.Id from = 1;
+  optional common.proto.Id to = 2;
+  optional common.proto.Id mission_id = 3;
+  repeated double T_A_B = 4;
+  repeated double T_A_B_covariance = 5;
+  optional common.proto.Id sensor_id = 6;
+}
+
+message CklamEdge {
+  optional common.proto.Id from = 1;
+  optional common.proto.Id to = 2;
+  optional common.proto.Id mission_id = 3;
+  repeated double b = 4;
+  repeated double A = 5;
+  repeated double keyframe_T_G_B_from = 6;
+  repeated double keyframe_T_G_B_to = 7;
+}
+
+message LoopclosureEdge {
+  optional common.proto.Id from = 1;
+  optional common.proto.Id to = 2;
+  optional common.proto.Id mission_id = 3;
+  repeated double T_A_B = 4;
+  repeated double T_A_B_covariance = 5;
+  optional double switch_variable = 6;
+  optional double switch_variable_variance = 7;
+}
+
+message LaserEdge {
+  optional common.proto.Id from = 1;
+  optional common.proto.Id to = 2;
+  repeated int64 laser_timestamps_ns = 3;
+  repeated double laser_data_xyzi = 4;
+  optional common.proto.Id mission_id = 5;
+}
+
+message TrajectoryEdge {
+  optional common.proto.Id from = 1;
+  optional common.proto.Id to = 2;
+  repeated int64 trajectory_timestamps_ns = 3;
+  repeated double trajectory_G_T_I_pq = 4;
+  optional common.proto.Id mission_id = 5;
+  optional uint32 trajectory_identifier = 6;
+}
+
+message Edge {
+  optional ViwlsEdge viwls = 1;
+  optional TransformationEdge odometry = 2;
+  optional LoopclosureEdge loopclosure = 3;
+  optional TransformationEdge transformation = 4;
+  optional LaserEdge laser = 5;
+  optional TrajectoryEdge trajectory = 6;
+}
+
+message Landmark {
+  optional common.proto.Id id = 1;
+  repeated double position = 2;
+  repeated double covariance = 3;
+  repeated common.proto.Id vertex_ids = 4;
+  repeated uint32 keypoint_indices = 5;
+  repeated uint32 frame_indices = 6;
+  enum Quality {
+    kUnknown = 0;
+    kBad = 1;
+    kGood = 2;
+  }
+  optional Quality quality = 7 [default = kUnknown];
+
+  repeated int32 appearances = 8;
+}
+
+message LandmarkStore {
+  repeated Landmark landmarks = 1;
+}
+
+message OptionalSensorData {
+  repeated measurements.proto.GpsUtmMeasurement gps_utm_measurements = 1;
+  repeated measurements.proto.GpsWgsMeasurement gps_wgs_measurements = 2;
+}
+
+message OptionalSensorDataMissionPair {
+  optional common.proto.Id mission_id = 1;
+  optional OptionalSensorData optional_sensor_data = 2;
+}
+
+message Mission {
+  optional common.proto.Id baseframe_id = 1;
+  optional common.proto.Id root_vertex_id = 2;
+
+  enum BackBone {
+    kViwls = 0;
+    kOdometry = 1;
+  }
+  optional BackBone backbone = 3 [default = kViwls];
+
+  repeated common.proto.Id mission_resource_ids = 4;
+  repeated int32 mission_resource_types = 5;
+
+  repeated opt_cam_res.proto.OptionalCameraResources optional_camera_resources =
+      6;
+  repeated opt_cam_res.proto.CamerasWithExtrinsics
+      optional_cameras_with_extrinsics = 7;
+}
+
+message MissionBaseframe {
+  repeated double T_G_M = 1;
+  repeated double T_G_M_covariance = 2;
+  optional bool is_T_G_M_known = 3;
+}
+
+message ResourceInfo {
+  optional uint32 type = 1;
+  optional uint32 uri_format = 2;
+  optional string uri = 3;
+  optional common.proto.Id mission_id = 4;
+}
+
+message FrameResourceMap {
+  repeated ResourceTypeMap resource_type_map = 1;
+}
+
+message ResourceTypeMap {
+  optional uint32 type = 1;
+  repeated common.proto.Id resource_ids = 2;
+}
+
+message LandmarkToVertexReference {
+  optional common.proto.Id vertex_id = 1;
+  optional common.proto.Id landmark_id = 2;
+}
+
+message VIMap {
+  repeated common.proto.Id vertex_ids = 1;
+  repeated ViwlsVertex vertices = 2;
+
+  repeated common.proto.Id edge_ids = 3;
+  repeated Edge edges = 4;
+
+  repeated common.proto.Id mission_ids = 5;
+  repeated Mission missions = 6;
+
+  repeated common.proto.Id mission_base_frame_ids = 7;
+  repeated MissionBaseframe mission_base_frames = 8;
+
+  repeated common.proto.Id landmark_index_ids = 9;
+  repeated LandmarkToVertexReference landmark_index = 10;
+
+  repeated OptionalSensorDataMissionPair optional_sensor_data_mission_id_pair =
+      11;
+}

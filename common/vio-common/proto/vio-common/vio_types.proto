@@ -1,0 +1,17 @@
+package vio.proto;
+
+import "aslam-serialization/visual-frame.proto";
+
+message SynchronizedNFrameImu {
+  repeated int64 imu_timestamps = 1;
+  repeated double imu_measurements = 2;
+  optional aslam.proto.VisualNFrame nframe = 3;
+  optional int32 motion_wrt_last_nframe = 4;  // enum MotionType
+}
+
+message ViNodeState {
+  repeated double T_W_B = 1;
+  repeated double W_v_B = 2;
+  repeated double acc_bias = 3;
+  repeated double gyro_bias = 4;
+}

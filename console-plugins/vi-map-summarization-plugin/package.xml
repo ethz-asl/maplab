@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>vi_map_summarization_plugin</name>
+  <version>0.0.0</version>
+  <description>The vi_map_summarization_plugin package</description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>console_common</depend>
+  <depend>glog_catkin</depend>
+  <depend>localization_summary_map</depend>
+  <depend>map_manager</depend>
+  <depend>maplab_common</depend>
+  <depend>vi_map</depend>
+</package>

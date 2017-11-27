@@ -1,0 +1,9 @@
+function interpolated_imu = interpolate_imu(imu_readings_begin, ...
+    imu_readings_end, delta_time_seconds, increment_step_size_seconds)
+
+
+interpolated_imu = imu_readings_begin ...
+    + (imu_readings_end - imu_readings_begin) ...
+    * (increment_step_size_seconds / delta_time_seconds);
+
+end
