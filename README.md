@@ -9,7 +9,7 @@ On  the  one  hand, maplab  can  be  considered  as  a  ready-to-use  visual-ine
 On  the  other  hand,  maplab provides  the  research  community  with  a  collection  of  multi-session mapping tools that include map merging, visual-inertial batch optimization, and loop closure.
 Furthermore, it includes an online frontend, **ROVIOLI**, that can create visual-inertial maps and also track a global drift-free pose within a localization map.
 
-For documentation, tutorials and datasets, please visit the [wiki](https://github.com/ethz-asl/maplab_public/wiki).
+For documentation, tutorials and datasets, please visit the [wiki](https://github.com/ethz-asl/maplab/wiki).
 
 Please cite the following paper when using maplab for your research:
 
