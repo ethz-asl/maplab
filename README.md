@@ -1,4 +1,5 @@
-# Welcome to maplab [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly/)
+# Welcome to maplab
+(*Ubuntu 14.04+ROS indigo* and *Ubuntu 16.04+ROS kinetic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly))
 
 Maplab                     |  Rovioli
 :-------------------------:|:-------------------------:
@@ -51,7 +52,6 @@ The following articles help you with getting started with maplab and ROVIOLI:
 - [Console map management](https://github.com/ethz-asl/maplab/wiki/Console-map-management)
 
 More detailed information can be found in the [wiki pages](https://github.com/ethz-asl/maplab/wiki).
-
 
 ## Research Results
 
