@@ -10,12 +10,13 @@ On  the  other  hand,  maplab provides  the  research  community  with  a  colle
 Furthermore, it includes an online frontend, **ROVIOLI**, that can create visual-inertial maps and also track a global drift-free pose within a localization map.
 
 For documentation, tutorials and datasets, please visit the [wiki](https://github.com/ethz-asl/maplab/wiki).
+You can also check out an overview [video](https://youtu.be/9Ta7w_cs1lU).
 
 ## Features
 
 ### Robust visual-inertial odometry with localization
 
-### Large-scale map merging and refinement
+### Large-scale multisession mapping and optimization
 <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/cla.png" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/largescale.gif" width="400">
 
 ### Dense reconstruction
@@ -39,9 +40,7 @@ More detailed information can be found in the [wiki pages](https://github.com/et
 
 ## Research Results
 
-The maplab framework has been used as an experimental platform for numerous scientific publications. For a complete list of publications please refer to:
-
-[Research based on maplab](https://github.com/ethz-asl/maplab/wiki/Related-Research)
+The maplab framework has been used as an experimental platform for numerous scientific publications. For a complete list of publications please refer to [Research based on maplab](https://github.com/ethz-asl/maplab/wiki/Related-Research).
 
 ## Citing
 
