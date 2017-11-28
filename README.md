@@ -7,22 +7,22 @@ This repository contains **maplab**,  an  open,  research-oriented visual-inerti
 On  the  one  hand, maplab  can  be  considered  as  a  ready-to-use  visual-inertial mapping  and  localization  system.
 On  the  other  hand,  maplab provides  the  research  community  with  a  collection  of  multi-session mapping tools that include map merging, visual-inertial batch optimization, and loop closure.
 
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/rovioli.png" width="200">
-
 Furthermore, it includes an online frontend, **ROVIOLI**, that can create visual-inertial maps and also track a global drift-free pose within a localization map.
 
 For documentation, tutorials and datasets, please visit the [wiki](https://github.com/ethz-asl/maplab/wiki).
 
-Please cite the [following paper](https://www.researchgate.net/publication/321332545_maplab_An_Open_Framework_for_Research_in_Visual-inertial_Mapping_and_Localization) when using maplab for your research:
+## Features
 
-```bibtex
-@article{schneider2018maplab,
-  title={maplab: An Open Framework for Research in Visual-inertial Mapping and Localization},
-  author={Schneider, Thomas and Dymczyk, Marcin and Fehr, Marius and Egger, Kevin and
-          Lynen, Simon and Gilitschenski, Igor and Siegwart, Roland}
-  year={2018}
-}
-```
+### Robust visual-inertial odometry with localization
+
+### Large-scale map merging and refinement
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/cla.png" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/largescale.gif" width="400">
+
+### Dense reconstruction
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/stereo.png" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/pmvs.png" width="400">
+
+### A research platform extensively tested on real robots
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/topomap.png" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/robots.jpg" width="400">
 
 ## Installation and getting started
 
@@ -37,36 +37,26 @@ The following articles help you with getting started with maplab and ROVIOLI:
 
 More detailed information can be found in the [wiki pages](https://github.com/ethz-asl/maplab/wiki).
 
-## Features
-
-### Robust visual-inertial estimation with localization
-
-### Consistent map merging and refinement
-![cla](https://github.com/ethz-asl/maplab/wiki/readme_images/cla.png)
-
-### Large-scale map processing
-![largescale](https://github.com/ethz-asl/maplab/wiki/readme_images/largescale.gif)
-
-### Dense reconstruction
-![stereo](https://github.com/ethz-asl/maplab/wiki/readme_images/stereo.png)
-
-### PMVS reconstruction
-![pmvs](https://github.com/ethz-asl/maplab/wiki/readme_images/pmvs.png)
-
-### Convenient research interfaces
-![topomap](https://github.com/ethz-asl/maplab/wiki/readme_images/topomap.png)
-
-### Extensively tested on real robots
-![robots](https://github.com/ethz-asl/maplab/wiki/readme_images/robots.jpg)
-
 ## Research Results
 
 The maplab framework has been used as an experimental platform for numerous scientific publications. For a complete list of publications please refer to:
 
 [Research based on maplab](https://github.com/ethz-asl/maplab/wiki/Related-Research)
 
+## Citing
 
-## Additional Citations
+Please cite the [following paper](https://www.researchgate.net/publication/321332545_maplab_An_Open_Framework_for_Research_in_Visual-inertial_Mapping_and_Localization) when using maplab for your research:
+
+```bibtex
+@article{schneider2018maplab,
+  title={maplab: An Open Framework for Research in Visual-inertial Mapping and Localization},
+  author={Schneider, Thomas and Dymczyk, Marcin and Fehr, Marius and Egger, Kevin and
+          Lynen, Simon and Gilitschenski, Igor and Siegwart, Roland}
+  year={2018}
+}
+```
+
+### Additional Citations
 
 Certain components of maplab are directly using the code of the following publications:
 
@@ -94,7 +84,6 @@ Certain components of maplab are directly using the code of the following public
     ```
 
 ## Credits
-### Authors
 
  * Thomas Schneider
  * Marcin Dymczyk
