@@ -17,7 +17,7 @@ You can also check out an overview [video](https://youtu.be/9Ta7w_cs1lU).
 <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/rovio_stairs.gif" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/rviz_cla_vs.gif" width="400">
 
 ### Large-scale multisession mapping and optimization
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/cla.png" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/largescale.gif" width="400">
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/largescale.gif" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/cla.png" width="400">
 
 ### Dense reconstruction
 <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/stereo.png" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/pmvs.png" width="400">
