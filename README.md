@@ -1,4 +1,4 @@
-# Welcome to maplab
+# Welcome to maplab [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly/)
 
 Maplab                     |  Rovioli
 :-------------------------:|:-------------------------:
