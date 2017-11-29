@@ -34,14 +34,12 @@ RovioliNode::RovioliNode(
   CHECK(maplab_imu_sensor);
   CHECK_NOTNULL(flow);
 
+  // TODO(schneith): At the moment we need to provide two noise sigmas; one for
+  // maplab and one for ROVIO. Unify this.
   datasource_flow_.reset(
       new DataSourceFlow(*camera_system, *maplab_imu_sensor));
   datasource_flow_->attachToMessageFlow(flow);
 
-  // TODO(schneith): At the moment we need to provide two noise sigmas; one for
-  // maplab and one for ROVIO. Unify this...
-  LOG(WARNING) << "TODO(schneith): Unify the noise configuration of MAPLAB &"
-               << "ROVIO";
   rovio_flow_.reset(new RovioFlow(*camera_system, rovio_imu_sigmas));
   rovio_flow_->attachToMessageFlow(flow);
 

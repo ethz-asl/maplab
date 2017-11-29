@@ -4,6 +4,12 @@ import os
 
 import numpy as np
 
+# Force matplotlib to not use any Xwindows backend. Needs to be imported before
+# any other matplotlib import (time_alignment and end_to_end_test import
+# matplotlib).
+import matplotlib
+matplotlib.use('Agg')
+
 import end_to_end_common.download_helpers
 import end_to_end_common.end_to_end_test
 from hand_eye_calibration import bash_utils
@@ -19,9 +25,9 @@ RUN_ESTIMATOR_VIO = True
 RUN_ESTIMATOR_VIL = True
 
 VIO_MAX_POSITION_RMSE_M = 0.2
-VIO_MAX_ORIENTATION_RMSE = 0.2
 VIL_MAX_POSITION_RMSE_M = 0.1
-VIL_MAX_ORIENTATION_RMSE = VIO_MAX_ORIENTATION_RMSE
+VIO_MAX_ORIENTATION_RMSE_RAD = 0.2
+VIL_MAX_ORIENTATION_RMSE_RAD = VIO_MAX_ORIENTATION_RMSE_RAD
 
 
 def test_rovioli_end_to_end():
@@ -38,11 +44,11 @@ def test_rovioli_end_to_end():
   vio_max_allowed_errors = \
       end_to_end_common.end_to_end_test.TestErrorStruct(
           VIO_MAX_POSITION_RMSE_M, VIO_MAX_POSITION_RMSE_M,
-          VIO_MAX_ORIENTATION_RMSE, VIO_MAX_ORIENTATION_RMSE)
+          VIO_MAX_ORIENTATION_RMSE_RAD, VIO_MAX_ORIENTATION_RMSE_RAD)
   vil_max_allowed_errors = \
       end_to_end_common.end_to_end_test.TestErrorStruct(
           VIL_MAX_POSITION_RMSE_M, VIL_MAX_POSITION_RMSE_M,
-          VIL_MAX_ORIENTATION_RMSE, VIL_MAX_ORIENTATION_RMSE)
+          VIL_MAX_ORIENTATION_RMSE_RAD, VIL_MAX_ORIENTATION_RMSE_RAD)
 
   # Run estimator VIO only mode.
   estimator_vio_csv_path = "rovioli_estimated_poses_vio.csv"
@@ -73,7 +79,8 @@ def test_rovioli_end_to_end():
   # Run estimator VIL mode.
   estimator_vil_csv_path = "rovioli_estimated_poses_vil.csv"
   localization_reference_map = "V1_01_easy_optimized_summary_map"
-  os.mkdir(localization_reference_map)
+  if not os.path.isdir(localization_reference_map):
+    os.mkdir(localization_reference_map)
   localization_reference_map_download_path = \
       "http://robotics.ethz.ch/~asl-datasets/maplab/test_data/end_to_end_tests/localization_summary_map"
   end_to_end_common.download_helpers.download_dataset(
@@ -105,8 +112,8 @@ def test_rovioli_end_to_end():
   # For the orientation, we don't want to enforce such a requirement as the
   # differences are usually smaller.
   vio_position_errors = end_to_end_common.end_to_end_test.TestErrorStruct(
-      vio_errors.position_mean, vio_errors.position_rmse,
-      VIO_MAX_ORIENTATION_RMSE, VIO_MAX_ORIENTATION_RMSE)
+      vio_errors.position_mean_m, vio_errors.position_rmse_m,
+      VIO_MAX_ORIENTATION_RMSE_RAD, VIO_MAX_ORIENTATION_RMSE_RAD)
 
   # Get localizations for VIL case.
   vil_localizations = np.genfromtxt(
@@ -122,13 +129,13 @@ def test_rovioli_end_to_end():
   # Get VIWLS errors.
   viwls_csv_path = "end_to_end_test/V1_01_easy_short_viwls_vertices.csv"
   vil_position_errors = end_to_end_common.end_to_end_test.TestErrorStruct(
-      vil_errors.position_mean, vil_errors.position_rmse,
-      VIL_MAX_ORIENTATION_RMSE, VIL_MAX_ORIENTATION_RMSE)
+      vil_errors.position_mean_m, vil_errors.position_rmse_m,
+      VIL_MAX_ORIENTATION_RMSE_RAD, VIL_MAX_ORIENTATION_RMSE_RAD)
   end_to_end_test.calulate_errors_of_datasets(
       "VIWLS",
       [vio_max_allowed_errors, vio_position_errors, vil_position_errors],
       viwls_csv_path, ground_truth_data_path,
-      estimator_csv_data_from_console=True)
+      estimator_input_format="maplab_console")
 
   end_to_end_test.print_errors()
   end_to_end_test.check_errors()

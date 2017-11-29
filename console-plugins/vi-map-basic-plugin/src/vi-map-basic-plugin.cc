@@ -22,6 +22,7 @@
 #include <vi-map/check-map-consistency.h>
 #include <vi-map/semantics-manager.h>
 #include <vi-map/vi-map.h>
+#include <visualization/sequential-plotter.h>
 #include <visualization/viwls-graph-plotter.h>
 
 DECLARE_string(map_key);
@@ -35,33 +36,29 @@ DEFINE_string(target_map_key, "", "Target map key for copy and move commands.");
 DEFINE_bool(
     copy_resources_to_map_folder, false,
     "Set this to true to migrate the resources to the map folder (by creating "
-    "a copy of "
-    "the resources) before saving the map. This flag will be reset after every "
-    "use.");
+    "a copy of the resources) before saving the map. This flag will be reset "
+    "after every use.");
 DEFINE_bool(
     move_resources_to_map_folder, false,
     "Set this to true to migrate the resources to the map folder (by moving "
-    "the resources) "
-    "before saving the map. This flag will be reset after every use.");
+    "the resources) before saving the map. This flag will be reset after every "
+    "use.");
 DEFINE_string(
     copy_resources_to_external_folder, "",
     "Set this to true to migrate the resources to an extneral folder (by "
-    "creating a copy "
-    "of the resources) before saving the map. This flag will be reset after "
-    "every use.");
+    "creating a copy of the resources) before saving the map. This flag will"
+    " be reset after every use.");
 DEFINE_string(
     move_resources_to_external_folder, "",
     "Set this to true to migrate the resources to an extneral folder (by "
-    "moving the "
-    "resources) before saving the map. This flag will be reset after every "
-    "use.");
+    "moving the resources) before saving the map. This flag will be reset "
+    "after every use.");
 DEFINE_string(
     resource_folder, "", "Specifies the resource folder for certain commands.");
 DEFINE_uint64(
     vertices_per_proto_file, 200u,
     "Determines the number of vertices that are stored in one proto file. "
-    "NOTE: If this "
-    "is set too large, the map can't be read anymore.");
+    "NOTE: If this is set too large, the map can't be read anymore.");
 DEFINE_string(
     maps_folder, ".",
     "Folder which contains one or more maps on the filesystem.");
@@ -305,6 +302,10 @@ VIMapBasicPlugin::VIMapBasicPlugin(
   addCommand(
       {"v", "visualize"}, [this]() -> int { return visualizeMap(); },
       "Visualizes the selected map.", common::Processing::Sync);
+  addCommand(
+      {"vs", "visualize_sequentially"},
+      [this]() -> int { return visualizeMapSequentially(); },
+      "Visualizes the map sequentially.", common::Processing::Sync);
 
   // Mission operations.
   addCommand(
@@ -1371,8 +1372,7 @@ int VIMapBasicPlugin::spatiallyDistributeMissions() {
 int VIMapBasicPlugin::visualizeMap() {
   if (!plotter_) {
     LOG(ERROR) << "The plotter is not initialized. Visualization is not "
-                  "possible in a ros-free "
-               << "environment.";
+               << "possible in a ros-free environment.";
     return common::kStupidUserError;
   }
 
@@ -1385,6 +1385,36 @@ int VIMapBasicPlugin::visualizeMap() {
       map_manager.getMapReadAccess(selected_map_key);
   plotter_->visualizeMap(*map);
 
+  return common::kSuccess;
+}
+
+int VIMapBasicPlugin::visualizeMapSequentially() {
+  if (!plotter_) {
+    LOG(ERROR) << "The plotter is not initialized. Visualization is not "
+                  "possible in a ros-free "
+               << "environment.";
+    return common::kStupidUserError;
+  }
+
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+  const vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager.getMapReadAccess(selected_map_key);
+
+  // Select missions.
+  std::unordered_set<vi_map::MissionId> mission_ids;
+  vi_map::MissionId mission_id;
+  if (map->hexStringToMissionIdIfValid(FLAGS_map_mission, &mission_id)) {
+    mission_ids.emplace(mission_id);
+  } else {
+    map->getAllMissionIds(&mission_ids);
+  }
+
+  visualization::SequentialPlotter seq_plotter(plotter_);
+  seq_plotter.publishMissionsSequentially(*map, mission_ids);
   return common::kSuccess;
 }
 

@@ -8,7 +8,7 @@
 #include <visualization/common-rviz-visualization.h>
 
 DEFINE_double(
-    swe_feature_tracker_two_pt_ransac_threshold, 1.0 - cos(0.445 * kDegToRad),
+    swe_feature_tracker_two_pt_ransac_threshold, 1.0 - cos(0.5 * kDegToRad),
     "Threshold for the 2-pt RANSAC used for feature tracking outlier "
     "removal. The error is defined as (1 - cos(alpha)) where alpha is "
     "the angle between the predicted and measured bearing vectors.");
@@ -21,6 +21,9 @@ DEFINE_double(
 DEFINE_bool(
     swe_feature_tracker_deterministic, false,
     "If true, deterministic RANSAC outlier rejection is used.");
+DEFINE_bool(
+    detection_visualize_keypoints, false,
+    "Visualize the raw keypoint detections to a ros topic.");
 
 namespace feature_tracking {
 
@@ -100,6 +103,16 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
   }
   detectors_extractors_[camera_idx]->detectAndExtractFeatures(frame_kp1);
 
+  if (FLAGS_detection_visualize_keypoints) {
+    cv::Mat image;
+    cv::cvtColor(frame_kp1->getRawImage(), image, cv::COLOR_GRAY2BGR);
+
+    aslam_cv_visualization::drawKeypoints(*CHECK_NOTNULL(frame_kp1), &image);
+    const std::string topic = feature_tracking_ros_base_topic_ +
+                              "/keypoints_raw_cam" + std::to_string(camera_idx);
+    visualization::RVizVisualizationSink::publish(topic, image);
+  }
+
   CHECK(frame_k->hasKeypointMeasurements());
   CHECK(frame_k->hasDescriptors());
   CHECK(frame_kp1->hasKeypointMeasurements());
@@ -165,8 +178,15 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
                               "/keypoint_matches_camera_" +
                               std::to_string(camera_idx);
     visualization::RVizVisualizationSink::publish(topic, image);
-  }
 
+    cv::Mat outlier_image;
+    aslam_cv_visualization::visualizeMatches(
+        *frame_kp1, *frame_k, outlier_matches_with_score_kp1_k, &outlier_image);
+    const std::string outlier_topic = feature_tracking_ros_base_topic_ +
+                                      "/keypoint_outlier_matches_camera_" +
+                                      std::to_string(camera_idx);
+    visualization::RVizVisualizationSink::publish(outlier_topic, outlier_image);
+  }
   timer_track_manager.Stop();
 }
 

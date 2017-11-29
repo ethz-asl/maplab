@@ -102,7 +102,7 @@ void RovioFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
   rovio_subscriber_options.exclusivity_group_id =
       kExclusivityGroupIdRovioSensorSubscribers;
 
-  // Input camera.
+  // Input IMU.
   flow->registerSubscriber<message_flow_topics::IMU_MEASUREMENTS>(
       kSubscriberNodeName, rovio_subscriber_options,
       [this](const vio::ImuMeasurement::ConstPtr& imu) {
@@ -117,7 +117,7 @@ void RovioFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
             WARNING, !measurement_accepted && rovio_interface_->isInitialized())
             << "ROVIO rejected IMU measurement. Latency is too large.";
       });
-  // Input IMU.
+  // Input camera.
   flow->registerSubscriber<message_flow_topics::IMAGE_MEASUREMENTS>(
       kSubscriberNodeName, rovio_subscriber_options,
       [this](const vio::ImageMeasurement::ConstPtr& image) {

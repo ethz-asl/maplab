@@ -42,12 +42,7 @@ class FeatureDetectorExtractor {
   ///                             close to each other.
   /// @param[out] keypoints:  A subset of the keypoints will be erased according
   ///                         to above criteria.
-  void localNonMaximumSuppression(
-      const float radius, const float ratio_threshold,
-      std::vector<cv::KeyPoint>* keypoints) const;
-
   const aslam::Camera& camera_;
-  cv::Mat detector_mask_;
 
   cv::Ptr<cv::FeatureDetector> detector_;
   cv::Ptr<cv::DescriptorExtractor> extractor_;

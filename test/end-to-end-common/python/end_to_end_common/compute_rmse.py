@@ -28,5 +28,8 @@ def compute_orientation_mean_and_rmse(q_AB_list, q_AC_list):
     q_AB = Quaternion(q_AB_xyzw[0], q_AB_xyzw[1], q_AB_xyzw[2], q_AB_xyzw[3])
     q_AC = Quaternion(q_AC_xyzw[0], q_AC_xyzw[1], q_AC_xyzw[2], q_AC_xyzw[3])
     q_BC = q_AB.inverse() * q_AC
-    orientation_errors_rad[idx] = q_BC.angle_axis()[3]
+    angle_BC = q_BC.angle_axis()[3]
+    if angle_BC > np.pi:
+      angle_BC -= 2 * np.pi
+    orientation_errors_rad[idx] = angle_BC
   return np.mean(orientation_errors_rad), RMSE(orientation_errors_rad)
