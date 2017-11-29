@@ -68,6 +68,7 @@ class VIMapBasicPlugin : public common::ConsolePluginBaseWithPlotter {
   int printBaseframeTransformations() const;
   int printCameraCalibrations() const;
   int visualizeMap();
+  int visualizeMapSequentially();
 
   int removeMission();
   int removeMissionInteractive();

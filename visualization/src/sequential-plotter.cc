@@ -3,28 +3,31 @@
 #include <maplab-common/frequency-enforcer.h>
 #include <vi-map/landmark-quality-metrics.h>
 #include <vi-map/vertex.h>
+#include <vi-map/vi-map.h>
 
 #include "visualization/color-palette.h"
 #include "visualization/common-rviz-visualization.h"
+#include "visualization/viwls-graph-plotter.h"
 
 DECLARE_int32(vis_color_salt);
+DECLARE_double(vis_scale);
 
-DEFINE_int32(
-    posegraph_viz_iteration_frequency, 30, "Publishing frequency in Hz.");
-
-DEFINE_bool(seq_vgraph_fadeout, true, "Smoothly fade out landmark coloring.");
+DEFINE_int32(vis_seq_vertex_frequency, 10, "Publishing frequency in Hz.");
 DEFINE_bool(
-    seq_vgraph_synchronize, true,
+    vis_seq_landmark_fadeout, true, "Smoothly fade out landmark coloring.");
+DEFINE_bool(
+    vis_seq_synchronize_missions_on_distance, true,
     "Synchronize missions based on distance traveled.");
 DEFINE_bool(
-    seq_vgraph_synchronize_percent, true,
+    vis_seq_synchronize_missions_on_distance_percent, true,
     "Synchronize missions based on percent of trajectory.");
-
-DECLARE_double(vis_scale);
 
 namespace visualization {
 
-void SequentialPlotter::publishMapSequentially(
+SequentialPlotter::SequentialPlotter(ViwlsGraphRvizPlotter* plotter)
+    : plotter_(CHECK_NOTNULL(plotter)) {}
+
+void SequentialPlotter::publishMissionsSequentially(
     const vi_map::VIMap& map, const vi_map::MissionIdSet& mission_set) {
   if (mission_set.empty()) {
     LOG(ERROR) << "Passed empty mission set to publish map sequentially.";
@@ -33,8 +36,7 @@ void SequentialPlotter::publishMapSequentially(
 
   const bool is_only_one_mission = (mission_set.size() == 1u);
 
-  visualization::Palette palette =
-      GetPalette(visualization::Palette::PaletteTypes::kFalseColorJet);
+  Palette palette = GetPalette(Palette::PaletteTypes::kFalseColorJet);
 
   vi_map::MissionIdList missions(mission_set.begin(), mission_set.end());
   std::vector<pose_graph::VertexId> vertices;
@@ -48,7 +50,7 @@ void SequentialPlotter::publishMapSequentially(
   bool more_vertices_exist = true;
 
   std::unordered_map<vi_map::LandmarkId, int> landmarks_to_publish;
-  visualization::SphereVector landmark_vector;
+  SphereVector landmark_vector;
 
   std::unordered_map<vi_map::LandmarkId, int> landmark_to_age;
 
@@ -64,7 +66,7 @@ void SequentialPlotter::publishMapSequentially(
 
   std::vector<double> mission_distance_traveled_total;
   mission_distance_traveled_total.resize(missions.size(), 0);
-  if (FLAGS_seq_vgraph_synchronize_percent) {
+  if (FLAGS_vis_seq_synchronize_missions_on_distance_percent) {
     for (unsigned int i = 0; i < mission_distance_traveled_total.size(); ++i) {
       map.getDistanceTravelledPerMission(
           missions[i], &mission_distance_traveled_total[i]);
@@ -73,14 +75,14 @@ void SequentialPlotter::publishMapSequentially(
 
   common::FrequencyEnforcer freq_enforcer;
 
-  visualization::LineSegmentVector edges_vector;
+  LineSegmentVector edges_vector;
 
   constexpr size_t kEdgeCountRvizLimit = 8192 - 1;
   // It is highly unlikely we will deal with more than 1e4 missions.
   size_t edge_marker_id = 10000u;
 
   while (more_vertices_exist) {
-    freq_enforcer.EnforceFrequency(FLAGS_posegraph_viz_iteration_frequency);
+    freq_enforcer.EnforceFrequency(FLAGS_vis_seq_vertex_frequency);
     // Will be set to true if at least one mission has an unpublished vertex.
     more_vertices_exist = false;
     for (size_t mission_index = 0; mission_index < missions.size();
@@ -94,8 +96,8 @@ void SequentialPlotter::publishMapSequentially(
       const int landmark_color_index = ((mission_color_index + 100) % 256);
       const int ray_color_index = ((mission_color_index + 200) % 256);
 
-      if (FLAGS_seq_vgraph_synchronize) {
-        if (FLAGS_seq_vgraph_synchronize_percent) {
+      if (FLAGS_vis_seq_synchronize_missions_on_distance) {
+        if (FLAGS_vis_seq_synchronize_missions_on_distance_percent) {
           // Calculate the percent of traj that the master did yet and
           // set the limit for the current mission to the same fraction from
           // its own total distance.
@@ -135,7 +137,7 @@ void SequentialPlotter::publishMapSequentially(
         Eigen::Vector3d vertex_position =
             map.getVertex_G_p_I(vertices[mission_index]);
         Aligned<std::vector, Eigen::Vector3d> landmark_positions;
-        std::vector<visualization::Color> segment_colors;
+        std::vector<Color> segment_colors;
 
         const unsigned int num_frames = viwls_vertex.numFrames();
         for (unsigned int frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
@@ -159,19 +161,19 @@ void SequentialPlotter::publishMapSequentially(
                 landmarks_to_publish.emplace(
                     landmark_id, landmark_vector.size());
                 landmark_index = landmark_vector.size();
-                landmark_vector.push_back(visualization::Sphere());
+                landmark_vector.push_back(Sphere());
               } else {
                 landmark_index = landmarks_to_publish[landmark_id];
               }
 
-              visualization::Sphere& sphere = landmark_vector[landmark_index];
+              Sphere& sphere = landmark_vector[landmark_index];
               sphere.position = p_G_fi;
               sphere.radius = 0.05;
               sphere.alpha = kInitialLandmarkColoringAlpha;
 
-              const visualization::Color& color =
-                  (is_only_one_mission) ? palette.colors[landmark_color_index]
-                                        : palette.colors[mission_color_index];
+              const Color& color = (is_only_one_mission)
+                                       ? palette.colors[landmark_color_index]
+                                       : palette.colors[mission_color_index];
               sphere.color.red = color.red;
               sphere.color.green = color.green;
               sphere.color.blue = color.blue;
@@ -179,7 +181,7 @@ void SequentialPlotter::publishMapSequentially(
                   kNumKeyframesToVisualizeLandmarksFrom;
               landmark_positions.push_back(p_G_fi);
 
-              const visualization::Color& color_ray =
+              const Color& color_ray =
                   (is_only_one_mission) ? palette.colors[ray_color_index]
                                         : palette.colors[mission_color_index];
               sphere.color.red = color.red;
@@ -190,7 +192,7 @@ void SequentialPlotter::publishMapSequentially(
           }
         }
 
-        if (FLAGS_seq_vgraph_fadeout) {
+        if (FLAGS_vis_seq_landmark_fadeout) {
           typedef std::unordered_map<vi_map::LandmarkId, int> LandmarkMap;
           for (LandmarkMap::iterator it = landmark_to_age.begin();
                it != landmark_to_age.end();) {
@@ -199,12 +201,12 @@ void SequentialPlotter::publishMapSequentially(
             if (landmarks_to_publish.count(landmark_id) == 0u) {
               landmarks_to_publish.emplace(landmark_id, landmark_vector.size());
               landmark_index = landmark_vector.size();
-              landmark_vector.push_back(visualization::Sphere());
+              landmark_vector.push_back(Sphere());
             } else {
               landmark_index = landmarks_to_publish[landmark_id];
             }
 
-            visualization::Sphere& sphere = landmark_vector[landmark_index];
+            Sphere& sphere = landmark_vector[landmark_index];
             int lifetime = kNumKeyframesToVisualizeLandmarksFrom - it->second;
             sphere.alpha = kInitialLandmarkColoringAlpha * lifetime /
                            (kNumKeyframesToVisualizeLandmarksFrom + 1);
@@ -218,13 +220,13 @@ void SequentialPlotter::publishMapSequentially(
           }
         }
 
-        const double kScale = 0.01;
         const double kAlpha = 0.3;
+        const double scale = FLAGS_vis_scale * 0.04;
         const size_t kMarkerId = mission_index;
-        visualization::publishLines(
-            vertex_position, landmark_positions, segment_colors, kAlpha, kScale,
-            kMarkerId, visualization::kDefaultMapFrame,
-            visualization::kDefaultNamespace, kLoopclosureTopic);
+        publishLines(
+            vertex_position, landmark_positions, segment_colors, kAlpha, scale,
+            kMarkerId, kDefaultMapFrame, kDefaultNamespace,
+            ViwlsGraphRvizPlotter::kLoopclosureTopic);
 
         publishVertexPoseAsTFSmoothed(map, viwls_vertex.id());
 
@@ -238,12 +240,12 @@ void SequentialPlotter::publishMapSequentially(
                map.getVertex(prev_vertex_id).get_p_M_I())
                   .norm();
 
-          visualization::LineSegment line_segment;
+          LineSegment line_segment;
           line_segment.from = map.getVertex_G_p_I(vertices[mission_index]);
           line_segment.to = map.getVertex_G_p_I(prev_vertex_id);
           line_segment.scale = FLAGS_vis_scale * 0.08;
           line_segment.alpha = 0.5;
-          visualization::Color color_ray;
+          Color color_ray;
           line_segment.color.red = palette.colors[mission_color_index].red;
           line_segment.color.green = palette.colors[mission_color_index].green;
           line_segment.color.blue = palette.colors[mission_color_index].blue;
@@ -257,14 +259,15 @@ void SequentialPlotter::publishMapSequentially(
       }
     }
 
-    visualization::publishSpheresAsPointCloud(
-        landmark_vector, visualization::kDefaultMapFrame, kLandmarkTopic);
+    publishSpheresAsPointCloud(
+        landmark_vector, kDefaultMapFrame,
+        ViwlsGraphRvizPlotter::kLandmarkTopic);
 
     bool is_marker_array_too_large;
     do {
       is_marker_array_too_large = false;
 
-      visualization::LineSegmentVector temp_edges_vector;
+      LineSegmentVector temp_edges_vector;
       if (edges_vector.size() > kEdgeCountRvizLimit) {
         // Copy the elements over the vector size limit to a temporary vector.
         temp_edges_vector.insert(
@@ -274,9 +277,9 @@ void SequentialPlotter::publishMapSequentially(
         edges_vector.resize(kEdgeCountRvizLimit);
         is_marker_array_too_large = true;
       }
-      visualization::publishLines(
-          edges_vector, edge_marker_id, visualization::kDefaultMapFrame,
-          visualization::kDefaultNamespace, kEdgeTopic);
+      publishLines(
+          edges_vector, edge_marker_id, kDefaultMapFrame, kDefaultNamespace,
+          ViwlsGraphRvizPlotter::kEdgeTopic);
       if (!temp_edges_vector.empty()) {
         edges_vector.swap(temp_edges_vector);
         ++edge_marker_id;
@@ -299,7 +302,7 @@ void SequentialPlotter::publishVertexPoseAsTFSmoothed(
 
   aslam::Transformation G_camera_pose(vertex.get_q_M_I(), G_p_smoothed);
 
-  publishTF(G_camera_pose, visualization::kDefaultMapFrame, child_frame);
+  publishTF(G_camera_pose, kDefaultMapFrame, child_frame);
 }
 
 }  // namespace visualization

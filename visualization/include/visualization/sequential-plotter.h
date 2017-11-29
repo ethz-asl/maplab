@@ -4,8 +4,9 @@
 #include <string>
 #include <unordered_set>
 
+#include <aslam/common/memory.h>
+
 #include "visualization/constant-velocity-smoother.h"
-#include "visualization/viwls-graph-plotter.h"
 
 namespace pose_graph {
 class VertexId;
@@ -17,10 +18,13 @@ class VIMap;
 }  // namespace vi_map
 
 namespace visualization {
+class ViwlsGraphRvizPlotter;
 
-class SequentialPlotter : public ViwlsGraphRvizPlotter {
+class SequentialPlotter {
  public:
-  void publishMapSequentially(
+  explicit SequentialPlotter(ViwlsGraphRvizPlotter* plotter);
+
+  void publishMissionsSequentially(
       const vi_map::VIMap& map,
       const std::unordered_set<vi_map::MissionId>& missions);
 
@@ -33,6 +37,7 @@ class SequentialPlotter : public ViwlsGraphRvizPlotter {
   }
 
   mutable AlignedMap<std::string, ConstantVelocitySmoother> smoothers_;
+  const ViwlsGraphRvizPlotter* plotter_;
 };
 
 }  // namespace visualization

@@ -96,7 +96,6 @@ int main(int argc, char** argv) {
       << "Could not load IMU parameters for ROVIO from: \'"
       << FLAGS_imu_parameters_rovio << "\'";
   CHECK(rovio_imu_sigmas.isValid());
-  LOG(WARNING) << "TODO(schneith): Load default IMU values if none provided.";
 
   // Construct the application.
   ros::AsyncSpinner ros_spinner(common::getNumHardwareThreads());

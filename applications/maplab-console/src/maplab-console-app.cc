@@ -18,6 +18,9 @@ int main(int argc, char** argv) {
   FLAGS_alsologtostderr = true;
   FLAGS_colorlogtostderr = true;
 
+  // Ignore the SIGINT signal.
+  signal(SIGINT, [](int) -> void {});
+
   maplab::MapLabConsole console(kConsoleName, argc, argv);
   console.RunCommandPrompt();
 

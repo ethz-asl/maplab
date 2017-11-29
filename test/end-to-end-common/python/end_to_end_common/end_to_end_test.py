@@ -2,11 +2,6 @@
 
 import numpy as np
 
-# Force matplotlib to not use any Xwindows backend. Needs to be imported before
-# any other matplotlib import (time_alignment import matplotlib).
-import matplotlib
-matplotlib.use('Agg')
-
 import end_to_end_common.compute_rmse
 from end_to_end_common.end_to_end_utility import align_datasets
 import end_to_end_common.plot_rmse
@@ -14,11 +9,18 @@ import end_to_end_common.plot_rmse
 
 class TestErrorStruct:
   def __init__(
-      self, position_mean, position_rmse, orientation_mean, orientation_rmse):
-    self.position_mean = position_mean
-    self.position_rmse = position_rmse
-    self.orientation_mean = orientation_mean
-    self.orientation_rmse = orientation_rmse
+      self, position_mean_m, position_rmse_m, orientation_mean_rad,
+      orientation_rmse_rad):
+    self.position_mean_m = position_mean_m
+    self.position_rmse_m = position_rmse_m
+    self.orientation_mean_rad = orientation_mean_rad
+    self.orientation_rmse_rad = orientation_rmse_rad
+
+
+  def __str__(self):
+    return str(self.position_mean_m) + ", " + \
+        str(self.position_rmse_m) + ", " + str(self.orientation_mean_rad) + \
+        ", " + str(self.orientation_rmse_rad)
 
 
 class EndToEndTest:
@@ -33,6 +35,17 @@ class EndToEndTest:
       self.estimator_G_I = estimator_G_I
       self.localization_state_list = localization_state_list
       self.plot_result = False
+      self.cpu_mean = -1
+      self.cpu_stddev = -1
+
+
+    def calculate_cpu_mean_and_stddev(self, cpu_file):
+      if not os.path.isfile(cpu_file):
+        return
+
+      cpu_data = np.genfromtxt(cpu_file)
+      self.cpu_mean = np.mean(cpu_data[:, 8])
+      self.cpu_stddev = np.std(cpu_data[:, 8])
 
 
   def __init__(self):
@@ -42,7 +55,7 @@ class EndToEndTest:
   def calulate_errors_of_datasets(
           self, label, max_errors_list, estimated_poses_csv_path,
           ground_truth_csv_path, localization_state_list=np.zeros((0, 2)),
-          estimator_csv_data_from_console=False):
+          estimator_input_format="rovioli", cpu_file=""):
     """
     Calculates the errors between the given datasets and appends the result to
     an internal list.
@@ -61,27 +74,37 @@ class EndToEndTest:
             results (1 = successful localization, 0 = no localization). The
             timestamps should match with the values in the estimator poses CSV
             file.
-      - estimator_csv_data_from_console: (optional) if True, the estimator poses
-            CSV file is assumed to be in the maplab console format, otherwise it
-            will be assumed to be in the ROVIOLI output format.
-
+      - estimator_input_format: (optional) Determines the format of the given
+            estimator data file.
+            Possible values: rovioli, maplab_console, orbslam
+            Default: rovioli
+      - cpu_file: (optional) If provided, the end-to-end test will also compute
+            the average CPU load for this dataset. Data is expected to be from
+            top. Run top like this to get the data:
+              ```bash
+              # $1 = application name, $2 = output file
+              while true; do
+                echo "$(top -b -n 1 | grep $1)"  | tee -a $2
+                sleep 1
+              done
+              ```
     Returns:
       A TestErrorStruct struct containing the errors of the given dataset.
     """
     # TODO(eggerk): explain CSV formats somewhere.
     estimator_data_G_I, ground_truth_data_G_M = align_datasets(
-        estimated_poses_csv_path, ground_truth_csv_path,
-        estimator_csv_data_from_console)
+        estimated_poses_csv_path, ground_truth_csv_path, estimator_input_format)
 
-    position_mean, position_rmse = \
+    position_mean_m, position_rmse_m = \
         end_to_end_common.compute_rmse.compute_position_mean_and_rmse(
             estimator_data_G_I[:, 1:4], ground_truth_data_G_M[:, 1:4])
-    orientation_mean, orientation_rmse = \
+    orientation_mean_rad, orientation_rmse_rad = \
         end_to_end_common.compute_rmse.compute_orientation_mean_and_rmse(
             estimator_data_G_I[:, 4:8], ground_truth_data_G_M[:, 4:8])
 
     errors = TestErrorStruct(
-        position_mean, position_rmse, orientation_mean, orientation_rmse)
+        position_mean_m, position_rmse_m,
+        orientation_mean_rad, orientation_rmse_rad)
     result = EndToEndTest.TestResult(
         label, errors, max_errors_list, estimator_data_G_I,
         ground_truth_data_G_M, localization_state_list)
@@ -102,26 +125,32 @@ class EndToEndTest:
       max_orientation_rmse = 100000
 
       for max_errors in result.max_errors_list:
-        max_position_mean = min(max_position_mean, max_errors.position_mean)
-        max_position_rmse = min(max_position_rmse, max_errors.position_rmse)
+        max_position_mean = min(max_position_mean, max_errors.position_mean_m)
+        max_position_rmse = min(max_position_rmse, max_errors.position_rmse_m)
         max_orientation_mean = min(
-            max_orientation_mean, max_errors.orientation_mean)
+            max_orientation_mean, max_errors.orientation_mean_rad)
         max_orientation_rmse = min(
-            max_orientation_rmse, max_errors.orientation_rmse)
+            max_orientation_rmse, max_errors.orientation_rmse_rad)
 
       print result.label, "errors:"
       print "    position mean [m]:      ", \
-          result.calculated_errors.position_mean, \
+          result.calculated_errors.position_mean_m, \
           "\t(max:", max_position_mean, "\b)"
       print "    position RMSE [m]:      ", \
-          result.calculated_errors.position_rmse, \
+          result.calculated_errors.position_rmse_m, \
           "\t(max:", max_position_rmse, "\b)"
-      print "    orientation mean [rad]: ", \
-          result.calculated_errors.orientation_mean, \
-          "\t(max:", max_orientation_mean, "\b)"
-      print "    orientation RMSE [rad]: ", \
-          result.calculated_errors.orientation_rmse, \
-          "\t(max:", max_orientation_rmse, "\b)"
+
+      print "    orientation mean [deg]: ", \
+          result.calculated_errors.orientation_mean_rad * 180 / np.pi, \
+          "\t(max:", max_orientation_mean * 180 / np.pi, "\b)"
+      print "    orientation RMSE [deg]: ", \
+          result.calculated_errors.orientation_rmse_rad * 180 / np.pi, \
+          "\t(max:", max_orientation_rmse * 180 / np.pi, "\b)"
+
+      if result.cpu_mean > 0 and result.cpu_stddev >= 0:
+        print "    CPU load [%]:\tmean:", result.cpu_mean, "\tstd dev:", \
+            result.cpu_stddev
+
       print "=" * 80
 
   def check_errors(self):
@@ -131,17 +160,19 @@ class EndToEndTest:
     """
     for result in self.test_results:
       print "Checking results from", result.label, "."
-      assert result.calculated_errors.position_mean <= \
-             result.calculated_errors.position_rmse
-      assert result.calculated_errors.orientation_mean <= \
-             result.calculated_errors.orientation_rmse
+      assert result.calculated_errors.position_mean_m <= \
+             result.calculated_errors.position_rmse_m
+      assert result.calculated_errors.orientation_mean_rad <= \
+             result.calculated_errors.orientation_rmse_rad
       for max_errors in result.max_errors_list:
-        assert result.calculated_errors.position_mean < max_errors.position_mean
-        assert result.calculated_errors.position_rmse < max_errors.position_rmse
-        assert result.calculated_errors.orientation_mean < \
-               max_errors.orientation_mean
-        assert result.calculated_errors.orientation_rmse < \
-               max_errors.orientation_rmse
+        assert result.calculated_errors.position_mean_m < \
+            max_errors.position_mean_m
+        assert result.calculated_errors.position_rmse_m < \
+            max_errors.position_rmse_m
+        assert result.calculated_errors.orientation_mean_rad < \
+               max_errors.orientation_mean_rad
+        assert result.calculated_errors.orientation_rmse_rad < \
+               max_errors.orientation_rmse_rad
 
       print "Done."
 

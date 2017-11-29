@@ -110,8 +110,8 @@ void setRovioImuSigmas(
   CHECK_NOTNULL(rovio_config);
   CHECK(maplab_imu_sigmas.isValid());
 
-  LOG(WARNING) << "TODO(schneith): Double check the noise parameters.";
-  LOG(WARNING) << "TODO(schneith): Add Sigma->Cov conversion.";
+  // TODO(schneith): Double check the noise parameters.
+  // TODO(schneith): Add Sigma->Cov conversion.
 
   // ROVIO default: 1e-4
   rovio_config->setAccCovarianceX(maplab_imu_sigmas.acc_noise_density);

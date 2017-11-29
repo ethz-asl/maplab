@@ -27,8 +27,10 @@ void RVizVisualizationSink::initImpl() {
     VLOG(20) << "ROS is already initialized.";
   } else {
     int argv = 0;
-    const std::string kNodeName = "muma_rviz_interface";
-    ros::init(argv, nullptr, kNodeName);
+    const std::string kNodeName = "maplab_rviz_interface";
+    ros::init(
+        argv, nullptr, kNodeName,
+        ros::init_options::NoSigintHandler | ros::init_options::AnonymousName);
   }
 
   node_handle_.reset(new ros::NodeHandle());
