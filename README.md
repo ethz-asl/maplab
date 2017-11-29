@@ -44,13 +44,14 @@ The maplab framework has been used as an experimental platform for numerous scie
 
 ## Citing
 
-Please cite the [following paper](https://www.researchgate.net/publication/321332545_maplab_An_Open_Framework_for_Research_in_Visual-inertial_Mapping_and_Localization) when using maplab for your research:
+Please cite the [following paper](https://arxiv.org/abs/1711.10250) when using maplab for your research:
 
 ```bibtex
 @article{schneider2018maplab,
   title={maplab: An Open Framework for Research in Visual-inertial Mapping and Localization},
   author={Schneider, Thomas and Dymczyk, Marcin and Fehr, Marius and Egger, Kevin and
-          Lynen, Simon and Gilitschenski, Igor and Siegwart, Roland}
+          Lynen, Simon and Gilitschenski, Igor and Siegwart, Roland},
+  journal={arXiv preprint	arXiv:1711.10250},
   year={2018}
 }
 ```
