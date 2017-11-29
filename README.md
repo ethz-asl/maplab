@@ -1,4 +1,4 @@
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/maplab.png" width="400">
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/maplab_improved.png" width="400">
 
 *Ubuntu 14.04+ROS indigo* and *Ubuntu 16.04+ROS kinetic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly)
 
