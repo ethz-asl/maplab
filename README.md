@@ -9,7 +9,11 @@ On  the  other  hand,  maplab provides  the  research  community  with  a  colle
 Furthermore, it includes an online frontend, **ROVIOLI**, that can create visual-inertial maps and also track a global drift-free pose within a localization map.
 
 For documentation, tutorials and datasets, please visit the [wiki](https://github.com/ethz-asl/maplab/wiki).
-You can also check out an overview [video](https://youtu.be/9Ta7w_cs1lU).
+
+Please also check out our video:
+
+<a href="https://youtu.be/9Ta7w_cs1lU">
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/maplab_video_thumbnail.png" alt="https://youtu.be/9Ta7w_cs1lU" width="600">
 
 ## Features
 
