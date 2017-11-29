@@ -51,7 +51,7 @@ Please cite the [following paper](https://arxiv.org/abs/1711.10250) when using m
   title={maplab: An Open Framework for Research in Visual-inertial Mapping and Localization},
   author={Schneider, Thomas and Dymczyk, Marcin and Fehr, Marius and Egger, Kevin and
           Lynen, Simon and Gilitschenski, Igor and Siegwart, Roland},
-  journal={arXiv preprint	arXiv:1711.10250},
+  journal={arXiv preprint arXiv:1711.10250},
   year={2018}
 }
 ```
