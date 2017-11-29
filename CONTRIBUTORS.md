@@ -30,7 +30,7 @@
  * Adam Radomski
  * Paul Furgale
  * Florian Tschopp
- * Jörn Rehnder
+ * Jörn Rehder
  * Anwar Quraishi
  * Rafael Gómez-Jordana
  * Abel Gawel
