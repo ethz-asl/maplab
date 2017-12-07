@@ -498,7 +498,7 @@ class VIMap : public backend::ResourceMap,
       std::vector<size_t>* num_unknown_landmarks_per_camera,
       std::vector<size_t>* total_num_landmarks_per_camera,
       size_t* num_landmarks, size_t* num_vertices, size_t* num_observations,
-      double* duration_s, time_t* start_time, time_t* end_time) const;
+      double* duration_s, int64_t* start_time, int64_t* end_time) const;
 
   std::string printMapStatistics(
       const vi_map::MissionId& mission, const unsigned int mission_number,
