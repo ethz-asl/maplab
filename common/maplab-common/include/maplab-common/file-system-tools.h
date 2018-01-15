@@ -4,6 +4,7 @@
 #include <ctime>
 #include <string>
 #include <vector>
+#include <sys/stat.h>
 
 namespace common {
 
