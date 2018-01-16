@@ -136,35 +136,40 @@ inline void localNonMaximumSuppression(
 
 inline void detectKeypointsGrided(
     const cv::Ptr<cv::FeatureDetector>& detector, const cv::Mat& image,
-    const cv::Mat& detection_mask, size_t max_total_keypoints,
-    float nonmaxsuppression_radius, float nonmaxsuppression_ratio_threshold,
-    size_t grid_rows, size_t grid_cols, std::vector<cv::KeyPoint>* keypoints) {
+    const cv::Mat& detection_mask, const bool detector_use_nonmaxsuppression,
+    const float detector_nonmaxsuppression_radius,
+    const float detector_nonmaxsuppression_ratio_threshold,
+    const size_t orb_detector_number_features, const size_t max_feature_count,
+    const size_t grided_detector_cell_num_features,
+    const size_t grided_detector_num_grid_cols,
+    const size_t grided_detector_num_grid_rows,
+    const size_t grided_detector_num_threads_per_image,
+    std::vector<cv::KeyPoint>* keypoints) {
   CHECK_NOTNULL(keypoints)->clear();
-  CHECK_GE(grid_rows, 1u);
-  CHECK_GE(grid_cols, 1u);
+  CHECK_GT(grided_detector_num_grid_cols, 0u);
+  CHECK_GT(grided_detector_num_grid_rows, 0u);
+  CHECK_GT(grided_detector_cell_num_features, 0u);
 
-  if (image.empty() || max_total_keypoints < grid_rows * grid_cols) {
+  if (image.empty() ||
+      max_feature_count <
+          grided_detector_num_grid_rows * grided_detector_num_grid_cols) {
     keypoints->clear();
     return;
   }
-  keypoints->reserve(max_total_keypoints);
-
-  constexpr double kCellNumFeaturesScaler = 2.0;
-  int max_per_cell =
-      kCellNumFeaturesScaler * max_total_keypoints / (grid_rows * grid_cols);
+  keypoints->reserve(orb_detector_number_features);
 
   std::mutex m_keypoints;
   auto detectFeaturesOfGridCells = [&](const std::vector<size_t>& range) {
-    for (int cell_idx : range) {
-      int celly = cell_idx / grid_cols;
-      int cellx = cell_idx - celly * grid_cols;
+    for (const int cell_idx : range) {
+      const int celly = cell_idx / grided_detector_num_grid_cols;
+      const int cellx = cell_idx - celly * grided_detector_num_grid_cols;
 
-      cv::Range row_range(
-          (celly * image.rows) / grid_rows,
-          ((celly + 1) * image.rows) / grid_rows);
-      cv::Range col_range(
-          (cellx * image.cols) / grid_cols,
-          ((cellx + 1) * image.cols) / grid_cols);
+      const cv::Range row_range(
+          (celly * image.rows) / grided_detector_num_grid_rows,
+          ((celly + 1) * image.rows) / grided_detector_num_grid_rows);
+      const cv::Range col_range(
+          (cellx * image.cols) / grided_detector_num_grid_cols,
+          ((cellx + 1) * image.cols) / grided_detector_num_grid_cols);
 
       cv::Mat sub_image = image(row_range, col_range);
       cv::Mat sub_mask;
@@ -173,8 +178,7 @@ inline void detectKeypointsGrided(
       }
 
       std::vector<cv::KeyPoint> sub_keypoints;
-      sub_keypoints.reserve(max_per_cell);
-
+      sub_keypoints.reserve(grided_detector_cell_num_features);
       detector->detect(sub_image, sub_keypoints, sub_mask);
 
       std::vector<cv::KeyPoint>::iterator it = sub_keypoints.begin(),
@@ -184,10 +188,10 @@ inline void detectKeypointsGrided(
         it->pt.y += row_range.start;
       }
 
-      if (nonmaxsuppression_radius > 0.0) {
+      if (detector_use_nonmaxsuppression) {
         localNonMaximumSuppression(
-            image.rows, nonmaxsuppression_radius,
-            nonmaxsuppression_ratio_threshold, &sub_keypoints);
+            image.rows, detector_nonmaxsuppression_radius,
+            detector_nonmaxsuppression_ratio_threshold, &sub_keypoints);
       }
 
       std::unique_lock<std::mutex> lock(m_keypoints);
@@ -196,12 +200,17 @@ inline void detectKeypointsGrided(
     }
   };
 
-  const size_t num_cells = grid_rows * grid_cols;
-  const size_t num_threads = std::max(size_t(1u), num_cells / 2u);
+  size_t num_threads;
+  if (grided_detector_num_threads_per_image != 0)
+    num_threads = grided_detector_num_threads_per_image;
+  else
+    num_threads =
+        grided_detector_num_grid_cols * grided_detector_num_grid_rows / 2;
+  CHECK_GT(num_threads, 0u);
   common::ParallelProcess(
-      num_cells, detectFeaturesOfGridCells, /*kAlwaysParallelize=*/true,
-      num_threads);
-  cv::KeyPointsFilter::retainBest(*keypoints, max_total_keypoints);
+      grided_detector_num_grid_cols * grided_detector_num_grid_rows,
+      detectFeaturesOfGridCells, /*kAlwaysParallelize=*/true, num_threads);
+  cv::KeyPointsFilter::retainBest(*keypoints, max_feature_count);
 }
 
 }  // namespace feature_tracking

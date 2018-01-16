@@ -3,6 +3,7 @@
 #include <eigen-checks/gtest.h>
 #include <maplab-common/test/testing-entrypoint.h>
 
+#include <maplab-common/interpolation-helpers.h>
 #include <vio-common/imu-measurements-buffer.h>
 #include <vio-common/vio-types.h>
 
@@ -21,14 +22,6 @@ TEST(ImuMeasurementBuffer, PopFromEmptyBuffer) {
       vio_common::ImuMeasurementBuffer::QueryResult::kDataNotYetAvailable);
   EXPECT_EQ(0u, imu_timestamps.size());
   EXPECT_EQ(0u, imu_measurements.size());
-}
-
-TEST(ImuMeasurementBuffer, LinearInterpolate) {
-  vio::ImuData y;
-  vio_common::ImuMeasurementBuffer::linearInterpolate(
-      10, vio::ImuData::Constant(10.0), 20, vio::ImuData::Constant(50.0), 15,
-      &y);
-  EXPECT_EQ(y, vio::ImuData::Constant(30.0));
 }
 
 TEST(ImuMeasurementBuffer, getImuDataInterpolatedBorders) {

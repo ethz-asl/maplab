@@ -130,6 +130,7 @@ TEST(MessageFlow, MessageDispatcherThreadedFifo_MessageDeliveryOrder) {
   EXPECT_EQ(counter, kNumNumbers);
 
   LOG(INFO) << flow->printDeliveryQueueStatistics();
+  receive_queue.Shutdown();
   flow->shutdown();
   flow->waitUntilIdle();
 }
@@ -191,6 +192,7 @@ TEST(
   EXPECT_EQ(counter, kNumNumbers);
 
   LOG(INFO) << flow->printDeliveryQueueStatistics();
+  receive_queue.Shutdown();
   flow->shutdown();
   flow->waitUntilIdle();
 }

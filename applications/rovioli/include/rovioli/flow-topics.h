@@ -20,9 +20,6 @@ MESSAGE_FLOW_TOPIC(SYNCED_NFRAMES_AND_IMU, vio::SynchronizedNFrameImu::Ptr);
 MESSAGE_FLOW_TOPIC(
     TRACKED_NFRAMES_AND_IMU, vio::SynchronizedNFrameImu::ConstPtr);
 
-MESSAGE_FLOW_TOPIC(
-    THROTTLED_TRACKED_NFRAMES_AND_IMU, vio::SynchronizedNFrameImu::ConstPtr);
-
 // Output of the localizer.
 MESSAGE_FLOW_TOPIC(LOCALIZATION_RESULT, vio::LocalizationResult::ConstPtr);
 

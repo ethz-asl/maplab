@@ -1,6 +1,7 @@
 #ifndef ROVIOLI_LOCALIZER_H_
 #define ROVIOLI_LOCALIZER_H_
 
+#include <localization-summary-map/localization-summary-map-queries.h>
 #include <localization-summary-map/localization-summary-map.h>
 #include <loop-closure-handler/loop-detector-node.h>
 #include <maplab-common/macros.h>
@@ -29,15 +30,16 @@ class Localizer {
  private:
   bool localizeNFrameGlobal(
       const aslam::VisualNFrame::ConstPtr& nframe,
-      aslam::Transformation* T_G_I_lc_pnp) const;
+      vio::LocalizationResult* localization_result) const;
   bool localizeNFrameMapTracking(
       const aslam::VisualNFrame::ConstPtr& nframe,
-      aslam::Transformation* T_G_I_lc_pnp) const;
+      vio::LocalizationResult* localization_result) const;
 
   LocalizationMode current_localization_mode_;
   loop_detector_node::LoopDetectorNode::UniquePtr global_loop_detector_;
 
   const summary_map::LocalizationSummaryMap& localization_summary_map_;
+  const summary_map::SummaryMapCachedLookups map_cached_lookup_;
 };
 
 }  // namespace rovioli

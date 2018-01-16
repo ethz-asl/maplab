@@ -159,7 +159,7 @@ bool integrateAllDepthResourcesOfType(
     vi_map::VIMap* vi_map, voxblox::TsdfMap* tsdf_map) {
   CHECK_NOTNULL(vi_map);
   CHECK_NOTNULL(tsdf_map);
-  CHECK_GT(kSupportedDepthInputTypes.count(input_resource_type), 0)
+  CHECK_GT(kSupportedDepthInputTypes.count(input_resource_type), 0u)
       << "This depth type is not supported! type: "
       << backend::ResourceTypeNames[static_cast<int>(input_resource_type)];
 

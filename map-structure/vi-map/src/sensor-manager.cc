@@ -61,6 +61,58 @@ void SensorManager::associateExistingNCameraWithMission(
       << '.';
 }
 
+void SensorManager::removeAllSensorsAssociatedToMission(
+    const vi_map::MissionId& mission_id) {
+  typedef AlignedUnorderedMap<MissionId, SensorIdSet> MissionIdToSensorIdSet;
+  const MissionIdToSensorIdSet::const_iterator it_mission_to_sensors =
+      mission_id_to_sensors_map_.find(mission_id);
+  if (it_mission_to_sensors != mission_id_to_sensors_map_.cend()) {
+    // Build inverse map from sensor id to associated mission ids.
+    typedef std::unordered_map<SensorId, MissionIdSet> SensorIdToMissionIdSet;
+    SensorIdToMissionIdSet sensor_to_missions_map;
+    for (const MissionIdToSensorIdSet::value_type& mission_id_to_sensor_set :
+         mission_id_to_sensors_map_) {
+      for (const SensorId& sensor_id : mission_id_to_sensor_set.second) {
+        sensor_to_missions_map[sensor_id].emplace(
+            mission_id_to_sensor_set.first);
+      }
+    }
+
+    // Delete sensor if it's only used by the mission to remove.
+    for (const SensorIdToMissionIdSet::value_type& sensor_id_to_mission_id_set :
+         sensor_to_missions_map) {
+      const MissionIdSet& mission_ids_for_sensor =
+          sensor_id_to_mission_id_set.second;
+      if (mission_ids_for_sensor.size() == 1u &&
+          mission_id == *mission_ids_for_sensor.cbegin()) {
+        sensors_.erase(sensor_id_to_mission_id_set.first);
+      }
+    }
+
+    mission_id_to_sensors_map_.erase(it_mission_to_sensors);
+  }
+
+  typedef AlignedUnorderedMap<MissionId, aslam::NCameraId> MissionIdToCameraId;
+  const MissionIdToCameraId::const_iterator it_mission_to_camera =
+      mission_id_to_ncamera_map_.find(mission_id);
+  if (it_mission_to_camera != mission_id_to_ncamera_map_.cend()) {
+    const aslam::NCameraId& n_camera_id = it_mission_to_camera->second;
+    size_t references_to_n_camera = 0u;
+    for (const MissionIdToCameraId::value_type& map_entry :
+         mission_id_to_ncamera_map_) {
+      if (map_entry.second == n_camera_id) {
+        ++references_to_n_camera;
+      }
+    }
+
+    if (references_to_n_camera == 1u) {
+      // If there's only one reference to the NCamera, we can erase it.
+      ncameras_.erase(n_camera_id);
+    }
+    mission_id_to_ncamera_map_.erase(it_mission_to_camera);
+  }
+}
+
 void SensorManager::swap(SensorManager* other) {
   CHECK_NOTNULL(other);
   ncameras_.swap(other->ncameras_);
@@ -333,7 +385,6 @@ void SensorManager::setSensor_T_R_S(
     const vi_map::SensorId& id, const aslam::Transformation& T_R_S) {
   CHECK(id.isValid());
   CHECK(sensor_system_);
-  Extrinsics(ExtrinsicsType::kTransformation, T_R_S);
   sensor_system_->setSensorExtrinsics(id, Extrinsics(T_R_S));
 }
 void SensorManager::setSensor_T_R_S(

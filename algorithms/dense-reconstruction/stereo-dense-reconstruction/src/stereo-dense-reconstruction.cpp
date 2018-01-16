@@ -165,7 +165,7 @@ void computeDepthForStereoCamerasOfMission(
     const aslam::Transformation& T_C2_C1, const vi_map::MissionId& mission_id,
     const backend::ResourceType& depth_resource_type, vi_map::VIMap* vi_map) {
   CHECK_NOTNULL(vi_map);
-  CHECK_GT(kSupportedDepthTypes.count(depth_resource_type), 0)
+  CHECK_GT(kSupportedDepthTypes.count(depth_resource_type), 0u)
       << "This depth type is not supported! type: "
       << backend::ResourceTypeNames[static_cast<int>(depth_resource_type)];
 

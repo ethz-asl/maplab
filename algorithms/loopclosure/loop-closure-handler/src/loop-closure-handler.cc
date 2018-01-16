@@ -376,7 +376,7 @@ bool LoopClosureHandler::handleLoopClosure(
   CHECK_LE(keypoint_to_best_structure_match.size(), inliers.size());
   *num_inliers = static_cast<int>(keypoint_to_best_structure_match.size());
 
-  VLOG(3) << "\tnum_inliers " << *num_inliers << " num iters " << num_iters;
+  VLOG(6) << "\tnum_inliers " << *num_inliers << " num iters " << num_iters;
   statistics::StatsCollector stats_inlier_count("LC RANSAC inliers");
   stats_inlier_count.AddSample(*num_inliers);
 
@@ -394,7 +394,7 @@ bool LoopClosureHandler::handleLoopClosure(
   CHECK_GT(G_landmark_positions.cols(), 0);
   *inlier_ratio = static_cast<double>(*num_inliers) /
                   static_cast<double>(G_landmark_positions.cols());
-  VLOG(4) << "\tinlier_ratio " << *inlier_ratio;
+  VLOG(6) << "\tinlier_ratio " << *inlier_ratio;
 
   statistics::StatsCollector stats_inlier_ratio("LC RANSAC inlier ratio");
   stats_inlier_ratio.AddSample(*inlier_ratio);
@@ -498,7 +498,7 @@ bool LoopClosureHandler::handleLoopClosure(
     }
   }
 
-  VLOG(4) << "\transac success. Ransac pts: " << G_landmark_positions.cols()
+  VLOG(5) << "\transac success. Ransac pts: " << G_landmark_positions.cols()
           << " inliers: " << inliers.size()
           << " inlier ratio: " << *inlier_ratio << '.';
   return true;

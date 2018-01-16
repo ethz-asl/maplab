@@ -154,6 +154,7 @@ void ImuCameraSynchronizer::processDataThreadWorker() {
 
     // Wait for the required IMU data.
     CHECK(aslam::time::isValidTime(previous_nframe_timestamp_ns_));
+    CHECK_LT(previous_nframe_timestamp_ns_, current_frame_timestamp_ns);
     const int64_t kWaitTimeoutNanoseconds = aslam::time::milliseconds(50);
     vio_common::ImuMeasurementBuffer::QueryResult result;
     bool skip_frame = false;

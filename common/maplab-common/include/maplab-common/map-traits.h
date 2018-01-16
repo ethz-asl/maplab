@@ -46,7 +46,7 @@ struct MapTraits {
 
   // Copy/merge.
   static void deepCopy(const MapType& source_map, MapType* target_map) {
-    CHECK_NOTNULL(target_map)->deepCopyFrom(source_map);
+    CHECK_NOTNULL(target_map)->deepCopy(source_map);
   }
   static void mergeTwoMaps(
       const MapType& source_map_merge_from, MapType* map_merge_base) {
@@ -100,7 +100,7 @@ struct MapTraits {
 ///   ...
 ///
 ///   // Also implement the functions from MapInterface.
-///   virtual void deepCopyFrom(const MapType& other) override;
+///   virtual void deepCopy(const MapType& other) override;
 ///   ...
 /// };
 /// \endcode

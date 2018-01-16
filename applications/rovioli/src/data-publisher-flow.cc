@@ -1,5 +1,7 @@
 #include "rovioli/data-publisher-flow.h"
 
+#include <geometry_msgs/PoseArray.h>
+#include <maplab-common/conversions.h>
 #include <maplab-common/file-logger.h>
 #include <minkindr_conversions/kindr_msg.h>
 
@@ -13,7 +15,7 @@ DEFINE_bool(
     "means a lower frequency.");
 
 DEFINE_bool(
-    publish_debug_markers, false,
+    publish_debug_markers, true,
     "Publish debug sphere markers for T_M_I, T_G_I and localization frames.");
 
 DEFINE_string(
@@ -29,6 +31,16 @@ DEFINE_bool(
 DECLARE_bool(rovioli_run_map_builder);
 
 namespace rovioli {
+namespace {
+inline ros::Time createRosTimestamp(int64_t timestamp_nanoseconds) {
+  static constexpr uint32_t kNanosecondsPerSecond = 1e9;
+  const uint64_t timestamp_u64 = static_cast<uint64_t>(timestamp_nanoseconds);
+  const uint32_t ros_timestamp_sec = timestamp_u64 / kNanosecondsPerSecond;
+  const uint32_t ros_timestamp_nsec =
+      timestamp_u64 - (ros_timestamp_sec * kNanosecondsPerSecond);
+  return ros::Time(ros_timestamp_sec, ros_timestamp_nsec);
+}
+}  // namespace
 
 DataPublisherFlow::DataPublisherFlow()
     : map_publisher_timeout_(
@@ -51,6 +63,8 @@ void DataPublisherFlow::registerPublishers() {
       node_handle_.advertise<geometry_msgs::Vector3Stamped>(kTopicBiasAcc, 1);
   pub_imu_gyro_bias_ =
       node_handle_.advertise<geometry_msgs::Vector3Stamped>(kTopicBiasGyro, 1);
+  pub_extrinsics_T_C_Bs_ = node_handle_.advertise<geometry_msgs::PoseArray>(
+      kCameraExtrinsicTopic, 1);
 }
 
 void DataPublisherFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
@@ -78,33 +92,42 @@ void DataPublisherFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
         localizationCallback(localization->T_G_I_lc_pnp.getPosition());
       });
 
-  flow->registerSubscriber<message_flow_topics::ROVIO_ESTIMATES>(
-      kSubscriberNodeName, message_flow::DeliveryOptions(),
-      [&](const RovioEstimate::ConstPtr& state) {
-        CHECK(state != nullptr);
-        if (!FLAGS_publish_only_on_keyframes) {
-          stateCallback(
-              state->timestamp_s * kSecondsToNanoSeconds, state->vinode,
-              state->has_T_G_M, state->T_G_M);
-        }
-      });
-
-  flow->registerSubscriber<message_flow_topics::VIO_UPDATES>(
-      kSubscriberNodeName, message_flow::DeliveryOptions(),
-      [this](const vio::VioUpdate::ConstPtr& vio_update) {
-        CHECK(vio_update != nullptr);
-        if (FLAGS_publish_only_on_keyframes) {
+  if (FLAGS_publish_only_on_keyframes) {
+    flow->registerSubscriber<message_flow_topics::VIO_UPDATES>(
+        kSubscriberNodeName, message_flow::DeliveryOptions(),
+        [this](const vio::VioUpdate::ConstPtr& vio_update) {
+          CHECK(vio_update != nullptr);
           bool has_T_G_M =
               (vio_update->localization_state ==
                    vio::LocalizationState::kLocalized ||
                vio_update->localization_state ==
                    vio::LocalizationState::kMapTracking);
-
-          stateCallback(
+          publishVinsState(
               vio_update->timestamp_ns, vio_update->vinode, has_T_G_M,
               vio_update->T_G_M);
-        }
-      });
+        });
+  } else {
+    flow->registerSubscriber<message_flow_topics::ROVIO_ESTIMATES>(
+        kSubscriberNodeName, message_flow::DeliveryOptions(),
+        [&](const RovioEstimate::ConstPtr& state) {
+          CHECK(state != nullptr);
+          publishVinsState(
+              state->timestamp_ns, state->vinode, state->has_T_G_M,
+              state->T_G_M);
+
+          // Publish estimated camera-extrinsics.
+          geometry_msgs::PoseArray T_C_Bs_message;
+          T_C_Bs_message.header.frame_id = visualization::kDefaultImuFrame;
+          T_C_Bs_message.header.stamp = createRosTimestamp(state->timestamp_ns);
+          for (const auto& cam_idx_T_C_B :
+               state->maplab_camera_index_to_T_C_B) {
+            geometry_msgs::Pose T_C_B_message;
+            tf::poseKindrToMsg(cam_idx_T_C_B.second, &T_C_B_message);
+            T_C_Bs_message.poses.emplace_back(T_C_B_message);
+          }
+          pub_extrinsics_T_C_Bs_.publish(T_C_Bs_message);
+        });
+  }
 
   // CSV export for end-to-end test.
   if (!FLAGS_export_estimated_poses_to_csv.empty()) {
@@ -150,18 +173,7 @@ void DataPublisherFlow::visualizeMap(const vi_map::VIMap& vi_map) const {
       kPublishLandmarks);
 }
 
-namespace {
-inline ros::Time createRosTimestamp(int64_t timestamp_nanoseconds) {
-  static constexpr uint32_t kNanosecondsPerSecond = 1e9;
-  const uint64_t timestamp_u64 = static_cast<uint64_t>(timestamp_nanoseconds);
-  const uint32_t ros_timestamp_sec = timestamp_u64 / kNanosecondsPerSecond;
-  const uint32_t ros_timestamp_nsec =
-      timestamp_u64 - (ros_timestamp_sec * kNanosecondsPerSecond);
-  return ros::Time(ros_timestamp_sec, ros_timestamp_nsec);
-}
-}  // namespace
-
-void DataPublisherFlow::stateCallback(
+void DataPublisherFlow::publishVinsState(
     int64_t timestamp_ns, const vio::ViNodeState& vinode, const bool has_T_G_M,
     const aslam::Transformation& T_G_M) {
   ros::Time timestamp_ros = createRosTimestamp(timestamp_ns);

@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+#include <unordered_map>
+
 #include <posegraph/unique-id.h>
 
 #include "vi-map-helpers/vi-map-geometry.h"
@@ -24,6 +26,7 @@ class VIMapManipulation {
   // GLOBAL MAP OPERATIONS
   // =====================
   void rotate(const size_t dimension, const double degrees);
+  void artificiallyDisturbVertices();
 
   // =============
   // MISSION ID IN

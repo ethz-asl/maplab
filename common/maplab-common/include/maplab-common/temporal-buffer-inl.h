@@ -9,6 +9,8 @@
 
 #include <glog/logging.h>
 
+#include "maplab-common/interpolation-helpers.h"
+
 namespace common {
 
 template <typename ValueType, typename AllocatorType>
@@ -170,6 +172,40 @@ bool TemporalBuffer<ValueType, AllocatorType>::getIteratorAtTimeOrEarlier(
     return true;
   }
   return false;
+}
+
+// Return false if the pose is not between two values.
+template <typename ValueType, typename AllocatorType>
+bool TemporalBuffer<ValueType, AllocatorType>::interpolateAt(
+    int64_t timestamp_ns, ValueType* output) const {
+  CHECK_NOTNULL(output);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+  int64_t timestamp_before;
+  ValueType value_before;
+  if (!getValueAtOrBeforeTime(timestamp_ns, &timestamp_before, &value_before)) {
+    return false;
+  }
+
+  int64_t timestamp_after;
+  ValueType value_after;
+  if (!getValueAtOrAfterTime(timestamp_ns, &timestamp_after, &value_after)) {
+    return false;
+  }
+
+  if (timestamp_after == timestamp_before) {
+    CHECK_EQ(timestamp_ns, timestamp_after);
+    *output = value_before;
+    return true;
+  }
+
+  CHECK_LT(timestamp_before, timestamp_ns);
+  CHECK_GT(timestamp_after, timestamp_ns);
+
+  LinearInterpolationFunctor<int64_t, ValueType>()(
+      timestamp_before, value_before, timestamp_after, value_after,
+      timestamp_ns, output);
+  return true;
 }
 
 template <typename ValueType, typename AllocatorType>

@@ -32,19 +32,6 @@ pose_graph::VertexId StreamMapBuilder::getLastVertexId() const {
 }
 
 StreamMapBuilder::StreamMapBuilder(
-    const std::shared_ptr<aslam::NCamera>& camera_rig, vi_map::VIMap* map)
-    : map_(CHECK_NOTNULL(map)),
-      manipulation_(map),
-      mission_id_(common::createRandomId<vi_map::MissionId>()),
-      camera_rig_(camera_rig) {
-  CHECK(camera_rig);
-  map_->addNewMissionWithBaseframe(
-      mission_id_, aslam::Transformation(),
-      Eigen::Matrix<double, 6, 6>::Identity(), camera_rig,
-      vi_map::Mission::BackBone::kViwls);
-}
-
-StreamMapBuilder::StreamMapBuilder(
     const std::shared_ptr<aslam::NCamera>& camera_rig,
     vi_map::Imu::UniquePtr imu, vi_map::VIMap* map)
     : map_(CHECK_NOTNULL(map)),

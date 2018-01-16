@@ -1,4 +1,5 @@
 #include <chrono>
+#include <condition_variable>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -16,6 +17,11 @@ class VioPipelineTest : public ::testing::Test {
     if (pipeline_->trackSynchronizedNFrameImuCallback(nframe_imu)) {
       std::lock_guard<std::mutex> lock(m_num_output_frames_);
       ++num_output_frames_;
+
+      if (num_output_frames_ == kNumExpectedFrames) {
+        work_really_done_ = true;
+        cv_work_done_.notify_all();
+      }
     }
   }
 
@@ -25,6 +31,7 @@ class VioPipelineTest : public ::testing::Test {
     synchronizer_.reset(new ImuCameraSynchronizer(ncamera_));
     pipeline_.reset(new FeatureTracking(ncamera_, imu_sensor_));
     num_output_frames_ = 0;
+    work_really_done_ = false;
   }
 
   ImuCameraSynchronizer::Ptr synchronizer_;
@@ -35,9 +42,21 @@ class VioPipelineTest : public ::testing::Test {
   int num_output_frames_;
   std::mutex m_num_output_frames_;
 
+  static constexpr int kNumFeededFrames = 20;
+  // Expected frames are feeded frames minus one at the beginning and one to
+  // populate the previous frame.
+  static constexpr int kNumExpectedFrames =
+      kNumFeededFrames - ImuCameraSynchronizer::kFramesToSkipAtInit - 1;
+
+  std::condition_variable cv_work_done_;
+  bool work_really_done_;
+
  private:
   vi_map::Imu imu_sensor_;
 };
+
+constexpr int VioPipelineTest::kNumFeededFrames;
+constexpr int VioPipelineTest::kNumExpectedFrames;
 
 TEST_F(VioPipelineTest, PipelineWorks) {
   std::function<void(const vio::SynchronizedNFrameImu::Ptr&)> callback =
@@ -45,10 +64,8 @@ TEST_F(VioPipelineTest, PipelineWorks) {
   synchronizer_->registerSynchronizedNFrameImuCallback(callback);
 
   constexpr int64_t kTimestepNs = 1e9;
-  constexpr int64_t kNumFrames = 20;
 
-  int feeded_frames = 0;
-  for (int64_t t = 0; t < kNumFrames * kTimestepNs; t += kTimestepNs) {
+  for (int64_t t = 0; t < kNumFeededFrames * kTimestepNs; t += kTimestepNs) {
     for (size_t i = 0; i < kNumCameras; ++i) {
       cv::Mat image = cv::Mat(
           ncamera_->getCamera(i).imageHeight(),
@@ -69,19 +86,15 @@ TEST_F(VioPipelineTest, PipelineWorks) {
     synchronizer_->addImuMeasurements(timestamps_nanoseconds, imu_measurements);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-    ++feeded_frames;
   }
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-  // Decrease the counter by frames skipped at the beginning + one to populate
-  // the previous frame.
-  feeded_frames -= ImuCameraSynchronizer::kFramesToSkipAtInit + 1;
-
   {
-    std::lock_guard<std::mutex> lock(m_num_output_frames_);
-    EXPECT_EQ(num_output_frames_, feeded_frames);
+    std::unique_lock<std::mutex> lock(m_num_output_frames_);
+    // Wait till we are done, but not longer than few seconds.
+    cv_work_done_.wait_for(
+        lock, std::chrono::seconds(10), [this]() { return work_really_done_; });
+
+    EXPECT_EQ(num_output_frames_, kNumExpectedFrames);
   }
 
   synchronizer_->shutdown();

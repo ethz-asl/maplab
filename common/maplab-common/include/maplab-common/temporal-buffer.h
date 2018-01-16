@@ -71,6 +71,9 @@ class TemporalBuffer {
       int64_t timestamp_ns, int64_t* timestamp_ns_of_value,
       ValueType* value) const;
 
+  // Returns false if the timestamp is not between two values.
+  bool interpolateAt(int64_t timestamp_ns, ValueType* output) const;
+
   // Get all values between the two specified timestamps excluding the border
   // values.
   // Example: content: 2 3 4 5

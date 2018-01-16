@@ -1,20 +1,44 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import numpy as np
 
 import end_to_end_common.compute_rmse
 from end_to_end_common.end_to_end_utility import align_datasets
-import end_to_end_common.plot_rmse
+import end_to_end_common.create_plots
+
+
+def rad_to_deg(rad):
+  return rad * 180 / np.pi
 
 
 class TestErrorStruct:
   def __init__(
-      self, position_mean_m, position_rmse_m, orientation_mean_rad,
-      orientation_rmse_rad):
+      self, position_mean_m=-1, position_rmse_m=-1, orientation_mean_rad=-1,
+      orientation_rmse_rad=-1):
     self.position_mean_m = position_mean_m
     self.position_rmse_m = position_rmse_m
+    self.position_max_error_m = -1
+    self.position_min_error_m = -1
     self.orientation_mean_rad = orientation_mean_rad
     self.orientation_rmse_rad = orientation_rmse_rad
+    self.orientation_max_error_rad = -1
+    self.orientation_min_error_rad = -1
+
+
+  def set_position_errors(self, position_errors):
+    self.position_mean_m = position_errors.mean
+    self.position_rmse_m = position_errors.rmse
+    self.position_max_error_m = position_errors.max_value
+    self.position_min_error_m = position_errors.min_value
+
+
+  def set_orientation_errors(self, orientation_errors):
+    self.orientation_mean_rad = orientation_errors.mean
+    self.orientation_rmse_rad = orientation_errors.rmse
+    self.orientation_max_error_rad = orientation_errors.max_value
+    self.orientation_min_error_rad = orientation_errors.min_value
 
 
   def __str__(self):
@@ -95,16 +119,16 @@ class EndToEndTest:
     estimator_data_G_I, ground_truth_data_G_M = align_datasets(
         estimated_poses_csv_path, ground_truth_csv_path, estimator_input_format)
 
-    position_mean_m, position_rmse_m = \
+    position_errors_m = \
         end_to_end_common.compute_rmse.compute_position_mean_and_rmse(
             estimator_data_G_I[:, 1:4], ground_truth_data_G_M[:, 1:4])
-    orientation_mean_rad, orientation_rmse_rad = \
+    orientation_errors_rad = \
         end_to_end_common.compute_rmse.compute_orientation_mean_and_rmse(
             estimator_data_G_I[:, 4:8], ground_truth_data_G_M[:, 4:8])
 
-    errors = TestErrorStruct(
-        position_mean_m, position_rmse_m,
-        orientation_mean_rad, orientation_rmse_rad)
+    errors = TestErrorStruct()
+    errors.set_position_errors(position_errors_m)
+    errors.set_orientation_errors(orientation_errors_rad)
     result = EndToEndTest.TestResult(
         label, errors, max_errors_list, estimator_data_G_I,
         ground_truth_data_G_M, localization_state_list)
@@ -117,7 +141,7 @@ class EndToEndTest:
     """
     Prints all test errors (position and orientation mean and RMSE).
     """
-    print "=" * 80
+    print("=" * 80)
     for result in self.test_results:
       max_position_mean = 100000
       max_position_rmse = 100000
@@ -132,26 +156,33 @@ class EndToEndTest:
         max_orientation_rmse = min(
             max_orientation_rmse, max_errors.orientation_rmse_rad)
 
-      print result.label, "errors:"
-      print "    position mean [m]:      ", \
-          result.calculated_errors.position_mean_m, \
-          "\t(max:", max_position_mean, "\b)"
-      print "    position RMSE [m]:      ", \
-          result.calculated_errors.position_rmse_m, \
-          "\t(max:", max_position_rmse, "\b)"
+      print(result.label, "errors:")
+      print(
+          "    position [m]:\tmean =", result.calculated_errors.position_mean_m,
+          "\tRMSE =", result.calculated_errors.position_rmse_m,
+          "\tmin =", result.calculated_errors.position_min_error_m,
+          "\tmax =", result.calculated_errors.position_max_error_m)
+      print(
+          "        (Thresholds:\tmean = ", max_position_mean,
+          "\tRMSE = ", max_position_rmse, ")", sep="")
 
-      print "    orientation mean [deg]: ", \
-          result.calculated_errors.orientation_mean_rad * 180 / np.pi, \
-          "\t(max:", max_orientation_mean * 180 / np.pi, "\b)"
-      print "    orientation RMSE [deg]: ", \
-          result.calculated_errors.orientation_rmse_rad * 180 / np.pi, \
-          "\t(max:", max_orientation_rmse * 180 / np.pi, "\b)"
+      print(
+          "    orientation [deg]:\tmean =",
+          rad_to_deg(result.calculated_errors.orientation_mean_rad), "\tRMSE =",
+          rad_to_deg(result.calculated_errors.orientation_rmse_rad), "\tmin =",
+          rad_to_deg(result.calculated_errors.orientation_min_error_rad),
+          "\tmax =",
+          rad_to_deg(result.calculated_errors.orientation_max_error_rad))
+      print(
+          "        (Thresholds:\tmean = ", rad_to_deg(max_orientation_mean),
+          "\tRMSE = ", rad_to_deg(max_orientation_rmse), ")", sep="")
 
       if result.cpu_mean > 0 and result.cpu_stddev >= 0:
-        print "    CPU load [%]:\tmean:", result.cpu_mean, "\tstd dev:", \
-            result.cpu_stddev
+        print("    CPU load [%]:\tmean:", result.cpu_mean, "\tstd dev:", \
+            result.cpu_stddev)
 
-      print "=" * 80
+      print("=" * 80)
+
 
   def check_errors(self):
     """
@@ -159,7 +190,7 @@ class EndToEndTest:
     maximum test errors.
     """
     for result in self.test_results:
-      print "Checking results from", result.label, "."
+      print("Checking results from ", result.label, ".", sep="")
       assert result.calculated_errors.position_mean_m <= \
              result.calculated_errors.position_rmse_m
       assert result.calculated_errors.orientation_mean_rad <= \
@@ -174,14 +205,14 @@ class EndToEndTest:
         assert result.calculated_errors.orientation_rmse_rad < \
                max_errors.orientation_rmse_rad
 
-      print "Done."
+      print("Done.")
 
 
   def plot_results(self):
     """
     Creates a plot containing the position error for each given test dataset.
     """
-    print "Plotting results."
+    print("Plotting results.")
     labels = []
     ground_truth_data = []
     estimator_data = []
@@ -192,6 +223,6 @@ class EndToEndTest:
       estimator_data.append(result.estimator_G_I)
       localizations.append(result.localization_state_list)
 
-    end_to_end_common.plot_rmse.plot_position_error(
+    end_to_end_common.create_plots.plot_position_error(
         labels, ground_truth_data, estimator_data, localizations)
-    print "Plotting done."
+    print("Plotting done.")

@@ -4,8 +4,10 @@ import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 from end_to_end_common.end_to_end_utility import align_datasets
+from PyQt4.Qwt5 import qplt
 
 
 def plot_top_down_unaligned(
@@ -20,6 +22,7 @@ def plot_top_down_unaligned(
       estimator_data_csv_path, ground_truth_csv_path,
       estimator_input_format=input_format)
   plot_top_down_aligned_data(estimator_data_G_I, ground_truth_data_G_M)
+  plot_trajectory3d_aligned_data(estimator_data_G_I, ground_truth_data_G_M)
 
 
 def plot_top_down_aligned_data(estimator_data_G_I, ground_truth_data_G_M):
@@ -36,6 +39,28 @@ def plot_top_down_aligned_data(estimator_data_G_I, ground_truth_data_G_M):
       estimator_data_G_I[:, 1], estimator_data_G_I[:, 2], label="Estimator")
   plt.xlabel("x position [m]")
   plt.ylabel("y position [m]")
+  plt.legend()
+  plt.title(estimator_data_csv_path)
+  plt.show()
+
+
+def plot_trajectory3d_aligned_data(estimator_data_G_I, ground_truth_data_G_M):
+  """
+  Creates a 3d plot of the given estimated and ground truth trajectory.
+
+  Inputs: aligned estimator and ground truth trajectory matrices (assumed to be
+  in the output format of end_to_end_common.end_to_end_utility.align_datasets).
+  """
+  fig = plt.figure()
+  ax = fig.gca(projection='3d')
+  ax.plot(ground_truth_data_G_M[:, 1], ground_truth_data_G_M[:,
+                                                             2], ground_truth_data_G_M[:, 3], label="Ground truth")
+  ax.plot(estimator_data_G_I[:, 1], estimator_data_G_I[:,
+                                                       2], estimator_data_G_I[:, 3], label="Estimator")
+
+  plt.xlabel("x position [m]")
+  plt.ylabel("y position [m]")
+  plt.ylabel("z position [m]")
   plt.legend()
   plt.title(estimator_data_csv_path)
   plt.show()

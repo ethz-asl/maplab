@@ -66,24 +66,6 @@ void TransformationEdge::deserialize(
   common::eigen_proto::deserialize(proto.t_a_b(), &T_A_B_);
 }
 
-void TransformationEdge::deserialize(
-    const pose_graph::EdgeId& id,
-    const vi_map_deprecated::proto::TransformationEdge& proto) {
-  id_ = id;
-  from_.deserialize(proto.from());
-  to_.deserialize(proto.to());
-  if (proto.has_optional_sensor_extrinsics_id()) {
-    sensor_id_.deserialize(proto.optional_sensor_extrinsics_id());
-    CHECK(sensor_id_.isValid());
-  } else {
-    sensor_id_.setInvalid();
-  }
-
-  common::eigen_proto::deserialize(
-      proto.t_a_b_covariance(), &T_A_B_covariance_p_q_);
-  common::eigen_proto::deserialize(proto.t_a_b(), &T_A_B_);
-}
-
 void TransformationEdge::set_T_A_B(const pose::Transformation& T_A_B) {
   T_A_B_ = T_A_B;
 }

@@ -1,8 +1,11 @@
 #include "pose-graph-manipulation-plugin/pose-graph-manipulation-plugin.h"
 
+#include <random>
+
 #include <glog/logging.h>
 #include <map-manager/map-manager.h>
 #include <maplab-common/progress-bar.h>
+#include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/vi-map.h>
 
 #include "pose-graph-manipulation-plugin/edge-manipulation.h"
@@ -60,6 +63,12 @@ PoseGraphManipulationPlugin::PoseGraphManipulationPlugin(
       "Assigns a specified value to the switch variables of all "
       "loop-closure edges. Specify the switch variable value with "
       "--lc_switch_variable_value.",
+      common::Processing::Sync);
+
+  addCommand(
+      {"artificially_disturb_vertices"},
+      [this]() -> int { return artificiallyDisturbVertices(); },
+      "Artificially disturbs vertices in all missions.",
       common::Processing::Sync);
 }
 
@@ -155,6 +164,21 @@ int PoseGraphManipulationPlugin::
 
   return pose_graph_manipulation::assignSwitchVariableValuesForLoopClosureEdges(
       switch_variable_value, map.get());
+}
+
+int PoseGraphManipulationPlugin::artificiallyDisturbVertices() const {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);
+  vi_map_helpers::VIMapManipulation map_manipulation(map.get());
+  map_manipulation.artificiallyDisturbVertices();
+
+  return common::kSuccess;
 }
 
 }  // namespace pose_graph_manipulation

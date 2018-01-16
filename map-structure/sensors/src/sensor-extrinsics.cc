@@ -1,6 +1,14 @@
 #include "sensors/sensor-extrinsics.h"
 
+#include <random>
+
+#include <Eigen/Core>
+#include <aslam/common/memory.h>
+#include <aslam/common/pose-types.h>
+#include <aslam/common/yaml-serialization.h>
 #include <glog/logging.h>
+#include <maplab-common/macros.h>
+#include <maplab-common/yaml-file-serializable.h>
 
 namespace vi_map {
 

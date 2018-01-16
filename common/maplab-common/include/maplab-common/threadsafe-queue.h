@@ -42,7 +42,8 @@ class ThreadSafeQueue final : public ThreadSafeQueueBase {
   ThreadSafeQueue() : shutdown_(false) {}
 
   ~ThreadSafeQueue() override {
-    Shutdown();
+    CHECK(shutdown_) << "This queue has not been shut down properly. Call "
+                     << "Shutdown() before destructing this object.";
   }
 
   void Shutdown() override {

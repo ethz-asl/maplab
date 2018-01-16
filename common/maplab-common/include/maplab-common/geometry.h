@@ -64,8 +64,10 @@ void transformationRansac(
     double threshold_position_meters, int ransac_seed,
     pose::Transformation* T_A_B, int* num_inliers);
 
-namespace geometry {
+double getMaxDisparityRadAngleOfUnitVectorBundle(
+    const Aligned<std::vector, Eigen::Vector3d>& unit_incidence_rays);
 
+namespace geometry {
 // Implementation adopted from the descriptor_projection package.
 template <typename Type, int Dimensions>
 void computeCovariance(

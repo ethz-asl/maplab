@@ -8,7 +8,7 @@ VioUpdateBuilder::VioUpdateBuilder()
     : last_received_timestamp_synced_nframe_queue_(
           aslam::time::getInvalidTime()),
       last_received_timestamp_rovio_estimate_queue(
-          aslam::time::nanoSecondsToSeconds(aslam::time::getInvalidTime())) {}
+          aslam::time::getInvalidTime()) {}
 
 void VioUpdateBuilder::processSynchronizedNFrameImu(
     const vio::SynchronizedNFrameImu::ConstPtr& synced_nframe_imu) {
@@ -26,10 +26,10 @@ void VioUpdateBuilder::processSynchronizedNFrameImu(
 void VioUpdateBuilder::processRovioEstimate(
     const RovioEstimate::ConstPtr& rovio_estimate) {
   CHECK(rovio_estimate != nullptr);
-  const double timestamp_rovio_estimate_s = rovio_estimate->timestamp_s;
   CHECK_GT(
-      timestamp_rovio_estimate_s, last_received_timestamp_rovio_estimate_queue);
-  last_received_timestamp_rovio_estimate_queue = timestamp_rovio_estimate_s;
+      rovio_estimate->timestamp_ns,
+      last_received_timestamp_rovio_estimate_queue);
+  last_received_timestamp_rovio_estimate_queue = rovio_estimate->timestamp_ns;
 
   std::lock_guard<std::recursive_mutex> lock(queue_mutex_);
   rovio_estimate_queue_.push_back(rovio_estimate);
@@ -77,19 +77,15 @@ void VioUpdateBuilder::findMatchAndPublish() {
        ++it_rovio_estimate_before_nframe) {
     it_rovio_estimate_after_nframe = it_rovio_estimate_before_nframe + 1;
     // Check if exact match.
-    if (aslam::time::secondsToNanoSeconds(
-            (*it_rovio_estimate_before_nframe)->timestamp_s) ==
+    if ((*it_rovio_estimate_before_nframe)->timestamp_ns ==
         timestamp_nframe_ns) {
       found_exact_match = true;
       break;
     }
     if (it_rovio_estimate_after_nframe != rovio_estimate_queue_.end() &&
-        aslam::time::secondsToNanoSeconds(
-            (*it_rovio_estimate_before_nframe)->timestamp_s) <=
+        (*it_rovio_estimate_before_nframe)->timestamp_ns <=
             timestamp_nframe_ns &&
-        aslam::time::secondsToNanoSeconds(
-            (*it_rovio_estimate_after_nframe)->timestamp_s) >
-            timestamp_nframe_ns) {
+        (*it_rovio_estimate_after_nframe)->timestamp_ns > timestamp_nframe_ns) {
       // Found matching vi nodes.
       found_matches_to_interpolate = true;
       break;
@@ -122,10 +118,8 @@ void VioUpdateBuilder::findMatchAndPublish() {
     }
   } else {
     // Need to interpolate ViNode.
-    const int64_t t_before = aslam::time::secondsToNanoSeconds(
-        rovio_estimate_before_nframe->timestamp_s);
-    const int64_t t_after = aslam::time::secondsToNanoSeconds(
-        rovio_estimate_after_nframe->timestamp_s);
+    const int64_t t_before = rovio_estimate_before_nframe->timestamp_ns;
+    const int64_t t_after = rovio_estimate_after_nframe->timestamp_ns;
 
     vio::ViNodeState interpolated_vi_node;
     interpolateViNodeState(
@@ -189,18 +183,18 @@ void VioUpdateBuilder::interpolateViNodeState(
 
   // Interpolate velocity.
   Eigen::Vector3d interpolated_v_M_I;
-  common::linerarInterpolation(
+  common::linearInterpolation(
       timestamp_ns_a, vi_node_a.get_v_M_I(), timestamp_ns_b,
       vi_node_b.get_v_M_I(), timestamp_ns_interpolated, &interpolated_v_M_I);
   vi_node_interpolated->set_v_M_I(interpolated_v_M_I);
 
   // Interpolate biases.
   Eigen::Vector3d interpolated_acc_bias, interpolated_gyro_bias;
-  common::linerarInterpolation(
+  common::linearInterpolation(
       timestamp_ns_a, vi_node_a.getAccBias(), timestamp_ns_b,
       vi_node_b.getAccBias(), timestamp_ns_interpolated,
       &interpolated_acc_bias);
-  common::linerarInterpolation(
+  common::linearInterpolation(
       timestamp_ns_a, vi_node_a.getGyroBias(), timestamp_ns_b,
       vi_node_b.getGyroBias(), timestamp_ns_interpolated,
       &interpolated_gyro_bias);

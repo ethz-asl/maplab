@@ -14,4 +14,5 @@
   <depend>map_manager</depend>
   <depend>maplab_common</depend>
   <depend>vi_map</depend>
+  <depend>vi_map_helpers</depend>
 </package>

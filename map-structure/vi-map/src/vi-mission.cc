@@ -138,7 +138,9 @@ void VIMission::deserialize(
   }
 
   const size_t num_mission_resources = proto.mission_resource_ids_size();
-  CHECK_EQ(num_mission_resources, proto.mission_resource_types_size());
+  CHECK_EQ(
+      num_mission_resources,
+      static_cast<size_t>(proto.mission_resource_types_size()));
   for (size_t proto_idx = 0u; proto_idx < num_mission_resources; ++proto_idx) {
     backend::ResourceId resource_id;
     backend::ResourceType type;
@@ -154,108 +156,6 @@ void VIMission::deserialize(
 
   const size_t num_opt_cameras = proto.optional_cameras_with_extrinsics_size();
   for (size_t proto_idx = 0u; proto_idx < num_opt_cameras; ++proto_idx) {
-    aslam::CameraId camera_id;
-    aslam::Transformation T_C_B;
-    aslam::Camera::Ptr camera_ptr;
-
-    // Retrieve data from proto.
-    const ::opt_cam_res::proto::CamerasWithExtrinsics& cam_w_extrinsics =
-        proto.optional_cameras_with_extrinsics(proto_idx);
-    ::common::aslam_id_proto::deserialize(
-        cam_w_extrinsics.camera_id(), &camera_id);
-    CHECK(camera_id.isValid());
-    common::eigen_proto::deserialize(cam_w_extrinsics.t_c_b(), &T_C_B);
-
-    if (cam_w_extrinsics.has_camera()) {
-      aslam::serialization::deserializeCamera(
-          cam_w_extrinsics.camera(), &camera_ptr);
-      CHECK(camera_ptr != nullptr);
-    }
-
-    // Store in mission.
-    if (camera_ptr) {
-      addOptionalCameraWithExtrinsics(*camera_ptr, T_C_B);
-    } else {
-      LOG(FATAL) << "OptionalCameraResources without a camera model are "
-                    "currently not supported!";
-    }
-  }
-
-  const size_t num_opt_cam_resources = proto.optional_camera_resources_size();
-  for (size_t proto_idx = 0u; proto_idx < num_opt_cam_resources; ++proto_idx) {
-    backend::ResourceId resource_id;
-    int64_t timestamp_ns;
-    aslam::CameraId camera_id;
-    backend::ResourceType resource_type;
-
-    // Retrieve data from proto.
-    const ::opt_cam_res::proto::OptionalCameraResources& resource =
-        proto.optional_camera_resources(proto_idx);
-    resource_id.deserialize(resource.resource_id());
-    ::common::aslam_id_proto::deserialize(resource.camera_id(), &camera_id);
-    CHECK(camera_id.isValid());
-    timestamp_ns = static_cast<int64_t>(resource.timestamp_ns());
-    int32_t resource_type_int = static_cast<int32_t>(resource.resource_type());
-    CHECK_LT(
-        resource_type_int, static_cast<int32_t>(backend::ResourceType::kCount));
-    CHECK_GE(resource_type_int, 0);
-    resource_type = static_cast<backend::ResourceType>(resource_type_int);
-
-    // Make sure this camera already exists.
-    CHECK(hasOptionalCameraWithExtrinsics(camera_id))
-        << "Optional camera " << camera_id << " does not exist.";
-
-    // Store in mission.
-    addOptionalCameraResourceId(
-        resource_type, camera_id, resource_id, timestamp_ns);
-  }
-}
-
-void VIMission::deserializeDeprecated(
-    const vi_map::MissionId& mission_id,
-    const vi_map_deprecated::proto::Mission& proto) {
-  CHECK(mission_id.isValid());
-  Mission::mission_id_ = mission_id;
-
-  Mission::root_vertex_id_.deserialize(proto.root_vertex_id());
-  Mission::base_frame_id_.deserialize(proto.baseframe_id());
-
-  if (proto.has_backbone()) {
-    switch (proto.backbone()) {
-      case ::vi_map::proto::Mission_BackBone_kViwls: {
-        backbone_type_ = BackBone::kViwls;
-        break;
-      }
-      case ::vi_map::proto::Mission_BackBone_kOdometry: {
-        backbone_type_ = BackBone::kOdometry;
-        break;
-      }
-      default: {
-        LOG(FATAL) << "Unknown backbone type "
-                   << static_cast<int>(proto.backbone());
-      }
-    }
-  } else {
-    backbone_type_ = BackBone::kViwls;
-  }
-
-  const int num_mission_resources = proto.mission_resource_ids_size();
-  CHECK_EQ(num_mission_resources, proto.mission_resource_types_size());
-  for (int proto_idx = 0; proto_idx < num_mission_resources; ++proto_idx) {
-    backend::ResourceId resource_id;
-    backend::ResourceType type;
-
-    // Retrieve data from proto.
-    resource_id.deserialize(proto.mission_resource_ids(proto_idx));
-    type = static_cast<backend::ResourceType>(
-        proto.mission_resource_types(proto_idx));
-
-    // Store in mission.
-    type_to_resource_id_map_[type].insert(resource_id);
-  }
-
-  const int num_opt_cameras = proto.optional_cameras_with_extrinsics_size();
-  for (int proto_idx = 0; proto_idx < num_opt_cameras; ++proto_idx) {
     aslam::CameraId camera_id;
     aslam::Transformation T_C_B;
     aslam::Camera::Ptr camera_ptr;

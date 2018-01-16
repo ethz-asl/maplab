@@ -7,6 +7,7 @@
 #include <Eigen/Dense>
 #include <aslam/common/statistics/statistics.h>
 #include <maplab-common/conversions.h>
+#include <maplab-common/geometry.h>
 
 namespace vi_map {
 
@@ -28,18 +29,12 @@ inline bool isLandmarkWellConstrained(
     return false;
   }
 
-  double min_cos_angle = 1.0;
-  for (size_t i = 0; i < G_normalized_incidence_rays.size(); ++i) {
-    for (size_t j = i + 1; j < G_normalized_incidence_rays.size(); ++j) {
-      min_cos_angle = std::min(
-          min_cos_angle, std::abs(
-                             G_normalized_incidence_rays[i].dot(
-                                 G_normalized_incidence_rays[j])));
-    }
-  }
+  const double max_disparity_angle_rad =
+      common::getMaxDisparityRadAngleOfUnitVectorBundle(
+          G_normalized_incidence_rays);
 
   constexpr double kRadToDeg = 180.0 / M_PI;
-  double angle_deg = acos(min_cos_angle) * kRadToDeg;
+  double angle_deg = max_disparity_angle_rad * kRadToDeg;
   bool quality_good = angle_deg >= settings.min_observation_angle_deg;
   if (!quality_good) {
     statistics::StatsCollector stats(

@@ -6,14 +6,19 @@
 namespace common {
 
 template <typename Time, typename InterpolateType>
-void linerarInterpolation(
+void linearInterpolation(
     const Time t1, const InterpolateType& x1, const Time t2,
     const InterpolateType& x2, const Time t_interpolated,
     InterpolateType* x_interpolated) {
   CHECK_NOTNULL(x_interpolated);
-  CHECK_LT(t1, t2);
+  CHECK_LE(t1, t2);
   CHECK_LE(t1, t_interpolated);
   CHECK_LE(t_interpolated, t2);
+  if (t1 == t2) {
+    CHECK_EQ(x1, x2);
+    *x_interpolated = x1;
+    return;
+  }
   *x_interpolated = x1 + (x2 - x1) / (t2 - t1) * (t_interpolated - t1);
 }
 
@@ -44,7 +49,7 @@ void interpolateTransformation(
   CHECK_LE(t_interpolated, t2);
 
   aslam::Position3D A_p_AB_interpolated;
-  common::linerarInterpolation(
+  common::linearInterpolation(
       t1, T_A_B1.getPosition(), t2, T_A_B2.getPosition(), t_interpolated,
       &A_p_AB_interpolated);
 
@@ -55,6 +60,36 @@ void interpolateTransformation(
   *T_A_B_interpolated =
       aslam::Transformation(q_A_B_interpolated, A_p_AB_interpolated);
 }
+
+template <typename Time, typename InterpolateType>
+struct LinearInterpolationFunctor {
+  void operator()(
+      const Time t1, const InterpolateType& x1, const Time t2,
+      const InterpolateType& x2, const Time t_interpolated,
+      InterpolateType* x_interpolated) {
+    linearInterpolation(t1, x1, t2, x2, t_interpolated, x_interpolated);
+  }
+};
+
+template <typename Time>
+struct LinearInterpolationFunctor<Time, aslam::Quaternion> {
+  void operator()(
+      const Time t1, const aslam::Quaternion& x1, const Time t2,
+      const aslam::Quaternion& x2, const Time t_interpolated,
+      aslam::Quaternion* x_interpolated) {
+    interpolateRotation(t1, x1, t2, x2, t_interpolated, x_interpolated);
+  }
+};
+
+template <typename Time>
+struct LinearInterpolationFunctor<Time, aslam::Transformation> {
+  void operator()(
+      const Time t1, const aslam::Transformation& x1, const Time t2,
+      const aslam::Transformation& x2, const Time t_interpolated,
+      aslam::Transformation* x_interpolated) {
+    interpolateTransformation(t1, x1, t2, x2, t_interpolated, x_interpolated);
+  }
+};
 
 }  // namespace common
 

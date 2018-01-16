@@ -19,9 +19,9 @@ struct SimpleBriskFeatureTrackingSettings {
   const double matching_image_space_distance_threshold_px;
 };
 
-struct SweFeatureTrackingExtractorSettings {
+struct FeatureTrackingExtractorSettings {
   enum class DescriptorType { kOcvFreak, kBrisk };
-  SweFeatureTrackingExtractorSettings();
+  FeatureTrackingExtractorSettings();
   DescriptorType convertStringToDescriptorType(
       const std::string& descriptor_string);
   /// Type of descriptor used by SWE.
@@ -36,8 +36,8 @@ struct SweFeatureTrackingExtractorSettings {
   float freak_pattern_scale;
 };
 
-struct SweFeatureTrackingDetectorSettings {
-  SweFeatureTrackingDetectorSettings();
+struct FeatureTrackingDetectorSettings {
+  FeatureTrackingDetectorSettings();
 
   // Settings for the non-maximum suppression algorithm.
   bool detector_use_nonmaxsuppression;
@@ -80,6 +80,15 @@ struct SweFeatureTrackingDetectorSettings {
   size_t min_tracking_distance_to_image_border_px;
 
   double keypoint_uncertainty_px;
+
+  // Settings for grided detector to ensure a certain distribution of keypoints
+  // across  the image.
+  bool grided_detector_use_grided;
+  double grided_detector_cell_num_features_scaler;
+  size_t grided_detector_cell_num_features;
+  size_t grided_detector_num_grid_cols;
+  size_t grided_detector_num_grid_rows;
+  size_t grided_detector_num_threads_per_image;
 };
 
 }  // namespace feature_tracking

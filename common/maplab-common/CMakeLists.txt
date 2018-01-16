@@ -63,6 +63,9 @@ catkin_add_gtest(test_accessors
   test/test_accessors.cc)
 target_link_libraries(test_accessors ${PROJECT_NAME})
 
+catkin_add_gtest(test_bidirectional_map test/test_bidirectional_map.cc)
+target_link_libraries(test_bidirectional_map ${PROJECT_NAME})
+
 catkin_add_gtest(test_fixed_size_queue
     test/test_fixed_size_queue.cc)
 target_link_libraries(test_fixed_size_queue ${PROJECT_NAME})

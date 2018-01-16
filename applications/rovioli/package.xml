@@ -22,6 +22,7 @@
   <depend>loop_closure_handler</depend>
   <depend>maplab_common</depend>
   <depend>mapping_workflows_plugin</depend>
+  <depend>matching_based_loopclosure</depend>
   <depend>message_flow</depend>
   <depend>online_map_builders</depend>
   <depend>rovio</depend>

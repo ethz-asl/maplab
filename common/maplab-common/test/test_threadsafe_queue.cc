@@ -49,12 +49,16 @@ bool test_funcs(
         &consumer_threads[i], NULL, consumer_ptr, static_cast<void*>(&args));
   }
 
+  queue_jobs.Shutdown();
+  queue_finished.Shutdown();
+
   for (int i = 0; i < num_producers; ++i) {
     pthread_join(producer_threads[i], NULL);
   }
   for (int i = 0; i < num_consumers; ++i) {
     pthread_join(consumer_threads[i], NULL);
   }
+
   return true;
 }
 

@@ -155,8 +155,14 @@ void GraphBaOptimizer::copyDataFromMap() {
        mission_base_frame_ids) {
     const vi_map::MissionBaseFrame& baseframe =
         const_map_.getMissionBaseFrame(baseframe_id);
-    baseframe_poses_.col(base_frame_idx)
-        << baseframe.get_q_G_M().inverse().coeffs(),
+    Eigen::Quaterniond q_G_M = baseframe.get_q_G_M().inverse();
+
+    if (q_G_M.w() < 0.0) {
+      q_G_M.coeffs() = -q_G_M.coeffs();
+    }
+    CHECK_GE(q_G_M.w(), 0.0);
+
+    baseframe_poses_.col(base_frame_idx) << q_G_M.coeffs(),
         baseframe.get_p_G_M();
 
     baseframe_id_to_baseframe_idx_.emplace(baseframe_id, base_frame_idx);
@@ -183,8 +189,15 @@ void GraphBaOptimizer::copyDataFromMap() {
     aslam::Transformation T_R_S;
     if (sensor_manager.getSensor_T_R_S(sensor_id, &T_R_S)) {
       const aslam::Transformation T_S_I = T_R_S.inverse();
-      sensor_extrinsics_.col(sensor_extrinsics_col_idx)
-          << T_S_I.getRotation().toImplementation().inverse().coeffs(),
+
+      Eigen::Quaterniond q_S_I =
+          T_S_I.getRotation().toImplementation().inverse();
+      if (q_S_I.w() < 0.0) {
+        q_S_I.coeffs() = -q_S_I.coeffs();
+      }
+      CHECK_GE(q_S_I.w(), 0.0);
+
+      sensor_extrinsics_.col(sensor_extrinsics_col_idx) << q_S_I.coeffs(),
           T_S_I.getPosition();
 
       CHECK(
@@ -193,8 +206,12 @@ void GraphBaOptimizer::copyDataFromMap() {
               .second);
       ++sensor_extrinsics_col_idx;
     } else {
-      LOG(WARNING) << "Unable to retrieve the sensor extrinsics of sensor "
-                   << sensor_id.hexString();
+      const bool is_reference_sensor =
+          sensor_manager.hasSensorSystem() &&
+          sensor_manager.getSensorSystem().getReferenceSensorId() == sensor_id;
+      LOG_IF(WARNING, !is_reference_sensor) << "Unable to retrieve the sensor "
+                                            << "extrinsics of sensor "
+                                            << sensor_id.hexString();
     }
   }
 
@@ -217,9 +234,14 @@ void GraphBaOptimizer::copyDataFromMap() {
          ++camera_idx) {
       const aslam::Transformation& T_C_I = ncamera.get_T_C_B(camera_idx);
 
-      T_C_I_JPL_.col(T_C_I_column_index)
-          << T_C_I.getRotation().toImplementation().inverse().coeffs(),
-          T_C_I.getPosition();
+      Eigen::Quaterniond q_C_I =
+          T_C_I.getRotation().toImplementation().inverse();
+      if (q_C_I.w() < 0.0) {
+        q_C_I.coeffs() = -q_C_I.coeffs();
+      }
+      CHECK_GE(q_C_I.w(), 0.0);
+
+      T_C_I_JPL_.col(T_C_I_column_index) << q_C_I.coeffs(), T_C_I.getPosition();
 
       const aslam::CameraId& camera_id = ncamera.getCamera(camera_idx).getId();
       CHECK(camera_id.isValid());

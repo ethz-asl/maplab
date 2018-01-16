@@ -74,8 +74,6 @@ class VIMapBasicPlugin : public common::ConsolePluginBaseWithPlotter {
   int removeMissionInteractive();
 
   int spatiallyDistributeMissions();
-
-  int convertMapToNewFormat();
 };
 
 }  // namespace vi_map

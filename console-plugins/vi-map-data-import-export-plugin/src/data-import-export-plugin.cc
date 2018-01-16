@@ -3,7 +3,6 @@
 #include <console-common/console.h>
 #include <csv-export/csv-export.h>
 #include <map-manager/map-manager.h>
-#include <vi-map-data-import-export-plugin/export-sensors.h>
 #include <vi-map/vi-map.h>
 #include "vi-map-data-import-export-plugin/export-ncamera-calibration.h"
 #include "vi-map-data-import-export-plugin/export-vertex-data.h"
@@ -16,8 +15,6 @@ DEFINE_string(csv_export_path, "", "Path to save the map in CSV format into.");
 DEFINE_string(
     ncamera_calibration_export_folder, "",
     "Folder to export the ncamera calibration into.");
-
-DEFINE_string(sensors_export_folder, "", "Folder to export the sensors into.");
 
 DEFINE_string(pose_export_file, "", "File to export poses to.");
 
@@ -60,6 +57,7 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
       "files in a folder specified by --csv_export_path. Check the "
       "documentation for information on the CSV format.",
       common::Processing::Sync);
+
   addCommand(
       {"export_trajectory_to_csv", "ettc"},
       [this]() -> int { return exportPosesVelocitiesAndBiasesToCsv(); },
@@ -72,13 +70,6 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
       [this]() -> int { return exportNCameraCalibration(); },
       "Exports the ncamera calibration to the folder specified with "
       "--ncamera_calibration_export_folder.",
-      common::Processing::Sync);
-
-  addCommand(
-      {"export_optional_sensor_extrinsics", "eose"},
-      [this]() -> int { return exportOptionalSensorExtrinsics(); },
-      "Exports the optional sensor extrinsics to the folder specified with "
-      "--optional_sensor_extrinsics_export_folder.",
       common::Processing::Sync);
 
   addCommand(
@@ -162,26 +153,6 @@ int DataImportExportPlugin::exportNCameraCalibration() const {
 
   data_import_export::exportNCameraCalibration(
       *map, FLAGS_ncamera_calibration_export_folder);
-  return common::kSuccess;
-}
-
-int DataImportExportPlugin::exportOptionalSensorExtrinsics() const {
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapReadAccess map =
-      map_manager.getMapReadAccess(selected_map_key);
-
-  if (FLAGS_sensors_export_folder.empty()) {
-    LOG(ERROR) << "Specify a valid export folder with "
-               << "--sensors_export_folder.";
-    return common::kStupidUserError;
-  }
-
-  data_import_export::exportSensors(*map, FLAGS_sensors_export_folder);
   return common::kSuccess;
 }
 

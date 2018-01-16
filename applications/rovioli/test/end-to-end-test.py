@@ -12,8 +12,7 @@ matplotlib.use('Agg')
 
 import end_to_end_common.download_helpers
 import end_to_end_common.end_to_end_test
-from hand_eye_calibration import bash_utils
-
+import end_to_end_common.bash_utils
 
 """
 If set to false, Rovioli isn't run in a given case. A previous CSV file with
@@ -24,9 +23,9 @@ VIL = Rovioli with localization
 RUN_ESTIMATOR_VIO = True
 RUN_ESTIMATOR_VIL = True
 
-VIO_MAX_POSITION_RMSE_M = 0.2
-VIL_MAX_POSITION_RMSE_M = 0.1
-VIO_MAX_ORIENTATION_RMSE_RAD = 0.2
+VIO_MAX_POSITION_RMSE_M = 0.08
+VIL_MAX_POSITION_RMSE_M = 0.05
+VIO_MAX_ORIENTATION_RMSE_RAD = 0.07
 VIL_MAX_ORIENTATION_RMSE_RAD = VIO_MAX_ORIENTATION_RMSE_RAD
 
 
@@ -54,12 +53,11 @@ def test_rovioli_end_to_end():
   estimator_vio_csv_path = "rovioli_estimated_poses_vio.csv"
 
   if RUN_ESTIMATOR_VIO:
-    bash_utils.run(
-        "rosrun rovioli rovioli"
+    end_to_end_common.bash_utils.run(
+        "rosrun rovioli rovioli "
         "    --alsologtostderr"
         "    --ncamera_calibration=\"%s\""
         "    --imu_parameters_maplab=\"%s\""
-        "    --imu_parameters_rovio=\"%s\""
         "    --datasource_type=rosbag"
         "    --datasource_rosbag=\"%s\""
         "    --export_estimated_poses_to_csv=\"%s\""
@@ -67,7 +65,6 @@ def test_rovioli_end_to_end():
         "    --rovio_enable_frame_visualization=false"
         % (config_dir + "/ncamera-euroc.yaml",
            config_dir + "/imu-adis16488.yaml",
-           config_dir + "/imu-sigmas-rovio.yaml",
            rosbag_local_path,
            estimator_vio_csv_path))
 
@@ -78,32 +75,29 @@ def test_rovioli_end_to_end():
 
   # Run estimator VIL mode.
   estimator_vil_csv_path = "rovioli_estimated_poses_vil.csv"
-  localization_reference_map = "V1_01_easy_optimized_summary_map"
+  localization_reference_map = "V1_01_summary_map"
   if not os.path.isdir(localization_reference_map):
     os.mkdir(localization_reference_map)
   localization_reference_map_download_path = \
-      "http://robotics.ethz.ch/~asl-datasets/maplab/test_data/end_to_end_tests/localization_summary_map"
+      "http://robotics.ethz.ch/~asl-datasets/maplab/test_data/end_to_end_tests/V1_01_summary_map"
   end_to_end_common.download_helpers.download_dataset(
       localization_reference_map_download_path,
       os.path.join(localization_reference_map, "localization_summary_map"))
 
   if RUN_ESTIMATOR_VIL:
-    bash_utils.run(
+    end_to_end_common.bash_utils.run(
         "rosrun rovioli rovioli"
         "    --alsologtostderr"
         "    --ncamera_calibration=\"%s\""
         "    --imu_parameters_maplab=\"%s\""
-        "    --imu_parameters_rovio=\"%s\""
         "    --datasource_type=rosbag"
         "    --datasource_rosbag=\"%s\""
         "    --export_estimated_poses_to_csv=\"%s\""
         "    --vio_localization_map_folder=\"%s\""
-        "    --vio_throttler_max_output_frequency_hz=1"
         "    --rovioli_zero_initial_timestamps=false"
         "    --rovio_enable_frame_visualization=false"
         % (config_dir + "/ncamera-euroc.yaml",
            config_dir + "/imu-adis16488.yaml",
-           config_dir + "/imu-sigmas-rovio.yaml",
            rosbag_local_path,
            estimator_vil_csv_path,
            localization_reference_map))
@@ -140,3 +134,7 @@ def test_rovioli_end_to_end():
   end_to_end_test.print_errors()
   end_to_end_test.check_errors()
   end_to_end_test.plot_results()
+
+
+if __name__ == '__main__':
+  test_rovioli_end_to_end()
