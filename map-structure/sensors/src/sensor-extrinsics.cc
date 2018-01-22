@@ -1,5 +1,6 @@
 #include "sensors/sensor-extrinsics.h"
 
+#include <random>
 #include <glog/logging.h>
 
 namespace vi_map {

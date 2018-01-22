@@ -1,10 +1,10 @@
 #include "maplab-common/python-interface.h"
-#include <vector>
-
-#include <Python.h>
-#include <glog/logging.h>
 
 #include "maplab-common/file-system-tools.h"
+
+#include <vector>
+#include <glog/logging.h>
+#include <Python.h>
 
 namespace common {
 

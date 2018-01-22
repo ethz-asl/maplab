@@ -488,7 +488,7 @@ bool MapManager<MapType>::getListOfExistingMapFiles(
   CHECK(!folder_path.empty());
   if (!common::pathExists(folder_path)) {
     LOG(ERROR) << "Folder \"" << folder_path << "\" doesn't exist.";
-    return;
+    return false;
   }
   const std::string real_folder_path = common::getRealPath(folder_path);
   std::string map_folder_path_without_trailing_slash(real_folder_path);
