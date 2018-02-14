@@ -48,7 +48,7 @@ The maplab framework has been used as an experimental platform for numerous scie
 
 ## Citing
 
-Please cite the [following paper](https://arxiv.org/abs/1711.10250) when using maplab for your research:
+Please cite the [following paper](https://arxiv.org/abs/1711.10250) when using maplab or ROVIOLI for your research:
 
 ```bibtex
 @article{schneider2018maplab,
