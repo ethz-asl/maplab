@@ -52,11 +52,11 @@ Please cite the [following paper](https://arxiv.org/abs/1711.10250) when using m
 
 ```bibtex
 @article{schneider2018maplab,
-  title={maplab: An Open Framework for Research in Visual-inertial Mapping and Localization},
-  author={Schneider, Thomas and Dymczyk, Marcin and Fehr, Marius and Egger, Kevin and
-          Lynen, Simon and Gilitschenski, Igor and Siegwart, Roland},
-  journal={arXiv preprint arXiv:1711.10250},
-  year={2018}
+author={T. Schneider and M. T. Dymczyk and M. Fehr and K. Egger and S. Lynen and I. Gilitschenski and R. Siegwart},
+journal={IEEE Robotics and Automation Letters},
+title={maplab: An Open Framework for Research in Visual-inertial Mapping and Localization},
+year={2018},
+doi={10.1109/LRA.2018.2800113}
 }
 ```
 
