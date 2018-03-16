@@ -178,7 +178,8 @@ bool SensorSystem::deserialize(const YAML::Node& sensor_system_node) {
             static_cast<std::string>(kYamlFieldNameSensorId),
             &sensor_id_as_string)) {
       CHECK(!sensor_id_as_string.empty());
-      CHECK(sensor_id.fromHexString(sensor_id_as_string));
+      CHECK(sensor_id.fromHexString(sensor_id_as_string))
+          << sensor_id_as_string;
     } else {
       LOG(ERROR) << "Unable to find the reference sensor ID.";
       return false;

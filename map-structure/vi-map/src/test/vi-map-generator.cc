@@ -181,7 +181,23 @@ ViwlsEdge* VIMapGenerator::generateEdge<ViwlsEdge>(
     const EdgeInfo& edge_info) const {
   pose_graph::EdgeId id;
   generateId(&id);
-  return new ViwlsEdge(id, edge_info.from, edge_info.to);
+
+  const int64_t timestamp_ns_vertex_from =
+      map_.getVertex(edge_info.from).getMinTimestampNanoseconds();
+  const int64_t timestamp_ns_vertex_to =
+      map_.getVertex(edge_info.to).getMinTimestampNanoseconds();
+  Eigen::Matrix<int64_t, 1, Eigen::Dynamic> imu_timestamps;
+  imu_timestamps.resize(Eigen::NoChange, 3);
+  imu_timestamps << timestamp_ns_vertex_from,
+      (timestamp_ns_vertex_from + timestamp_ns_vertex_to) / 2,
+      timestamp_ns_vertex_to;
+
+  Eigen::Matrix<double, 6, Eigen::Dynamic> imu_measurements;
+  imu_measurements.resize(Eigen::NoChange, imu_timestamps.cols());
+  imu_measurements.setZero();
+
+  return new ViwlsEdge(
+      id, edge_info.from, edge_info.to, imu_timestamps, imu_measurements);
 }
 
 template <>
@@ -246,12 +262,14 @@ void VIMapGenerator::generateMap() const {
     LandmarkIdList observed_landmark_ids(image_points.cols());
     aslam::FrameId frame_id;
     common::generateId(&frame_id);
+    const Eigen::VectorXd keypoint_uncertainties =
+        Eigen::VectorXd::Ones(observed_landmark_ids.size());
     vertex_ptr.reset(
         new Vertex(
             id, Eigen::Matrix<double, 6, 1>::Zero(), image_points,
-            Eigen::VectorXd::Zero(observed_landmark_ids.size()), descriptors,
-            observed_landmark_ids, vertex_pair.second.mission, frame_id,
-            info.timestamp_nanoseconds, n_camera_));
+            keypoint_uncertainties, descriptors, observed_landmark_ids,
+            vertex_pair.second.mission, frame_id, info.timestamp_nanoseconds,
+            n_camera_));
 
     const MissionBaseFrame& base_frame =
         map_.getMissionBaseFrame(map_.getMission(mission_id).getBaseFrameId());

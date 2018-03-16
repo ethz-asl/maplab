@@ -1,6 +1,8 @@
 #ifndef VIO_COMMON_VIO_UPDATE_H_
 #define VIO_COMMON_VIO_UPDATE_H_
 
+#include <memory>
+
 #include <aslam/common/pose-types.h>
 #include <maplab-common/macros.h>
 

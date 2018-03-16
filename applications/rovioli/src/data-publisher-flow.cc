@@ -137,9 +137,9 @@ void DataPublisherFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
             FLAGS_export_estimated_poses_to_csv);
     constexpr char kDelimiter[] = ", ";
     file_logger->writeDataWithDelimiterAndNewLine(
-        kDelimiter, "# Timestamp [s]", "t_G_M x [m]", "t_G_I M [m]",
+        kDelimiter, "# Timestamp [s]", "t_G_M x [m]", "t_G_M y [m]",
         "t_G_M z [m]", "q_G_M x", "q_G_M y", "q_G_M z", "q_G_M w",
-        "p_M_I x [m]", "t_G_I M [m]", "p_M_I z [m]", "q_M_I x", "q_M_I y",
+        "t_M_I x [m]", "t_M_I y [m]", "t_M_I z [m]", "q_M_I x", "q_M_I y",
         "q_M_I z", "q_M_I w", "has T_G_M");
     CHECK(file_logger != nullptr);
     flow->registerSubscriber<message_flow_topics::VIO_UPDATES>(

@@ -5,6 +5,15 @@ import "maplab-common/id.proto";
 import "sensors/measurements.proto";
 import "vi-map/optional_camera_resources.proto";
 
+message FileTypeWithPath {
+  optional int32 file_type = 1;
+  optional string path = 2;
+}
+
+message VIMapMetadata {
+  repeated FileTypeWithPath files = 1;
+}
+
 message ViwlsVertex {
   repeated common.proto.Id incoming = 1;
   repeated common.proto.Id outgoing = 2;
@@ -129,8 +138,8 @@ message Mission {
 
   repeated opt_cam_res.proto.OptionalCameraResources optional_camera_resources =
       6;
-  repeated opt_cam_res.proto.CamerasWithExtrinsics
-      optional_cameras_with_extrinsics = 7;
+  repeated opt_cam_res.proto.OptionalSensorResources optional_sensor_resources =
+      7;
 }
 
 message MissionBaseframe {

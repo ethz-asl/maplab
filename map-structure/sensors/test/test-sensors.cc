@@ -8,6 +8,7 @@
 #include "sensors/gps-utm.h"
 #include "sensors/gps-wgs.h"
 #include "sensors/imu.h"
+#include "sensors/lidar.h"
 #include "sensors/measurements.pb.h"
 #include "sensors/sensor-factory.h"
 
@@ -104,6 +105,18 @@ TEST(SensorsTest, TestGpsWgs) {
 
   // Testing sensor and hardware id getters.
   GpsWgs::UniquePtr sensor = aligned_unique<GpsWgs>(sensor_id, hardware_id);
+  EXPECT_EQ(sensor->getId(), sensor_id);
+  EXPECT_EQ(sensor->getHardwareId(), hardware_id);
+}
+
+TEST(SensorsTest, TestLidar) {
+  SensorId sensor_id;
+  common::generateId(&sensor_id);
+  constexpr size_t kHardwareIdLength = 20u;
+  const std::string hardware_id = common::createRandomString(kHardwareIdLength);
+
+  // Testing sensor and hardware id getters.
+  Lidar::UniquePtr sensor = aligned_unique<Lidar>(sensor_id, hardware_id);
   EXPECT_EQ(sensor->getId(), sensor_id);
   EXPECT_EQ(sensor->getHardwareId(), hardware_id);
 }

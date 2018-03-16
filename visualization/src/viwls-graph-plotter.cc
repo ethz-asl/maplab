@@ -74,6 +74,11 @@ DEFINE_int32(
     "Minimum number of observer missions for a landmark to be "
     "visualized.");
 
+DEFINE_bool(
+    vis_wait_for_traversal_edge_subscriber, false,
+    "If true, the RViz publisher waits for a subscriber before publishing the "
+    "traversal edges of a mission.");
+
 namespace visualization {
 const std::string ViwlsGraphRvizPlotter::kCamPredictionTopic =
     "cam_predictions";
@@ -118,7 +123,7 @@ void ViwlsGraphRvizPlotter::publishEdges(
     vi_map::MissionIdList single_selected_mission = {mission_id};
     publishEdges(
         map, single_selected_mission, map.getGraphTraversalEdgeType(mission_id),
-        color);
+        color, FLAGS_vis_wait_for_traversal_edge_subscriber);
   }
   visualization::Color color_green;
   color_green.red = 25;
@@ -137,8 +142,8 @@ void ViwlsGraphRvizPlotter::publishEdges(
 
 void ViwlsGraphRvizPlotter::publishEdges(
     const vi_map::VIMap& map, const vi_map::MissionIdList& missions,
-    pose_graph::Edge::EdgeType edge_type,
-    const visualization::Color& color_in) const {
+    pose_graph::Edge::EdgeType edge_type, const visualization::Color& color_in,
+    const bool wait_for_subscriber) const {
   visualization::Color color = color_in;
   visualization::LineSegmentVector line_segments;
 
@@ -160,14 +165,14 @@ void ViwlsGraphRvizPlotter::publishEdges(
 
     publishEdges(
         map, edges, color, marker_id,
-        pose_graph::Edge::edgeTypeToString(edge_type));
+        pose_graph::Edge::edgeTypeToString(edge_type), wait_for_subscriber);
   }
 }
 
 void ViwlsGraphRvizPlotter::publishEdges(
     const vi_map::VIMap& map, const pose_graph::EdgeIdList& edges,
     const visualization::Color& color, unsigned int marker_id,
-    const std::string& topic_extension) const {
+    const std::string& topic_extension, const bool wait_for_subscriber) const {
   visualization::LineSegmentVector line_segments;
   visualization::LineSegmentVector lc_transformation_line_segments;
 
@@ -258,7 +263,8 @@ void ViwlsGraphRvizPlotter::publishEdges(
   if (!line_segments.empty()) {
     visualization::publishLines(
         line_segments, marker_id, visualization::kDefaultMapFrame,
-        visualization::kDefaultNamespace, kEdgeTopic + '/' + topic_extension);
+        visualization::kDefaultNamespace, kEdgeTopic + '/' + topic_extension,
+        wait_for_subscriber);
   }
   if (!lc_transformation_line_segments.empty()) {
     visualization::publishLines(
@@ -900,28 +906,7 @@ void ViwlsGraphRvizPlotter::publishCamPredictions(
       visualization::kDefaultNamespace, kCamPredictionTopic);
 }
 
-void ViwlsGraphRvizPlotter::visualizeNCameraExtrinsics(
-    const vi_map::VIMap& map, const vi_map::MissionId& mission_id) const {
-  CHECK(map.hasMission(mission_id));
-  const vi_map::VIMission& mission = map.getMission(mission_id);
-  const aslam::NCamera& ncamera =
-      map.getSensorManager().getNCameraForMission(mission_id);
-  const aslam::Transformation& T_G_I0 =
-      map.getVertex_T_G_I(mission.getRootVertexId());
-  const size_t kImuMarkerId = 0u;
-  visualization::publishCoordinateFrame(
-      T_G_I0, "IMU", kImuMarkerId, kNcamExtrinsicsTopic);
-  const size_t num_cameras = ncamera.getNumCameras();
-  for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
-    const aslam::Transformation& T_C_I = ncamera.get_T_C_B(camera_idx);
-    const aslam::Transformation T_G_C = T_G_I0 * T_C_I.inverse();
-    visualization::publishCoordinateFrame(
-        T_G_C, 'C' + std::to_string(camera_idx), camera_idx + 1u,
-        kNcamExtrinsicsTopic);
-  }
-}
-
-void ViwlsGraphRvizPlotter::visualizeAllOptionalSensorsExtrinsics(
+void ViwlsGraphRvizPlotter::visualizeSensorExtrinsics(
     const vi_map::VIMap& map) {
   // First, get the transformation between the global frame and the first
   // vertex of some mission.
@@ -935,6 +920,7 @@ void ViwlsGraphRvizPlotter::visualizeAllOptionalSensorsExtrinsics(
       map.getMission(all_mission_ids.front()).getRootVertexId());
 
   const vi_map::SensorManager& sensor_manager = map.getSensorManager();
+  CHECK(sensor_manager.hasSensorSystem());
   vi_map::SensorIdSet all_sensors_ids;
   sensor_manager.getAllSensorIds(&all_sensors_ids);
 
@@ -945,6 +931,11 @@ void ViwlsGraphRvizPlotter::visualizeAllOptionalSensorsExtrinsics(
     CHECK(sensor_id.isValid());
 
     aslam::Transformation T_R_S;
+    if (!sensor_manager.getSensorSystem().hasExtrinsicsForSensor(sensor_id)) {
+      LOG(WARNING) << "No sensor extrinsics for sensor with id "
+                   << sensor_id.hexString();
+      continue;
+    }
     CHECK(sensor_manager.getSensor_T_R_S(sensor_id, &T_R_S));
     const aslam::Transformation T_G_S = T_G_I * T_R_S;
 
@@ -953,6 +944,20 @@ void ViwlsGraphRvizPlotter::visualizeAllOptionalSensorsExtrinsics(
     visualization::publishCoordinateFrame(
         T_G_S, label, marker_id++, kSensorExtrinsicsTopic);
   }
-}
 
+  aslam::NCameraIdSet all_ncamera_ids;
+  sensor_manager.getAllNCameraIds(&all_ncamera_ids);
+  for (const aslam::NCameraId& ncamera_id : all_ncamera_ids) {
+    CHECK(ncamera_id.isValid());
+    const aslam::NCamera& ncamera = sensor_manager.getNCamera(ncamera_id);
+    const size_t num_cameras = ncamera.getNumCameras();
+    for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
+      const aslam::Transformation& T_C_I = ncamera.get_T_C_B(camera_idx);
+      const aslam::Transformation T_G_C = T_G_I * T_C_I.inverse();
+      visualization::publishCoordinateFrame(
+          T_G_C, ncamera.getLabel() + "_C-" + std::to_string(camera_idx),
+          camera_idx + 1u, kNcamExtrinsicsTopic);
+    }
+  }
+}
 }  // namespace visualization

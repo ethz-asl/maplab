@@ -69,7 +69,7 @@ void writeObserverPosesAndImagesToFileSystem(
       const size_t observer_number = observer_pose.camera_number;
       char image_name[1024];
       snprintf(
-          image_name, sizeof(image_name), config.kImageFileNameString_.c_str(),
+          image_name, sizeof(image_name), config.image_file_name_string.c_str(),
           image_folder.c_str(), observer_number);
 
       cv::Mat image;

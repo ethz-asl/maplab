@@ -30,6 +30,7 @@ SET(VI_MAP_SOURCE src/check-map-consistency.cc
                   src/vertex.cc
                   src/vi-map.cc
                   src/vi-map-serialization.cc
+                  src/vi-map-serialization-deprecated.cc
                   src/vi-mission.cc
                   src/viwls-edge.cc
                   src/test/vi-map-generator.cc
@@ -70,6 +71,10 @@ target_link_libraries(test_merge_map ${PROJECT_NAME})
 catkin_add_gtest(test_vi_mission_optional_camera_resources
   test/test_vi_mission_optional_camera_resources.cc)
 target_link_libraries(test_vi_mission_optional_camera_resources ${PROJECT_NAME})
+
+catkin_add_gtest(test_vi_mission_optional_sensor_resources
+  test/test_vi_mission_optional_sensor_resources.cc)
+target_link_libraries(test_vi_mission_optional_sensor_resources ${PROJECT_NAME})
 
 catkin_add_gtest(test_vi_baseframe_protobuf_test
   test/test_vi_baseframe_protobuf_test.cc)
@@ -113,6 +118,14 @@ target_link_libraries(test_serialization ${PROJECT_NAME})
 catkin_add_gtest(
     test_sensor_manager_serialization test/test-sensor-manager-serialization.cc)
 target_link_libraries(test_sensor_manager_serialization ${PROJECT_NAME})
+
+catkin_add_gtest(
+    test_metadata_serialization test/test-metadata-serialization.cc)
+target_link_libraries(test_metadata_serialization ${PROJECT_NAME})
+
+catkin_add_gtest(
+    test_edge_merging test/test_edge_merging.cc)
+target_link_libraries(test_edge_merging ${PROJECT_NAME})
 
 ##############
 # BENCHMARKS #

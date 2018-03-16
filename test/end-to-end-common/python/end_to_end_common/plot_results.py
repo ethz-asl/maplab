@@ -4,16 +4,16 @@ import argparse
 
 import numpy as np
 
+from end_to_end_common.create_plots import *
+from end_to_end_common.dataset_loader import load_dataset
 from end_to_end_common.end_to_end_utility import align_datasets
 from end_to_end_common.plotting_common import PlottingSettings
-from end_to_end_common.create_plots import *
+from end_to_end_common.test_structs import TestDataStruct
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description="Plot evaluation results.")
   parser.add_argument(
-      "--ground_truth_csv",
-      dest="ground_truth_csv",
-      required=True)
+      "--ground_truth_csv", dest="ground_truth_csv", required=True)
   parser.add_argument(
       "--estimator_trajectory_csv",
       dest="estimator_trajectory_csv",
@@ -23,6 +23,11 @@ if __name__ == "__main__":
       dest="estimator_csv_format",
       required=False,
       default="maplab_console")
+  parser.add_argument(
+      "--ground_truth_csv_format",
+      dest="ground_truth_csv_format",
+      required=False,
+      default="euroc_ground_truth")
   parser.add_argument(
       "--plot_title",
       dest="plot_title",
@@ -85,16 +90,40 @@ if __name__ == "__main__":
       required=False,
       default="pdf",
       help="Specifies in which format matplotlib should save the plots.")
+  parser.add_argument(
+      "--show_grid",
+      dest="show_grid",
+      required=False,
+      default=False,
+      action="store_true",
+      help="Add a grid to the plots.")
+  parser.add_argument(
+      "--trajectory_3d_axis_equal",
+      dest="trajectory_3d_axis_equal",
+      default=False,
+      action="store_true",
+      help=
+      "If true, all axes of the trajectory 3d plot will have the same scale.")
 
   parsed_args = parser.parse_args()
 
   plotting_settings = PlottingSettings(
-      not parsed_args.do_not_show_plots, parsed_args.save_path,
-      parsed_args.save_format)
+      show_plots=not parsed_args.do_not_show_plots,
+      save_path=parsed_args.save_path,
+      save_format=parsed_args.save_format,
+      show_grid=parsed_args.show_grid)
+  plotting_settings.trajectory_3d_axis_equal = \
+      parsed_args.trajectory_3d_axis_equal
 
+  estimator_data_unaligned_G_I = load_dataset(
+      parsed_args.estimator_trajectory_csv,
+      input_format=parsed_args.estimator_csv_format)
+  ground_truth_data_unaligned_W_M = load_dataset(
+      parsed_args.ground_truth_csv,
+      input_format=parsed_args.ground_truth_csv_format)
   estimator_data_G_I, ground_truth_data_G_M = align_datasets(
-      parsed_args.estimator_trajectory_csv, parsed_args.ground_truth_csv,
-      estimator_input_format=parsed_args.estimator_csv_format)
+      estimator_data_unaligned_G_I, ground_truth_data_unaligned_W_M)
+
 
   # Zero timestamps.
   initial_timestamp = min(
@@ -104,31 +133,21 @@ if __name__ == "__main__":
 
   plot_title = parsed_args.plot_title if len(parsed_args.plot_title) > 0 \
       else parsed_args.estimator_trajectory_csv
-  print plot_title
-  print len(parsed_args.plot_title)
+
+  data = TestDataStruct(
+      estimator_data_G_I, ground_truth_data_G_M, label=plot_title)
 
   if parsed_args.create_rmse_plot:
-    plot_position_error(
-        [plot_title], [ground_truth_data_G_M],
-        [estimator_data_G_I], localization_state_list=[np.zeros((0, 2))],
-        plotting_settings=plotting_settings)
+    plot_position_error([data], plotting_settings=plotting_settings)
 
   if parsed_args.create_top_down:
-    plot_top_down_aligned_data(
-        estimator_data_G_I, ground_truth_data_G_M,
-        title=plot_title, plotting_settings=plotting_settings)
+    plot_top_down_aligned_data(data, plotting_settings=plotting_settings)
 
   if parsed_args.create_trajectory_3d:
-    plot_trajectory3d_aligned_data(
-        estimator_data_G_I, ground_truth_data_G_M,
-        title=plot_title, plotting_settings=plotting_settings)
+    plot_trajectory_3d_aligned_data(data, plotting_settings=plotting_settings)
 
   if parsed_args.create_xyz_vs_ground_truth:
-    plot_xyz_vs_groundtruth(
-        estimator_data_G_I, ground_truth_data_G_M,
-        title=plot_title, plotting_settings=plotting_settings)
+    plot_xyz_vs_groundtruth(data, plotting_settings=plotting_settings)
 
   if parsed_args.create_xyz_errors:
-    plot_xyz_errors(
-        estimator_data_G_I, ground_truth_data_G_M,
-        title=plot_title, plotting_settings=plotting_settings)
+    plot_xyz_errors(data, plotting_settings=plotting_settings)

@@ -37,7 +37,8 @@ StreamMapBuilder::StreamMapBuilder(
     : map_(CHECK_NOTNULL(map)),
       manipulation_(map),
       mission_id_(common::createRandomId<vi_map::MissionId>()),
-      camera_rig_(camera_rig) {
+      camera_rig_(camera_rig),
+      is_first_baseframe_estimate_processed_(false) {
   CHECK(camera_rig);
   map_->addNewMissionWithBaseframe(
       mission_id_, aslam::Transformation(),
@@ -71,15 +72,18 @@ void StreamMapBuilder::apply(
     addRootViwlsVertex(nframe_to_insert, update.vinode);
   } else {
     CHECK(mission_id_.isValid());
+    if (!is_first_baseframe_estimate_processed_ &&
+        (update.localization_state == vio::LocalizationState::kLocalized ||
+         update.localization_state == vio::LocalizationState::kMapTracking)) {
+      T_M0_G_ = update.T_G_M.inverse();
+      map_->getMissionBaseFrameForMission(mission_id_).set_T_G_M(update.T_G_M);
+      is_first_baseframe_estimate_processed_ = true;
+    }
+
     addViwlsVertexAndEdge(
-        nframe_to_insert, update.vinode,
+        nframe_to_insert, update.vinode, update.T_G_M,
         update.keyframe_and_imudata->imu_timestamps,
         update.keyframe_and_imudata->imu_measurements);
-
-    if (update.localization_state == vio::LocalizationState::kLocalized ||
-        update.localization_state == vio::LocalizationState::kMapTracking) {
-      map_->getMissionBaseFrameForMission(mission_id_).set_T_G_M(update.T_G_M);
-    }
   }
 }
 
@@ -89,7 +93,9 @@ void StreamMapBuilder::addRootViwlsVertex(
   CHECK(nframe);
   CHECK(!last_vertex_.isValid()) << "Root vertex has already been set!";
 
-  pose_graph::VertexId root_vertex_id = addViwlsVertex(nframe, vinode_state);
+  const aslam::Transformation T_G_M;
+  pose_graph::VertexId root_vertex_id =
+      addViwlsVertex(nframe, vinode_state, T_G_M);
   CHECK(root_vertex_id.isValid());
 
   CHECK(!constMap()->getMission(mission_id_).getRootVertexId().isValid())
@@ -101,14 +107,15 @@ void StreamMapBuilder::addRootViwlsVertex(
 
 void StreamMapBuilder::addViwlsVertexAndEdge(
     const aslam::VisualNFrame::Ptr& nframe,
-    const vio::ViNodeState& vinode_state,
+    const vio::ViNodeState& vinode_state, const aslam::Transformation& T_G_M,
     const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps,
     const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_data) {
   CHECK(nframe);
   CHECK(last_vertex_.isValid())
       << "Need to have a previous vertex to connect to!";
 
-  pose_graph::VertexId new_vertex_id = addViwlsVertex(nframe, vinode_state);
+  pose_graph::VertexId new_vertex_id =
+      addViwlsVertex(nframe, vinode_state, T_G_M);
 
   addImuEdge(new_vertex_id, imu_timestamps, imu_data);
 
@@ -120,7 +127,7 @@ void StreamMapBuilder::addViwlsVertexAndEdge(
 
 pose_graph::VertexId StreamMapBuilder::addViwlsVertex(
     const aslam::VisualNFrame::Ptr& nframe,
-    const vio::ViNodeState& vinode_state) {
+    const vio::ViNodeState& vinode_state, const aslam::Transformation& T_G_M) {
   CHECK_EQ(camera_rig_.get(), nframe->getNCameraShared().get())
       << "Can only add nframes that correspond to the camera rig set in the "
       << "mission.";
@@ -141,9 +148,11 @@ pose_graph::VertexId StreamMapBuilder::addViwlsVertex(
   vi_map::Vertex* map_vertex = new vi_map::Vertex(
       vertex_id, vinode_state.getImuBias(), nframe, invalid_landmark_ids,
       mission_id_);
+
   // Set pose and velocity.
-  map_vertex->set_T_M_I(vinode_state.get_T_M_I());
-  map_vertex->set_v_M(vinode_state.get_v_M_I());
+  const aslam::Transformation T_M0_M = T_M0_G_ * T_G_M;
+  map_vertex->set_T_M_I(T_M0_M * vinode_state.get_T_M_I());
+  map_vertex->set_v_M(T_M0_M * vinode_state.get_v_M_I());
   map_->addVertex(vi_map::Vertex::UniquePtr(map_vertex));
 
   // Optionally dump the image to disk.

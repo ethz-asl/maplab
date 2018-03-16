@@ -6,6 +6,7 @@
 #include <aslam/common/pose-types.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <landmark-triangulation/pose-interpolator.h>
 #include <map-resources/resource-conversion.h>
 #include <maplab-common/progress-bar.h>
 #include <posegraph/unique-id.h>
@@ -146,18 +147,12 @@ void integrateDepthMap(
       static_cast<voxblox::Pointcloud>(point_cloud), colors);
 }
 
-static std::unordered_set<backend::ResourceType, backend::ResourceTypeHash>
-    kSupportedDepthInputTypes{backend::ResourceType::kRawDepthMap,
-                              backend::ResourceType::kOptimizedDepthMap,
-                              backend::ResourceType::kPointCloudXYZRGBN};
-
-bool integrateAllDepthResourcesOfType(
+bool integrateAllFrameDepthResourcesOfType(
     const vi_map::MissionIdList& mission_ids,
     const backend::ResourceType& input_resource_type,
-    const bool use_distorted_camera,
+    const bool use_undistorted_camera_for_depth_maps,
     const voxblox::TsdfIntegratorBase::Config& integrator_config,
-    vi_map::VIMap* vi_map, voxblox::TsdfMap* tsdf_map) {
-  CHECK_NOTNULL(vi_map);
+    const vi_map::VIMap& vi_map, voxblox::TsdfMap* tsdf_map) {
   CHECK_NOTNULL(tsdf_map);
   CHECK_GT(kSupportedDepthInputTypes.count(input_resource_type), 0u)
       << "This depth type is not supported! type: "
@@ -172,7 +167,7 @@ bool integrateAllDepthResourcesOfType(
     VLOG(1) << "Integrating mission " << mission_id;
 
     const aslam::NCamera& n_camera =
-        vi_map->getSensorManager().getNCameraForMission(mission_id);
+        vi_map.getSensorManager().getNCameraForMission(mission_id);
 
     // Get cameras for depth map reprojection if necessary. If the flag is set
     // we use the camera without distortion.
@@ -181,22 +176,22 @@ bool integrateAllDepthResourcesOfType(
     if (input_resource_type == backend::ResourceType::kRawDepthMap ||
         input_resource_type == backend::ResourceType::kOptimizedDepthMap) {
       for (size_t frame_idx = 0u; frame_idx < num_cameras; ++frame_idx) {
-        if (use_distorted_camera) {
-          cameras[frame_idx] = n_camera.getCameraShared(frame_idx);
-        } else {
+        if (use_undistorted_camera_for_depth_maps) {
           aslam::Camera::Ptr camera_no_distortion;
           backend::createCameraWithoutDistortion(
               n_camera.getCamera(frame_idx), &camera_no_distortion);
           CHECK(camera_no_distortion);
           cameras[frame_idx] = camera_no_distortion;
+        } else {
+          cameras[frame_idx] = n_camera.getCameraShared(frame_idx);
         }
       }
     }
     const aslam::Transformation& T_G_M =
-        vi_map->getMissionBaseFrameForMission(mission_id).get_T_G_M();
+        vi_map.getMissionBaseFrameForMission(mission_id).get_T_G_M();
 
     pose_graph::VertexIdList vertex_ids;
-    vi_map->getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
+    vi_map.getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
 
     common::ProgressBar tsdf_progress_bar(vertex_ids.size());
     size_t vertex_counter = 0u;
@@ -207,7 +202,7 @@ bool integrateAllDepthResourcesOfType(
       }
       ++vertex_counter;
 
-      vi_map::Vertex& vertex = vi_map->getVertex(vertex_id);
+      const vi_map::Vertex& vertex = vi_map.getVertex(vertex_id);
 
       const aslam::Transformation T_G_I = T_G_M * vertex.get_T_M_I();
 
@@ -229,7 +224,7 @@ bool integrateAllDepthResourcesOfType(
             CHECK_LT(frame_idx, num_cameras);
             CHECK(cameras[frame_idx]);
             cv::Mat depth_map;
-            if (!vi_map->getFrameResource(
+            if (!vi_map.getFrameResource(
                     vertex, frame_idx, input_resource_type, &depth_map)) {
               VLOG(3) << "Nothing to integrate.";
               continue;
@@ -238,11 +233,11 @@ bool integrateAllDepthResourcesOfType(
             // use the normal grayscale image.
             cv::Mat image;
             bool has_image = false;
-            if (vi_map->getImageForDepthMap(vertex, frame_idx, &image)) {
+            if (vi_map.getImageForDepthMap(vertex, frame_idx, &image)) {
               VLOG(3) << "Found depth map with intensity information "
                          "from the dedicated grayscale image.";
               has_image = true;
-            } else if (vi_map->getRawImage(vertex, frame_idx, &image)) {
+            } else if (vi_map.getRawImage(vertex, frame_idx, &image)) {
               VLOG(3) << "Found depth map with intensity information "
                          "from the raw grayscale image.";
               has_image = true;
@@ -261,10 +256,14 @@ bool integrateAllDepthResourcesOfType(
             }
             continue;
           }
+          case backend::ResourceType::kPointCloudXYZI:
+          // Fall through intended.
+          case backend::ResourceType::kPointCloudXYZ:
+          // Fall through intended.
           case backend::ResourceType::kPointCloudXYZRGBN: {
             // Check if a point cloud is available.
             resources::PointCloud point_cloud;
-            if (!vi_map->getFrameResource(
+            if (!vi_map.getFrameResource(
                     vertex, frame_idx, input_resource_type, &point_cloud)) {
               VLOG(3) << "Nothing to integrate.";
               continue;
@@ -283,6 +282,32 @@ bool integrateAllDepthResourcesOfType(
     }
   }
   return true;
+}
+
+bool integrateAllDepthResourcesOfType(
+    const vi_map::MissionIdList& mission_ids,
+    const backend::ResourceType& input_resource_type,
+    const bool use_undistorted_camera_for_depth_maps,
+    const voxblox::TsdfIntegratorBase::Config& integrator_config,
+    const vi_map::VIMap& vi_map, voxblox::TsdfMap* tsdf_map) {
+  bool success = true;
+
+  // Integrate all frame resources.
+  success &= integrateAllFrameDepthResourcesOfType(
+      mission_ids, input_resource_type, use_undistorted_camera_for_depth_maps,
+      integrator_config, vi_map, tsdf_map);
+
+  // Integrate all optional camera resources.
+  success &= integrateAllOptionalSensorDepthResourcesOfType<aslam::CameraId>(
+      mission_ids, input_resource_type, use_undistorted_camera_for_depth_maps,
+      integrator_config, vi_map, tsdf_map);
+
+  // Integrate all optional sensor resources.
+  success &= integrateAllOptionalSensorDepthResourcesOfType<vi_map::SensorId>(
+      mission_ids, input_resource_type, use_undistorted_camera_for_depth_maps,
+      integrator_config, vi_map, tsdf_map);
+
+  return success;
 }
 
 }  // namespace voxblox_interface

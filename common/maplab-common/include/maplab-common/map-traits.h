@@ -64,11 +64,6 @@ struct MapTraits {
   static std::string getSubFolderName() {
     return MapType::getSubFolderName();
   }
-  static bool getListOfExistingMapFiles(
-      const std::string& map_folder,
-      std::vector<std::string>* list_of_map_files) {
-    return MapType::getListOfExistingMapFiles(map_folder, list_of_map_files);
-  }
   static bool hasMapOnFileSystem(const std::string& folder_path) {
     return MapType::hasMapOnFileSystem(folder_path);
   }

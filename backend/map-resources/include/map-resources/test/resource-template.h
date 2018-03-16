@@ -1,6 +1,7 @@
 #ifndef MAP_RESOURCES_TEST_RESOURCE_TEMPLATE_H_
 #define MAP_RESOURCES_TEST_RESOURCE_TEMPLATE_H_
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -173,20 +174,15 @@ void ResourceTemplate<resources::PointCloud>::createUniqueResource(
     CHECK_EQ(default_resource.xyz.size(), default_resource.normals.size());
   }
 
-  for (size_t i = 0u; i < default_resource.xyz.size(); i += 3) {
-    static constexpr float kMultiplicationFactor = 1.0e-8f;
-    float x = default_resource.xyz[i];
-    float y = default_resource.xyz[i + 1];
-    float z = default_resource.xyz[i + 2];
-    x += static_cast<float>(id_uint[0]) * kMultiplicationFactor;
-    y += static_cast<float>(id_uint[1]) * kMultiplicationFactor;
-    z += static_cast<float>(id_uint[0]) * kMultiplicationFactor;
-    (*unique_resource)->xyz.push_back(x);
-    (*unique_resource)->xyz.push_back(y);
-    (*unique_resource)->xyz.push_back(z);
-  }
+  (*unique_resource)->xyz = default_resource.xyz;
+
+  (*unique_resource)->xyz[0] += (static_cast<float>(id_uint[0] % 10000u) / 1e4);
+  (*unique_resource)->xyz[1] += (static_cast<float>(id_uint[1] % 10000u) / 1e4);
+  (*unique_resource)->xyz[2] += (static_cast<float>(id_uint[0] % 10000u) / 1e4);
+
   (*unique_resource)->normals = default_resource.normals;
   (*unique_resource)->colors = default_resource.colors;
+  (*unique_resource)->scalars = default_resource.scalars;
 }
 
 // Convert hash into a block index by splitting the id into two uint64 and the

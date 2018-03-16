@@ -3,14 +3,22 @@
 #include <console-common/console.h>
 #include <csv-export/csv-export.h>
 #include <map-manager/map-manager.h>
+#include <maplab-common/file-logger.h>
 #include <vi-map/vi-map.h>
 #include "vi-map-data-import-export-plugin/export-ncamera-calibration.h"
 #include "vi-map-data-import-export-plugin/export-vertex-data.h"
 #include "vi-map-data-import-export-plugin/import-export-gps-data.h"
 
 DECLARE_string(map_mission);
+DECLARE_bool(csv_export_imu_data);
+DECLARE_bool(csv_export_tracks_and_keypoints);
+DECLARE_bool(csv_export_descriptors);
+DECLARE_bool(csv_export_landmarks);
+DECLARE_bool(csv_export_observations);
 
 DEFINE_string(csv_export_path, "", "Path to save the map in CSV format into.");
+DEFINE_string(
+    mission_info_export_path, "", "Export path of the mission info yaml.");
 
 DEFINE_string(
     ncamera_calibration_export_folder, "",
@@ -31,31 +39,50 @@ namespace data_import_export {
 
 DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
     : common::ConsolePluginBase(console) {
+  auto csv_export = [this]() -> int {
+    std::string selected_map_key;
+    if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+      return common::kStupidUserError;
+    }
+
+    vi_map::VIMapManager map_manager;
+    vi_map::VIMapManager::MapReadAccess map =
+        map_manager.getMapReadAccess(selected_map_key);
+    const std::string& save_path = FLAGS_csv_export_path;
+    if (save_path.empty()) {
+      LOG(ERROR) << "No path to export the CSV files into has been specified. "
+                 << "Please specify using the --csv_export_path flag.";
+      return common::kStupidUserError;
+    }
+
+    csv_export::exportMapToCsv(*map, save_path);
+    return common::kSuccess;
+  };
   addCommand(
-      {"csv_export"},
-      [this]() -> int {
-        std::string selected_map_key;
-        if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-          return common::kStupidUserError;
-        }
-
-        vi_map::VIMapManager map_manager;
-        vi_map::VIMapManager::MapReadAccess map =
-            map_manager.getMapReadAccess(selected_map_key);
-        const std::string& save_path = FLAGS_csv_export_path;
-        if (save_path.empty()) {
-          LOG(ERROR) << "No path to export the CSV files into has been "
-                        "specified. Please specify using the --csv_export_path "
-                        "flag.";
-          return common::kStupidUserError;
-        }
-
-        csv_export::exportMapToCsv(*map, save_path);
-        return common::kSuccess;
-      },
+      {"csv_export"}, csv_export,
       "Exports keyframe, keypoint and track, landmark and IMU data to CSV "
       "files in a folder specified by --csv_export_path. Check the "
       "documentation for information on the CSV format.",
+      common::Processing::Sync);
+  addCommand(
+      {"csv_export_vertices_only"},
+      [csv_export]() -> int {
+        FLAGS_csv_export_imu_data = false;
+        FLAGS_csv_export_tracks_and_keypoints = false;
+        FLAGS_csv_export_descriptors = false;
+        FLAGS_csv_export_landmarks = false;
+        FLAGS_csv_export_observations = false;
+        return csv_export();
+      },
+      "Exports only vertices in a CSV file in a folder specified by "
+      "--csv_export_path.",
+      common::Processing::Sync);
+
+  addCommand(
+      {"export_mission_info"}, [this]() -> int { return exportMissionInfo(); },
+      "Exports a yaml that lists map key to mission id associations of all "
+      "loaded maps so that data from the CSV exporter can more easily be "
+      "linked to a specific mission.",
       common::Processing::Sync);
 
   addCommand(
@@ -91,6 +118,47 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
       [this]() -> int { return exportGpsWgsToCsv(); },
       "Exports GPS WGS data to a CSV file placed inside the loaded map folder.",
       common::Processing::Sync);
+}
+
+int DataImportExportPlugin::exportMissionInfo() const {
+  const vi_map::VIMapManager map_manager;
+  std::unordered_set<std::string> list_of_all_map_keys;
+  map_manager.getAllMapKeys(&list_of_all_map_keys);
+  if (list_of_all_map_keys.empty()) {
+    LOG(ERROR) << "No maps are loaded.";
+    return common::kStupidUserError;
+  }
+  if (FLAGS_mission_info_export_path.empty()) {
+    LOG(ERROR) << "No export path has been specified, use "
+               << "--mission_info_export_path to specify one.";
+    return common::kStupidUserError;
+  }
+
+  if (!common::createPathToFile(FLAGS_mission_info_export_path)) {
+    LOG(ERROR) << "Couldn't create path to \"" << FLAGS_mission_info_export_path
+               << "\".";
+    return common::kUnknownError;
+  }
+
+  common::FileLogger output_file(FLAGS_mission_info_export_path);
+  for (const std::string& map_key : list_of_all_map_keys) {
+    const vi_map::VIMapManager::MapReadAccess map =
+        map_manager.getMapReadAccess(map_key);
+    vi_map::MissionIdList list_of_all_mission_ids_in_map;
+    map->getAllMissionIds(&list_of_all_mission_ids_in_map);
+    if (!list_of_all_mission_ids_in_map.empty()) {
+      output_file << map_key << ":\n";
+      for (size_t idx = 0u; idx < list_of_all_mission_ids_in_map.size();
+           ++idx) {
+        const vi_map::MissionId& mission_id =
+            list_of_all_mission_ids_in_map[idx];
+        output_file << "  - index: " << idx << '\n';
+        output_file << "    id: " << mission_id.hexString() << '\n';
+      }
+    }
+  }
+
+  return common::kSuccess;
 }
 
 int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv() const {

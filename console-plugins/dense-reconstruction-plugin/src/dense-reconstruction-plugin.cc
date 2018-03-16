@@ -83,7 +83,8 @@ DEFINE_int32(
     "Supported commands: "
     "create_tsdf_from_depth_resource "
     "Supported types: "
-    "RawDepthMap = 8, OptimizedDepthMap = 9, PointCloudXYZRGBN = 17");
+    "RawDepthMap = 8, OptimizedDepthMap = 9, PointCloudXYZ = 16, "
+    "PointCloudXYZRGBN = 17, kPointCloudXYZI = 21");
 
 namespace dense_reconstruction {
 
@@ -192,8 +193,8 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
           return common::kStupidUserError;
         }
         vi_map::VIMapManager map_manager;
-        vi_map::VIMapManager::MapWriteAccess map =
-            map_manager.getMapWriteAccess(selected_map_key);
+        vi_map::VIMapManager::MapReadAccess map =
+            map_manager.getMapReadAccess(selected_map_key);
 
         vi_map::MissionIdList mission_ids;
         if (!parseMultipleMissionIds(*(map.get()), &mission_ids)) {
@@ -204,12 +205,12 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
             dense_reconstruction::PmvsConfig::getFromGflags();
         if (mission_ids.empty()) {
           if (!dense_reconstruction::exportVIMapToPmvsSfmInputData(
-                  config, map.get())) {
+                  config, *map)) {
             return common::kUnknownError;
           }
         } else {
           if (!dense_reconstruction::exportVIMapToPmvsSfmInputData(
-                  config, mission_ids, map.get())) {
+                  config, mission_ids, *map)) {
             return common::kUnknownError;
           }
         }
@@ -328,8 +329,8 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
 
         if (!voxblox_interface::integrateAllDepthResourcesOfType(
                 mission_ids, input_resource_type,
-                FLAGS_dense_use_distorted_camera, tsdf_integrator_config,
-                map.get(), &tsdf_map)) {
+                !FLAGS_dense_use_distorted_camera, tsdf_integrator_config, *map,
+                &tsdf_map)) {
           LOG(ERROR) << "Unable to compute Voxblox TSDF grid.";
           return common::kStupidUserError;
         }

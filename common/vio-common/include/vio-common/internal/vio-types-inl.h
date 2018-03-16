@@ -1,5 +1,5 @@
-#ifndef INTERNAL_VIO_TYPES_INL_H_
-#define INTERNAL_VIO_TYPES_INL_H_
+#ifndef VIO_COMMON_INTERNAL_VIO_TYPES_INL_H_
+#define VIO_COMMON_INTERNAL_VIO_TYPES_INL_H_
 
 #include <algorithm>
 #include <limits>
@@ -101,4 +101,4 @@ inline std::ostream& operator<<(
 
 }  // namespace vio
 
-#endif  // INTERNAL_VIO_TYPES_INL_H_
+#endif  // VIO_COMMON_INTERNAL_VIO_TYPES_INL_H_

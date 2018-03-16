@@ -27,6 +27,8 @@ namespace vi_map {
 // Used to shift vertex timestamps when user-defined mission ordering is used.
 const int64_t kFakeNumNanosecondsBetweenMissions = 864e11;  // 1 day.
 
+class VIMap;
+
 class VIMission : public Mission {
   friend class MissionResourcesTest;
 
@@ -41,6 +43,7 @@ class VIMission : public Mission {
   VIMission(
       const MissionId& mission_id,
       const MissionBaseFrameId& mission_base_frame_id, BackBone backbone_type);
+  explicit VIMission(const VIMission& other);
 
   inline bool operator==(const VIMission& lhs) const {
     bool is_same = true;
@@ -63,6 +66,22 @@ class VIMission : public Mission {
 
   std::string getComparisonString(const VIMission& other) const;
 
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  // Mission-set-based resources
+  // ===========================
+  // A set of missions can own a single resource of every type. Like all
+  // resources, this data is serialized and deserialzed (with cache) upon
+  // accessing the data.
+  // NOTE: The functions here are used to manage the resource ids
+  // that are associated with this specific mission and should not be called
+  // directly. They should only be used by the main accessors for this type of
+  // resource in the VIMap.
+
+  void getAllResourceIds(
+      const backend::ResourceType& type,
+      backend::ResourceIdSet* resource_ids) const;
+
   void addResourceId(
       const backend::ResourceId& resource_id,
       const backend::ResourceType& type);
@@ -71,92 +90,95 @@ class VIMission : public Mission {
       const backend::ResourceId& resource_id,
       const backend::ResourceType& type);
 
-  void getAllResourceIds(
-      const backend::ResourceType& type,
-      backend::ResourceIdSet* resource_ids) const;
+  // Optional sensor/camera resources
+  // ================================
+  // Timestamped resources that are only associated with a mission and an
+  // optional sensor or camera with extrinsics (stored in the VIMission). The
+  // optional here means that these sensors/cameras are not directly used for
+  // the main visual-inertial pose estimation. The main example is a color or
+  // depth camera that provides timestamped images/depth maps. These resources
+  // need to be timestamped based on a common clock, but not necessarily
+  // synchronized with the vertex timestamp. Like all resources, this data is
+  // serialized and deserialzed (with cache) upon accessing the data.
+  // NOTE: The functions here are used to manage the resource ids
+  // that are associated with this specific mission and should not be called
+  // directly. They should only be used by the main accessors for this type of
+  // resource in the VIMap.
 
-  // Optional Camera Resources:
-  // Resources that are associated with a aslam::Camera but are not part of the
-  // VI-map, i.e. are not used for mapping. For example color images or point
-  // clouds that are not recorded at the same time as the frame resources of
-  // the map.
-
-  bool hasOptionalCameraResourceId(
-      const backend::ResourceType& type, const aslam::CameraId& camera_id,
+  template <typename SensorId>
+  bool hasOptionalSensorResourceId(
+      const backend::ResourceType& type, const SensorId& camera_id,
       const int64_t timestamp_ns) const;
 
-  bool getOptionalCameraResourceId(
-      const backend::ResourceType& type, const aslam::CameraId& camera_id,
+  template <typename SensorId>
+  bool getOptionalSensorResourceId(
+      const backend::ResourceType& type, const SensorId& camera_id,
       const int64_t timestamp_ns, backend::ResourceId* resource_id) const;
 
-  bool getClosestOptionalCameraResourceId(
-      const backend::ResourceType& type, const aslam::CameraId& camera_id,
+  template <typename SensorId>
+  bool getClosestOptionalSensorResourceId(
+      const backend::ResourceType& type, const SensorId& camera_id,
       const int64_t timestamp_ns, const int64_t tolerance_ns,
       backend::StampedResourceId* stamped_resource_id) const;
 
-  void addOptionalCameraResourceId(
-      const backend::ResourceType& type, const aslam::CameraId& camera_id,
+  template <typename SensorId>
+  bool findAllCloseOptionalSensorResources(
+      const backend::ResourceType& type, const int64_t timestamp_ns,
+      const int64_t tolerance_ns, std::vector<SensorId>* sensor_ids,
+      std::vector<int64_t>* closest_timestamps_ns) const;
+
+  template <typename SensorId>
+  const std::unordered_map<
+      backend::ResourceType,
+      typename std::unordered_map<SensorId, backend::OptionalSensorResources>,
+      backend::ResourceTypeHash>&
+  getAllOptionalSensorResourceIds() const;
+
+  template <typename SensorId>
+  void addOptionalSensorResourceId(
+      const backend::ResourceType& type, const SensorId& sensor_id,
       const backend::ResourceId& resource_id, const int64_t timestamp_ns);
 
   // NOTE: When deleting optional camera resources will not clean up the list of
   // optional cameras.
-  bool deleteOptionalCameraResourceId(
-      const backend::ResourceType& type, const aslam::CameraId& camera_id,
+  template <typename SensorId>
+  bool deleteOptionalSensorResourceId(
+      const backend::ResourceType& type, const SensorId& camera_id,
       const int64_t timestamp_ns);
 
-  bool findAllCloseOptionalCameraResources(
-      const backend::ResourceType& type, const int64_t timestamp_ns,
-      const int64_t tolerance_ns, aslam::CameraIdList* camera_ids,
-      std::vector<int64_t>* closest_timestamps_ns) const;
-
-  const backend::CameraWithExtrinsics& getOptionalCameraWithExtrinsics(
-      const aslam::CameraId& camera_id) const;
-
-  backend::CameraWithExtrinsics& getOptionalCameraWithExtrinsics(
-      const aslam::CameraId& camera_id);
-
-  const backend::OptionalCameraMap& getOptionalCameraWithExtrinsicsMap() const;
-
-  void addOptionalCameraWithExtrinsics(
-      const aslam::Camera& camera, const aslam::Transformation& T_C_B);
-
-  bool hasOptionalCameraWithExtrinsics(const aslam::CameraId& camera_id) const;
-
-  const backend::OptionalCameraMap& getAllOptionalCamerasWithExtrinsics() const;
-
-  const backend::ResourceTypeToOptionalCameraResourcesMap&
-  getAllOptionalCameraResourceIds() const;
-
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
- private:
+  template <typename SensorId>
   const backend::OptionalSensorResources*
-  getAllOptionalCameraResourceIdsForCameraOfType(
-      const backend::ResourceType& type,
-      const aslam::CameraId& camera_id) const;
+  getAllOptionalSensorResourceIdsForSensorOfType(
+      const backend::ResourceType& type, const SensorId& sensor_id) const;
 
+  template <typename SensorId>
   backend::OptionalSensorResources*
-  getAllOptionalCameraResourceIdsForCameraOfTypeMutable(
-      const backend::ResourceType& type, const aslam::CameraId& camera_id);
+  getAllOptionalSensorResourceIdsForSensorOfTypeMutable(
+      const backend::ResourceType& type, const SensorId& sensor_id);
 
-  const backend::OptionalCameraResourcesMap*
-  getAllOptionalCameraResourceIdsOfType(
+  template <typename SensorId>
+  const std::unordered_map<SensorId, backend::OptionalSensorResources>*
+  getAllOptionalSensorResourceIdsOfType(
       const backend::ResourceType& type) const;
 
-  backend::OptionalCameraResourcesMap*
-  getAllOptionalCameraResourceIdsOfTypeMutable(
+  template <typename SensorId>
+  std::unordered_map<SensorId, backend::OptionalSensorResources>*
+  getAllOptionalSensorResourceIdsOfTypeMutable(
       const backend::ResourceType& type);
 
+ private:
   // A value used to order missions.
   int ordering_;
 
   backend::ResourceTypeToIdsMap type_to_resource_id_map_;
 
-  backend::ResourceTypeToOptionalCameraResourcesMap optional_sensor_resources_;
-  backend::OptionalCameraMap optional_cameras_;
+  backend::ResourceTypeToCameraIdToResourcesMap optional_camera_resources_;
+  backend::ResourceTypeToSensorIdToResourcesMap optional_sensor_resources_;
 };
 
 typedef std::unordered_map<MissionId, VIMission::UniquePtr> VIMissionMap;
 }  //  namespace vi_map
+
+#include "./vi-mission-inl.h"
 
 #endif  // VI_MAP_VI_MISSION_H_

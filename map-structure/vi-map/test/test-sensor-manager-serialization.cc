@@ -31,6 +31,20 @@ class SensorManagerTest : public ::testing::Test {
     sensor_manager_.addNCamera(ncamera, mission_id_);
   }
 
+  void addCamera() {
+    constexpr size_t kNumCameras = 3u;
+    aslam::NCamera::Ptr ncamera =
+        aslam::NCamera::createTestNCamera(kNumCameras);
+    CHECK(ncamera);
+
+    for (size_t cam_idx = 0u; cam_idx < kNumCameras; ++cam_idx) {
+      const aslam::Transformation& T_C_B = ncamera->get_T_C_B(cam_idx);
+      const aslam::Camera& camera = ncamera->getCamera(cam_idx);
+      sensor_manager_.addOptionalCameraWithExtrinsics(
+          camera, T_C_B, mission_id_);
+    }
+  }
+
   void addSensorSystem() {
     SensorSystem::UniquePtr sensor_system;
     // Create some test sensors.
@@ -63,6 +77,8 @@ class SensorManagerTest : public ::testing::Test {
 constexpr double kPrecisionThreshold = 1e-12;
 
 TEST_F(SensorManagerTest, YamlSerializationEmpty) {
+  ASSERT_EQ(sensor_manager_.getNumSensors(), 0u);
+  ASSERT_EQ(sensor_manager_.getNumNCameraSensors(), 0u);
   sensor_manager_.serializeToFile(
       static_cast<std::string>(serialization::internal::kYamlSensorsFilename));
 
@@ -121,8 +137,47 @@ TEST_F(SensorManagerTest, YamlSerializationSensorSystem) {
   EXPECT_EQ(sensor_manager_, sensor_manager_deserialized);
 }
 
+TEST_F(SensorManagerTest, YamlSerializationOneOptionalCamera) {
+  addCamera();
+
+  sensor_manager_.serializeToFile(
+      static_cast<std::string>(serialization::internal::kYamlSensorsFilename));
+
+  SensorManager sensor_manager_deserialized;
+  EXPECT_NE(sensor_manager_, sensor_manager_deserialized);
+
+  sensor_manager_deserialized.deserializeFromFile(
+      static_cast<std::string>(serialization::internal::kYamlSensorsFilename));
+
+  EXPECT_EQ(sensor_manager_, sensor_manager_deserialized);
+}
+
 TEST_F(SensorManagerTest, YamlSerializationSensorsWithSensorSystems) {
   addNCamera();
+  addSensorSystem();
+
+  constexpr size_t kNumToAdd = 10u;
+  for (size_t idx = 0u; idx < kNumToAdd; ++idx) {
+    addSensor();
+  }
+
+  sensor_manager_.serializeToFile(
+      static_cast<std::string>(serialization::internal::kYamlSensorsFilename));
+
+  SensorManager sensor_manager_deserialized;
+  EXPECT_NE(sensor_manager_, sensor_manager_deserialized);
+
+  sensor_manager_deserialized.deserializeFromFile(
+      static_cast<std::string>(serialization::internal::kYamlSensorsFilename));
+
+  EXPECT_EQ(sensor_manager_, sensor_manager_deserialized);
+}
+
+TEST_F(
+    SensorManagerTest,
+    YamlSerializationSensorsWithSensorSystemsAndOptionalCamera) {
+  addNCamera();
+  addCamera();
   addSensorSystem();
 
   constexpr size_t kNumToAdd = 10u;

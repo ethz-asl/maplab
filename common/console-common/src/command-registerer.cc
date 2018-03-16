@@ -15,6 +15,8 @@
 #include <glog/logging.h>
 #include <maplab-common/accessors.h>
 
+#include "console-common/safe-gflags-parser.h"
+
 namespace common {
 class Job {
  public:
@@ -162,7 +164,10 @@ int CommandRegisterer::processCommand(const std::string& command) {
       }
     }
 
-    google::ParseCommandLineFlags(&argc, &result.we_wordv, false);
+    if (!parseCommandLineFlagsSafe(argc, result.we_wordv)) {
+      LOG(ERROR) << "Parsing gflags failed.";
+      return kUnknownError;
+    }
 
     CHECK_LT(command_index_it->second, commands_.size());
     const Command& command = commands_[command_index_it->second];

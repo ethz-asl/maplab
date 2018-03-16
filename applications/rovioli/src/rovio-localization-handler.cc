@@ -210,6 +210,17 @@ bool RovioLocalizationHandler::processAsUpdate(
       T_M_I_buffer_.getPoseAt(localization_result->timestamp_ns, &T_M_I_filter);
   CHECK(lookup_result != vio_common::PoseLookupBuffer::ResultStatus::kFailed);
 
+  pose::Transformation T_G_M_filter;
+  {
+    std::lock_guard<std::mutex> lock(m_T_G_M_filter_buffer_);
+    // Buffer cannot be empty as we must have received at least one filter
+    // update.
+    CHECK(!T_G_M_filter_buffer_.buffer().empty());
+    T_G_M_filter = T_G_M_filter_buffer_.buffer().back();
+  }
+
+  const pose::Transformation T_G_I_filter = T_G_M_filter * T_M_I_filter;
+
   const double gravity_error_angle_deg =
       getLocalizationResultGravityDisparityAngleDeg(
           localization_result, T_M_I_filter);
@@ -238,7 +249,7 @@ bool RovioLocalizationHandler::processAsUpdate(
     std::vector<double> lc_reprojection_errors;
     std::vector<double> filter_reprojection_errors;
     const bool reprojection_success = getLocalizationReprojectionErrors(
-        *localization_result, T_M_I_filter, &lc_reprojection_errors,
+        *localization_result, T_G_I_filter, &lc_reprojection_errors,
         &filter_reprojection_errors);
 
     double mean_reprojection_error_diff = std::numeric_limits<double>::max();
@@ -293,22 +304,11 @@ bool RovioLocalizationHandler::processAsUpdate(
 
 bool RovioLocalizationHandler::getLocalizationReprojectionErrors(
     const vio::LocalizationResult& localization_result,
-    const aslam::Transformation& T_M_I_filter,
+    const aslam::Transformation& T_G_I_filter,
     std::vector<double>* lc_reprojection_errors,
     std::vector<double>* filter_reprojection_errors) {
   CHECK_NOTNULL(lc_reprojection_errors)->clear();
   CHECK_NOTNULL(filter_reprojection_errors)->clear();
-
-  pose::Transformation T_G_M_filter;
-  {
-    std::lock_guard<std::mutex> lock(m_T_G_M_filter_buffer_);
-    // Buffer cannot be empty as we must have received at least one filter
-    // update.
-    CHECK(!T_G_M_filter_buffer_.buffer().empty());
-    T_G_M_filter = T_G_M_filter_buffer_.buffer().back();
-  }
-
-  const pose::Transformation T_G_I_filter = T_G_M_filter * T_M_I_filter;
 
   CHECK_EQ(
       localization_result.G_landmarks_per_camera.size(),

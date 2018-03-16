@@ -56,28 +56,10 @@ void VIMap::mergeAllMissionsFromMapWithoutResources(
     const vi_map::MissionBaseFrame& original_mission_base_frame =
         other.getMissionBaseFrameForMission(other_mission_id);
 
-    const aslam::NCamera& other_mission_ncamera =
-        other_sensor_manager.getNCameraForMission(other_mission_id);
-
     addNewMissionWithBaseframe(
-        other_mission_id, original_mission_base_frame.get_T_G_M(),
-        original_mission_base_frame.get_T_G_M_Covariance(),
-        other_mission_ncamera.cloneToShared(), other_mission.backboneType());
+        aligned_unique<VIMission>(other_mission), original_mission_base_frame);
 
-    SensorIdSet other_mission_sensor_ids;
-    other_sensor_manager.getAllSensorIdsAssociatedWithMission(
-        other_mission_id, &other_mission_sensor_ids);
-    for (const SensorId& other_mission_sensor_id : other_mission_sensor_ids) {
-      CHECK(other_mission_sensor_id.isValid());
-      if (sensor_manager_.hasSensor(other_mission_sensor_id)) {
-        sensor_manager_.associateExistingSensorWithMission(
-            other_mission_sensor_id, other_mission_id);
-      } else {
-        sensor_manager_.addSensor(
-            other_sensor_manager.getSensor(other_mission_sensor_id).clone(),
-            other_mission_id);
-      }
-    }
+    sensor_manager_.merge(other_sensor_manager, other_mission_id);
 
     vi_map::Mission& copied_mission = getMission(other_mission_id);
     copied_mission.setRootVertexId(other_mission.getRootVertexId());
@@ -384,16 +366,11 @@ void VIMap::getStatisticsOfMission(
   if (!vertex_ids.empty()) {
     const vi_map::Vertex& first_vertex = getVertex(vertex_ids.front());
     const vi_map::Vertex& last_vertex = getVertex(vertex_ids.back());
-    const unsigned int kFirstFrameIndex = 0u;
-    if (first_vertex.isFrameIndexValid(kFirstFrameIndex) &&
-        last_vertex.isFrameIndexValid(kFirstFrameIndex)) {
-      *start_time_ns = first_vertex.getVisualFrame(kFirstFrameIndex)
-                           .getTimestampNanoseconds();
-      *end_time_ns = last_vertex.getVisualFrame(kFirstFrameIndex)
-                         .getTimestampNanoseconds();
-      *duration_s =
-          aslam::time::nanoSecondsToSeconds(*end_time_ns - *start_time_ns);
-    }
+
+    *start_time_ns = first_vertex.getMinTimestampNanoseconds();
+    *end_time_ns = last_vertex.getMinTimestampNanoseconds();
+    *duration_s =
+        aslam::time::nanoSecondsToSeconds(*end_time_ns - *start_time_ns);
   }
 }
 
@@ -552,11 +529,13 @@ std::string VIMap::printMapStatistics(
   }
 
   if (num_vertices > 0) {
-    time_t start_time(aslam::time::nanoSecondsToSeconds(start_time_ns));
-    std::string start_time_str = common::generateDateString(&start_time);
-
-    time_t end_time(aslam::time::nanoSecondsToSeconds(end_time_ns));
-    std::string end_time_str = common::generateDateString(&end_time);
+    const time_t start_time_s(
+        static_cast<time_t>(aslam::time::nanoSecondsToSeconds(start_time_ns)));
+    const time_t end_time_s(
+        static_cast<time_t>(aslam::time::nanoSecondsToSeconds(end_time_ns)));
+    const std::string start_time_str =
+        common::generateDateString(&start_time_s);
+    const std::string end_time_str = common::generateDateString(&end_time_s);
     print_aligned(
         "Start to end time: ", start_time_str + " to " + end_time_str, 1);
   } else {
@@ -943,73 +922,62 @@ void VIMap::moveLandmarksToOtherVertex(
 // Currently assumes vertex_from is the next after vertex_to.
 void VIMap::mergeNeighboringVertices(
     const pose_graph::VertexId& merge_into_vertex_id,
-    const pose_graph::VertexId& next_vertex_id) {
+    const pose_graph::VertexId& vertex_to_merge) {
   CHECK(hasVertex(merge_into_vertex_id));
-  CHECK(hasVertex(next_vertex_id));
+  CHECK(hasVertex(vertex_to_merge));
 
-  vi_map::MissionId mission_id = getVertex(merge_into_vertex_id).getMissionId();
+  const vi_map::MissionId& mission_id =
+      getVertex(merge_into_vertex_id).getMissionId();
 
   pose_graph::VertexId check_vertex_id;
   getNextVertex(
       merge_into_vertex_id, getGraphTraversalEdgeType(mission_id),
       &check_vertex_id);
-  CHECK_EQ(check_vertex_id, next_vertex_id)
-      << "Vertices should be neighboring and vertex_from should be the next"
-      << " after next_vertex_id.";
+  CHECK_EQ(check_vertex_id, vertex_to_merge)
+      << "Vertices should be neighboring and vertex_to_merge should be the "
+      << "next after merge_into_vertex_id.";
 
-  VLOG(4) << "Merging vertices: " << next_vertex_id << " into "
+  VLOG(4) << "Merging vertex: " << vertex_to_merge << " into "
           << merge_into_vertex_id;
-
   // Move landmarks.
-  moveLandmarksToOtherVertex(next_vertex_id, merge_into_vertex_id);
+  moveLandmarksToOtherVertex(vertex_to_merge, merge_into_vertex_id);
 
-  std::unordered_set<pose_graph::EdgeId> incoming, outgoing;
-  vi_map::Vertex& next_vertex = getVertex(next_vertex_id);
-
-  next_vertex.getOutgoingEdges(&outgoing);
-  next_vertex.getIncomingEdges(&incoming);
-  // It's possible that next vertex is the last vertex in the mission so
-  // we need to handle no outgoing edge case.
-  size_t num_incoming_viwls_edges = 0u, num_outgoing_viwls_edges = 0u;
-  vi_map::ViwlsEdge* edge_between_vertices = nullptr;
-  vi_map::ViwlsEdge* edge_after_next_vertex = nullptr;
-  for (const pose_graph::EdgeId& incoming_edge : incoming) {
-    if (getEdgeType(incoming_edge) == pose_graph::Edge::EdgeType::kViwls) {
-      edge_between_vertices = getEdgePtrAs<vi_map::ViwlsEdge>(incoming_edge);
-      ++num_incoming_viwls_edges;
-    }
-  }
-  for (const pose_graph::EdgeId& outgoing_edge : outgoing) {
-    if (getEdgeType(outgoing_edge) == pose_graph::Edge::EdgeType::kViwls) {
-      edge_after_next_vertex = getEdgePtrAs<vi_map::ViwlsEdge>(outgoing_edge);
-      ++num_outgoing_viwls_edges;
-    }
-  }
-  CHECK_LE(num_outgoing_viwls_edges, 1u)
-      << "A vertex can have only one outgoing edge in VIWLS graph";
-  CHECK_EQ(1u, num_incoming_viwls_edges)
-      << "A vertex can have only one incoming edge in VIWLS graph";
-  CHECK_NOTNULL(edge_between_vertices);
+  pose_graph::EdgeIdSet next_vertex_incoming_edge_ids,
+      next_vertex_outgoing_edge_ids;
+  vi_map::Vertex& next_vertex = getVertex(vertex_to_merge);
+  next_vertex.getOutgoingEdges(&next_vertex_outgoing_edge_ids);
+  next_vertex.getIncomingEdges(&next_vertex_incoming_edge_ids);
 
   // Remove all other edges from vertex.
-  for (const pose_graph::EdgeId& incoming_edge : incoming) {
-    if (getEdgeType(incoming_edge) != pose_graph::Edge::EdgeType::kViwls) {
+  for (const pose_graph::EdgeId& incoming_edge :
+       next_vertex_incoming_edge_ids) {
+    if (getEdgeType(incoming_edge) != pose_graph::Edge::EdgeType::kViwls &&
+        getEdgeType(incoming_edge) != pose_graph::Edge::EdgeType::kOdometry) {
       posegraph.removeEdge(incoming_edge);
     }
   }
-  for (const pose_graph::EdgeId& outgoing_edge : outgoing) {
-    if (getEdgeType(outgoing_edge) != pose_graph::Edge::EdgeType::kViwls) {
+  for (const pose_graph::EdgeId& outgoing_edge :
+       next_vertex_outgoing_edge_ids) {
+    if (getEdgeType(outgoing_edge) != pose_graph::Edge::EdgeType::kViwls &&
+        getEdgeType(outgoing_edge) != pose_graph::Edge::EdgeType::kOdometry) {
       posegraph.removeEdge(outgoing_edge);
     }
   }
 
-  if (edge_after_next_vertex != nullptr) {
-    posegraph.mergeNeighboringViwlsEdges(
-        merge_into_vertex_id, *edge_between_vertices, *edge_after_next_vertex);
-  } else {
-    // We should remove the edge linking the two vertices.
-    posegraph.removeEdge(edge_between_vertices->id());
-  }
+  const size_t num_outgoing_viwls_edges =
+      mergeEdgesOfNeighboringVertices<ViwlsEdge, Edge::EdgeType::kViwls>(
+          merge_into_vertex_id, vertex_to_merge);
+  CHECK(
+      getMission(mission_id).backboneType() != Mission::BackBone::kViwls ||
+      num_outgoing_viwls_edges == 1u);
+
+  const size_t num_outgoing_odometry_edges =
+      mergeEdgesOfNeighboringVertices<TransformationEdge,
+                                      Edge::EdgeType::kOdometry>(
+          merge_into_vertex_id, vertex_to_merge);
+  CHECK(
+      getMission(mission_id).backboneType() != Mission::BackBone::kOdometry ||
+      num_outgoing_odometry_edges == 1u);
 
   const unsigned int num_frames = next_vertex.numFrames();
   // We need to track landmarks that get removed in the following loop. This
@@ -1039,14 +1007,13 @@ void VIMap::mergeNeighboringVertices(
           deleted_landmarks.emplace(landmark_id);
         } else {
           // Remove vertex visibility in landmarks.
-          landmark.removeAllObservationsOfVertex(next_vertex_id);
+          landmark.removeAllObservationsOfVertex(vertex_to_merge);
         }
       }
     }
   }
-
   // Remove the vertex.
-  posegraph.removeVertex(next_vertex_id);
+  posegraph.removeVertex(vertex_to_merge);
 }
 
 void VIMap::mergeLandmarks(
@@ -2062,7 +2029,7 @@ bool VIMap::getResourceIdForMissions(
   getResourceIdToMissionsMap(resource_type, &resource_to_mission_map);
 
   for (ResourceToMissionsMap::value_type& resource : resource_to_mission_map) {
-    VLOG(1) << "Found resource for " << resource.second.size() << " missions.";
+    VLOG(3) << "Found resource for " << resource.second.size() << " missions.";
     if (resource.second.size() == involved_mission_ids.size()) {
       std::sort(resource.second.begin(), resource.second.end());
       MissionIdList involved_mission_ids_sorted = involved_mission_ids;
@@ -2170,15 +2137,6 @@ std::string VIMap::getSubFolderName() {
   return serialization::getSubFolderName();
 }
 
-bool VIMap::getListOfExistingMapFiles(
-    const std::string& map_folder, std::string* sensors_filepath,
-    std::vector<std::string>* list_of_resource_files,
-    std::vector<std::string>* list_of_map_proto_files) {
-  return serialization::getListOfExistingMapFiles(
-      map_folder, sensors_filepath, list_of_resource_files,
-      list_of_map_proto_files);
-}
-
 bool VIMap::hasMapOnFileSystem(const std::string& map_folder) {
   return serialization::hasMapOnFileSystem(map_folder);
 }
@@ -2194,23 +2152,6 @@ bool VIMap::saveToFolder(
 
 bool VIMap::saveToMapFolder(const backend::SaveConfig& config) {
   return saveToFolder(getMapFolder(), config);
-}
-
-bool VIMap::hasOptionalCameraResource(
-    const VIMission& mission, const backend::ResourceType& type,
-    const aslam::CameraId& camera_id, const int64_t timestamp_ns) const {
-  return mission.hasOptionalCameraResourceId(type, camera_id, timestamp_ns);
-}
-
-bool VIMap::findAllCloseOptionalCameraResources(
-    const VIMission& mission, const backend::ResourceType& type,
-    const int64_t timestamp_ns, const int64_t tolerance_ns,
-    aslam::CameraIdList* camera_ids,
-    std::vector<int64_t>* closest_timestamps_ns) const {
-  CHECK_NOTNULL(camera_ids);
-  CHECK_NOTNULL(closest_timestamps_ns);
-  return mission.findAllCloseOptionalCameraResources(
-      type, timestamp_ns, tolerance_ns, camera_ids, closest_timestamps_ns);
 }
 
 OptionalSensorData& VIMap::getOptionalSensorData(const MissionId& mission_id) {

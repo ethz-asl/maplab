@@ -4,7 +4,7 @@ project(pmvs_interface)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-add_definitions(--std=c++11 -Wno-unknown-pragmas)
+add_definitions(--std=c++11)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 

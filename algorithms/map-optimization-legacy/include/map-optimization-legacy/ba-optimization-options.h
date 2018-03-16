@@ -27,7 +27,8 @@ struct BaOptimizationOptions {
   bool fix_gyro_bias;
   bool fix_velocity;
   bool add_pose_prior_for_fixed_vertices;
-  bool remove_behind_camera_landmarks;
+  bool remove_behind_camera_landmarks_before;
+  bool remove_behind_camera_landmarks_after;
   bool fix_landmark_positions_of_fixed_vertices;
   bool include_wheel_odometry;
   bool include_gps;

@@ -2,84 +2,36 @@
 
 from __future__ import print_function
 
+import argparse
+import os
+import sys
+
 import numpy as np
 
 import end_to_end_common.compute_rmse
-from end_to_end_common.end_to_end_utility import align_datasets
 import end_to_end_common.create_plots
+from end_to_end_common.end_to_end_utility import align_datasets
+from end_to_end_common.test_structs import TestDataStruct, TestErrorStruct
 
 
 def rad_to_deg(rad):
   return rad * 180 / np.pi
 
 
-class TestErrorStruct:
-  def __init__(
-      self, position_mean_m=-1, position_rmse_m=-1, orientation_mean_rad=-1,
-      orientation_rmse_rad=-1):
-    self.position_mean_m = position_mean_m
-    self.position_rmse_m = position_rmse_m
-    self.position_max_error_m = -1
-    self.position_min_error_m = -1
-    self.orientation_mean_rad = orientation_mean_rad
-    self.orientation_rmse_rad = orientation_rmse_rad
-    self.orientation_max_error_rad = -1
-    self.orientation_min_error_rad = -1
-
-
-  def set_position_errors(self, position_errors):
-    self.position_mean_m = position_errors.mean
-    self.position_rmse_m = position_errors.rmse
-    self.position_max_error_m = position_errors.max_value
-    self.position_min_error_m = position_errors.min_value
-
-
-  def set_orientation_errors(self, orientation_errors):
-    self.orientation_mean_rad = orientation_errors.mean
-    self.orientation_rmse_rad = orientation_errors.rmse
-    self.orientation_max_error_rad = orientation_errors.max_value
-    self.orientation_min_error_rad = orientation_errors.min_value
-
-
-  def __str__(self):
-    return str(self.position_mean_m) + ", " + \
-        str(self.position_rmse_m) + ", " + str(self.orientation_mean_rad) + \
-        ", " + str(self.orientation_rmse_rad)
-
-
 class EndToEndTest:
-  class TestResult:
-    def __init__(
-        self, label, calculated_errors, max_errors_list, estimator_G_I,
-        ground_truth_G_M, localization_state_list):
-      self.label = label
-      self.calculated_errors = calculated_errors
-      self.max_errors_list = max_errors_list
-      self.ground_truth_G_M = ground_truth_G_M
-      self.estimator_G_I = estimator_G_I
-      self.localization_state_list = localization_state_list
-      self.plot_result = False
-      self.cpu_mean = -1
-      self.cpu_stddev = -1
-
-
-    def calculate_cpu_mean_and_stddev(self, cpu_file):
-      if not os.path.isfile(cpu_file):
-        return
-
-      cpu_data = np.genfromtxt(cpu_file)
-      self.cpu_mean = np.mean(cpu_data[:, 8])
-      self.cpu_stddev = np.std(cpu_data[:, 8])
-
 
   def __init__(self):
-    self.test_results = []
+    self.test_results = {}
 
-
-  def calulate_errors_of_datasets(
-          self, label, max_errors_list, estimated_poses_csv_path,
-          ground_truth_csv_path, localization_state_list=np.zeros((0, 2)),
-          estimator_input_format="rovioli", cpu_file=""):
+  def calculate_errors_of_datasets(self,
+                                   label,
+                                   estimated_poses_csv_G_I,
+                                   ground_truth_csv_W_M,
+                                   align_data_to_use_meters=-1,
+                                   time_offset=0.0,
+                                   max_errors_list=[],
+                                   localization_state_list=np.zeros((0, 2)),
+                                   cpu_file=""):
     """
     Calculates the errors between the given datasets and appends the result to
     an internal list.
@@ -87,21 +39,22 @@ class EndToEndTest:
     Input:
       - label: name of the dataset that is compared. Used for later output and
             plotting.
+      - estimated_poses_csv_G_I: path to the CSV containing the estimated poses
+            from ROVIOLI or another estimator.
+      - ground_truth_csv_W_M: path to the CSV containing the ground truth
+            values for this dataset.
       - max_errors_list: list containing TestErrorStruct which this dataset
             should test against.
-      - estimated_poses_csv_path: path to the CSV containing the estimated poses
-            from ROVIOLI or another estimator.
-      - ground_truth_csv_path: path to the CSV containing the ground truth
-            values for this dataset.
+      - align_data_to_use_meters: (optional) only use data up to a total
+            trajectory length as given by this parameter. If a negative value
+            is provided, the entire trajectory is used for the alignment.
+      - time_offset: (optional) Time offset in seconds by which the ground
+            truth time stamps will be shifted in the alignment.
       - localization_state_list: (optional) Nx2-numpy-array where the first
             column contains timestamps and the second column localization
             results (1 = successful localization, 0 = no localization). The
             timestamps should match with the values in the estimator poses CSV
             file.
-      - estimator_input_format: (optional) Determines the format of the given
-            estimator data file.
-            Possible values: rovioli, maplab_console, orbslam
-            Default: rovioli
       - cpu_file: (optional) If provided, the end-to-end test will also compute
             the average CPU load for this dataset. Data is expected to be from
             top. Run top like this to get the data:
@@ -116,8 +69,13 @@ class EndToEndTest:
       A TestErrorStruct struct containing the errors of the given dataset.
     """
     # TODO(eggerk): explain CSV formats somewhere.
+    assert label not in self.test_results, \
+        "A dataset with the label " + label + " was already run."
     estimator_data_G_I, ground_truth_data_G_M = align_datasets(
-        estimated_poses_csv_path, ground_truth_csv_path, estimator_input_format)
+        estimated_poses_csv_G_I,
+        ground_truth_csv_W_M,
+        align_data_to_use_meters=align_data_to_use_meters,
+        time_offset=time_offset)
 
     position_errors_m = \
         end_to_end_common.compute_rmse.compute_position_mean_and_rmse(
@@ -129,42 +87,37 @@ class EndToEndTest:
     errors = TestErrorStruct()
     errors.set_position_errors(position_errors_m)
     errors.set_orientation_errors(orientation_errors_rad)
-    result = EndToEndTest.TestResult(
-        label, errors, max_errors_list, estimator_data_G_I,
-        ground_truth_data_G_M, localization_state_list)
+    result = TestDataStruct(
+        estimator_data_G_I,
+        ground_truth_data_G_M,
+        label=label,
+        calculated_errors=errors,
+        max_errors_list=max_errors_list,
+        localization_state_list=localization_state_list)
 
-    self.test_results.append(result)
+    self.test_results.update({label: result})
     return errors
-
 
   def print_errors(self):
     """
     Prints all test errors (position and orientation mean and RMSE).
     """
-    print("=" * 80)
-    for result in self.test_results:
-      max_position_mean = 100000
-      max_position_rmse = 100000
-      max_orientation_mean = 100000
-      max_orientation_rmse = 100000
-
-      for max_errors in result.max_errors_list:
-        max_position_mean = min(max_position_mean, max_errors.position_mean_m)
-        max_position_rmse = min(max_position_rmse, max_errors.position_rmse_m)
-        max_orientation_mean = min(
-            max_orientation_mean, max_errors.orientation_mean_rad)
-        max_orientation_rmse = min(
-            max_orientation_rmse, max_errors.orientation_rmse_rad)
-
-      print(result.label, "errors:")
-      print(
-          "    position [m]:\tmean =", result.calculated_errors.position_mean_m,
-          "\tRMSE =", result.calculated_errors.position_rmse_m,
-          "\tmin =", result.calculated_errors.position_min_error_m,
-          "\tmax =", result.calculated_errors.position_max_error_m)
-      print(
-          "        (Thresholds:\tmean = ", max_position_mean,
-          "\tRMSE = ", max_position_rmse, ")", sep="")
+    for label, result in self.test_results.iteritems():
+      print(label, "errors:")
+      print("    position [m]:\tmean =",
+            result.calculated_errors.position_mean_m, "\tRMSE =",
+            result.calculated_errors.position_rmse_m, "\tmin =",
+            result.calculated_errors.position_min_error_m, "\tmax =",
+            result.calculated_errors.position_max_error_m)
+      if result.max_errors.position_mean_m >= 0 or \
+          result.max_errors.position_rmse_m >= 0:
+        print(
+            "        (Thresholds:\tmean = ",
+            result.max_errors.position_mean_m,
+            "\tRMSE = ",
+            result.max_errors.position_rmse_m,
+            ")",
+            sep="")
 
       print(
           "    orientation [deg]:\tmean =",
@@ -173,9 +126,15 @@ class EndToEndTest:
           rad_to_deg(result.calculated_errors.orientation_min_error_rad),
           "\tmax =",
           rad_to_deg(result.calculated_errors.orientation_max_error_rad))
-      print(
-          "        (Thresholds:\tmean = ", rad_to_deg(max_orientation_mean),
-          "\tRMSE = ", rad_to_deg(max_orientation_rmse), ")", sep="")
+      if result.max_errors.orientation_mean_rad >= 0 or \
+          result.max_errors.orientation_rmse_rad >= 0:
+        print(
+            "        (Thresholds:\tmean = ",
+            rad_to_deg(result.max_errors.orientation_mean_rad),
+            "\tRMSE = ",
+            rad_to_deg(result.max_errors.orientation_rmse_rad),
+            ")",
+            sep="")
 
       if result.cpu_mean > 0 and result.cpu_stddev >= 0:
         print("    CPU load [%]:\tmean:", result.cpu_mean, "\tstd dev:", \
@@ -183,46 +142,123 @@ class EndToEndTest:
 
       print("=" * 80)
 
-
   def check_errors(self):
     """
     Compares each of the stored test results if its values are below the given
     maximum test errors.
     """
-    for result in self.test_results:
-      print("Checking results from ", result.label, ".", sep="")
-      assert result.calculated_errors.position_mean_m <= \
-             result.calculated_errors.position_rmse_m
-      assert result.calculated_errors.orientation_mean_rad <= \
-             result.calculated_errors.orientation_rmse_rad
-      for max_errors in result.max_errors_list:
-        assert result.calculated_errors.position_mean_m < \
-            max_errors.position_mean_m
-        assert result.calculated_errors.position_rmse_m < \
-            max_errors.position_rmse_m
-        assert result.calculated_errors.orientation_mean_rad < \
-               max_errors.orientation_mean_rad
-        assert result.calculated_errors.orientation_rmse_rad < \
-               max_errors.orientation_rmse_rad
+    for label, result in self.test_results.iteritems():
+      print("Checking results from ", label, ".", sep="")
+      result.check_errors()
 
-      print("Done.")
+    print("Done.")
+
+  def export_results_to_file(self, export_path):
+    assert len(export_path) > 0
+    if not os.path.isdir(export_path):
+      os.makedirs(export_path)
+    for label, data in self.test_results.iteritems():
+      if os.path.isfile(label):
+        file_name = os.path.basename(label)
+      else:
+        file_name = label.replace("/", "_")
+      path = os.path.join(export_path, file_name + "_errors.yaml")
+      errors = data.calculated_errors
+      error_thresholds = data.max_errors
+      file = open(path, "w+")
+      file.write("metadata:\n")
+      file.write("  label: %s\n" % label)
+      file.write("position_errors:  # [m]\n")
+      file.write("  mean: %f\n" % errors.position_mean_m)
+      file.write("  rmse: %f\n" % errors.position_rmse_m)
+      file.write("  min: %f\n" % errors.position_min_error_m)
+      file.write("  max: %f\n" % errors.position_max_error_m)
+      if error_thresholds.position_mean_m > 0 or \
+          error_thresholds.position_rmse_m > 0:
+        file.write("  thresholds:\n")
+        if error_thresholds.position_mean_m > 0:
+          file.write("    mean: %f\n" % error_thresholds.position_mean_m)
+        if error_thresholds.position_rmse_m > 0:
+          file.write("    rmse: %f\n" % error_thresholds.position_rmse_m)
+      file.write("orientation_errors:  # [rad]\n")
+      file.write("  mean: %f\n" % errors.orientation_mean_rad)
+      file.write("  rmse: %f\n" % errors.orientation_rmse_rad)
+      file.write("  min: %f\n" % errors.orientation_min_error_rad)
+      file.write("  max: %f\n" % errors.orientation_max_error_rad)
+      if error_thresholds.orientation_mean_rad > 0 or \
+          error_thresholds.orientation_rmse_rad > 0:
+        file.write("  thresholds:\n")
+        if error_thresholds.orientation_mean_rad > 0:
+          file.write("    mean: %f\n" % error_thresholds.orientation_mean_rad)
+        if error_thresholds.orientation_rmse_rad > 0:
+          file.write("    rmse: %f\n" % error_thresholds.orientation_rmse_rad)
 
 
-  def plot_results(self):
-    """
-    Creates a plot containing the position error for each given test dataset.
-    """
-    print("Plotting results.")
-    labels = []
-    ground_truth_data = []
-    estimator_data = []
-    localizations = []
-    for result in self.test_results:
-      labels.append(result.label)
-      ground_truth_data.append(result.ground_truth_G_M)
-      estimator_data.append(result.estimator_G_I)
-      localizations.append(result.localization_state_list)
+if __name__ == "__main__":
+  parser = argparse.ArgumentParser(description="End to end test")
+  parser.add_argument(
+      "--max_position_rmse_m",
+      dest="max_position_rmse_m",
+      type=float,
+      required=False,
+      default=10)
+  parser.add_argument(
+      "--max_orientation_rmse_rad",
+      dest="max_orientation_rmse_rad",
+      type=float,
+      required=False,
+      default=10)
+  parser.add_argument(
+      "--ground_truth_csv_file", dest="ground_truth_csv_file", required=True)
+  parser.add_argument(
+      "--estimator_csv_file", dest="estimator_csv_file", required=True)
+  parser.add_argument(
+      "--estimator_csv_format",
+      dest="estimator_csv_format",
+      required=False,
+      default="rovioli")
+  parser.add_argument(
+      "--label", dest="label", required=False, default="Dataset")
+  parser.add_argument(
+      "--min_position_rmse_m",
+      dest="min_position_rmse_m",
+      type=float,
+      required=False,
+      default=-1)
+  parser.add_argument(
+      "--save_results_to_file",
+      dest="save_results_to_file",
+      required=False,
+      default="",
+      help="Optionally specify a path where to save the test results.")
 
-    end_to_end_common.create_plots.plot_position_error(
-        labels, ground_truth_data, estimator_data, localizations)
-    print("Plotting done.")
+  parsed_args = parser.parse_args()
+
+  error_struct = TestErrorStruct(parsed_args.max_position_rmse_m,
+                                 parsed_args.max_position_rmse_m,
+                                 parsed_args.max_orientation_rmse_rad,
+                                 parsed_args.max_orientation_rmse_rad)
+  test = EndToEndTest()
+  test.calculate_errors_of_datasets(
+      parsed_args.label, [error_struct],
+      parsed_args.estimator_csv_file,
+      parsed_args.ground_truth_csv_file,
+      estimator_input_format=parsed_args.estimator_csv_format)
+  test.print_errors()
+  exit_code = 0
+  try:
+    test.check_errors()
+  except:
+    print("The RMSE of the dataset is worse than what is allowed!")
+    exit_code += 1
+
+  if test_results.position_rmse_m < parsed_args.min_position_rmse_m:
+    print("The RMSE of ", test_results.position_rmse_m, \
+          "m is below the expected minimum (which is ", \
+          parsed_args.min_position_rmse_m, ")", sep="")
+    exit_code += 2
+
+  if len(parsed_args.save_results_to_file):
+    test.export_results_to_file(parsed_args.save_results_to_file)
+
+  sys.exit(exit_code)

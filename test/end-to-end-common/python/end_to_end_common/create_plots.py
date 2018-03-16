@@ -6,64 +6,53 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+from end_to_end_common.end_to_end_utility \
+    import get_cumulative_trajectory_length_for_each_point
 import end_to_end_common.plotting_common as plotting_common
+from end_to_end_common.test_structs import TestDataStruct
 
 
-def plot_position_error(
-        labels, ground_truth_data_list, estimator_data_list,
-        localization_state_list,
-        plotting_settings=plotting_common.PlottingSettings()):
+def plot_position_error(test_data_list_or_dict,
+                        plotting_settings=plotting_common.PlottingSettings()):
   """
   Creates a plot of the absolute position error over the trajectory length.
   """
-  assert len(labels) == len(ground_truth_data_list)
-  assert len(ground_truth_data_list) == len(estimator_data_list)
-  assert len(localization_state_list) == len(estimator_data_list)
+  if isinstance(test_data_list_or_dict, dict):
+    test_data_list = []
+    for key, value in test_data_list_or_dict.iteritems():
+      test_data_list.append(value)
+  else:
+    test_data_list = test_data_list_or_dict
 
-  num_elements = len(labels)
+  num_elements = len(test_data_list)
   fig, ax = plt.subplots()
 
-  trajectory_lengths = []
-  min_starting_pos = 1e100
   max_end_pos = 0
-  for idx in range(num_elements):
-    size = ground_truth_data_list[idx].shape[0]
-    trajectory_length = np.zeros(size)
-    trajectory_length[0] = np.linalg.norm(ground_truth_data_list[idx][0, 1:4])
-    for row_idx in range(size - 1):
-      delta = np.linalg.norm(
-          ground_truth_data_list[idx][row_idx + 1, 1:4] - \
-                  ground_truth_data_list[idx][row_idx, 1:4])
-      trajectory_length[row_idx + 1] = trajectory_length[row_idx] + delta
-    trajectory_lengths.append(trajectory_length)
-
-    if trajectory_length[0] < min_starting_pos:
-      min_starting_pos = trajectory_length[0]
+  trajectory_lengths = [
+      get_cumulative_trajectory_length_for_each_point(
+          data.ground_truth_G_M[:, 1:4]) for data in test_data_list
+  ]
 
   for idx in range(num_elements):
-    trajectory_lengths[idx][:] -= min_starting_pos
     if trajectory_lengths[idx][-1] > max_end_pos:
       max_end_pos = trajectory_lengths[idx][-1]
 
   max_error = 0
-  for idx in range(num_elements):
-    print "Plotting position error for ", labels[idx]
-    pos_errors = np.linalg.norm(estimator_data_list[idx][:, 1:4] -
-                                ground_truth_data_list[idx][:, 1:4], axis=1)
+  for idx, data in enumerate(test_data_list):
+    print "Plotting position error for ", data.label
+    pos_errors = np.linalg.norm(data.estimator_G_I[:, 1:4] -
+                                data.ground_truth_G_M[:, 1:4], axis=1)
     if np.max(pos_errors) > max_error:
       max_error = np.max(pos_errors)
 
     # Plot by trajectroy length.
-    plt.plot(
-      trajectory_lengths[idx],
-      pos_errors,
-      label=labels[idx])
+    plt.plot(trajectory_lengths[idx], pos_errors, label=data.label)
 
     # Plot localization states.
-    if localization_state_list[idx].shape[0] > 0:
-      for i, row in enumerate(localization_state_list[idx]):
+    if data.localization_state_list.shape[0] > 0:
+      for i, row in enumerate(data.localization_state_list):
         index_same_timestamp = \
-                np.where(estimator_data_list[idx][:, 0] == row[0])
+                np.where(data.estimator_G_I[:, 0] == row[0])
         if len(index_same_timestamp) > 0 and \
               index_same_timestamp[0].shape[0] > 0:
           row[0] = trajectory_lengths[idx][index_same_timestamp]
@@ -71,20 +60,21 @@ def plot_position_error(
         else:
           row[1] = -1
 
-      localization_state_list[idx] = \
-              localization_state_list[idx] \
-                  [localization_state_list[idx][:, 1] >= 0, :]
-      plt.scatter(localization_state_list[idx][:, 0],
-                  localization_state_list[idx][:, 1],
-                  label="Localizations",
-                  color="black",
-                  zorder=100)
+      data.localization_state_list = \
+              data.localization_state_list \
+                  [data.localization_state_list[:, 1] >= 0, :]
+      plt.scatter(
+          data.localization_state_list[:, 0],
+          data.localization_state_list[:, 1],
+          label="Localizations",
+          color="black",
+          s=1,
+          zorder=100)
 
   plt.xlabel("Trajectory length [m]")
   plt.ylabel("Position error [m]")
-  plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
-             ncol=4, mode="expand", borderaxespad=0., frameon=False)
-  ax.grid(True)
+  plotting_common.plot_legend_on_top(ncol=4)
+  ax.grid(plotting_settings.show_grid)
   ax.spines['right'].set_visible(False)
   ax.spines['top'].set_visible(False)
   ax.set_xlim((0, max_end_pos))
@@ -92,11 +82,11 @@ def plot_position_error(
 
   plotting_common.show_and_save_plot(
       plotting_settings, "error_over_trajectory")
+  plt.close(fig)
 
 
 def plot_top_down_aligned_data(
-    estimator_data_G_I, ground_truth_data_G_M, title="",
-    plotting_settings=plotting_common.PlottingSettings()):
+    test_data, plotting_settings=plotting_common.PlottingSettings()):
   """
   Creates a top-down plot of the given estimated and ground truth trajectory.
 
@@ -105,21 +95,26 @@ def plot_top_down_aligned_data(
   """
   fig = plt.figure()
   plt.plot(
-      ground_truth_data_G_M[:, 1], ground_truth_data_G_M[:, 2],
+      test_data.ground_truth_G_M[:, 1],
+      test_data.ground_truth_G_M[:, 2],
       label="Ground truth")
   plt.plot(
-      estimator_data_G_I[:, 1], estimator_data_G_I[:, 2], label="Estimator")
+      test_data.estimator_G_I[:, 1],
+      test_data.estimator_G_I[:, 2],
+      label="Estimator")
   plt.xlabel("x position [m]")
   plt.ylabel("y position [m]")
   plt.legend()
-  plt.title(title)
+  plt.title(test_data.label)
+  if plotting_settings.show_grid:
+    plt.grid()
 
   plotting_common.show_and_save_plot(plotting_settings, "top_down_xy")
+  plt.close(fig)
 
 
-def plot_trajectory3d_aligned_data(
-    estimator_data_G_I, ground_truth_data_G_M,
-    title="", plotting_settings=plotting_common.PlottingSettings()):
+def plot_trajectory_3d_aligned_data(
+    test_data, plotting_settings=plotting_common.PlottingSettings()):
   """
   Creates a 3d plot of the given estimated and ground truth trajectory.
   Inputs: aligned estimator and ground truth trajectory matrices (assumed to be
@@ -128,64 +123,79 @@ def plot_trajectory3d_aligned_data(
   fig = plt.figure()
   ax = fig.gca(projection='3d')
   ax.plot(
-      ground_truth_data_G_M[:, 1], ground_truth_data_G_M[:, 2],
-      ground_truth_data_G_M[:, 3], label="Ground truth")
+      test_data.ground_truth_G_M[:, 1],
+      test_data.ground_truth_G_M[:, 2],
+      test_data.ground_truth_G_M[:, 3],
+      label="Ground truth")
   ax.plot(
-      estimator_data_G_I[:, 1], estimator_data_G_I[:, 2],
-      estimator_data_G_I[:, 3], label="Estimator")
+      test_data.estimator_G_I[:, 1],
+      test_data.estimator_G_I[:, 2],
+      test_data.estimator_G_I[:, 3],
+      label="Estimator")
 
   ax.set_xlabel("x position [m]")
   ax.set_ylabel("y position [m]")
   ax.set_zlabel("z position [m]")
+
+  if plotting_settings.trajectory_3d_axis_equal:
+    plotting_common.axis_equal_3d(ax)
+
   plt.legend()
-  plt.title(title)
+  plt.title(test_data.label)
 
   plotting_common.show_and_save_plot(plotting_settings, "trajectory_3d")
+  plt.close(fig)
 
 
 def plot_xyz_vs_groundtruth(
-    estimator_data_G_I, ground_truth_data_G_M, title="",
-    plotting_settings=plotting_common.PlottingSettings()):
+    test_data, plotting_settings=plotting_common.PlottingSettings()):
   """
   Creates one plot each to compare the estimated x, y and z positions with the
   ground truth values.
   """
   fig = plt.figure()
-  plt.suptitle(title)
+  plt.suptitle(test_data.label)
 
   labels = ["x", "y", "z"]
   for i in range(3):
     plt.subplot(3, 1, i + 1)
     plt.plot(
-        ground_truth_data_G_M[:, 0], ground_truth_data_G_M[:, 1 + i],
+        test_data.ground_truth_G_M[:, 0],
+        test_data.ground_truth_G_M[:, 1 + i],
         label="Ground truth")
     plt.plot(
-        estimator_data_G_I[:, 0], estimator_data_G_I[:, 1 + i],
+        test_data.estimator_G_I[:, 0],
+        test_data.estimator_G_I[:, 1 + i],
         label="Estimator")
     plt.xlabel("Time [s]")
     plt.ylabel(labels[i] + " position [m]")
-    plt.legend()
+    if plotting_settings.show_grid:
+      plt.grid()
+    if i == 0:
+      plotting_common.plot_legend_on_top(ncol=2)
 
-    plotting_common.show_and_save_plot(plotting_settings, "xyz_vs_groundtruth")
+  plotting_common.show_and_save_plot(plotting_settings, "xyz_vs_groundtruth")
+  plt.close(fig)
 
 
-def plot_xyz_errors(
-    estimator_data_G_I, ground_truth_data_G_M, title="",
-    plotting_settings=plotting_common.PlottingSettings()):
+def plot_xyz_errors(test_data,
+                    plotting_settings=plotting_common.PlottingSettings()):
   """
   Creates one plot each showing the individual relative x, y and errors.
   """
   fig = plt.figure()
-  plt.suptitle(title)
+  plt.suptitle(test_data.label)
 
   labels = ["x", "y", "z"]
   for i in range(3):
     plt.subplot(3, 1, i + 1)
-    plt.plot(
-        estimator_data_G_I[:, 0],
-        estimator_data_G_I[:, 1 + i] - ground_truth_data_G_M[:, 1 + i])
+    plt.plot(test_data.estimator_G_I[:, 0],
+             test_data.estimator_G_I[:, 1 + i] -
+             test_data.ground_truth_G_M[:, 1 + i])
     plt.xlabel("Time [s]")
     plt.ylabel(labels[i] + " error [m]")
-    plt.grid()
+    if plotting_settings.show_grid:
+      plt.grid()
 
   plotting_common.show_and_save_plot(plotting_settings, "xyz_errors")
+  plt.close(fig)

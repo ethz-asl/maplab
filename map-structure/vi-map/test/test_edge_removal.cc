@@ -26,7 +26,7 @@ class VIMapEdgeRemovalTest : public ::testing::Test {
 
  protected:
   virtual void SetUp() {
-    vi_map::test::generateMap(kTestDataVertexCount, &map_);
+    vi_map::test::generateMap<TransformationEdge>(kTestDataVertexCount, &map_);
     initial_mission_ = map_.getIdOfFirstMission();
     map_.getAllEdgeIds(&initial_edges_);
     map_.getAllVertexIds(&initial_vertices_);

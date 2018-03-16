@@ -479,29 +479,6 @@ bool MapManager<MapType>::hasMapOnFileSystem(
 }
 
 template <typename MapType>
-bool MapManager<MapType>::getListOfExistingMapFiles(
-    const std::string& folder_path,
-    std::vector<std::string>* list_of_map_files) {
-  CHECK_NOTNULL(list_of_map_files)->clear();
-  CHECK(!folder_path.empty());
-
-  CHECK(!folder_path.empty());
-  if (!common::pathExists(folder_path)) {
-    LOG(ERROR) << "Folder \"" << folder_path << "\" doesn't exist.";
-    return false;
-  }
-  const std::string real_folder_path = common::getRealPath(folder_path);
-  std::string map_folder_path_without_trailing_slash(real_folder_path);
-  if (map_folder_path_without_trailing_slash.back() == '/') {
-    map_folder_path_without_trailing_slash.erase(
-        map_folder_path_without_trailing_slash.end() - 1);
-  }
-  CHECK(!map_folder_path_without_trailing_slash.empty());
-  return traits<MapType>::getListOfExistingMapFiles(
-      map_folder_path_without_trailing_slash, list_of_map_files);
-}
-
-template <typename MapType>
 void MapManager<MapType>::getDefaultMapKeys(
     const std::vector<std::string>& map_list,
     std::vector<std::string>* key_list) {

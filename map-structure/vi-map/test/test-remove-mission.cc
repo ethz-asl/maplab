@@ -9,7 +9,7 @@ namespace vi_map {
 class RemoveMissionTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    test::generateMap(&map_);
+    test::generateMap<vi_map::TransformationEdge>(&map_);
     test::generateOptionalSensorDataAndAddToMap(&map_);
     ASSERT_TRUE(checkMapConsistency(map_));
 
@@ -34,7 +34,7 @@ class RemoveMissionTest : public ::testing::Test {
 
   MissionId generateSecondMission() {
     vi_map::VIMap second_map;
-    test::generateMap(&second_map);
+    test::generateMap<vi_map::TransformationEdge>(&second_map);
     test::generateOptionalSensorDataAndAddToMap(&second_map);
 
     map_.mergeAllMissionsFromMap(second_map);

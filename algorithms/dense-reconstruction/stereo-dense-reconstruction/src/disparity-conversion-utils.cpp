@@ -8,6 +8,7 @@
 #include <Eigen/Dense>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <resources-common/point-cloud.h>
 
 namespace dense_reconstruction {
 namespace stereo {
@@ -128,7 +129,7 @@ void convertDisparityMapToPointCloud(
       pointcloud->colors.push_back(b);
     }
   }
-  CHECK_LE(pointcloud->size(), 3 * max_size);
+  CHECK_LE(pointcloud->size(), static_cast<size_t>(3 * max_size));
 }
 
 // Convert disparity map to a depth map in the target camera frame.

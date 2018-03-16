@@ -36,6 +36,7 @@ cs_add_library(${PROJECT_NAME} src/binary-serialization.cc
                                src/gnuplot-interface.cc
                                src/gravity-provider.cc
                                src/histograms.cc
+                               src/map-manager-config.cc
                                src/multi-threaded-progress-bar.cc
                                src/progress-bar.cc
                                src/proto-serialization-helper.cc

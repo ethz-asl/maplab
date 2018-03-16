@@ -132,7 +132,7 @@ TEST_F(MapManagerVIMapTest, CopyMap) {
 }
 
 TEST_F(MapManagerVIMapTest, CopyMapWithData) {
-  vi_map::test::generateMap(map_.get());
+  vi_map::test::generateMap<vi_map::TransformationEdge>(map_.get());
   addSampleMapToStorage();
   vi_map::VIMap* original_map =
       map_manager_.getMapMutable(TestStrings::kFirstMapKey);

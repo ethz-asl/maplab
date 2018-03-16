@@ -68,49 +68,49 @@ namespace vi_map {
     replaceMissionResource(resource_type, resource, involved_mission_ids);     \
   }
 
-#define OPTIONAL_CAMERA_RESOURCE_CONVENIENCE_FUNCTIONS(                \
-    name, resource_type, data_type)                                    \
+#define OPTIONAL_SENSOR_RESOURCE_CONVENIENCE_FUNCTIONS(                \
+    name, sensor_id_type, resource_type, data_type)                    \
                                                                        \
-  inline bool hasOptionalCamera##name(                                 \
-      const VIMission& mission, const aslam::CameraId& camera_id,      \
+  inline bool hasOptional##name(                                       \
+      const VIMission& mission, const sensor_id_type& sensor_id,       \
       const int64_t timestamp_ns) const {                              \
-    return hasOptionalCameraResource(                                  \
-        mission, resource_type, camera_id, timestamp_ns);              \
+    return hasOptionalSensorResource<sensor_id_type>(                  \
+        mission, resource_type, sensor_id, timestamp_ns);              \
   }                                                                    \
                                                                        \
-  inline bool getOptionalCamera##name(                                 \
-      const VIMission& mission, const aslam::CameraId& camera_id,      \
+  inline bool getOptional##name(                                       \
+      const VIMission& mission, const sensor_id_type& sensor_id,       \
       const int64_t timestamp_ns, data_type* resource) const {         \
     CHECK_NOTNULL(resource);                                           \
-    return getOptionalCameraResource(                                  \
-        mission, resource_type, camera_id, timestamp_ns, resource);    \
+    return getOptionalSensorResource<sensor_id_type>(                  \
+        mission, resource_type, sensor_id, timestamp_ns, resource);    \
   }                                                                    \
                                                                        \
-  inline bool getClosestOptionalCamera##name(                          \
-      const VIMission& mission, const aslam::CameraId& camera_id,      \
+  inline bool getClosestOptional##name(                                \
+      const VIMission& mission, const sensor_id_type& sensor_id,       \
       const int64_t timestamp_ns, const int64_t tolerance_ns,          \
       data_type* resource, int64_t* closest_timestamp_ns) const {      \
     CHECK_NOTNULL(resource);                                           \
     CHECK_NOTNULL(closest_timestamp_ns);                               \
-    return getClosestOptionalCameraResource(                           \
-        mission, resource_type, camera_id, timestamp_ns, tolerance_ns, \
+    return getClosestOptionalSensorResource<sensor_id_type>(           \
+        mission, resource_type, sensor_id, timestamp_ns, tolerance_ns, \
         resource, closest_timestamp_ns);                               \
   }                                                                    \
                                                                        \
-  inline void storeOptionalCamera##name(                               \
-      const aslam::CameraId& camera_id, const int64_t timestamp_ns,    \
+  inline void storeOptional##name(                                     \
+      const sensor_id_type& sensor_id, const int64_t timestamp_ns,     \
       const data_type& resource, VIMission* mission) {                 \
     CHECK_NOTNULL(mission);                                            \
-    addOptionalCameraResource(                                         \
-        resource_type, camera_id, timestamp_ns, resource, mission);    \
+    addOptionalSensorResource<sensor_id_type, data_type>(              \
+        resource_type, sensor_id, timestamp_ns, resource, mission);    \
   }                                                                    \
                                                                        \
-  inline void deleteOptionalCamera##name(                              \
-      const aslam::CameraId& camera_id, const int64_t timestamp_ns,    \
+  inline void deleteOptional##name(                                    \
+      const sensor_id_type& sensor_id, const int64_t timestamp_ns,     \
       VIMission* mission) {                                            \
     CHECK_NOTNULL(mission);                                            \
-    deleteOptionalCameraResource<data_type>(                           \
-        resource_type, camera_id, timestamp_ns, mission);              \
+    deleteOptionalSensorResource<sensor_id_type, data_type>(           \
+        resource_type, sensor_id, timestamp_ns, mission);              \
   }
 }  // namespace vi_map
 

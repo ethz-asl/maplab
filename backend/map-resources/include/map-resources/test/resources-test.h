@@ -88,6 +88,19 @@ class ResourceTest : public ::testing::Test {
     loadPointcloud(
         kTestDataBaseFolder + "pcl_resource_xyz.ply",
         &pointcloud_xyz_resource_);
+
+    // We generate a cloud with intensities based on the xyz coordinates.
+    pointcloud_xyz_intensity_resource_ = pointcloud_xyz_resource_;
+    pointcloud_xyz_intensity_resource_.scalars.resize(
+        pointcloud_xyz_resource_.size());
+    for (size_t idx = 0u; idx < pointcloud_xyz_resource_.size(); ++idx) {
+      const size_t xyz_index = idx * 3;
+      pointcloud_xyz_intensity_resource_.scalars[idx] =
+          pointcloud_xyz_intensity_resource_.xyz[xyz_index] +
+          pointcloud_xyz_intensity_resource_.xyz[xyz_index + 1u] +
+          pointcloud_xyz_intensity_resource_.xyz[xyz_index + 2u];
+    }
+
     loadPointcloud(
         kTestDataBaseFolder + "pcl_resource_xyz_rgb_normal.ply",
         &pointcloud_xyzrgbn_resource_);
@@ -130,112 +143,95 @@ class ResourceTest : public ::testing::Test {
     const bool is_external_folder = !is_map_folder;
 
     // Add depth map resources.
-    templates->emplace_back(
-        new ResourceTemplate<cv::Mat>(
-            ResourceType::kRawDepthMap, resource_folder, is_external_folder,
-            depth_cvmat_resource_));
+    templates->emplace_back(new ResourceTemplate<cv::Mat>(
+        ResourceType::kRawDepthMap, resource_folder, is_external_folder,
+        depth_cvmat_resource_));
 #ifndef __APPLE__
-    templates->emplace_back(
-        new ResourceTemplate<cv::Mat>(
-            ResourceType::kOptimizedDepthMap, resource_folder,
-            is_external_folder, depth_cvmat_resource_));
+    templates->emplace_back(new ResourceTemplate<cv::Mat>(
+        ResourceType::kOptimizedDepthMap, resource_folder, is_external_folder,
+        depth_cvmat_resource_));
 #endif
 
 #ifndef __APPLE__
     // Add grayscale image resources.
-    templates->emplace_back(
-        new ResourceTemplate<cv::Mat>(
-            ResourceType::kRawImage, resource_folder, is_external_folder,
-            grayscale_cvmat_resource_));
-    templates->emplace_back(
-        new ResourceTemplate<cv::Mat>(
-            ResourceType::kUndistortedImage, resource_folder,
-            is_external_folder, grayscale_cvmat_resource_));
-    templates->emplace_back(
-        new ResourceTemplate<cv::Mat>(
-            ResourceType::kRectifiedImage, resource_folder, is_external_folder,
-            grayscale_cvmat_resource_));
-    templates->emplace_back(
-        new ResourceTemplate<cv::Mat>(
-            ResourceType::kImageForDepthMap, resource_folder,
-            is_external_folder, grayscale_cvmat_resource_));
+    templates->emplace_back(new ResourceTemplate<cv::Mat>(
+        ResourceType::kRawImage, resource_folder, is_external_folder,
+        grayscale_cvmat_resource_));
+    templates->emplace_back(new ResourceTemplate<cv::Mat>(
+        ResourceType::kUndistortedImage, resource_folder, is_external_folder,
+        grayscale_cvmat_resource_));
+    templates->emplace_back(new ResourceTemplate<cv::Mat>(
+        ResourceType::kRectifiedImage, resource_folder, is_external_folder,
+        grayscale_cvmat_resource_));
+    templates->emplace_back(new ResourceTemplate<cv::Mat>(
+        ResourceType::kImageForDepthMap, resource_folder, is_external_folder,
+        grayscale_cvmat_resource_));
 #endif
 
 #ifndef __APPLE__
     // Add color image resources.
-    templates->emplace_back(
-        new ResourceTemplate<cv::Mat>(
-            ResourceType::kRawColorImage, resource_folder, is_external_folder,
-            color_cv_mat_resource_));
-    templates->emplace_back(
-        new ResourceTemplate<cv::Mat>(
-            ResourceType::kUndistortedColorImage, resource_folder,
-            is_external_folder, color_cv_mat_resource_));
-    templates->emplace_back(
-        new ResourceTemplate<cv::Mat>(
-            ResourceType::kRectifiedColorImage, resource_folder,
-            is_external_folder, color_cv_mat_resource_));
-    templates->emplace_back(
-        new ResourceTemplate<cv::Mat>(
-            ResourceType::kColorImageForDepthMap, resource_folder,
-            is_external_folder, color_cv_mat_resource_));
+    templates->emplace_back(new ResourceTemplate<cv::Mat>(
+        ResourceType::kRawColorImage, resource_folder, is_external_folder,
+        color_cv_mat_resource_));
+    templates->emplace_back(new ResourceTemplate<cv::Mat>(
+        ResourceType::kUndistortedColorImage, resource_folder,
+        is_external_folder, color_cv_mat_resource_));
+    templates->emplace_back(new ResourceTemplate<cv::Mat>(
+        ResourceType::kRectifiedColorImage, resource_folder, is_external_folder,
+        color_cv_mat_resource_));
+    templates->emplace_back(new ResourceTemplate<cv::Mat>(
+        ResourceType::kColorImageForDepthMap, resource_folder,
+        is_external_folder, color_cv_mat_resource_));
 #endif
 
     // Point cloud resources.
-    templates->emplace_back(
-        new ResourceTemplate<resources::PointCloud>(
-            ResourceType::kPointCloudXYZ, resource_folder, is_external_folder,
-            pointcloud_xyz_resource_));
+    templates->emplace_back(new ResourceTemplate<resources::PointCloud>(
+        ResourceType::kPointCloudXYZ, resource_folder, is_external_folder,
+        pointcloud_xyz_resource_));
 #ifndef __APPLE__
-    templates->emplace_back(
-        new ResourceTemplate<resources::PointCloud>(
-            ResourceType::kPointCloudXYZRGBN, resource_folder,
-            is_external_folder, pointcloud_xyzrgbn_resource_));
+    templates->emplace_back(new ResourceTemplate<resources::PointCloud>(
+        ResourceType::kPointCloudXYZRGBN, resource_folder, is_external_folder,
+        pointcloud_xyzrgbn_resource_));
+    templates->emplace_back(new ResourceTemplate<resources::PointCloud>(
+        ResourceType::kPointCloudXYZI, resource_folder, is_external_folder,
+        pointcloud_xyz_intensity_resource_));
 #endif
 
 #ifndef __APPLE__
     // Add text resources.
-    templates->emplace_back(
-        new ResourceTemplate<std::string>(
-            ResourceType::kText, resource_folder, is_external_folder,
-            "text_resource_kText"));
+    templates->emplace_back(new ResourceTemplate<std::string>(
+        ResourceType::kText, resource_folder, is_external_folder,
+        "text_resource_kText"));
 #endif
 
 #ifndef __APPLE__
     // TODO(mfehr): path resources should be treated differently from text and
     // not stored in text
     // files but rather serialized as part of the map/meta_data.
-    templates->emplace_back(
-        new ResourceTemplate<std::string>(
-            ResourceType::kPmvsReconstructionPath, resource_folder,
-            is_external_folder, "text_resource_kPmvsReconstructionPath"));
-    templates->emplace_back(
-        new ResourceTemplate<std::string>(
-            ResourceType::kTsdfGridPath, resource_folder, is_external_folder,
-            "text_resource_kTsdfGridPath"));
-    templates->emplace_back(
-        new ResourceTemplate<std::string>(
-            ResourceType::kEsdfGridPath, resource_folder, is_external_folder,
-            "text_resource_kEsdfGridPath"));
-    templates->emplace_back(
-        new ResourceTemplate<std::string>(
-            ResourceType::kOccupancyGridPath, resource_folder,
-            is_external_folder, "text_resource_kOccupancyGridPath"));
+    templates->emplace_back(new ResourceTemplate<std::string>(
+        ResourceType::kPmvsReconstructionPath, resource_folder,
+        is_external_folder, "text_resource_kPmvsReconstructionPath"));
+    templates->emplace_back(new ResourceTemplate<std::string>(
+        ResourceType::kTsdfGridPath, resource_folder, is_external_folder,
+        "text_resource_kTsdfGridPath"));
+    templates->emplace_back(new ResourceTemplate<std::string>(
+        ResourceType::kEsdfGridPath, resource_folder, is_external_folder,
+        "text_resource_kEsdfGridPath"));
+    templates->emplace_back(new ResourceTemplate<std::string>(
+        ResourceType::kOccupancyGridPath, resource_folder, is_external_folder,
+        "text_resource_kOccupancyGridPath"));
 #endif
 
 #ifndef __APPLE__
-    templates->emplace_back(
-        new ResourceTemplate<voxblox::TsdfMap>(
-            ResourceType::kVoxbloxTsdfMap, resource_folder, is_external_folder,
-            voxblox_tsdf_map_));
-    templates->emplace_back(
-        new ResourceTemplate<voxblox::EsdfMap>(
-            ResourceType::kVoxbloxEsdfMap, resource_folder, is_external_folder,
-            voxblox_esdf_map_));
-    templates->emplace_back(
-        new ResourceTemplate<voxblox::OccupancyMap>(
-            ResourceType::kVoxbloxOccupancyMap, resource_folder,
-            is_external_folder, voxblox_occupancy_map_));
+    templates->emplace_back(new ResourceTemplate<voxblox::TsdfMap>(
+        ResourceType::kVoxbloxTsdfMap, resource_folder, is_external_folder,
+        voxblox_tsdf_map_));
+    templates->emplace_back(new ResourceTemplate<voxblox::EsdfMap>(
+        ResourceType::kVoxbloxEsdfMap, resource_folder, is_external_folder,
+        voxblox_esdf_map_));
+    templates->emplace_back(new ResourceTemplate<voxblox::OccupancyMap>(
+        ResourceType::kVoxbloxOccupancyMap, resource_folder, is_external_folder,
+        voxblox_occupancy_map_));
 #endif
   }
 
@@ -244,6 +240,7 @@ class ResourceTest : public ::testing::Test {
   cv::Mat color_cv_mat_resource_;
   resources::PointCloud pointcloud_xyz_resource_;
   resources::PointCloud pointcloud_xyzrgbn_resource_;
+  resources::PointCloud pointcloud_xyz_intensity_resource_;
 
   voxblox::TsdfMap::Config voxblox_tsdf_map_config_;
   voxblox::TsdfMap voxblox_tsdf_map_;

@@ -103,20 +103,25 @@ DEFINE_double(
 DEFINE_int32(
     feature_tracker_simple_pipeline_matcher_descriptor_hamming_distance_threshold,
     60, "Frame-matching: max descriptor distance between two keypoints.");
+DEFINE_uint64(
+    min_tracking_distance_to_image_border_px, 30u,
+    "Minimum tracking distance to the image border in pixels. Has to be "
+    "greater or equal to the descriptor patch size.");
 DEFINE_bool(
-    feature_tracking_grided_detector_use_grided, true, "Use multiple detectors on a grid?");
+    feature_tracking_gridded_detector_use_gridded, true,
+    "Use multiple detectors on a grid?");
 DEFINE_uint64(
-    feature_tracking_grided_detector_num_grid_cols, 4u,
-    "Number of grid columns for grided detection.");
+    feature_tracking_gridded_detector_num_grid_cols, 4u,
+    "Number of grid columns for gridded detection.");
 DEFINE_uint64(
-    feature_tracking_grided_detector_num_grid_rows, 2u,
-    "Number of grid rows for grided detection.");
+    feature_tracking_gridded_detector_num_grid_rows, 2u,
+    "Number of grid rows for gridded detection.");
 DEFINE_double(
-    feature_tracking_grided_detector_cell_num_features_scaler, 2.0,
+    feature_tracking_gridded_detector_cell_num_features_scaler, 2.0,
     "Scaler to increase number of keypoints detector per grid cell "
     "(keypoints_per_cell = total_keypoints * scaler / number_of_cells).");
 DEFINE_uint64(
-    feature_tracking_grided_detection_num_threads_per_image, 0u,
+    feature_tracking_gridded_detection_num_threads_per_image, 0u,
     "Number of hardware threads used for detection (0 means N_cell/2).");
 
 namespace feature_tracking {
@@ -173,20 +178,24 @@ FeatureTrackingDetectorSettings::FeatureTrackingDetectorSettings()
       orb_detector_fast_threshold(
           FLAGS_feature_tracking_detector_orb_fast_threshold),
       max_feature_count(FLAGS_feature_tracking_detector_max_feature_count),
-      min_tracking_distance_to_image_border_px(30u),
+      min_tracking_distance_to_image_border_px(
+          FLAGS_min_tracking_distance_to_image_border_px),
       keypoint_uncertainty_px(0.8),
-      grided_detector_use_grided(FLAGS_feature_tracking_grided_detector_use_grided),
-      grided_detector_cell_num_features_scaler(
-          FLAGS_feature_tracking_grided_detector_cell_num_features_scaler),
-      grided_detector_cell_num_features(
+      gridded_detector_use_gridded(
+          FLAGS_feature_tracking_gridded_detector_use_gridded),
+      gridded_detector_cell_num_features_scaler(
+          FLAGS_feature_tracking_gridded_detector_cell_num_features_scaler),
+      gridded_detector_cell_num_features(
           FLAGS_feature_tracking_detector_orb_num_features *
-          FLAGS_feature_tracking_grided_detector_cell_num_features_scaler /
-          (FLAGS_feature_tracking_grided_detector_num_grid_cols *
-           FLAGS_feature_tracking_grided_detector_num_grid_rows)),
-      grided_detector_num_grid_cols(FLAGS_feature_tracking_grided_detector_num_grid_cols),
-      grided_detector_num_grid_rows(FLAGS_feature_tracking_grided_detector_num_grid_rows),
-      grided_detector_num_threads_per_image(
-          FLAGS_feature_tracking_grided_detection_num_threads_per_image) {
+          FLAGS_feature_tracking_gridded_detector_cell_num_features_scaler /
+          (FLAGS_feature_tracking_gridded_detector_num_grid_cols *
+           FLAGS_feature_tracking_gridded_detector_num_grid_rows)),
+      gridded_detector_num_grid_cols(
+          FLAGS_feature_tracking_gridded_detector_num_grid_cols),
+      gridded_detector_num_grid_rows(
+          FLAGS_feature_tracking_gridded_detector_num_grid_rows),
+      gridded_detector_num_threads_per_image(
+          FLAGS_feature_tracking_gridded_detection_num_threads_per_image) {
   orb_detector_edge_threshold =
       static_cast<int>(min_tracking_distance_to_image_border_px);
 
@@ -196,10 +205,10 @@ FeatureTrackingDetectorSettings::FeatureTrackingDetectorSettings()
   CHECK_GT(orb_detector_scale_factor, 1.0);
   CHECK_GE(orb_detector_score_lower_bound, 0.0f);
   CHECK_GT(orb_detector_fast_threshold, 0);
-  CHECK_GE(grided_detector_cell_num_features_scaler, 0);
-  CHECK_GE(grided_detector_cell_num_features, 0u);
-  CHECK_GE(grided_detector_num_grid_cols, 1u);
-  CHECK_GE(grided_detector_num_grid_rows, 1u);
+  CHECK_GE(gridded_detector_cell_num_features_scaler, 0);
+  CHECK_GE(gridded_detector_cell_num_features, 0u);
+  CHECK_GE(gridded_detector_num_grid_cols, 1u);
+  CHECK_GE(gridded_detector_num_grid_rows, 1u);
 }
 
 SimpleBriskFeatureTrackingSettings::SimpleBriskFeatureTrackingSettings()

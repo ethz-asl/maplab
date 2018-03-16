@@ -36,8 +36,7 @@ ObserverCamera::ObserverCamera(
   const aslam::Camera* camera = nullptr;
   if (is_optional_camera) {
     const backend::CameraWithExtrinsics& cam_with_extrinsics =
-        vi_map.getMission(mission_id)
-            .getOptionalCameraWithExtrinsics(camera_id);
+        vi_map.getSensorManager().getOptionalCameraWithExtrinsics(camera_id);
     camera = cam_with_extrinsics.second.get();
     T_B_C = cam_with_extrinsics.first.inverse();
     VLOG(2) << "  -> is optional camera.";
@@ -57,8 +56,7 @@ ObserverCamera::ObserverCamera(
       if (camera->getDistortion().getType() !=
           aslam::Distortion::Type::kNoDistortion) {
         undistorter = aslam::createMappedUndistorter(
-            *camera, config.pmvs_undistortion_alpha,
-            config.pmvs_undistortion_scale,
+            *camera, config.undistortion_alpha, config.undistortion_scale,
             config.kUndistortionInterpolationMethod);
 
         camera_matrix_undistorted = static_cast<const aslam::PinholeCamera&>(
@@ -80,7 +78,7 @@ ObserverCamera::ObserverCamera(
           aslam::Distortion::Type::kNoDistortion) {
         undistorter = aslam::createMappedUndistorterToPinhole(
             *static_cast<const aslam::UnifiedProjectionCamera*>(camera),
-            config.pmvs_undistortion_alpha, config.pmvs_undistortion_scale,
+            config.undistortion_alpha, config.undistortion_scale,
             config.kUndistortionInterpolationMethod);
 
         camera_matrix_undistorted =
@@ -161,7 +159,7 @@ void ObserverPose::loadImage(
   CHECK_NOTNULL(image);
   if (is_optional_camera_image) {
     CHECK(
-        vi_map.getOptionalCameraResource(
+        vi_map.getOptionalSensorResource(
             vi_map.getMission(mission_id), image_type, camera_id, timestamp_ns,
             image));
   } else {

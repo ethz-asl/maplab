@@ -55,10 +55,6 @@ DEFINE_string(
     "after every use.");
 DEFINE_string(
     resource_folder, "", "Specifies the resource folder for certain commands.");
-DEFINE_uint64(
-    vertices_per_proto_file, 200u,
-    "Determines the number of vertices that are stored in one proto file. "
-    "NOTE: If this is set too large, the map can't be read anymore.");
 DEFINE_string(
     maps_folder, ".",
     "Folder which contains one or more maps on the filesystem.");
@@ -111,10 +107,6 @@ backend::SaveConfig parseSaveConfigFromGFlags() {
       config.move_resources_when_migrating = true;
     }
   }
-
-  config.vertices_per_proto_file = FLAGS_vertices_per_proto_file;
-  static constexpr size_t kMaxVerticesPerProtoFile = 300u;
-  CHECK_LE(config.vertices_per_proto_file, kMaxVerticesPerProtoFile);
 
   return config;
 }

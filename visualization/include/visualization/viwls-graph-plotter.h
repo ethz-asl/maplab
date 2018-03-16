@@ -59,12 +59,13 @@ class ViwlsGraphRvizPlotter {
       const vi_map::VIMap& map, const vi_map::MissionIdList& missions) const;
   void publishEdges(
       const vi_map::VIMap& map, const vi_map::MissionIdList& missions,
-      pose_graph::Edge::EdgeType edge_type,
-      const visualization::Color& color) const;
+      pose_graph::Edge::EdgeType edge_type, const visualization::Color& color,
+      const bool wait_for_subscriber = false) const;
   void publishEdges(
       const vi_map::VIMap& map, const pose_graph::EdgeIdList& edges,
       const visualization::Color& color, unsigned int marker_id,
-      const std::string& topic_extension) const;
+      const std::string& topic_extension,
+      const bool wait_for_subscriber = false) const;
   void publishVertices(
       const vi_map::VIMap& map, const vi_map::MissionIdList& missions) const;
   void publishVertices(
@@ -101,10 +102,7 @@ class ViwlsGraphRvizPlotter {
       const vi_map_helpers::NearCameraPoseSampling& sampling,
       const std::vector<double>& predictions);
 
-  void visualizeNCameraExtrinsics(
-      const vi_map::VIMap& map, const vi_map::MissionId& mission_id) const;
-
-  void visualizeAllOptionalSensorsExtrinsics(const vi_map::VIMap& map);
+  void visualizeSensorExtrinsics(const vi_map::VIMap& map);
 
   void publishReferenceMap() const;
   void setReferenceMap(const vi_map::VIMap& map);

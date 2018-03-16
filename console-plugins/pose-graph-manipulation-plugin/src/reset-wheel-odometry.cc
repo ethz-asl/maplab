@@ -7,7 +7,9 @@
 
 namespace pose_graph_manipulation {
 
-int resetVertexPosesToWheelOdometryTrajectory(vi_map::VIMap *map) {
+int resetVertexPosesToWheelOdometryTrajectory(
+    const vi_map::MissionIdList& mission_ids, vi_map::VIMap* map) {
+  CHECK(!mission_ids.empty());
   CHECK_NOTNULL(map);
   const vi_map::SensorManager& sensor_manager = map->getSensorManager();
   vi_map::SensorIdSet wheel_odometry_sensor_ids;
@@ -35,9 +37,6 @@ int resetVertexPosesToWheelOdometryTrajectory(vi_map::VIMap *map) {
             .emplace(wheel_odometry_sensor_id, T_S_I)
             .second);
   }
-
-  vi_map::MissionIdList mission_ids;
-  map->getAllMissionIds(&mission_ids);
 
   VLOG(1) << "Found wheel-odometry in map with " << mission_ids.size()
           << " missions.";

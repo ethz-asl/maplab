@@ -17,8 +17,7 @@
 
 namespace common {
 
-std::string generateDateString(time_t* input_time) {
-  time(input_time);
+std::string generateDateString(const time_t* input_time) {
   tm* timeinfo = localtime(input_time);  // NOLINT
 
   char buffer[512];
@@ -31,7 +30,8 @@ std::string generateDateString(time_t* input_time) {
 }
 
 std::string generateDateStringFromCurrentTime() {
-  time_t epoch_time = time(NULL);
+  time_t epoch_time;
+  time(&epoch_time);
   return generateDateString(&epoch_time);
 }
 

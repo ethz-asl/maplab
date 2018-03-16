@@ -81,14 +81,14 @@ struct FeatureTrackingDetectorSettings {
 
   double keypoint_uncertainty_px;
 
-  // Settings for grided detector to ensure a certain distribution of keypoints
+  // Settings for gridded detector to ensure a certain distribution of keypoints
   // across  the image.
-  bool grided_detector_use_grided;
-  double grided_detector_cell_num_features_scaler;
-  size_t grided_detector_cell_num_features;
-  size_t grided_detector_num_grid_cols;
-  size_t grided_detector_num_grid_rows;
-  size_t grided_detector_num_threads_per_image;
+  bool gridded_detector_use_gridded;
+  double gridded_detector_cell_num_features_scaler;
+  size_t gridded_detector_cell_num_features;
+  size_t gridded_detector_num_grid_cols;
+  size_t gridded_detector_num_grid_rows;
+  size_t gridded_detector_num_threads_per_image;
 };
 
 }  // namespace feature_tracking

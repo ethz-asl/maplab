@@ -6,6 +6,7 @@
 #include <aslam/cameras/camera.h>
 #include <maplab-common/pose_types.h>
 #include <opencv2/core.hpp>
+#include <resources-common/point-cloud.h>
 #include <voxblox/core/common.h>
 
 #include "map-resources/resource-typedefs.h"

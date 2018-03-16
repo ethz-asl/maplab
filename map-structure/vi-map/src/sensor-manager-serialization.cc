@@ -12,6 +12,8 @@ constexpr char kYamlFieldNameMissionSensorsAssociation[] =
     "mission_sensors_associations";
 constexpr char kYamlFieldNameMissionNCameraAssociation[] =
     "mission_ncamera_associations";
+constexpr char kYamlFieldNameMissionOptionalNCameraAssociation[] =
+    "mission_optional_ncamera_associations";
 constexpr char kYamlFieldNameSensorId[] = "sensor_id";
 constexpr char kYamlFieldNameMissionId[] = "mission_id";
 constexpr char kYamlFieldNameNCameraId[] = "ncamera_id";
@@ -92,6 +94,31 @@ void SensorManager::serialize(YAML::Node* yaml_node) const {
   }
   (*yaml_node)[static_cast<std::string>(
       kYamlFieldNameMissionNCameraAssociation)] = missions_ncameras_node;
+
+  YAML::Node missions_optional_ncameras_node;
+  for (const AlignedUnorderedMap<
+           MissionId, std::unordered_set<aslam::NCameraId>>::value_type&
+           mission_id_optional_ncamera_ids :
+       mission_id_to_optional_ncamera_map_) {
+    const MissionId& mission_id = mission_id_optional_ncamera_ids.first;
+    CHECK(mission_id.isValid());
+
+    for (const aslam::NCameraId& ncamera_id :
+         mission_id_optional_ncamera_ids.second) {
+      YAML::Node mission_node;
+      mission_node[static_cast<std::string>(kYamlFieldNameMissionId)] =
+          mission_id.hexString();
+
+      CHECK(ncamera_id.isValid());
+      mission_node[static_cast<std::string>(kYamlFieldNameNCameraId)] =
+          ncamera_id.hexString();
+
+      missions_optional_ncameras_node.push_back(mission_node);
+    }
+  }
+  (*yaml_node)[static_cast<std::string>(
+      kYamlFieldNameMissionOptionalNCameraAssociation)] =
+      missions_optional_ncameras_node;
 
   if (sensor_system_) {
     CHECK(sensor_system_->getId().isValid());
@@ -205,11 +232,11 @@ bool SensorManager::deserialize(const YAML::Node& sensors_with_systems_node) {
           kYamlFieldNameMissionNCameraAssociation)];
   if (missions_ncamera_node.IsDefined() && !missions_ncamera_node.IsNull()) {
     CHECK(missions_ncamera_node.IsSequence());
-    for (const YAML::Node& mission_with_ncamea_id_node :
+    for (const YAML::Node& mission_with_ncamera_id_node :
          missions_ncamera_node) {
       std::string mission_id_string;
       if (!YAML::safeGet(
-              mission_with_ncamea_id_node,
+              mission_with_ncamera_id_node,
               static_cast<std::string>(kYamlFieldNameMissionId),
               &mission_id_string)) {
         LOG(FATAL) << "Unable to parse the mission field.";
@@ -221,7 +248,7 @@ bool SensorManager::deserialize(const YAML::Node& sensors_with_systems_node) {
 
       std::string ncamera_id_string;
       if (!YAML::safeGet(
-              mission_with_ncamea_id_node,
+              mission_with_ncamera_id_node,
               static_cast<std::string>(kYamlFieldNameNCameraId),
               &ncamera_id_string)) {
         LOG(FATAL) << "Unable to parse the ncamera id field.";
@@ -232,6 +259,44 @@ bool SensorManager::deserialize(const YAML::Node& sensors_with_systems_node) {
       CHECK(ncamera_id.isValid());
 
       CHECK(mission_id_to_ncamera_map_.emplace(mission_id, ncamera_id).second);
+    }
+  }
+
+  const YAML::Node missions_optional_ncamera_node =
+      sensors_with_systems_node[static_cast<std::string>(
+          kYamlFieldNameMissionOptionalNCameraAssociation)];
+  if (missions_optional_ncamera_node.IsDefined() &&
+      !missions_optional_ncamera_node.IsNull()) {
+    CHECK(missions_optional_ncamera_node.IsSequence());
+    for (const YAML::Node& mission_with_optional_ncamera_id_node :
+         missions_optional_ncamera_node) {
+      std::string mission_id_string;
+      if (!YAML::safeGet(
+              mission_with_optional_ncamera_id_node,
+              static_cast<std::string>(kYamlFieldNameMissionId),
+              &mission_id_string)) {
+        LOG(FATAL) << "Unable to parse the mission field.";
+      }
+      CHECK(!mission_id_string.empty());
+      MissionId mission_id;
+      mission_id.fromHexString(mission_id_string);
+      CHECK(mission_id.isValid());
+
+      std::string ncamera_id_string;
+      if (!YAML::safeGet(
+              mission_with_optional_ncamera_id_node,
+              static_cast<std::string>(kYamlFieldNameNCameraId),
+              &ncamera_id_string)) {
+        LOG(FATAL) << "Unable to parse the ncamera id field.";
+      }
+      CHECK(!ncamera_id_string.empty());
+      aslam::NCameraId ncamera_id;
+      ncamera_id.fromHexString(ncamera_id_string);
+      CHECK(ncamera_id.isValid());
+
+      std::unordered_set<aslam::NCameraId>& ncamera_ids =
+          mission_id_to_optional_ncamera_map_[mission_id];
+      ncamera_ids.insert(ncamera_id);
     }
   }
 

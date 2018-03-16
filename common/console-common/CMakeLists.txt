@@ -11,7 +11,8 @@ find_package (Threads)
 cs_add_library(${PROJECT_NAME} src/basic-console-plugin.cc
                                src/command-registerer.cc
                                src/console-plugin-base.cc
-                               src/console.cc)
+                               src/console.cc
+                               src/safe-gflags-parser.cc)
 target_link_libraries(${PROJECT_NAME} readline)
 
 ############

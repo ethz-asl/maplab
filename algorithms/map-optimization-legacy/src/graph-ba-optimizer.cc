@@ -586,7 +586,7 @@ void GraphBaOptimizer::visualBaOptimizationWithCallback(
   bool kFixExtrinsicsTranslation = true;
   bool kFixLandmarkPosition = false;
 
-  if (options.remove_behind_camera_landmarks) {
+  if (options.remove_behind_camera_landmarks_before) {
     removeLandmarksBehindCamera();
   }
 
@@ -629,7 +629,7 @@ void GraphBaOptimizer::visualInertialBaOptimizationWithCallback(
     std::function<void(const vi_map::VIMap&)> callback,
     ceres::Solver::Summary* summary) {
   CHECK_NOTNULL(summary);
-  if (options.remove_behind_camera_landmarks) {
+  if (options.remove_behind_camera_landmarks_before) {
     removeLandmarksBehindCamera();
   }
 
@@ -755,8 +755,6 @@ void GraphBaOptimizer::visualInertialBaOptimizationWithCallback(
 
   ceres::Solver::Options solver_options = getDefaultSolverOptions();
   solver_options.max_num_iterations = options.num_iterations;
-  solver_options.gradient_tolerance = 10.0;
-  solver_options.function_tolerance = 1e-4;
   static constexpr bool kCopyDataFromSolverBackToMap = true;
 
   if (options.visual_outlier_rejection) {
@@ -797,8 +795,10 @@ void GraphBaOptimizer::visualInertialBaOptimizationWithCallback(
         summary);
   }
 
-  // This function will flag all landmarks behind the camera as bad.
-  removeLandmarksBehindCamera();
+  if (options.remove_behind_camera_landmarks_after) {
+    // This function will flag all landmarks behind the camera as bad.
+    removeLandmarksBehindCamera();
+  }
 }
 
 void GraphBaOptimizer::alignMissions(

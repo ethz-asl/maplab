@@ -143,7 +143,7 @@ void PosePriorImport::runBAWithPosePriors(vi_map::VIMap* map) const {
   options.fix_accel_bias = false;
   options.fix_gyro_bias = false;
   options.fix_landmark_positions_of_fixed_vertices = false;
-  options.remove_behind_camera_landmarks = false;
+  options.remove_behind_camera_landmarks_before = false;
   options.include_wheel_odometry = false;
   options.include_gps = false;
   options.position_only_gps = false;

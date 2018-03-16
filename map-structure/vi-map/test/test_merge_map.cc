@@ -1,5 +1,6 @@
 #include <string>
 
+#include <aslam/cameras/camera.h>
 #include <maplab-common/test/testing-entrypoint.h>
 
 #include "vi-map/test/vi-map-test-helpers.h"
@@ -11,8 +12,10 @@ class MergeMapTest : public ::testing::Test {
  protected:
   MergeMapTest() {}
   virtual void SetUp() {
-    test::generateMap(&map_);
+    test::generateMap<vi_map::TransformationEdge>(&map_);
     ASSERT_TRUE(checkMapConsistency(map_));
+
+    test::generateOptionalSensorResourceIdsAndAddToAllMissions(&map_);
   }
 
   vi_map::VIMap map_, empty_map_;
@@ -43,7 +46,7 @@ TEST_F(MergeMapTest, MergeTwoMissions) {
 
 TEST_F(MergeMapTest, MergeIntoNonEmpty) {
   vi_map::VIMap second_map;
-  test::generateMap(&second_map);
+  test::generateMap<vi_map::TransformationEdge>(&second_map);
   const size_t num_vertices_before = second_map.numVertices();
   const size_t num_edges_before = second_map.numEdges();
   const size_t num_landmarks_before = second_map.numLandmarks();
@@ -217,7 +220,7 @@ TEST_F(MergeMapTest, MergeIntoNonEmptyOptionalSensorData) {
   }
 
   vi_map::VIMap second_map;
-  test::generateMap(&second_map);
+  test::generateMap<vi_map::TransformationEdge>(&second_map);
   test::generateOptionalSensorDataAndAddToMap(&second_map);
 
   vi_map::GpsWgsMeasurementBuffer second_map_gps_wgs_measurements_before;

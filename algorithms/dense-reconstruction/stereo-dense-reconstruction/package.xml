@@ -24,5 +24,6 @@
   <depend>maplab_common</depend>
   <depend>opencv3_catkin</depend>
   <depend>posegraph</depend>
+  <depend>resources_common</depend>
   <depend>vi_map</depend>
 </package>

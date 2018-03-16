@@ -6,6 +6,8 @@
 #include <math.h>
 #include <string>
 
+DECLARE_bool(show_progress_bar);
+
 namespace common {
 
 const std::string kPreText = "Progress: ";
@@ -39,10 +41,15 @@ void ProgressBar::increment() {
 void ProgressBar::reset(size_t num_elements) {
   num_elements_ = num_elements;
   num_elements_processed_ = 0u;
-  std::cout << std::endl;
+  if (FLAGS_show_progress_bar) {
+    std::cout << std::endl;
+  }
 }
 
 void ProgressBar::print() {
+  if (!FLAGS_show_progress_bar) {
+    return;
+  }
   double num_progress_symbols = kProgressBarWidthFloatingPoint *
                                 static_cast<double>(num_elements_processed_) /
                                 static_cast<double>(num_elements_);

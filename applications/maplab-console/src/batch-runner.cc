@@ -4,6 +4,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <map-manager/map-manager.h>
+#include <maplab-common/file-system-tools.h>
+#include <maplab-common/string-tools.h>
 #include <vi-map/vi-map.h>
 #include <visualization/viwls-graph-plotter.h>
 #include <yaml-cpp/yaml.h>
@@ -15,7 +17,7 @@
 // The template string "<CURRENT_VIMAP_FOLDER>" is replaced by the currently
 // processed map. This can be used e.g. to save the resulting map to a
 // different folder:
-//    save -vi_map_default_folder=<CURRENT_VIMAP_FOLDER>_result
+//    save -map_folder=<CURRENT_VIMAP_FOLDER>_result
 //
 // Yaml-format:
 //   vi_map_folder_paths:
@@ -43,10 +45,11 @@ struct convert<BatchControlInformation> {
     node["commands"] = rhs.commands;
     return node;
   }
-  static bool decode(const Node& node, BatchControlInformation& rhs) {
+  static bool decode(
+      const Node& node, BatchControlInformation& rhs) {  // NOLINT
     rhs.vi_map_folder_paths =
-        node["vi_map_folder_paths"].as<std::vector<std::string> >();
-    rhs.commands = node["commands"].as<std::vector<std::string> >();
+        node["vi_map_folder_paths"].as<std::vector<std::string>>();
+    rhs.commands = node["commands"].as<std::vector<std::string>>();
     return true;
   }
 };
@@ -56,17 +59,6 @@ DEFINE_string(
     batch_control_file, "",
     "Filename of the yaml file that "
     "contains the batch processing information.");
-
-bool replaceSubstring(
-    const std::string& from, const std::string& to, std::string* full_string) {
-  CHECK_NOTNULL(full_string);
-  size_t start_pos = full_string->find(from);
-  if (start_pos == std::string::npos) {
-    return false;
-  }
-  full_string->replace(start_pos, from.length(), to);
-  return true;
-}
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -90,17 +82,24 @@ int main(int argc, char** argv) {
   const size_t num_maps = control_information.vi_map_folder_paths.size();
   const size_t num_cmds = control_information.commands.size();
   LOG_IF(FATAL, num_maps == 0u) << "No maps supplied with file: "
-                               << FLAGS_batch_control_file;
+                                << FLAGS_batch_control_file;
   LOG_IF(FATAL, num_cmds == 0u) << "No commands supplied with file: "
-                               << FLAGS_batch_control_file;
+                                << FLAGS_batch_control_file;
 
   LOG(INFO) << "Got " << num_cmds << " commands to apply on " << num_maps
             << " maps.";
+
+  for (const std::string& map_folder :
+       control_information.vi_map_folder_paths) {
+    CHECK(common::pathExists(map_folder)) << "Map folder path " << map_folder
+                                          << " does not exist.";
+  }
 
   // Process all commands for all maps.
   maplab::MapLabConsole console(kConsoleName, argc, argv);
 
   size_t map_idx = 1u;
+  size_t num_failed_commands = 0u;
   for (const std::string& map_folder :
        control_information.vi_map_folder_paths) {
     LOG(INFO) << "Running map (" << map_idx << " / " << num_maps
@@ -121,7 +120,7 @@ int main(int argc, char** argv) {
     for (const std::string& command : control_information.commands) {
       // Replace the map_folder template string for the current command.
       std::string actual_command = command;
-      replaceSubstring(kMapFolderTemplate, map_folder, &actual_command);
+      common::replaceSubstring(kMapFolderTemplate, map_folder, &actual_command);
 
       LOG(INFO) << "\t Running command (" << cmd_idx << " / " << num_cmds
                 << "): " << actual_command;
@@ -129,6 +128,7 @@ int main(int argc, char** argv) {
       // Run the command.
       if (console.RunCommand(actual_command) != common::kSuccess) {
         LOG(ERROR) << "\t Command failed!";
+        ++num_failed_commands;
       } else {
         LOG(INFO) << "\t Command successful.";
       }
@@ -141,4 +141,9 @@ int main(int argc, char** argv) {
 
   LOG(INFO) << "Done. Processed " << num_cmds << " commands for " << num_maps
             << " maps.";
+  if (num_failed_commands != 0u) {
+    LOG(ERROR) << num_failed_commands << " commands failed.";
+    return common::kUnknownError;
+  }
+  return common::kSuccess;
 }

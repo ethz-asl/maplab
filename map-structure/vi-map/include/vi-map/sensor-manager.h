@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -10,6 +11,7 @@
 #include <aslam/cameras/ncamera.h>
 #include <aslam/common/memory.h>
 #include <glog/logging.h>
+#include <map-resources/optional-sensor-resources.h>
 #include <maplab-common/macros.h>
 #include <maplab-common/yaml-file-serializable.h>
 #include <sensors/gps-utm.h>
@@ -22,7 +24,7 @@
 
 namespace vi_map {
 
-template<typename SensorType, typename IdType>
+template <typename SensorType, typename IdType>
 inline void addSensorImpl(
     typename SensorType::UniquePtr sensor,
     AlignedUnorderedMap<IdType, typename SensorType::UniquePtr>* container) {
@@ -47,6 +49,8 @@ class SensorManager : public common::YamlFileSerializable {
       const SensorId& sensor_id, const MissionId& mission_id);
   void associateExistingNCameraWithMission(
       const aslam::NCameraId& ncamera_id, const MissionId& mission_id);
+  void associateExistingOptionalNCameraWithMission(
+      const aslam::NCameraId& ncamera_id, const MissionId& mission_id);
   void removeAllSensorsAssociatedToMission(const vi_map::MissionId& mission_id);
 
   bool hasSensorSystem() const;
@@ -63,7 +67,7 @@ class SensorManager : public common::YamlFileSerializable {
 
   // Convenience function to retrieve the sensor if only a single one is
   // associated with a mission. Check fails if more than one sensor is present.
-  template<class SensorType>
+  template <class SensorType>
   const SensorType& getSensor(const SensorId& sensor_id) const;
   template <class SensorType>
   const SensorType& getSensorForMission(const MissionId& mission_id) const;
@@ -101,7 +105,24 @@ class SensorManager : public common::YamlFileSerializable {
   bool hasNCamera(const aslam::NCameraId& ncamera_id) const;
   bool hasNCamera(const MissionId& mission_id) const;
 
-  template<class IdType>
+  // Optional cameras.
+  // These cameras are not used for the visual-inertial pose estimation and
+  // therefore treated differently.
+  backend::CameraWithExtrinsics getOptionalCameraWithExtrinsics(
+      const aslam::CameraId& camera_id) const;
+  void addOptionalCameraWithExtrinsics(
+      const aslam::Camera& camera, const aslam::Transformation& T_S_R,
+      const std::vector<MissionId>& mission_ids);
+  void addOptionalCameraWithExtrinsics(
+      const aslam::Camera& camera, const aslam::Transformation& T_S_R,
+      const MissionId& mission_id);
+  bool hasOptionalCameraWithExtrinsics(const aslam::CameraId& camera_id) const;
+  bool getOptionalCamerasWithExtrinsicsForMissionId(
+      const MissionId& mission_id,
+      std::vector<backend::CameraWithExtrinsics>* cameras_with_extrinsics)
+      const;
+
+  template <class IdType>
   bool hasSensor(const IdType& sensor_id) const;
 
   bool hasSensorOfType(SensorType sensor_type) const;
@@ -128,6 +149,10 @@ class SensorManager : public common::YamlFileSerializable {
   void setSensor_T_R_S(
       const vi_map::SensorId& id, const aslam::Position3D& p_R_S);
 
+  template <typename SensorOrCameraId>
+  bool getSensorOrCamera_T_R_S(
+      const SensorOrCameraId& id, aslam::Transformation* T_R_S) const;
+
   void serialize(YAML::Node* yaml_node) const override;
   bool deserialize(const YAML::Node& yaml_node) override;
 
@@ -138,6 +163,8 @@ class SensorManager : public common::YamlFileSerializable {
 
   void swap(SensorManager* other);
 
+  void merge(const SensorManager& other, const MissionId& mission_id_to_merge);
+
  protected:
   void addSensor(Sensor::UniquePtr sensor);
   void addNCamera(const aslam::NCamera::Ptr& ncamera);
@@ -146,11 +173,25 @@ class SensorManager : public common::YamlFileSerializable {
   AlignedUnorderedMap<SensorId, Sensor::UniquePtr> sensors_;
   AlignedUnorderedMap<MissionId, SensorIdSet> mission_id_to_sensors_map_;
   AlignedUnorderedMap<MissionId, aslam::NCameraId> mission_id_to_ncamera_map_;
+  AlignedUnorderedMap<MissionId, std::unordered_set<aslam::NCameraId>>
+      mission_id_to_optional_ncamera_map_;
+
   SensorSystem::UniquePtr sensor_system_;
 
  private:
+  void getOptionalNCameraIdsForMissionId(
+      const MissionId& mission_id,
+      aslam::NCameraIdSet* optional_ncamera_ids) const;
   void checkIsConsistent() const;
 };
+
+template <>
+bool SensorManager::getSensorOrCamera_T_R_S(
+    const vi_map::SensorId& id, aslam::Transformation* T_R_S) const;
+
+template <>
+bool SensorManager::getSensorOrCamera_T_R_S(
+    const aslam::CameraId& id, aslam::Transformation* T_R_S) const;
 
 }  // namespace vi_map
 

@@ -10,6 +10,8 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 
+from end_to_end_common.dataset_loader import load_dataset
+from end_to_end_common.create_plots import plot_position_error
 import end_to_end_common.download_helpers
 import end_to_end_common.end_to_end_test
 import end_to_end_common.bash_utils
@@ -34,8 +36,8 @@ def test_rovioli_end_to_end():
 
   rosbag_local_path = "dataset.bag"
   download_url = "http://robotics.ethz.ch/~asl-datasets/maplab/test_data/end_to_end_tests/V1_01_short.bag"
-  end_to_end_common.download_helpers.download_dataset(
-      download_url, rosbag_local_path)
+  end_to_end_common.download_helpers.download_dataset(download_url,
+                                                      rosbag_local_path)
   ground_truth_data_path = "end_to_end_test/V1_01_easy_ground_truth.csv"
 
   end_to_end_test = end_to_end_common.end_to_end_test.EndToEndTest()
@@ -62,16 +64,20 @@ def test_rovioli_end_to_end():
         "    --datasource_rosbag=\"%s\""
         "    --export_estimated_poses_to_csv=\"%s\""
         "    --rovioli_zero_initial_timestamps=false"
-        "    --rovio_enable_frame_visualization=false"
-        % (config_dir + "/ncamera-euroc.yaml",
-           config_dir + "/imu-adis16488.yaml",
-           rosbag_local_path,
-           estimator_vio_csv_path))
+        "    --rovio_enable_frame_visualization=false" %
+        (config_dir + "/ncamera-euroc.yaml", config_dir + "/imu-adis16488.yaml",
+         rosbag_local_path, estimator_vio_csv_path))
 
   # Compare estimator csv - ground truth data.
-  vio_errors = end_to_end_test.calulate_errors_of_datasets(
-      "VIO", [vio_max_allowed_errors], estimator_vio_csv_path,
-      ground_truth_data_path)
+  estimator_data_vio_unaligned_G_I = load_dataset(
+      estimator_vio_csv_path, input_format="rovioli")
+  ground_truth_data_unaligned_W_M = load_dataset(
+      ground_truth_data_path, input_format="euroc_ground_truth")
+  vio_errors = end_to_end_test.calculate_errors_of_datasets(
+      "VIO",
+      estimator_data_vio_unaligned_G_I,
+      ground_truth_data_unaligned_W_M,
+      max_errors_list=[vio_max_allowed_errors])
 
   # Run estimator VIL mode.
   estimator_vil_csv_path = "rovioli_estimated_poses_vil.csv"
@@ -95,12 +101,9 @@ def test_rovioli_end_to_end():
         "    --export_estimated_poses_to_csv=\"%s\""
         "    --vio_localization_map_folder=\"%s\""
         "    --rovioli_zero_initial_timestamps=false"
-        "    --rovio_enable_frame_visualization=false"
-        % (config_dir + "/ncamera-euroc.yaml",
-           config_dir + "/imu-adis16488.yaml",
-           rosbag_local_path,
-           estimator_vil_csv_path,
-           localization_reference_map))
+        "    --rovio_enable_frame_visualization=false" %
+        (config_dir + "/ncamera-euroc.yaml", config_dir + "/imu-adis16488.yaml",
+         rosbag_local_path, estimator_vil_csv_path, localization_reference_map))
 
   # Ensure that VIL position errors are smaller than the VIO position errors.
   # For the orientation, we don't want to enforce such a requirement as the
@@ -115,9 +118,13 @@ def test_rovioli_end_to_end():
   vil_localizations = vil_localizations[:, [0, 15]]
   vil_localizations = vil_localizations[vil_localizations[:, 1] == 1, :]
 
-  vil_errors = end_to_end_test.calulate_errors_of_datasets(
-      "VIL", [vil_max_allowed_errors, vio_position_errors],
-      estimator_vil_csv_path, ground_truth_data_path,
+  estimator_data_vil_unaligned_G_I = load_dataset(
+      estimator_vil_csv_path, input_format="rovioli")
+  vil_errors = end_to_end_test.calculate_errors_of_datasets(
+      "VIL",
+      estimator_data_vil_unaligned_G_I,
+      ground_truth_data_unaligned_W_M,
+      max_errors_list=[vil_max_allowed_errors, vio_position_errors],
       localization_state_list=vil_localizations)
 
   # Get VIWLS errors.
@@ -125,15 +132,19 @@ def test_rovioli_end_to_end():
   vil_position_errors = end_to_end_common.end_to_end_test.TestErrorStruct(
       vil_errors.position_mean_m, vil_errors.position_rmse_m,
       VIL_MAX_ORIENTATION_RMSE_RAD, VIL_MAX_ORIENTATION_RMSE_RAD)
-  end_to_end_test.calulate_errors_of_datasets(
+  estimator_data_viwls_unaligned_G_I = load_dataset(viwls_csv_path)
+  end_to_end_test.calculate_errors_of_datasets(
       "VIWLS",
-      [vio_max_allowed_errors, vio_position_errors, vil_position_errors],
-      viwls_csv_path, ground_truth_data_path,
-      estimator_input_format="maplab_console")
+      estimator_data_viwls_unaligned_G_I,
+      ground_truth_data_unaligned_W_M,
+      max_errors_list=[
+          vio_max_allowed_errors, vio_position_errors, vil_position_errors
+      ])
 
   end_to_end_test.print_errors()
   end_to_end_test.check_errors()
-  end_to_end_test.plot_results()
+
+  plot_position_error(end_to_end_test.test_results)
 
 
 if __name__ == '__main__':

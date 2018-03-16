@@ -30,6 +30,7 @@ enum class SensorType : int {
   kRelative6DoFPose,
   kGpsUtm,
   kGpsWgs,
+  kLidar,
   kInvalidSensor
 };
 
@@ -40,6 +41,7 @@ constexpr char kSensorTypeImu[] = "IMU";
 constexpr char kSensorTypeRelative6DoFPose[] = "Relative_6DoF_Pose";
 constexpr char kSensorTypeGpsUtm[] = "GPS_UTM";
 constexpr char kSensorTypeGpsWgs[] = "GPS_WGS";
+constexpr char kSensorTypeLidar[] = "LIDAR";
 
 inline std::string sensorTypeToString(const SensorType sensor_type) {
   switch (sensor_type) {
@@ -54,6 +56,9 @@ inline std::string sensorTypeToString(const SensorType sensor_type) {
       break;
     case SensorType::kGpsWgs:
       return static_cast<std::string>(kSensorTypeGpsWgs);
+      break;
+    case SensorType::kLidar:
+      return static_cast<std::string>(kSensorTypeLidar);
       break;
     default:
       LOG(FATAL) << "Unknown sensor type: " << static_cast<int>(sensor_type);
@@ -72,6 +77,8 @@ inline SensorType stringToSensorType(const std::string& sensor_type) {
     return SensorType::kGpsUtm;
   } else if (sensor_type == static_cast<std::string>(kSensorTypeGpsWgs)) {
     return SensorType::kGpsWgs;
+  } else if (sensor_type == static_cast<std::string>(kSensorTypeLidar)) {
+    return SensorType::kLidar;
   } else {
     LOG(FATAL) << "Unknown sensor type: " << sensor_type;
     return SensorType::kInvalidSensor;

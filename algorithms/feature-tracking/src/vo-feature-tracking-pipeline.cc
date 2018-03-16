@@ -96,6 +96,7 @@ void VOFeatureTrackingPipeline::trackFeaturesNFrame(
         &(*outlier_matches_kp1_k)[camera_idx]);
   }
   thread_pool_->waitForEmptyQueue();
+  has_feature_extraction_been_performed_on_first_nframe_ = true;
 
   timer_eval.Stop();
 }
@@ -117,7 +118,6 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
   // Initialize keypoints and descriptors in frame_k, if there aren't any.
   if (!has_feature_extraction_been_performed_on_first_nframe_) {
     detectors_extractors_[camera_idx]->detectAndExtractFeatures(frame_k);
-    has_feature_extraction_been_performed_on_first_nframe_ = true;
   }
   detectors_extractors_[camera_idx]->detectAndExtractFeatures(frame_kp1);
 
