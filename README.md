@@ -12,8 +12,8 @@ For documentation, tutorials and datasets, please visit the [wiki](https://githu
 
 Please also check out our video:
 
-<a href="https://youtu.be/9Ta7w_cs1lU">
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/maplab_video_thumbnail.png" alt="https://youtu.be/9Ta7w_cs1lU" width="600">
+<a href="https://www.youtube.com/watch?v=CrfG4v25B8k">
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/maplab_video_thumbnail.png" alt="https://www.youtube.com/watch?v=CrfG4v25B8k" width="600">
 
 ## Features
 
