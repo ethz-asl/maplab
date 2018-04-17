@@ -1,6 +1,6 @@
 <img src="https://github.com/ethz-asl/maplab/wiki/logos/maplab.png" width="500">
 
-*Ubuntu 14.04+ROS indigo* and *Ubuntu 16.04+ROS kinetic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly) [17/4/2018: Build-server problems; compilation should be unaffected.]
+*Ubuntu 14.04+ROS indigo* and *Ubuntu 16.04+ROS kinetic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly) [17/4/2018: Build failing due to server problems; compilation should be unaffected.]
 
 This repository contains **maplab**,  an  open,  research-oriented visual-inertial  mapping  framework, written  in  C++,  for  creating, processing  and  manipulating  multi-session  maps.
 On  the  one  hand, maplab  can  be  considered  as  a  ready-to-use  visual-inertial mapping  and  localization  system.
