@@ -1,0 +1,51 @@
+dist: trusty
+sudo: required
+language:
+  - generic
+cache:
+  - apt
+
+# Configuration. TODO(schneith): use for matrix build
+env:
+  global:
+    - ROS_VERSION=indigo
+    - UBUNTU_VERSION="`lsb_release -cs`"  # e.g. [precise|trusty|...]
+    - TRAVIS_MAPLAB_SOURCE_PATH=$(pwd)    
+    - ROS_PARALLEL_JOBS='-j8 -l6'
+    #TODO(schneith): do we need this?
+    - PYTHONPATH=$PYTHONPATH:/usr/lib/python2.7/dist-packages:/usr/local/lib/python2.7/dist-packages
+
+# Prepare the build environment.
+before_install:
+  # Setup ROS.
+  - sudo add-apt-repository "deb http://packages.ros.org/ros/ubuntu $UBUNTU_VERSION main" --yes
+  - wget https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -O - | sudo apt-key add -
+  - sudo apt-get update -qq
+  - sudo apt install ros-$ROS_VERSION-desktop-full "ros-$ROS_VERSION-tf2-*" "ros-$ROS_VERSION-camera-info-manager*" --yes
+  - sudo pip install requests
+  - source /opt/ros/$ROS_VERSION/setup.bash
+  - sudo rosdep init
+  - rosdep update
+  # Install the continous integration scripts.
+  - mkdir ~/continuous_integration
+  - cd ~/continuous_integration
+  - git clone https://github.com/ethz-asl/continuous_integration.git
+
+# Prepare a catkin workspace with all the required sources.
+install:
+  - mkdir -p $CATKIN_WS/src
+  - cd $CATKIN_WS/src
+  - catkin init
+  - catkin config --merge-devel
+  - catkin config --extend /opt/ros/$ROS_VERSION
+  - catkin config --cmake-args -DCMAKE_BUILD_TYPE=Release
+  # Add the maplab repo using a link.
+  - ln -s $CI_SOURCE_PATH maplab 
+  # Checkout the maplab_dependencies.
+  - git clone https://github.com/ethz-asl/maplab_dependencies --recursive
+  # Add catkin cimple.
+  - git clone https://github.com/catkin/catkin_simple
+
+script:
+  - cd $TRAVIS_MAPLAB_SOURCE_PATH
+  - NOSE_NOCAPTURE=1 ~/continuous_integration/run_build.sh -r --no_catkinsimple -x=$WORKSPACE/src/tools/ci/prepare-jenkins-slave.sh --dependencies="git@github.com:ethz-asl/maplab_dependencies.git"
