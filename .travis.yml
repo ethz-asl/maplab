@@ -1,3 +1,4 @@
+# TODO(schneith): Setup matrix build.
 dist: trusty
 sudo: required
 language:
@@ -6,15 +7,19 @@ cache:
   - apt
   - ccache
 
+notifications:
+  email: false
+
 # Configuration. TODO(schneith): use for matrix build
 env:
   global:
     - ROS_VERSION=indigo
-    - UBUNTU_VERSION="`lsb_release -cs`"  # e.g. [precise|trusty|...]
-    - TRAVIS_MAPLAB_SOURCE_PATH=$(pwd)    
-    - ROS_PARALLEL_JOBS='-j8 -l6'
+    - UBUNTU_VERSION="`lsb_release -cs`"
+    - TRAVIS_MAPLAB_SOURCE_PATH=$(pwd)
+    - NOSE_NOCAPTURE=1
     #TODO(schneith): do we need this?
-    - PYTHONPATH=$PYTHONPATH:/usr/lib/python2.7/dist-packages:/usr/local/lib/python2.7/dist-packages
+    - WORKSPACE=$HOME/workspace
+#    - PYTHONPATH=$PYTHONPATH:/usr/lib/python2.7/dist-packages:/usr/local/lib/python2.7/dist-packages
 
 # Prepare the build environment.
 before_install:
@@ -27,6 +32,7 @@ before_install:
   - source /opt/ros/$ROS_VERSION/setup.bash
   - sudo rosdep init
   - rosdep update
+  - source /opt/ros/$ROS_VERSION/setup.sh
   # Setup ccache.
   - sudo apt-get install -y ccache
   - export PATH="/usr/lib/ccache:$PATH"
@@ -35,10 +41,11 @@ before_install:
   - cd ~
   - git clone https://github.com/ethz-asl/continuous_integration.git
 
+install:
+  # Create a workspace.
+  - mkdir -p $WORKSPACE/src
+  - cp -r $TRAVIS_MAPLAB_SOURCE_PATH $WORKSPACE/src
+
 script:
-  - cd $TRAVIS_MAPLAB_SOURCE_PATH
-  - NOSE_NOCAPTURE=1 ~/continuous_integration/run_build.sh -r --no_catkinsimple -x=$WORKSPACE/src/tools/ci/prepare-jenkins-slave.sh --dependencies="git@github.com:ethz-asl/maplab_dependencies.git"
-
-
-notifications:
-email: false
+  - cd $WORKSPACE
+  - ~/continuous_integration/run_build.sh -r --no_catkinsimple -x=$WORKSPACE/src/maplab/tools/ci/prepare-jenkins-slave.sh --dependencies="git@github.com:ethz-asl/maplab_dependencies.git"
