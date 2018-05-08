@@ -1,4 +1,3 @@
-# TODO(schneith): Setup matrix build.
 dist: trusty
 sudo: required
 language:
@@ -7,19 +6,14 @@ cache:
   - apt
   - ccache
 
-notifications:
-  email: false
-
-# Configuration. TODO(schneith): use for matrix build
+# TODO(schneith): Configure matrix build.
 env:
   global:
     - ROS_VERSION=indigo
     - UBUNTU_VERSION="`lsb_release -cs`"
     - TRAVIS_MAPLAB_SOURCE_PATH=$(pwd)
     - NOSE_NOCAPTURE=1
-    #TODO(schneith): do we need this?
     - WORKSPACE=$HOME/workspace
-#    - PYTHONPATH=$PYTHONPATH:/usr/lib/python2.7/dist-packages:/usr/local/lib/python2.7/dist-packages
 
 # Prepare the build environment.
 before_install:
@@ -40,6 +34,8 @@ before_install:
   # Install the continous integration scripts.
   - cd ~
   - git clone https://github.com/ethz-asl/continuous_integration.git
+  # Setup build dependencies.
+  - sudo apt-get install autotools-dev doxygen dh-autoreconf git libgtest-dev python-catkin-tools python-pip python-git python-setuptools --yes
 
 install:
   # Create a workspace.
@@ -48,4 +44,7 @@ install:
 
 script:
   - cd $WORKSPACE
-  - ~/continuous_integration/run_build.sh -r --no_catkinsimple -x=$WORKSPACE/src/maplab/tools/ci/prepare-jenkins-slave.sh --dependencies="git@github.com:ethz-asl/maplab_dependencies.git"
+  - ~/continuous_integration/run_build.sh -r --no_catkinsimple -x=$WORKSPACE/src/maplab/tools/ci/prepare-jenkins-slave.sh --dependencies="https://github.com/ethz-asl/maplab_dependencies"
+
+notifications:
+  email: false
