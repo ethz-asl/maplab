@@ -37,7 +37,7 @@ void RVizVisualizationSink::publishImpl(
     // terminate before RViz receives the messages.
     constexpr double kTimeoutSeconds = 1.0;
     constexpr double kLoopFrequencyHz = 100.0;
-    constexpr size_t kNumLoops =
+    const size_t kNumLoops =
         static_cast<size_t>(std::ceil(kTimeoutSeconds * kLoopFrequencyHz));
     ros::Rate loop_rate(kLoopFrequencyHz);
     size_t i = 0u;

@@ -1,6 +1,7 @@
 #ifndef MAPLAB_COMMON_PYTHON_INTERFACE_H_
 #define MAPLAB_COMMON_PYTHON_INTERFACE_H_
 
+#include "Python.h"
 #include <memory>
 #include <string>
 #include <vector>
