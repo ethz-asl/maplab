@@ -208,7 +208,10 @@ bool RovioLocalizationHandler::processAsUpdate(
   aslam::Transformation T_M_I_filter;
   const vio_common::PoseLookupBuffer::ResultStatus lookup_result =
       T_M_I_buffer_.getPoseAt(localization_result->timestamp_ns, &T_M_I_filter);
-  CHECK(lookup_result != vio_common::PoseLookupBuffer::ResultStatus::kFailed);
+  if (lookup_result == vio_common::PoseLookupBuffer::ResultStatus::kFailed) {
+    LOG(ERROR) << "Got an invalid pose lookup at the localization result!";
+    return false;
+  }
 
   pose::Transformation T_G_M_filter;
   {
@@ -283,8 +286,9 @@ bool RovioLocalizationHandler::processAsUpdate(
       return initializeBaseframe(localization_result);
     }
 
-    const size_t num_cameras =
-        localization_result->G_landmarks_per_camera.size();
+    const size_t rovio_cams = 1u;
+    const size_t num_cameras = std::min(rovio_cams,
+        localization_result->G_landmarks_per_camera.size());
     for (size_t cam_idx = 0u; cam_idx < num_cameras; ++cam_idx) {
       measurement_accepted &=
           rovio_interface_->processLocalizationLandmarkUpdates(
