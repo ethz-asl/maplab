@@ -12,8 +12,8 @@ For documentation, tutorials and datasets, please visit the [wiki](https://githu
 
 Please also check out our video:
 
-<a href="https://youtu.be/9Ta7w_cs1lU">
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/maplab_video_thumbnail.png" alt="https://youtu.be/9Ta7w_cs1lU" width="600">
+<a href="https://www.youtube.com/watch?v=CrfG4v25B8k">
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/maplab_video_thumbnail.png" alt="https://www.youtube.com/watch?v=CrfG4v25B8k" width="600">
 
 ## Features
 
@@ -48,15 +48,15 @@ The maplab framework has been used as an experimental platform for numerous scie
 
 ## Citing
 
-Please cite the [following paper](https://arxiv.org/abs/1711.10250) when using maplab for your research:
+Please cite the [following paper](https://arxiv.org/abs/1711.10250) when using maplab or ROVIOLI for your research:
 
 ```bibtex
 @article{schneider2018maplab,
   title={maplab: An Open Framework for Research in Visual-inertial Mapping and Localization},
-  author={Schneider, Thomas and Dymczyk, Marcin and Fehr, Marius and Egger, Kevin and
-          Lynen, Simon and Gilitschenski, Igor and Siegwart, Roland},
-  journal={arXiv preprint arXiv:1711.10250},
-  year={2018}
+  author={T. Schneider and M. T. Dymczyk and M. Fehr and K. Egger and S. Lynen and I. Gilitschenski and R. Siegwart},
+  journal={IEEE Robotics and Automation Letters},
+  year={2018},
+  doi={10.1109/LRA.2018.2800113}
 }
 ```
 
