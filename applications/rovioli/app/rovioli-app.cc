@@ -12,6 +12,7 @@
 #include <sensors/imu.h>
 #include <sensors/sensor-factory.h>
 #include <signal.h>
+#include <std_srvs/Empty.h>
 #include <vi-map/vi-map-serialization.h>
 
 #include "rovioli/rovioli-node.h"
@@ -57,7 +58,7 @@ class RovioliApp {
   bool run();
 
   // Save a map.
-  void saveMap();
+  bool saveMap();
 
   // Check if the app *should* to be stopped (i.e., finished processing bag).
   std::atomic<bool>& shouldExit();
@@ -66,6 +67,9 @@ class RovioliApp {
 
   // TODO(helenol): also add callbacks for saving a map! Loading is I guess
   // out of the question.
+  bool saveMapCallback(std_srvs::Empty::Request& request,
+                       std_srvs::Empty::Response& response);
+
  private:
   // ROS stuff.
   ros::NodeHandle nh_;
@@ -89,8 +93,29 @@ RovioliApp::RovioliApp(const ros::NodeHandle& nh,
       nh_private_(nh_private),
       initialized_(false),
       rovioli_spinner_(common::getNumHardwareThreads()) {
-  // TODO(helenol): add ROS params that, if specified, overwrite flag
+  // Add ROS params that, if specified, overwrite flag defaults.
+  // Note that the flag default or specified values are always used as ROS param
   // defaults.
+  nh_private_.param("vio_localization_map_folder",
+                    FLAGS_vio_localization_map_folder,
+                    FLAGS_vio_localization_map_folder);
+  nh_private_.param("ncamera_calibration", FLAGS_ncamera_calibration,
+                    FLAGS_ncamera_calibration);
+  nh_private_.param("imu_parameters_maplab", FLAGS_imu_parameters_maplab,
+                    FLAGS_imu_parameters_maplab);
+  nh_private_.param("save_map_folder", FLAGS_save_map_folder,
+                    FLAGS_save_map_folder);
+  nh_private_.param("overwrite_existing_map", FLAGS_overwrite_existing_map,
+                    FLAGS_overwrite_existing_map);
+  nh_private_.param("optimize_map_to_localization_map",
+                    FLAGS_optimize_map_to_localization_map,
+                    FLAGS_optimize_map_to_localization_map);
+  nh_private_.param("save_map_on_shutdown", FLAGS_save_map_on_shutdown,
+                    FLAGS_save_map_on_shutdown);
+
+  // Add a ROS service call to save the map.
+  save_map_srv_ = nh_private_.advertiseService(
+      "save_map", &RovioliApp::saveMapCallback, this);
 }
 
 bool RovioliApp::init() {
@@ -170,6 +195,7 @@ bool RovioliApp::init() {
       save_map_folder_, localization_map_.get(), message_flow_.get()));
 
   initialized_ = true;
+  return true;
 }
 
 bool RovioliApp::run() {
@@ -181,18 +207,28 @@ bool RovioliApp::run() {
   // the application on CTRL+C.
   rovioli_spinner_.start();
   rovio_localization_node_->start();
+  return true;
 }
 
 std::atomic<bool>& RovioliApp::shouldExit() {
   CHECK(rovio_localization_node_);
-  rovio_localization_node_->isDataSourceExhausted();
+  return rovio_localization_node_->isDataSourceExhausted();
 }
 
-void RovioliApp::saveMap() {
+bool RovioliApp::saveMapCallback(
+    std_srvs::Empty::Request& /*request*/,
+    std_srvs::Empty::Response& /*response*/) {  // NOLINT
+  return saveMap();
+}
+
+bool RovioliApp::saveMap() {
   if (!save_map_folder_.empty()) {
     rovio_localization_node_->saveMapAndOptionallyOptimize(
         save_map_folder_, FLAGS_overwrite_existing_map,
         FLAGS_optimize_map_to_localization_map);
+    return true;
+  } else {
+    return false;
   }
 }
 
