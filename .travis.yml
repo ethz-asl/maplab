@@ -1,0 +1,50 @@
+dist: trusty
+sudo: required
+language:
+  - generic
+cache:
+  - apt
+  - ccache
+
+# TODO(schneith): Configure matrix build.
+env:
+  global:
+    - ROS_VERSION=indigo
+    - UBUNTU_VERSION="`lsb_release -cs`"
+    - TRAVIS_MAPLAB_SOURCE_PATH=$(pwd)
+    - NOSE_NOCAPTURE=1
+    - WORKSPACE=$HOME/workspace
+
+# Prepare the build environment.
+before_install:
+  # Setup ROS.
+  - sudo add-apt-repository "deb http://packages.ros.org/ros/ubuntu $UBUNTU_VERSION main" --yes
+  - wget https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -O - | sudo apt-key add -
+  - sudo apt-get update -qq
+  - sudo apt install ros-$ROS_VERSION-desktop-full "ros-$ROS_VERSION-tf2-*" "ros-$ROS_VERSION-camera-info-manager*" --yes
+  - sudo pip install requests
+  - source /opt/ros/$ROS_VERSION/setup.bash
+  - sudo rosdep init
+  - rosdep update
+  - source /opt/ros/$ROS_VERSION/setup.sh
+  # Setup ccache.
+  - sudo apt-get install -y ccache
+  - export PATH="/usr/lib/ccache:$PATH"
+  - ccache --max-size=10G
+  # Install the continous integration scripts.
+  - cd ~
+  - git clone https://github.com/ethz-asl/continuous_integration.git
+  # Setup build dependencies.
+  - sudo apt-get install autotools-dev doxygen dh-autoreconf git libgtest-dev python-catkin-tools python-pip python-git python-setuptools --yes
+
+install:
+  # Create a workspace.
+  - mkdir -p $WORKSPACE/src
+  - cp -r $TRAVIS_MAPLAB_SOURCE_PATH $WORKSPACE/src
+
+script:
+  - cd $WORKSPACE
+  - ~/continuous_integration/run_build.sh -r --no_catkinsimple -x=$WORKSPACE/src/maplab/tools/ci/prepare-jenkins-slave.sh --dependencies="https://github.com/ethz-asl/maplab_dependencies"
+
+notifications:
+  email: false
