@@ -247,8 +247,9 @@ bool integrateAllOptionalSensorDepthResourcesOfType(
             if (!vi_map.getOptionalSensorResource(
                     mission, input_resource_type, sensor_or_camera_id,
                     timestamp_ns, &point_cloud)) {
-              LOG(FATAL) << "Cannot retrieve optional point cloud resources at "
+              LOG(ERROR) << "Cannot retrieve optional point cloud resources at "
                          << "timestamp " << timestamp_ns << "!";
+                         continue;
             }
 
             VLOG(3) << "Found point cloud at timestamp " << timestamp_ns;

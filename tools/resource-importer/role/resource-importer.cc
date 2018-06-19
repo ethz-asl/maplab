@@ -36,15 +36,18 @@ DEFINE_bool(
 
 // Either we pass in the camera info topic to parse the camera calibration and
 // extrinsics (from tf).
-DEFINE_string(
-    camera_calibration_topic, "",
-    "ROS topic of camera info for the resources.");
+DEFINE_string(camera_calibration_topic, "",
+              "ROS topic of camera info for the resources.");
 DEFINE_string(camera_extrinsics_imu_frame, "fisheye", "TF IMU frame name.");
 DEFINE_string(camera_extrinsics_camera_frame, "depth", "TF camera frame name");
 // ...or we provide an ncamera file.
 DEFINE_string(
     camera_calibration_file, "",
     "Path to NCamera YAML file to load camera calibration and extrinsics.");
+
+DEFINE_uint64(subsample_resources_by_factor, 1,
+              "Subsample the resource association by this factor. (i.e., take "
+              "every Nth resource)");
 
 int main(int argc, char* argv[]) {
   google::ParseCommandLineFlags(&argc, &argv, true);
@@ -109,11 +112,17 @@ int main(int argc, char* argv[]) {
     cv::namedWindow(window_name, cv::WINDOW_AUTOSIZE);
   }
 
+  uint64_t resource_index = 0;
+
   std::function<void(sensor_msgs::ImageConstPtr)> image_callback = [&](
       sensor_msgs::ImageConstPtr image_message) {
     CHECK(image_message);
     const int64_t timestamp_ns = image_message->header.stamp.toNSec();
     CHECK_GE(timestamp_ns, 0);
+
+    if (resource_index++ % FLAGS_subsample_resources_by_factor != 0) {
+      return;
+    }
 
     if (image_message->encoding == sensor_msgs::image_encodings::TYPE_16UC1) {
       LOG(INFO) << "Found depth map at " << timestamp_ns << " ns";
@@ -127,10 +136,10 @@ int main(int argc, char* argv[]) {
         cv::waitKey(kDepthMapVisualizationWaitTimeMs);
       }
 
-      map.storeOptionalRawDepthMap(
-          camera_id, timestamp_ns, image, &selected_mission);
-    } else if (
-        image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
+      map.storeOptionalRawDepthMap(camera_id, timestamp_ns, image,
+                                   &selected_mission);
+    } else if (image_message->encoding ==
+               sensor_msgs::image_encodings::TYPE_8UC3) {
       LOG(INFO) << "Found color image at " << timestamp_ns;
 
       cv::Mat image;
@@ -140,8 +149,8 @@ int main(int argc, char* argv[]) {
       constexpr int kDepthMapVisualizationWaitTimeMs = 10;
       cv::waitKey(kDepthMapVisualizationWaitTimeMs);
 
-      map.storeOptionalRawColorImage(
-          camera_id, timestamp_ns, image, &selected_mission);
+      map.storeOptionalRawColorImage(camera_id, timestamp_ns, image,
+                                     &selected_mission);
     } else {
       LOG(FATAL) << "This image resource type is currently not supported by "
                     "this importer! encoding: "
@@ -155,6 +164,10 @@ int main(int argc, char* argv[]) {
         CHECK(point_cloud_msg);
         const int64_t timestamp_ns = point_cloud_msg->header.stamp.toNSec();
         CHECK_GE(timestamp_ns, 0);
+
+        if (resource_index++ % FLAGS_subsample_resources_by_factor != 0) {
+          return;
+        }
 
         LOG(INFO) << "Found Pointcloud at " << timestamp_ns << "ns";
 
@@ -243,8 +256,8 @@ int main(int argc, char* argv[]) {
   if (got_calibration_from_camera_info && got_tf_from_extrinsics) {
     // Camera with extrinsics (T_C_I, C: Camera, I: IMU frame).
     std::pair<aslam::Camera*, aslam::Transformation> camera_with_extrinsics;
-    convertCameraInfo(
-        resource_camera_info_msg, T_C_I_msg, &camera_with_extrinsics);
+    convertCameraInfo(resource_camera_info_msg, T_C_I_msg,
+                      &camera_with_extrinsics);
     aslam_camera.reset(camera_with_extrinsics.first);
     CHECK(aslam_camera);
     T_C_I = camera_with_extrinsics.second;
@@ -260,8 +273,8 @@ int main(int argc, char* argv[]) {
   CHECK(aslam_camera);
   // Replace the camera id with the id we've been using to attach the resources.
   aslam_camera->setId(camera_id);
-  map.getSensorManager().addOptionalCameraWithExtrinsics(
-      *aslam_camera, T_C_I, selected_mission_id);
+  map.getSensorManager().addOptionalCameraWithExtrinsics(*aslam_camera, T_C_I,
+                                                         selected_mission_id);
 
   backend::SaveConfig save_config;
   save_config.overwrite_existing_files = true;
@@ -274,6 +287,8 @@ int main(int argc, char* argv[]) {
   CHECK(write_map_result) << "Saving the output map to the file system failed.";
 
   CHECK(vi_map::checkMapConsistency(map));
+
+  LOG(INFO) << "Finished outputting map and resources.";
 
   return 0;
 }
