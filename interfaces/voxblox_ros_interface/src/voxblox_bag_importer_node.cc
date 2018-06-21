@@ -12,14 +12,19 @@ int main(int argc, char** argv) {
 
   // Get paths as ros params...
   // Can just as easily be gflags or input params, really doesn't matter.
-  std::string map_path, calibration_path, bag_path, pointcloud_topic;
+  std::string map_path, calibration_path, bag_path, pointcloud_topic,
+      tsdf_output_path;
   int integrate_every_nth_message = 1;
+  bool exit_at_end = false;
   nh_private.param("map_path", map_path, map_path);
   nh_private.param("calibration_path", calibration_path, calibration_path);
   nh_private.param("bag_path", bag_path, bag_path);
   nh_private.param("pointcloud_topic", pointcloud_topic, pointcloud_topic);
+  nh_private.param("tsdf_output_path", tsdf_output_path, tsdf_output_path);
   nh_private.param("integrate_every_nth_message", integrate_every_nth_message,
                    integrate_every_nth_message);
+  nh_private.param("exit_at_end", exit_at_end, exit_at_end);
+
   node.setSubsampling(integrate_every_nth_message);
 
   if (!node.setupRosbag(bag_path, pointcloud_topic)) {
@@ -49,7 +54,18 @@ int main(int argc, char** argv) {
            node.numMessages() / node.getSubsampling(), node.numMessages());
 
   node.visualize();
+  ros::spinOnce();
 
-  ros::spin();
+  if (!tsdf_output_path.empty()) {
+    node.save(tsdf_output_path);
+    ROS_INFO_STREAM("Saved TSDF map to: " << tsdf_output_path);
+  }
+
+  if (exit_at_end) {
+    ros::spinOnce();
+    ros::shutdown();
+  } else {
+    ros::spin();
+  }
   return 0;
 }
