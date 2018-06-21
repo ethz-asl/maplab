@@ -43,6 +43,10 @@ DEFINE_bool(save_map_on_shutdown, true,
             "be saved using a service call.");
 
 DECLARE_bool(map_builder_save_image_as_resources);
+DECLARE_string(datasource_type);
+DECLARE_string(datasource_rosbag);
+DECLARE_bool(publish_debug_markers);
+DECLARE_bool(rovio_enable_frame_visualization);
 
 namespace rovioli {
 
@@ -112,6 +116,24 @@ RovioliApp::RovioliApp(const ros::NodeHandle& nh,
                     FLAGS_optimize_map_to_localization_map);
   nh_private_.param("save_map_on_shutdown", FLAGS_save_map_on_shutdown,
                     FLAGS_save_map_on_shutdown);
+  nh_private_.param("publish_debug_markers", FLAGS_publish_debug_markers,
+                    FLAGS_publish_debug_markers);
+  nh_private_.param("frame_visualization",
+                    FLAGS_rovio_enable_frame_visualization,
+                    FLAGS_rovio_enable_frame_visualization);
+  // How data is loaded. If bagfile is specified, then it is used. Otherwise
+  // the topics are used.
+  std::string bagfile;
+  nh_private_.param("bagfile", bagfile, bagfile);
+  if (!bagfile.empty() && FLAGS_datasource_type != "rostopic") {
+    ROS_INFO_STREAM("Using bagfile source: " << bagfile);
+    FLAGS_datasource_type = "rosbag";
+    FLAGS_datasource_rosbag = bagfile;
+  } else if (FLAGS_datasource_type == "rosbag" &&
+             FLAGS_datasource_rosbag.empty()) {
+    ROS_INFO_STREAM("Using rostopic source.");
+    FLAGS_datasource_type = "rostopic";
+  }
 
   // Add a ROS service call to save the map.
   save_map_srv_ = nh_private_.advertiseService(
