@@ -8,7 +8,15 @@ namespace voxblox {
 
 VoxbloxBagImporter::VoxbloxBagImporter(const ros::NodeHandle& nh,
                                        const ros::NodeHandle& nh_private)
-    : nh_(nh), nh_private_(nh_private), tsdf_server_(nh, nh_private) {}
+    : nh_(nh),
+      nh_private_(nh_private),
+      integrate_every_nth_message_(1),
+      tsdf_server_(nh, nh_private),
+      message_index_(0) {}
+
+void VoxbloxBagImporter::setSubsampling(int integrate_every_nth_message) {
+  integrate_every_nth_message_ = integrate_every_nth_message;
+}
 
 bool VoxbloxBagImporter::setupRosbag(const std::string& filename,
                                      const std::string& pointcloud_topic) {
@@ -17,6 +25,7 @@ bool VoxbloxBagImporter::setupRosbag(const std::string& filename,
 
   rosbag_source_->setNonConstPointcloudCallback(std::bind(
       &VoxbloxBagImporter::pointcloudCallback, this, std::placeholders::_1));
+  return true;
 }
 
 bool VoxbloxBagImporter::setupMap(const std::string& map_path) {
@@ -92,6 +101,10 @@ bool VoxbloxBagImporter::lookupTransformInMap(int64_t timestamp_ns,
 
 void VoxbloxBagImporter::pointcloudCallback(
     sensor_msgs::PointCloud2Ptr pointcloud) {
+  if (message_index_++ % integrate_every_nth_message_ != 0) {
+    return;
+  }
+
   voxblox::Transformation T_G_I;
   const int64_t timestamp_ns = pointcloud->header.stamp.toNSec();
   if (!lookupTransformInMap(timestamp_ns, &T_G_I)) {
@@ -106,5 +119,16 @@ void VoxbloxBagImporter::pointcloudCallback(
 }
 
 void VoxbloxBagImporter::run() { rosbag_source_->readRosbag(); }
+
+void VoxbloxBagImporter::visualize() { tsdf_server_.generateMesh(); }
+
+size_t VoxbloxBagImporter::numMessages() const { return message_index_; }
+int VoxbloxBagImporter::getSubsampling() const {
+  return integrate_every_nth_message_;
+}
+
+void VoxbloxBagImporter::save(const std::string& output_path) {
+  tsdf_server_.saveMap(output_path);
+}
 
 }  // namespace voxblox
