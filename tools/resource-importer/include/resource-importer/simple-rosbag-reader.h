@@ -24,10 +24,11 @@
 
 class SimpleRosbagSource {
  public:
-  SimpleRosbagSource(
-      const std::string& rosbag_filename, const std::string& rostopic,
-      const std::string& rostopic_camera_info, const std::string& imu_frame,
-      const std::string& camera_frame);
+  SimpleRosbagSource(const std::string& rosbag_filename,
+                     const std::string& rostopic,
+                     const std::string& rostopic_camera_info,
+                     const std::string& imu_frame,
+                     const std::string& camera_frame);
 
   void readRosbag();
 
@@ -36,6 +37,9 @@ class SimpleRosbagSource {
 
   void setPointcloudCallback(
       const std::function<void(sensor_msgs::PointCloud2ConstPtr)>& callback);
+
+  void setNonConstPointcloudCallback(
+      const std::function<void(sensor_msgs::PointCloud2Ptr)>& callback);
 
   void setCameraInfoCallback(
       const std::function<void(sensor_msgs::CameraInfoConstPtr)>& callback);
@@ -62,6 +66,7 @@ class SimpleRosbagSource {
 
   std::function<void(sensor_msgs::ImageConstPtr)> image_lambda_;
   std::function<void(sensor_msgs::PointCloud2ConstPtr)> pointcloud_lambda_;
+  std::function<void(sensor_msgs::PointCloud2Ptr)> nonconst_pointcloud_lambda_;
   std::function<void(sensor_msgs::CameraInfoConstPtr)> camera_info_lambda_;
   std::function<void(geometry_msgs::Transform)> camera_extrinsics_lambda_;
 };

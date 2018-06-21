@@ -22,10 +22,11 @@
 #include <tf/tfMessage.h>
 #include <tf/transform_datatypes.h>
 
-SimpleRosbagSource::SimpleRosbagSource(
-    const std::string& rosbag_filename, const std::string& rostopic,
-    const std::string& rostopic_camera_info, const std::string& imu_frame,
-    const std::string& camera_frame)
+SimpleRosbagSource::SimpleRosbagSource(const std::string& rosbag_filename,
+                                       const std::string& rostopic,
+                                       const std::string& rostopic_camera_info,
+                                       const std::string& imu_frame,
+                                       const std::string& camera_frame)
     : bag_(new rosbag::Bag),
       bag_view_(nullptr),
       rosbag_filename_(rosbag_filename),
@@ -108,12 +109,12 @@ void SimpleRosbagSource::readRosbag() {
 
         // NOTE: we don't care about the timestamp at all, because we assume
         // the camera extrinsics are a static transform.
-        if (tf_transformer_.canTransform(
-                rosbag_camera_frame_, rosbag_imu_frame_, timestamp_ros)) {
+        if (tf_transformer_.canTransform(rosbag_camera_frame_,
+                                         rosbag_imu_frame_, timestamp_ros)) {
           tf::StampedTransform T_C_I_msg_tf;
-          tf_transformer_.lookupTransform(
-              rosbag_imu_frame_, rosbag_camera_frame_, timestamp_ros,
-              T_C_I_msg_tf);
+          tf_transformer_.lookupTransform(rosbag_imu_frame_,
+                                          rosbag_camera_frame_, timestamp_ros,
+                                          T_C_I_msg_tf);
 
           geometry_msgs::TransformStamped T_C_I_msg;
           tf::transformStampedTFToMsg(T_C_I_msg_tf, T_C_I_msg);
@@ -143,13 +144,24 @@ void SimpleRosbagSource::readRosbag() {
         continue;
       }
 
-      sensor_msgs::PointCloud2ConstPtr pointcloud_message =
-          message.instantiate<sensor_msgs::PointCloud2>();
-      if (pointcloud_message) {
-        CHECK(pointcloud_lambda_);
-        pointcloud_lambda_(pointcloud_message);
-        ++it_message;
-        continue;
+      if (pointcloud_lambda_) {
+        sensor_msgs::PointCloud2ConstPtr pointcloud_message =
+            message.instantiate<sensor_msgs::PointCloud2>();
+        if (pointcloud_message) {
+          CHECK(pointcloud_lambda_);
+          pointcloud_lambda_(pointcloud_message);
+          ++it_message;
+          continue;
+        }
+      } else if (nonconst_pointcloud_lambda_) {
+        sensor_msgs::PointCloud2Ptr pointcloud_message =
+            message.instantiate<sensor_msgs::PointCloud2>();
+        if (pointcloud_message) {
+          CHECK(nonconst_pointcloud_lambda_);
+          nonconst_pointcloud_lambda_(pointcloud_message);
+          ++it_message;
+          continue;
+        }
       }
 
       LOG(FATAL) << "[resource ros topic] Unsupported ROS message type.";
@@ -186,6 +198,11 @@ void SimpleRosbagSource::setImageCallback(
 void SimpleRosbagSource::setPointcloudCallback(
     const std::function<void(sensor_msgs::PointCloud2ConstPtr)>& callback) {
   pointcloud_lambda_ = callback;
+}
+
+void SimpleRosbagSource::setNonConstPointcloudCallback(
+    const std::function<void(sensor_msgs::PointCloud2Ptr)>& callback) {
+  nonconst_pointcloud_lambda_ = callback;
 }
 
 void SimpleRosbagSource::setCameraInfoCallback(
