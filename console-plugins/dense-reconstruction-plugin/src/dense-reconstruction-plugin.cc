@@ -139,7 +139,7 @@ common::CommandStatus exportTsdfMeshToFile(
 
   voxblox::MeshLayer mesh_layer(tsdf_map->block_size());
 
-  voxblox::MeshIntegrator<voxblox::TsdfVoxel>::Config mesh_config;
+  voxblox::MeshIntegratorConfig mesh_config;
   voxblox::MeshIntegrator<voxblox::TsdfVoxel> mesh_integrator(
       mesh_config, tsdf_map->getTsdfLayerPtr(), &mesh_layer);
   // We mesh the whole grid at once anyways, so all of them should be

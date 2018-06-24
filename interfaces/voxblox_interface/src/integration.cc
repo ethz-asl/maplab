@@ -111,9 +111,9 @@ void integrateColorPointCloud(const pose::Transformation& T_G_C,
                               voxblox::TsdfIntegratorBase* tsdf_integrator) {
   // Only call THIS function, not the TSDF integrator directly.
   CHECK_NOTNULL(tsdf_integrator);
+
   // Use std::transform to convert pose::Point3D types into voxblox::Point types
   // in a hopefully efficient way.
-
   voxblox::Pointcloud points_C_voxblox;
   std::transform(points_C.begin(), points_C.end(), points_C_voxblox.begin(),
                  [](pose::Position3D c) -> voxblox::Point {
