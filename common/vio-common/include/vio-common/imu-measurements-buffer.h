@@ -105,7 +105,7 @@ class ImuMeasurementBuffer {
   QueryResult isDataAvailableUpToImpl(
       int64_t timestamp_ns_from, int64_t timestamp_ns_to) const;
 
-  typedef std::pair<int64_t, vio::ImuMeasurement> BufferElement;
+  typedef std::pair<const int64_t, vio::ImuMeasurement> BufferElement;
   typedef Eigen::aligned_allocator<BufferElement> BufferAllocator;
   typedef common::TemporalBuffer<vio::ImuMeasurement, BufferAllocator> Buffer;
 

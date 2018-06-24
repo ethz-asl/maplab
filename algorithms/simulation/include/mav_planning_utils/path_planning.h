@@ -60,8 +60,9 @@ class Vertex {
   static const int D = _D;
   typedef Eigen::Matrix<double, D, 1> ConstraintValueT;
   typedef std::pair<int, ConstraintValueT> Constraint;
-  typedef std::map<int, ConstraintValueT, std::less<int>,
-                   Eigen::aligned_allocator<std::pair<int, ConstraintValueT> > >
+  typedef std::map<
+      int, ConstraintValueT, std::less<int>,
+      Eigen::aligned_allocator<std::pair<const int, ConstraintValueT> > >
       Constraints;
 
   double time_to_next;
@@ -482,7 +483,7 @@ class Path4D {
   /// initializes the internal segments with the arguments, so that sample() can
   /// be used
   Path4D(
-      const SegmentVector& sx, const SegmentVector& sy, SegmentVector& sz,
+      const SegmentVector& sx, const SegmentVector& sy, const SegmentVector& sz,
       const SegmentVector& syaw)
       : sx_(sx), sy_(sy), sz_(sz), syaw_(syaw) {
     assert(sx_.size() == sy_.size());
@@ -662,8 +663,9 @@ class Path4D {
    */
   template <int n_p, int n_y>
   void sample(
-      typename Motion4D<n_p, n_y>::Vector& result, double dt,
+      typename Motion4D<n_p, n_y>::Vector* result, double dt,
       Eigen::VectorXd* timestamps_seconds) const {
+    CHECK_NOTNULL(result);
     CHECK_NOTNULL(timestamps_seconds);
     double path_time = 0;
 
@@ -675,14 +677,14 @@ class Path4D {
     VLOG(3) << "path time: " << path_time;
     int n_samples = (path_time + dt * 0.5) / dt + 1;
 
-    result.resize(n_samples);
+    result->resize(n_samples);
     timestamps_seconds->resize(n_samples);
 
     VLOG(3) << "num samples: " << n_samples;
 
     double t = 0;
     for (int i = 0; i < n_samples; ++i) {
-      Motion4D<n_p, n_y>& sample = result[i];
+      Motion4D<n_p, n_y>& sample = result->at(i);
       samplePath(sample.x, sx_, t);
       samplePath(sample.y, sy_, t);
       samplePath(sample.z, sz_, t);

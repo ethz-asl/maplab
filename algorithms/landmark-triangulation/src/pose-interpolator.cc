@@ -19,12 +19,12 @@ void PoseInterpolator::buildListOfAllRequiredIMUMeasurements(
   CHECK_GE(end_index, 0);
 
   // First add all imu measurements from this vertex to the buffer.
-  typedef std::pair<int64_t, IMUMeasurement> buffer_value_type;
+  typedef std::pair<const int64_t, IMUMeasurement> buffer_value_type;
   using common::TemporalBuffer;
-  typedef TemporalBuffer<IMUMeasurement,
-                         Eigen::aligned_allocator<buffer_value_type> >
-      ImuMeasurementBuffer;
-  ImuMeasurementBuffer imu_buffer;
+  typedef TemporalBuffer<
+      IMUMeasurement, Eigen::aligned_allocator<buffer_value_type> >
+      LTImuMeasurementBuffer;
+  LTImuMeasurementBuffer imu_buffer;
   {
     const vi_map::ViwlsEdge& imu_edge =
         map.getEdgeAs<vi_map::ViwlsEdge>(imu_edge_id);
@@ -82,7 +82,7 @@ void PoseInterpolator::buildListOfAllRequiredIMUMeasurements(
   }
 
   imu_buffer.lockContainer();
-  const ImuMeasurementBuffer::BufferType& buffered_values =
+  const LTImuMeasurementBuffer::BufferType& buffered_values =
       imu_buffer.buffered_values();
 
   imu_timestamps->resize(Eigen::NoChange, buffered_values.size());
