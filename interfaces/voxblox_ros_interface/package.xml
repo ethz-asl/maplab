@@ -19,6 +19,4 @@
   <depend>vi_map</depend>
   <depend>voxblox_ros</depend>
   <depend>rosbag</depend>
-  <depend>resource_importer</depend>
-
 </package>

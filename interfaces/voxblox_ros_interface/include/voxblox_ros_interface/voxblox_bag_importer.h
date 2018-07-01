@@ -3,9 +3,10 @@
 
 #include <landmark-triangulation/pose-interpolator.h>
 #include <map-manager/map-manager.h>
-#include <resource-importer/simple-rosbag-reader.h>
 #include <vi-map/vi-map.h>
 #include <voxblox_ros/tsdf_server.h>
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
 
 namespace voxblox {
 
@@ -16,11 +17,14 @@ class VoxbloxBagImporter {
 
   void setSubsampling(int integrate_every_nth_message);
 
-  bool setupRosbag(const std::string& filename,
+  bool setupRosbag(const std::string& filename);
                    const std::string& pointcloud_topic);
 
   bool setupMap(const std::string& map_path);
-  bool setupSensor(const std::string& calibration_file_path);
+  bool setupPointcloudSensor(const std::string& pointcloud_topic,
+      const std::string& camchain_namespace);
+  bool setupStereoSensor(const std::string& cam0_topic,
+      const std::string& cam1_topic, const std::string& camchain_namespace);
 
   bool lookupTransformInMap(int64_t timestamp_ns,
                             voxblox::Transformation* T_G_I);

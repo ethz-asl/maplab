@@ -13,13 +13,22 @@ int main(int argc, char** argv) {
   // Get paths as ros params...
   // Can just as easily be gflags or input params, really doesn't matter.
   std::string map_path, calibration_path, bag_path, pointcloud_topic,
-      tsdf_output_path;
+      pointcloud_camchain_namespace, tsdf_output_path, cam0_topic, cam1_topic,
+      stereo_camchain_namespace;
   int integrate_every_nth_message = 1;
   bool exit_at_end = false;
   nh_private.param("map_path", map_path, map_path);
   nh_private.param("calibration_path", calibration_path, calibration_path);
   nh_private.param("bag_path", bag_path, bag_path);
   nh_private.param("pointcloud_topic", pointcloud_topic, pointcloud_topic);
+  nh_private.param("pointcloud_camchain_namespace",
+                   pointcloud_camchain_namespace,
+                   pointcloud_camchain_namespace);
+  nh_private.param("cam0_topic", cam0_topic, cam0_topic);
+  nh_private.param("cam1_topic", cam1_topic, cam1_topic);
+  nh_private.param("stereo_camchain_namespace", stereo_camchain_namespace,
+                   stereo_camchain_namespace);
+
   nh_private.param("tsdf_output_path", tsdf_output_path, tsdf_output_path);
   nh_private.param("integrate_every_nth_message", integrate_every_nth_message,
                    integrate_every_nth_message);
@@ -27,10 +36,8 @@ int main(int argc, char** argv) {
 
   node.setSubsampling(integrate_every_nth_message);
 
-  if (!node.setupRosbag(bag_path, pointcloud_topic)) {
-    ROS_ERROR_STREAM("Couldn't open bag " << bag_path
-                                          << " with pointcloud topic "
-                                          << pointcloud_topic);
+  if (!node.setupRosbag(bag_path)) {
+    ROS_ERROR_STREAM("Couldn't open bag " << bag_path);
     ros::shutdown();
     return 0;
   }
@@ -41,9 +48,12 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  if (!node.setupSensor(calibration_path)) {
-    ROS_ERROR_STREAM("Couldn't set up sensor from calibration file "
-                     << calibration_path);
+  if (!pointcloud_topic.empty()) {
+    node.setupPointcloudSensor(pointcloud_topic, pointcloud_camchain_namespace);
+  } else if (!cam0_topic.empty() && !cam1_topic.empty()) {
+    node.setupStereoSensor(cam0_topic, cam1_topic, stereo_camchain_namespace);
+  } else {
+    ROS_FATAL("Have to specify at least *ONE* sensor!");
     ros::shutdown();
     return 0;
   }

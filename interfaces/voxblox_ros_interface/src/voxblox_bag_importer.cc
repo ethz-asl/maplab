@@ -19,13 +19,21 @@ void VoxbloxBagImporter::setSubsampling(int integrate_every_nth_message) {
 }
 
 bool VoxbloxBagImporter::setupRosbag(const std::string& filename,
-                                     const std::string& pointcloud_topic) {
+                                     ) {
   rosbag_source_.reset(
       new SimpleRosbagSource(filename, pointcloud_topic, "", "", ""));
 
   rosbag_source_->setNonConstPointcloudCallback(std::bind(
       &VoxbloxBagImporter::pointcloudCallback, this, std::placeholders::_1));
   return true;
+}
+
+bool VoxbloxBagImporter::setupPointcloudTopic(const std::string& pointcloud_topic) {
+
+bool VoxbloxBagImporter::setupStereoTopics(const std::string& cam0_topic,
+    const std::string& cam1_topic) {
+  return false;
+
 }
 
 bool VoxbloxBagImporter::setupMap(const std::string& map_path) {
@@ -55,7 +63,12 @@ bool VoxbloxBagImporter::setupMap(const std::string& map_path) {
   return true;
 }
 
-bool VoxbloxBagImporter::setupSensor(const std::string& calibration_file_path) {
+bool VoxbloxBagImporter::setupPointcloudSensor(
+    const std::string& pointcloud_topic,
+      const std::string& camchain_namespace) {
+
+  // TODO!!! Switch to ROS params here.
+
   // Load camera calibration.
   aslam::NCamera::Ptr ncamera =
       aslam::NCamera::loadFromYaml(calibration_file_path);
