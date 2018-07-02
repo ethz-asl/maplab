@@ -144,7 +144,7 @@ void VoxbloxBagImporter::pointcloudCallback(
 
 void VoxbloxBagImporter::stereoPointcloudCallback(
     sensor_msgs::PointCloud2Ptr pointcloud) {
-  ROS_INFO("Stereo callback!");
+  ROS_DEBUG("Stereo callback!");
   integratePointcloud(T_I_C1_, pointcloud);
 }
 
@@ -196,7 +196,7 @@ void VoxbloxBagImporter::run() {
       sensor_msgs::PointCloud2Ptr pointcloud_message =
           message.instantiate<sensor_msgs::PointCloud2>();
       if (pointcloud_message) {
-        ROS_INFO("Adding a new pointcloud message! At time %lu",
+        ROS_DEBUG("Adding a new pointcloud message! At time %lu",
                  pointcloud_message->header.stamp.toNSec());
         pointcloudCallback(pointcloud_message);
       }
@@ -224,7 +224,7 @@ void VoxbloxBagImporter::cameraCallback(sensor_msgs::ImageConstPtr image,
     }
     stereo_undistort_.imagesCallback(left_image_, right_image_);
     // The depth callbacks should be bound automatically. :)
-    ROS_INFO("Undistorting stereo pair! At time %lu",
+    ROS_DEBUG("Undistorting stereo pair! At time %lu",
              left_image_->header.stamp.toNSec());
     ros::spinOnce();
     ros::spinOnce();
