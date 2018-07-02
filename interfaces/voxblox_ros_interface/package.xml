@@ -19,4 +19,6 @@
   <depend>vi_map</depend>
   <depend>voxblox_ros</depend>
   <depend>rosbag</depend>
+  <depend>minkindr</depend>
+  <depend>minkindr_conversions</depend>
 </package>

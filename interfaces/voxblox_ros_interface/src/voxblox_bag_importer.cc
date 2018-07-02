@@ -1,6 +1,7 @@
 #include <memory>
 
 #include <vi-map/vi-map-serialization.h>
+#include <minkindr_conversions/kindr_xml.h>
 
 #include "voxblox_ros_interface/voxblox_bag_importer.h"
 
@@ -18,22 +19,52 @@ void VoxbloxBagImporter::setSubsampling(int integrate_every_nth_message) {
   integrate_every_nth_message_ = integrate_every_nth_message;
 }
 
-bool VoxbloxBagImporter::setupRosbag(const std::string& filename,
-                                     ) {
-  rosbag_source_.reset(
-      new SimpleRosbagSource(filename, pointcloud_topic, "", "", ""));
+bool VoxbloxBagImporter::setupRosbag(const std::string& filename) {
+  try {
+    bag_.open(filename, rosbag::bagmode::Read);
+  } catch (const std::exception& ex) {  // NOLINT
+    ROS_ERROR_STREAM("Couldn't open rosbag at path " << filename);
+    return false;
+  }
 
-  rosbag_source_->setNonConstPointcloudCallback(std::bind(
-      &VoxbloxBagImporter::pointcloudCallback, this, std::placeholders::_1));
+ return true;
+}
+
+bool VoxbloxBagImporter::setupPointcloudSensor(
+    const std::string& pointcloud_topic,
+    const std::string& camchain_namespace) {
+  pointcloud_topic_ = pointcloud_topic;
+  XmlRpc::XmlRpcValue T_imu_pointcloud_xml;
+  CHECK(nh_private_.getParam(camchain_namespace + "/cam0/T_cam_imu",
+                             T_imu_pointcloud_xml))
+      << "please provide a path to the pointcloud sensor extrinsic calibration "
+         "file";
+  kindr::minimal::xmlRpcToKindr(T_imu_pointcloud_xml, &T_I_P_);
+
   return true;
 }
 
-bool VoxbloxBagImporter::setupPointcloudTopic(const std::string& pointcloud_topic) {
+bool VoxbloxBagImporter::setupStereoSensor(
+    const std::string& cam0_topic, const std::string& cam1_topic,
+    const std::string& camchain_namespace) {
+  cam0_topic_ = cam0_topic;
+  cam1_topic_ = cam1_topic;
 
-bool VoxbloxBagImporter::setupStereoTopics(const std::string& cam0_topic,
-    const std::string& cam1_topic) {
-  return false;
+  XmlRpc::XmlRpcValue T_imu_cam0_xml;
+  CHECK(nh_private_.getParam(camchain_namespace + "cam0/T_cam_imu",
+                             T_imu_cam0_xml))
+      << "please provide a path to the stereo camera extrinsic calibration "
+         "file";
+  kindr::minimal::xmlRpcToKindr(T_imu_cam0_xml, &T_I_C0_);
 
+  XmlRpc::XmlRpcValue T_imu_cam1_xml;
+  CHECK(nh_private_.getParam(camchain_namespace + "cam1/T_cam_imu",
+                             T_imu_cam1_xml))
+      << "please provide a path to the stereo camera extrinsic calibration "
+         "file";
+  kindr::minimal::xmlRpcToKindr(T_imu_cam1_xml, &T_I_C1_);
+
+  return true;
 }
 
 bool VoxbloxBagImporter::setupMap(const std::string& map_path) {
@@ -63,27 +94,6 @@ bool VoxbloxBagImporter::setupMap(const std::string& map_path) {
   return true;
 }
 
-bool VoxbloxBagImporter::setupPointcloudSensor(
-    const std::string& pointcloud_topic,
-      const std::string& camchain_namespace) {
-
-  // TODO!!! Switch to ROS params here.
-
-  // Load camera calibration.
-  aslam::NCamera::Ptr ncamera =
-      aslam::NCamera::loadFromYaml(calibration_file_path);
-  if (!ncamera) {
-    return false;
-  }
-
-  const bool has_one_camera = ncamera->getNumCameras() == 1u;
-  if (!has_one_camera) {
-    return false;
-  }
-  T_I_C_ = ncamera->get_T_C_B(0).inverse().cast<FloatingPoint>();
-  return true;
-}
-
 bool VoxbloxBagImporter::lookupTransformInMap(int64_t timestamp_ns,
                                               voxblox::Transformation* T_G_I) {
   if (timestamp_ns < min_timestamp_ns_ || timestamp_ns > max_timestamp_ns_) {
@@ -107,7 +117,8 @@ bool VoxbloxBagImporter::lookupTransformInMap(int64_t timestamp_ns,
       vi_map_.getMissionBaseFrameForMission(mission_id_).get_T_G_M();
   const aslam::Transformation& T_M_I = poses_M_I[index];
 
-  *T_G_I = (T_G_M * T_M_I).cast<FloatingPoint>() * T_I_C_;
+  // TODO(helenol): check WTF this mistake was!
+  *T_G_I = (T_G_M * T_M_I).cast<FloatingPoint>()/* * T_I_C_*/;
 
   return true;
 }
@@ -124,14 +135,17 @@ void VoxbloxBagImporter::pointcloudCallback(
     return;
   }
 
-  voxblox::Transformation T_G_C = T_G_I * T_I_C_;
+  voxblox::Transformation T_G_C = T_G_I * T_I_P_;
   const bool is_freespace_pointcloud = false;
 
   tsdf_server_.processPointCloudMessageAndInsert(pointcloud, T_G_C,
                                                  is_freespace_pointcloud);
 }
 
-void VoxbloxBagImporter::run() { rosbag_source_->readRosbag(); }
+void VoxbloxBagImporter::run() {
+  // TODO(helenol): read bag here!!!!
+  return;
+ }
 
 void VoxbloxBagImporter::visualize() { tsdf_server_.generateMesh(); }
 
