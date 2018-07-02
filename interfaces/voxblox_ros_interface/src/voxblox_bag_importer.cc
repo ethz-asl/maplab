@@ -12,8 +12,14 @@ VoxbloxBagImporter::VoxbloxBagImporter(const ros::NodeHandle& nh,
     : nh_(nh),
       nh_private_(nh_private),
       integrate_every_nth_message_(1),
-      tsdf_server_(nh, nh_private),
-      message_index_(0) {}
+      stereo_undistort_(ros::NodeHandle("stereo"), nh_private),
+      depth_(ros::NodeHandle("stereo"), nh_private),
+      tsdf_server_(nh_, nh_private),
+      message_index_(0) {
+  stereo_ptcloud_sub_ =
+      nh_.subscribe("stereo/pointcloud", 1,
+                    &VoxbloxBagImporter::stereoPointcloudCallback, this);
+}
 
 void VoxbloxBagImporter::setSubsampling(int integrate_every_nth_message) {
   integrate_every_nth_message_ = integrate_every_nth_message;
@@ -51,17 +57,22 @@ bool VoxbloxBagImporter::setupStereoSensor(
   cam1_topic_ = cam1_topic;
 
   XmlRpc::XmlRpcValue T_imu_cam0_xml;
-  CHECK(nh_private_.getParam(camchain_namespace + "cam0/T_cam_imu",
-                             T_imu_cam0_xml))
-      << "please provide a path to the stereo camera extrinsic calibration "
-         "file";
+  if (!(nh_private_.getParam(camchain_namespace + "/cam0/T_cam_imu",
+                             T_imu_cam0_xml))) {
+    ROS_ERROR(
+        "please provide a path to the stereo camera extrinsic calibration "
+        "file");
+    return false;
+  }
   kindr::minimal::xmlRpcToKindr(T_imu_cam0_xml, &T_I_C0_);
 
   XmlRpc::XmlRpcValue T_imu_cam1_xml;
-  CHECK(nh_private_.getParam(camchain_namespace + "cam1/T_cam_imu",
-                             T_imu_cam1_xml))
-      << "please provide a path to the stereo camera extrinsic calibration "
-         "file";
+  if (!(nh_private_.getParam(camchain_namespace + "/cam1/T_cam_imu",
+                             T_imu_cam1_xml))) {
+    ROS_ERROR(
+        "please provide a path to the stereo camera extrinsic calibration "
+        "file");
+  }
   kindr::minimal::xmlRpcToKindr(T_imu_cam1_xml, &T_I_C1_);
 
   return true;
@@ -128,14 +139,25 @@ void VoxbloxBagImporter::pointcloudCallback(
   if (message_index_++ % integrate_every_nth_message_ != 0) {
     return;
   }
+  integratePointcloud(T_I_P_, pointcloud);
+}
 
+void VoxbloxBagImporter::stereoPointcloudCallback(
+    sensor_msgs::PointCloud2Ptr pointcloud) {
+  ROS_INFO("Stereo callback!");
+  integratePointcloud(T_I_C1_, pointcloud);
+}
+
+void VoxbloxBagImporter::integratePointcloud(
+    const Transformation& T_I_S, sensor_msgs::PointCloud2Ptr pointcloud) {
   voxblox::Transformation T_G_I;
   const int64_t timestamp_ns = pointcloud->header.stamp.toNSec();
   if (!lookupTransformInMap(timestamp_ns, &T_G_I)) {
+    ROS_ERROR("Couldn't look up transform at time: %lu", timestamp_ns);
     return;
   }
 
-  voxblox::Transformation T_G_C = T_G_I * T_I_P_;
+  voxblox::Transformation T_G_C = T_G_I * T_I_S;
   const bool is_freespace_pointcloud = false;
 
   tsdf_server_.processPointCloudMessageAndInsert(pointcloud, T_G_C,
@@ -166,20 +188,49 @@ void VoxbloxBagImporter::run() {
       sensor_msgs::ImageConstPtr image_message =
           message.instantiate<sensor_msgs::Image>();
       if (image_message) {
-        // TODO???
+        bool left_cam = (topic == cam0_topic_);
+        cameraCallback(image_message, left_cam);
       }
     }
-
     if (topic == pointcloud_topic_) {
       sensor_msgs::PointCloud2Ptr pointcloud_message =
           message.instantiate<sensor_msgs::PointCloud2>();
       if (pointcloud_message) {
+        ROS_INFO("Adding a new pointcloud message! At time %lu",
+                 pointcloud_message->header.stamp.toNSec());
         pointcloudCallback(pointcloud_message);
       }
     }
   }
 
   return;
+}
+
+void VoxbloxBagImporter::cameraCallback(sensor_msgs::ImageConstPtr image,
+                                        bool left) {
+  if (left) {
+    left_image_ = image;
+  } else {
+    right_image_ = image;
+  }
+
+  if (!left_image_ || !right_image_) {
+    return;
+  }
+
+  if (left_image_->header.stamp == right_image_->header.stamp) {
+    if (message_index_++ % integrate_every_nth_message_ != 0) {
+      return;
+    }
+    stereo_undistort_.imagesCallback(left_image_, right_image_);
+    // The depth callbacks should be bound automatically. :)
+    ROS_INFO("Undistorting stereo pair! At time %lu",
+             left_image_->header.stamp.toNSec());
+    ros::spinOnce();
+    ros::spinOnce();
+    ros::spinOnce();
+    ros::spinOnce();
+  }
 }
 
 void VoxbloxBagImporter::visualize() { tsdf_server_.generateMesh(); }

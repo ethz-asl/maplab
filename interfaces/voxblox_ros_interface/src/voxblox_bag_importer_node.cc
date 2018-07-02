@@ -50,8 +50,10 @@ int main(int argc, char** argv) {
 
   if (!pointcloud_topic.empty()) {
     node.setupPointcloudSensor(pointcloud_topic, pointcloud_camchain_namespace);
+    ROS_INFO("Set up to use pointclouds!");
   } else if (!cam0_topic.empty() && !cam1_topic.empty()) {
     node.setupStereoSensor(cam0_topic, cam1_topic, stereo_camchain_namespace);
+    ROS_INFO("Set up to use stereo!");
   } else {
     ROS_FATAL("Have to specify at least *ONE* sensor!");
     ros::shutdown();

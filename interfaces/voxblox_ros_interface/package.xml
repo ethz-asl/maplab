@@ -21,4 +21,5 @@
   <depend>rosbag</depend>
   <depend>minkindr</depend>
   <depend>minkindr_conversions</depend>
+  <depend>image_undistort</depend>
 </package>
