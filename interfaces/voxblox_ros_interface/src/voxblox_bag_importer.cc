@@ -27,7 +27,7 @@ bool VoxbloxBagImporter::setupRosbag(const std::string& filename) {
     return false;
   }
 
- return true;
+  return true;
 }
 
 bool VoxbloxBagImporter::setupPointcloudSensor(
@@ -118,7 +118,7 @@ bool VoxbloxBagImporter::lookupTransformInMap(int64_t timestamp_ns,
   const aslam::Transformation& T_M_I = poses_M_I[index];
 
   // TODO(helenol): check WTF this mistake was!
-  *T_G_I = (T_G_M * T_M_I).cast<FloatingPoint>()/* * T_I_C_*/;
+  *T_G_I = (T_G_M * T_M_I).cast<FloatingPoint>() /* * T_I_C_*/;
 
   return true;
 }
@@ -143,9 +143,44 @@ void VoxbloxBagImporter::pointcloudCallback(
 }
 
 void VoxbloxBagImporter::run() {
-  // TODO(helenol): read bag here!!!!
+  std::vector<std::string> topics;
+  if (!pointcloud_topic_.empty()) {
+    topics.push_back(pointcloud_topic_);
+  }
+  if (!cam0_topic_.empty() && !cam1_topic_.empty()) {
+    topics.push_back(cam0_topic_);
+    topics.push_back(cam1_topic_);
+  }
+
+  try {
+    bag_view_.reset(new rosbag::View(bag_, rosbag::TopicQuery(topics)));
+  } catch (const std::exception& ex) {  // NOLINT
+    ROS_ERROR_STREAM("Could not open a rosbag view: " << ex.what());
+    return;
+  }
+  CHECK(bag_view_);
+
+  for (const rosbag::MessageInstance& message : *bag_view_) {
+    const std::string& topic = message.getTopic();
+    if (topic == cam0_topic_ || topic == cam1_topic_) {
+      sensor_msgs::ImageConstPtr image_message =
+          message.instantiate<sensor_msgs::Image>();
+      if (image_message) {
+        // TODO???
+      }
+    }
+
+    if (topic == pointcloud_topic_) {
+      sensor_msgs::PointCloud2Ptr pointcloud_message =
+          message.instantiate<sensor_msgs::PointCloud2>();
+      if (pointcloud_message) {
+        pointcloudCallback(pointcloud_message);
+      }
+    }
+  }
+
   return;
- }
+}
 
 void VoxbloxBagImporter::visualize() { tsdf_server_.generateMesh(); }
 
