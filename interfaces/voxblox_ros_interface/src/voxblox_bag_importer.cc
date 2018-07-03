@@ -19,6 +19,9 @@ VoxbloxBagImporter::VoxbloxBagImporter(const ros::NodeHandle& nh,
   stereo_ptcloud_sub_ =
       nh_.subscribe("stereo/pointcloud", 1,
                     &VoxbloxBagImporter::stereoPointcloudCallback, this);
+  freespace_ptcloud_sub_ =
+      nh_.subscribe("stereo/freespace_pointcloud", 1,
+                    &VoxbloxBagImporter::freespacePointcloudCallback, this);
 }
 
 void VoxbloxBagImporter::setSubsampling(int integrate_every_nth_message) {
@@ -139,17 +142,23 @@ void VoxbloxBagImporter::pointcloudCallback(
   if (message_index_++ % integrate_every_nth_message_ != 0) {
     return;
   }
-  integratePointcloud(T_I_P_, pointcloud);
+  integratePointcloud(T_I_P_, pointcloud, false);
 }
 
 void VoxbloxBagImporter::stereoPointcloudCallback(
     sensor_msgs::PointCloud2Ptr pointcloud) {
   ROS_DEBUG("Stereo callback!");
-  integratePointcloud(T_I_C1_, pointcloud);
+  integratePointcloud(T_I_C1_, pointcloud, false);
+}
+
+void VoxbloxBagImporter::freespacePointcloudCallback(
+    sensor_msgs::PointCloud2Ptr pointcloud) {
+  integratePointcloud(T_I_C1_, pointcloud, true);
 }
 
 void VoxbloxBagImporter::integratePointcloud(
-    const Transformation& T_I_S, sensor_msgs::PointCloud2Ptr pointcloud) {
+    const Transformation& T_I_S, sensor_msgs::PointCloud2Ptr pointcloud,
+    bool is_free_space) {
   voxblox::Transformation T_G_I;
   const int64_t timestamp_ns = pointcloud->header.stamp.toNSec();
   if (!lookupTransformInMap(timestamp_ns, &T_G_I)) {
@@ -158,10 +167,9 @@ void VoxbloxBagImporter::integratePointcloud(
   }
 
   voxblox::Transformation T_G_C = T_G_I * T_I_S;
-  const bool is_freespace_pointcloud = false;
 
   tsdf_server_.processPointCloudMessageAndInsert(pointcloud, T_G_C,
-                                                 is_freespace_pointcloud);
+                                                 is_free_space);
 }
 
 void VoxbloxBagImporter::run() {
@@ -197,7 +205,7 @@ void VoxbloxBagImporter::run() {
           message.instantiate<sensor_msgs::PointCloud2>();
       if (pointcloud_message) {
         ROS_DEBUG("Adding a new pointcloud message! At time %lu",
-                 pointcloud_message->header.stamp.toNSec());
+                  pointcloud_message->header.stamp.toNSec());
         pointcloudCallback(pointcloud_message);
       }
     }
@@ -225,7 +233,7 @@ void VoxbloxBagImporter::cameraCallback(sensor_msgs::ImageConstPtr image,
     stereo_undistort_.imagesCallback(left_image_, right_image_);
     // The depth callbacks should be bound automatically. :)
     ROS_DEBUG("Undistorting stereo pair! At time %lu",
-             left_image_->header.stamp.toNSec());
+              left_image_->header.stamp.toNSec());
     ros::spinOnce();
     ros::spinOnce();
     ros::spinOnce();

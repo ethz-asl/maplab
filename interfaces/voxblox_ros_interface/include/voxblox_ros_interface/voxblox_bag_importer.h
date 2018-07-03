@@ -35,10 +35,12 @@ class VoxbloxBagImporter {
 
   void cameraCallback(sensor_msgs::ImageConstPtr image, bool left);
   void stereoPointcloudCallback(sensor_msgs::PointCloud2Ptr pointcloud);
+  void freespacePointcloudCallback(sensor_msgs::PointCloud2Ptr pointcloud);
 
   // Actually put the pointcloud into the map.
   void integratePointcloud(const Transformation& T_I_S,
-                           sensor_msgs::PointCloud2Ptr pointcloud);
+                           sensor_msgs::PointCloud2Ptr pointcloud,
+                           bool is_free_space);
 
   void run();
 
@@ -79,6 +81,7 @@ class VoxbloxBagImporter {
   image_undistort::Depth depth_;
   // ROS subscriber to get the data back out.
   ros::Subscriber stereo_ptcloud_sub_;
+  ros::Subscriber freespace_ptcloud_sub_;
 
   // Storage for unpaired images.
   sensor_msgs::ImageConstPtr left_image_;
