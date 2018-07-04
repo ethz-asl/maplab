@@ -4,7 +4,7 @@
 #include <landmark-triangulation/pose-interpolator.h>
 #include <map-manager/map-manager.h>
 #include <vi-map/vi-map.h>
-#include <voxblox_ros/tsdf_server.h>
+#include <voxblox_ros/esdf_server.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <image_undistort/depth.h>
@@ -18,6 +18,7 @@ class VoxbloxBagImporter {
                      const ros::NodeHandle& nh_private);
 
   void setSubsampling(int integrate_every_nth_message);
+void setGenerateEsdf(bool generate_esdf);
 
   bool setupRosbag(const std::string& filename);
   bool setupMap(const std::string& map_path);
@@ -67,6 +68,7 @@ class VoxbloxBagImporter {
 
   // Some more settings...
   int integrate_every_nth_message_;
+  bool generate_esdf_;
   // Timestamp limits.
   int64_t min_timestamp_ns_;
   int64_t max_timestamp_ns_;
@@ -88,7 +90,7 @@ class VoxbloxBagImporter {
   sensor_msgs::ImageConstPtr right_image_;
 
   // Voxblox TSDF server.
-  TsdfServer tsdf_server_;
+  EsdfServer esdf_server_;
   // The map!
   vi_map::VIMap vi_map_;
   // Interpolate poses.

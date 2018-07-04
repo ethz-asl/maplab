@@ -12,9 +12,10 @@ VoxbloxBagImporter::VoxbloxBagImporter(const ros::NodeHandle& nh,
     : nh_(nh),
       nh_private_(nh_private),
       integrate_every_nth_message_(1),
+      generate_esdf_(true),
       stereo_undistort_(ros::NodeHandle("stereo"), nh_private),
       depth_(ros::NodeHandle("stereo"), nh_private),
-      tsdf_server_(nh_, nh_private),
+      esdf_server_(nh_, nh_private),
       message_index_(0) {
   stereo_ptcloud_sub_ =
       nh_.subscribe("stereo/pointcloud", 1,
@@ -22,6 +23,10 @@ VoxbloxBagImporter::VoxbloxBagImporter(const ros::NodeHandle& nh,
   freespace_ptcloud_sub_ =
       nh_.subscribe("stereo/freespace_pointcloud", 1,
                     &VoxbloxBagImporter::freespacePointcloudCallback, this);
+}
+
+void VoxbloxBagImporter::setGenerateEsdf(bool generate_esdf) {
+  generate_esdf_ = generate_esdf;
 }
 
 void VoxbloxBagImporter::setSubsampling(int integrate_every_nth_message) {
@@ -168,8 +173,12 @@ void VoxbloxBagImporter::integratePointcloud(
 
   voxblox::Transformation T_G_C = T_G_I * T_I_S;
 
-  tsdf_server_.processPointCloudMessageAndInsert(pointcloud, T_G_C,
+  esdf_server_.processPointCloudMessageAndInsert(pointcloud, T_G_C,
                                                  is_free_space);
+
+  if (generate_esdf_ && (message_index_ % integrate_every_nth_message_) % 3 == 0) {
+    esdf_server_.updateMesh();
+  }
 }
 
 void VoxbloxBagImporter::run() {
@@ -211,6 +220,10 @@ void VoxbloxBagImporter::run() {
     }
   }
 
+  if (generate_esdf_) {
+    esdf_server_.updateMesh();
+  }
+
   return;
 }
 
@@ -241,7 +254,7 @@ void VoxbloxBagImporter::cameraCallback(sensor_msgs::ImageConstPtr image,
   }
 }
 
-void VoxbloxBagImporter::visualize() { tsdf_server_.generateMesh(); }
+void VoxbloxBagImporter::visualize() { esdf_server_.generateMesh(); }
 
 size_t VoxbloxBagImporter::numMessages() const { return message_index_; }
 int VoxbloxBagImporter::getSubsampling() const {
@@ -249,7 +262,7 @@ int VoxbloxBagImporter::getSubsampling() const {
 }
 
 void VoxbloxBagImporter::save(const std::string& output_path) {
-  tsdf_server_.saveMap(output_path);
+  esdf_server_.saveMap(output_path);
 }
 
 }  // namespace voxblox
