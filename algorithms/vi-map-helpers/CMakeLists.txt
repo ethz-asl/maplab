@@ -4,7 +4,7 @@ project(vi_map_helpers)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-cs_add_library(${PROJECT_NAME} 
+cs_add_library(${PROJECT_NAME}
   src/mission-clustering-coobservation.cc
   src/near-camera-pose-sampling.cc
   src/spatial-database-vertex-id.cc
@@ -12,12 +12,17 @@ cs_add_library(${PROJECT_NAME}
   src/vi-map-geometry.cc
   src/vi-map-landmark-quality-evaluation.cc
   src/vi-map-manipulation.cc
-  src/vi-map-nearest-neighbor-lookup.cc
   src/vi-map-partitioner.cc
   src/vi-map-queries.cc
   src/vi-map-stats.cc
   src/vi-map-vertex-time-queries.cc
 )
+
+catkin_add_gtest(test_landmark_quality_evaluation
+  test/test_landmark_quality_evaluation.cc
+)
+target_link_libraries(test_landmark_quality_evaluation ${PROJECT_NAME})
+maplab_import_test_maps(test_landmark_quality_evaluation)
 
 catkin_add_gtest(test_map_geometry_test
   test/test_map_geometry_test.cc)

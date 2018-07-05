@@ -15,11 +15,13 @@ namespace map_optimization_legacy_plugin {
 VIMapOptimizer::VIMapOptimizer()
     : plotter_(nullptr), signal_handler_enabled_(false) {}
 
-VIMapOptimizer::VIMapOptimizer(visualization::ViwlsGraphRvizPlotter* plotter)
+VIMapOptimizer::VIMapOptimizer(
+    const visualization::ViwlsGraphRvizPlotter* plotter)
     : plotter_(plotter), signal_handler_enabled_(false) {}
 
 VIMapOptimizer::VIMapOptimizer(
-    visualization::ViwlsGraphRvizPlotter* plotter, bool signal_handler_enabled)
+    const visualization::ViwlsGraphRvizPlotter* plotter,
+    bool signal_handler_enabled)
     : plotter_(plotter), signal_handler_enabled_(signal_handler_enabled) {}
 
 void VIMapOptimizer::visualizePosegraph(const vi_map::VIMap& map) const {

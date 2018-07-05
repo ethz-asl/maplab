@@ -32,8 +32,12 @@ cs_add_library(${PROJECT_NAME} ${PROTO_SRCS} ${PROTO_HDRS}
 ##########
 # GTESTS #
 ##########
-catkin_add_gtest(test_serialization test/test-sensor-serialization.cc)
-target_link_libraries(test_serialization ${PROJECT_NAME})
+catkin_add_gtest(test_sensor_serialization test/test-sensor-serialization.cc)
+target_link_libraries(test_sensor_serialization ${PROJECT_NAME})
+
+catkin_add_gtest(test_measurement_serialization 
+  test/test-measurement-serialization.cc)
+target_link_libraries(test_measurement_serialization ${PROJECT_NAME})
 
 catkin_add_gtest(test_sensors test/test-sensors.cc)
 target_link_libraries(test_sensors ${PROJECT_NAME})

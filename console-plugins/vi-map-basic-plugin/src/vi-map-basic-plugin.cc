@@ -1187,8 +1187,10 @@ int VIMapBasicPlugin::removeMission() {
 }
 
 int VIMapBasicPlugin::removeMissionInteractive() {
-  if (plotter_ == nullptr) {
-    LOG(ERROR) << "Please enable the visualization.";
+  if (!hasPlotter()) {
+    LOG(ERROR)
+        << "Please enable the visualization. This is only possible "
+        << "if ROS is enabled, so make sure --ros_free is not set to true.";
     return common::kStupidUserError;
   }
 
@@ -1214,13 +1216,13 @@ int VIMapBasicPlugin::removeMissionInteractive() {
     constexpr bool kPlotEdges = true;
     constexpr bool kPlotLandmarks = true;
     FLAGS_vis_color_by_mission = false;
-    plotter_->visualizeMap(
+    getPlotter().visualizeMap(
         *map, kPlotBaseframes, kPlotVertices, kPlotEdges, kPlotLandmarks);
 
     const double initial_vis_scale = FLAGS_vis_scale;
     FLAGS_vis_color_by_mission = true;
     FLAGS_vis_scale = 3.0 * initial_vis_scale;
-    plotter_->visualizeMissions(
+    getPlotter().visualizeMissions(
         *map, {mission_id}, kPlotBaseframes, kPlotVertices, kPlotEdges,
         kPlotLandmarks);
 
@@ -1228,7 +1230,7 @@ int VIMapBasicPlugin::removeMissionInteractive() {
     FLAGS_vis_scale = initial_vis_scale;
 
     FLAGS_vis_color_by_mission = false;
-    plotter_->visualizeMap(*map, false, false, false, kPlotLandmarks);
+    getPlotter().visualizeMap(*map, false, false, false, kPlotLandmarks);
 
     bool got_meaningful_answer = false;
     do {
@@ -1354,7 +1356,7 @@ int VIMapBasicPlugin::spatiallyDistributeMissions() {
 }
 
 int VIMapBasicPlugin::visualizeMap() {
-  if (!plotter_) {
+  if (!hasPlotter()) {
     LOG(ERROR) << "The plotter is not initialized. Visualization is not "
                << "possible in a ros-free environment.";
     return common::kStupidUserError;
@@ -1367,16 +1369,15 @@ int VIMapBasicPlugin::visualizeMap() {
   const vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapReadAccess map =
       map_manager.getMapReadAccess(selected_map_key);
-  plotter_->visualizeMap(*map);
+  getPlotter().visualizeMap(*map);
 
   return common::kSuccess;
 }
 
 int VIMapBasicPlugin::visualizeMapSequentially() {
-  if (!plotter_) {
+  if (!hasPlotter()) {
     LOG(ERROR) << "The plotter is not initialized. Visualization is not "
-                  "possible in a ros-free "
-               << "environment.";
+               << "possible in a ros-free environment.";
     return common::kStupidUserError;
   }
 
@@ -1397,7 +1398,7 @@ int VIMapBasicPlugin::visualizeMapSequentially() {
     map->getAllMissionIds(&mission_ids);
   }
 
-  visualization::SequentialPlotter seq_plotter(plotter_);
+  visualization::SequentialPlotter seq_plotter;
   seq_plotter.publishMissionsSequentially(*map, mission_ids);
   return common::kSuccess;
 }

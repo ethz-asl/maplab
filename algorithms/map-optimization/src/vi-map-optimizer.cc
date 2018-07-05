@@ -20,7 +20,8 @@ DEFINE_int32(
 namespace map_optimization {
 
 VIMapOptimizer::VIMapOptimizer(
-    visualization::ViwlsGraphRvizPlotter* plotter, bool signal_handler_enabled)
+    const visualization::ViwlsGraphRvizPlotter* plotter,
+    bool signal_handler_enabled)
     : plotter_(plotter), signal_handler_enabled_(signal_handler_enabled) {}
 
 bool VIMapOptimizer::optimizeVisualInertial(

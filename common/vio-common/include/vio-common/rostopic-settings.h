@@ -37,6 +37,10 @@ struct RosTopicSettings {
   std::string gps_wgs_topic;
   // ROS topic for GPS UTM measurement data.
   std::string gps_utm_topic;
+  // ROS topics for lidar point cloud data.
+  typedef std::unordered_map<std::string, vi_map::SensorId>
+      LidarTopicSensorIdMap;
+  LidarTopicSensorIdMap lidar_topic_sensor_id_map;
 
   void getAllValidTopics(std::vector<std::string>* topics);
 

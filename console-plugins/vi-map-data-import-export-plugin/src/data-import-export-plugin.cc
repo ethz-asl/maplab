@@ -4,10 +4,10 @@
 #include <csv-export/csv-export.h>
 #include <map-manager/map-manager.h>
 #include <maplab-common/file-logger.h>
+#include <vi-map-data-import-export/export-ncamera-calibration.h>
+#include <vi-map-data-import-export/export-vertex-data.h>
+#include <vi-map-data-import-export/import-export-gps-data.h>
 #include <vi-map/vi-map.h>
-#include "vi-map-data-import-export-plugin/export-ncamera-calibration.h"
-#include "vi-map-data-import-export-plugin/export-vertex-data.h"
-#include "vi-map-data-import-export-plugin/import-export-gps-data.h"
 
 DECLARE_string(map_mission);
 DECLARE_bool(csv_export_imu_data);
@@ -34,6 +34,11 @@ DEFINE_string(
 DEFINE_string(
     gps_yaml, "",
     "The GPS sensor YAML file containing ID, type and calibration parameters.");
+
+DEFINE_string(
+    pose_export_reference_sensor_type, "IMU",
+    "Sensor defining in "
+    "what coordinate frame to express the vertex poses.");
 
 namespace data_import_export {
 
@@ -198,8 +203,31 @@ int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv() const {
           : FLAGS_pose_export_file;
   CHECK(!filepath.empty());
 
+  const vi_map::SensorType sensor_type =
+      vi_map::stringToSensorType(FLAGS_pose_export_reference_sensor_type);
+  if (sensor_type == vi_map::SensorType::kInvalidSensor) {
+    return common::kStupidUserError;
+  }
+
+  const vi_map::SensorManager& sensor_manager = map->getSensorManager();
+  vi_map::SensorIdSet sensor_ids;
+  sensor_manager.getAllSensorIdsOfType(sensor_type, &sensor_ids);
+  if (sensor_ids.empty()) {
+    LOG(ERROR) << "No sensor of type "
+               << vi_map::sensorTypeToString(sensor_type) << " available.";
+    return common::kStupidUserError;
+  }
+  if (sensor_ids.size() > 1u) {
+    LOG(ERROR) << "More than one sensor of type "
+               << vi_map::sensorTypeToString(sensor_type)
+               << " available. Don't know "
+               << "how to choose.";
+    return common::kStupidUserError;
+  }
+  CHECK_EQ(sensor_ids.size(), 1u);
+
   data_import_export::exportPosesVelocitiesAndBiasesToCsv(
-      *map, mission_ids, filepath);
+      *map, mission_ids, *sensor_ids.begin(), filepath);
   return common::kSuccess;
 }
 

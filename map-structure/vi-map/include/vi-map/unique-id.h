@@ -4,6 +4,7 @@
 #include <limits>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <aslam/common/unique-id.h>
@@ -45,6 +46,7 @@ struct VisualFrameIdentifier {
   }
 };
 typedef std::vector<VisualFrameIdentifier> VisualFrameIdentifierList;
+typedef std::unordered_set<VisualFrameIdentifier> VisualFrameIdentifierSet;
 typedef std::unordered_map<aslam::FrameId, VisualFrameIdentifier>
     FrameIdToFrameIdentifierMap;
 

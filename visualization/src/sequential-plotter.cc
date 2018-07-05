@@ -24,9 +24,6 @@ DEFINE_bool(
 
 namespace visualization {
 
-SequentialPlotter::SequentialPlotter(ViwlsGraphRvizPlotter* plotter)
-    : plotter_(CHECK_NOTNULL(plotter)) {}
-
 void SequentialPlotter::publishMissionsSequentially(
     const vi_map::VIMap& map, const vi_map::MissionIdSet& mission_set) {
   if (mission_set.empty()) {

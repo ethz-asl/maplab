@@ -10,21 +10,23 @@
 #include <vi-map-helpers/vi-map-queries.h>
 #include <vi-map/vi-map.h>
 
-DEFINE_double(kf_distance_threshold_m, 0.75,
-              "Distance threshold to add a new keyframe [m].");
-DEFINE_double(kf_rotation_threshold_deg, 20,
-              "Rotation threshold to add a new keyframe [deg].");
+DEFINE_double(
+    kf_distance_threshold_m, 0.75,
+    "Distance threshold to add a new keyframe [m].");
+DEFINE_double(
+    kf_rotation_threshold_deg, 20,
+    "Rotation threshold to add a new keyframe [deg].");
 DEFINE_uint64(kf_every_nth_vertex, 10, "Force a keyframe every n-th vertex.");
-DEFINE_uint64(kf_min_shared_landmarks_obs, 20,
-              "Coobserved landmark number to add a new keyframe.");
+DEFINE_uint64(
+    kf_min_shared_landmarks_obs, 20,
+    "Coobserved landmark number to add a new keyframe.");
 
 namespace map_sparsification {
 namespace {
 size_t removeAllVerticesBetweenTwoVertices(
     pose_graph::Edge::EdgeType traversal_edge,
     const pose_graph::VertexId& start_kf_id,
-    const pose_graph::VertexId& end_kf_id,
-    vi_map::VIMap* map) {
+    const pose_graph::VertexId& end_kf_id, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
   CHECK(traversal_edge != pose_graph::Edge::EdgeType::kUndefined);
   CHECK(start_kf_id.isValid());
@@ -111,10 +113,14 @@ size_t selectKeyframesBasedOnHeuristics(
   //   - distance and rotation threshold
   // TODO(schneith): Online-viwls should add special vio constraints (rot. only,
   // stationary) and avoid keyframes during these states.
-  while (map.getNextVertex(current_vertex_id, backbone_type,
-                           &current_vertex_id)) {
+  while (
+      map.getNextVertex(current_vertex_id, backbone_type, &current_vertex_id)) {
     // Add a keyframe every n-th frame.
     if (num_frames_since_last_keyframe >= options.kf_every_nth_vertex) {
+      VLOG(3) << "Adding keyframe " << current_vertex_id
+              << ". Condition: every nth vertex ("
+              << num_frames_since_last_keyframe << " / "
+              << options.kf_every_nth_vertex << ").";
       insert_keyframe(current_vertex_id);
       continue;
     }
@@ -125,6 +131,10 @@ size_t selectKeyframesBasedOnHeuristics(
     const size_t common_observations =
         queries.getNumberOfCommonLandmarks(current_vertex_id, last_keyframe_id);
     if (common_observations < options.kf_min_shared_landmarks_obs) {
+      VLOG(3) << "Adding keyframe " << current_vertex_id
+              << ". Condition: number of common landmarks ("
+              << common_observations << " / "
+              << options.kf_min_shared_landmarks_obs << ").";
       insert_keyframe(current_vertex_id);
       continue;
     }
@@ -139,9 +149,21 @@ size_t selectKeyframesBasedOnHeuristics(
     const double rotation_to_last_keyframe_rad =
         aslam::AngleAxis(T_Bkf_Bi.getRotation()).angle();
 
-    if (distance_to_last_keyframe_m >= options.kf_distance_threshold_m ||
-        rotation_to_last_keyframe_rad >=
+    if (distance_to_last_keyframe_m >= options.kf_distance_threshold_m) {
+      VLOG(3) << "Adding keyframe " << current_vertex_id
+              << ". Condition: distance threshold ("
+              << distance_to_last_keyframe_m << " m / "
+              << options.kf_distance_threshold_m << " m).";
+      insert_keyframe(current_vertex_id);
+      continue;
+    }
+
+    if (rotation_to_last_keyframe_rad >=
         options.kf_rotation_threshold_deg * kDegToRad) {
+      VLOG(3) << "Adding keyframe " << current_vertex_id
+              << ". Condition: rotation threshold ("
+              << rotation_to_last_keyframe_rad * kRadToDeg << " deg / "
+              << (options.kf_rotation_threshold_deg) << " deg).";
       insert_keyframe(current_vertex_id);
       continue;
     }

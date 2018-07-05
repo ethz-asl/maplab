@@ -197,10 +197,13 @@ voxblox::BlockIndex hashToBlockIndex(const ResourceId& id) {
   hash_id.toUint64(id_uint_array);
 
   const uint32_t x =
-      (uint32_t)((id_uint_array[0] & 0xFFFFFFFF00000000LL) >> 32);
-  const uint32_t y = (uint32_t)(id_uint_array[0] & 0xFFFFFFFFLL);
+      static_cast<uint32_t>((id_uint_array[0] >> 32) & 0x00000000FFFFFFFFLL) %
+      1000000;
+  const uint32_t y =
+      static_cast<uint32_t>(id_uint_array[0] & 0x00000000FFFFFFFFLL) % 1000000;
   const uint32_t z =
-      (uint32_t)((id_uint_array[1] & 0xFFFFFFFF00000000LL) >> 32);
+      static_cast<uint32_t>((id_uint_array[1] >> 32) & 0x00000000FFFFFFFFLL) %
+      1000000;
 
   return voxblox::BlockIndex(x, y, z);
 }

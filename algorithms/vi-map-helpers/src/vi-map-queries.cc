@@ -224,7 +224,7 @@ void VIMapQueries::getCommonObserversForLandmarks(
   for (const vi_map::LandmarkId& landmark : landmarks) {
     VLOG(4) << "Processing landmark " << landmark;
     pose_graph::VertexIdSet observer_ids_set;
-    map_.getLandmarkObserverVertices(landmark, &observer_ids_set);
+    map_.getObserverVerticesForLandmark(landmark, &observer_ids_set);
     for (const pose_graph::VertexId& observer_id : observer_ids_set) {
       ++vertex_is_observer_count[observer_id];
     }
@@ -240,7 +240,7 @@ void VIMapQueries::getCommonObserversForLandmarks(
 bool VIMapQueries::isLandmarkObservedByMultipleMissions(
     const vi_map::LandmarkId& landmark_id) const {
   vi_map::MissionIdSet observing_missions;
-  map_.getLandmarkObserverMissions(landmark_id, &observing_missions);
+  map_.getObserverMissionsForLandmark(landmark_id, &observing_missions);
   return observing_missions.size() > 1u;
 }
 

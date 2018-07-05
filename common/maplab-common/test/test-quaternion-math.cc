@@ -101,6 +101,8 @@ class ZComponentRotationAngleTest : public ::testing::Test {
   static constexpr double kTranslationNormMeters = 1e5;
 };
 
+constexpr double ZComponentRotationAngleTest::kTranslationNormMeters;
+
 void ZComponentRotationAngleTest::testRotationsAround_B1_axis(
     const Eigen::Vector3d& B1_axis, const aslam::Transformation& T_A_B1) const {
   ASSERT_NEAR(B1_axis.squaredNorm(), 1.0, 1e-12);
@@ -165,7 +167,6 @@ double ZComponentRotationAngleTest::queryAbsoluteRotationAngleAround_A_z_Axis_ra
 TEST_F(ZComponentRotationAngleTest, YawAngleSimple) {
   Eigen::Matrix3d C_A_B1;
   C_A_B1 << 0.0, -1.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0;
-  constexpr double kTranslationNormMeters = 1e5;
   constexpr double kRotationNormRad = 2.0;
 
   const aslam::Position3D p_A_B1 =

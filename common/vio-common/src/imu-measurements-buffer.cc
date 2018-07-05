@@ -42,6 +42,16 @@ ImuMeasurementBuffer::getImuDataInterpolatedBorders(
     int64_t timestamp_ns_from, int64_t timestamp_ns_to,
     Eigen::Matrix<int64_t, 1, Eigen::Dynamic>* imu_timestamps,
     Eigen::Matrix<double, 6, Eigen::Dynamic>* imu_measurements) const {
+  std::lock_guard<std::mutex> lock(m_buffer_);
+  return getImuDataInterpolatedBordersImpl(
+      timestamp_ns_from, timestamp_ns_to, imu_timestamps, imu_measurements);
+}
+
+ImuMeasurementBuffer::QueryResult
+ImuMeasurementBuffer::getImuDataInterpolatedBordersImpl(
+    int64_t timestamp_ns_from, int64_t timestamp_ns_to,
+    Eigen::Matrix<int64_t, 1, Eigen::Dynamic>* imu_timestamps,
+    Eigen::Matrix<double, 6, Eigen::Dynamic>* imu_measurements) const {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
 
@@ -55,9 +65,8 @@ ImuMeasurementBuffer::getImuDataInterpolatedBorders(
 
   // Copy the data with timestamp_up_to <= timestamps_buffer from the buffer.
   Aligned<std::vector, vio::ImuMeasurement> between_values;
-  CHECK(
-      buffer_.getValuesBetweenTimes(
-          timestamp_ns_from, timestamp_ns_to, &between_values));
+  buffer_.getValuesBetweenTimes(
+      timestamp_ns_from, timestamp_ns_to, &between_values);
 
   if (between_values.empty()) {
     LOG(WARNING) << "Too few IMU measurements available between time "
@@ -127,51 +136,50 @@ ImuMeasurementBuffer::getImuDataInterpolatedBordersBlocking(
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
 
+  std::unique_lock<std::mutex> lock(m_buffer_);
   // Wait for the IMU buffer to contain the required measurements within a
   // timeout.
   int64_t time_start = aslam::time::nanoSecondsSinceEpoch();
   int64_t total_elapsed_time_nanoseconds = aslam::time::getInvalidTime();
   QueryResult query_result;
-  {
-    std::unique_lock<std::mutex> lock(m_buffer_);
-    while ((query_result =
-                isDataAvailableUpToImpl(timestamp_ns_from, timestamp_ns_to)) !=
-           QueryResult::kDataAvailable) {
-      cv_new_measurement_.wait_for(
-          lock, std::chrono::nanoseconds(wait_timeout_nanoseconds));
+  while ((query_result =
+              isDataAvailableUpToImpl(timestamp_ns_from, timestamp_ns_to)) !=
+         QueryResult::kDataAvailable) {
+    cv_new_measurement_.wait_for(
+        lock, std::chrono::nanoseconds(wait_timeout_nanoseconds));
 
-      if (shutdown_) {
-        imu_timestamps->resize(Eigen::NoChange, 0);
-        imu_measurements->resize(Eigen::NoChange, 0);
-        return QueryResult::kQueueShutdown;
-      }
+    if (shutdown_) {
+      imu_timestamps->resize(Eigen::NoChange, 0);
+      imu_measurements->resize(Eigen::NoChange, 0);
+      return QueryResult::kQueueShutdown;
+    }
 
-      // Check if we hit the max. time allowed to wait for the required data.
-      int64_t total_elapsed_time_nanoseconds =
-          aslam::time::nanoSecondsSinceEpoch() - time_start;
-      if (total_elapsed_time_nanoseconds >= wait_timeout_nanoseconds) {
-        imu_timestamps->resize(Eigen::NoChange, 0);
-        imu_measurements->resize(Eigen::NoChange, 0);
-        LOG(WARNING) << "Timeout reached while trying to get the requested "
-                     << "IMU data. Requested range: " << timestamp_ns_from
-                     << " to " << timestamp_ns_to << ".";
-        if (query_result == QueryResult::kDataNotYetAvailable) {
-          LOG(WARNING) << "The relevant IMU data is not yet available.";
-        } else if (query_result == QueryResult::kDataNeverAvailable) {
-          LOG(WARNING) << "The relevant IMU data will never be available. "
-                       << "Either the buffer is too small or a sync issue "
-                       << "occurred.";
-        } else {
-          LOG(FATAL) << "Unknown query result error.";
-        }
-        return query_result;
+    // Check if we hit the max. time allowed to wait for the required data.
+    int64_t total_elapsed_time_nanoseconds =
+        aslam::time::nanoSecondsSinceEpoch() - time_start;
+    if (total_elapsed_time_nanoseconds >= wait_timeout_nanoseconds) {
+      imu_timestamps->resize(Eigen::NoChange, 0);
+      imu_measurements->resize(Eigen::NoChange, 0);
+      LOG(WARNING) << "Timeout reached while trying to get the requested "
+                   << "IMU data. Requested range: " << timestamp_ns_from
+                   << " to " << timestamp_ns_to << ".";
+      if (query_result == QueryResult::kDataNotYetAvailable) {
+        LOG(WARNING) << "The relevant IMU data is not yet available.";
+      } else if (query_result == QueryResult::kDataNeverAvailable) {
+        LOG(WARNING) << "The relevant IMU data will never be available. "
+                     << "Either the buffer is too small or a sync issue "
+                     << "occurred.";
+      } else {
+        LOG(FATAL) << "Unknown query result error.";
       }
+      return query_result;
     }
   }
+
   statistics::StatsCollector imu_pop_time("Wait time for IMU data [ms]");
   imu_pop_time.AddSample(
       aslam::time::to_milliseconds(total_elapsed_time_nanoseconds));
-  return getImuDataInterpolatedBorders(
+  return getImuDataInterpolatedBordersImpl(
       timestamp_ns_from, timestamp_ns_to, imu_timestamps, imu_measurements);
 }
 

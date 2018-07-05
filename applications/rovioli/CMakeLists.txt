@@ -56,7 +56,7 @@ catkin_add_gtest(test_vio_update_builder test/test-vio-update-builder.cc)
 target_link_libraries(test_vio_update_builder ${PROJECT_NAME}_lib)
 
 execute_process(COMMAND tar -xzf ${MAPLAB_TEST_DATA_DIR}/end_to_end_test/end_to_end_test.tar.gz)
-catkin_add_nosetests(test/end-to-end-test.py)
+catkin_add_nosetests(test/end_to_end_test.py)
 
 ############
 ## EXPORT ##

@@ -9,10 +9,11 @@
 #include <vi-map/vi-map.h>
 
 namespace map_sparsification_plugin {
+
 int keyframeMapBasedOnHeuristics(
     const map_sparsification::KeyframingHeuristicsOptions& options,
     const vi_map::MissionId& mission_id,
-    visualization::ViwlsGraphRvizPlotter* plotter, vi_map::VIMap* map);
+    const visualization::ViwlsGraphRvizPlotter* plotter, vi_map::VIMap* map);
 
 }  // namespace map_sparsification_plugin
 #endif  // MAP_SPARSIFICATION_PLUGIN_KEYFRAME_PRUNING_H_

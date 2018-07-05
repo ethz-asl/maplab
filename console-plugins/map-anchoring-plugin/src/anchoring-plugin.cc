@@ -120,8 +120,8 @@ int AnchoringPlugin::anchorMission() const {
   }
 
   map_anchoring::anchorMission(mission_id, map.get());
-  if (plotter_ != nullptr) {
-    plotter_->visualizeMap(*map);
+  if (hasPlotter()) {
+    getPlotter().visualizeMap(*map);
   }
 
   return common::kSuccess;
@@ -137,8 +137,8 @@ int AnchoringPlugin::anchorAllMissions() const {
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
   const bool success = map_anchoring::anchorAllMissions(map.get());
-  if (plotter_ != nullptr) {
-    plotter_->visualizeMap(*map);
+  if (hasPlotter()) {
+    getPlotter().visualizeMap(*map);
   }
 
   return success ? common::kSuccess : common::kUnknownError;

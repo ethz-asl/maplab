@@ -1,0 +1,14 @@
+v: 1
+alsologtostderr: true
+log_dir: <DATASET_LOG_DIR>
+ncamera_calibration: <BAG_FOLDER>/ncamera-euroc.yaml
+imu_parameters_maplab: <BAG_FOLDER>/imu-adis16488.yaml
+datasource_rosbag: <BAG_FILENAME>
+save_map_folder: <OUTPUT_MAP_FOLDER>
+datasource_type: rosbag
+optimize_map_to_localization_map: false
+map_builder_save_image_as_resources: false
+lc_use_random_pnp_seed: false
+rovio_enable_frame_visualization: false
+vio_localization_map_folder: <JOB_DIR>/../../MH_02_easy_summary_map
+export_estimated_poses_to_csv: <DATASET_LOG_DIR>/trajectory_rovioli.csv

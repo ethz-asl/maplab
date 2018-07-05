@@ -16,6 +16,10 @@ if [[ $(uname) == "Linux" ]]; then
     # Ubuntu 16.04 / ROS Kinetic.
     sudo apt-get install -y clang-format-3.8 ros-kinetic-camera-info-manager* \
       ros-kinetic-octomap-ros
+  elif lsb_release -c 2> /dev/null | grep bionic > /dev/null ; then
+    # Ubuntu 18.04 / ROS Melodic.
+    sudo apt-get install -y clang-format-6.0 ros-melodic-camera-info-manager* \
+      ros-melodic-octomap
   else
     echo "Unknown Ubuntu version. Couldn't install all necessary dependencies."
   fi

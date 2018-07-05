@@ -152,8 +152,8 @@ void MakeProductVocabularies(
     const Eigen::MatrixXf& base_vocabulary,
     Eigen::MatrixXf* product_vocabulary) {
   CHECK_NOTNULL(product_vocabulary);
-  Aligned<std::vector, DescriptorVector> descriptors_v1;
-  descriptors_v1.resize(base_vocabulary.cols());
+  Aligned<std::vector, DescriptorVector> residuals;
+  residuals.resize(base_vocabulary.cols());
 
   for (const ProjectedDescriptorType& projected_descriptor :
        input_descriptors) {
@@ -167,7 +167,10 @@ void MakeProductVocabularies(
         best_word = i;
       }
     }
-    descriptors_v1[best_word].push_back(projected_descriptor);
+    // Calculate the residual w.r.t. to the closest vocabulary word.
+    ProjectedDescriptorType descriptor_residual =
+        projected_descriptor - base_vocabulary.col(best_word);
+    residuals[best_word].push_back(descriptor_residual);
   }
 
   const int kHalfDescriptorLength = FLAGS_lc_target_dimensionality / 2;
@@ -189,7 +192,7 @@ void MakeProductVocabularies(
   int num_components_stored = 0;
   const unsigned int num_descriptors_per_training = num_pq_words * 200u;
 
-  for (const DescriptorVector& word_descriptors : descriptors_v1) {
+  for (const DescriptorVector& word_descriptors : residuals) {
     for (int component = 0;
          component < FLAGS_lc_product_quantization_num_components;
          ++component) {

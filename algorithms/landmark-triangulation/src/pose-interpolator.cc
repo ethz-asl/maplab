@@ -83,19 +83,14 @@ void PoseInterpolator::buildListOfAllRequiredIMUMeasurements(
         interpolated_measurement.timestamp, interpolated_measurement);
   }
 
-  imu_buffer.lockContainer();
-  const ImuMeasurementBuffer::BufferType& buffered_values =
-      imu_buffer.buffered_values();
-
-  imu_timestamps->resize(Eigen::NoChange, buffered_values.size());
-  imu_data->resize(Eigen::NoChange, buffered_values.size());
+  imu_timestamps->resize(Eigen::NoChange, imu_buffer.size());
+  imu_data->resize(Eigen::NoChange, imu_buffer.size());
   int index = 0;
-  for (const buffer_value_type& value : buffered_values) {
+  for (const buffer_value_type& value : imu_buffer) {
     (*imu_timestamps)(0, index) = value.second.timestamp;
     imu_data->col(index) = value.second.imu_measurement;
     ++index;
   }
-  imu_buffer.unlockContainer();
 }
 
 void PoseInterpolator::computeRequestedPosesInRange(
@@ -167,10 +162,9 @@ void PoseInterpolator::computeRequestedPosesInRange(
       current_state.head<kStateOrientationBlockSize>();
   state_linearization_point_begin.p_M_I =
       current_state.segment<kPositionBlockSize>(kStatePositionOffset);
-  constexpr bool kEmitWarningIfValuesOverwritten = false;
   state_buffer->addValue(
       state_linearization_point_begin.timestamp,
-      state_linearization_point_begin, kEmitWarningIfValuesOverwritten);
+      state_linearization_point_begin);
 
   // Now compute all the integrated values.
   for (int i = 0; i < imu_data.cols() - 1; ++i) {

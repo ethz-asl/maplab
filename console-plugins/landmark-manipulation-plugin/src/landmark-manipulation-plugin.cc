@@ -50,9 +50,21 @@ int LandmarkManipulationPlugin::retriangulateLandmarks() {
   vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
-  const bool success =
-      landmark_triangulation::retriangulateLandmarks(map.get());
-  return (success ? common::kSuccess : common::kUnknownError);
+
+  vi_map::MissionIdList mission_ids;
+  if (!FLAGS_map_mission.empty()) {
+    vi_map::MissionId mission_id;
+    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
+    if (!mission_id.isValid()) {
+      return common::kStupidUserError;
+    }
+    mission_ids.emplace_back(mission_id);
+  } else {
+    map->getAllMissionIds(&mission_ids);
+  }
+
+  landmark_triangulation::retriangulateLandmarks(mission_ids, map.get());
+  return common::kSuccess;
 }
 
 int LandmarkManipulationPlugin::evaluateLandmarkQuality() {
@@ -65,7 +77,20 @@ int LandmarkManipulationPlugin::evaluateLandmarkQuality() {
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
 
-  vi_map_helpers::evaluateLandmarkQuality(map.get());
+  vi_map::MissionIdList mission_ids_to_process;
+  if (!FLAGS_map_mission.empty()) {
+    vi_map::MissionId mission_id;
+    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
+    if (!mission_id.isValid()) {
+      return common::kStupidUserError;
+    } else {
+      mission_ids_to_process.emplace_back(mission_id);
+    }
+  } else {
+    map->getAllMissionIds(&mission_ids_to_process);
+  }
+
+  vi_map_helpers::evaluateLandmarkQuality(mission_ids_to_process, map.get());
   return common::kSuccess;
 }
 
@@ -79,7 +104,21 @@ int LandmarkManipulationPlugin::resetLandmarkQualityToUnknown() {
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
 
-  vi_map_helpers::resetLandmarkQualityToUnknown(map.get());
+  vi_map::MissionIdList mission_ids_to_process;
+  if (!FLAGS_map_mission.empty()) {
+    vi_map::MissionId mission_id;
+    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
+    if (!mission_id.isValid()) {
+      return common::kStupidUserError;
+    } else {
+      mission_ids_to_process.emplace_back(mission_id);
+    }
+  } else {
+    map->getAllMissionIds(&mission_ids_to_process);
+  }
+
+  vi_map_helpers::resetLandmarkQualityToUnknown(
+      mission_ids_to_process, map.get());
   return common::kSuccess;
 }
 
@@ -108,19 +147,18 @@ int LandmarkManipulationPlugin::initTrackLandmarks() {
 
   size_t mission_idx = 0u;
   vi_map_helpers::VIMapManipulation manipulation(map.get());
-  bool success = true;
   for (const vi_map::MissionId& mission_id : mission_ids_to_process) {
     VLOG(1) << "Processing mission " << mission_idx + 1 << " of "
             << mission_ids_to_process.size();
     const size_t num_new_landmarks =
         manipulation.initializeLandmarksFromUnusedFeatureTracksOfMission(
             mission_id);
-    success &= landmark_triangulation::retriangulateLandmarksOfMission(
+    landmark_triangulation::retriangulateLandmarksOfMission(
         mission_id, map.get());
     VLOG(1) << "Initialized " << num_new_landmarks << " new landmarks.";
     ++mission_idx;
   }
-  return (success ? common::kSuccess : common::kUnknownError);
+  return common::kSuccess;
 }
 
 int LandmarkManipulationPlugin::removeBadLandmarks() {

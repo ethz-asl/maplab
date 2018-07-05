@@ -73,8 +73,50 @@ void SensorManager::associateExistingOptionalNCameraWithMission(
       << '.';
 }
 
+void SensorManager::removeSensorFromMission(
+    const SensorId& sensor_id, const vi_map::MissionId& mission_id) {
+  CHECK(sensor_id.isValid());
+  CHECK(mission_id.isValid());
+  CHECK(hasSensor(sensor_id));
+
+  typedef AlignedUnorderedMap<MissionId, SensorIdSet> MissionIdToSensorIdSet;
+  const MissionIdToSensorIdSet::iterator it_mission_to_sensors =
+      mission_id_to_sensors_map_.find(mission_id);
+  CHECK(it_mission_to_sensors != mission_id_to_sensors_map_.cend());
+  SensorIdSet& sensor_ids_associated_with_mission =
+      it_mission_to_sensors->second;
+  CHECK_GT(sensor_ids_associated_with_mission.count(sensor_id), 0u);
+
+  // Build inverse map from sensor id to associated mission ids.
+  typedef std::unordered_map<SensorId, MissionIdSet> SensorIdToMissionIdSet;
+  SensorIdToMissionIdSet sensor_to_missions_map;
+  for (const MissionIdToSensorIdSet::value_type& mission_id_to_sensor_set :
+       mission_id_to_sensors_map_) {
+    for (const SensorId& sensor_id : mission_id_to_sensor_set.second) {
+      sensor_to_missions_map[sensor_id].emplace(mission_id_to_sensor_set.first);
+    }
+  }
+
+  SensorIdToMissionIdSet::const_iterator sensor_to_mission_it =
+      sensor_to_missions_map.find(sensor_id);
+  CHECK(sensor_to_mission_it != sensor_to_missions_map.cend());
+  CHECK_GT(sensor_to_mission_it->second.count(mission_id), 0u);
+  if (sensor_to_mission_it->second.size() == 1u) {
+    sensors_.erase(sensor_id);
+    it_mission_to_sensors->second.erase(sensor_id);
+    if (sensor_system_ && sensor_system_->hasSensor(sensor_id)) {
+      CHECK_NE(sensor_id, sensor_system_->getReferenceSensorId())
+          << "Attempting to remove the reference sensor from the sensor "
+          << "system. In this case, the entire sensor system must be removed. "
+          << "This case is not supported.";
+      sensor_system_->removeSensor(sensor_id);
+    }
+  }
+}
+
 void SensorManager::removeAllSensorsAssociatedToMission(
     const vi_map::MissionId& mission_id) {
+  CHECK(mission_id.isValid());
   typedef AlignedUnorderedMap<MissionId, SensorIdSet> MissionIdToSensorIdSet;
   const MissionIdToSensorIdSet::const_iterator it_mission_to_sensors =
       mission_id_to_sensors_map_.find(mission_id);
@@ -97,7 +139,15 @@ void SensorManager::removeAllSensorsAssociatedToMission(
           sensor_id_to_mission_id_set.second;
       if (mission_ids_for_sensor.size() == 1u &&
           mission_id == *mission_ids_for_sensor.cbegin()) {
-        sensors_.erase(sensor_id_to_mission_id_set.first);
+        const SensorId& sensor_id = sensor_id_to_mission_id_set.first;
+        sensors_.erase(sensor_id);
+        if (sensor_system_ && sensor_system_->hasSensor(sensor_id)) {
+          CHECK_NE(sensor_id, sensor_system_->getReferenceSensorId())
+              << "Attempting to remove the reference sensor from the sensor "
+              << "system. In this case, the entire sensor system must be "
+              << "removed. This case is not supported.";
+          sensor_system_->removeSensor(sensor_id);
+        }
       }
     }
 

@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>maplab_evaluation</name>
+  <version>0.0.0</version>
+  <description>The maplab_evaluation package</description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>end_to_end_common</depend>
+  <depend>evaluation_tools</depend>
+  <!--
+       Depending on the experiment, this also requires the maplab console, the
+       console plugins, and an estimator (e.g. rovioli) to be around.
+   -->
+</package>

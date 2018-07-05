@@ -25,8 +25,7 @@ struct KeyframingHeuristicsOptions {
 // between the begin and end vertex. It is assumed that the begin vertex
 // is a keyframe but the last is not necessarily a keyframe.
 size_t selectKeyframesBasedOnHeuristics(
-    const vi_map::VIMap& map,
-    const pose_graph::VertexId& last_keyframe_id,
+    const vi_map::VIMap& map, const pose_graph::VertexId& start_keyframe_id,
     const pose_graph::VertexId& end_vertex_id,
     const KeyframingHeuristicsOptions& options,
     std::vector<pose_graph::VertexId>* selected_keyframes);

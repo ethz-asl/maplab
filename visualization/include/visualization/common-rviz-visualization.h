@@ -9,6 +9,7 @@
 #include <Eigen/Core>
 #include <aslam/common/pose-types.h>
 #include <maplab-common/macros.h>
+#include <pcl_ros/point_cloud.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <visualization_msgs/Marker.h>
 
@@ -114,6 +115,30 @@ void publishTransformations(
     const std::string& frame, const std::string& name_space,
     const std::string& topic);
 
+template <typename PointType>
+void publishPointCloud(
+    const pcl::PointCloud<PointType>& point_cloud, const std::string& frame,
+    const std::string& topic) {
+  CHECK(!topic.empty());
+
+  CHECK(ros::isInitialized())
+      << "ROS hasn't been initialized. Call "
+      << "RVizVisualizationSink::init() in your application code if you intend"
+      << " to use RViz visualizations.";
+
+  sensor_msgs::PointCloud2 point_cloud2;
+  pcl::toROSMsg(point_cloud, point_cloud2);
+
+  point_cloud2.header.frame_id = frame;
+  point_cloud2.header.stamp = ros::Time::now();
+
+  RVizVisualizationSink::publish<sensor_msgs::PointCloud2>(topic, point_cloud2);
+}
+
+void publishSpheresAsPointCloud(
+    const SphereVector& spheres, const std::string& frame,
+    const std::string& topic);
+
 void deleteMarker(const std::string& topic, size_t marker_id);
 
 ///////////////////////
@@ -133,7 +158,8 @@ void eigen3XdMatrixToPointCloud(
 void eigen3XdMatrixToPointCloud(
     const Eigen::Matrix3Xd& points, sensor_msgs::PointCloud2* point_cloud);
 void spheresToPointCloud(
-    const SphereVector& spheres, sensor_msgs::PointCloud2* point_cloud);
+    const SphereVector& spheres, sensor_msgs::PointCloud2* point_cloud,
+    const std::string& frame, const std::string& topic);
 
 }  // namespace visualization
 

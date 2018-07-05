@@ -1,0 +1,97 @@
+## Global parameters ##
+# Name
+experiment_name: merge_euroc_machine_hall_no_localization
+description: Runs ROVIOLI on euroc datasets (without localization), then all
+    maps are loaded into maplab and merged and optimized together.
+
+# Executable
+app_package_name: rovioli
+app_executable: rovioli
+
+# Calibration
+sensors_file: calibration_euroc
+
+## Evaluation space parameters ##
+# Parameters
+parameter_files:
+ - rovioli_parameters.yaml
+
+# Datasets
+create_job_for_each_dataset: false
+datasets:
+  - name: MH_01_easy
+    additional_parameters: &additional_parameters
+      ground_truth_csv: <BAG_FOLDER>/ground_truth.csv
+      max_allowed_errors:
+        - &rovioli_errors
+          label: rovioli
+          max_position_rmse_m: 0.7  # High value for MH_03.
+          max_orientation_rmse_rad: 0.1
+        - &optvi_errors
+          label: optvi_and_merge
+          max_position_rmse_m: 0.15
+          max_orientation_rmse_rad: 0.05
+          better_than:
+            - label: rovioli
+        - &optvi_merge_and_optvi_errors
+          label: optvi_merge_and_optvi
+          max_position_rmse_m: 0.05
+          max_orientation_rmse_rad: 0.05
+          better_than:
+            - label: optvi_and_merge
+  - name: MH_02_easy
+    additional_parameters:
+      <<: *additional_parameters
+      ground_truth_csv: <BAG_FOLDER>/ground_truth.csv
+  - name: MH_03_medium
+    additional_parameters:
+      <<: *additional_parameters
+      ground_truth_csv: <BAG_FOLDER>/ground_truth.csv
+
+console_commands:
+  - load --map_folder <OUTPUT_MAP_FOLDER_0> --map_key <OUTPUT_MAP_KEY_0>
+  - rtl
+  # Keyframing is suboptimal as it reduces the number of vertices in the map
+  # and therefore the precision of the computed trajectory error. It is
+  # necessary because the optimization would take too long otherwise.
+  - kfh
+  - relax --ba_num_iterations 10 --lc_use_random_pnp_seed=false
+  - lc --lc_use_random_pnp_seed=false
+  - optvi --ba_num_iterations 10
+  - load --map_folder <OUTPUT_MAP_FOLDER_1> --map_key <OUTPUT_MAP_KEY_1>
+  - rtl
+  - kfh
+  - relax --ba_num_iterations 10 --lc_use_random_pnp_seed=false
+  - lc --lc_use_random_pnp_seed=false
+  - optvi --ba_num_iterations 10
+  - load --map_folder <OUTPUT_MAP_FOLDER_2> --map_key <OUTPUT_MAP_KEY_2>
+  - rtl
+  - kfh
+  - relax --ba_num_iterations 10 --lc_use_random_pnp_seed=false
+  - lc --lc_use_random_pnp_seed=false
+  - optvi --ba_num_iterations 10
+  - export_mission_info --mission_info_export_path <JOB_DIR>/mission_info.yaml
+  - join_all_maps --target_map_key euroc_mh_merged
+  - csv_export_vertices_only --csv_export_path <JOB_DIR>/csv/optvi_and_merge
+  - sbk
+  - aam
+  - csv_export_vertices_only --csv_export_path <JOB_DIR>/csv/relax
+  - lc --lc_use_random_pnp_seed=false
+  - evaluate_landmark_quality
+  - optvi --ba_num_iterations 10
+  - evaluate_landmark_quality
+  - lc --lc_use_random_pnp_seed=false
+  - evaluate_landmark_quality
+  - optvi --ba_num_iterations 10
+  - csv_export_vertices_only --csv_export_path <JOB_DIR>/csv/optvi_merge_and_optvi
+  # Save summary map in results root folder so that they can be accessed from
+  # other tests.
+  # - generate_summary_map_and_save_to_disk --summary_map_save_path <JOB_DIR>/../../euroc_mh_merged_summary_map
+
+# Evaluation scripts
+evaluation_scripts:
+  - package: maplab_evaluation
+    name: ground_truth_trajectory_evaluation.py
+    arguments:
+      csv_base_folder: csv
+      mission_info_file: <JOB_DIR>/mission_info.yaml

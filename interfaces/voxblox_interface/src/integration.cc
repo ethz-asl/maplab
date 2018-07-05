@@ -54,7 +54,7 @@ void integrateAllLandmarks(
       const pose::Transformation T_G_C = T_G_I * T_C_I.inverse();
 
       // Add all landmarks to the voxblox pointcloud.
-      pose::Position3DVector landmarks_C;
+      voxblox::Pointcloud landmarks_C;
       for (const vi_map::LandmarkId& landmark_id : landmark_id_list) {
         if (!landmark_id.isValid()) {
           continue;
@@ -69,7 +69,7 @@ void integrateAllLandmarks(
         }
         pose::Position3D landmark_C = static_cast<pose::Position3D>(
             T_C_I * vi_map.getLandmark_p_I_fi(landmark_id, vertex));
-        landmarks_C.emplace_back(landmark_C);
+        landmarks_C.emplace_back(landmark_C.cast<voxblox::FloatingPoint>());
       }
 
       // Integrate the landmarks.
@@ -81,7 +81,7 @@ void integrateAllLandmarks(
 }
 
 void integratePointCloud(
-    const pose::Transformation& T_G_C, const pose::Position3DVector& points_C,
+    const pose::Transformation& T_G_C, const voxblox::Pointcloud& points_C,
     voxblox::TsdfIntegratorBase* tsdf_integrator) {
   CHECK_NOTNULL(tsdf_integrator);
   voxblox::Colors empty_colors;
@@ -94,7 +94,7 @@ void integratePointCloud(
     voxblox::TsdfIntegratorBase* tsdf_integrator) {
   CHECK_NOTNULL(tsdf_integrator);
 
-  pose::Position3DVector tmp_points_C;
+  voxblox::Pointcloud tmp_points_C;
   voxblox::Colors tmp_colors;
 
   resources::VoxbloxColorPointCloud voxblox_point_cloud;
@@ -106,13 +106,16 @@ void integratePointCloud(
 }
 
 void integrateColorPointCloud(
-    const pose::Transformation& T_G_C, const pose::Position3DVector& points_C,
+    const pose::Transformation& T_G_C, const voxblox::Pointcloud& points_C,
     const voxblox::Colors& colors,
     voxblox::TsdfIntegratorBase* tsdf_integrator) {
   CHECK_NOTNULL(tsdf_integrator);
-  tsdf_integrator->integratePointCloud(
-      static_cast<voxblox::Transformation>(T_G_C),
-      static_cast<voxblox::Pointcloud>(points_C), colors);
+
+  const Eigen::Matrix<voxblox::FloatingPoint, 4, 4> T_G_C_mat =
+      T_G_C.getTransformationMatrix().cast<voxblox::FloatingPoint>();
+  voxblox::Transformation T_G_C_voxblox(T_G_C_mat);
+
+  tsdf_integrator->integratePointCloud(T_G_C_voxblox, points_C, colors);
 }
 
 void integrateDepthMap(
@@ -120,15 +123,18 @@ void integrateDepthMap(
     const aslam::Camera& camera, voxblox::TsdfIntegratorBase* tsdf_integrator) {
   CHECK_NOTNULL(tsdf_integrator);
 
-  pose::Position3DVector point_cloud;
+  voxblox::Pointcloud point_cloud;
   backend::convertDepthMapToPointCloud(depth_map, camera, &point_cloud);
 
   voxblox::Colors empty_colors;
   empty_colors.resize(point_cloud.size());
 
+  const Eigen::Matrix<voxblox::FloatingPoint, 4, 4> T_G_C_mat =
+      T_G_C.getTransformationMatrix().cast<voxblox::FloatingPoint>();
+  voxblox::Transformation T_G_C_voxblox(T_G_C_mat);
+
   tsdf_integrator->integratePointCloud(
-      static_cast<voxblox::Transformation>(T_G_C),
-      static_cast<voxblox::Pointcloud>(point_cloud), empty_colors);
+      T_G_C_voxblox, point_cloud, empty_colors);
 }
 
 void integrateDepthMap(
@@ -137,14 +143,16 @@ void integrateDepthMap(
     voxblox::TsdfIntegratorBase* tsdf_integrator) {
   CHECK_NOTNULL(tsdf_integrator);
 
-  pose::Position3DVector point_cloud;
+  voxblox::Pointcloud point_cloud;
   voxblox::Colors colors;
   backend::convertDepthMapWithImageToPointCloud(
       depth_map, image, camera, &point_cloud, &colors);
 
-  tsdf_integrator->integratePointCloud(
-      static_cast<voxblox::Transformation>(T_G_C),
-      static_cast<voxblox::Pointcloud>(point_cloud), colors);
+  const Eigen::Matrix<voxblox::FloatingPoint, 4, 4> T_G_C_mat =
+      T_G_C.getTransformationMatrix().cast<voxblox::FloatingPoint>();
+  voxblox::Transformation T_G_C_voxblox(T_G_C_mat);
+
+  tsdf_integrator->integratePointCloud(T_G_C_voxblox, point_cloud, colors);
 }
 
 bool integrateAllFrameDepthResourcesOfType(
@@ -159,7 +167,7 @@ bool integrateAllFrameDepthResourcesOfType(
       << backend::ResourceTypeNames[static_cast<int>(input_resource_type)];
 
   // Init Voxblox map and integrator.
-  voxblox::MergedTsdfIntegrator tsdf_integrator(
+  voxblox::FastTsdfIntegrator tsdf_integrator(
       integrator_config, tsdf_map->getTsdfLayerPtr());
 
   // Start integration.
@@ -311,15 +319,3 @@ bool integrateAllDepthResourcesOfType(
 }
 
 }  // namespace voxblox_interface
-
-void staticTypeAssertions() {
-  static_assert(
-      std::is_same<voxblox::Point, pose::Position3D>::value,
-      "Voxblox 3D points and maplab 3D points are not the same!");
-  static_assert(
-      std::is_same<voxblox::Pointcloud, pose::Position3DVector>::value,
-      "Voxblox 3D point vectors and maplab 3D point vectors are not the same!");
-  static_assert(
-      std::is_same<voxblox::Transformation, pose::Transformation>::value,
-      "Voxblox transformations and maplab transformations are not the same!");
-}

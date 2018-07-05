@@ -31,7 +31,7 @@ bool convertDepthMapToPointCloud(
 
 bool convertDepthMapToPointCloud(
     const cv::Mat& depth_map, const aslam::Camera& camera,
-    pose::Position3DVector* point_cloud);
+    voxblox::Pointcloud* point_cloud);
 
 bool convertDepthMapWithImageToPointCloud(
     const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
@@ -39,7 +39,7 @@ bool convertDepthMapWithImageToPointCloud(
 
 bool convertDepthMapWithImageToPointCloud(
     const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
-    pose::Position3DVector* points_C, voxblox::Colors* colors);
+    voxblox::Pointcloud* points_C, voxblox::Colors* colors);
 
 // In maplab we usually store the camera with the full distortion model, however
 // the images that correspond to the depth maps are usually computed from

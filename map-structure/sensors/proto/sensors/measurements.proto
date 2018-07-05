@@ -7,6 +7,11 @@ message Measurement {
   optional common.proto.Id sensor_id = 2;
 }
 
+message ImuMeasurement {
+  optional Measurement measurement_base = 1;
+  repeated double I_accel_xyz_m_s2_gyro_xyz_rad_s = 2;
+}
+
 message GpsWgsMeasurement {
   optional Measurement measurement_base = 1;
   optional double latitude_deg = 2;

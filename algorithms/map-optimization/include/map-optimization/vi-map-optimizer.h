@@ -21,7 +21,7 @@ namespace map_optimization {
 class VIMapOptimizer {
  public:
   VIMapOptimizer(
-      visualization::ViwlsGraphRvizPlotter* plotter,
+      const visualization::ViwlsGraphRvizPlotter* plotter,
       bool signal_handler_enabled);
 
   bool optimizeVisualInertial(
@@ -40,7 +40,7 @@ class VIMapOptimizer {
       vi_map::VIMap* map);
 
  private:
-  visualization::ViwlsGraphRvizPlotter* plotter_;
+  const visualization::ViwlsGraphRvizPlotter* plotter_;
   bool signal_handler_enabled_;
 };
 

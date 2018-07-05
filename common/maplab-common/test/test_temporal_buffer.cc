@@ -225,30 +225,42 @@ TEST_F(TemporalBufferFixture, GetValuesBetweenTimesWorks) {
 
   // Test aligned borders.
   std::vector<TestData> values;
-  ASSERT_TRUE(buffer_.getValuesBetweenTimes(10, 50, &values));
+  buffer_.getValuesBetweenTimes(10, 50, &values);
   ASSERT_EQ(values.size(), 3u);
   EXPECT_EQ(values[0].timestamp, 20);
   EXPECT_EQ(values[1].timestamp, 30);
   EXPECT_EQ(values[2].timestamp, 40);
 
   // Test unaligned borders.
-  ASSERT_TRUE(buffer_.getValuesBetweenTimes(15, 45, &values));
+  buffer_.getValuesBetweenTimes(15, 45, &values);
   ASSERT_EQ(values.size(), 3u);
   EXPECT_EQ(values[0].timestamp, 20);
   EXPECT_EQ(values[1].timestamp, 30);
   EXPECT_EQ(values[2].timestamp, 40);
 
-  // Test unsuccessful queries.
-  // Lower border oob.
-  ASSERT_FALSE(buffer_.getValuesBetweenTimes(5, 45, &values));
-  // Higher border oob.
-  ASSERT_FALSE(buffer_.getValuesBetweenTimes(30, 55, &values));
+  // Test lower than first item.
+  buffer_.getValuesBetweenTimes(5, 45, &values);
+  ASSERT_EQ(values.size(), 4u);
+  EXPECT_EQ(values[0].timestamp, 10);
+  EXPECT_EQ(values[1].timestamp, 20);
+  EXPECT_EQ(values[2].timestamp, 30);
+  EXPECT_EQ(values[3].timestamp, 40);
+
+  // Test higher than last item.
+  buffer_.getValuesBetweenTimes(30, 55, &values);
+  ASSERT_EQ(values.size(), 2u);
+  EXPECT_EQ(values[0].timestamp, 40);
+  EXPECT_EQ(values[1].timestamp, 50);
+
+  // Return empty list if there none in the buffer.
+  buffer_.clear();
+  buffer_.getValuesBetweenTimes(10, 50, &values);
   EXPECT_TRUE(values.empty());
 
-  // The method should check-fail when the buffer is empty.
-  buffer_.clear();
-  ASSERT_FALSE(buffer_.getValuesBetweenTimes(10, 50, &values));
-  EXPECT_DEATH(buffer_.getValuesBetweenTimes(40, 30, &values), "^");
+  // Expect check-fail when the lower query timestamp is higher than the
+  // higher query timestamp.
+  EXPECT_DEATH(buffer_.getValuesBetweenTimes(40, 30, &values), "");
+  EXPECT_TRUE(values.empty());
 }
 
 TEST_F(TemporalBufferFixture, MaintaingBufferLengthWorks) {

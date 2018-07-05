@@ -28,7 +28,6 @@ class ImuMeasurementBuffer {
   MAPLAB_POINTER_TYPEDEFS(ImuMeasurementBuffer);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-
   enum class QueryResult {
     /// Query was successful and the data is available.
     kDataAvailable,
@@ -99,6 +98,11 @@ class ImuMeasurementBuffer {
   /// caller must hold the lock.
   QueryResult isDataAvailableUpToImpl(
       int64_t timestamp_ns_from, int64_t timestamp_ns_to) const;
+
+  QueryResult getImuDataInterpolatedBordersImpl(
+      int64_t timestamp_ns_from, int64_t timestamp_ns_to,
+      Eigen::Matrix<int64_t, 1, Eigen::Dynamic>* imu_timestamps,
+      Eigen::Matrix<double, 6, Eigen::Dynamic>* imu_measurements) const;
 
   typedef std::pair<int64_t, vio::ImuMeasurement> BufferElement;
   typedef Eigen::aligned_allocator<BufferElement> BufferAllocator;

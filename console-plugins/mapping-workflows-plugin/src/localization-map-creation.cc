@@ -61,7 +61,7 @@ int processVIMapToLocalizationMap(
 
   // Evaluate the quality of landmarks after keyframing the map.
   FLAGS_vi_map_landmark_quality_min_observers = 2;
-  vi_map_helpers::evaluateLandmarkQuality(map);
+  vi_map_helpers::evaluateLandmarkQuality(mission_ids, map);
 
   // Common options for the subsequent optimizations.
   ceres::Solver::Options solver_options =

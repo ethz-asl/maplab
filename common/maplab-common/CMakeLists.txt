@@ -26,7 +26,6 @@ cs_add_library(${PROJECT_NAME} src/binary-serialization.cc
                                src/combinatorial.cc
                                src/condition.cc
                                src/cubic-spline.cc
-                               src/delayed-notification.cc
                                src/feature-descriptor-ref.cc
                                src/file-lock.cc
                                src/file-logger.cc
@@ -70,10 +69,6 @@ target_link_libraries(test_bidirectional_map ${PROJECT_NAME})
 catkin_add_gtest(test_fixed_size_queue
     test/test_fixed_size_queue.cc)
 target_link_libraries(test_fixed_size_queue ${PROJECT_NAME})
-
-catkin_add_gtest(test_delayed_notification_test
-                 test/test_delayed_notification.cc)
-target_link_libraries(test_delayed_notification_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_eigen_proto_test
   test/test_eigen_proto_test.cc)
@@ -154,9 +149,14 @@ catkin_add_gtest(test_string_tools
   test/test_string_tools.cc)
 target_link_libraries(test_string_tools ${PROJECT_NAME})
 
+catkin_add_gtest(test_threadsafe_temporal_buffer
+  test/test-threadsafe-temporal-buffer.cc)
+target_link_libraries(test_threadsafe_temporal_buffer ${PROJECT_NAME})
+
 catkin_add_gtest(test_thread_safe_queue
   test/test_threadsafe_queue.cc)
 target_link_libraries(test_thread_safe_queue ${PROJECT_NAME})
+
 
 catkin_add_gtest(test_threaded_task_queue_processor
   test/test-threaded-task-queue-processor.cc)

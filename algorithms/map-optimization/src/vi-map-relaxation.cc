@@ -21,7 +21,8 @@ class ViwlsGraphRvizPlotter;
 namespace map_optimization {
 
 VIMapRelaxation::VIMapRelaxation(
-    visualization::ViwlsGraphRvizPlotter* plotter, bool signal_handler_enabled)
+    const visualization::ViwlsGraphRvizPlotter* plotter,
+    bool signal_handler_enabled)
     : plotter_(plotter), signal_handler_enabled_(signal_handler_enabled) {}
 
 void VIMapRelaxation::visualizePosegraph(const vi_map::VIMap& map) const {

@@ -1,98 +1,103 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import bisect
-import math
-import os
 
 import numpy as np
 
-from end_to_end_common.dataset_loader import csv_row_data_to_transformation
-from end_to_end_common.umeyama import umeyama
 from hand_eye_calibration.quaternion import Quaternion
 import hand_eye_calibration.time_alignment as time_alignment
 
+from end_to_end_common.dataset_loader import csv_row_data_to_transformation
+from end_to_end_common.umeyama import umeyama
+
 
 def get_cumulative_trajectory_length_for_each_point(trajectory):
-  """Returns a list of trajectory lengths up to each point in the trajectory.
-  """
-  assert trajectory.shape[1] == 3
-  num_points = trajectory.shape[0]
-  trajectory_length = np.zeros(num_points)
-  for row_idx in range(1, num_points):
-    delta = np.linalg.norm(trajectory[row_idx, :] - trajectory[row_idx - 1, :])
-    trajectory_length[row_idx] = trajectory_length[row_idx - 1] + delta
-  return trajectory_length
+    """Returns a list of trajectory lengths up to each point in the trajectory.
+    """
+    assert trajectory.shape[1] == 3
+    num_points = trajectory.shape[0]
+    trajectory_length = np.zeros(num_points)
+    for row_idx in range(1, num_points):
+        delta = np.linalg.norm(
+            trajectory[row_idx, :] - trajectory[row_idx - 1, :])
+        trajectory_length[row_idx] = trajectory_length[row_idx - 1] + delta
+    return trajectory_length
 
 
 def align_datasets(estimator_data_unaligned_G_I,
                    ground_truth_data_unaligned_W_M,
+                   estimate_scale,
                    align_data_to_use_meters=-1,
                    time_offset=0.0):
-  """Sample and align the ground truth trajectory to the estimator trajectory.
+    """Sample and align the estimator trajectory to the ground truth trajectory.
 
-  Input:
-    - estimator_data_unaligned_G_I: Unaligned estimator trajectory expressed
-          from global frame G to IMU frame I.
-    - ground_truth_data_unaligned_W_M: Unaligned ground truth data expressed
-          from ground truth world frame W (e.g. Vicon frame) to marker frame M
-          (e.g. Vicon marker). M and I should be at the same position at a given
-          time.
-    - align_data_to_use_meters: Only use data points up to a total data length
-          as given by this parameter. If a negative value is given, the
-          entire trajectory is used for the alignment.
-    - time_offset: Indicates the time offset (in seconds) between the data from
-          the bag file and the ground truth data. In the alignment, the ground
-          truth data will be shifted by this offset.
+    Input:
+      - estimator_data_unaligned_G_I: Unaligned estimator trajectory expressed
+            from global frame G to IMU frame I.
+      - ground_truth_data_unaligned_W_M: Unaligned ground truth data expressed
+            from ground truth world frame W (e.g. Vicon frame) to marker frame M
+            (e.g. Vicon marker). M and I should be at the same position at a
+            given time.
+      - estimate_scale: Estimate a scale factor in addition to the transform
+            and apply it to the aligned estimator trajectory.
+      - align_data_to_use_meters: Only use data points up to a total data length
+            as given by this parameter. If a negative value is given, the
+            entire trajectory is used for the alignment.
+      - time_offset: Indicates the time offset (in seconds) between the data
+            from the bag file and the ground truth data. In the alignment, the
+            estimator data will be shifted by this offset.
 
-  Returns:
-      Aligned estimator trajectory, aligned and sampled ground truth trajectory.
+    Returns:
+        Sampled, aligned and transformed estimator trajectory, sampled ground
+        truth.
 
-  Output data frames:
-      Estimator:      G --> I
+    Output data frames:
+        Estimator:      W --> I
 
-      Ground truth:   G --> M
-      (M and I should be at the same position.)
-  """
-  [ground_truth_data_W_M, estimator_data_G_I] = \
-      time_alignment.compute_aligned_poses(
-          ground_truth_data_unaligned_W_M, estimator_data_unaligned_G_I,
-          time_offset)
+        Ground truth:   W --> M
+        (M and I should be at the same position.)
+    """
+    [estimator_data_G_I,
+     ground_truth_data_W_M] = time_alignment.compute_aligned_poses(
+         estimator_data_unaligned_G_I, ground_truth_data_unaligned_W_M,
+         time_offset)
 
-  # Create a matrix of the right size to store aligned trajectory.
-  ground_truth_data_aligned_G_M = ground_truth_data_W_M
+    # Create a matrix of the right size to store aligned trajectory.
+    estimator_data_aligned_W_I = estimator_data_G_I
 
-  # Align trajectories (umeyama).
-  if align_data_to_use_meters < 0.0:
-    umeyama_ground_truth_W_M = ground_truth_data_W_M[:, 1:4]
-    umeyama_estimator_data_G_I = estimator_data_G_I[:, 1:4]
-  else:
-    trajectory_length = get_cumulative_trajectory_length_for_each_point(
-        ground_truth_data_W_M[:, 1:4])
-    align_num_data_points = bisect.bisect_left(trajectory_length,
-                                               align_data_to_use_meters)
-    umeyama_ground_truth_W_M = \
-        ground_truth_data_W_M[:align_num_data_points, 1:4]
-    umeyama_estimator_data_G_I = estimator_data_G_I[:align_num_data_points, 1:4]
-  R_G_W, t_G_W, scale = umeyama(umeyama_ground_truth_W_M.T,
-                                umeyama_estimator_data_G_I.T)
-  T_G_W = np.identity(4)
-  T_G_W[0:3, 0:3] = R_G_W
-  T_G_W[0:3, 3] = t_G_W
-  if abs(1 - scale) < 1e-8:
-    print "WARNING: Scale is not 1, but", scale, "\b."
+    # Align trajectories (umeyama).
+    if align_data_to_use_meters < 0.0:
+        umeyama_estimator_data_G_I = estimator_data_G_I[:, 1:4]
+        umeyama_ground_truth_W_M = ground_truth_data_W_M[:, 1:4]
+    else:
+        trajectory_length = get_cumulative_trajectory_length_for_each_point(
+            ground_truth_data_W_M[:, 1:4])
+        align_num_data_points = bisect.bisect_left(trajectory_length,
+                                                   align_data_to_use_meters)
+        umeyama_estimator_data_G_I = estimator_data_G_I[:align_num_data_points,
+                                                        1:4]
+        umeyama_ground_truth_W_M = \
+            ground_truth_data_W_M[:align_num_data_points, 1:4]
 
-  num_data_points = estimator_data_G_I.shape[0]
-  for index in range(num_data_points):
-    # Create transformations to compare.
-    T_ground_truth_G_M = np.dot(
-        T_G_W,
-        csv_row_data_to_transformation(
-            ground_truth_data_W_M[index, 1:4],
-            ground_truth_data_W_M[index, 4:8] / np.linalg.norm(
-                ground_truth_data_W_M[index, 4:8])))
-    ground_truth_data_aligned_G_M[index, 1:4] = T_ground_truth_G_M[0:3, 3]
-    q_ground_truth_G_M = Quaternion.from_rotation_matrix(
-        T_ground_truth_G_M[0:3, 0:3])
-    ground_truth_data_aligned_G_M[index, 4:8] = q_ground_truth_G_M.q
+    T_W_G, scale = umeyama(umeyama_estimator_data_G_I.T,
+                           umeyama_ground_truth_W_M.T, estimate_scale)
+    assert T_W_G.shape[0] == 4
+    assert T_W_G.shape[1] == 4
+    if abs(1.0 - scale) > 1e-5:
+        print("WARNING: Estimator scale is not 1, but ", scale, ".", end='')
 
-  return estimator_data_G_I, ground_truth_data_aligned_G_M
+    num_data_points = ground_truth_data_W_M.shape[0]
+    for index in range(num_data_points):
+        T_estimator_G_I_scaled = csv_row_data_to_transformation(
+            scale * estimator_data_G_I[index, 1:4],
+            estimator_data_G_I[index, 4:8] / np.linalg.norm(
+                estimator_data_G_I[index, 4:8]))
+        T_estimator_W_I_scaled = np.dot(T_W_G, T_estimator_G_I_scaled)
+        estimator_data_aligned_W_I[index, 1:4] = T_estimator_W_I_scaled[0:3, 3]
+        q_estimator_W_I = Quaternion.from_rotation_matrix(
+            T_estimator_W_I_scaled[0:3, 0:3])
+        estimator_data_aligned_W_I[index, 4:8] = q_estimator_W_I.q
+
+    return estimator_data_aligned_W_I, ground_truth_data_W_M

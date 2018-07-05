@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <functional>
 #include <limits>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -11,9 +12,9 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <maplab-common/parallel-process.h>
+#include <sensors/sensor.h>
 #include <tf/tf.h>
 #include <tf/transform_broadcaster.h>
-#include <sensors/sensor.h>
 #include <vi-map/vertex.h>
 #include <vi-map/viwls-edge.h>
 
@@ -80,33 +81,33 @@ DEFINE_bool(
     "traversal edges of a mission.");
 
 namespace visualization {
+const std::string ViwlsGraphRvizPlotter::kBaseframeTopic =
+    visualization::kViMapTopicHead + "_baseframe";
+const std::string ViwlsGraphRvizPlotter::kBoundingBoxTopic = "bounding_box";
+const std::string ViwlsGraphRvizPlotter::kBoxTopic = "boxes";
 const std::string ViwlsGraphRvizPlotter::kCamPredictionTopic =
     "cam_predictions";
 const std::string ViwlsGraphRvizPlotter::kEdgeTopic =
     visualization::kViMapTopicHead + "_edges";
-const std::string ViwlsGraphRvizPlotter::kBoundingBoxTopic = "bounding_box";
-const std::string ViwlsGraphRvizPlotter::kBaseframeTopic =
-    visualization::kViMapTopicHead + "_baseframe";
-const std::string ViwlsGraphRvizPlotter::kVertexTopic =
-    visualization::kViMapTopicHead + "_vertices";
-const std::string ViwlsGraphRvizPlotter::kVertexPartitioningTopic =
-    "vertex_partitioning";
-const std::string ViwlsGraphRvizPlotter::kBoxTopic = "boxes";
-const std::string ViwlsGraphRvizPlotter::kLoopclosureTopic = "loop_closures";
+const std::string ViwlsGraphRvizPlotter::kLandmarkNormalsTopic =
+    "landmark_normals";
 const std::string ViwlsGraphRvizPlotter::kLandmarkPairsTopic = "landmark_pairs";
 const std::string ViwlsGraphRvizPlotter::kLandmarkTopic =
     visualization::kViMapTopicHead + "_landmarks";
+const std::string ViwlsGraphRvizPlotter::kLoopclosureTopic = "loop_closures";
 const std::string ViwlsGraphRvizPlotter::kMeshTopic = "meshes";
-const std::string ViwlsGraphRvizPlotter::kLandmarkNormalsTopic =
-    "landmark_normals";
-const std::string ViwlsGraphRvizPlotter::kSlidingWindowLocalizationResultTopic =
-    "sliding_window_localization_result";
-const std::string ViwlsGraphRvizPlotter::kUniqueKeyFramesTopic =
-    "unique_key_frames";
 const std::string ViwlsGraphRvizPlotter::kNcamExtrinsicsTopic =
     "ncam_extrinsics";
 const std::string ViwlsGraphRvizPlotter::kSensorExtrinsicsTopic =
     "sensor_extrinsics";
+const std::string ViwlsGraphRvizPlotter::kSlidingWindowLocalizationResultTopic =
+    "sliding_window_localization_result";
+const std::string ViwlsGraphRvizPlotter::kUniqueKeyFramesTopic =
+    "unique_key_frames";
+const std::string ViwlsGraphRvizPlotter::kVertexPartitioningTopic =
+    "vertex_partitioning";
+const std::string ViwlsGraphRvizPlotter::kVertexTopic =
+    visualization::kViMapTopicHead + "_vertices";
 
 ViwlsGraphRvizPlotter::ViwlsGraphRvizPlotter()
     : origin_(
@@ -454,7 +455,7 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
       }
       if (FLAGS_vis_landmarks_min_number_of_observer_missions > 1) {
         vi_map::MissionIdSet observer_missions;
-        map.getLandmarkObserverMissions(landmark.id(), &observer_missions);
+        map.getObserverMissionsForLandmark(landmark.id(), &observer_missions);
         if (observer_missions.size() <
             static_cast<size_t>(
                 FLAGS_vis_landmarks_min_number_of_observer_missions)) {
@@ -470,22 +471,11 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
       sphere.radius = 0.03;
       sphere.alpha = 0.8;
 
-      if (FLAGS_vis_color_by_mission) {
-        const vi_map::VIMission& mission =
-            map.getMission(vertex.getMissionId());
-        const bool is_T_G_M_known =
-            map.getMissionBaseFrame(mission.getBaseFrameId()).is_T_G_M_known();
-        if (FLAGS_vis_color_mission_with_unknown_baseframe_transformation ||
-            is_T_G_M_known) {
-          const size_t index =
-              (vertex.getMissionId().hashToSizeT() * FLAGS_vis_color_salt) %
-              visualization::kNumColors;
-          sphere.color = getPaletteColor(index, palette);
-        } else {
-          sphere.color.red = sphere.color.green = sphere.color.blue =
-              FLAGS_vis_landmark_gray_level;
-        }
-      } else if (FLAGS_vis_color_landmarks_by_number_of_observations) {
+      if (FLAGS_vis_color_landmarks_by_number_of_observations) {
+        LOG_IF(WARNING, FLAGS_vis_color_by_mission)
+            << "Flag -vis_color_by_missions is set to true but is ignored "
+            << "because -vis_color_landmarks_by_number_of_observations is also "
+            << "true and treated with priority.";
         CHECK_GT(FLAGS_vis_landmarks_max_observers, 0);
         sphere.color = getPaletteColor(
             std::min<double>(
@@ -494,6 +484,10 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
                 1.0),
             palette);
       } else if (FLAGS_vis_color_landmarks_by_observer_datasets) {
+        LOG_IF(WARNING, FLAGS_vis_color_by_mission)
+            << "Flag -vis_color_by_missions is set to true but is ignored "
+            << "because -vis_color_landmarks_by_observer_datasets is also true "
+            << "and treated with priority.";
         CHECK_GT(FLAGS_vis_landmarks_max_observers, 0);
         CHECK_GT(FLAGS_vis_landmarks_min_observers, 0);
         const size_t num_observer_missions =
@@ -516,6 +510,10 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
             << "'viz_max_observers' flag (" << FLAGS_vis_landmarks_max_observers
             << "). This likely leads to undesired plotting results.";
       } else if (FLAGS_vis_color_landmarks_by_time) {
+        LOG_IF(WARNING, FLAGS_vis_color_by_mission)
+            << "Flag -vis_color_by_missions is set to true but is ignored "
+            << "because -vis_color_landmarks_by_time is also true and treated "
+            << "with priority.";
         const size_t timestamp_seconds = aslam::time::nanoSecondsToSeconds(
             vertex.getVisualFrame(0).getTimestampNanoseconds());
         const size_t color_index =
@@ -526,6 +524,10 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
                     FLAGS_vis_color_landmarks_by_time_period_seconds));
         sphere.color = getPaletteColor(color_index, palette);
       } else if (FLAGS_vis_color_landmarks_by_first_observer_frame) {
+        LOG_IF(WARNING, FLAGS_vis_color_by_mission)
+            << "Flag -vis_color_by_missions is set to true but is ignored "
+            << "because -vis_color_landmarks_by_first_observer_frame is also "
+            << "true and treated with priority.";
         const vi_map::KeypointIdentifierList& observations =
             landmark.getObservations();
         CHECK(!observations.empty());
@@ -536,12 +538,31 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
                  FLAGS_vis_color_salt)),
             palette);
       } else if (FLAGS_vis_color_landmarks_by_height) {
+        LOG_IF(WARNING, FLAGS_vis_color_by_mission)
+            << "Flag -vis_color_by_missions is set to true but is ignored "
+            << "because -vis_color_landmarks_by_height is also true and "
+            << "treated with priority.";
         const size_t color_index =
             FLAGS_vis_color_salt *
             static_cast<size_t>(
                 (sphere.position(2) + FLAGS_vis_color_by_height_offset_m) /
                 FLAGS_vis_color_by_height_period_m);
         sphere.color = getPaletteColor(color_index, palette);
+      } else if (FLAGS_vis_color_by_mission) {
+        const vi_map::VIMission& mission =
+            map.getMission(vertex.getMissionId());
+        const bool is_T_G_M_known =
+            map.getMissionBaseFrame(mission.getBaseFrameId()).is_T_G_M_known();
+        if (FLAGS_vis_color_mission_with_unknown_baseframe_transformation ||
+            is_T_G_M_known) {
+          const size_t index =
+              (vertex.getMissionId().hashToSizeT() * FLAGS_vis_color_salt) %
+              visualization::kNumColors;
+          sphere.color = getPaletteColor(index, palette);
+        } else {
+          sphere.color.red = sphere.color.green = sphere.color.blue =
+              FLAGS_vis_landmark_gray_level;
+        }
       } else {
         sphere.color = color;
       }

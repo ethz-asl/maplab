@@ -71,7 +71,7 @@ bool integrateAllOptionalSensorDepthResourcesOfType(
       << backend::ResourceTypeNames[static_cast<int>(input_resource_type)];
 
   // Init Voxblox map and integrator.
-  voxblox::MergedTsdfIntegrator tsdf_integrator(
+  voxblox::FastTsdfIntegrator tsdf_integrator(
       integrator_config, tsdf_map->getTsdfLayerPtr());
 
   // Start integration.
@@ -143,7 +143,7 @@ bool integrateAllOptionalSensorDepthResourcesOfType(
           num_resources);
       size_t idx = 0u;
       for (const std::pair<int64_t, backend::ResourceId>& stamped_resource_id :
-           resource_buffer.buffered_values()) {
+           resource_buffer) {
         // If the resource timestamp does not lie within the min and max
         // timestamp of the vertices, we cannot interpolate the position. To
         // keep this efficient, we simply replace timestamps outside the range
@@ -161,14 +161,14 @@ bool integrateAllOptionalSensorDepthResourcesOfType(
       pose_interpolator.getPosesAtTime(
           vi_map, mission_id, resource_timestamps, &poses_M_I);
 
-      CHECK_EQ(poses_M_I.size(), resource_timestamps.size());
+      CHECK_EQ(static_cast<int>(poses_M_I.size()), resource_timestamps.size());
       CHECK_EQ(poses_M_I.size(), resource_buffer.size());
 
       // Retrieve and integrate all resources.
       idx = 0u;
       common::ProgressBar tsdf_progress_bar(resource_buffer.size());
       for (const std::pair<int64_t, backend::ResourceId>& stamped_resource_id :
-           resource_buffer.buffered_values()) {
+           resource_buffer) {
         tsdf_progress_bar.increment();
 
         // We assume the frame of reference for the sensor system is the IMU

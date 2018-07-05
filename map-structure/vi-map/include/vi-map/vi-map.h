@@ -244,14 +244,19 @@ class VIMap : public backend::ResourceMap,
       const MissionId& mission_id) const;
 
   /// Get all the mission ids that contain frames that observe a given landmark.
-  inline void getLandmarkObserverMissions(
+  inline void getObserverMissionsForLandmark(
       const vi_map::LandmarkId& landmark_id,
       vi_map::MissionIdSet* missions) const;
 
   /// Get all vertices which contain frames that observe a given landmark.
-  inline void getLandmarkObserverVertices(
+  inline void getObserverVerticesForLandmark(
       const vi_map::LandmarkId& landmark_id,
       pose_graph::VertexIdSet* observer_vertices) const;
+
+  /// Get all frames that observe a given landmark.
+  inline void getVisualFrameIdentifiersForLandmark(
+      const vi_map::LandmarkId& landmark_id,
+      vi_map::VisualFrameIdentifierSet* observer_frames) const;
 
   /// Get the number of missions that contain frames that observe a given
   /// landmark.
@@ -840,7 +845,6 @@ class VIMap : public backend::ResourceMap,
 
   mutable std::recursive_mutex resource_mutex_;
 };
-
 }  // namespace vi_map
 
 namespace backend {

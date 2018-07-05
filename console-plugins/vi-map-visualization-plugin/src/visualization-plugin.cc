@@ -9,6 +9,7 @@
 #include <map-manager/map-manager.h>
 #include <plotty/matplotlibcpp.hpp>
 #include <vi-map/vi-map.h>
+#include <visualization/landmark-observer-plotter.h>
 #include <visualization/visualizer.h>
 #include <visualization/viwls-graph-plotter.h>
 
@@ -74,6 +75,12 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
         return visualizerCvMatResources(backend::ResourceType::kDisparityMap);
       },
       "Show mission fly-through of the disparity image resources.",
+      common::Processing::Sync);
+
+  addCommand(
+      {"visualize_landmark_observers"},
+      [this]() -> int { return visualizeLandmarkObserverRays(); },
+      "Show rays to all observer camera positions for selected landmarks.",
       common::Processing::Sync);
 
   addCommand(
@@ -236,6 +243,20 @@ int VisualizationPlugin::visualizeSensorExtrinsics() const {
 
   return common::kSuccess;
 }
+
+int VisualizationPlugin::visualizeLandmarkObserverRays() const {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+  vi_map::VIMapManager map_manager;
+  const vi_map::VIMapManager::MapReadAccess map =
+      map_manager.getMapReadAccess(selected_map_key);
+  const visualization::LandmarkObserverPlotter landmark_observer_plotter(*map);
+  landmark_observer_plotter.visualizeClickedLandmarks();
+  return common::kSuccess;
+}
+
 }  // namespace vi_visualization
 
 MAPLAB_CREATE_CONSOLE_PLUGIN(vi_visualization::VisualizationPlugin);

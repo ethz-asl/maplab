@@ -17,11 +17,22 @@ struct PointCloud {
   std::vector<unsigned char> colors;
   std::vector<float> scalars;
 
-  void resize(size_t size) {
+  void resize(
+      const size_t size, const bool has_normals = true,
+      const bool has_colors = true, const bool has_scalars = true) {
     xyz.resize(3 * size);
-    normals.resize(3 * size);
-    colors.resize(3 * size);
-    scalars.resize(1 * size);
+
+    if (has_normals) {
+      normals.resize(3 * size);
+    }
+
+    if (has_colors) {
+      colors.resize(3 * size);
+    }
+
+    if (has_scalars) {
+      scalars.resize(1 * size);
+    }
   }
 
   size_t size() const {

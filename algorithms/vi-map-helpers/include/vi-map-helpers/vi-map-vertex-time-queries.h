@@ -12,18 +12,23 @@ namespace vi_map_helpers {
 class VIMapVertexTimeQueries {
  public:
   VIMapVertexTimeQueries() = delete;
-  explicit VIMapVertexTimeQueries(const vi_map::VIMap::Ptr& map);
-  VIMapVertexTimeQueries(const vi_map::VIMap::Ptr& map,
-                         const vi_map::MissionId& mission_id);
+  explicit VIMapVertexTimeQueries(const vi_map::VIMap& map);
+  VIMapVertexTimeQueries(
+      const vi_map::VIMap& map, const vi_map::MissionId& mission_id);
   virtual ~VIMapVertexTimeQueries() = default;
 
   bool getClosestVertexInTime(const int64_t timestamp_nanoseconds,
                               pose_graph::VertexId* vertex_id) const;
+  bool getVertexInTimeEqualOrBefore(
+      const int64_t timestamp_nanoseconds, pose_graph::VertexId* vertex_id,
+      int64_t* vertex_timestamp_nanoseconds) const;
+  bool getVertexInTimeEqualOrAfter(
+      const int64_t timestamp_nanoseconds, pose_graph::VertexId* vertex_id,
+      int64_t* vertex_timestamp_nanoseconds) const;
 
  private:
-  void buildVertexIdTimestampIndex(const pose_graph::VertexIdList& vertex_ids);
-
-  vi_map::VIMap::Ptr map_;
+  void buildVertexIdTimestampIndex(
+      const pose_graph::VertexIdList& vertex_ids, const vi_map::VIMap& map);
 
   typedef common::TemporalBuffer<pose_graph::VertexId> VertexIdTimestampIndex;
   VertexIdTimestampIndex vertex_timestamp_index_;
@@ -32,7 +37,7 @@ class VIMapVertexTimeQueries {
 class VIMapMissionsVertexTimeQueries {
  public:
   VIMapMissionsVertexTimeQueries() = delete;
-  explicit VIMapMissionsVertexTimeQueries(const vi_map::VIMap::Ptr& map);
+  explicit VIMapMissionsVertexTimeQueries(const vi_map::VIMap& map);
   virtual ~VIMapMissionsVertexTimeQueries() = default;
 
   bool getClosestVertexInTimeForMission(const int64_t timestamp_nanoseconds,

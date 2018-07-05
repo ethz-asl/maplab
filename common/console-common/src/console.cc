@@ -60,19 +60,17 @@ Console::Console(
 
   // Auto-install basic plugin always because it's the only one that depends on
   // the command registerer.
-  installPlugin(
-      ConsolePluginPtr(
-          new BasicConsolePlugin(this, command_registerer_ptr_.get()),
-          [](ConsolePluginBase* plugin) { delete plugin; }));
+  installPlugin(ConsolePluginPtr(
+      new BasicConsolePlugin(this, command_registerer_ptr_.get()),
+      [](ConsolePluginBase* plugin) { delete plugin; }));
 
-  addCommand(
-      CommandRegisterer::Command(
-          {"enable_sheep", "sheep"},
-          [this]() -> int {
-            this->sheep_enabled_ = !this->sheep_enabled_;
-            return common::kSuccess;
-          },
-          "Enable sheep.", common::Processing::Sync, "console"));
+  addCommand(CommandRegisterer::Command(
+      {"enable_sheep", "sheep"},
+      [this]() -> int {
+        this->sheep_enabled_ = !this->sheep_enabled_;
+        return common::kSuccess;
+      },
+      "Enable sheep.", common::Processing::Sync, "console"));
 }
 
 Console::Console(const std::string& console_name)
@@ -97,7 +95,15 @@ void Console::RunCommandPrompt() {
     }
     char* input = readline(shell_prompt.c_str());
 
-    if (!input || strcmp(input, "q") == 0 || strcmp(input, "exit") == 0) {
+    if (!input) {
+      // Print newline when reading input is failed (EOF). Otherwise the next
+      // shell output will be on the same line as the maplab prompt.
+      std::cout << '\n';
+      break;
+    }
+    if (strcmp(input, "q") == 0 || strcmp(input, "quit") == 0 ||
+        strcmp(input, "exit") == 0) {
+      // In these cases no additional newline is required.
       break;
     }
 
@@ -276,8 +282,8 @@ char** Console::AutoCompletion::convertToCArray(
        ++candidate_idx) {
     c_strings[candidate_idx + 1] =
         new char[candidates[candidate_idx].size() + 1u];
-    strcpy(c_strings[candidate_idx + 1],  // NOLINT
-           candidates[candidate_idx].c_str());
+    strcpy(  // NOLINT
+        c_strings[candidate_idx + 1], candidates[candidate_idx].c_str());
   }
   c_strings[candidates.size() + 1] = nullptr;
   return c_strings;

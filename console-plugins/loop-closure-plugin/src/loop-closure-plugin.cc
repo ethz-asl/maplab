@@ -84,7 +84,7 @@ int LoopClosurePlugin::findLoopClosuresBetweenAllMissions() const {
     return common::kStupidUserError;
   }
 
-  VIMapMerger merger(map.get(), plotter_);
+  VIMapMerger merger(map.get(), getPlotterUnsafe());
   return merger.findLoopClosuresBetweenAllMissions();
 }
 
@@ -113,7 +113,7 @@ int LoopClosurePlugin::findLoopClosuresInOneMission() const {
   map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
   mission_ids.emplace_back(mission_id);
 
-  VIMapMerger merger(map.get(), plotter_);
+  VIMapMerger merger(map.get(), getPlotterUnsafe());
   return merger.findLoopClosuresBetweenMissions(mission_ids);
 }
 
@@ -166,7 +166,7 @@ int LoopClosurePlugin::alignMissionsForEvaluation() const {
     return common::kUnknownError;
   }
 
-  VILocalizationEvaluator evaluator(map.get(), plotter_);
+  VILocalizationEvaluator evaluator(map.get(), getPlotterUnsafe());
   evaluator.alignMissionsForEvaluation(query_mission_id);
 
   return common::kSuccess;
@@ -190,7 +190,7 @@ int LoopClosurePlugin::evaluateLocalization() const {
     return common::kUnknownError;
   }
 
-  VILocalizationEvaluator evaluator(map.get(), plotter_);
+  VILocalizationEvaluator evaluator(map.get(), getPlotterUnsafe());
   evaluator.evaluateLocalizationPerformance(query_mission_id);
 
   return common::kSuccess;

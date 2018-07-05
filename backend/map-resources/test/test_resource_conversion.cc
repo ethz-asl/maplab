@@ -26,9 +26,11 @@ class ResourceConversionTest : public ::testing::Test {
     CHECK_EQ(CV_MAT_TYPE(depth_map_openni_.type()), CV_16U);
 
     image_ = cv::imread(
-        kTestDataBaseFolder + "/intensities_OpenNI.pgm",
+        kTestDataBaseFolder + "/intensities_depth_map.pgm",
         CV_LOAD_IMAGE_GRAYSCALE);
     CHECK_EQ(CV_MAT_TYPE(image_.type()), CV_8UC1);
+    CHECK_GT(image_.rows, 0);
+    CHECK_GT(image_.cols, 0);
 
     fake_rgb_ = cv::Mat(image_.rows, image_.cols, CV_8UC3);
     std::vector<cv::Mat> array_to_merge(3, image_);
@@ -95,7 +97,7 @@ TEST_F(ResourceConversionTest, TestPointcloudWithRgbImageConversion) {
 }
 
 TEST_F(ResourceConversionTest, TestVoxbloxNoImageConversion) {
-  pose::Position3DVector point_cloud;
+  voxblox::Pointcloud point_cloud;
 
   EXPECT_TRUE(
       convertDepthMapToPointCloud(
@@ -104,7 +106,7 @@ TEST_F(ResourceConversionTest, TestVoxbloxNoImageConversion) {
 }
 
 TEST_F(ResourceConversionTest, TestVoxbloxWithImageConversion) {
-  pose::Position3DVector point_cloud;
+  voxblox::Pointcloud point_cloud;
   voxblox::Colors colors;
 
   EXPECT_TRUE(
@@ -116,7 +118,7 @@ TEST_F(ResourceConversionTest, TestVoxbloxWithImageConversion) {
 }
 
 TEST_F(ResourceConversionTest, TestVoxbloxWithRgbImageConversion) {
-  pose::Position3DVector point_cloud;
+  voxblox::Pointcloud point_cloud;
   voxblox::Colors colors;
 
   EXPECT_TRUE(

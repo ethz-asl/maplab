@@ -61,12 +61,12 @@ struct OptionalSensorResources : public common::TemporalBuffer<ResourceId> {
   }
 
   inline common::TemporalBuffer<ResourceId>::BufferType& resource_id_map() {
-    return values_;
+    return getValues();
   }
 
   inline const common::TemporalBuffer<ResourceId>::BufferType& resource_id_map()
       const {
-    return values_;
+    return getValues();
   }
 };
 

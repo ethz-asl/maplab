@@ -24,9 +24,9 @@ namespace map_optimization_legacy_plugin {
 class VIMapOptimizer {
  public:
   VIMapOptimizer();
-  explicit VIMapOptimizer(visualization::ViwlsGraphRvizPlotter* plotter);
+  explicit VIMapOptimizer(const visualization::ViwlsGraphRvizPlotter* plotter);
   VIMapOptimizer(
-      visualization::ViwlsGraphRvizPlotter* plotter,
+      const visualization::ViwlsGraphRvizPlotter* plotter,
       bool signal_handler_enabled);
 
   enum ConsistencyStatus {
@@ -49,7 +49,7 @@ class VIMapOptimizer {
   void visualizePosegraph(const vi_map::VIMap& map) const;
 
  private:
-  visualization::ViwlsGraphRvizPlotter* plotter_;
+  const visualization::ViwlsGraphRvizPlotter* plotter_;
   bool signal_handler_enabled_;
 };
 

@@ -102,6 +102,14 @@ bool SensorSystem::hasSensor(const SensorId& sensor_id) const {
          sensor_id_to_extrinsics_map_.count(sensor_id) > 0u;
 }
 
+void SensorSystem::removeSensor(const SensorId& sensor_id) {
+  CHECK(hasSensor(sensor_id));
+  LOG_IF(FATAL, reference_sensor_id_ == sensor_id)
+      << "Cannot remove the reference sensor from the sensor system. "
+      << "In this case, the sensor system itself must be removed.";
+  sensor_id_to_extrinsics_map_.erase(sensor_id);
+}
+
 void SensorSystem::serialize(YAML::Node* yaml_node_ptr) const {
   YAML::Node& sensor_node = *CHECK_NOTNULL(yaml_node_ptr);
 

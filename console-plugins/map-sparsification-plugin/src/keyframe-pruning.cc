@@ -14,7 +14,7 @@ namespace map_sparsification_plugin {
 int keyframeMapBasedOnHeuristics(
     const map_sparsification::KeyframingHeuristicsOptions& options,
     const vi_map::MissionId& mission_id,
-    visualization::ViwlsGraphRvizPlotter* plotter, vi_map::VIMap* map) {
+    const visualization::ViwlsGraphRvizPlotter* plotter, vi_map::VIMap* map) {
   // plotter is optional.
   CHECK_NOTNULL(map);
   CHECK(mission_id.isValid());

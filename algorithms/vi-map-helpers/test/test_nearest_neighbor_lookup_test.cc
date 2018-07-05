@@ -3,8 +3,10 @@
 #include <Eigen/Core>
 #include <gtest/gtest.h>
 #include <maplab-common/test/testing-entrypoint.h>
+#include <sensors/sensor-factory.h>
 #include <vi-map/test/vi-map-generator.h>
 
+#include "vi-map-helpers/gps-vi-map-nearest-neighbor-lookup.h"
 #include "vi-map-helpers/vi-map-nearest-neighbor-lookup.h"
 
 namespace vi_map_helpers {
@@ -200,8 +202,8 @@ TEST(VIMapNearestNeighborLookupTest, MultipleVertexRadiusLookup) {
         p_G_Is, queryTypeToVector(p_G_I_query), search_radius,
         &ground_truth_p_G_Is_within_search_radius);
 
-    EXPECT_EQ(p_G_Is_within_search_radius,
-              ground_truth_p_G_Is_within_search_radius);
+    EXPECT_EQ(
+        p_G_Is_within_search_radius, ground_truth_p_G_Is_within_search_radius);
   }
 }
 
@@ -260,8 +262,8 @@ TEST(VIMapNearestNeighborLookupTest, MultipleGPSWGSMeasurementsNNLookup) {
         uniform_distribution_altitude(random_number_generator));
 
     vi_map::GpsWgsMeasurement closest_wgs_measurement;
-    nn_query_database.getClosestDataItem(query_wgs_measurement,
-                                         &closest_wgs_measurement);
+    nn_query_database.getClosestDataItem(
+        query_wgs_measurement, &closest_wgs_measurement);
 
     const Eigen::VectorXd ground_truth_closest_wgs_measurement =
         getGroundTruthClosestDataItem(
@@ -412,8 +414,8 @@ TEST(VIMapNearestNeighborLookupTest, MultipleGPSUTMMeasuremnentsNNLookup) {
         vi_map::UtmZone(32u, 'T'));
 
     vi_map::GpsUtmMeasurement closest_utm_measurement;
-    nn_query_database.getClosestDataItem(query_utm_measurement,
-                                         &closest_utm_measurement);
+    nn_query_database.getClosestDataItem(
+        query_utm_measurement, &closest_utm_measurement);
 
     const Eigen::VectorXd ground_truth_closest_utm_measurement_p_UTM_B =
         getGroundTruthClosestDataItem(

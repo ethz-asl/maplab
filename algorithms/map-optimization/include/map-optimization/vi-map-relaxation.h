@@ -20,7 +20,7 @@ struct OptimizationOptions;
 class VIMapRelaxation {
  public:
   VIMapRelaxation(
-      visualization::ViwlsGraphRvizPlotter* plotter,
+      const visualization::ViwlsGraphRvizPlotter* plotter,
       bool signal_handler_enabled);
 
   bool relax(const vi_map::MissionIdList& mission_id_list, vi_map::VIMap* map);
@@ -34,7 +34,7 @@ class VIMapRelaxation {
   void visualizePosegraph(const vi_map::VIMap& map) const;
   int numLoopclosureEdges(const vi_map::VIMap& map) const;
 
-  visualization::ViwlsGraphRvizPlotter* plotter_;
+  const visualization::ViwlsGraphRvizPlotter* plotter_;
   bool signal_handler_enabled_;
 };
 

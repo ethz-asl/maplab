@@ -4,7 +4,6 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <utility>
 
 #include <glog/logging.h>
@@ -23,6 +22,7 @@ class TemporalBuffer {
 
   // Create buffer of infinite length (buffer_length_nanoseconds = -1)
   TemporalBuffer();
+  virtual ~TemporalBuffer() = default;
 
   // Buffer length in nanoseconds defines after which time old entries get
   // dropped. (buffer_length_nanoseconds == -1: infinite length.)
@@ -30,79 +30,119 @@ class TemporalBuffer {
 
   TemporalBuffer(const TemporalBuffer& other);
 
-  void addValue(int64_t timestamp, const ValueType& value);
-  void addValue(
-      const int64_t timestamp, const ValueType& value,
-      const bool emit_warning_on_value_overwrite);
-  void insert(const TemporalBuffer& other);
+  // Returns false if an already existing value at the given time got
+  // overwritten, true otherwise.
+  bool addValue(const int64_t timestamp, const ValueType& value);
 
-  inline size_t size() const {
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
+  void insert(const TemporalBuffer& other) {
+    values_.insert(other.begin(), other.end());
+  }
+
+  size_t size() const {
     return values_.size();
   }
-  inline bool empty() const {
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
+  bool empty() const {
     return values_.empty();
   }
   void clear() {
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
     values_.clear();
   }
 
   // Returns false if no value at a given timestamp present.
-  bool getValueAtTime(int64_t timestamp_ns, ValueType* value) const;
+  bool getValueAtTime(const int64_t timestamp_ns, ValueType* value) const;
 
-  bool deleteValueAtTime(int64_t timestamp_ns);
+  bool deleteValueAtTime(const int64_t timestamp_ns);
 
-  bool getNearestValueToTime(int64_t timestamp_ns, ValueType* value) const;
   bool getNearestValueToTime(
-      int64_t timestamp_ns, int64_t maximum_delta_ns, ValueType* value) const;
+      const int64_t timestamp_ns, ValueType* value) const;
   bool getNearestValueToTime(
-      int64_t timestamp, int64_t maximum_delta_ns, ValueType* value,
+      const int64_t timestamp_ns, const int64_t maximum_delta_ns,
+      ValueType* value) const;
+  bool getNearestValueToTime(
+      const int64_t timestamp, const int64_t maximum_delta_ns, ValueType* value,
       int64_t* timestamp_at_value_ns) const;
 
+  bool getOldestTime(int64_t* timestamp_nanoseconds) const;
   bool getOldestValue(ValueType* value) const;
+
+  bool getNewestTime(int64_t* timestamp_nanoseconds) const;
   bool getNewestValue(ValueType* value) const;
 
   bool getValueAtOrBeforeTime(
-      int64_t timestamp_ns, int64_t* timestamp_ns_of_value,
+      const int64_t timestamp_ns, int64_t* timestamp_ns_of_value,
       ValueType* value) const;
   bool getValueAtOrAfterTime(
-      int64_t timestamp_ns, int64_t* timestamp_ns_of_value,
+      const int64_t timestamp_ns, int64_t* timestamp_ns_of_value,
       ValueType* value) const;
 
   // Returns false if the timestamp is not between two values.
-  bool interpolateAt(int64_t timestamp_ns, ValueType* output) const;
+  bool interpolateAt(const int64_t timestamp_ns, ValueType* output) const;
 
   // Get all values between the two specified timestamps excluding the border
   // values.
   // Example: content: 2 3 4 5
   //          getValuesBetweenTimes(2, 5, ...) returns elements at 3, 4.
   template <typename ValueContainerType>
-  bool getValuesBetweenTimes(
-      int64_t timestamp_lower_ns, int64_t timestamp_higher_ns,
+  void getValuesBetweenTimes(
+      const int64_t timestamp_lower_ns, const int64_t timestamp_higher_ns,
       ValueContainerType* values) const;
 
-  inline void lockContainer() const {
-    mutex_.lock();
-  }
-  inline void unlockContainer() const {
-    mutex_.unlock();
-  }
+  template <typename ValueContainerType>
+  void getValuesFromExcludingToIncluding(
+      const int64_t timestamp_lower_ns, const int64_t timestamp_higher_ns,
+      ValueContainerType* values) const;
 
-  // The container is exposed so we can iterate over the values in a linear
-  // fashion. The container is not locked inside this method so call
-  // lockContainer()/unlockContainer() when accessing this.
-  const BufferType& buffered_values() const {
-    return values_;
-  }
-
-  inline bool operator==(const TemporalBuffer& other) const {
+  bool operator==(const TemporalBuffer& other) const {
     return values_ == other.values_ &&
            buffer_length_nanoseconds_ == other.buffer_length_nanoseconds_;
   }
 
+  bool operator!=(const TemporalBuffer& other) const {
+    return !operator==(other);
+  }
+
+  typename BufferType::iterator begin() {
+    return values_.begin();
+  }
+
+  typename BufferType::const_iterator begin() const {
+    return values_.cbegin();
+  }
+
+  typename BufferType::iterator end() {
+    return values_.end();
+  }
+
+  typename BufferType::const_iterator end() const {
+    return values_.cend();
+  }
+
+  typename BufferType::reverse_iterator rbegin() {
+    return values_.rbegin();
+  }
+
+  typename BufferType::const_reverse_iterator rbegin() const {
+    return values_.crbegin();
+  }
+
+  typename BufferType::reverse_iterator rend() {
+    return values_.rend();
+  }
+
+  typename BufferType::const_reverse_iterator rend() const {
+    return values_.crend();
+  }
+
  protected:
+  BufferType& getValues() {
+    return values_;
+  }
+
+  const BufferType& getValues() const {
+    return values_;
+  }
+
+ private:
   // Remove items that are older than the buffer length.
   void removeOutdatedItems();
 
@@ -112,10 +152,10 @@ class TemporalBuffer {
 
   BufferType values_;
   int64_t buffer_length_nanoseconds_;
-  mutable std::recursive_mutex mutex_;
 };
+
 }  // namespace common
 
-#include "./temporal-buffer-inl.h"
+#include "maplab-common/temporal-buffer-inl.h"
 
 #endif  // MAPLAB_COMMON_TEMPORAL_BUFFER_H_

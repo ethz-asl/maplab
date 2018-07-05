@@ -1,0 +1,116 @@
+## Global parameters ##
+# Name
+experiment_name: rovioli_euroc_no_localization
+description: Runs ROVIOLI on euroc datasets (without localization), then the map
+    is loaded into maplab where disturb, rtl, relax, lc and optvi are performed.
+
+# Executable
+app_package_name: rovioli
+app_executable: rovioli
+
+# Calibration
+sensors_file: calibration_euroc
+
+## Evaluation space parameters ##
+# Parameters
+parameter_files:
+ - rovioli_parameters.yaml
+
+# Datasets
+datasets:
+  - name: MH_01_easy
+    additional_parameters: &additional_parameters
+      ground_truth_csv: <BAG_FOLDER>/ground_truth.csv
+      disturb_random_generator_seed: 1991
+      max_allowed_errors:
+        - &rovioli_errors
+          label: rovioli
+          max_position_rmse_m: 0.3
+          max_orientation_rmse_rad: 0.1
+          # Paper: 0.178m/1.49deg=0.026rad
+          # Parameter search mean: 0.32m/0.05rad
+        - &disturb_errors
+          label: disturb
+        - &relax_errors
+          label: relax
+          better_than:
+            # Define that this check needs to improve the position errors
+            # compared to a previous check. No additional condition for
+            # orientation errors is added.
+            - label: disturb
+              factor: 0.7
+              # Will add the following condition
+              #   errors relax < factor * errors disturb
+              # If factor is not specified, a default value of 1 is used.
+              # Note: the errors to compare with need to be evaluated before
+              # this, i.e. they need to be listed before in this yaml.
+        - &optvi_errors
+          label: optvi
+          max_position_rmse_m: 0.06
+          max_orientation_rmse_rad: 0.04
+          # Paper: 0.036m/1.29deg=0.023rad
+          better_than:
+            - label: rovioli
+            - label: relax
+  - name: MH_02_easy
+    additional_parameters:
+      <<: *additional_parameters
+      disturb_random_generator_seed: 13083
+      max_allowed_errors:
+        - <<: *rovioli_errors
+          max_position_rmse_m: 0.4
+          # Parameter search mean: 0.42m/0.04rad
+        - *disturb_errors
+        - *relax_errors
+        - *optvi_errors
+  - name: MH_03_medium
+    additional_parameters:
+      <<: *additional_parameters
+      disturb_random_generator_seed: 3166
+      max_allowed_errors:
+        - <<: *rovioli_errors
+          max_position_rmse_m: 0.65
+          max_orientation_rmse_rad: 0.1
+          # Parameter search mean: 0.36m/0.04rad
+        - *disturb_errors
+        - *relax_errors
+        - *optvi_errors
+  - name: V1_02_medium
+    additional_parameters:
+      <<: *additional_parameters
+      disturb_random_generator_seed: 91
+  - name: V2_01_easy
+    additional_parameters:
+      <<: *additional_parameters
+      disturb_random_generator_seed: 16538
+  - name: V2_02_medium
+    additional_parameters:
+      <<: *additional_parameters
+      disturb_random_generator_seed: 10110
+
+console_commands:
+  - load --map_folder <OUTPUT_MAP_FOLDER> --map_key <OUTPUT_MAP_KEY>
+  - artificially_disturb_vertices --disturb_random_generator_seed <disturb_random_generator_seed>
+  - csv_export_vertices_only --csv_export_path <JOB_DIR>/csv/disturb
+  - rtl
+  - relax --ba_num_iterations 10 --lc_use_random_pnp_seed=false
+  - csv_export_vertices_only --csv_export_path <JOB_DIR>/csv/relax
+  - lc --lc_use_random_pnp_seed=false
+  - evaluate_landmark_quality
+  - optvi --ba_num_iterations 10
+  - evaluate_landmark_quality
+  - lc --lc_use_random_pnp_seed=false
+  - evaluate_landmark_quality
+  - optvi --ba_num_iterations 10
+  - csv_export_vertices_only --csv_export_path <JOB_DIR>/csv/optvi
+  # Save summary map in results root folder so that they can be accessed from
+  # other tests. <OUTPUT_MAP_KEY> will be replaced by the filename of the bag
+  # (without the extension).
+  - generate_summary_map_and_save_to_disk --summary_map_save_path <JOB_DIR>/../../<OUTPUT_MAP_KEY>_summary_map
+
+# Evaluation scripts
+evaluation_scripts:
+  - package: maplab_evaluation
+    name: ground_truth_trajectory_evaluation.py
+    arguments:
+      csv_base_folder: csv

@@ -29,18 +29,19 @@ class VoxbloxInterfaceTest : public ::testing::Test {
     vi_map::VIMapManager map_manager;
     CHECK(
         map_manager.loadMapFromFolder("./test_maps/vi_app_test", &vi_map_key_));
-    CHECK(
-        landmark_triangulation::retriangulateLandmarks(
-            map_manager.getMapMutable(vi_map_key_)));
+    landmark_triangulation::retriangulateLandmarks(
+        map_manager.getMapMutable(vi_map_key_));
 
     depth_map_openni_ = cv::imread(
         kTestDataBaseFolder + "/depth_map_OpenNI.pgm", CV_LOAD_IMAGE_UNCHANGED);
     CHECK_EQ(CV_MAT_TYPE(depth_map_openni_.type()), CV_16U);
 
     image_ = cv::imread(
-        kTestDataBaseFolder + "/intensities_OpenNI.pgm",
+        kTestDataBaseFolder + "/intensities_depth_map.pgm",
         CV_LOAD_IMAGE_GRAYSCALE);
     CHECK_EQ(CV_MAT_TYPE(image_.type()), CV_8UC1);
+    CHECK_GT(image_.rows, 0);
+    CHECK_GT(image_.cols, 0);
 
     Eigen::VectorXd intrinsics(4);
     intrinsics << 256.4159254034679, 256.3049478392699, 327.0080939570888,
@@ -111,7 +112,7 @@ TEST_F(VoxbloxInterfaceTest, TestIntegrateAllLandmarks) {
       getViMap(), integrator_config, &tsdf_map);
 
   EXPECT_EQ(tsdf_map.getTsdfLayer().getNumberOfAllocatedBlocks(), 45u);
-  EXPECT_NEAR(tsdf_map.getTsdfLayer().getMemorySize(), 279482u, 10u);
+  EXPECT_NEAR(tsdf_map.getTsdfLayer().getMemorySize(), 278390u, 10u);
   // TODO(fabianbl): Compare to serialized TSDF map.
 }
 
@@ -131,11 +132,11 @@ TEST_F(VoxbloxInterfaceTest, TestIntegrateDepthMap) {
       &tsdf_integrator);
 
   EXPECT_EQ(tsdf_map.getTsdfLayer().getNumberOfAllocatedBlocks(), 20u);
-  EXPECT_NEAR(tsdf_map.getTsdfLayer().getMemorySize(), 984392u, 10u);
+  EXPECT_NEAR(tsdf_map.getTsdfLayer().getMemorySize(), 983900u, 10u);
 
   voxblox::MeshLayer mesh_layer(tsdf_map.block_size());
 
-  voxblox::MeshIntegrator<voxblox::TsdfVoxel>::Config mesh_config;
+  voxblox::MeshIntegratorConfig mesh_config;
   voxblox::MeshIntegrator<voxblox::TsdfVoxel> mesh_integrator(
       mesh_config, tsdf_map.getTsdfLayerPtr(), &mesh_layer);
   // We mesh the whole grid at once anyways, so all of them should be

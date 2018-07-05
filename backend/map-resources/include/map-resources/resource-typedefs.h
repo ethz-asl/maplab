@@ -8,7 +8,7 @@
 namespace resources {
 
 struct VoxbloxColorPointCloud {
-  pose::Position3DVector* points_C;
+  voxblox::Pointcloud* points_C;
   voxblox::Colors* colors;
 };
 

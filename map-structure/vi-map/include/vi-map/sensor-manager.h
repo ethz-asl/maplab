@@ -52,6 +52,8 @@ class SensorManager : public common::YamlFileSerializable {
   void associateExistingOptionalNCameraWithMission(
       const aslam::NCameraId& ncamera_id, const MissionId& mission_id);
   void removeAllSensorsAssociatedToMission(const vi_map::MissionId& mission_id);
+  void removeSensorFromMission(
+      const SensorId& sensor_id, const vi_map::MissionId& mission_id);
 
   bool hasSensorSystem() const;
   void addSensorSystem(SensorSystem::UniquePtr sensor_system);

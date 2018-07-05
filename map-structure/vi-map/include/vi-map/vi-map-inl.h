@@ -253,13 +253,13 @@ const vi_map::Landmark& VIMap::getLandmark(const vi_map::LandmarkId& id) const {
   return vertex.getLandmarks().getLandmark(id);
 }
 
-void VIMap::getLandmarkObserverMissions(
+void VIMap::getObserverMissionsForLandmark(
     const vi_map::LandmarkId& landmark_id,
     std::unordered_set<vi_map::MissionId>* missions) const {
   CHECK_NOTNULL(missions);
   CHECK(landmark_id.isValid());
-  CHECK(hasLandmark(landmark_id))
-      << "Landmark " << landmark_id << " not found!";
+  CHECK(hasLandmark(landmark_id)) << "Landmark " << landmark_id
+                                  << " not found!";
   missions->clear();
 
   const vi_map::Landmark& landmark = getLandmark(landmark_id);
@@ -274,13 +274,12 @@ void VIMap::getLandmarkObserverMissions(
   });
 }
 
-void VIMap::getLandmarkObserverVertices(
+void VIMap::getObserverVerticesForLandmark(
     const vi_map::LandmarkId& landmark_id,
     pose_graph::VertexIdSet* observer_vertices) const {
-  CHECK_NOTNULL(observer_vertices);
+  CHECK_NOTNULL(observer_vertices)->clear();
   CHECK(landmark_id.isValid());
   CHECK(hasLandmark(landmark_id));
-  observer_vertices->clear();
 
   const vi_map::Landmark& landmark = getLandmark(landmark_id);
   landmark.forEachObservation([&](const KeypointIdentifier& observer_backlink) {
@@ -288,6 +287,20 @@ void VIMap::getLandmarkObserverVertices(
       observer_vertices->insert(observer_backlink.frame_id.vertex_id);
     }
   });
+}
+
+void VIMap::getVisualFrameIdentifiersForLandmark(
+    const vi_map::LandmarkId& landmark_id,
+    vi_map::VisualFrameIdentifierSet* observer_frames) const {
+  CHECK_NOTNULL(observer_frames)->clear();
+
+  const vi_map::Landmark& landmark = getLandmark(landmark_id);
+  landmark.forEachObservation(
+      [&observer_frames](const KeypointIdentifier& observer_backlink) {
+        const VisualFrameIdentifier& frame_id = observer_backlink.frame_id;
+        CHECK(frame_id.isValid());
+        observer_frames->emplace(frame_id);
+      });
 }
 
 unsigned int VIMap::numLandmarkObserverMissions(
@@ -552,9 +565,10 @@ void VIMap::forEachVisualFrame(
   }
 }
 
-void VIMap::forEachVisualFrame(const std::function<void(
-                                   const aslam::VisualFrame& visual_frame,
-                                   const Vertex&, size_t)>& action) const {
+void VIMap::forEachVisualFrame(
+    const std::function<void(
+        const aslam::VisualFrame& visual_frame, const Vertex&, size_t)>& action)
+    const {
   pose_graph::VertexIdList all_vertex_ids;
   getAllVertexIds(&all_vertex_ids);
   for (const pose_graph::VertexId& vertex_id : all_vertex_ids) {
@@ -806,8 +820,8 @@ inline bool VIMap::getNextVertex(
     pose_graph::Edge::EdgeType edge_type,
     pose_graph::VertexId* next_vertex_id) const {
   CHECK_NOTNULL(next_vertex_id);
-  CHECK(hasVertex(current_vertex_id))
-      << "No vertex with id " << current_vertex_id.hexString() << ".";
+  CHECK(hasVertex(current_vertex_id)) << "No vertex with id "
+                                      << current_vertex_id.hexString() << ".";
 
   std::unordered_set<pose_graph::EdgeId> outgoing_edges;
   getVertex(current_vertex_id).getOutgoingEdges(&outgoing_edges);
@@ -1171,7 +1185,7 @@ SensorManager& VIMap::getSensorManager() {
   return sensor_manager_;
 }
 
-template<class MeasurementType>
+template <class MeasurementType>
 const MeasurementBuffer<MeasurementType>& VIMap::getOptionalSensorMeasurements(
     const SensorId& sensor_id, const MissionId& mission_id) const {
   CHECK(sensor_manager_.hasSensor(sensor_id));

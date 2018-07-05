@@ -94,7 +94,8 @@ int OptimizerPlugin::optimizeVisualInertial(
     options.add_inertial_constraints = false;
   }
 
-  map_optimization::VIMapOptimizer optimizer(plotter_, kSignalHandlerEnabled);
+  map_optimization::VIMapOptimizer optimizer(
+      getPlotterUnsafe(), kSignalHandlerEnabled);
   bool success;
   if (outlier_rejection) {
     map_optimization::OutlierRejectionSolverOptions outlier_rejection_options =
@@ -117,7 +118,8 @@ int OptimizerPlugin::relaxMap() {
     return common::kStupidUserError;
   }
 
-  map_optimization::VIMapRelaxation relaxation(plotter_, kSignalHandlerEnabled);
+  map_optimization::VIMapRelaxation relaxation(
+      getPlotterUnsafe(), kSignalHandlerEnabled);
   vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
@@ -136,7 +138,8 @@ int OptimizerPlugin::relaxMapMissionsSeparately() {
     return common::kStupidUserError;
   }
 
-  map_optimization::VIMapRelaxation relaxation(plotter_, kSignalHandlerEnabled);
+  map_optimization::VIMapRelaxation relaxation(
+      getPlotterUnsafe(), kSignalHandlerEnabled);
   vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);

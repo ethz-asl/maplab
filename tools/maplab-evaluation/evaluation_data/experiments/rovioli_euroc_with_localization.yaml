@@ -1,0 +1,75 @@
+## Global parameters ##
+# Name
+experiment_name: rovioli_euroc_with_localization
+description: Runs ROVIOLI on euroc datasets (with localization), then the map is
+    loaded into maplab where rtl, relax, lc and optvi are performed.
+
+# Executable
+app_package_name: rovioli
+app_executable: rovioli
+
+# Calibration
+sensors_file: calibration_euroc
+
+## Evaluation space parameters ##
+# Parameters
+parameter_files:
+ - rovioli_parameters_with_localization.yaml
+
+# Datasets
+datasets:
+  - name: MH_01_easy
+    additional_parameters: &additional_parameters
+      ground_truth_csv: <BAG_FOLDER>/ground_truth.csv
+      max_allowed_errors:
+        - &rovioli_errors
+          label: rovioli
+          max_position_rmse_m: 0.2
+          # Paper: 0.082m/1.43deg=0.025rad
+        - &relax_errors
+          label: relax
+        - &optvi_errors
+          label: optvi
+          max_position_rmse_m: 0.05
+          max_orientation_rmse_rad: 0.04
+          # Paper: 0.036m/1.29deg
+          better_than:
+            - label: rovioli
+            - label: relax
+  - name: MH_02_easy
+    additional_parameters:
+      <<: *additional_parameters
+      max_allowed_errors:
+        - <<: *rovioli_errors
+          max_position_rmse_m: 0.4
+        - *relax_errors
+        - *optvi_errors
+  - name: MH_03_medium
+    additional_parameters:
+      <<: *additional_parameters
+      max_allowed_errors:
+        - <<: *rovioli_errors
+          max_position_rmse_m: 0.65
+        - *relax_errors
+        - *optvi_errors
+
+console_commands:
+  - load --map_folder <OUTPUT_MAP_FOLDER> --map_key <OUTPUT_MAP_KEY>
+  - rtl
+  - relax --ba_num_iterations 15 --lc_use_random_pnp_seed=false
+  - csv_export_vertices_only --csv_export_path <JOB_DIR>/csv/relax
+  - lc --lc_use_random_pnp_seed=false
+  - evaluate_landmark_quality
+  - optvi --ba_num_iterations 10
+  - evaluate_landmark_quality
+  - lc --lc_use_random_pnp_seed=false
+  - evaluate_landmark_quality
+  - optvi --ba_num_iterations 10
+  - csv_export_vertices_only --csv_export_path <JOB_DIR>/csv/optvi
+
+# Evaluation scripts
+evaluation_scripts:
+  - package: maplab_evaluation
+    name: ground_truth_trajectory_evaluation.py
+    arguments:
+      csv_base_folder: csv

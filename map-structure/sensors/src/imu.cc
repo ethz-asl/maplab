@@ -1,6 +1,7 @@
 #include "sensors/imu.h"
 
 #include <aslam/common/yaml-serialization.h>
+#include <maplab-common/eigen-proto.h>
 #include <maplab-common/gravity-provider.h>
 
 constexpr char kYamlFieldNameSigmas[] = "sigmas";
@@ -166,6 +167,27 @@ void ImuSigmas::setRandom() {
   acc_bias_random_walk_noise_density = noise_density(random_engine);
 }
 
+void ImuMeasurement::serialize(
+    measurements::proto::ImuMeasurement* proto_measurement) const {
+  CHECK_NOTNULL(proto_measurement);
+  Measurement::serialize(proto_measurement->mutable_measurement_base());
+  common::eigen_proto::serialize(
+      I_accel_xyz_m_s2_gyro_xyz_rad_s_,
+      proto_measurement->mutable_i_accel_xyz_m_s2_gyro_xyz_rad_s());
+}
+
+void ImuMeasurement::deserialize(
+    const measurements::proto::ImuMeasurement& proto_measurement) {
+  Measurement::deserialize(proto_measurement.measurement_base());
+  common::eigen_proto::deserialize(
+      proto_measurement.i_accel_xyz_m_s2_gyro_xyz_rad_s(),
+      &I_accel_xyz_m_s2_gyro_xyz_rad_s_);
+}
+
+void ImuMeasurement::setRandomImpl() {
+  I_accel_xyz_m_s2_gyro_xyz_rad_s_.setRandom();
+}
+
 }  // namespace vi_map
 
 namespace YAML {
@@ -205,3 +227,32 @@ bool convert<vi_map::ImuSigmas>::decode(
 }
 
 }  // namespace YAML
+
+namespace common {
+template <>
+void linearInterpolation<int64_t, vi_map::ImuMeasurement>(
+    const int64_t t1, const vi_map::ImuMeasurement& x1, const int64_t t2,
+    const vi_map::ImuMeasurement& x2, const int64_t t_interpolated,
+    vi_map::ImuMeasurement* x_interpolated) {
+  CHECK_NOTNULL(x_interpolated);
+  CHECK_LE(t1, t2);
+  CHECK_LE(t1, t_interpolated);
+  CHECK_LE(t_interpolated, t2);
+  CHECK(x1.getSensorId().isValid());
+  CHECK_EQ(x1.getSensorId(), x2.getSensorId());
+  if (t1 == t2) {
+    CHECK(x1 == x2);
+    *x_interpolated = x1;
+    return;
+  }
+
+  vi_map::ImuMeasurement::CombinedImuData I_accel_m_s2_gyro_rad_s_interpolated;
+  linearInterpolation(
+      t1, x1.get_I_Accel_m_s2_Gyro_rad_s(), t2,
+      x2.get_I_Accel_m_s2_Gyro_rad_s(), t_interpolated,
+      &I_accel_m_s2_gyro_rad_s_interpolated);
+
+  *x_interpolated = vi_map::ImuMeasurement(
+      x1.getSensorId(), t_interpolated, I_accel_m_s2_gyro_rad_s_interpolated);
+}
+}  // namespace common

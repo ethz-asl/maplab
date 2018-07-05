@@ -29,6 +29,7 @@ class VisualizationPlugin : public common::ConsolePluginBase {
       const vi_map::VIMap& map, const vi_map::MissionId& mission_id) const;
   int visualizerCvMatResources(backend::ResourceType type);
   int visualizeSensorExtrinsics() const;
+  int visualizeLandmarkObserverRays() const;
 
   std::unique_ptr<visualization::Visualizer> visualizer_;
 };

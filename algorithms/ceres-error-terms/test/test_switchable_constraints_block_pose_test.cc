@@ -395,16 +395,24 @@ void solveWithSwitchableConstraints(BlockPosegraph& posegraph) {  // NOLINT
         LoopClosureBlockPoseErrorTerm::switchVariableBlockSize>(
         new LoopClosureBlockPoseErrorTerm(lcc.T_A_B_, lcc.T_A_B_covariance_));
     ceres::CostFunction* switch_variable_cost = new ceres::AutoDiffCostFunction<
-        SwitchPriorErrorTermLegacy,
-        SwitchPriorErrorTermLegacy::residualBlockSize,
-        SwitchPriorErrorTermLegacy::switchVariableBlockSize>(
-        new SwitchPriorErrorTermLegacy(
+        SwitchPriorErrorTerm, SwitchPriorErrorTerm::residualBlockSize,
+        SwitchPriorErrorTerm::switchVariableBlockSize>(
+        new SwitchPriorErrorTerm(
             switch_prior, lcc.switch_variable_covariance_));
 
     problem.AddResidualBlock(
         loop_closure_cost, NULL,
         posegraph.vertex_poses.col(lcc.from_node_).data(),
         posegraph.vertex_poses.col(lcc.to_node_).data(), &lcc.switch_variable_);
+    constexpr double kSwitchVariableMinValue = 0.0;
+    constexpr double kSwitchVariableMaxValue = 1.0;
+    constexpr int kSwitchVariableIndexIntoParameterBlock = 0;
+    problem.SetParameterLowerBound(
+        &lcc.switch_variable_, kSwitchVariableIndexIntoParameterBlock,
+        kSwitchVariableMinValue);
+    problem.SetParameterUpperBound(
+        &lcc.switch_variable_, kSwitchVariableIndexIntoParameterBlock,
+        kSwitchVariableMaxValue);
 
     problem.AddResidualBlock(switch_variable_cost, NULL, &lcc.switch_variable_);
   }

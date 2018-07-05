@@ -258,10 +258,9 @@ void solveWithSwitchableConstraints(BlockPosegraph& posegraph) {  // NOLINT
         LoopClosureBlockPoseErrorTerm::switchVariableBlockSize>(
         new LoopClosureBlockPoseErrorTerm(lcc.T_A_B_, lcc.T_A_B_covariance_));
     ceres::CostFunction* switch_variable_cost = new ceres::AutoDiffCostFunction<
-        SwitchPriorErrorTermLegacy,
-        SwitchPriorErrorTermLegacy::residualBlockSize,
-        SwitchPriorErrorTermLegacy::switchVariableBlockSize>(
-        new SwitchPriorErrorTermLegacy(
+        SwitchPriorErrorTerm, SwitchPriorErrorTerm::residualBlockSize,
+        SwitchPriorErrorTerm::switchVariableBlockSize>(
+        new SwitchPriorErrorTerm(
             switch_prior, lcc.switch_variable_covariance_));
 
     std::unordered_map<int, int>::iterator baseframe_from_iterator =

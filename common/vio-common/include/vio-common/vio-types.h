@@ -1,6 +1,7 @@
 #ifndef VIO_COMMON_VIO_TYPES_H_
 #define VIO_COMMON_VIO_TYPES_H_
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -16,8 +17,31 @@
 
 namespace vio {
 
-enum class EstimatorState : int { kUninitialized, kStartup, kRunning };
+enum class EstimatorState : int {
+  kUninitialized,
+  kStartup,
+  kRunning,
+  kInvalid
+};
 MAPLAB_DEFINE_ENUM_HASHING(EstimatorState, int);
+inline std::string convertEstimatorStateToString(const EstimatorState state) {
+  switch (state) {
+    case EstimatorState::kUninitialized:
+      return "Uninitialized";
+      break;
+    case EstimatorState::kStartup:
+      return "Start-Up";
+      break;
+    case EstimatorState::kRunning:
+      return "Running";
+      break;
+    default:
+      LOG(FATAL) << "Unknown estimator state: " << static_cast<int>(state)
+                 << '.';
+      break;
+  }
+  return "";
+}
 
 enum class LocalizationState : int {
   // No reference map has been set, localization is not performed.
@@ -27,9 +51,33 @@ enum class LocalizationState : int {
   // Baseframe was initialized and global map matching is performed.
   kLocalized,
   // Map matching is performed using map tracking.
-  kMapTracking
+  kMapTracking,
+  kInvalid,
 };
 MAPLAB_DEFINE_ENUM_HASHING(LocalizationState, int);
+
+inline std::string convertLocalizationStateToString(
+    const LocalizationState state) {
+  switch (state) {
+    case LocalizationState::kUninitialized:
+      return "Uninitialized";
+      break;
+    case LocalizationState::kNotLocalized:
+      return "Not Localized";
+      break;
+    case LocalizationState::kLocalized:
+      return "Localized";
+      break;
+    case LocalizationState::kMapTracking:
+      return "Map-Tracking";
+      break;
+    default:
+      LOG(FATAL) << "Unknown localization state: " << static_cast<int>(state)
+                 << '.';
+      break;
+  }
+  return "";
+}
 
 enum class MotionType : int { kInvalid, kRotationOnly, kGeneralMotion };
 MAPLAB_DEFINE_ENUM_HASHING(MotionType, int);

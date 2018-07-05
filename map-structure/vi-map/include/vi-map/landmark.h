@@ -34,15 +34,17 @@ class Landmark {
   }
 
   inline Landmark& operator=(const Landmark& lhs) {
-    id_ = lhs.id_;
-    observations_ = lhs.observations_;
-    quality_ = lhs.quality_;
-    B_position_ = lhs.B_position_;
-    appearances_ = lhs.appearances_;
+    if (this != &lhs) {
+      id_ = lhs.id_;
+      observations_ = lhs.observations_;
+      quality_ = lhs.quality_;
+      B_position_ = lhs.B_position_;
+      appearances_ = lhs.appearances_;
 
-    // Clone covariance if set.
-    if (lhs.B_covariance_ != nullptr) {
-      B_covariance_ = aligned_unique<Eigen::Matrix3d>(*lhs.B_covariance_);
+      // Clone covariance if set.
+      if (lhs.B_covariance_ != nullptr) {
+        B_covariance_ = aligned_unique<Eigen::Matrix3d>(*lhs.B_covariance_);
+      }
     }
     return *this;
   }

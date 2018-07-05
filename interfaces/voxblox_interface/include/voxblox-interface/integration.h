@@ -61,7 +61,7 @@ bool integrateAllDepthResourcesOfType(
 
 // Integrates a 3D point cloud into a TSDF map.
 void integratePointCloud(
-    const pose::Transformation& T_G_C, const pose::Position3DVector& points_C,
+    const pose::Transformation& T_G_C, const voxblox::Pointcloud& points_C,
     voxblox::TsdfIntegratorBase* tsdf_integrator);
 
 // Integrates a 3D point cloud into a TSDF map.
@@ -71,7 +71,7 @@ void integratePointCloud(
 
 // Integrates a color 3D point cloud into a TSDF map.
 void integrateColorPointCloud(
-    const pose::Transformation& T_G_C, const pose::Position3DVector& points_C,
+    const pose::Transformation& T_G_C, const voxblox::Pointcloud& points_C,
     const voxblox::Colors& colors,
     voxblox::TsdfIntegratorBase* tsdf_integrator);
 

@@ -809,7 +809,9 @@ void GraphBaOptimizer::alignMissions(
   CHECK(!baseframes_to_fix.empty())
       << "At least one baseframe has to be fixed.";
 
-  vi_map_helpers::evaluateLandmarkQuality(&map_);
+  vi_map::MissionIdList mission_ids(missions.begin(), missions.end());
+  CHECK_EQ(mission_ids.size(), missions.size());
+  vi_map_helpers::evaluateLandmarkQuality(mission_ids, &map_);
   LOG(INFO) << "Running align on the following missions:";
   for (const vi_map::MissionId& mission_id : missions) {
     LOG(INFO) << "\t" << mission_id;
@@ -1275,7 +1277,7 @@ void GraphBaOptimizer::addInertialResidualBlocks(
                                     Eigen::Matrix<double, 6, 6>>::iterator,
                 bool>
           it_success = imu_edge_covariances->insert(
-              std::make_pair(edge_id, Eigen::Matrix<double, 6, 6>()));
+              std::make_pair(edge_id, Eigen::Matrix<double, 6, 6>::Zero()));
       CHECK(it_success.second);
       Eigen::Matrix<double, 6, 6>& A_T_B_imu_covariance =
           it_success.first->second;
@@ -1542,18 +1544,24 @@ void GraphBaOptimizer::addLoopClosureEdges(
           loop_closure_edge.getSwitchVariableVariance() *
           loop_closure_edge.getSwitchVariableVariance();
 
-      using ceres_error_terms::SwitchPriorErrorTermLegacy;
+      using ceres_error_terms::SwitchPriorErrorTerm;
       std::shared_ptr<ceres::CostFunction> switch_variable_cost(
           new ceres::AutoDiffCostFunction<
-              SwitchPriorErrorTermLegacy,
-              SwitchPriorErrorTermLegacy::residualBlockSize,
-              SwitchPriorErrorTermLegacy::switchVariableBlockSize>(
-              new SwitchPriorErrorTermLegacy(
+              SwitchPriorErrorTerm, SwitchPriorErrorTerm::residualBlockSize,
+              SwitchPriorErrorTerm::switchVariableBlockSize>(
+              new SwitchPriorErrorTerm(
                   kSwitchPrior, kSwitchVariableVarianceSq)));
       problem_information_.addResidualBlock(
           ceres_error_terms::ResidualType::kSwitchVariable,
           switch_variable_cost, NULL,
           {loop_closure_edge.getSwitchVariableMutable()});
+      constexpr double kSwitchVariableMinValue = 0.0;
+      constexpr double kSwitchVariableMaxValue = 1.0;
+      constexpr int kSwitchVariableIndexIntoParameterBlock = 0;
+      problem_information_.setParameterBlockBounds(
+          kSwitchVariableIndexIntoParameterBlock, kSwitchVariableMinValue,
+          kSwitchVariableMaxValue,
+          loop_closure_edge.getSwitchVariableMutable());
     }
 
     ++num_residual_blocks_added;
@@ -1800,7 +1808,7 @@ bool GraphBaOptimizer::addVisualResidualBlockOfKeypoint(
 
   if (min_num_observer_missions > 0u) {
     vi_map::MissionIdSet observer_missions;
-    map_.getLandmarkObserverMissions(landmark_id, &observer_missions);
+    map_.getObserverMissionsForLandmark(landmark_id, &observer_missions);
     if (observer_missions.size() < min_num_observer_missions) {
       return false;
     }

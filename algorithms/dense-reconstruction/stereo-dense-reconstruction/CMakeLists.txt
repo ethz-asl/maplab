@@ -15,9 +15,12 @@ cs_add_library(${PROJECT_NAME} src/stereo-camera-utils.cpp
                                src/stereo-dense-reconstruction.cpp
                                src/stereo-pair-detection.cpp)
 
-catkin_add_gtest(${PROJECT_NAME}-test test/test_stereo_dense_reconstruction.cpp
-                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/test)
-target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
+set(PROJECT_TEST_DATA "${PROJECT_NAME}_test_data")
+execute_process(COMMAND rm -rf ${PROJECT_TEST_DATA}
+                COMMAND tar -xvzf ${MAPLAB_TEST_DATA_DIR}/${PROJECT_TEST_DATA}/${PROJECT_TEST_DATA}.tar.gz -C .)
+
+catkin_add_gtest(${PROJECT_NAME}_test test/test-stereo-dense-reconstruction.cpp)
+target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME})
 
 cs_install()
 cs_export()

@@ -1,0 +1,105 @@
+\documentclass{article}
+
+\usepackage[dvipsnames]{xcolor}
+
+\usepackage{booktabs}
+\usepackage{datetime}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage[a4paper, margin=2cm]{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{longtable, tabu}
+\usepackage{pifont}
+\usepackage{tcolorbox}
+\usepackage{titletoc}  % To be able to add section prefixes to toc.
+
+\tcbuselibrary{breakable}
+
+% Some symbols.
+% References: https://tex.stackexchange.com/a/42620
+%             http://willbenton.com/wb-images/pifont.pdf
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+\newcommand{\semicircle}{\ding{119}}
+
+% Allow breaks on _.
+\renewcommand\_{\textunderscore\allowbreak}
+
+\newcommand{\myparagraph}[1]{\paragraph{#1}\mbox{}\\}
+\newcommand{\mysubparagraph}[1]{\subparagraph{#1}\mbox{}\\}
+\newcommand{\mysubsubparagraph}[1]{\textbf{#1}\mbox{}\\}
+
+\setcounter{secnumdepth}{5}
+\setcounter{tocdepth}{5}
+
+\pagestyle{fancy}
+\fancyhf{}
+
+\definecolor{codegray}{HTML}{F0F0F0}
+\newenvironment{ttblock}
+  {\begin{tcolorbox}[breakable, notitle, boxrule=0pt, colframe=codegray, colback=codegray]\ttfamily\small}
+  {\end{tcolorbox}}
+\newcommand{\inltt}[1]{
+  \begingroup
+  \texttt{#1}
+  \endgroup
+}
+
+\begin{document}
+
+\title{Maplab Evaluation Report}
+\author{}
+\date{\today, \currenttime}
+
+\maketitle
+
+% Placeholder for the summary section.
+SUMMARYCONTENT
+\pagebreak
+
+\tableofcontents
+
+% Update toc to support the new numbering.
+\titlecontents{section}% <section-type>
+  [0em]% <left>
+  {\addvspace{1em}\bfseries}% <above-code>
+  {\thecontentslabel\hspace*{1em}}% <numbered-entry-format>
+  {}% <numberless-entry-format>
+  {\hfill\contentspage}% <filler-page-format>
+\titlecontents{subsection}% <section-type>
+  [1.5em]% <left>
+  {\bfseries}% <above-code>
+  {\thecontentslabel \hspace*{1em}}% <numbered-entry-format>
+  {}% <numberless-entry-format>
+  {\hfill\contentspage}% <filler-page-format>
+\titlecontents{subsubsection}% <section-type>
+  [3em]% <left>
+  {}% <above-code>
+  {\thecontentslabel\hspace*{1em}}% <numbered-entry-format>
+  {}% <numberless-entry-format>
+  {\titlerule*[1pc]{.}\contentspage}% <filler-page-format>
+\titlecontents{paragraph}% <section-type>
+  [4.5em]% <left>
+  {}% <above-code>
+  {\thecontentslabel\hspace*{1em}}% <numbered-entry-format>
+  {}% <numberless-entry-format>
+  {\titlerule*[1pc]{.}\contentspage}% <filler-page-format>
+\titlecontents{subparagraph}% <section-type>
+  [6em]% <left>
+  {}% <above-code>
+  {\thecontentslabel\hspace*{1em}}% <numbered-entry-format>
+  {}% <numberless-entry-format>
+  {\titlerule*[1pc]{.}\contentspage}% <filler-page-format>
+
+% Append Test to section numbers.
+\renewcommand*{\thesection}{Test~\arabic{section}}
+\renewcommand*{\thesubsection}{Test~\arabic{section}.\arabic{subsection}}
+\renewcommand*{\thesubsubsection}{\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
+
+\fancyhead[L]{\leftmark\newline\rightmark}
+\fancyfoot[C]{\thepage}
+% Placeholder for all job-specific content.
+PERJOBCONTENT
+
+\end{document}

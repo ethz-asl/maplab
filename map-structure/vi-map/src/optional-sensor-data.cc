@@ -145,10 +145,9 @@ void OptionalSensorData::serialize(
     const SensorId& sensor_id = sensor_id_with_measurement.first;
     CHECK(sensor_id.isValid());
 
-    for (const SensorIdToMeasurementsMap<GpsUtmMeasurement>::
-        value_type::second_type::BufferType::value_type&
-        gps_utm_measurement_with_timestamp :
-        sensor_id_with_measurement.second.buffered_values()) {
+    for (const SensorIdToMeasurementsMap<GpsUtmMeasurement>::mapped_type::
+             BufferType::value_type& gps_utm_measurement_with_timestamp :
+         sensor_id_with_measurement.second) {
       CHECK_EQ(
           gps_utm_measurement_with_timestamp.first,
           gps_utm_measurement_with_timestamp.second.getTimestampNanoseconds());
@@ -162,10 +161,10 @@ void OptionalSensorData::serialize(
     const SensorId& sensor_id = sensor_id_with_measurement.first;
     CHECK(sensor_id.isValid());
 
-    for (const SensorIdToMeasurementsMap<GpsWgsMeasurement>::
-        value_type::second_type::BufferType::value_type&
-        gps_wgs_measurement_with_timestamp :
-        sensor_id_with_measurement.second.buffered_values()) {
+    for (const SensorIdToMeasurementsMap<GpsWgsMeasurement>::value_type::
+             second_type::BufferType::value_type&
+                 gps_wgs_measurement_with_timestamp :
+         sensor_id_with_measurement.second) {
       CHECK_EQ(
           gps_wgs_measurement_with_timestamp.first,
           gps_wgs_measurement_with_timestamp.second.getTimestampNanoseconds());

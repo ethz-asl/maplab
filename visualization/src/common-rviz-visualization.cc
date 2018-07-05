@@ -3,7 +3,6 @@
 #include <algorithm>
 
 #include <glog/logging.h>
-#include <pcl_ros/point_cloud.h>
 #include <tf/LinearMath/Transform.h>
 #include <tf/transform_broadcaster.h>
 

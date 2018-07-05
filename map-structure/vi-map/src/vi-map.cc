@@ -191,7 +191,7 @@ template <>
 void VIMap::getMissionIds(
     const LandmarkId& object_id, vi_map::MissionIdSet* mission_ids) const {
   CHECK_NOTNULL(mission_ids)->clear();
-  getLandmarkObserverMissions(object_id, mission_ids);
+  getObserverMissionsForLandmark(object_id, mission_ids);
 }
 
 template <>
@@ -374,6 +374,42 @@ void VIMap::getStatisticsOfMission(
   }
 }
 
+template <typename SensorId>
+void printNumOptionalSensorMeasurementOfMission(
+    const VIMission& mission,
+    const std::function<void(const std::string&, const std::string&, int)>&
+        print_aligned_function) {
+  assert(
+      static_cast<int>(backend::ResourceType::kCount) ==
+      static_cast<int>(backend::ResourceTypeNames.size()));
+  for (int resource_idx = 0;
+       resource_idx < static_cast<int>(backend::ResourceType::kCount);
+       ++resource_idx) {
+    const std::string kResourceName = backend::ResourceTypeNames[resource_idx];
+    CHECK(!kResourceName.empty());
+    const typename std::unordered_map<
+        SensorId, backend::OptionalSensorResources>* sensor_resources_map =
+        mission.getAllOptionalSensorResourceIdsOfType<SensorId>(
+            static_cast<backend::ResourceType>(resource_idx));
+
+    if (sensor_resources_map != nullptr) {
+      for (const typename std::unordered_map<
+               SensorId, backend::OptionalSensorResources>::value_type&
+               sensor_id_resource_ids_pair : *sensor_resources_map) {
+        const SensorId& sensor_id = sensor_id_resource_ids_pair.first;
+        CHECK(sensor_id.isValid());
+        const size_t num_measurements =
+            sensor_id_resource_ids_pair.second.size();
+
+        print_aligned_function(
+            "Num " + kResourceName + " measurements (Sensor " +
+                sensor_id.shortHex() + "..): ",
+            std::to_string(num_measurements), 1);
+      }
+    }
+  }
+}
+
 std::string VIMap::printMapStatistics(
     const vi_map::MissionId& mission_id, const unsigned int mission_number,
     const SemanticsManager& semantics) const {
@@ -381,17 +417,18 @@ std::string VIMap::printMapStatistics(
 
   static constexpr int kMaxLength = 20;
 
-  auto print_aligned = [&stats_text](
-      const std::string& key, const std::string& value, int indent) {
-    for (int i = 0; i < indent; ++i) {
-      stats_text << "\t";
-    }
-    stats_text.width(static_cast<std::streamsize>(kMaxLength));
-    stats_text.setf(std::ios::left, std::ios::adjustfield);
-    stats_text << key << "\t";
-    stats_text.width(25);
-    stats_text << value << std::endl;
-  };
+  const std::function<void(const std::string&, const std::string&, int)>
+      print_aligned = [&stats_text](
+          const std::string& key, const std::string& value, int indent) {
+        for (int i = 0; i < indent; ++i) {
+          stats_text << "\t";
+        }
+        stats_text.width(static_cast<std::streamsize>(kMaxLength));
+        stats_text.setf(std::ios::left, std::ios::adjustfield);
+        stats_text << key << "\t";
+        stats_text.width(25);
+        stats_text << value << std::endl;
+      };
 
   std::string name = semantics.getNameOfMission(mission_id);
   std::vector<size_t> num_good_landmarks_per_camera;
@@ -499,6 +536,14 @@ std::string VIMap::printMapStatistics(
     print_aligned("GPS WGS Sensor: ", sensor_id.hexString(), 1);
   }
 
+  SensorIdSet lidar_sensors_ids;
+  sensor_manager_.getAllSensorIdsOfTypeAssociatedWithMission(
+      SensorType::kLidar, mission_id, &lidar_sensors_ids);
+  for (const SensorId& sensor_id : lidar_sensors_ids) {
+    CHECK(sensor_id.isValid());
+    print_aligned("LiDAR Sensor: ", sensor_id.hexString(), 1);
+  }
+
   print_aligned("Vertices:", std::to_string(num_vertices), 1);
 
   print_aligned("Landmarks:", std::to_string(num_landmarks), 1);
@@ -570,6 +615,10 @@ std::string VIMap::printMapStatistics(
       }
     }
   }
+
+  printNumOptionalSensorMeasurementOfMission<SensorId>(mission, print_aligned);
+  printNumOptionalSensorMeasurementOfMission<aslam::CameraId>(
+      mission, print_aligned);
 
   return stats_text.str();
 }
@@ -1197,7 +1246,7 @@ void VIMap::duplicateMission(const vi_map::MissionId& source_mission_id) {
                 should_duplicate = false;
               } else {
                 vi_map::MissionIdSet observer_missions;
-                getLandmarkObserverMissions(
+                getObserverMissionsForLandmark(
                     current_landmark_id, &observer_missions);
                 CHECK(!observer_missions.empty())
                     << "Landmark should have at "
@@ -1434,7 +1483,7 @@ unsigned int VIMap::numExpectedLandmarkObserverMissions(
   CHECK(hasLandmark(landmark_id));
 
   vi_map::MissionIdSet observer_missions;
-  getLandmarkObserverMissions(landmark_id, &observer_missions);
+  getObserverMissionsForLandmark(landmark_id, &observer_missions);
 
   vi_map::MissionIdList candidate_mission_ids;
   getAllMissionIds(&candidate_mission_ids);
@@ -1477,7 +1526,7 @@ unsigned int VIMap::numExpectedLandmarkObserverMissions(
     // kMinObservationsPerContextLandmark times.
     if (context_landmark.second > kMinObservationsPerContextLandmark) {
       std::unordered_set<vi_map::MissionId> context_landmark_observer_missions;
-      getLandmarkObserverMissions(
+      getObserverMissionsForLandmark(
           context_landmark.first, &context_landmark_observer_missions);
 
       for (const vi_map::MissionId& mission_id :

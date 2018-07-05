@@ -9,7 +9,7 @@
 namespace loop_closure_plugin {
 
 VILocalizationEvaluator::VILocalizationEvaluator(
-    vi_map::VIMap* map, visualization::ViwlsGraphRvizPlotter* plotter)
+    vi_map::VIMap* map, const visualization::ViwlsGraphRvizPlotter* plotter)
     : map_(map), plotter_(plotter) {
   CHECK_NOTNULL(map_);
 }

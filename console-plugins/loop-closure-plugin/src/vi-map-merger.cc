@@ -11,7 +11,7 @@ DEFINE_bool(
     "If true, no inter-mission loop-closures are sought.");
 
 VIMapMerger::VIMapMerger(
-    vi_map::VIMap* map, visualization::ViwlsGraphRvizPlotter* plotter)
+    vi_map::VIMap* map, const visualization::ViwlsGraphRvizPlotter* plotter)
     : map_(map), plotter_(plotter) {
   CHECK_NOTNULL(map_);
 }

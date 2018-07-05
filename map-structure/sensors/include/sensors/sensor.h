@@ -80,7 +80,7 @@ inline SensorType stringToSensorType(const std::string& sensor_type) {
   } else if (sensor_type == static_cast<std::string>(kSensorTypeLidar)) {
     return SensorType::kLidar;
   } else {
-    LOG(FATAL) << "Unknown sensor type: " << sensor_type;
+    LOG(ERROR) << "Unknown sensor type: " << sensor_type;
     return SensorType::kInvalidSensor;
   }
 }
@@ -123,7 +123,7 @@ class Sensor : public common::YamlFileSerializable {
     constexpr double kPrecision = 1e-12;
     return isEqual(other, kPrecision);
   }
-  // void saveToYaml(const std::string& yaml_path) const;
+
   void serialize(YAML::Node* yaml_node) const override;
   bool deserialize(const YAML::Node& sensor_node) override;
 

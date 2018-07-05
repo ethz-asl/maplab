@@ -236,15 +236,15 @@ TEST_F(ViwlsGraph, NumLandmarkObserverMissionsTest) {
   }
 }
 
-// This test verifies if getLandmarkObserverMissions of the VIMap returns
-// returns correct mission IDs that observe a certain landmark.
+// This test verifies if getObserverMissionsForLandmark of the VIMap returns the
+// correct mission IDs that observe a certain landmark.
 TEST_F(ViwlsGraph, GetLandmarkObserverMissionsTest) {
   fillVIMap();
 
   for (const LandmarkObserverMissionMap::value_type&
            true_landmark_observer_missions : landmark_observer_mission_map_) {
     vi_map::MissionIdSet observer_missions;
-    vi_map_.getLandmarkObserverMissions(
+    vi_map_.getObserverMissionsForLandmark(
         true_landmark_observer_missions.first, &observer_missions);
     EXPECT_EQ(true_landmark_observer_missions.second, observer_missions);
   }

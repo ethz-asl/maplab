@@ -89,7 +89,7 @@ TEST(VertexTimeQueriesTest, TestTimeQueriesSingleAndMultiMission) {
 
   generator.generateMap();
 
-  VIMapVertexTimeQueries vertex_time_index(map);
+  VIMapVertexTimeQueries vertex_time_index(*map);
 
   const size_t kNumQueries = 50u;
 
@@ -106,7 +106,7 @@ TEST(VertexTimeQueriesTest, TestTimeQueriesSingleAndMultiMission) {
         getGroundTruthVertexIdClosestInTime(query_timestamp_nanoseconds, map));
   }
 
-  VIMapMissionsVertexTimeQueries mission_vertex_time_index(map);
+  VIMapMissionsVertexTimeQueries mission_vertex_time_index(*map);
 
   for (size_t query_idx = 0u; query_idx < kNumQueries; ++query_idx) {
     const int64_t query_timestamp_nanoseconds =

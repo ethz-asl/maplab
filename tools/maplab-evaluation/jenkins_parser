@@ -1,0 +1,19 @@
+# Note: log parser doesn't support spaces, so we instead regex-match to any
+# whitespace character with "\s".
+
+# Error listed in overview.
+error /ERROR:\s*.*failed\swith\sreturn\svalue/
+
+# Other common error messages for easy navigation of the parsed log file.
+error /exceeds\sthe\smaximum\sallowed\svalue/
+error /the\sestimator\sor\sconsole\scommand\sreturned\sa\snon-zero\sexit\scode/
+error /Evaluation\s.*\sexited\swith\snon-zero\sreturn\svalue:/
+
+# Long term warning that results got worse.
+warning /Evaluation\sjob\sprogression:\sperformance\sof\sjob/
+
+# Success message in overview.
+info /SUCCESS:\s.*succeeded/
+
+info /position\s.m./
+info /orientation\s.deg./

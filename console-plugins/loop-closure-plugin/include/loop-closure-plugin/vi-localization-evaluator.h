@@ -17,7 +17,7 @@ class VILocalizationEvaluator {
  public:
   VILocalizationEvaluator() = delete;
   VILocalizationEvaluator(
-      vi_map::VIMap* map, visualization::ViwlsGraphRvizPlotter* plotter);
+      vi_map::VIMap* map, const visualization::ViwlsGraphRvizPlotter* plotter);
   enum ConsistencyStatus {
     kInconsistent = common::kCustomStatusOffset,
     kNoData,
@@ -29,7 +29,7 @@ class VILocalizationEvaluator {
 
  private:
   vi_map::VIMap* map_;
-  visualization::ViwlsGraphRvizPlotter* plotter_;
+  const visualization::ViwlsGraphRvizPlotter* plotter_;
 };
 
 }  // namespace loop_closure_plugin

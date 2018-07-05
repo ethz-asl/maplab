@@ -4,31 +4,27 @@
 
 namespace vi_map_helpers {
 
-VIMapVertexTimeQueries::VIMapVertexTimeQueries(const vi_map::VIMap::Ptr& map)
-    : map_(map) {
-  CHECK(map_);
+VIMapVertexTimeQueries::VIMapVertexTimeQueries(const vi_map::VIMap& map) {
   pose_graph::VertexIdList vertex_ids;
-  map_->getAllVertexIds(&vertex_ids);
-  buildVertexIdTimestampIndex(vertex_ids);
+  map.getAllVertexIds(&vertex_ids);
+  buildVertexIdTimestampIndex(vertex_ids, map);
 }
 
 VIMapVertexTimeQueries::VIMapVertexTimeQueries(
-    const vi_map::VIMap::Ptr& map, const vi_map::MissionId& mission_id)
-    : map_(map) {
-  CHECK(map_);
+    const vi_map::VIMap& map, const vi_map::MissionId& mission_id) {
   CHECK(mission_id.isValid());
   CHECK(mission_id.isValid());
   pose_graph::VertexIdList vertex_ids;
-  map_->getAllVertexIdsInMission(mission_id, &vertex_ids);
-  buildVertexIdTimestampIndex(vertex_ids);
+  map.getAllVertexIdsInMission(mission_id, &vertex_ids);
+  buildVertexIdTimestampIndex(vertex_ids, map);
 }
 
 void VIMapVertexTimeQueries::buildVertexIdTimestampIndex(
-    const pose_graph::VertexIdList& vertex_ids) {
+    const pose_graph::VertexIdList& vertex_ids, const vi_map::VIMap& map) {
   vertex_timestamp_index_.clear();
   for (const pose_graph::VertexIdList::value_type& vertex_id : vertex_ids) {
     const int64_t vertex_timestamp =
-        map_->getVertex(vertex_id).getMinTimestampNanoseconds();
+        map.getVertex(vertex_id).getMinTimestampNanoseconds();
     vertex_timestamp_index_.addValue(vertex_timestamp, vertex_id);
   }
 }
@@ -41,11 +37,26 @@ bool VIMapVertexTimeQueries::getClosestVertexInTime(
       timestamp_nanoseconds, vertex_id);
 }
 
+bool VIMapVertexTimeQueries::getVertexInTimeEqualOrBefore(
+    const int64_t timestamp_nanoseconds, pose_graph::VertexId* vertex_id,
+    int64_t* vertex_timestamp_nanoseconds) const {
+  CHECK_NOTNULL(vertex_id)->setInvalid();
+  return vertex_timestamp_index_.getValueAtOrBeforeTime(
+      timestamp_nanoseconds, vertex_timestamp_nanoseconds, vertex_id);
+}
+
+bool VIMapVertexTimeQueries::getVertexInTimeEqualOrAfter(
+    const int64_t timestamp_nanoseconds, pose_graph::VertexId* vertex_id,
+    int64_t* vertex_timestamp_nanoseconds) const {
+  CHECK_NOTNULL(vertex_id)->setInvalid();
+  return vertex_timestamp_index_.getValueAtOrAfterTime(
+      timestamp_nanoseconds, vertex_timestamp_nanoseconds, vertex_id);
+}
+
 VIMapMissionsVertexTimeQueries::VIMapMissionsVertexTimeQueries(
-    const vi_map::VIMap::Ptr& map) {
-  CHECK(map);
+    const vi_map::VIMap& map) {
   vi_map::MissionIdList mission_ids;
-  map->getAllMissionIds(&mission_ids);
+  map.getAllMissionIds(&mission_ids);
   for (const vi_map::MissionId& mission_id : mission_ids) {
     CHECK(mission_id.isValid());
     mission_to_vertex_timestamp_index_map_.emplace(

@@ -54,7 +54,7 @@ int OptimizerPlugin::optimizeVisionOnly() {
   options.include_gps = false;
   options.position_only_gps = false;
 
-  VIMapOptimizer optimizer(plotter_, kSignalHandlerEnabled);
+  VIMapOptimizer optimizer(getPlotterUnsafe(), kSignalHandlerEnabled);
   vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
@@ -67,7 +67,7 @@ int OptimizerPlugin::optimizeVisualInertial() {
     return common::kStupidUserError;
   }
 
-  VIMapOptimizer optimizer(plotter_, kSignalHandlerEnabled);
+  VIMapOptimizer optimizer(getPlotterUnsafe(), kSignalHandlerEnabled);
   vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
@@ -94,7 +94,7 @@ int OptimizerPlugin::optimizeOneMission() {
     return common::kUnknownError;
   }
 
-  VIMapOptimizer optimizer(plotter_, kSignalHandlerEnabled);
+  VIMapOptimizer optimizer(getPlotterUnsafe(), kSignalHandlerEnabled);
   ceres::Solver::Summary summary;
   map_optimization_legacy::BaOptimizationOptions options;
   options.fix_not_selected_missions = true;
@@ -119,7 +119,7 @@ int OptimizerPlugin::relax() {
     return common::kStupidUserError;
   }
 
-  VIMapOptimizer optimizer(plotter_, kSignalHandlerEnabled);
+  VIMapOptimizer optimizer(getPlotterUnsafe(), kSignalHandlerEnabled);
   const int status = optimizer.relaxPosegraphBasedOnLoopclosureEdges(map.get());
   LOG(INFO) << "Removing loop closure edges.";
   map.get()->removeLoopClosureEdges();

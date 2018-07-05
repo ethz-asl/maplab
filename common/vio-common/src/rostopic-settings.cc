@@ -7,6 +7,7 @@
 #include <aslam/cameras/ncamera.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <sensors/lidar.h>
 
 DEFINE_string(
     vio_camera_topic_suffix, "/image_raw",
@@ -76,16 +77,32 @@ RosTopicSettings::RosTopicSettings(const vi_map::SensorManager& sensor_manager)
   if (sensor_manager.getSensor<vi_map::GpsWgs>(&gps_wgs)) {
     gps_wgs_topic = gps_wgs.getHardwareId();
   }
+
+  vi_map::SensorIdSet lidar_sensor_ids;
+  sensor_manager.getAllSensorIdsOfType(
+      vi_map::SensorType::kLidar, &lidar_sensor_ids);
+
+  for (const vi_map::SensorId& lidar_sensor_id : lidar_sensor_ids) {
+    CHECK(lidar_sensor_id.isValid());
+    const std::string& hardware_id =
+        sensor_manager.getSensor<vi_map::Lidar>(lidar_sensor_id)
+            .getHardwareId();
+    CHECK(!hardware_id.empty());
+    CHECK(
+        lidar_topic_sensor_id_map.emplace(hardware_id, lidar_sensor_id).second);
+  }
+  CHECK_EQ(lidar_topic_sensor_id_map.size(), lidar_sensor_ids.size());
 }
 
 void RosTopicSettings::getAllValidTopics(std::vector<std::string>* topics) {
   CHECK_NOTNULL(topics)->clear();
   makeAbsoluteTopics();
 
-  for (const vio_common::RosTopicSettings::CameraTopicIdxMap::value_type&
-           topic_idx_pair : camera_topic_cam_index_map) {
-    topics->emplace_back(topic_idx_pair.first);
+  for (const CameraTopicIdxMap::value_type& camera_topic_idx_pair :
+       camera_topic_cam_index_map) {
+    topics->emplace_back(camera_topic_idx_pair.first);
   }
+
   if (!imu_topic.empty()) {
     topics->emplace_back(imu_topic);
   }
@@ -101,18 +118,24 @@ void RosTopicSettings::getAllValidTopics(std::vector<std::string>* topics) {
   if (!gps_utm_topic.empty()) {
     topics->emplace_back(gps_utm_topic);
   }
+
+  for (const LidarTopicSensorIdMap::value_type& lidar_topic_sensor_id_pair :
+       lidar_topic_sensor_id_map) {
+    topics->emplace_back(lidar_topic_sensor_id_pair.first);
+  }
 }
 
 void RosTopicSettings::makeAbsoluteTopics() {
-  CameraTopicIdxMap tmp_map;
+  CameraTopicIdxMap camera_topics_tmp_map;
   for (const CameraTopicIdxMap::value_type& topic_idx :
        camera_topic_cam_index_map) {
     CHECK(!topic_idx.first.empty());
     topic_idx.first[0] == '/'
-        ? tmp_map.emplace(topic_idx.first, topic_idx.second)
-        : tmp_map.emplace("/" + topic_idx.first, topic_idx.second);
+        ? camera_topics_tmp_map.emplace(topic_idx.first, topic_idx.second)
+        : camera_topics_tmp_map.emplace(
+              '/' + topic_idx.first, topic_idx.second);
   }
-  camera_topic_cam_index_map.swap(tmp_map);
+  camera_topic_cam_index_map.swap(camera_topics_tmp_map);
 
   if (!imu_topic.empty() && imu_topic[0] != '/') {
     imu_topic = '/' + imu_topic;
@@ -129,5 +152,17 @@ void RosTopicSettings::makeAbsoluteTopics() {
   if (!gps_utm_topic.empty() && gps_utm_topic[0] != '/') {
     gps_utm_topic = '/' + gps_utm_topic;
   }
+
+  LidarTopicSensorIdMap lidar_topics_tmp_map;
+  for (const LidarTopicSensorIdMap::value_type& topic_sensor_id :
+       lidar_topic_sensor_id_map) {
+    CHECK(!topic_sensor_id.first.empty());
+    topic_sensor_id.first[0] == '/'
+        ? lidar_topics_tmp_map.emplace(
+              topic_sensor_id.first, topic_sensor_id.second)
+        : lidar_topics_tmp_map.emplace(
+              '/' + topic_sensor_id.first, topic_sensor_id.second);
+  }
+  lidar_topic_sensor_id_map.swap(lidar_topics_tmp_map);
 }
 }  // namespace vio_common

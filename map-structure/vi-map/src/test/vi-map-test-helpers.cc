@@ -301,7 +301,7 @@ bool hasAllOptionalCamerasOfOtherMission(
 
     const aslam::Transformation& T_C_B_a = cam_w_extrinsics_a.first;
     const aslam::Transformation& T_C_B_b = cam_w_extrinsics_b.first;
-    result == result && (T_C_B_a == T_C_B_b);
+    result = result && (T_C_B_a == T_C_B_b);
 
     if (cam_w_extrinsics_a.second) {
       const aslam::Camera& camera_a = *cam_w_extrinsics_a.second;

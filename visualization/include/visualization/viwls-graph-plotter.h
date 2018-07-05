@@ -107,22 +107,22 @@ class ViwlsGraphRvizPlotter {
   void publishReferenceMap() const;
   void setReferenceMap(const vi_map::VIMap& map);
 
+  static const std::string kBaseframeTopic;
+  static const std::string kBoundingBoxTopic;
+  static const std::string kBoxTopic;
   static const std::string kCamPredictionTopic;
   static const std::string kEdgeTopic;
-  static const std::string kBoundingBoxTopic;
-  static const std::string kBaseframeTopic;
-  static const std::string kVertexTopic;
-  static const std::string kVertexPartitioningTopic;
-  static const std::string kBoxTopic;
-  static const std::string kLoopclosureTopic;
+  static const std::string kLandmarkNormalsTopic;
   static const std::string kLandmarkPairsTopic;
   static const std::string kLandmarkTopic;
+  static const std::string kLoopclosureTopic;
   static const std::string kMeshTopic;
-  static const std::string kLandmarkNormalsTopic;
-  static const std::string kSlidingWindowLocalizationResultTopic;
-  static const std::string kUniqueKeyFramesTopic;
   static const std::string kNcamExtrinsicsTopic;
   static const std::string kSensorExtrinsicsTopic;
+  static const std::string kSlidingWindowLocalizationResultTopic;
+  static const std::string kUniqueKeyFramesTopic;
+  static const std::string kVertexPartitioningTopic;
+  static const std::string kVertexTopic;
 
  private:
   visualization::LineSegmentVector reference_edges_line_segments_;

@@ -8,6 +8,7 @@
 #include <glog/logging.h>
 #include <maplab-common/pose_types.h>
 #include <opencv2/core.hpp>
+#include <sensor_msgs/PointCloud2.h>
 #include <voxblox/core/common.h>
 
 #include "map-resources/resource-typedefs.h"
@@ -18,106 +19,64 @@ namespace backend {
 // the point cloud has already been resized to allow for direct insertion at
 // this index.
 template <typename PointCloudType>
-void addPointToPointCloud(
-    const Eigen::Vector3d& point_C, const resources::RgbaColor& color,
-    const size_t index, PointCloudType* point_cloud);
+void addColorToPointCloud(
+    const resources::RgbaColor& color, const size_t index,
+    PointCloudType* point_cloud);
+
+template <typename PointCloudType>
+void addScalarToPointCloud(
+    const float scalar, const size_t index, PointCloudType* point_cloud);
 
 template <typename PointCloudType>
 void addPointToPointCloud(
     const Eigen::Vector3d& point_C, const size_t index,
     PointCloudType* point_cloud);
 
-template <>
-void addPointToPointCloud(
-    const Eigen::Vector3d& point_C, const resources::RgbaColor& color,
-    const size_t index, pose::Position3DVector* point_cloud);
-
-template <>
-void addPointToPointCloud(
-    const Eigen::Vector3d& point_C, const resources::RgbaColor& color,
-    const size_t index, resources::VoxbloxColorPointCloud* point_cloud);
-template <>
-void addPointToPointCloud(
-    const Eigen::Vector3d& point_C, const resources::RgbaColor& color,
-    const size_t index, resources::PointCloud* point_cloud);
-
-template <>
-void addPointToPointCloud(
-    const Eigen::Vector3d& point_C, const size_t index,
-    pose::Position3DVector* point_cloud);
-
-template <>
-void addPointToPointCloud(
-    const Eigen::Vector3d& point_C, const size_t index,
-    resources::VoxbloxColorPointCloud* point_cloud);
-template <>
-void addPointToPointCloud(
-    const Eigen::Vector3d& point_C, const size_t index,
-    resources::PointCloud* point_cloud);
-
 template <typename PointCloudType>
 bool hasColorInformation(const PointCloudType& point_cloud);
 
-template <>
-bool hasColorInformation(const pose::Position3DVector& point_cloud);
-
-template <>
-bool hasColorInformation(const resources::VoxbloxColorPointCloud& point_cloud);
-
-template <>
-bool hasColorInformation(const resources::PointCloud& point_cloud);
+template <typename PointCloudType>
+bool hasNormalsInformation(const PointCloudType& /*point_cloud*/) {
+  return false;
+}
 
 template <typename PointCloudType>
-void resizePointCloud(const size_t size, PointCloudType* point_cloud);
+bool hasScalarInformation(const PointCloudType& /*point_cloud*/);
 
 template <>
-void resizePointCloud(const size_t size, pose::Position3DVector* point_cloud);
+bool hasScalarInformation<sensor_msgs::PointCloud2>(
+    const sensor_msgs::PointCloud2& /*point_cloud*/);
 
 template <>
+bool hasScalarInformation<resources::PointCloud>(
+    const resources::PointCloud& /*point_cloud*/);
+
+template <typename PointCloudType>
+bool hasScalarInformation(const PointCloudType& /*point_cloud*/) {
+  return false;
+}
+
+template <typename PointCloudType>
 void resizePointCloud(
-    const size_t size, resources::VoxbloxColorPointCloud* point_cloud);
-
-template <>
-void resizePointCloud(const size_t size, resources::PointCloud* point_cloud);
+    const size_t size, const bool has_color, const bool has_normals,
+    const bool has_scalar, PointCloudType* point_cloud);
 
 template <typename PointCloudType>
 size_t getPointCloudSize(const PointCloudType& point_cloud);
 
-template <>
-size_t getPointCloudSize(const pose::Position3DVector& point_cloud);
-
-template <>
-size_t getPointCloudSize(const resources::VoxbloxColorPointCloud& point_cloud);
-
-template <>
-size_t getPointCloudSize(const resources::PointCloud& point_cloud);
-
 template <typename PointCloudType>
 void getPointFromPointCloud(
     const PointCloudType& point_cloud, const size_t index,
-    Eigen::Vector3d* point_C, resources::RgbaColor* color);
+    Eigen::Vector3d* point_C);
 
 template <typename PointCloudType>
-void getPointFromPointCloud(
+void getColorFromPointCloud(
     const PointCloudType& point_cloud, const size_t index,
-    Eigen::Vector3d* point_C) {
-  getPointFromPointCloud(point_cloud, index, point_C, nullptr);
-}
+    resources::RgbaColor* color);
 
-template <>
-void getPointFromPointCloud(
-    const pose::Position3DVector& point_cloud, const size_t index,
-    Eigen::Vector3d* point_C, resources::RgbaColor* color);
-
-template <>
-void getPointFromPointCloud(
-    const resources::VoxbloxColorPointCloud& point_cloud, const size_t index,
-    Eigen::Vector3d* point_C, resources::RgbaColor* color);
-
-template <>
-void getPointFromPointCloud(
-    const resources::PointCloud& point_cloud, const size_t index,
-    Eigen::Vector3d* point_C, resources::RgbaColor* color);
+template <typename PointCloudType>
+void getScalarFromPointCloud(
+    const PointCloudType& point_cloud, const size_t index, float* scalar);
 
 template <typename PointCloudType>
 bool convertDepthMapToPointCloud(
@@ -145,7 +104,12 @@ bool convertDepthMapToPointCloud(
     return false;
   }
 
-  resizePointCloud(valid_depth_entries, point_cloud);
+  const bool has_color = has_image;
+  constexpr bool kHasNormals = false;
+  constexpr bool kHasScalar = false;
+
+  resizePointCloud(
+      valid_depth_entries, has_color, kHasNormals, kHasScalar, point_cloud);
 
   constexpr double kMillimetersToMeters = 1e-3;
   constexpr double kEpsilon = 1e-6;
@@ -191,7 +155,11 @@ bool convertDepthMapToPointCloud(
       }
 
       CHECK_LT(point_index, valid_depth_entries);
-      addPointToPointCloud(point_C, color, point_index, point_cloud);
+      addPointToPointCloud(point_C, point_index, point_cloud);
+      if (has_color) {
+        addColorToPointCloud(color, point_index, point_cloud);
+      }
+
       ++point_index;
     }
   }
@@ -199,7 +167,8 @@ bool convertDepthMapToPointCloud(
           << ".";
 
   // Shrink pointcloud if necessary.
-  resizePointCloud(point_index, point_cloud);
+  resizePointCloud(
+      point_index, has_color, kHasNormals, kHasScalar, point_cloud);
 
   if (point_index == 0u) {
     VLOG(3) << "Depth map has no valid depth measurements!";
@@ -215,19 +184,29 @@ bool convertPointCloudType(
   CHECK_NOTNULL(output_cloud);
 
   const bool input_has_color = hasColorInformation(input_cloud);
+  const bool input_has_normals = hasNormalsInformation(input_cloud);
+  const bool input_has_scalars = hasScalarInformation(input_cloud);
 
   const size_t num_points = getPointCloudSize(input_cloud);
-  resizePointCloud(num_points, output_cloud);
+  resizePointCloud(
+      num_points, input_has_color, input_has_normals, input_has_scalars,
+      output_cloud);
 
   for (size_t point_idx = 0u; point_idx < num_points; ++point_idx) {
     Eigen::Vector3d point_C;
-    resources::RgbaColor color;
+    getPointFromPointCloud(input_cloud, point_idx, &point_C);
+    addPointToPointCloud(point_C, point_idx, output_cloud);
+
     if (input_has_color) {
-      getPointFromPointCloud(input_cloud, point_idx, &point_C, &color);
-      addPointToPointCloud(point_C, color, point_idx, output_cloud);
-    } else {
-      getPointFromPointCloud(input_cloud, point_idx, &point_C);
-      addPointToPointCloud(point_C, point_idx, output_cloud);
+      resources::RgbaColor color;
+      getColorFromPointCloud(input_cloud, point_idx, &color);
+      addColorToPointCloud(color, point_idx, output_cloud);
+    }
+
+    if (input_has_scalars) {
+      float scalar;
+      getScalarFromPointCloud(input_cloud, point_idx, &scalar);
+      addScalarToPointCloud(scalar, point_idx, output_cloud);
     }
   }
   return true;
