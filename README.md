@@ -1,7 +1,6 @@
 <img src="https://github.com/ethz-asl/maplab/wiki/logos/maplab.png" width="500">
 
-*Ubuntu 14.04+ROS indigo* and *Ubuntu 16.04+ROS kinetic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly) (13.07.18:0954 : Dataset server problems, working on it!)
-
+*Ubuntu 14.04+ROS indigo* and *Ubuntu 16.04+ROS kinetic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly)
 
 ## News
 
