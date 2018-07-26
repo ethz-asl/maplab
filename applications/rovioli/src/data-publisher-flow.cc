@@ -190,14 +190,13 @@ void DataPublisherFlow::publishVinsState(
       visualization::kDefaultImuFrame, timestamp_ros);
 
   // Publish pose in global frame.
-  aslam::Transformation T_G_I = T_G_M * T_M_I;
+   aslam::Transformation T_G_I = T_G_M * T_M_I;
   geometry_msgs::PoseStamped T_G_I_message;
   tf::poseStampedKindrToMsg(
       T_G_I, timestamp_ros, visualization::kDefaultMapFrame, &T_G_I_message);
   pub_pose_T_G_I_.publish(T_G_I_message);
-  visualization::publishTF(
-      T_G_I, visualization::kDefaultMapFrame, visualization::kDefaultImuFrame,
-      timestamp_ros);
+  // There is no need to publish TF of this, as it's already in the tree with
+  // the other two TF messages.
 
   // Publish baseframe transformation.
   geometry_msgs::PoseStamped T_G_M_message;

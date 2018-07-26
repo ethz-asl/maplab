@@ -16,6 +16,7 @@ int main(int argc, char** argv) {
       pointcloud_camchain_namespace, tsdf_output_path, cam0_topic, cam1_topic,
       stereo_camchain_namespace;
   int integrate_every_nth_message = 1;
+  bool generate_esdf = false;
   bool exit_at_end = false;
   nh_private.param("map_path", map_path, map_path);
   nh_private.param("calibration_path", calibration_path, calibration_path);
@@ -29,12 +30,14 @@ int main(int argc, char** argv) {
   nh_private.param("stereo_camchain_namespace", stereo_camchain_namespace,
                    stereo_camchain_namespace);
 
+  nh_private.param("generate_esdf", generate_esdf, generate_esdf);
   nh_private.param("tsdf_output_path", tsdf_output_path, tsdf_output_path);
   nh_private.param("integrate_every_nth_message", integrate_every_nth_message,
                    integrate_every_nth_message);
   nh_private.param("exit_at_end", exit_at_end, exit_at_end);
 
   node.setSubsampling(integrate_every_nth_message);
+  node.setGenerateEsdf(generate_esdf);
 
   if (!node.setupRosbag(bag_path)) {
     ROS_ERROR_STREAM("Couldn't open bag " << bag_path);
