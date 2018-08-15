@@ -10,6 +10,7 @@
 #include <ceres-error-terms/parameterization/pose-param-jpl.h>
 #include <ceres-error-terms/parameterization/quaternion-param-jpl.h>
 #include <ceres-error-terms/problem-information.h>
+#include <maplab-common/macros.h>
 #include <vi-map-helpers/mission-clustering-coobservation.h>
 #include <vi-map/vi-map.h>
 
@@ -20,6 +21,8 @@ namespace map_optimization {
 
 class OptimizationProblem {
  public:
+  MAPLAB_POINTER_TYPEDEFS(OptimizationProblem);
+
   OptimizationProblem(
       vi_map::VIMap* vi_map, const vi_map::MissionIdSet& mission_ids);
 
