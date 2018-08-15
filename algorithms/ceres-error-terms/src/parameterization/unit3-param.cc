@@ -27,7 +27,7 @@ bool Unit3Parameterization::ComputeJacobian(
 
   Eigen::Quaterniond quat_x_copy = quat_x;
   if (quat_x_copy.w() < 0.) {
-    quat_x_copy.coeffs() = quat_x_copy.coeffs();
+    quat_x_copy.coeffs() = -quat_x_copy.coeffs();
   }
   // CHECK_GE(quat_x_copy.w(), 0);
 
