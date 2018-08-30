@@ -4,7 +4,7 @@
 
 ## News
 
- * **May 2018:** maplab was presented at [ICRA](https://icra2018.org/) in Brisbane.
+ * **May 2018:** maplab was presented at [ICRA](https://icra2018.org/) in Brisbane. ([paper](https://arxiv.org/abs/1711.10250))
  * **March 2018:** Check out our release candidate with improved localization and lots of new features! [PR](https://github.com/ethz-asl/maplab/pull/55)
  
 ## Description
