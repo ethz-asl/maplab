@@ -28,6 +28,21 @@ DEFINE_bool(
 
 DECLARE_bool(rovioli_run_map_builder);
 
+DEFINE_string(
+    mission_frame, visualization::kDefaultMissionFrame,
+    "Name of the Mission Frame."
+);
+
+DEFINE_string(
+    imu_frame, visualization::kDefaultImuFrame,
+    "Name of the Imu Frame."
+);
+
+DEFINE_string(
+    map_frame, visualization::kDefaultMapFrame,
+    "Name of the Map Frame."
+);
+
 namespace rovioli {
 
 DataPublisherFlow::DataPublisherFlow()
@@ -170,31 +185,31 @@ void DataPublisherFlow::stateCallback(
   const aslam::Transformation& T_M_I = vinode.get_T_M_I();
   geometry_msgs::PoseStamped T_M_I_message;
   tf::poseStampedKindrToMsg(
-      T_M_I, timestamp_ros, visualization::kDefaultMissionFrame,
+      T_M_I, timestamp_ros, FLAGS_mission_frame,
       &T_M_I_message);
   pub_pose_T_M_I_.publish(T_M_I_message);
   visualization::publishTF(
-      T_M_I, visualization::kDefaultMissionFrame,
-      visualization::kDefaultImuFrame, timestamp_ros);
+      T_M_I, FLAGS_mission_frame,
+      FLAGS_imu_frame, timestamp_ros);
 
   // Publish pose in global frame.
   aslam::Transformation T_G_I = T_G_M * T_M_I;
   geometry_msgs::PoseStamped T_G_I_message;
   tf::poseStampedKindrToMsg(
-      T_G_I, timestamp_ros, visualization::kDefaultMapFrame, &T_G_I_message);
+      T_G_I, timestamp_ros, FLAGS_map_frame, &T_G_I_message);
   pub_pose_T_G_I_.publish(T_G_I_message);
   visualization::publishTF(
-      T_G_I, visualization::kDefaultMapFrame, visualization::kDefaultImuFrame,
+      T_G_I, FLAGS_map_frame, FLAGS_imu_frame,
       timestamp_ros);
 
   // Publish baseframe transformation.
   geometry_msgs::PoseStamped T_G_M_message;
   tf::poseStampedKindrToMsg(
-      T_G_M, timestamp_ros, visualization::kDefaultMapFrame, &T_G_M_message);
+      T_G_M, timestamp_ros, FLAGS_map_frame, &T_G_M_message);
   pub_baseframe_T_G_M_.publish(T_G_M_message);
   visualization::publishTF(
-      T_G_M, visualization::kDefaultMapFrame,
-      visualization::kDefaultMissionFrame, timestamp_ros);
+      T_G_M, FLAGS_map_frame,
+      FLAGS_mission_frame, timestamp_ros);
 
   // Publish velocity.
   const Eigen::Vector3d& v_M_I = vinode.get_v_M_I();
@@ -236,7 +251,7 @@ void DataPublisherFlow::stateDebugCallback(
   sphere.alpha = 0.8;
   T_M_I_spheres_.push_back(sphere);
   visualization::publishSpheres(
-      T_M_I_spheres_, kMarkerId, visualization::kDefaultMapFrame, "debug",
+      T_M_I_spheres_, kMarkerId, FLAGS_map_frame, "debug",
       "debug_T_M_I");
 
   // Publish ROVIO global frame if it is available.
@@ -250,7 +265,7 @@ void DataPublisherFlow::stateDebugCallback(
     T_G_I_spheres_.push_back(sphere);
 
     visualization::publishSpheres(
-        T_G_I_spheres_, kMarkerId, visualization::kDefaultMapFrame, "debug",
+        T_G_I_spheres_, kMarkerId, FLAGS_map_frame, "debug",
         "debug_T_G_I");
   }
 }
@@ -266,7 +281,7 @@ void DataPublisherFlow::localizationCallback(
 
   constexpr size_t kMarkerId = 0u;
   visualization::publishSpheres(
-      T_G_I_loc_spheres_, kMarkerId, visualization::kDefaultMapFrame, "debug",
+      T_G_I_loc_spheres_, kMarkerId, FLAGS_map_frame, "debug",
       "debug_T_G_I_raw_localizations");
 }
 
