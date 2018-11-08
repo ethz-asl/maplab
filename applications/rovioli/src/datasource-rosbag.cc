@@ -10,6 +10,7 @@
 #include <boost/bind.hpp>
 #include <maplab-common/accessors.h>
 #include <maplab-common/file-system-tools.h>
+#include <opencv2/highgui/highgui.hpp>
 #include <vio-common/rostopic-settings.h>
 
 #pragma GCC diagnostic push
@@ -155,6 +156,12 @@ void DataSourceRosbag::streamingWorker() {
       vio::ImageMeasurement::Ptr image_measurement =
           convertRosImageToMaplabImage(image_message, camera_idx);
 
+      // Apply the IMU to camera time shift.
+      if (FLAGS_rovioli_imu_to_camera_time_offset_ns != 0) {
+        image_measurement->timestamp +=
+            FLAGS_rovioli_imu_to_camera_time_offset_ns;
+      }
+
       // Shift timestamps to start at 0.
       if (!FLAGS_rovioli_zero_initial_timestamps ||
           shiftByFirstTimestamp(&(image_measurement->timestamp))) {
@@ -170,19 +177,11 @@ void DataSourceRosbag::streamingWorker() {
       vio::ImuMeasurement::Ptr imu_measurement =
           convertRosImuToMaplabImu(imu_msg);
 
-      // Apply the IMU to camera time shift.
-      if (FLAGS_rovioli_imu_to_camera_time_offset_ns != 0) {
-        imu_measurement->timestamp -=
-            FLAGS_rovioli_imu_to_camera_time_offset_ns;
-      }
-
-      if (imu_measurement->timestamp > 0) {
-        // Shift timestamps to start at 0.
-        if (!FLAGS_rovioli_zero_initial_timestamps ||
-            shiftByFirstTimestamp(&(imu_measurement->timestamp))) {
-          VLOG(3) << "Publish IMU measurement...";
-          invokeImuCallbacks(imu_measurement);
-        }
+      // Shift timestamps to start at 0.
+      if (!FLAGS_rovioli_zero_initial_timestamps ||
+          shiftByFirstTimestamp(&(imu_measurement->timestamp))) {
+        VLOG(3) << "Publish IMU measurement...";
+        invokeImuCallbacks(imu_measurement);
       }
     }
 
