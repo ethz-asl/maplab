@@ -34,7 +34,9 @@ class RovioLocalizationHandler {
   RovioLocalizationHandler(
       rovio::RovioInterface* rovio_interface,
       RovioMaplabTimeTranslation* time_translator,
-      const aslam::NCamera& camera_calibration);
+      const aslam::NCamera& camera_calibration,
+      const common::BidirectionalMap<size_t, size_t>&
+          maplab_to_rovio_cam_indices_mapping);
 
   void processLocalizationResult(
       const vio::LocalizationResult::ConstPtr& localization_result);
@@ -54,7 +56,8 @@ class RovioLocalizationHandler {
   bool processAsUpdate(
       const vio::LocalizationResult::ConstPtr& localization_result);
 
-  bool getLocalizationReprojectionErrors(
+  // Returns the ratio of successfully reprojected matches.
+  double getLocalizationReprojectionErrors(
       const vio::LocalizationResult& localization_result,
       const aslam::Transformation& T_M_I_filter,
       std::vector<double>* lc_reprojection_errors,
@@ -78,6 +81,9 @@ class RovioLocalizationHandler {
   common::FixedSizeQueue<aslam::Transformation> T_G_M_lc_buffer_;
 
   const aslam::NCamera& camera_calibration_;
+
+  const common::BidirectionalMap<size_t, size_t>&
+      maplab_to_rovio_cam_indices_mapping_;
 
   static constexpr size_t kInitializationMaxNumRansacIterations = 3u;
   static constexpr double kInitializationRansacPositionErrorThresholdMeters =

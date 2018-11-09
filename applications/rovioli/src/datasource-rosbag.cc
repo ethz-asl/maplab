@@ -10,6 +10,7 @@
 #include <boost/bind.hpp>
 #include <maplab-common/accessors.h>
 #include <maplab-common/file-system-tools.h>
+#include <opencv2/highgui/highgui.hpp>
 #include <vio-common/rostopic-settings.h>
 
 #pragma GCC diagnostic push
@@ -113,11 +114,9 @@ void DataSourceRosbag::initialize() {
       CHECK_GT(vio_rosbag_end_s, FLAGS_vio_rosbag_start_s);
       const double absolute_end_time_s = bag_start_time + vio_rosbag_end_s;
 
-      bag_view_.reset(
-          new rosbag::View(
-              *bag_, rosbag::TopicQuery(all_topics),
-              ros::Time(absolute_start_time_s),
-              ros::Time(absolute_end_time_s)));
+      bag_view_.reset(new rosbag::View(
+          *bag_, rosbag::TopicQuery(all_topics),
+          ros::Time(absolute_start_time_s), ros::Time(absolute_end_time_s)));
     } else {
       bag_view_.reset(new rosbag::View(*bag_, rosbag::TopicQuery(all_topics)));
     }
@@ -156,6 +155,12 @@ void DataSourceRosbag::streamingWorker() {
           common::getChecked(ros_topics_.camera_topic_cam_index_map, topic);
       vio::ImageMeasurement::Ptr image_measurement =
           convertRosImageToMaplabImage(image_message, camera_idx);
+
+      // Apply the IMU to camera time shift.
+      if (FLAGS_rovioli_imu_to_camera_time_offset_ns != 0) {
+        image_measurement->timestamp +=
+            FLAGS_rovioli_imu_to_camera_time_offset_ns;
+      }
 
       // Shift timestamps to start at 0.
       if (!FLAGS_rovioli_zero_initial_timestamps ||

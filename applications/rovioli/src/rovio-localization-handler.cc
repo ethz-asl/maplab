@@ -44,6 +44,23 @@ DEFINE_double(
     "Localization results are rejected if the angle between the gravity"
     "direction of the odometry and the localization exceeds this value.");
 
+DEFINE_bool(
+    rovioli_use_6dof_localization_for_inactive_cameras, false,
+    "ROVIO is set to always run in monocular mode, but the maplab part of "
+    "ROVIOLI will build a map and localize based on all cameras. If there is a "
+    "localization result for the active ROVIO camera, it will update the "
+    "filter using either 2D-3D correspondences (structure constraints) or 6DoF "
+    "constraints.  In structure constraints mode (default) it will ignore the "
+    "results of the inactive cameras. If this option is enabled however, it "
+    "will use the localization results of the inactive camera as 6DoF update "
+    "in case the active camera didn't localize at all.");
+
+DEFINE_int32(
+    rovioli_min_number_of_structure_constraints, 5,
+    "After ROVIOLI rejects structure constraints based on their reprojection "
+    "error, this is the minimum number of constraints required to accept a "
+    "localization.");
+
 namespace rovioli {
 
 namespace {
@@ -74,7 +91,9 @@ bool getReprojectionErrorForGlobalLandmark(
 RovioLocalizationHandler::RovioLocalizationHandler(
     rovio::RovioInterface* rovio_interface,
     RovioMaplabTimeTranslation* time_translator,
-    const aslam::NCamera& camera_calibration)
+    const aslam::NCamera& camera_calibration,
+    const common::BidirectionalMap<size_t, size_t>&
+        maplab_to_rovio_cam_indices_mapping)
     : rovio_interface_(CHECK_NOTNULL(rovio_interface)),
       time_translator_(CHECK_NOTNULL(time_translator)),
       // 6dof constraint based localization does not need initialization.
@@ -85,7 +104,9 @@ RovioLocalizationHandler::RovioLocalizationHandler(
       T_M_I_buffer_(kBufferPoseHistoryNs, kBufferMaxPropagationNs),
       T_G_M_filter_buffer_(kFilterBaseframeBufferSize),
       T_G_M_lc_buffer_(FLAGS_rovioli_min_num_baseframe_estimates_before_init),
-      camera_calibration_(camera_calibration) {
+      camera_calibration_(camera_calibration),
+      maplab_to_rovio_cam_indices_mapping_(
+          maplab_to_rovio_cam_indices_mapping) {
   if (FLAGS_rovioli_use_6dof_localization) {
     LOG(INFO) << "Localization mode: 6dof constraints.";
   } else {
@@ -246,13 +267,71 @@ bool RovioLocalizationHandler::processAsUpdate(
     measurement_accepted = rovio_interface_->processGroundTruthUpdate(
         JrJV, qJV, rovio_timestamp_sec);
   } else {
+    // Check if there are any matches to be processed in the camera frames that
+    // are used by ROVIO for estimation (inactive).
+    const size_t num_cameras =
+        localization_result->G_landmarks_per_camera.size();
+    size_t num_valid_matches = 0u;
+    for (size_t maplab_cam_idx = 0u; maplab_cam_idx < num_cameras;
+         ++maplab_cam_idx) {
+      const size_t* rovio_cam_idx =
+          maplab_to_rovio_cam_indices_mapping_.getRight(maplab_cam_idx);
+      if (rovio_cam_idx == nullptr) {
+        continue;
+      }
+      num_valid_matches +=
+          localization_result->G_landmarks_per_camera[maplab_cam_idx].cols();
+    }
+    if (num_valid_matches == 0u) {
+      // There are no valid localization matches for the cameras used by ROVIO.
+      // Use the localization result of the inactive cameras but integrate them
+      // using the 6dof localization mode, since we cannot currently pass 2D-3D
+      // correspondences to ROVIO for a camera it's not using.
+      if (FLAGS_rovioli_use_6dof_localization_for_inactive_cameras) {
+        // ROVIO coordinate frames:
+        //  - J: Inertial frame of pose update
+        //  - V: Body frame of pose update sensor
+        const Eigen::Vector3d JrJV =
+            localization_result->T_G_I_lc_pnp.getPosition();
+        const kindr::RotationQuaternionPD qJV(
+            localization_result->T_G_I_lc_pnp.getRotation().toImplementation());
+        measurement_accepted = rovio_interface_->processGroundTruthUpdate(
+            JrJV, qJV, rovio_timestamp_sec);
+
+        VLOG_IF(1, measurement_accepted)
+            << "No localization found for active camera, successfully updated "
+            << "ROVIO using 6DoF constraints based on localization from "
+            << "inactive cameras.";
+
+        LOG_IF(
+            WARNING, !measurement_accepted && rovio_interface_->isInitialized())
+            << "No localization found for active camera, failed to update "
+            << "ROVIO using 6DoF constraints based on localization from "
+            << "inactive cameras, because ROVIO rejected the localization "
+            << "update at time = " << localization_result->timestamp_ns
+            << "ns. The latency was too large; consider reducing the "
+            << "localization rate.";
+
+        return measurement_accepted;
+      }
+      return false;
+    }
+
     std::vector<double> lc_reprojection_errors;
     std::vector<double> filter_reprojection_errors;
-    const bool reprojection_success = getLocalizationReprojectionErrors(
+    const double reprojection_success_rate = getLocalizationReprojectionErrors(
         *localization_result, T_G_I_filter, &lc_reprojection_errors,
         &filter_reprojection_errors);
 
     double mean_reprojection_error_diff = std::numeric_limits<double>::max();
+    const double kMinReprojectionSuccessRate = 0.5;
+    const int num_accepted_localization_constraints =
+        lc_reprojection_errors.size();
+    const bool reprojection_success =
+        reprojection_success_rate > kMinReprojectionSuccessRate &&
+        num_accepted_localization_constraints >
+            FLAGS_rovioli_min_number_of_structure_constraints;
+
     if (reprojection_success) {
       const double lc_reproj_mean = aslam::common::mean(
           lc_reprojection_errors.begin(), lc_reprojection_errors.end());
@@ -263,6 +342,7 @@ bool RovioLocalizationHandler::processAsUpdate(
       VLOG(3) << "Localization reprojection error [px]: "
               << mean_reprojection_error_diff;
     }
+
     if (!reprojection_success ||
         mean_reprojection_error_diff >
             FLAGS_rovioli_max_mean_localization_reprojection_error_px) {
@@ -278,31 +358,35 @@ bool RovioLocalizationHandler::processAsUpdate(
             << "Most of the localization matches cannot be reprojected into "
             << "the image plane. Will reset the localization.";
       }
-      localization_state_ = LocalizationState::kNotLocalized;
-      T_G_M_lc_buffer_.clear();
-      return initializeBaseframe(localization_result);
     }
 
-    const size_t num_cameras =
-        localization_result->G_landmarks_per_camera.size();
-    for (size_t cam_idx = 0u; cam_idx < num_cameras; ++cam_idx) {
+    for (size_t maplab_cam_idx = 0u; maplab_cam_idx < num_cameras;
+         ++maplab_cam_idx) {
+      const size_t* rovio_cam_idx =
+          maplab_to_rovio_cam_indices_mapping_.getRight(maplab_cam_idx);
+
+      if (rovio_cam_idx == nullptr) {
+        // Skip this localization result, as the camera was marked as inactive.
+        continue;
+      }
       measurement_accepted &=
           rovio_interface_->processLocalizationLandmarkUpdates(
-              cam_idx,
-              localization_result->keypoint_measurements_per_camera[cam_idx],
-              localization_result->G_landmarks_per_camera[cam_idx],
+              *rovio_cam_idx,
+              localization_result
+                  ->keypoint_measurements_per_camera[maplab_cam_idx],
+              localization_result->G_landmarks_per_camera[maplab_cam_idx],
               rovio_timestamp_sec);
     }
   }
 
   LOG_IF(WARNING, !measurement_accepted && rovio_interface_->isInitialized())
-      << "ROVIO rejected localization update at time="
-      << localization_result->timestamp_ns << ". Latency is too large; "
+      << "ROVIO rejected localization update at time = "
+      << localization_result->timestamp_ns << "ns. The latency was too large; "
       << "consider reducing the localization rate.";
   return measurement_accepted;
 }
 
-bool RovioLocalizationHandler::getLocalizationReprojectionErrors(
+double RovioLocalizationHandler::getLocalizationReprojectionErrors(
     const vio::LocalizationResult& localization_result,
     const aslam::Transformation& T_G_I_filter,
     std::vector<double>* lc_reprojection_errors,
@@ -318,34 +402,50 @@ bool RovioLocalizationHandler::getLocalizationReprojectionErrors(
 
   const int num_cameras = localization_result.G_landmarks_per_camera.size();
   CHECK_EQ(num_cameras, static_cast<int>(camera_calibration_.numCameras()));
-  for (int cam_idx = 0; cam_idx < num_cameras; ++cam_idx) {
+  for (int maplab_cam_idx = 0; maplab_cam_idx < num_cameras; ++maplab_cam_idx) {
     CHECK_EQ(
-        localization_result.G_landmarks_per_camera[cam_idx].cols(),
-        localization_result.keypoint_measurements_per_camera[cam_idx].cols());
+        localization_result.G_landmarks_per_camera[maplab_cam_idx].cols(),
+        localization_result.keypoint_measurements_per_camera[maplab_cam_idx]
+            .cols());
 
-    const pose::Transformation& T_C_B = camera_calibration_.get_T_C_B(cam_idx);
+    const size_t* rovio_cam_idx =
+        maplab_to_rovio_cam_indices_mapping_.getRight(maplab_cam_idx);
+
+    const int num_matches =
+        localization_result.G_landmarks_per_camera[maplab_cam_idx].cols();
+
+    if (num_matches == 0) {
+      continue;
+    }
+
+    if (rovio_cam_idx == nullptr) {
+      // Skip this localization result, as the camera was marked as inactive.
+      continue;
+    }
+
+    const pose::Transformation& T_C_B =
+        camera_calibration_.get_T_C_B(maplab_cam_idx);
     const pose::Transformation T_G_C_filter =
         (T_C_B * T_G_I_filter.inverse()).inverse();
     const pose::Transformation T_G_C_lc =
         (T_C_B * localization_result.T_G_I_lc_pnp.inverse()).inverse();
 
-    const int num_matches =
-        localization_result.G_landmarks_per_camera[cam_idx].cols();
     for (int i = 0; i < num_matches; ++i) {
       const Eigen::Vector2d& keypoint =
-          localization_result.keypoint_measurements_per_camera[cam_idx].col(i);
+          localization_result.keypoint_measurements_per_camera[maplab_cam_idx]
+              .col(i);
       const Eigen::Vector3d& p_G =
-          localization_result.G_landmarks_per_camera[cam_idx].col(i);
+          localization_result.G_landmarks_per_camera[maplab_cam_idx].col(i);
 
       double reproj_error_sq_filter;
       double reproj_error_sq_lc;
       bool projection_successful = true;
       projection_successful &= getReprojectionErrorForGlobalLandmark(
-          p_G, T_G_C_filter, camera_calibration_.getCamera(cam_idx), keypoint,
-          &reproj_error_sq_filter);
+          p_G, T_G_C_filter, camera_calibration_.getCamera(maplab_cam_idx),
+          keypoint, &reproj_error_sq_filter);
       projection_successful &= getReprojectionErrorForGlobalLandmark(
-          p_G, T_G_C_lc, camera_calibration_.getCamera(cam_idx), keypoint,
-          &reproj_error_sq_lc);
+          p_G, T_G_C_lc, camera_calibration_.getCamera(maplab_cam_idx),
+          keypoint, &reproj_error_sq_lc);
 
       ++num_matches_processed;
 
@@ -357,10 +457,9 @@ bool RovioLocalizationHandler::getLocalizationReprojectionErrors(
   }
 
   CHECK_EQ(lc_reprojection_errors->size(), filter_reprojection_errors->size());
-
-  constexpr double kMinSuccessfulReprojectionRatio = 0.5;
-  return (static_cast<double>(lc_reprojection_errors->size()) /
-          num_matches_processed) > kMinSuccessfulReprojectionRatio;
+  CHECK_GT(num_matches_processed, 0);
+  return static_cast<double>(lc_reprojection_errors->size()) /
+         num_matches_processed;
 }
 
 bool extractLocalizationFromRovioState(

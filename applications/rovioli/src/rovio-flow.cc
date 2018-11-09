@@ -91,9 +91,9 @@ RovioFlow::RovioFlow(
       constructAndConfigureRovio(motion_tracking_ncamera, imu_sigmas));
   rovio_interface_->setEnablePatchUpdateOutput(false);
   rovio_interface_->setEnableFeatureUpdateOutput(true);  // For health checking.
-  localization_handler_.reset(
-      new RovioLocalizationHandler(
-          rovio_interface_.get(), &time_translation_, camera_calibration));
+  localization_handler_.reset(new RovioLocalizationHandler(
+      rovio_interface_.get(), &time_translation_, camera_calibration,
+      maplab_to_rovio_cam_indices_mapping_));
 }
 
 RovioFlow::~RovioFlow() {}

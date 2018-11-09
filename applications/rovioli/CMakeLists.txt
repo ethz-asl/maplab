@@ -9,6 +9,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 #############
 cs_add_library(${PROJECT_NAME}_lib
   src/data-publisher-flow.cc
+  src/datasource.cc
   src/datasource-factory.cc
   src/datasource-rosbag.cc
   src/datasource-rostopic.cc

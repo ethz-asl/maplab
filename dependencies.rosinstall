@@ -1,4 +1,4 @@
 - git:
     local-name: maplab_dependencies
     uri: https://github.com/ethz-asl/maplab_dependencies.git
-    version: deb89f4d39f2a08dd3de81a8878e0a37e89b8ec8
+    version: d911ebc3c5e739c5fc7c6e369c5ece86943b2943

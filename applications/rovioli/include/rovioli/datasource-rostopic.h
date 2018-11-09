@@ -22,6 +22,8 @@
 
 #include "rovioli/datasource.h"
 
+DECLARE_int64(rovioli_imu_to_camera_time_offset_ns);
+
 namespace rovioli {
 
 class DataSourceRostopic : public DataSource {
