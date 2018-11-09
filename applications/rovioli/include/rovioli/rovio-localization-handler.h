@@ -56,7 +56,7 @@ class RovioLocalizationHandler {
   bool processAsUpdate(
       const vio::LocalizationResult::ConstPtr& localization_result);
 
-  // Returns the ratio of successfully reprojected matches
+  // Returns the ratio of successfully reprojected matches.
   double getLocalizationReprojectionErrors(
       const vio::LocalizationResult& localization_result,
       const aslam::Transformation& T_M_I_filter,
