@@ -55,6 +55,12 @@ DEFINE_bool(
     "will use the localization results of the inactive camera as 6DoF update "
     "in case the active camera didn't localize at all.");
 
+DEFINE_int32(
+    rovioli_min_number_of_structure_constraints, 5,
+    "After ROVIOLI rejects structure constraints based on their reprojection "
+    "error, this is the minimum number of constraints required to accept a "
+    "localization.");
+
 namespace rovioli {
 
 namespace {
@@ -266,14 +272,15 @@ bool RovioLocalizationHandler::processAsUpdate(
     const size_t num_cameras =
         localization_result->G_landmarks_per_camera.size();
     size_t num_valid_matches = 0u;
-    for (size_t maplab_cam_idx = 0u; maplab_cam_idx < num_cameras; ++maplab_cam_idx) {
+    for (size_t maplab_cam_idx = 0u; maplab_cam_idx < num_cameras;
+         ++maplab_cam_idx) {
       const size_t* rovio_cam_idx =
           maplab_to_rovio_cam_indices_mapping_.getRight(maplab_cam_idx);
       if (rovio_cam_idx == nullptr) {
         continue;
       }
       num_valid_matches +=
-          localization_result->G_landmarks_per_camera[cam_idx].cols();
+          localization_result->G_landmarks_per_camera[maplab_cam_idx].cols();
     }
     if (num_valid_matches == 0u) {
       // There are no valid localization matches for the cameras used by ROVIO.
@@ -318,8 +325,13 @@ bool RovioLocalizationHandler::processAsUpdate(
 
     double mean_reprojection_error_diff = std::numeric_limits<double>::max();
     const double kMinReprojectionSuccessRate = 0.5;
+    const int num_accepted_localization_constraints =
+        lc_reprojection_errors.size();
     const bool reprojection_success =
-        reprojection_success_rate > kMinReprojectionSuccessRate;
+        reprojection_success_rate > kMinReprojectionSuccessRate &&
+        num_accepted_localization_constraints >
+            FLAGS_rovioli_min_number_of_structure_constraints;
+
     if (reprojection_success) {
       const double lc_reproj_mean = aslam::common::mean(
           lc_reprojection_errors.begin(), lc_reprojection_errors.end());
@@ -348,9 +360,10 @@ bool RovioLocalizationHandler::processAsUpdate(
       }
     }
 
-    for (size_t cam_idx = 0u; cam_idx < num_cameras; ++cam_idx) {
+    for (size_t maplab_cam_idx = 0u; maplab_cam_idx < num_cameras;
+         ++maplab_cam_idx) {
       const size_t* rovio_cam_idx =
-          maplab_to_rovio_cam_indices_mapping_.getRight(cam_idx);
+          maplab_to_rovio_cam_indices_mapping_.getRight(maplab_cam_idx);
 
       if (rovio_cam_idx == nullptr) {
         // Skip this localization result, as the camera was marked as inactive.
@@ -359,8 +372,9 @@ bool RovioLocalizationHandler::processAsUpdate(
       measurement_accepted &=
           rovio_interface_->processLocalizationLandmarkUpdates(
               *rovio_cam_idx,
-              localization_result->keypoint_measurements_per_camera[cam_idx],
-              localization_result->G_landmarks_per_camera[cam_idx],
+              localization_result
+                  ->keypoint_measurements_per_camera[maplab_cam_idx],
+              localization_result->G_landmarks_per_camera[maplab_cam_idx],
               rovio_timestamp_sec);
     }
   }
