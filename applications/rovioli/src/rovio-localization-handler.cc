@@ -298,7 +298,7 @@ bool RovioLocalizationHandler::processAsUpdate(
 
         LOG_IF(
             WARNING, !measurement_accepted && rovio_interface_->isInitialized())
-            << "No localization found for active camera, failed to updated "
+            << "No localization found for active camera, failed to update "
             << "ROVIO using 6DoF constraints based on localization from "
             << "inactive cameras, because ROVIO rejected the localization "
             << "update at time = " << localization_result->timestamp_ns
