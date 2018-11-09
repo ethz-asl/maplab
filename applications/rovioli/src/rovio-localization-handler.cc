@@ -266,7 +266,7 @@ bool RovioLocalizationHandler::processAsUpdate(
     const size_t num_cameras =
         localization_result->G_landmarks_per_camera.size();
     size_t num_valid_matches = 0u;
-    for (size_t cam_idx = 0u; cam_idx < num_cameras; ++cam_idx) {
+    for (size_t maplab_cam_idx = 0u; maplab_cam_idx < num_cameras; ++maplab_cam_idx) {
       const size_t* rovio_cam_idx =
           maplab_to_rovio_cam_indices_mapping_.getRight(cam_idx);
       if (rovio_cam_idx == nullptr) {
