@@ -1,5 +1,5 @@
-#include <aslam/common/pose-types.h>
 #include <Eigen/Core>
+#include <aslam/common/pose-types.h>
 #include <gtest/gtest.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <vi-map/test/vi-map-generator.h>
@@ -37,8 +37,8 @@ pose_graph::VertexId getGroundTruthVertexIdClosestInTime(
   CHECK(map);
   pose_graph::VertexIdList vertex_ids;
   map->getAllVertexIds(&vertex_ids);
-  return getGroundTruthVertexIdClosestInTime(query_timestamp_nanoseconds,
-                                             vertex_ids, map);
+  return getGroundTruthVertexIdClosestInTime(
+      query_timestamp_nanoseconds, vertex_ids, map);
 }
 
 pose_graph::VertexId getGroundTruthVertexIdClosestInTime(
@@ -48,8 +48,8 @@ pose_graph::VertexId getGroundTruthVertexIdClosestInTime(
   CHECK(mission_id.isValid());
   pose_graph::VertexIdList vertex_ids;
   map->getAllVertexIdsInMission(mission_id, &vertex_ids);
-  return getGroundTruthVertexIdClosestInTime(query_timestamp_nanoseconds,
-                                             vertex_ids, map);
+  return getGroundTruthVertexIdClosestInTime(
+      query_timestamp_nanoseconds, vertex_ids, map);
 }
 
 TEST(VertexTimeQueriesTest, TestTimeQueriesSingleAndMultiMission) {
@@ -73,18 +73,18 @@ TEST(VertexTimeQueriesTest, TestTimeQueriesSingleAndMultiMission) {
 
   for (size_t vertex_idx = 0u; vertex_idx < kNumVerticesPerMission;
        ++vertex_idx) {
-    const aslam::Transformation T_M_I(aslam::Quaternion(),
-                                      aslam::Position3D::Random());
-    generator.createVertex(mission_id_1, T_M_I,
-                           timestamp_distribution(random_number_engine));
+    const aslam::Transformation T_M_I(
+        aslam::Quaternion(), aslam::Position3D::Random());
+    generator.createVertex(
+        mission_id_1, T_M_I, timestamp_distribution(random_number_engine));
   }
 
   for (size_t vertex_idx = 0u; vertex_idx < kNumVerticesPerMission;
        ++vertex_idx) {
-    const aslam::Transformation T_M_I(aslam::Quaternion(),
-                                      aslam::Position3D::Random());
-    generator.createVertex(mission_id_2, T_M_I,
-                           timestamp_distribution(random_number_engine));
+    const aslam::Transformation T_M_I(
+        aslam::Quaternion(), aslam::Position3D::Random());
+    generator.createVertex(
+        mission_id_2, T_M_I, timestamp_distribution(random_number_engine));
   }
 
   generator.generateMap();
@@ -98,11 +98,12 @@ TEST(VertexTimeQueriesTest, TestTimeQueriesSingleAndMultiMission) {
         timestamp_distribution(random_number_engine);
 
     pose_graph::VertexId nn_vertex_id;
-    vertex_time_index.getClosestVertexInTime(query_timestamp_nanoseconds,
-                                             &nn_vertex_id);
+    vertex_time_index.getClosestVertexInTime(
+        query_timestamp_nanoseconds, &nn_vertex_id);
     ASSERT_TRUE(nn_vertex_id.isValid());
-    EXPECT_EQ(nn_vertex_id, getGroundTruthVertexIdClosestInTime(
-                                query_timestamp_nanoseconds, map));
+    EXPECT_EQ(
+        nn_vertex_id,
+        getGroundTruthVertexIdClosestInTime(query_timestamp_nanoseconds, map));
   }
 
   VIMapMissionsVertexTimeQueries mission_vertex_time_index(map);
@@ -115,9 +116,9 @@ TEST(VertexTimeQueriesTest, TestTimeQueriesSingleAndMultiMission) {
     mission_vertex_time_index.getClosestVertexInTimeForMission(
         query_timestamp_nanoseconds, mission_id_1, &nn_vertex_id);
     ASSERT_TRUE(nn_vertex_id.isValid());
-    EXPECT_EQ(nn_vertex_id,
-              getGroundTruthVertexIdClosestInTime(query_timestamp_nanoseconds,
-                                                  mission_id_1, map));
+    EXPECT_EQ(
+        nn_vertex_id, getGroundTruthVertexIdClosestInTime(
+                          query_timestamp_nanoseconds, mission_id_1, map));
   }
 
   for (size_t query_idx = 0u; query_idx < kNumQueries; ++query_idx) {
@@ -128,9 +129,9 @@ TEST(VertexTimeQueriesTest, TestTimeQueriesSingleAndMultiMission) {
     mission_vertex_time_index.getClosestVertexInTimeForMission(
         query_timestamp_nanoseconds, mission_id_2, &nn_vertex_id);
     ASSERT_TRUE(nn_vertex_id.isValid());
-    EXPECT_EQ(nn_vertex_id,
-              getGroundTruthVertexIdClosestInTime(query_timestamp_nanoseconds,
-                                                  mission_id_2, map));
+    EXPECT_EQ(
+        nn_vertex_id, getGroundTruthVertexIdClosestInTime(
+                          query_timestamp_nanoseconds, mission_id_2, map));
   }
 }
 

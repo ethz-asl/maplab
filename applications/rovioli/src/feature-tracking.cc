@@ -2,17 +2,29 @@
 
 #include <maplab-common/conversions.h>
 
-namespace rovioli {
+DEFINE_bool(
+    rovioli_descriptor_rotation_invariance, true,
+    "Use rotation invariant descriptors.");
 
+namespace rovioli {
 FeatureTracking::FeatureTracking(
     const aslam::NCamera::Ptr& camera_system, const vi_map::Imu& imu_sensor)
     : camera_system_(camera_system),
       imu_sensor_(imu_sensor),
       current_imu_bias_(Eigen::Matrix<double, 6, 1>::Zero()),
       current_imu_bias_timestamp_nanoseconds_(aslam::time::getInvalidTime()),
-      previous_nframe_timestamp_ns_(-1),
-      tracker_(camera_system) {
+      previous_nframe_timestamp_ns_(-1) {
   CHECK(camera_system_ != nullptr);
+
+  // Initialize the settings from GFlags.
+  const feature_tracking::FeatureTrackingDetectorSettings detector_settings;
+  feature_tracking::FeatureTrackingExtractorSettings extractor_settings;
+  extractor_settings.rotation_invariant =
+      FLAGS_rovioli_descriptor_rotation_invariance;
+
+  tracker_.reset(
+      new feature_tracking::VOFeatureTrackingPipeline(
+          camera_system_, extractor_settings, detector_settings));
 }
 
 bool FeatureTracking::trackSynchronizedNFrameImuCallback(
@@ -49,7 +61,8 @@ bool FeatureTracking::trackSynchronizedNFrameImuCallback(
   CHECK_GT(
       synced_nframe_imu->nframe->getMinTimestampNanoseconds(),
       previous_synced_nframe_imu_->nframe->getMinTimestampNanoseconds());
-  tracker_.trackFeaturesNFrame(
+  CHECK(tracker_);
+  tracker_->trackFeaturesNFrame(
       q_Ikp1_Ik, synced_nframe_imu->nframe.get(),
       previous_synced_nframe_imu_->nframe.get(), &inlier_matches_kp1_k,
       &outlier_matches_kp1_k);
@@ -62,21 +75,18 @@ void FeatureTracking::setCurrentImuBias(
     const RovioEstimate::ConstPtr& rovio_estimate) {
   CHECK(rovio_estimate != nullptr);
 
-  const int64_t bias_timestamp_ns =
-      rovio_estimate->timestamp_s * kSecondsToNanoSeconds;
-
   // Only update the bias if we have a newer measurement.
   std::unique_lock<std::mutex> lock(m_current_imu_bias_);
-  if (bias_timestamp_ns > current_imu_bias_timestamp_nanoseconds_) {
-    current_imu_bias_timestamp_nanoseconds_ =
-        rovio_estimate->timestamp_s * kSecondsToNanoSeconds;
+  if (rovio_estimate->timestamp_ns > current_imu_bias_timestamp_nanoseconds_) {
+    current_imu_bias_timestamp_nanoseconds_ = rovio_estimate->timestamp_ns;
     current_imu_bias_ = rovio_estimate->vinode.getImuBias();
     VLOG(5) << "Updated IMU bias in Pipeline node.";
   } else {
     LOG(WARNING) << "Received an IMU bias estimate that has an earlier "
                  << "timestamp than the previous one. Previous timestamp: "
                  << current_imu_bias_timestamp_nanoseconds_
-                 << "ns, received timestamp: " << bias_timestamp_ns << "ns.";
+                 << "ns, received timestamp: " << rovio_estimate->timestamp_ns
+                 << "ns.";
   }
 }
 

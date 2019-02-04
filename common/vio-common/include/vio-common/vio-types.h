@@ -9,6 +9,8 @@
 #include <aslam/common/pose-types.h>
 #include <aslam/common/time.h>
 #include <aslam/frames/visual-nframe.h>
+#include <localization-summary-map/localization-summary-map.h>
+#include <maplab-common/interpolation-helpers.h>
 #include <maplab-common/macros.h>
 #include <opencv2/core/core.hpp>
 
@@ -36,9 +38,30 @@ struct LocalizationResult {
   MAPLAB_POINTER_TYPEDEFS(LocalizationResult);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  int64_t timestamp;
+  summary_map::LocalizationSummaryMapId summary_map_id;
+
+  int64_t timestamp_ns;
   aslam::NFramesId nframe_id;
   aslam::Transformation T_G_I_lc_pnp;
+  Aligned<std::vector, Eigen::Matrix3Xd> G_landmarks_per_camera;
+  Aligned<std::vector, Eigen::Matrix2Xd> keypoint_measurements_per_camera;
+
+  bool isValid() const {
+    if (G_landmarks_per_camera.empty() ||
+        G_landmarks_per_camera.size() !=
+            keypoint_measurements_per_camera.size()) {
+      return false;
+    }
+
+    // Each keypoint measurement should have a valid landmark.
+    for (size_t idx = 0u; idx < G_landmarks_per_camera.size(); ++idx) {
+      if (G_landmarks_per_camera[idx].cols() !=
+          keypoint_measurements_per_camera[idx].cols()) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   enum class LocalizationMode { kGlobal, kMapTracking };
   LocalizationMode localization_type;
@@ -114,7 +137,8 @@ class ViNodeState {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MAPLAB_POINTER_TYPEDEFS(ViNodeState);
   explicit ViNodeState(const aslam::Transformation& T_M_I)
-      : T_M_I_(T_M_I),
+      : timestamp_ns_(aslam::time::getInvalidTime()),
+        T_M_I_(T_M_I),
         v_M_I_(Eigen::Vector3d::Zero()),
         acc_bias_(Eigen::Vector3d::Zero()),
         gyro_bias_(Eigen::Vector3d::Zero()) {
@@ -123,7 +147,8 @@ class ViNodeState {
   }
 
   ViNodeState()
-      : v_M_I_(Eigen::Vector3d::Zero()),
+      : timestamp_ns_(aslam::time::getInvalidTime()),
+        v_M_I_(Eigen::Vector3d::Zero()),
         acc_bias_(Eigen::Vector3d::Zero()),
         gyro_bias_(Eigen::Vector3d::Zero()) {
     T_M_I_.setIdentity();
@@ -131,10 +156,12 @@ class ViNodeState {
     T_UTM_I_.setIdentity();
   }
 
-  ViNodeState(const aslam::Transformation& T_M_I, const Eigen::Vector3d& v_M_I,
-              const Eigen::Vector3d& accelerometer_bias,
-              const Eigen::Vector3d& gyro_bias)
-      : T_M_I_(T_M_I),
+  ViNodeState(
+      const aslam::Transformation& T_M_I, const Eigen::Vector3d& v_M_I,
+      const Eigen::Vector3d& accelerometer_bias,
+      const Eigen::Vector3d& gyro_bias)
+      : timestamp_ns_(aslam::time::getInvalidTime()),
+        T_M_I_(T_M_I),
         v_M_I_(v_M_I),
         acc_bias_(accelerometer_bias),
         gyro_bias_(gyro_bias) {
@@ -142,7 +169,29 @@ class ViNodeState {
     T_UTM_I_.setIdentity();
   }
 
+  ViNodeState(
+      int64_t timestamp_ns, const aslam::Transformation& T_M_I,
+      const Eigen::Vector3d& v_M_I, const Eigen::Vector3d& accelerometer_bias,
+      const Eigen::Vector3d& gyro_bias)
+      : timestamp_ns_(timestamp_ns),
+        T_M_I_(T_M_I),
+        v_M_I_(v_M_I),
+        acc_bias_(accelerometer_bias),
+        gyro_bias_(gyro_bias) {
+    CHECK(aslam::time::isValidTime(timestamp_ns));
+    T_UTM_B_.setIdentity();
+    T_UTM_I_.setIdentity();
+  }
+
   virtual ~ViNodeState() {}
+
+  inline int64_t getTimestamp() const {
+    return timestamp_ns_;
+  }
+  inline void setTimestamp(int64_t timestamp_ns) {
+    CHECK_GE(timestamp_ns, 0);
+    timestamp_ns_ = timestamp_ns;
+  }
 
   inline const aslam::Transformation& get_T_M_I() const { return T_M_I_; }
   inline aslam::Transformation& get_T_M_I() { return T_M_I_; }
@@ -180,6 +229,8 @@ class ViNodeState {
   }
 
  private:
+  int64_t timestamp_ns_;
+
   /// The pose taking points from the body frame to the world frame.
   aslam::Transformation T_M_I_;
   /// The velocity (m/s).
@@ -200,7 +251,59 @@ typedef Aligned<std::vector, NFrameIdViNodeStatePair> ViNodeStates;
 typedef AlignedUnorderedMap<aslam::NFramesId, ViNodeState>
     NFrameIdViNodeStateMap;
 typedef std::pair<aslam::VisualNFrame::Ptr, ViNodeState> NFrameViNodeStatePair;
+}  // namespace vio
 
+namespace common {
+template <typename Time>
+struct LinearInterpolationFunctor<Time, vio::ViNodeState> {
+  void operator()(
+      const Time t1, const vio::ViNodeState& x1, const Time t2,
+      const vio::ViNodeState& x2, const Time t_interpolated,
+      vio::ViNodeState* x_interpolated) {
+    CHECK_NOTNULL(x_interpolated);
+
+    x_interpolated->setTimestamp(t_interpolated);
+
+    aslam::Transformation T_M_I_interpolated;
+    interpolateTransformation(
+        t1, x1.get_T_M_I(), t2, x2.get_T_M_I(), t_interpolated,
+        &T_M_I_interpolated);
+    x_interpolated->set_T_M_I(T_M_I_interpolated);
+
+    Eigen::Vector3d v_M_I_interpolated;
+    linearInterpolation(
+        t1, x1.get_v_M_I(), t2, x2.get_v_M_I(), t_interpolated,
+        &v_M_I_interpolated);
+    x_interpolated->set_v_M_I(v_M_I_interpolated);
+
+    Eigen::Vector3d acc_bias_interpolated;
+    linearInterpolation(
+        t1, x1.getAccBias(), t2, x2.getAccBias(), t_interpolated,
+        &acc_bias_interpolated);
+    x_interpolated->setAccBias(acc_bias_interpolated);
+
+    Eigen::Vector3d gyro_bias_interpolated;
+    linearInterpolation(
+        t1, x1.getGyroBias(), t2, x2.getGyroBias(), t_interpolated,
+        &gyro_bias_interpolated);
+    x_interpolated->setGyroBias(gyro_bias_interpolated);
+
+    aslam::Transformation T_UTM_I_interpolated;
+    interpolateTransformation(
+        t1, x1.get_T_UTM_I(), t2, x2.get_T_UTM_I(), t_interpolated,
+        &T_UTM_I_interpolated);
+    x_interpolated->set_T_UTM_I(T_UTM_I_interpolated);
+
+    aslam::Transformation T_UTM_B_interpolated;
+    interpolateTransformation(
+        t1, x1.get_T_UTM_B(), t2, x2.get_T_UTM_B(), t_interpolated,
+        &T_UTM_B_interpolated);
+    x_interpolated->set_T_UTM_B(T_UTM_B_interpolated);
+  }
+};
+}  // namespace common
+
+namespace vio {
 namespace constant {
 static const double kUninitializedVariance = 1.0e12;
 }

@@ -55,10 +55,6 @@ DEFINE_string(
     "after every use.");
 DEFINE_string(
     resource_folder, "", "Specifies the resource folder for certain commands.");
-DEFINE_uint64(
-    vertices_per_proto_file, 200u,
-    "Determines the number of vertices that are stored in one proto file. "
-    "NOTE: If this is set too large, the map can't be read anymore.");
 DEFINE_string(
     maps_folder, ".",
     "Folder which contains one or more maps on the filesystem.");
@@ -111,10 +107,6 @@ backend::SaveConfig parseSaveConfigFromGFlags() {
       config.move_resources_when_migrating = true;
     }
   }
-
-  config.vertices_per_proto_file = FLAGS_vertices_per_proto_file;
-  static constexpr size_t kMaxVerticesPerProtoFile = 300u;
-  CHECK_LE(config.vertices_per_proto_file, kMaxVerticesPerProtoFile);
 
   return config;
 }
@@ -317,14 +309,6 @@ VIMapBasicPlugin::VIMapBasicPlugin(
       [this]() { return removeMissionInteractive(); },
       "Cycle through missions and ask which to remove. The current mission "
       "will be visualized in RViz a different color.",
-      common::Processing::Sync);
-
-  // Backwards compatibility commands.
-  addCommand(
-      {"convert_map_to_new_format"},
-      [this]() -> int { return convertMapToNewFormat(); },
-      "Loads a map using deprecated deserialization and then stores it again "
-      "using the latest serialization.",
       common::Processing::Sync);
 }
 
@@ -1416,34 +1400,6 @@ int VIMapBasicPlugin::visualizeMapSequentially() {
   visualization::SequentialPlotter seq_plotter(plotter_);
   seq_plotter.publishMissionsSequentially(*map, mission_ids);
   return common::kSuccess;
-}
-
-int VIMapBasicPlugin::convertMapToNewFormat() {
-  if (FLAGS_map_folder.empty()) {
-    LOG(ERROR) << "No path specified, please set the flag \"map_folder\".";
-    return common::kStupidUserError;
-  }
-
-  vi_map::VIMap::UniquePtr map = aligned_unique<vi_map::VIMap>();
-  if (!map->loadFromFolderDeprecated(FLAGS_map_folder)) {
-    LOG(ERROR) << "Unable to load the map using deprecated deserialization.";
-    return common::kUnknownError;
-  }
-
-  if (!(FLAGS_copy_resources_to_map_folder ||
-        FLAGS_move_resources_to_map_folder)) {
-    LOG(WARNING)
-        << "\n"
-        << "############################################################\n"
-        << "WARNING: The resources of the converted map will be linked \n"
-        << "to the map resource folder of the old map format unless you \n"
-        << "use --copy_resources_to_map_folder or \n"
-        << "--move_resources_to_map_folder to copy/move all the map \n"
-        << "resources to the map folder of the new map.\n"
-        << "############################################################\n";
-  }
-  const std::string map_folder_out = FLAGS_map_folder + "_converted";
-  return map->saveToFolder(map_folder_out, parseSaveConfigFromGFlags());
 }
 
 }  // namespace vi_map

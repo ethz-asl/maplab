@@ -19,27 +19,37 @@ DECLARE_uint64(pmvs_num_visual_frames_per_cluster);
 namespace dense_reconstruction {
 
 bool exportVIMapToPmvsSfmInputData(
-    const PmvsConfig& pmvs_config, vi_map::VIMap* vi_map);
+    const PmvsConfig& pmvs_config, const vi_map::VIMap& vi_map);
 
 bool exportVIMapToPmvsSfmInputData(
     const PmvsConfig& pmvs_config, const vi_map::MissionIdList& mission_ids,
-    vi_map::VIMap* vi_map);
+    const vi_map::VIMap& vi_map);
+
+void getAllObserverCameras(
+    const vi_map::VIMap& vi_map, const PmvsConfig& pmvs_settings,
+    const vi_map::MissionIdList& mission_ids,
+    ObserverCameraMap* observer_cameras);
+
+void getExportVertexIds(
+    const vi_map::VIMap& vi_map, const vi_map::MissionIdList& mission_ids,
+    const PmvsConfig& pmvs_settings,
+    pose_graph::VertexIdList* export_vertex_ids);
 
 void getObserverPosesFromOptionalCameras(
     const vi_map::VIMap& vi_map, const PmvsConfig& pmvs_settings,
-    const vi_map::MissionIdList& mission_ids,
+    const pose_graph::VertexIdList& export_vertex_ids,
     const ObserverCameraMap& observer_cameras, ObserverPosesMap* observer_poses,
     size_t* num_observers);
 
 void getObserverPosesFromNCamera(
     const vi_map::VIMap& vi_map, const PmvsConfig& pmvs_settings,
-    const vi_map::MissionIdList& mission_ids,
+    const pose_graph::VertexIdList& export_vertex_ids,
     const ObserverCameraMap& observer_cameras, ObserverPosesMap* observer_poses,
     size_t* num_observers);
 
 void getObservedLandmarksAndCovisibilityInformation(
     const vi_map::VIMap& vi_map, const PmvsConfig& config,
-    const vi_map::MissionIdList& mission_ids,
+    const pose_graph::VertexIdList& export_vertex_ids,
     const ObserverCameraMap& observer_cameras,
     const ObserverPosesMap& observer_poses,
     ObservedLandmarks* observed_landmarks);

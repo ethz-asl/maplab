@@ -27,6 +27,22 @@ Eigen::Matrix<double, 4, 1> ComputeLSAverageQuaternionJPL(
   return Gl_q_Gc_average;
 }
 
+double getMaxDisparityRadAngleOfUnitVectorBundle(
+    const Aligned<std::vector, Eigen::Vector3d>& unit_incidence_rays) {
+  if (unit_incidence_rays.size() < 2u) {
+    return 0.0;
+  }
+  double min_cos_angle = 1.0;
+  for (size_t i = 0; i < unit_incidence_rays.size(); ++i) {
+    for (size_t j = i + 1; j < unit_incidence_rays.size(); ++j) {
+      min_cos_angle = std::min(
+          min_cos_angle,
+          std::abs(unit_incidence_rays[i].dot(unit_incidence_rays[j])));
+    }
+  }
+  return std::acos(min_cos_angle);
+}
+
 namespace geometry {
 
 pose::Transformation yawOnly(const pose::Transformation& original) {

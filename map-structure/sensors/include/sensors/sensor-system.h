@@ -54,6 +54,11 @@ class SensorSystem final : common::YamlFileSerializable {
            sensor_id_to_extrinsics_map_ == other.sensor_id_to_extrinsics_map_;
   }
 
+  const SensorId& getReferenceSensorId() const {
+    CHECK(reference_sensor_id_.isValid());
+    return reference_sensor_id_;
+  }
+
  private:
   SensorSystem();
 

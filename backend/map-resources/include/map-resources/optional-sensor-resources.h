@@ -2,6 +2,7 @@
 #define MAP_RESOURCES_OPTIONAL_SENSOR_RESOURCES_H_
 
 #include <algorithm>
+#include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <utility>
@@ -13,6 +14,7 @@
 #include <aslam/common/unique-id.h>
 #include <maplab-common/temporal-buffer.h>
 #include <maplab-common/unique-id.h>
+#include <sensors/sensor.h>
 
 #include "map-resources/resource-common.h"
 
@@ -73,18 +75,22 @@ typedef common::TemporalBuffer<ResourceId>::BufferType StampedResourceIds;
 //
 // aslam::Camera specific optional sensor data.
 //
-typedef std::unordered_map<aslam::CameraId, OptionalSensorResources>
-    OptionalCameraResourcesMap;
 
-typedef std::unordered_map<ResourceType, OptionalCameraResourcesMap,
-                           ResourceTypeHash>
-    ResourceTypeToOptionalCameraResourcesMap;
+using CameraIdToResourcesMap =
+    std::unordered_map<aslam::CameraId, OptionalSensorResources>;
+using SensorIdToResourcesMap =
+    std::unordered_map<vi_map::SensorId, OptionalSensorResources>;
+
+using ResourceTypeToCameraIdToResourcesMap =
+    std::unordered_map<ResourceType, CameraIdToResourcesMap, ResourceTypeHash>;
+using ResourceTypeToSensorIdToResourcesMap =
+    std::unordered_map<ResourceType, SensorIdToResourcesMap, ResourceTypeHash>;
 
 typedef std::pair<aslam::Transformation, std::shared_ptr<aslam::Camera>>
     CameraWithExtrinsics;
 
 typedef AlignedUnorderedMap<aslam::CameraId, CameraWithExtrinsics>
-    OptionalCameraMap;
+    CameraIdToExtrinsicsMap;
 
 }  // namespace backend
 

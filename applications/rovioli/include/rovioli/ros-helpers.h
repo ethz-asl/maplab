@@ -42,9 +42,8 @@ inline vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
   CHECK(image_message);
   cv_bridge::CvImageConstPtr cv_ptr;
   try {
-    // Convert the image to MONO8 if necessary.
     cv_ptr = cv_bridge::toCvShare(
-        image_message, sensor_msgs::image_encodings::MONO8);
+        image_message, sensor_msgs::image_encodings::TYPE_8UC1);
   } catch (const cv_bridge::Exception& e) {  // NOLINT
     LOG(FATAL) << "cv_bridge exception: " << e.what();
   }

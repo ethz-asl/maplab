@@ -28,7 +28,7 @@ void interpolateVisualFramePosesAllMissions(
   map.getAllMissionIds(&mission_ids);
   for (const vi_map::MissionId mission_id : mission_ids) {
     // Check if there is IMU data.
-    std::unordered_map<pose_graph::VertexId, int64_t> vertex_to_time_map;
+    VertexToTimeStampMap vertex_to_time_map;
     PoseInterpolator imu_timestamp_collector;
     imu_timestamp_collector.getVertexToTimeStampMap(
         map, mission_id, &vertex_to_time_map);
@@ -64,7 +64,7 @@ void interpolateVisualFramePosesAllMissions(
           const int64_t timestamp = visual_frame.getTimestampNanoseconds();
           // Only interpolate if the VisualFrame timestamp and the vertex
           // timestamp do not match.
-          std::unordered_map<pose_graph::VertexId, int64_t>::const_iterator it =
+          VertexToTimeStampMap::const_iterator it =
               vertex_to_time_map.find(vertex_id);
           if (it != vertex_to_time_map.end() && it->second != timestamp) {
             pose_timestamps(0, frame_counter) = timestamp;

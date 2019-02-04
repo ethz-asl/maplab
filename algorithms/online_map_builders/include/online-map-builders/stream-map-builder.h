@@ -27,8 +27,6 @@ namespace online_map_builders {
 class StreamMapBuilder {
  public:
   StreamMapBuilder(
-      const std::shared_ptr<aslam::NCamera>& camera_rig, vi_map::VIMap* map);
-  StreamMapBuilder(
       const std::shared_ptr<aslam::NCamera>& camera_rig,
       vi_map::Imu::UniquePtr imu, vi_map::VIMap* map);
 
@@ -56,13 +54,13 @@ class StreamMapBuilder {
 
   void addViwlsVertexAndEdge(
       const std::shared_ptr<aslam::VisualNFrame>& nframe,
-      const vio::ViNodeState& vinode_state,
+      const vio::ViNodeState& vinode_state, const aslam::Transformation& T_G_M,
       const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps,
       const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_data);
 
   pose_graph::VertexId addViwlsVertex(
       const std::shared_ptr<aslam::VisualNFrame>& nframe,
-      const vio::ViNodeState& vinode_state);
+      const vio::ViNodeState& vinode_state, const aslam::Transformation& T_G_M);
 
   void addImuEdge(
       pose_graph::VertexId target_vertex_id,
@@ -76,6 +74,9 @@ class StreamMapBuilder {
   const vi_map::MissionId mission_id_;
   pose_graph::VertexId last_vertex_;
   const std::shared_ptr<aslam::NCamera> camera_rig_;
+
+  aslam::Transformation T_M0_G_;
+  bool is_first_baseframe_estimate_processed_;
 
   static constexpr size_t kKeepNMostRecentImages = 10u;
 };

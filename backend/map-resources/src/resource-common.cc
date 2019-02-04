@@ -27,16 +27,7 @@ template <>
 bool isSameResource(
     const resources::PointCloud& point_cloud_A,
     const resources::PointCloud& point_cloud_B) {
-  if (point_cloud_A.xyz != point_cloud_B.xyz) {
-    return false;
-  }
-  if (point_cloud_A.normals != point_cloud_B.normals) {
-    return false;
-  }
-  if (point_cloud_A.colors != point_cloud_B.colors) {
-    return false;
-  }
-  return true;
+  return point_cloud_A == point_cloud_B;
 }
 
 template <>

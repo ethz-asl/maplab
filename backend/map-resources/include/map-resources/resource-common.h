@@ -10,6 +10,7 @@
 
 #include <maplab-common/unique-id.h>
 #include <opencv2/core.hpp>
+#include <resources-common/point-cloud.h>
 #include <voxblox/core/esdf_map.h>
 #include <voxblox/core/occupancy_map.h>
 #include <voxblox/core/tsdf_map.h>
@@ -25,30 +26,30 @@ UNIQUE_ID_DEFINE_ID_HASH(backend::ResourceId);
 namespace backend {
 
 // NOTE: [ADD_RESOURCE_TYPE] Add enum. When adding a new ResourceType, add it at
-// the bottom, right
-// above kCount to ensure backward compatibility.
-enum class ResourceType {
-  kRawImage,
-  kUndistortedImage,
-  kRectifiedImage,
-  kImageForDepthMap,
-  kRawColorImage,
-  kUndistortedColorImage,
-  kRectifiedColorImage,
-  kColorImageForDepthMap,
-  kRawDepthMap,
-  kOptimizedDepthMap,
-  kDisparityMap,
-  kText,
-  kPmvsReconstructionPath,
-  kTsdfGridPath,
-  kEsdfGridPath,
-  kOccupancyGridPath,
-  kPointCloudXYZ,
-  kPointCloudXYZRGBN,
-  kVoxbloxTsdfMap,
-  kVoxbloxEsdfMap,
-  kVoxbloxOccupancyMap,
+// the bottom, right above kCount to ensure backward compatibility.
+enum class ResourceType : int {
+  kRawImage = 0,
+  kUndistortedImage = 1,
+  kRectifiedImage = 2,
+  kImageForDepthMap = 3,
+  kRawColorImage = 4,
+  kUndistortedColorImage = 5,
+  kRectifiedColorImage = 6,
+  kColorImageForDepthMap = 7,
+  kRawDepthMap = 8,
+  kOptimizedDepthMap = 9,
+  kDisparityMap = 10,
+  kText = 11,
+  kPmvsReconstructionPath = 12,
+  kTsdfGridPath = 13,
+  kEsdfGridPath = 14,
+  kOccupancyGridPath = 15,
+  kPointCloudXYZ = 16,
+  kPointCloudXYZRGBN = 17,
+  kVoxbloxTsdfMap = 18,
+  kVoxbloxEsdfMap = 19,
+  kVoxbloxOccupancyMap = 20,
+  kPointCloudXYZI = 21,
   kCount
 };
 
@@ -73,11 +74,12 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeNames = {
      /*kTsdfGridPath*/ "tsdf_grid_paths",
      /*kEsdfGridPath*/ "esdf_grid_paths",
      /*kOccupancyGridPath*/ "occupancy_grid_paths",
-     /*kPointCloudXYZ*/ "point_cloud_type",
-     /*kPointCloudXYZRGBN*/ "color_point_cloud_type",
+     /*kPointCloudXYZ*/ "point_cloud",
+     /*kPointCloudXYZRGBN*/ "color_point_cloud",
      /*kVoxbloxTsdfMap*/ "voxblox_tsdf_map",
      /*kVoxbloxEsdfMap*/ "voxblox_esdf_map",
-     /*kVoxbloxOccupancyMap*/ "voxblox_occupancy_map"}};
+     /*kVoxbloxOccupancyMap*/ "voxblox_occupancy_map",
+     /*kPointCloudXYZI*/ "point_cloud_w_intensity"}};
 
 // NOTE: [ADD_RESOURCE_TYPE] Add suffix.
 const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
@@ -101,7 +103,8 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
      /*kPointCloudXYZRGBN*/ ".ply",
      /*kVoxbloxTsdfMap*/ ".tsdf.voxblox",
      /*kVoxbloxEsdfMap*/ ".esdf.voxblox",
-     /*kVoxbloxOccupancyMap*/ ".occupancy.voxblox"}};
+     /*kVoxbloxOccupancyMap*/ ".occupancy.voxblox",
+     /*kPointCloudXYZI*/ ".ply"}};
 
 struct ResourceTypeHash {
   template <typename T>

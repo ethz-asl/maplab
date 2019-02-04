@@ -8,6 +8,7 @@
 #include "sensors/gps-utm.h"
 #include "sensors/gps-wgs.h"
 #include "sensors/imu.h"
+#include "sensors/lidar.h"
 #include "sensors/measurements.pb.h"
 #include "sensors/sensor-factory.h"
 
@@ -56,6 +57,9 @@ TEST(SensorsTest, YamlSeriazliation) {
 
   testYamlSerializationDeserialization<GpsWgs>();
   testYamlSerializationFactoryDeserialization<GpsWgs>();
+
+  testYamlSerializationDeserialization<Lidar>();
+  testYamlSerializationFactoryDeserialization<Lidar>();
 }
 
 TEST(MeasurementsTest, GpsUtmProtoSerialization) {

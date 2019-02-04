@@ -8,7 +8,6 @@ rosrun rovioli rovioli \
   --v=1 \
   --ncamera_calibration=ncamera.yaml  \
   --imu_parameters_maplab=imu.yaml \
-  --imu_parameters_rovio=imu-sigmas-rovio.yaml \
   --publish_debug_markers  \
   --datasource_type="rostopic" \
   --optimize_map_to_localization_map=false \

@@ -1061,34 +1061,34 @@ void VIMap::clear() {
   selected_missions_.clear();
 }
 
-template <typename DataType>
-bool VIMap::getOptionalCameraResource(
+template <typename SensorId, typename DataType>
+bool VIMap::getOptionalSensorResource(
     const VIMission& mission, const backend::ResourceType& type,
-    const aslam::CameraId& camera_id, const int64_t timestamp_ns,
+    const SensorId& sensor_id, const int64_t timestamp_ns,
     DataType* resource) const {
   CHECK_NOTNULL(resource);
 
   backend::ResourceId resource_id;
-  if (!mission.getOptionalCameraResourceId(
-          type, camera_id, timestamp_ns, &resource_id)) {
+  if (!mission.getOptionalSensorResourceId(
+          type, sensor_id, timestamp_ns, &resource_id)) {
     return false;
   }
 
   return getResource(resource_id, type, resource);
 }
 
-template <typename DataType>
-bool VIMap::getClosestOptionalCameraResource(
+template <typename SensorId, typename DataType>
+bool VIMap::getClosestOptionalSensorResource(
     const VIMission& mission, const backend::ResourceType& type,
-    const aslam::CameraId& camera_id, const int64_t timestamp_ns,
+    const SensorId& sensor_id, const int64_t timestamp_ns,
     const int64_t tolerance_ns, DataType* resource,
     int64_t* closest_timestamp_ns) const {
   CHECK_NOTNULL(resource);
   CHECK_NOTNULL(closest_timestamp_ns);
 
   backend::StampedResourceId stamped_resource_id;
-  if (!mission.getClosestOptionalCameraResourceId(
-          type, camera_id, timestamp_ns, tolerance_ns, &stamped_resource_id)) {
+  if (!mission.getClosestOptionalSensorResourceId(
+          type, sensor_id, timestamp_ns, tolerance_ns, &stamped_resource_id)) {
     return false;
   }
   *closest_timestamp_ns = stamped_resource_id.first;
@@ -1096,77 +1096,68 @@ bool VIMap::getClosestOptionalCameraResource(
   return getResource(stamped_resource_id.second, type, resource);
 }
 
-template <typename DataType>
-void VIMap::addOptionalCameraResource(
-    const backend::ResourceType& type, const aslam::CameraId& camera_id,
+template <typename SensorId, typename DataType>
+void VIMap::addOptionalSensorResource(
+    const backend::ResourceType& type, const SensorId& sensor_id,
     const int64_t timestamp_ns, const DataType& resource, VIMission* mission) {
   CHECK_NOTNULL(mission);
 
-  CHECK(!mission->hasOptionalCameraResourceId(type, camera_id, timestamp_ns));
+  CHECK(!mission->hasOptionalSensorResourceId(type, sensor_id, timestamp_ns));
 
   backend::ResourceId resource_id;
   addResource(type, resource, &resource_id);
 
-  mission->addOptionalCameraResourceId(
-      type, camera_id, resource_id, timestamp_ns);
+  mission->addOptionalSensorResourceId(
+      type, sensor_id, resource_id, timestamp_ns);
 }
 
-template <typename DataType>
-bool VIMap::deleteOptionalCameraResource(
-    const backend::ResourceType& type, const aslam::CameraId& camera_id,
-    const int64_t timestamp_ns, VIMission* mission) {
-  constexpr bool kKeepResourceFile = false;
-  return deleteOptionalCameraResource<DataType>(
-      type, camera_id, timestamp_ns, kKeepResourceFile, mission);
-}
-
-template <typename DataType>
-bool VIMap::deleteOptionalCameraResource(
-    const backend::ResourceType& type, const aslam::CameraId& camera_id,
+template <typename SensorId, typename DataType>
+bool VIMap::deleteOptionalSensorResource(
+    const backend::ResourceType& type, const SensorId& sensor_id,
     const int64_t timestamp_ns, const bool keep_resource_file,
     VIMission* mission) {
   CHECK_NOTNULL(mission);
 
   backend::ResourceId resource_id;
-  if (!mission->getOptionalCameraResourceId(
-          type, camera_id, timestamp_ns, &resource_id)) {
+  if (!mission->getOptionalSensorResourceId(
+          type, sensor_id, timestamp_ns, &resource_id)) {
     return false;
   }
 
-  if (!mission->deleteOptionalCameraResourceId(type, camera_id, timestamp_ns)) {
+  if (!mission->deleteOptionalSensorResourceId(type, sensor_id, timestamp_ns)) {
     return false;
   }
 
   return deleteResource<DataType>(resource_id, type, keep_resource_file);
 }
 
-template <typename DataType>
-bool VIMap::getAllCloseOptionalCameraResources(
+template <typename SensorId, typename DataType>
+bool VIMap::getAllCloseOptionalSensorResources(
     const VIMission& mission, const backend::ResourceType& type,
     const int64_t timestamp_ns, const int64_t tolerance_ns,
-    aslam::CameraIdList* camera_ids,
+    std::vector<SensorId>* sensor_ids,
     std::vector<int64_t>* closest_timestamps_ns,
     std::vector<DataType>* resources) const {
-  CHECK_NOTNULL(camera_ids);
+  CHECK_NOTNULL(sensor_ids);  // TODO(mbuerki): Shoulnd't this be cleared?
   CHECK_NOTNULL(closest_timestamps_ns);
   CHECK_NOTNULL(resources);
 
-  if (!findAllCloseOptionalCameraResources(
-          mission, type, timestamp_ns, tolerance_ns, camera_ids,
+  if (!findAllCloseOptionalSensorResources<SensorId>(
+          mission, type, timestamp_ns, tolerance_ns, sensor_ids,
           closest_timestamps_ns)) {
     return false;
   }
-  const size_t num_resources = camera_ids->size();
+  const size_t num_resources = sensor_ids->size();
   CHECK_EQ(num_resources, closest_timestamps_ns->size());
   resources->resize(num_resources);
 
   for (size_t idx = 0u; idx < num_resources; ++idx) {
-    const aslam::CameraId& camera_id = (*camera_ids)[idx];
+    const SensorId& sensor_id = (*sensor_ids)[idx];
     const int64_t timestamp_ns = (*closest_timestamps_ns)[idx];
     DataType& resource = (*resources)[idx];
     CHECK(
-        getOptionalCameraResource(
-            mission.id(), type, timestamp_ns, tolerance_ns, camera_id,
+        getOptionalSensorResource(
+            mission.id(), type, timestamp_ns, tolerance_ns, sensor_id,
             timestamp_ns, &resource));
   }
   return true;
@@ -1205,6 +1196,72 @@ inline void VIMap::addOptionalSensorMeasurement(
     optional_sensor_data_iterator->second.addMeasurement(measurement);
   }
 }
+
+template <typename Edge, vi_map::Edge::EdgeType EdgeType>
+size_t VIMap::mergeEdgesOfNeighboringVertices(
+    const pose_graph::VertexId& merge_into_vertex_id,
+    const pose_graph::VertexId& vertex_to_merge) {
+  CHECK(hasVertex(merge_into_vertex_id));
+  CHECK(hasVertex(vertex_to_merge));
+
+  pose_graph::EdgeIdSet next_vertex_incoming_edge_ids,
+      next_vertex_outgoing_edge_ids;
+  vi_map::Vertex& next_vertex = getVertex(vertex_to_merge);
+  next_vertex.getOutgoingEdges(&next_vertex_outgoing_edge_ids);
+  next_vertex.getIncomingEdges(&next_vertex_incoming_edge_ids);
+  // It's possible that next vertex is the last vertex in the mission so
+  // we need to handle no outgoing edge case.
+  size_t num_incoming_edges_of_type = 0u, num_outgoing_edges_of_type = 0u;
+
+  Edge* edge_between_vertices = nullptr;
+  Edge* edge_after_next_vertex = nullptr;
+  for (const pose_graph::EdgeId& incoming_edge_id :
+       next_vertex_incoming_edge_ids) {
+    if (getEdgeType(incoming_edge_id) == EdgeType) {
+      edge_between_vertices = getEdgePtrAs<Edge>(incoming_edge_id);
+      ++num_incoming_edges_of_type;
+    }
+  }
+  for (const pose_graph::EdgeId& outgoing_edge_id :
+       next_vertex_outgoing_edge_ids) {
+    if (getEdgeType(outgoing_edge_id) == EdgeType) {
+      edge_after_next_vertex = getEdgePtrAs<Edge>(outgoing_edge_id);
+      ++num_outgoing_edges_of_type;
+    }
+  }
+  CHECK_LE(num_outgoing_edges_of_type, 1u)
+      << "A vertex can have at most one outgoing edge of type "
+      << pose_graph::Edge::edgeTypeToString(EdgeType);
+  CHECK_LE(num_incoming_edges_of_type, 1u)
+      << "A vertex must have at most one incoming edge of type "
+      << pose_graph::Edge::edgeTypeToString(EdgeType);
+
+  if (edge_between_vertices != nullptr) {
+    CHECK_EQ(edge_between_vertices->from(), merge_into_vertex_id);
+    if (edge_after_next_vertex != nullptr) {
+      posegraph.mergeNeighboringEdges<Edge>(
+          merge_into_vertex_id, *edge_between_vertices,
+          *edge_after_next_vertex);
+    } else {
+      // We should remove the edge linking the two vertices.
+      posegraph.removeEdge(edge_between_vertices->id());
+    }
+  }
+  return num_incoming_edges_of_type;
+}
+
+template <typename SensorId>
+bool VIMap::findAllCloseOptionalSensorResources(
+    const VIMission& mission, const backend::ResourceType& type,
+    const int64_t timestamp_ns, const int64_t tolerance_ns,
+    std::vector<SensorId>* sensor_ids,
+    std::vector<int64_t>* closest_timestamps_ns) const {
+  CHECK_NOTNULL(sensor_ids)->clear();
+  CHECK_NOTNULL(closest_timestamps_ns);
+  return mission.findAllCloseOptionalSensorResources(
+      type, timestamp_ns, tolerance_ns, sensor_ids, closest_timestamps_ns);
+}
+
 }  // namespace vi_map
 
 #endif  // VI_MAP_VI_MAP_INL_H_

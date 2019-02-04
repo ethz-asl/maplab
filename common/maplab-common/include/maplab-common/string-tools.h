@@ -41,6 +41,17 @@ inline std::string createRandomString(const size_t length) {
   return random_string;
 }
 
+inline bool replaceSubstring(
+    const std::string& from, const std::string& to, std::string* full_string) {
+  CHECK_NOTNULL(full_string);
+  size_t start_pos = full_string->find(from);
+  if (start_pos == std::string::npos) {
+    return false;
+  }
+  full_string->replace(start_pos, from.length(), to);
+  return true;
+}
+
 }  // namespace common
 
 #endif  // MAPLAB_COMMON_STRING_TOOLS_H_

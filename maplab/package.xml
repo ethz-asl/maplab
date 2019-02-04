@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<package>
+<package format="2">
   <name>maplab</name>
   <version>0.0.0</version>
   <description>
-    Metapackage to build the 
-      (i)  maplab_console and its core plugins, and
+    Metapackage to build the
+      (i)  maplab console and its core plugins, and
       (ii) rovioli, the localization and mapping frontend.
   </description>
   <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
@@ -12,23 +12,9 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <run_depend>dense_reconstruction_plugin</run_depend>
-  <run_depend>landmark_manipulation_plugin</run_depend>
-  <run_depend>loop_closure_plugin</run_depend>
-  <run_depend>map_anchoring_plugin</run_depend>
-  <run_depend>map_optimization_legacy_plugin</run_depend>
-  <run_depend>map_optimization_plugin</run_depend>
-  <run_depend>map_sparsification_plugin</run_depend>
-  <run_depend>maplab_console</run_depend>
-  <run_depend>mapping_workflows_plugin</run_depend>
-  <run_depend>pose_graph_manipulation_plugin</run_depend>
-  <run_depend>rovioli</run_depend>
-  <run_depend>statistics_plugin</run_depend>
-  <run_depend>vi_map_basic_plugin</run_depend>
-  <run_depend>vi_map_data_import_export_plugin</run_depend>
-  <run_depend>vi_map_summarization_plugin</run_depend>
-  <run_depend>vi_map_visualization_plugin</run_depend>
-   <export>
-     <metapackage />
-   </export>
+  <exec_depend>maplab_console_full</exec_depend>
+  <exec_depend>rovioli</exec_depend>
+  <export>
+    <metapackage />
+  </export>
 </package>

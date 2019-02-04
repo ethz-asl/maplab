@@ -31,8 +31,12 @@ void SpatialDatabaseVertexId::getVertexIdsInRadiusWithinYawAngle(
         SpatialDatabase<pose_graph::VertexId>::map_.getVertex_T_G_I(
             nn_vertex_id);
 
+    // This assumes the global coordinate frame to be gravity aligned,
+    // that is, rotations around the z-axis in frame G to correspond to
+    // yaw motion.
     const double yaw_angle_difference_radians =
-        common::getYawAngleDifferenceRadians(T_G_query_pose, T_G_NN);
+        common::getAbsoluteRotationAngleAround_A_z_Axis_rad(
+            T_G_query_pose, T_G_NN);
 
     if (yaw_angle_difference_radians <=
         yaw_angle_to_the_left_and_right_radians) {

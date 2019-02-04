@@ -1,5 +1,7 @@
 #include "landmark-triangulation/pose-interpolator.h"
 
+#include <limits>
+
 #include <aslam/common/time.h>
 #include <glog/logging.h>
 #include <imu-integrator/imu-integrator.h>
@@ -209,9 +211,17 @@ void PoseInterpolator::computeRequestedPosesInRange(
 
 void PoseInterpolator::getVertexToTimeStampMap(
     const vi_map::VIMap& map, const vi_map::MissionId& mission_id,
-    std::unordered_map<pose_graph::VertexId, int64_t>* vertex_to_time_map)
-    const {
+    VertexToTimeStampMap* vertex_to_time_map, int64_t* min_timestamp_ns,
+    int64_t* max_timestamp_ns) const {
   CHECK_NOTNULL(vertex_to_time_map)->clear();
+
+  if (min_timestamp_ns != nullptr) {
+    *min_timestamp_ns = std::numeric_limits<int64_t>::max();
+  }
+  if (max_timestamp_ns != nullptr) {
+    *max_timestamp_ns = std::numeric_limits<int64_t>::min();
+  }
+
   // Get the outgoing edge of the vertex and its IMU data.
   pose_graph::VertexIdList all_mission_vertices;
   map.getAllVertexIdsInMissionAlongGraph(mission_id, &all_mission_vertices);
@@ -238,6 +248,12 @@ void PoseInterpolator::getVertexToTimeStampMap(
         imu_edge.getImuTimestamps();
     if (imu_timestamps.cols() > 0) {
       (*vertex_to_time_map)[vertex_id] = imu_timestamps(0, 0);
+      if (min_timestamp_ns != nullptr) {
+        *min_timestamp_ns = std::min(*min_timestamp_ns, imu_timestamps(0, 0));
+      }
+      if (max_timestamp_ns != nullptr) {
+        *max_timestamp_ns = std::max(*max_timestamp_ns, imu_timestamps(0, 0));
+      }
     }
   }
 }

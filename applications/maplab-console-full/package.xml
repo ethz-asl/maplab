@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package format="2">
+  <name>maplab_console_full</name>
+  <version>0.0.0</version>
+  <description>
+    Metapackage to build the maplab_console and its core plugins.
+  </description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend>dense_reconstruction_plugin</exec_depend>
+  <exec_depend>landmark_manipulation_plugin</exec_depend>
+  <exec_depend>loop_closure_plugin</exec_depend>
+  <exec_depend>map_anchoring_plugin</exec_depend>
+  <exec_depend>map_optimization_legacy_plugin</exec_depend>
+  <exec_depend>map_optimization_plugin</exec_depend>
+  <exec_depend>map_sparsification_plugin</exec_depend>
+  <exec_depend>maplab_console</exec_depend>
+  <exec_depend>mapping_workflows_plugin</exec_depend>
+  <exec_depend>pose_graph_manipulation_plugin</exec_depend>
+  <exec_depend>statistics_plugin</exec_depend>
+  <exec_depend>vi_map_basic_plugin</exec_depend>
+  <exec_depend>vi_map_data_import_export_plugin</exec_depend>
+  <exec_depend>vi_map_summarization_plugin</exec_depend>
+  <exec_depend>vi_map_visualization_plugin</exec_depend>
+  <export>
+    <metapackage />
+  </export>
+</package>

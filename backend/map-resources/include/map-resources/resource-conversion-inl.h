@@ -152,7 +152,7 @@ bool convertDepthMapToPointCloud(
 
   resources::RgbaColor color(255u, 255u, 255u, 255u);
   const uint16_t* depth_map_ptr;
-  size_t num_points = 0u;
+  size_t point_index = 0u;
   for (int v = 0; v < depth_map.rows; ++v) {
     depth_map_ptr = depth_map.ptr<uint16_t>(v);
     for (int u = 0; u < depth_map.cols; ++u) {
@@ -190,14 +190,18 @@ bool convertDepthMapToPointCloud(
         color[3] = 255u;
       }
 
-      addPointToPointCloud(point_C, color, num_points, point_cloud);
-      ++num_points;
+      CHECK_LT(point_index, valid_depth_entries);
+      addPointToPointCloud(point_C, color, point_index, point_cloud);
+      ++point_index;
     }
   }
-  VLOG(3) << "Converted depth map to a point cloud of size " << num_points
+  VLOG(3) << "Converted depth map to a point cloud of size " << point_index
           << ".";
 
-  if (num_points == 0u) {
+  // Shrink pointcloud if necessary.
+  resizePointCloud(point_index, point_cloud);
+
+  if (point_index == 0u) {
     VLOG(3) << "Depth map has no valid depth measurements!";
     return false;
   }

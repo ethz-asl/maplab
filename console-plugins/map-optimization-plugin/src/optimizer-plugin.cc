@@ -125,11 +125,8 @@ int OptimizerPlugin::relaxMap() {
   vi_map::MissionIdList mission_id_list;
   map.get()->getAllMissionIds(&mission_id_list);
 
-  const bool success = relaxation.relax(mission_id_list, map.get());
+  relaxation.relax(mission_id_list, map.get());
 
-  if (!success) {
-    return common::kUnknownError;
-  }
   return common::kSuccess;
 }
 

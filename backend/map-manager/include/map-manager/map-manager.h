@@ -294,15 +294,6 @@ class MapManager {
   /// \returns True if the map exists on the file system.
   bool hasMapOnFileSystem(const std::string& folder_path) const;
 
-  /// \brief Returns the list of all existing map files in the given map folder.
-  ///
-  /// \param map_folder The folder containing the map files.
-  /// \param list_of_map_files List of all files of the given map.
-  /// \returns True if the minimum required map files exist.
-  bool getListOfExistingMapFiles(
-      const std::string& map_folder,
-      std::vector<std::string>* list_of_map_files);
-
   /// \brief Returns the default map keys for a given list of maps folders.
   ///
   /// \param map_list List of map folders.

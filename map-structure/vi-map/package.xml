@@ -13,6 +13,7 @@
   <depend>aslam_cv_common</depend>
   <depend>aslam_cv_frames</depend>
   <depend>aslam_serialization</depend>
+  <depend>benchmark_catkin</depend>
   <depend>eigen_catkin</depend>
   <depend>eigen_checks</depend>
   <depend>gflags_catkin</depend>
@@ -20,6 +21,7 @@
   <depend>libnabo</depend>
   <depend>map_resources</depend>
   <depend>maplab_common</depend>
+  <depend>maplab_test_data</depend>
   <depend>minkindr</depend>
   <depend>posegraph</depend>
   <depend>protobuf_catkin</depend>

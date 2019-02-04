@@ -6,6 +6,7 @@
 
 #include "sensors/gps-utm.h"
 #include "sensors/gps-wgs.h"
+#include "sensors/lidar.h"
 #include "sensors/relative-6dof-pose.h"
 
 namespace vi_map {
@@ -164,6 +165,19 @@ TEST_F(MeasurementsTest, TestAccessorsRelative6DoFPoseMeasurement) {
   EXPECT_EQ(
       rel_6dof_pose_measurement.getMeasurementCovariance(),
       measurement_covariance);
+}
+
+TEST_F(MeasurementsTest, TestAccessorsLidarMeasurement) {
+  // Testing construction with invalid sensor id and invalid timestamp.
+  SensorId sensor_id;
+  int64_t timestamp_nanoseconds = -1;
+  EXPECT_DEATH(LidarMeasurement(sensor_id, timestamp_nanoseconds), "");
+  common::generateId(&sensor_id);
+  EXPECT_DEATH(LidarMeasurement(sensor_id, timestamp_nanoseconds), "");
+
+  timestamp_nanoseconds = getRandomTimestampNanoseconds();
+  LidarMeasurement lidar_measurement(sensor_id, timestamp_nanoseconds);
+  EXPECT_TRUE(lidar_measurement.getPointCloud().empty());
 }
 }  // namespace vi_map
 

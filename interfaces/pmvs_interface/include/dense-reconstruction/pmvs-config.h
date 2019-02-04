@@ -14,12 +14,8 @@ struct PmvsConfig {
 
   const std::string kBundleName = "bundle.rd.out";
   const std::string kOptionFileNameString_ = "option-%04d";
-  const std::string kImageFileNameString_ = "%s/%08d.ppm";
   const std::string kCameraFileNameString_ = "%s/%08d.txt";
   const std::string kModelsFileNameString = "%smodels/%s";
-
-  const std::string kTxtSuffix = ".txt";
-  const std::string kObserverFileName = "observers.txt";
 
   const std::string kVisualizeFolderName = "/visualize";
   const std::string kTxtFolderName = "/txt";
@@ -37,18 +33,18 @@ struct PmvsConfig {
       backend::ResourceType::kUndistortedImage,
       backend::ResourceType::kRawImage};
 
-  bool cmvs_use_only_good_landmarks = true;
-  bool pmvs_use_color_images = true;
-
-  double pmvs_undistortion_alpha = 0.0;
-  double pmvs_undistortion_scale = 1.0;
-
-  std::string pmvs_reconstruction_folder = "";
-  std::string txt_output_folder = "";
-  std::string txt_output_suffix = "invalid";
+  bool use_only_good_landmarks = true;
+  size_t export_data_for_nth_vertex = 1u;
+  std::string image_file_name_string = "%s/%08d.ppm";
+  bool use_color_images = true;
+  double undistortion_alpha = 0.0;
+  double undistortion_scale = 1.0;
+  std::string reconstruction_folder = "";
 
   static PmvsConfig getFromGflags();
 };
+
+void checkPmvsConfig(const PmvsConfig& config);
 
 }  // namespace dense_reconstruction
 

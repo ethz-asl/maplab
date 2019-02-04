@@ -80,9 +80,9 @@ typedef std::pair<MissionId, pose_graph::VertexIdList> MissionVertexIdPair;
 
 class VIMap : public backend::ResourceMap,
               public backend::MapInterface<vi_map::VIMap> {
-  friend ::LoopClosureHandlerTest;                     // Test.
-  friend class MapConsistencyCheckTest;                // Test.
-  friend class map_optimization_legacy::ViwlsGraph;    // Test.
+  friend ::LoopClosureHandlerTest;                             // Test.
+  friend class MapConsistencyCheckTest;                        // Test.
+  friend class map_optimization_legacy::ViwlsGraph;            // Test.
   friend class map_optimization_legacy::SixDofVIMapGenerator;  // Test.
   friend bool checkMapConsistency(const VIMap&);
   friend class VIMapStats;
@@ -139,28 +139,6 @@ class VIMap : public backend::ResourceMap,
   inline const SensorManager& getSensorManager() const;
   inline SensorManager& getSensorManager();
 
-  template<class MeasurementType>
-  const MeasurementBuffer<MeasurementType>& getOptionalSensorMeasurements(
-      const SensorId& sensor_id, const MissionId& mission_id) const;
-
-  const OptionalSensorData& getOptionalSensorData(
-      const MissionId& mission_id) const;
-
-  OptionalSensorData& getOptionalSensorData(const MissionId& mission_id);
-
-  bool hasOptionalSensorData(const MissionId& mission_id) const;
-
-  template<typename... _Args>
-  inline void emplaceOptionalSensorData(_Args&&... __arg) {
-    optional_sensor_data_map_.emplace(
-        std::piecewise_construct, std::forward_as_tuple(__arg)...);
-  }
-
-  template <class MeasurementType>
-  inline void addOptionalSensorMeasurement(
-      const MeasurementType& measurement, const MissionId& mission_id);
-
-
   inline size_t numVertices() const;
   inline size_t numVerticesInMission(const vi_map::MissionId& mission_id) const;
   inline bool hasVertex(const pose_graph::VertexId& id) const;
@@ -189,8 +167,7 @@ class VIMap : public backend::ResourceMap,
       const Eigen::Matrix<double, 6, 6>& T_G_M_covariance,
       const aslam::NCamera::Ptr& ncamera, Mission::BackBone backbone_type);
   void addNewMissionWithBaseframe(
-      vi_map::VIMission::UniquePtr mission,
-      const aslam::NCamera::Ptr& ncamera,
+      vi_map::VIMission::UniquePtr mission, const aslam::NCamera::Ptr& ncamera,
       const vi_map::MissionBaseFrame& mission_base_frame);
 
   inline size_t numMissions() const;
@@ -379,10 +356,9 @@ class VIMap : public backend::ResourceMap,
 
   inline void getAllVertexIds(pose_graph::VertexIdList* vertices) const;
 
-  inline void forEachVisualFrame(
-      const std::function<void(
-          const aslam::VisualFrame&, Vertex&, size_t, const MissionBaseFrame&)>&
-          action);
+  inline void forEachVisualFrame(const std::function<void(
+                                     const aslam::VisualFrame&, Vertex&, size_t,
+                                     const MissionBaseFrame&)>& action);
   inline void forEachVisualFrame(
       const std::function<void(
           const aslam::VisualFrame&, const Vertex&, size_t)>& action) const;
@@ -514,6 +490,13 @@ class VIMap : public backend::ResourceMap,
       const pose_graph::VertexId& vertex_id_from,
       const pose_graph::VertexId& vertex_id_to);
 
+  // Returns the number of edges of the given type between merge_into_vertex_id
+  // and vertex_to_merge.
+  template <typename Edge, vi_map::Edge::EdgeType EdgeType>
+  size_t mergeEdgesOfNeighboringVertices(
+      const pose_graph::VertexId& merge_into_vertex_id,
+      const pose_graph::VertexId& vertex_to_merge);
+
   void duplicateMission(const vi_map::MissionId& source_mission_id);
 
   // Removes references to the mission object - assumes mission is empty.
@@ -563,7 +546,9 @@ class VIMap : public backend::ResourceMap,
 
   // Mission-set-based resources
   // ===========================
-  // A set of missions can own a single resource of every type.
+  // A set of missions can own a single resource of every type. Like all
+  // resources, this data is serialized and deserialzed (with cache) upon
+  // accessing the data.
 
   bool hasMissionResource(
       const backend::ResourceType& resource_type,
@@ -610,7 +595,8 @@ class VIMap : public backend::ResourceMap,
   // VisualFrame-based resources
   // ===========================
   // A resource that is associated with a visual frame defined through frame_idx
-  // and vertex_ptr.
+  // and vertex_ptr. Like all resources, this data is serialized and deserialzed
+  // (with cache) upon accessing the data.
 
   template <typename DataType>
   void storeFrameResourceToFolder(
@@ -675,81 +661,120 @@ class VIMap : public backend::ResourceMap,
       PointCloudXYZRGBN, backend::ResourceType::kPointCloudXYZRGBN,
       resources::PointCloud);
 
-  // Optional camera resources
-  // ===========================
+  // Optional sensor/camera resources
+  // ================================
   // Timestamped resources that are only associated with a mission and an
-  // optional camera with extrinsics (stored in the VIMission).
+  // optional sensor or camera with extrinsics (stored in the VIMission). The
+  // optional here means that these sensors/cameras are not directly used for
+  // the main visual-inertial pose estimation. The main example is a color or
+  // depth camera that provides timestamped images/depth maps. These resources
+  // need to be timestamped based on a common clock, but not necessarily
+  // synchronized with the vertex timestamp. Like all resources, this data is
+  // serialized and deserialzed (with cache) upon accessing the data.
 
-  bool hasOptionalCameraResource(
+  template <typename SensorId>
+  bool hasOptionalSensorResource(
       const VIMission& mission, const backend::ResourceType& type,
-      const aslam::CameraId& camera_id, const int64_t timestamp_ns) const;
+      const SensorId& sensor_id, const int64_t timestamp_ns) const {
+    return mission.hasOptionalSensorResourceId(type, sensor_id, timestamp_ns);
+  }
 
-  template <typename DataType>
-  bool getOptionalCameraResource(
+  template <typename SensorId, typename DataType>
+  bool getOptionalSensorResource(
       const VIMission& mission, const backend::ResourceType& type,
-      const aslam::CameraId& camera_id, const int64_t timestamp_ns,
+      const SensorId& sensor_id, const int64_t timestamp_ns,
       DataType* resource) const;
 
-  template <typename DataType>
-  bool getClosestOptionalCameraResource(
+  template <typename SensorId, typename DataType>
+  bool getClosestOptionalSensorResource(
       const VIMission& mission, const backend::ResourceType& type,
-      const aslam::CameraId& camera_id, const int64_t timestamp_ns,
+      const SensorId& sensor_id, const int64_t timestamp_ns,
       const int64_t tolerance_ns, DataType* resource,
       int64_t* closest_timestamp_ns) const;
 
-  bool findAllCloseOptionalCameraResources(
+  template <typename SensorId>
+  bool findAllCloseOptionalSensorResources(
       const VIMission& mission, const backend::ResourceType& type,
       const int64_t timestamp_ns, const int64_t tolerance_ns,
-      aslam::CameraIdList* camera_ids,
+      std::vector<SensorId>* sensor_ids,
       std::vector<int64_t>* closest_timestamps_ns) const;
 
-  template <typename DataType>
-  bool getAllCloseOptionalCameraResources(
+  template <typename SensorId, typename DataType>
+  bool getAllCloseOptionalSensorResources(
       const VIMission& mission, const backend::ResourceType& type,
       const int64_t timestamp_ns, const int64_t tolerance_ns,
-      aslam::CameraIdList* camera_ids,
+      std::vector<SensorId>* sensor_ids,
       std::vector<int64_t>* closest_timestamps_ns,
       std::vector<DataType>* resources) const;
 
-  template <typename DataType>
-  void addOptionalCameraResource(
-      const backend::ResourceType& type, const aslam::CameraId& camera_id,
+  template <typename SensorId, typename DataType>
+  void addOptionalSensorResource(
+      const backend::ResourceType& type, const SensorId& camera_id,
       const int64_t timestamp_ns, const DataType& resource, VIMission* mission);
 
   // NOTE: When deleting optional camera resources will not clean up the list of
   // optional cameras.
-  template <typename DataType>
-  bool deleteOptionalCameraResource(
-      const backend::ResourceType& type, const aslam::CameraId& camera_id,
+  template <typename SensorId, typename DataType>
+  bool deleteOptionalSensorResource(
+      const backend::ResourceType& type, const SensorId& sensor_id,
       const int64_t timestamp_ns, VIMission* mission);
-  template <typename DataType>
-  bool deleteOptionalCameraResource(
-      const backend::ResourceType& type, const aslam::CameraId& camera_id,
+  template <typename SensorId, typename DataType>
+  bool deleteOptionalSensorResource(
+      const backend::ResourceType& type, const SensorId& sensor_id,
       const int64_t timestamp_ns, const bool keep_resource_file,
       VIMission* mission);
 
-  OPTIONAL_CAMERA_RESOURCE_CONVENIENCE_FUNCTIONS(
-      RawColorImage, backend::ResourceType::kRawColorImage, cv::Mat);
-  OPTIONAL_CAMERA_RESOURCE_CONVENIENCE_FUNCTIONS(
-      UndistortedColorImage, backend::ResourceType::kUndistortedColorImage,
+  OPTIONAL_SENSOR_RESOURCE_CONVENIENCE_FUNCTIONS(
+      RawColorImage, aslam::CameraId, backend::ResourceType::kRawColorImage,
       cv::Mat);
+  OPTIONAL_SENSOR_RESOURCE_CONVENIENCE_FUNCTIONS(
+      UndistortedColorImage, aslam::CameraId,
+      backend::ResourceType::kUndistortedColorImage, cv::Mat);
+  OPTIONAL_SENSOR_RESOURCE_CONVENIENCE_FUNCTIONS(
+      RawDepthMap, aslam::CameraId, backend::ResourceType::kRawDepthMap,
+      cv::Mat);
+  OPTIONAL_SENSOR_RESOURCE_CONVENIENCE_FUNCTIONS(
+      PointCloudXYZRGBN, aslam::CameraId,
+      backend::ResourceType::kPointCloudXYZRGBN, resources::PointCloud);
+  OPTIONAL_SENSOR_RESOURCE_CONVENIENCE_FUNCTIONS(
+      LidarPointCloudXYZI, SensorId, backend::ResourceType::kPointCloudXYZI,
+      resources::PointCloud);
 
+  // Optional sensor data
+  // ====================
+  // Contains measurements from an optional sensor, i.e. it is not tightly
+  // coupled with the visual inertial map, but rather independent timestamped
+  // measurmements. The measurements are timestamped using a common clock, but
+  // are not necessarily synchronized with vertex timestamps. In contrast to the
+  // optional sensor resources, this data is not serialized, but kept in memory.
+  // The main example is GPS data.
+
+  template <class MeasurementType>
+  const MeasurementBuffer<MeasurementType>& getOptionalSensorMeasurements(
+      const SensorId& sensor_id, const MissionId& mission_id) const;
+
+  const OptionalSensorData& getOptionalSensorData(
+      const MissionId& mission_id) const;
+
+  OptionalSensorData& getOptionalSensorData(const MissionId& mission_id);
+
+  bool hasOptionalSensorData(const MissionId& mission_id) const;
+
+  template <typename... _Args>
+  inline void emplaceOptionalSensorData(_Args&&... __arg) {
+    optional_sensor_data_map_.emplace(
+        std::piecewise_construct, std::forward_as_tuple(__arg)...);
+  }
+
+  template <class MeasurementType>
+  inline void addOptionalSensorMeasurement(
+      const MeasurementType& measurement, const MissionId& mission_id);
 
   // ===============================
   // MAP INTERFACE (for map manager)
   // ===============================
   void mergeAllMissionsFromMap(const vi_map::VIMap& other) override;
   static std::string getSubFolderName();
-
-  /// \brief Returns the list of all existing map files in the given map folder.
-  ///
-  /// \param map_folder The folder containing the map files.
-  /// \param list_of_map_files List of all files of the given map.
-  /// \returns True if the minimum required map files exist.
-  static bool getListOfExistingMapFiles(
-      const std::string& map_folder, std::string* sensors_filepath,
-      std::vector<std::string>* list_of_resource_files,
-      std::vector<std::string>* list_of_map_proto_files);
 
   static bool hasMapOnFileSystem(const std::string& map_folder);
   bool loadFromFolder(const std::string& map_folder) override;

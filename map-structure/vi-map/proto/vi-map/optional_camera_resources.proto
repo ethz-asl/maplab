@@ -15,3 +15,10 @@ message CamerasWithExtrinsics {
   repeated double T_C_B = 2;
   optional aslam.proto.Camera camera = 3;
 }
+
+message OptionalSensorResources {
+  optional common.proto.Id sensor_id = 1;
+  optional int64 timestamp_ns = 2;
+  optional common.proto.Id resource_id = 3;
+  optional int32 resource_type = 4;
+}

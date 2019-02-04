@@ -46,7 +46,7 @@ struct MapTraits {
 
   // Copy/merge.
   static void deepCopy(const MapType& source_map, MapType* target_map) {
-    CHECK_NOTNULL(target_map)->deepCopyFrom(source_map);
+    CHECK_NOTNULL(target_map)->deepCopy(source_map);
   }
   static void mergeTwoMaps(
       const MapType& source_map_merge_from, MapType* map_merge_base) {
@@ -63,11 +63,6 @@ struct MapTraits {
   // user/provided/folder/path/vi_map.
   static std::string getSubFolderName() {
     return MapType::getSubFolderName();
-  }
-  static bool getListOfExistingMapFiles(
-      const std::string& map_folder,
-      std::vector<std::string>* list_of_map_files) {
-    return MapType::getListOfExistingMapFiles(map_folder, list_of_map_files);
   }
   static bool hasMapOnFileSystem(const std::string& folder_path) {
     return MapType::hasMapOnFileSystem(folder_path);
@@ -100,7 +95,7 @@ struct MapTraits {
 ///   ...
 ///
 ///   // Also implement the functions from MapInterface.
-///   virtual void deepCopyFrom(const MapType& other) override;
+///   virtual void deepCopy(const MapType& other) override;
 ///   ...
 /// };
 /// \endcode

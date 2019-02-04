@@ -132,20 +132,21 @@ class ThreadedTaskQueueProcessor {
     }
   }
 
-  void stopProcessingBlocking() {
-    processing_policy_->shutdown();
-    shutdown_requested_ = true;
-    if (queue_processor_) {
-      queue_processor_->join();
-    }
-  }
-
  private:
   void workThread() {
     while (!shutdown_requested_) {
       if (!processing_policy_->processSpin()) {
         return;
       }
+    }
+  }
+
+  void stopProcessingBlocking() {
+    processing_policy_->shutdown();
+    shutdown_requested_ = true;
+    if (queue_processor_) {
+      CHECK(queue_processor_->joinable());
+      queue_processor_->join();
     }
   }
 

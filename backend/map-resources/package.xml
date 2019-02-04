@@ -18,7 +18,11 @@
   <depend>maplab_common</depend>
   <depend>maplab_test_data</depend>
   <depend>minkindr</depend>
+  <depend>pcl_ros</depend>
   <depend>protobuf_catkin</depend>
+  <depend>sensors</depend>
+  <depend>sensor_msgs</depend>
+  <depend>resources_common</depend>
   <depend>voxblox</depend>
   <depend>yaml_cpp_catkin</depend>
 </package>

@@ -5,6 +5,7 @@
 #include <map-resources/resource-typedefs.h>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/types.hpp>
+#include <resources-common/point-cloud.h>
 
 namespace dense_reconstruction {
 namespace stereo {

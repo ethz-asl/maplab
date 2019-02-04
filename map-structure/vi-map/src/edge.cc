@@ -100,41 +100,6 @@ Edge::UniquePtr Edge::deserialize(
   }
 }
 
-Edge::UniquePtr Edge::deserialize(
-    const pose_graph::EdgeId& edge_id,
-    const vi_map_deprecated::proto::Edge& proto) {
-  if (proto.has_viwls()) {
-    vi_map::ViwlsEdge* edge(new vi_map::ViwlsEdge());
-    edge->deserialize(edge_id, proto.viwls());
-    return Edge::UniquePtr(edge);
-  } else if (proto.has_odometry()) {
-    vi_map::TransformationEdge* edge(
-        new vi_map::TransformationEdge(vi_map::Edge::EdgeType::kOdometry));
-    edge->deserialize(edge_id, proto.odometry());
-    return Edge::UniquePtr(edge);
-  } else if (proto.has_loopclosure()) {
-    vi_map::LoopClosureEdge* edge(new vi_map::LoopClosureEdge());
-    edge->deserialize(edge_id, proto.loopclosure());
-    return Edge::UniquePtr(edge);
-  } else if (proto.has_transformation()) {
-    vi_map::TransformationEdge* edge(
-        new vi_map::TransformationEdge(vi_map::Edge::EdgeType::k6DoFGps));
-    edge->deserialize(edge_id, proto.transformation());
-    return Edge::UniquePtr(edge);
-  } else if (proto.has_laser()) {
-    vi_map::LaserEdge* edge(new vi_map::LaserEdge());
-    edge->deserialize(edge_id, proto.laser());
-    return Edge::UniquePtr(edge);
-  } else if (proto.has_trajectory()) {
-    vi_map::TrajectoryEdge* edge(new vi_map::TrajectoryEdge());
-    edge->deserialize(edge_id, proto.trajectory());
-    return Edge::UniquePtr(edge);
-  } else {
-    LOG(FATAL) << "Unknown edge type.";
-    return nullptr;
-  }
-}
-
 void Edge::copyEdgeInto(Edge** new_edge) const {
   CHECK_NOTNULL(new_edge);
 

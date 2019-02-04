@@ -33,6 +33,7 @@ class DataPublisherFlow {
   const std::string kTopicVelocity = kGeneralTopicPrefix + "velocity_I";
   const std::string kTopicBiasAcc = kGeneralTopicPrefix + "bias_acc";
   const std::string kTopicBiasGyro = kGeneralTopicPrefix + "bias_gyro";
+  const std::string kCameraExtrinsicTopic = kGeneralTopicPrefix + "cam_T_C_B";
 
   DataPublisherFlow();
 
@@ -41,7 +42,7 @@ class DataPublisherFlow {
 
  private:
   void registerPublishers();
-  void stateCallback(
+  void publishVinsState(
       int64_t timestamp_ns, const vio::ViNodeState& vinode,
       const bool has_T_G_M, const aslam::Transformation& T_G_M);
   void stateDebugCallback(
@@ -57,6 +58,7 @@ class DataPublisherFlow {
   ros::Publisher pub_velocity_I_;
   ros::Publisher pub_imu_acc_bias_;
   ros::Publisher pub_imu_gyro_bias_;
+  ros::Publisher pub_extrinsics_T_C_Bs_;
 
   common::TimeoutCounter map_publisher_timeout_;
 

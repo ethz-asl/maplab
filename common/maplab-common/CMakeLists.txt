@@ -36,6 +36,7 @@ cs_add_library(${PROJECT_NAME} src/binary-serialization.cc
                                src/gnuplot-interface.cc
                                src/gravity-provider.cc
                                src/histograms.cc
+                               src/map-manager-config.cc
                                src/multi-threaded-progress-bar.cc
                                src/progress-bar.cc
                                src/proto-serialization-helper.cc
@@ -62,6 +63,9 @@ COMMAND rm -rf "./${PROJECT_TEST_DATA}" && mkdir ./${PROJECT_TEST_DATA}/ && tar 
 catkin_add_gtest(test_accessors
   test/test_accessors.cc)
 target_link_libraries(test_accessors ${PROJECT_NAME})
+
+catkin_add_gtest(test_bidirectional_map test/test_bidirectional_map.cc)
+target_link_libraries(test_bidirectional_map ${PROJECT_NAME})
 
 catkin_add_gtest(test_fixed_size_queue
     test/test_fixed_size_queue.cc)

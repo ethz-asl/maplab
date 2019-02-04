@@ -13,7 +13,6 @@
 #include "rovioli/imu-camera-synchronizer-flow.h"
 #include "rovioli/localizer-flow.h"
 #include "rovioli/rovio-flow.h"
-#include "rovioli/synced-nframe-throttler-flow.h"
 
 DEFINE_bool(
     rovioli_run_map_builder, true,
@@ -34,8 +33,6 @@ RovioliNode::RovioliNode(
   CHECK(maplab_imu_sensor);
   CHECK_NOTNULL(flow);
 
-  // TODO(schneith): At the moment we need to provide two noise sigmas; one for
-  // maplab and one for ROVIO. Unify this.
   datasource_flow_.reset(
       new DataSourceFlow(*camera_system, *maplab_imu_sensor));
   datasource_flow_->attachToMessageFlow(flow);
@@ -64,9 +61,6 @@ RovioliNode::RovioliNode(
     tracker_flow_.reset(
         new FeatureTrackingFlow(camera_system, *maplab_imu_sensor));
     tracker_flow_->attachToMessageFlow(flow);
-
-    throttler_flow_.reset(new SyncedNFrameThrottlerFlow);
-    throttler_flow_->attachToMessageFlow(flow);
   }
 
   data_publisher_flow_.reset(new DataPublisherFlow);

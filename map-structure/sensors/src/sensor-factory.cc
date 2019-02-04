@@ -3,6 +3,7 @@
 #include "sensors/gps-utm.h"
 #include "sensors/gps-wgs.h"
 #include "sensors/imu.h"
+#include "sensors/lidar.h"
 #include "sensors/relative-6dof-pose.h"
 
 namespace vi_map {
@@ -29,6 +30,9 @@ Sensor::UniquePtr createSensorFromYaml(const YAML::Node& sensor_node) {
       break;
     case SensorType::kGpsWgs:
       return sensors::internal::createFromYaml<GpsWgs>(sensor_node);
+      break;
+    case SensorType::kLidar:
+      return sensors::internal::createFromYaml<Lidar>(sensor_node);
       break;
     default:
       LOG(ERROR) << "Unknown sensor type: " << static_cast<int>(sensor_type);
@@ -64,6 +68,9 @@ Sensor::UniquePtr createTestSensor(const SensorType sensor_type) {
       break;
     case SensorType::kGpsWgs:
       return createTestSensor<GpsWgs>();
+      break;
+    case SensorType::kLidar:
+      return createTestSensor<Lidar>();
       break;
     default:
       LOG(ERROR) << "Unknown sensor type: " << static_cast<int>(sensor_type);

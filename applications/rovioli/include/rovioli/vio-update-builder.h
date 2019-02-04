@@ -59,7 +59,7 @@ class VioUpdateBuilder {
   // so that we can enforce that the timestamps are strictly monotonically
   // increasing
   int64_t last_received_timestamp_synced_nframe_queue_;
-  double last_received_timestamp_rovio_estimate_queue;
+  int64_t last_received_timestamp_rovio_estimate_queue;
 
   VioUpdatePublishFunction vio_update_publish_function_;
 

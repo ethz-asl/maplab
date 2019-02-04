@@ -15,7 +15,7 @@ VIMapNearestNeighborLookup<QueryType, DataType>::VIMapNearestNeighborLookup(
     const vi_map::VIMap& map)
     : map_(map) {
   buildIndex();
-  CHECK_EQ(nn_index_data_.cols(), data_items_.size());
+  CHECK_EQ(nn_index_data_.cols(), static_cast<int>(data_items_.size()));
   CHECK_EQ(size(), data_items_.size());
 }
 
@@ -26,7 +26,7 @@ bool VIMapNearestNeighborLookup<QueryType, DataType>::empty() const {
 
 template <typename QueryType, typename DataType>
 size_t VIMapNearestNeighborLookup<QueryType, DataType>::size() const {
-  CHECK_GE(nn_index_data_.cols(), 0u);
+  CHECK_GE(nn_index_data_.cols(), 0);
   return static_cast<size_t>(nn_index_data_.cols());
 }
 
@@ -96,11 +96,11 @@ VIMapNearestNeighborLookup<QueryType, DataType>::getAllDataItemsWithinRadius(
                  kSearchNNEpsilon, kOptionFlags, search_radius);
 
   size_t result_idx = 0u;
-  while (result_idx < num_neighbors &&
+  while (result_idx < static_cast<size_t>(num_neighbors) &&
          distance_squared[result_idx] <
              std::numeric_limits<double>::infinity()) {
     const int nn_index = index(result_idx);
-    CHECK_LT(nn_index, data_items_.size());
+    CHECK_LT(nn_index, static_cast<int>(data_items_.size()));
     data_items_within_search_radius->emplace(data_items_[nn_index]);
     ++result_idx;
   }

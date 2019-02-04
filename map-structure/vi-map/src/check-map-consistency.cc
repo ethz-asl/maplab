@@ -29,9 +29,11 @@ bool isGpsReferenceVertex(
 }
 
 bool checkMapConsistency(const vi_map::VIMap& vi_map) {
+  LOG(INFO) << "Checking VI-Map consistency.";
+
   bool is_consistent = true;
   // Verify that every mission has a valid base-frame.
-  LOG(INFO) << "Verifying mission base-frames...";
+  VLOG(2) << "Verifying mission base-frames...";
 
   const SensorManager& sensor_manager = vi_map.getSensorManager();
 
@@ -82,9 +84,9 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
       continue;
     }
   }
-  LOG_IF(INFO, is_consistent) << "OK.";
+  VLOG_IF(2, is_consistent) << "OK.";
 
-  LOG(INFO) << "Verifying  map vertices and edges...";
+  VLOG(2) << "Verifying  map vertices and edges...";
   pose_graph::VertexIdList all_vertices;
   vi_map.getAllVertexIds(&all_vertices);
   for (const pose_graph::VertexId& vertex_id : all_vertices) {
@@ -105,10 +107,10 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
       continue;
     }
   }
-  LOG_IF(INFO, is_consistent) << "OK.";
+  VLOG_IF(2, is_consistent) << "OK.";
 
   // Verify that all landmark IDs in the map are valid.
-  LOG(INFO) << "Verifying landmark validity...";
+  VLOG(2) << "Verifying landmark validity...";
   vi_map::LandmarkIdList all_landmark_ids;
   vi_map.getAllLandmarkIds(&all_landmark_ids);
 
@@ -178,14 +180,14 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
     }
   }
 
-  LOG_IF(INFO, is_consistent) << "OK.";
+  VLOG_IF(2, is_consistent) << "OK.";
 
   // Create a map of all vertices that have a reference to a given landmark
   // in order to check the back-reference from landmark to vertices.
   typedef std::unordered_multimap<vi_map::LandmarkId, pose_graph::VertexId>
       LandmarkToVertexMap;
   LandmarkToVertexMap landmark_observing_vertices;
-  LOG(INFO) << "Building landmark observers list...";
+  VLOG(2) << "Building landmark observers list...";
   for (const pose_graph::VertexId& vertex_id : all_vertices) {
     if (!vi_map.hasVertex(vertex_id)) {
       LOG(ERROR) << "Vi map claims to have vertex " << vertex_id
@@ -208,15 +210,15 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
       }
     }
   }
-  LOG_IF(INFO, is_consistent) << "OK.";
+  VLOG_IF(2, is_consistent) << "OK.";
 
-  LOG(INFO) << "Verifying landmark references...";
+  VLOG(2) << "Verifying landmark references...";
   int num_checked = 0;
   for (const pose_graph::VertexId& vertex_id : all_vertices) {
     // Existence in map verified above.
     const Vertex& vertex = vi_map.getVertex(vertex_id);
 
-    LOG_EVERY_N(INFO, static_cast<int>(all_vertices.size()) / 10)
+    VLOG_EVERY_N(2, static_cast<int>(all_vertices.size()) / 10)
         << "Verifying vertices... "
         << std::round(
                static_cast<double>(num_checked + 1) / all_vertices.size() *
@@ -440,19 +442,19 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
     }
     ++num_checked;
   }
-  LOG_IF(INFO, is_consistent) << "OK.";
+  VLOG_IF(2, is_consistent) << "OK.";
 
-  LOG(INFO) << "Verifying sensor consistency...";
+  VLOG(2) << "Verifying sensor consistency...";
   if (!checkSensorConsistency(vi_map)) {
     LOG(ERROR) << "Inconsistent sensors detected.";
     is_consistent = false;
   } else {
-    LOG(INFO) << "OK.";
+    VLOG(2) << "OK.";
   }
 
-  LOG(INFO) << "Verifying posegraph consistency for each mission...";
+  VLOG(2) << "Verifying posegraph consistency for each mission...";
   for (const vi_map::MissionId& mission_id : mission_ids) {
-    LOG(INFO) << "Verifying mission: " << mission_id << "...";
+    VLOG(2) << "Verifying mission: " << mission_id << "...";
     if (!vi_map.hasMission(mission_id)) {
       LOG(ERROR) << "Vi map claims to have mission " << mission_id
                  << " but then returns false when retrieving it.";
@@ -464,26 +466,27 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
       LOG(ERROR) << "Posegraph inconsistent.";
       is_consistent = false;
     } else {
-      LOG(INFO) << "OK.";
+      VLOG(2) << "OK.";
     }
   }
 
-  LOG(INFO) << "Looking for orphaned posegraph items...";
+  VLOG(2) << "Looking for orphaned posegraph items...";
   if (!checkForOrphanedPosegraphItems(vi_map)) {
     LOG(ERROR) << "Orphaned items detected.";
     is_consistent = false;
   } else {
-    LOG(INFO) << "OK.";
+    VLOG(2) << "OK.";
   }
 
-  LOG(INFO) << "Verifying resource consistency...";
+  VLOG(2) << "Verifying resource consistency...";
   if (!vi_map.checkResourceConsistency()) {
     LOG(ERROR) << "Inconsistent resources or resource info entries detected.";
     is_consistent = false;
   } else {
-    LOG(INFO) << "OK.";
+    VLOG(2) << "OK.";
   }
 
+  LOG_IF(INFO, is_consistent) << "VI-Map is consistent.";
   return is_consistent;
 }
 

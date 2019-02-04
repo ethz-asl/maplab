@@ -141,13 +141,13 @@ void transformationRansac(
       const pose::Transformation& T_A_B_other = T_A_B_samples[j];
       const double p_norm_A_A_hat =
           (T_A_B_sample.getPosition() - T_A_B_other.getPosition()).norm();
-      const double q_angle_A_A_hat =
-          2. *
-          acos(
-              (T_A_B_sample.getRotation() * T_A_B_other.getRotation().inverse())
-                  .w());
+      const double angle_diff_rad =
+          T_A_B_sample.getRotation().toImplementation().angularDistance(
+              T_A_B_other.getRotation().toImplementation());
+      CHECK_GE(angle_diff_rad, 0.0);
+      CHECK_LE(angle_diff_rad, M_PI);
       if (p_norm_A_A_hat < threshold_position_meters &&
-          q_angle_A_A_hat < threshold_orientation_radians) {
+          angle_diff_rad < threshold_orientation_radians) {
         inlier_indices.emplace_back(j);
       }
     }

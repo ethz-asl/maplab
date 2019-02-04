@@ -32,8 +32,13 @@ DEFINE_bool(
     lba_add_pose_prior_for_fixed_vertices, false,
     "Whether or not to add a pose prior error-term for all fixed vertices.");
 DEFINE_bool(
-    lba_remove_behind_camera_landmarks, true,
-    "Whether or not to remove landmarks located behind the camera.");
+    lba_remove_behind_camera_landmarks_before, true,
+    "Whether or not to remove landmarks located behind the camera before "
+    "optimization.");
+DEFINE_bool(
+    lba_remove_behind_camera_landmarks_after, true,
+    "Whether or not to remove landmarks located behind the camera after "
+    "optimization.");
 DEFINE_bool(
     lba_fix_landmark_positions_of_fixed_vertices, false,
     "Whether or "
@@ -170,7 +175,10 @@ BaOptimizationOptions::BaOptimizationOptions()
       fix_velocity(FLAGS_lba_fix_velocity),
       add_pose_prior_for_fixed_vertices(
           FLAGS_lba_add_pose_prior_for_fixed_vertices),
-      remove_behind_camera_landmarks(FLAGS_lba_remove_behind_camera_landmarks),
+      remove_behind_camera_landmarks_before(
+          FLAGS_lba_remove_behind_camera_landmarks_before),
+      remove_behind_camera_landmarks_after(
+          FLAGS_lba_remove_behind_camera_landmarks_after),
       fix_landmark_positions_of_fixed_vertices(
           FLAGS_lba_fix_landmark_positions_of_fixed_vertices),
       include_wheel_odometry(FLAGS_lba_include_wheel_odometry),
@@ -214,7 +222,7 @@ BaOptimizationOptions::BaOptimizationOptions()
           FLAGS_lba_wheel_odometry_extrinsics_position_prior_std_dev_meters),
       wheel_odometry_extrinsics_orientation_prior_std_dev_radians(
           kDegToRad *
-          FLAGS_lba_wheel_odometry_extrinsics_orientation_prior_std_dev_degrees),
+          FLAGS_lba_wheel_odometry_extrinsics_orientation_prior_std_dev_degrees),  // NOLINT
       fix_wheel_odometry_extrinsics_position(
           FLAGS_lba_fix_wheel_odometry_extrinsics_position),
       include_loop_closure_edges(FLAGS_lba_include_loop_closure_edges),

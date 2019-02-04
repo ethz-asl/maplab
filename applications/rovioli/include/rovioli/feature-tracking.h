@@ -48,7 +48,7 @@ class FeatureTracking {
   int64_t previous_nframe_timestamp_ns_;
   std::mutex m_previous_synced_nframe_imu_;
 
-  feature_tracking::VOFeatureTrackingPipeline tracker_;
+  std::unique_ptr<feature_tracking::VOFeatureTrackingPipeline> tracker_;
 };
 
 }  // namespace rovioli

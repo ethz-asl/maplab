@@ -10,6 +10,7 @@
 #include <plotty/matplotlibcpp.hpp>
 #include <vi-map/vi-map.h>
 #include <visualization/visualizer.h>
+#include <visualization/viwls-graph-plotter.h>
 
 DECLARE_string(map_mission);
 
@@ -97,6 +98,12 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
         return common::kSuccess;
       },
       "Plot visual-inertial states of the mission.", common::Processing::Sync);
+
+  addCommand(
+      {"visualize_sensor_extrinsics"},
+      [this]() -> int { return visualizeSensorExtrinsics(); },
+      "Visualizes the extrinsics transformations of all sensors in RViz.",
+      common::Processing::Sync);
 }
 
 void VisualizationPlugin::plotVIStatesOfMission(
@@ -192,6 +199,42 @@ int VisualizationPlugin::visualizerCvMatResources(backend::ResourceType type) {
       LOG(FATAL) << "Non-compatible resource type found !";
   }
   return common::kUnknownError;
+}
+
+int VisualizationPlugin::visualizeSensorExtrinsics() const {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager.getMapReadAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids;
+  if (FLAGS_map_mission.empty()) {
+    map->getAllMissionIds(&mission_ids);
+    if (mission_ids.empty()) {
+      LOG(ERROR)
+          << "There are no missions available in the loaded map. Aborting.";
+      return common::kUnknownError;
+    }
+  } else {
+    vi_map::MissionId mission_id;
+    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
+    if (!mission_id.isValid()) {
+      LOG(ERROR) << "Mission ID invalid. Specify a valid mission id with "
+                    "--map_mission.";
+      return common::kUnknownError;
+    }
+    mission_ids.emplace_back(mission_id);
+  }
+  CHECK(!mission_ids.empty());
+
+  visualization::ViwlsGraphRvizPlotter plotter;
+  plotter.visualizeSensorExtrinsics(*map);
+
+  return common::kSuccess;
 }
 }  // namespace vi_visualization
 

@@ -33,7 +33,7 @@ void ResourceMap::setMetaDataFromProto(
   meta_data_ = ResourceMap::MetaData(metadata_proto);
 }
 
-void ResourceMap::deepCopyFrom(const ResourceMap& other) {
+void ResourceMap::deepCopy(const ResourceMap& other) {
   aslam::ScopedWriteLock lock(&resource_mutex_);
   meta_data_.map_folder = other.meta_data_.map_folder;
   meta_data_.map_description = other.meta_data_.map_description;

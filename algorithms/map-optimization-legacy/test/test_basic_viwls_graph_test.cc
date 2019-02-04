@@ -37,13 +37,11 @@ class ViwlsGraph : public ::testing::Test {
 
 TEST_F(ViwlsGraph, SimpleTest) {
   vi_map::PoseGraph posegraph;
-  Aligned<std::vector, vi_map::VIMission> missions;
   vi_map::LandmarkIdList landmark_ids;
 
   vi_map::VIMission mission;
   vi_map::MissionId mission_id;
   mission_id.fromHexString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0");
-  missions.push_back(mission);
 
   aslam::VisualFrame::DescriptorsT descriptors;
   descriptors.resize(48, 1);

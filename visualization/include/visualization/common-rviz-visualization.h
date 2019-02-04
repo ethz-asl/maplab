@@ -41,7 +41,7 @@ void publishTF(
 void publishLines(
     const LineSegmentVector& line_segments, size_t marker_id,
     const std::string& frame, const std::string& name_space,
-    const std::string& topic);
+    const std::string& topic, const bool wait_for_subscriber = false);
 
 void publishLines(
     const Eigen::Matrix3Xd& points_from, const Eigen::Matrix3Xd& points_to,

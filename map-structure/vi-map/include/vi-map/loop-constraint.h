@@ -1,7 +1,10 @@
 #ifndef VI_MAP_LOOP_CONSTRAINT_H_
 #define VI_MAP_LOOP_CONSTRAINT_H_
+
+#include <unordered_set>
 #include <vector>
 
+#include <aslam/frames/keypoint-identifier.h>
 #include <aslam/frames/visual-nframe.h>
 
 #include "vi-map/landmark.h"
@@ -100,19 +103,6 @@ struct LoopClosureConstraint {
   VertexKeyPointToStructureMatchList structure_matches;
 };
 typedef std::vector<LoopClosureConstraint> LoopClosureConstraintVector;
-
-struct LocalizationConstraint {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  LocalizationConstraint() = default;
-  LocalizationConstraint(
-      const aslam::NFramesId& nframe_id_,
-      const VertexKeyPointToStructureMatchList& structure_matches_)
-      : nframe_id(nframe_id_), structure_matches(structure_matches_) {}
-  ~LocalizationConstraint() = default;
-  aslam::NFramesId nframe_id;
-  VertexKeyPointToStructureMatchList structure_matches;
-};
-typedef std::vector<LocalizationConstraint> LocalizationConstraints;
 
 }  // namespace vi_map
 #endif  // VI_MAP_LOOP_CONSTRAINT_H_

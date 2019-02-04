@@ -87,6 +87,8 @@ void VioUpdateSimulation::generateVioUpdates() {
     vio_update->vio_update_type = vio::UpdateType::kNormalUpdate;
     vio_update->keyframe_and_imudata = synced_n_frame_imu;
 
+    vio_update->vinode.setTimestamp(
+        aslam::time::secondsToNanoSeconds(timestamps[index]));
     vio_update->vinode.setAccBias(acc_bias_.col(index));
     vio_update->vinode.setGyroBias(gyro_bias_.col(index));
     vio_update->vinode.set_T_M_I(transformation_vector_[index]);

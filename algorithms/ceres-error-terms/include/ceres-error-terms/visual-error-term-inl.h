@@ -173,7 +173,7 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
     if (projection_failed && J_keypoint_wrt_intrinsics_ptr != nullptr) {
       J_keypoint_wrt_intrinsics_ptr->setZero();
     }
-    if (projection_failed && J_keypoint_wrt_intrinsics_ptr != nullptr) {
+    if (projection_failed && J_keypoint_wrt_distortion_ptr != nullptr) {
       J_keypoint_wrt_distortion_ptr->setZero();
     }
 

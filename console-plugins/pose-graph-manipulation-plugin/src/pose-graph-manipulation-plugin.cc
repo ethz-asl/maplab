@@ -1,8 +1,11 @@
 #include "pose-graph-manipulation-plugin/pose-graph-manipulation-plugin.h"
 
+#include <random>
+
 #include <glog/logging.h>
 #include <map-manager/map-manager.h>
 #include <maplab-common/progress-bar.h>
+#include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/vi-map.h>
 
 #include "pose-graph-manipulation-plugin/edge-manipulation.h"
@@ -22,6 +25,8 @@ DEFINE_double(
     "The value for the switch variable of the loop-closure "
     "edges, between 0.0 (edge is ignored) and 1.0 (edge is being "
     "fully trusted).");
+
+DECLARE_string(map_mission);
 
 namespace pose_graph_manipulation {
 
@@ -61,6 +66,12 @@ PoseGraphManipulationPlugin::PoseGraphManipulationPlugin(
       "loop-closure edges. Specify the switch variable value with "
       "--lc_switch_variable_value.",
       common::Processing::Sync);
+
+  addCommand(
+      {"artificially_disturb_vertices"},
+      [this]() -> int { return artificiallyDisturbVertices(); },
+      "Artificially disturbs vertices in all missions.",
+      common::Processing::Sync);
 }
 
 int PoseGraphManipulationPlugin::resetVertexPosesToWheelOdometryTrajectory()
@@ -73,8 +84,22 @@ const {
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
 
+  vi_map::MissionIdList mission_ids;
+  if (FLAGS_map_mission.empty()) {
+    map->getAllMissionIds(&mission_ids);
+  } else {
+    // Select mission.
+    vi_map::MissionId mission_id;
+    if (!map->hexStringToMissionIdIfValid(FLAGS_map_mission, &mission_id)) {
+      LOG(ERROR) << "The given mission id \"" << FLAGS_map_mission
+                 << "\" is not valid.";
+      return common::kStupidUserError;
+    }
+    mission_ids.emplace_back(mission_id);
+  }
+
   return pose_graph_manipulation::resetVertexPosesToWheelOdometryTrajectory(
-      map.get());
+      mission_ids, map.get());
 }
 
 int PoseGraphManipulationPlugin::assignEdgeUncertainties() {
@@ -99,7 +124,7 @@ int PoseGraphManipulationPlugin::assignEdgeUncertainties() {
   const double orientation_std_dev_degrees = FLAGS_orientation_std_dev_degrees;
   if (orientation_std_dev_degrees <= 0.0) {
     LOG(ERROR) << "Please specify a strictly positive value for "
-               << "--translation_std_dev_meters.";
+               << "--orientation_std_dev_degrees.";
     return common::kStupidUserError;
   }
 
@@ -155,6 +180,21 @@ int PoseGraphManipulationPlugin::
 
   return pose_graph_manipulation::assignSwitchVariableValuesForLoopClosureEdges(
       switch_variable_value, map.get());
+}
+
+int PoseGraphManipulationPlugin::artificiallyDisturbVertices() const {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);
+  vi_map_helpers::VIMapManipulation map_manipulation(map.get());
+  map_manipulation.artificiallyDisturbVertices();
+
+  return common::kSuccess;
 }
 
 }  // namespace pose_graph_manipulation
