@@ -48,7 +48,8 @@ SensorSystem::UniquePtr SensorSystem::createFromYaml(
 void SensorSystem::setSensorExtrinsics(
     const SensorId& sensor_id, const Extrinsics& extrinsics) {
   CHECK(sensor_id.isValid());
-  sensor_id_to_extrinsics_map_.emplace(sensor_id, extrinsics);
+  sensor_id_to_extrinsics_map_.erase(sensor_id);
+  CHECK(sensor_id_to_extrinsics_map_.emplace(sensor_id, extrinsics).second);
 }
 
 const Extrinsics& SensorSystem::getSensorExtrinsics(

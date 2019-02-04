@@ -12,7 +12,6 @@
 #include "vi-map/unique-id.h"
 #include "vi-map/vi-mission.h"
 #include "vi-map/vi_map.pb.h"
-#include "vi-map/vi_map_deprecated.pb.h"
 
 namespace vi_map {
 
@@ -53,9 +52,6 @@ class TransformationEdge : public vi_map::Edge {
   void deserialize(
       const pose_graph::EdgeId& id,
       const vi_map::proto::TransformationEdge& proto);
-  void deserialize(
-      const pose_graph::EdgeId& id,
-      const vi_map_deprecated::proto::TransformationEdge& proto);
 
   void set_T_A_B(const pose::Transformation& T_A_B);
   const pose::Transformation& getT_A_B() const;

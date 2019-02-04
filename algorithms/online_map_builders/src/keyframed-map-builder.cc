@@ -4,10 +4,11 @@ namespace online_map_builders {
 
 KeyframedMapBuilder::KeyframedMapBuilder(
     const std::shared_ptr<aslam::NCamera>& camera_rig,
+    vi_map::Imu::UniquePtr imu,
     const map_sparsification::KeyframingHeuristicsOptions& keyframing_options,
     vi_map::VIMap* map)
     : map_(CHECK_NOTNULL(map)),
-      stream_map_builder_(camera_rig, map),
+      stream_map_builder_(camera_rig, std::move(imu), map),
       keyframing_options_(keyframing_options),
       map_manipulation_(map) {}
 

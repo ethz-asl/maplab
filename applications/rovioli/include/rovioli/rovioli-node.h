@@ -15,7 +15,6 @@
 #include "rovioli/localizer-flow.h"
 #include "rovioli/map-builder-flow.h"
 #include "rovioli/rovio-flow.h"
-#include "rovioli/synced-nframe-throttler-flow.h"
 
 namespace rovioli {
 class RovioliNode final {
@@ -45,7 +44,6 @@ class RovioliNode final {
   std::unique_ptr<LocalizerFlow> localizer_flow_;
   std::unique_ptr<ImuCameraSynchronizerFlow> synchronizer_flow_;
   std::unique_ptr<FeatureTrackingFlow> tracker_flow_;
-  std::unique_ptr<SyncedNFrameThrottlerFlow> throttler_flow_;
   std::unique_ptr<MapBuilderFlow> map_builder_flow_;
   std::unique_ptr<DataPublisherFlow> data_publisher_flow_;
 

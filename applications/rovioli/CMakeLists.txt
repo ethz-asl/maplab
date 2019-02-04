@@ -15,11 +15,13 @@ cs_add_library(${PROJECT_NAME}_lib
   src/feature-tracking.cc
   src/imu-camera-synchronizer.cc
   src/localizer.cc
+  src/localizer-flow.cc
+  src/localizer-helpers.cc
   src/map-builder-flow.cc
   src/rovio-factory.cc
   src/rovio-flow.cc
+  src/rovio-localization-handler.cc
   src/rovioli-node.cc
-  src/synced-nframe-throttler.cc
   src/vio-update-builder.cc
 )
 

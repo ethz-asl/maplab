@@ -1,10 +1,12 @@
 #ifndef ONLINE_MAP_BUILDERS_KEYFRAMED_MAP_BUILDER_H_
 #define ONLINE_MAP_BUILDERS_KEYFRAMED_MAP_BUILDER_H_
 
+#include <memory>
 #include <vector>
 
 #include <aslam/cameras/ncamera.h>
 #include <map-sparsification/keyframe-pruning.h>
+#include <sensors/imu.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/vi-map.h>
 #include <vio-common/vio-update.h>
@@ -17,6 +19,7 @@ class KeyframedMapBuilder {
  public:
   KeyframedMapBuilder(
       const std::shared_ptr<aslam::NCamera>& camera_rig,
+      vi_map::Imu::UniquePtr imu,
       const map_sparsification::KeyframingHeuristicsOptions& keyframing_options,
       vi_map::VIMap* map);
 

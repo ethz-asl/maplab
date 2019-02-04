@@ -17,7 +17,6 @@
 #include <sensors/imu.h>
 #include <sensors/sensor.h>
 
-#include "vi-map/deprecated/vi-map-serialization-deprecated.h"
 #include "vi-map/mission.h"
 #include "vi-map/optional-sensor-data.h"
 #include "vi-map/unique-id.h"
@@ -61,9 +60,6 @@ class VIMission : public Mission {
   void serialize(vi_map::proto::Mission* proto) const;
   void deserialize(
       const vi_map::MissionId& mission_id, const vi_map::proto::Mission& proto);
-  void deserializeDeprecated(
-      const vi_map::MissionId& mission_id,
-      const vi_map_deprecated::proto::Mission& proto);
 
   std::string getComparisonString(const VIMission& other) const;
 

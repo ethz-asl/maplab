@@ -27,8 +27,6 @@ namespace online_map_builders {
 class StreamMapBuilder {
  public:
   StreamMapBuilder(
-      const std::shared_ptr<aslam::NCamera>& camera_rig, vi_map::VIMap* map);
-  StreamMapBuilder(
       const std::shared_ptr<aslam::NCamera>& camera_rig,
       vi_map::Imu::UniquePtr imu, vi_map::VIMap* map);
 

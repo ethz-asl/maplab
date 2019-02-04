@@ -10,8 +10,9 @@ message SynchronizedNFrameImu {
 }
 
 message ViNodeState {
-  repeated double T_W_B = 1;
-  repeated double W_v_B = 2;
-  repeated double acc_bias = 3;
-  repeated double gyro_bias = 4;
+  optional double timestamp_ns = 1;
+  repeated double T_W_B = 2;
+  repeated double W_v_B = 3;
+  repeated double acc_bias = 4;
+  repeated double gyro_bias = 5;
 }

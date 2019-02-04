@@ -363,14 +363,13 @@ bool getListOfExistingMapFiles(
       backend::resource_map_serialization::getListOfExistingMapFiles(
           map_folder, list_of_resource_filenames);
 
-  std::string vi_map_file;
   std::string path_to_vi_map_folder;
   common::concatenateFolderAndFileName(
       map_folder, static_cast<std::string>(internal::kFolderName),
       &path_to_vi_map_folder);
 
+  std::string vi_map_file;
   std::string path_to_vi_map_file;
-  bool only_optional_sensor_data_proto_missing = true;
   for (const std::string& map_file : internal::kMinimumVIMapProtoFiles) {
     common::concatenateFolderAndFileName(
         path_to_vi_map_folder, map_file, &path_to_vi_map_file);
@@ -378,24 +377,8 @@ bool getListOfExistingMapFiles(
       common::concatenateFolderAndFileName(
           internal::kFolderName, map_file, &vi_map_file);
       list_of_map_proto_filepaths->emplace_back(vi_map_file);
-    } else {
-      if (map_file != internal::kFileNameOptionalSensorData) {
-        only_optional_sensor_data_proto_missing = false;
-      }
-      minimum_required_files_exist = false;
     }
   }
-
-  LOG_IF(
-      ERROR,
-      !minimum_required_files_exist && only_optional_sensor_data_proto_missing)
-      << "Unable to find the optional sensor data proto file "
-      << internal::kFileNameOptionalSensorData
-      << ", but all the other required VI-Map proto files are present. "
-      << "This may indicate that you are trying "
-      << "to load a map with a deprecated map format. You can try "
-      << "to convert the map to the new format using the command "
-      << "'convert_map_to_new_format --map_folder <path_to_deprecated_map>'.";
 
   size_t number_of_vertex_files = 0u;
   std::string vertex_proto_file_name =

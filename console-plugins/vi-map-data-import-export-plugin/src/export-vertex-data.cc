@@ -15,10 +15,11 @@ int exportPosesVelocitiesAndBiasesToCsv(
   for (const vi_map::MissionId& mission_id : mission_ids) {
     CHECK(mission_id.isValid());
     pose_graph::VertexIdList vertex_ids_along_mission_graph;
-    map.getAllVertexIdsInMissionAlongGraph(mission_id,
-                                           &vertex_ids_along_mission_graph);
-    vertex_ids.insert(vertex_ids.end(), vertex_ids_along_mission_graph.begin(),
-                      vertex_ids_along_mission_graph.end());
+    map.getAllVertexIdsInMissionAlongGraph(
+        mission_id, &vertex_ids_along_mission_graph);
+    vertex_ids.insert(
+        vertex_ids.end(), vertex_ids_along_mission_graph.begin(),
+        vertex_ids_along_mission_graph.end());
   }
 
   if (pose_export_file.empty()) {

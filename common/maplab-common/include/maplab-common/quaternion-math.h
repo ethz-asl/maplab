@@ -3,6 +3,7 @@
 
 #include <Eigen/Core>
 
+#include <aslam/common/pose-types.h>
 #include <maplab-common/conversions.h>
 #include <maplab-common/geometry.h>
 #include <maplab-common/pose_types.h>
@@ -56,9 +57,12 @@ template <typename Derived, typename ScalarType>
 Eigen::Matrix<ScalarType, 3, 1> getRollPitchYawFromQuaternion(
     const Eigen::Quaternion<ScalarType>& q);
 
-inline double getYawAngleDifferenceRadians(
+// The Z-axis is expressed in coordinate frame A.
+inline double getAbsoluteRotationAngleAround_A_z_Axis_rad(
     const kindr::minimal::QuatTransformation& T_A_B1,
     const kindr::minimal::QuatTransformation& T_A_B2);
+
+inline void ensurePositiveQuaternion(aslam::Quaternion* quat);
 
 namespace eigen_quaternion_helpers {
 

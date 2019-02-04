@@ -21,16 +21,14 @@ DEFINE_string(
     "Path to a localization summary map or a full VI-map used for "
     "localization.");
 DEFINE_string(
-    ncamera_calibration, "ncamera.yaml",
-    "Path to the camera calibration yaml.");
-// TODO(schneith): Unify these two noise definitions.
-DEFINE_string(
-    imu_parameters_rovio, "imu-rovio.yaml",
-    "Path to the imu configuration yaml "
-    "for ROVIO.");
+    ncamera_calibration, "ncamera.yaml", "Path to camera calibration yaml.");
 DEFINE_string(
     imu_parameters_maplab, "imu-maplab.yaml",
     "Path to the imu configuration yaml for MAPLAB.");
+DEFINE_string(
+    external_imu_parameters_rovio, "",
+    "Optional, path to the IMU configuration yaml for ROVIO. If none is "
+    "provided the maplab values will be used for ROVIO as well.");
 DEFINE_string(
     save_map_folder, "", "Save map to folder; if empty nothing is saved.");
 DEFINE_bool(
@@ -91,11 +89,17 @@ int main(int argc, char** argv) {
       << FLAGS_imu_parameters_maplab << "\'";
   CHECK(maplab_imu_sensor->getImuSigmas().isValid());
 
+  // Optionally, load external values for the ROVIO sigmas; otherwise also use
+  // the maplab values for ROVIO.
   vi_map::ImuSigmas rovio_imu_sigmas;
-  CHECK(rovio_imu_sigmas.loadFromYaml(FLAGS_imu_parameters_rovio))
-      << "Could not load IMU parameters for ROVIO from: \'"
-      << FLAGS_imu_parameters_rovio << "\'";
-  CHECK(rovio_imu_sigmas.isValid());
+  if (!FLAGS_external_imu_parameters_rovio.empty()) {
+    CHECK(rovio_imu_sigmas.loadFromYaml(FLAGS_external_imu_parameters_rovio))
+        << "Could not load IMU parameters for ROVIO from: \'"
+        << FLAGS_external_imu_parameters_rovio << "\'";
+    CHECK(rovio_imu_sigmas.isValid());
+  } else {
+    rovio_imu_sigmas = maplab_imu_sensor->getImuSigmas();
+  }
 
   // Construct the application.
   ros::AsyncSpinner ros_spinner(common::getNumHardwareThreads());

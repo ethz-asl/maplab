@@ -10,6 +10,7 @@
 #include <aslam/common/statistics/statistics.h>
 #include <aslam/common/time.h>
 #include <glog/logging.h>
+#include <maplab-common/interpolation-helpers.h>
 
 #include "vio-common/vio-types.h"
 
@@ -36,24 +37,11 @@ ImuMeasurementBuffer::QueryResult ImuMeasurementBuffer::isDataAvailableUpToImpl(
   return QueryResult::kDataAvailable;
 }
 
-void ImuMeasurementBuffer::linearInterpolate(
-    const int64_t t0, const vio::ImuData& y0, const int64_t t1,
-    const vio::ImuData& y1, const int64_t t, vio::ImuData* y) {
-  CHECK_NOTNULL(y);
-  CHECK(aslam::time::isValidTime(t));
-  CHECK(aslam::time::isValidTime(t0));
-  CHECK(aslam::time::isValidTime(t1));
-  CHECK_LE(t0, t);
-  CHECK_LE(t, t1);
-  *y = t0 == t1 ? y0 : y0 + (y1 - y0) * static_cast<double>(t - t0) /
-                                static_cast<double>(t1 - t0);
-}
-
 ImuMeasurementBuffer::QueryResult
 ImuMeasurementBuffer::getImuDataInterpolatedBorders(
     int64_t timestamp_ns_from, int64_t timestamp_ns_to,
     Eigen::Matrix<int64_t, 1, Eigen::Dynamic>* imu_timestamps,
-    Eigen::Matrix<double, 6, Eigen::Dynamic>* imu_measurements) {
+    Eigen::Matrix<double, 6, Eigen::Dynamic>* imu_measurements) const {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
 
@@ -104,9 +92,10 @@ ImuMeasurementBuffer::getImuDataInterpolatedBorders(
       buffer_.getValueAtOrAfterTime(
           timestamp_ns_from, &post_border_timestamp, &post_border_value));
   CHECK_EQ(post_border_timestamp, post_border_value.timestamp);
-  linearInterpolate(pre_border_value.timestamp, pre_border_value.imu_data,
-                    post_border_value.timestamp, post_border_value.imu_data,
-                    timestamp_ns_from, &interpolated_measurement);
+  common::linearInterpolation(
+      pre_border_value.timestamp, pre_border_value.imu_data,
+      post_border_value.timestamp, post_border_value.imu_data,
+      timestamp_ns_from, &interpolated_measurement);
   (*imu_timestamps).leftCols<1>()(0) = timestamp_ns_from;
   (*imu_measurements).leftCols<1>() = interpolated_measurement;
 
@@ -119,9 +108,10 @@ ImuMeasurementBuffer::getImuDataInterpolatedBorders(
       buffer_.getValueAtOrAfterTime(
           timestamp_ns_to, &post_border_timestamp, &post_border_value));
   CHECK_EQ(post_border_timestamp, post_border_value.timestamp);
-  linearInterpolate(pre_border_value.timestamp, pre_border_value.imu_data,
-                    post_border_value.timestamp, post_border_value.imu_data,
-                    timestamp_ns_to, &interpolated_measurement);
+  common::linearInterpolation(
+      pre_border_value.timestamp, pre_border_value.imu_data,
+      post_border_value.timestamp, post_border_value.imu_data, timestamp_ns_to,
+      &interpolated_measurement);
   (*imu_timestamps).rightCols<1>()(0) = timestamp_ns_to;
   (*imu_measurements).rightCols<1>() = interpolated_measurement;
 
@@ -133,7 +123,7 @@ ImuMeasurementBuffer::getImuDataInterpolatedBordersBlocking(
     int64_t timestamp_ns_from, int64_t timestamp_ns_to,
     int64_t wait_timeout_nanoseconds,
     Eigen::Matrix<int64_t, 1, Eigen::Dynamic>* imu_timestamps,
-    Eigen::Matrix<double, 6, Eigen::Dynamic>* imu_measurements) {
+    Eigen::Matrix<double, 6, Eigen::Dynamic>* imu_measurements) const {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
 

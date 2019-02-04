@@ -23,6 +23,7 @@ static constexpr size_t kNumColors = 256u;
 
 static constexpr Color kCommonRed(255u, 0u, 0u);
 static constexpr Color kCommonBlue(0u, 0u, 255u);
+static constexpr Color kCommonDarkBlue(0u, 0u, 155u);
 static constexpr Color kCommonGreen(0u, 255u, 0u);
 static constexpr Color kCommonDarkGreen(0u, 180u, 0u);
 static constexpr Color kCommonYellow(255u, 255u, 0u);
@@ -53,6 +54,8 @@ inline void convertStringToColor(
     *color = kCommonRed;
   } else if (color_string == "blue") {
     *color = kCommonBlue;
+  } else if (color_string == "dark_blue") {
+    *color = kCommonDarkBlue;
   } else if (color_string == "green") {
     *color = kCommonGreen;
   } else if (color_string == "dark_green") {

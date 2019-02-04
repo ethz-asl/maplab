@@ -19,7 +19,7 @@ TEST(MaplabCommon, TestEigenInterpolation) {
   const double interpolation_time = 150.0;
 
   Eigen::Vector3d interpolated_vector;
-  linerarInterpolation(
+  linearInterpolation(
       kTimeA, vector_A, kTimeB, vector_B, interpolation_time,
       &interpolated_vector);
 
@@ -29,10 +29,10 @@ TEST(MaplabCommon, TestEigenInterpolation) {
   EXPECT_EQ(interpolated_vector_ground_truth, interpolated_vector);
 
   // Test boundaries.
-  linerarInterpolation(
+  linearInterpolation(
       kTimeA, vector_A, kTimeB, vector_B, kTimeA, &interpolated_vector);
   EXPECT_EQ(vector_A, interpolated_vector);
-  linerarInterpolation(
+  linearInterpolation(
       kTimeA, vector_A, kTimeB, vector_B, kTimeB, &interpolated_vector);
   EXPECT_EQ(vector_B, interpolated_vector);
 }
@@ -47,17 +47,17 @@ TEST(MaplabCommon, TestGenericInterpolation) {
   constexpr int kInterpolationTime = 58;
 
   char interpolated_char;
-  linerarInterpolation(
+  linearInterpolation(
       kTimeA, kCharA, kTimeB, kCharB, kInterpolationTime, &interpolated_char);
 
   constexpr char kInterpolatedCharGroundTruth = ':';
   EXPECT_EQ(kInterpolatedCharGroundTruth, interpolated_char);
 
   // Test boundaries.
-  linerarInterpolation(
+  linearInterpolation(
       kTimeA, kCharA, kTimeB, kCharB, kTimeA, &interpolated_char);
   EXPECT_EQ(kCharA, interpolated_char);
-  linerarInterpolation(
+  linearInterpolation(
       kTimeA, kCharA, kTimeB, kCharB, kTimeB, &interpolated_char);
   EXPECT_EQ(kCharB, interpolated_char);
 }

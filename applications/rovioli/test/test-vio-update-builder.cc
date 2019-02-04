@@ -43,8 +43,7 @@ class VioUpdateBuilderTest : public ::testing::Test {
         Eigen::Vector3d(timestamp_ns, kGyroBiasYOffset + timestamp_ns, 0));
     RovioEstimate::Ptr rovio_estimate = aligned_shared<RovioEstimate>();
     rovio_estimate->vinode = vi_node;
-    rovio_estimate->timestamp_s =
-        aslam::time::nanoSecondsToSeconds(timestamp_ns);
+    rovio_estimate->timestamp_ns = timestamp_ns;
     vio_update_builder_.processRovioEstimate(rovio_estimate);
   }
 

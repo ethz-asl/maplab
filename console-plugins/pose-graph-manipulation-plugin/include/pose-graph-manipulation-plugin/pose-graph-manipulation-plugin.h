@@ -21,6 +21,8 @@ class PoseGraphManipulationPlugin : public common::ConsolePluginBase {
   int assignEdgeUncertainties();
   int assignSwitchVariableUncertaintiesForLoopClosureEdges();
   int assignSwitchVariableValuesForLoopClosureEdges();
+
+  int artificiallyDisturbVertices() const;
 };
 }  // namespace pose_graph_manipulation
 

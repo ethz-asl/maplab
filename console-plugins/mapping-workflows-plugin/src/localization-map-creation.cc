@@ -71,8 +71,8 @@ int processVIMapToLocalizationMap(
   map_optimization::ViProblemOptions vi_problem_options =
       map_optimization::ViProblemOptions::initFromGFlags();
 
-  constexpr int kNumInitialOptviIterations = 3;
-  solver_options.max_num_iterations = kNumInitialOptviIterations;
+  constexpr int kNumInitialInitOptimizationIterations = 10;
+  solver_options.max_num_iterations = kNumInitialInitOptimizationIterations;
 
   // Initial visual-inertial optimization.
   bool success = optimizer.optimizeVisualInertial(
@@ -85,8 +85,8 @@ int processVIMapToLocalizationMap(
   // Overwrite the number of iterations to a reasonable value.
   // TODO(dymczykm) A temporary solution for the optimization not to take too
   // long. Better termination conditions are necessary.
-  constexpr int kMaxNumIterations = 10;
-  solver_options.max_num_iterations = kMaxNumIterations;
+  constexpr int kMaxNumRelaxationIterations = 10;
+  solver_options.max_num_iterations = kMaxNumRelaxationIterations;
 
   // Relax the map.
   map_optimization::VIMapRelaxation relaxation(plotter, kEnableSignalHandler);
@@ -105,6 +105,9 @@ int processVIMapToLocalizationMap(
   }
 
   // Optimize the map.
+  constexpr int kMaxNumOptimizationIterations = 25;
+  solver_options.max_num_iterations = kMaxNumOptimizationIterations;
+
   success = optimizer.optimizeVisualInertial(
       vi_problem_options, solver_options, {mission_id}, nullptr, map);
   if (!success) {

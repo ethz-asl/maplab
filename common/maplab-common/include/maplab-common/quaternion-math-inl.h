@@ -187,23 +187,38 @@ positiveQuaternionProductHamilton(
   return product;
 }
 
-inline double getYawAngleDifferenceRadians(
+inline double getAbsoluteRotationAngleAround_A_z_Axis_rad(
     const kindr::minimal::QuatTransformation& T_A_B1,
     const kindr::minimal::QuatTransformation& T_A_B2) {
   const kindr::minimal::QuatTransformation T_B1_B2 = T_A_B1.inverse() * T_A_B2;
   const kindr::minimal::AngleAxis angle_axis_B1_B2(T_B1_B2.getRotation());
-  double angle_rad = angle_axis_B1_B2.angle();
-  CHECK_GE(angle_rad, 0.0);
-  CHECK_LT(angle_rad, 2.0 * M_PI);
-  if (angle_rad > M_PI) {
-    angle_rad = 2.0 * M_PI - angle_rad;
-  }
-  CHECK_GE(angle_rad, 0.0);
-  CHECK_LT(angle_rad, M_PI);
-  const Eigen::Vector3d angle_axis_B1_B2_scaled_axis =
-      angle_axis_B1_B2.axis() * angle_rad;
 
-  return std::fabs(angle_axis_B1_B2_scaled_axis(2));
+  // The rotation axis expressed in coordinate frame B1.
+  Eigen::Vector3d axis_B1 = angle_axis_B1_B2.axis();
+  double rotation_angle_rad = angle_axis_B1_B2.angle();
+  CHECK_GE(rotation_angle_rad, 0.0);
+  CHECK_LT(rotation_angle_rad, 2.0 * M_PI);
+  // Make sure, the rotation angle is in the range [0, 180deg].
+  if (rotation_angle_rad > M_PI) {
+    rotation_angle_rad = 2.0 * M_PI - rotation_angle_rad;
+    axis_B1 *= -1.0;
+  }
+
+  const Eigen::Vector3d axis_B1_scaled_rad = axis_B1 * rotation_angle_rad;
+  const Eigen::Vector3d A_axis_scaled_rad =
+      T_A_B1.getRotation().rotate(axis_B1_scaled_rad);
+
+  double angle_rad = std::fabs(A_axis_scaled_rad[2]);
+  CHECK_GE(angle_rad, 0.0);
+  CHECK_LE(angle_rad, M_PI);
+  return angle_rad;
+}
+
+inline void ensurePositiveQuaternion(aslam::Quaternion* quat) {
+  CHECK_NOTNULL(quat);
+  if (quat->toImplementation().w() < 0.0) {
+    quat->toImplementation().coeffs() *= -1.0;
+  }
 }
 
 namespace internal {

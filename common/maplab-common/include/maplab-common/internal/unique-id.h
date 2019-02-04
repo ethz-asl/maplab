@@ -20,16 +20,16 @@ class UniqueIdHashSeed {
     return instance;
   }
 
-  void saltSeed(const Key&, size_t salt) {
+  void saltSeed(const Key&, uint64_t salt) {
     seed_ ^= salt;
   }
 
-  size_t seed() const {
+  uint64_t seed() const {
     return seed_;
   }
 
  private:
-  std::atomic<size_t> seed_;
+  std::atomic<uint64_t> seed_;
 };
 
 void generateUnique128BitHash(uint64_t hash[2]);

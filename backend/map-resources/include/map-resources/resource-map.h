@@ -32,7 +32,7 @@ class ResourceMap {
 
   explicit ResourceMap(const metadata::proto::MetaData& metadata_proto);
 
-  void deepCopyFrom(const ResourceMap& other);
+  void deepCopy(const ResourceMap& other);
 
   void mergeFromMap(const ResourceMap& source_map);
 

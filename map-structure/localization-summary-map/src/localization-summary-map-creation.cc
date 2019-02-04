@@ -101,7 +101,7 @@ void createLocalizationSummaryMapFromLandmarkList(
         landmark_observations.end());
 
     // Push the index of the landmark for all the observations.
-    for (size_t i = 0; i < landmark_observations.size(); ++i) {
+    for (size_t i = 0u; i < landmark_observations.size(); ++i) {
       observation_to_landmark.push_back(landmark_index);
     }
   }
@@ -113,10 +113,10 @@ void createLocalizationSummaryMapFromLandmarkList(
           observation_to_landmark.data(), observation_to_landmark.size(), 1);
 
   const char* loop_closure_files_path = getenv("MAPLAB_LOOPCLOSURE_DIR");
-  CHECK_NE(loop_closure_files_path, static_cast<char*>(NULL))
+  CHECK_NE(loop_closure_files_path, static_cast<char*>(nullptr))
       << "MAPLAB_LOOPCLOSURE_DIR environment variable is not set.\n"
-         "Source the MapLab environment from your workspace:\n"
-         "  . devel/setup.bash";
+      << "Source the MapLab environment from your workspace:\n"
+      << "  . devel/setup.bash";
 
   if (FLAGS_feature_descriptor_type == loop_closure::kFeatureDescriptorFREAK) {
     if (FLAGS_lc_projection_matrix_filename == "") {
@@ -142,7 +142,7 @@ void createLocalizationSummaryMapFromLandmarkList(
 
   std::unordered_map<vi_map::VisualFrameIdentifier, int> frame_id_to_index;
   int observer_index = 0;
-  for (size_t observation_index = 0; observation_index < observations.size();
+  for (size_t observation_index = 0u; observation_index < observations.size();
        ++observation_index) {
     // We store the observer index for covisibility graph based filtering.
     const vi_map::KeypointIdentifier& observation =
@@ -191,7 +191,7 @@ void createLocalizationSummaryMapFromLandmarkList(
     }
   }
   G_observer_position.resize(Eigen::NoChange, G_observer_positions.size());
-  for (size_t i = 0; i < G_observer_positions.size(); ++i) {
+  for (size_t i = 0u; i < G_observer_positions.size(); ++i) {
     G_observer_position.col(i) = G_observer_positions[i];
   }
 

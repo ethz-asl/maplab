@@ -4,8 +4,6 @@ project(vocabulary_tree)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-add_definitions(-std=c++11 -mssse3)
-
 set(LIBRARY_NAME ${PROJECT_NAME})
 cs_add_library(${LIBRARY_NAME}
                src/helpers.cc
@@ -52,4 +50,4 @@ FILE(GLOB_RECURSE LibFiles "include/*")
 add_custom_target(headers SOURCES ${LibFiles})
 
 cs_install()
-cs_export(CFG_EXTRAS export_flags.cmake)
+cs_export()

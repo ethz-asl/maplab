@@ -92,6 +92,48 @@ TEST_F(MergeMapTest, MergeMapWithTwoLinkedMissions) {
   EXPECT_EQ(num_landmarks_before, empty_map_.numLandmarks());
 }
 
+// Copies a map, then deletes the map's only mission and merges the mission back
+// from the copy.
+TEST_F(MergeMapTest, CopyDeleteMerge) {
+  vi_map::VIMap map_copy;
+  test::generateOptionalSensorDataAndAddToMap(&map_);
+  map_copy.deepCopy(map_);
+
+  ASSERT_GT(map_copy.getSensorManager().getNumSensors(), 0u);
+  ASSERT_EQ(
+      map_copy.getSensorManager().getNumSensors(),
+      map_.getSensorManager().getNumSensors());
+  ASSERT_EQ(
+      map_copy.getSensorManager().getNumNCameraSensors(),
+      map_.getSensorManager().getNumNCameraSensors());
+
+  vi_map::MissionIdList all_mission_ids;
+  map_.getAllMissionIds(&all_mission_ids);
+  ASSERT_EQ(1u, all_mission_ids.size());
+  const vi_map::MissionId& mission_id = all_mission_ids[0];
+
+  constexpr bool kRemoveBaseframe = true;
+  map_.removeMission(mission_id, kRemoveBaseframe);
+
+  ASSERT_EQ(0u, map_.numMissions());
+  EXPECT_EQ(0u, map_.numVertices());
+  EXPECT_EQ(0u, map_.numLandmarks());
+  EXPECT_EQ(0u, map_.getSensorManager().getNumSensors());
+  EXPECT_EQ(0u, map_.getSensorManager().getNumNCameraSensors());
+
+  ASSERT_EQ(1u, map_copy.numMissions());
+  map_.mergeAllMissionsFromMap(map_copy);
+  EXPECT_EQ(map_copy.numMissions(), map_.numMissions());
+  EXPECT_EQ(map_copy.numVertices(), map_.numVertices());
+  EXPECT_EQ(map_copy.numLandmarks(), map_.numLandmarks());
+  EXPECT_EQ(
+      map_copy.getSensorManager().getNumSensors(),
+      map_.getSensorManager().getNumSensors());
+  EXPECT_EQ(
+      map_copy.getSensorManager().getNumNCameraSensors(),
+      map_.getSensorManager().getNumNCameraSensors());
+}
+
 //  OptionalSensorData related unit tests.
 TEST_F(MergeMapTest, MergeIntoEmptyMapGPS) {
   test::generateOptionalSensorDataAndAddToMap(&map_);
@@ -223,8 +265,6 @@ TEST_F(MergeMapTest, MergeIntoNonEmptyOptionalSensorData) {
 
   MissionIdList second_map_mission_ids_after;
   second_map.getAllMissionIds(&second_map_mission_ids_after);
-  const size_t second_map_num_missions_after =
-      second_map_mission_ids_after.size();
 
   for (const MissionId& mission_id : second_map_mission_ids_after) {
     CHECK(mission_id.isValid());

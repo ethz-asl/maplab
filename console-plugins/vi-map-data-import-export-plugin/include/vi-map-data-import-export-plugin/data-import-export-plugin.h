@@ -12,14 +12,13 @@ class DataImportExportPlugin : public common::ConsolePluginBase {
  public:
   explicit DataImportExportPlugin(common::Console* console);
 
-  virtual std::string getPluginId() const override {
+  std::string getPluginId() const override {
     return "data_import_export";
   }
 
  private:
   int exportPosesVelocitiesAndBiasesToCsv() const;
   int exportNCameraCalibration() const;
-  int exportOptionalSensorExtrinsics() const;
   int importGpsDataFromRosbag() const;
   int exportGpsUtmToCsv() const;
   int exportGpsWgsToCsv() const;

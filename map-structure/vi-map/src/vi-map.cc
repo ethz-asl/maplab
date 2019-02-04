@@ -8,7 +8,6 @@
 #include <map-resources/resource_metadata.pb.h>
 #include <maplab-common/file-system-tools.h>
 
-#include "vi-map/deprecated/vi-map-serialization-deprecated.h"
 #include "vi-map/semantics-manager.h"
 #include "vi-map/vertex.h"
 #include "vi-map/vi-map-serialization.h"
@@ -38,7 +37,7 @@ VIMap::~VIMap() {}
 void VIMap::deepCopy(const VIMap& other) {
   clear();
   mergeAllMissionsFromMapWithoutResources(other);
-  ResourceMap::deepCopyFrom(other);
+  ResourceMap::deepCopy(other);
 }
 
 void VIMap::mergeAllMissionsFromMapWithoutResources(
@@ -1630,6 +1629,8 @@ void VIMap::removeMissionObject(
   if (remove_baseframe) {
     mission_base_frames.erase(mission.getBaseFrameId());
   }
+  sensor_manager_.removeAllSensorsAssociatedToMission(mission_id);
+  optional_sensor_data_map_.erase(mission_id);
   missions.erase(mission_id);
   selected_missions_.erase(mission_id);
 }
@@ -2184,10 +2185,6 @@ bool VIMap::hasMapOnFileSystem(const std::string& map_folder) {
 
 bool VIMap::loadFromFolder(const std::string& map_folder) {
   return serialization::loadMapFromFolder(map_folder, this);
-}
-
-bool VIMap::loadFromFolderDeprecated(const std::string& map_folder) {
-  return serialization_deprecated::loadMapFromFolder(map_folder, this);
 }
 
 bool VIMap::saveToFolder(

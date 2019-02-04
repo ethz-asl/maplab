@@ -15,12 +15,14 @@
 
 #include "feature-tracking/grided-detector.h"
 
-DEFINE_bool(use_grided_detections, true, "Use multiple detectors on a grid?");
-
 namespace feature_tracking {
-
-FeatureDetectorExtractor::FeatureDetectorExtractor(const aslam::Camera& camera)
-    : camera_(camera) {
+FeatureDetectorExtractor::FeatureDetectorExtractor(
+    const aslam::Camera& camera,
+    const FeatureTrackingExtractorSettings& extractor_settings,
+    const FeatureTrackingDetectorSettings& detector_settings)
+    : camera_(camera),
+      extractor_settings_(extractor_settings),
+      detector_settings_(detector_settings) {
   initialize();
 }
 
@@ -34,12 +36,14 @@ void FeatureDetectorExtractor::initialize() {
 
   // No distance to the edges is required for the grided detector.
   const size_t orb_detector_edge_threshold =
-      FLAGS_use_grided_detections
+      detector_settings_.grided_detector_use_grided
           ? 0u
           : detector_settings_.orb_detector_edge_threshold;
 
   detector_ = cv::ORB::create(
-      detector_settings_.orb_detector_number_features,
+      detector_settings_.grided_detector_use_grided
+          ? detector_settings_.grided_detector_cell_num_features
+          : detector_settings_.orb_detector_number_features,
       detector_settings_.orb_detector_scale_factor,
       detector_settings_.orb_detector_pyramid_levels,
       orb_detector_edge_threshold, detector_settings_.orb_detector_first_level,
@@ -49,12 +53,12 @@ void FeatureDetectorExtractor::initialize() {
       detector_settings_.orb_detector_fast_threshold);
 
   switch (extractor_settings_.descriptor_type) {
-    case SweFeatureTrackingExtractorSettings::DescriptorType::kBrisk:
+    case FeatureTrackingExtractorSettings::DescriptorType::kBrisk:
       extractor_ = new brisk::BriskDescriptorExtractor(
           extractor_settings_.rotation_invariant,
           extractor_settings_.scale_invariant);
       break;
-    case SweFeatureTrackingExtractorSettings::DescriptorType::kOcvFreak:
+    case FeatureTrackingExtractorSettings::DescriptorType::kOcvFreak:
       extractor_ = cv::xfeatures2d::FREAK::create(
           extractor_settings_.rotation_invariant,
           extractor_settings_.scale_invariant,
@@ -86,17 +90,21 @@ void FeatureDetectorExtractor::detectAndExtractFeatures(
   std::vector<cv::KeyPoint> keypoints_cv;
   const cv::Mat& image = frame->getRawImage();
 
-  if (FLAGS_use_grided_detections) {
+  if (detector_settings_.grided_detector_use_grided) {
     // Grided detection to ensure a certain distribution of keypoints across
     // the image.
-    constexpr size_t kNumGridCols = 3;
-    constexpr size_t kNumGridRows = 2;
     detectKeypointsGrided(
         detector_, image, /*detection_mask=*/cv::Mat(),
-        detector_settings_.max_feature_count,
+        detector_settings_.detector_use_nonmaxsuppression,
         detector_settings_.detector_nonmaxsuppression_radius,
         detector_settings_.detector_nonmaxsuppression_ratio_threshold,
-        kNumGridCols, kNumGridRows, &keypoints_cv);
+        detector_settings_.orb_detector_number_features,
+        detector_settings_.max_feature_count,
+        detector_settings_.grided_detector_cell_num_features,
+        detector_settings_.grided_detector_num_grid_cols,
+        detector_settings_.grided_detector_num_grid_rows,
+        detector_settings_.grided_detector_num_threads_per_image,
+        &keypoints_cv);
   } else {
     detector_->detect(image, keypoints_cv);
 

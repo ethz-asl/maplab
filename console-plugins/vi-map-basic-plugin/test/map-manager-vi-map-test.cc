@@ -7,6 +7,7 @@
 #include <map-manager/map-manager.h>
 #include <map-manager/test/test-strings.h>
 #include <maplab-common/test/testing-entrypoint.h>
+#include <vi-map/test/vi-map-test-helpers.h>
 #include <vi-map/vi-map.h>
 
 class MapManagerVIMapTest : public ::testing::Test {
@@ -51,10 +52,8 @@ class MapManagerVIMapTest : public ::testing::Test {
 const std::string MapManagerVIMapTest::kBasePath = "test_map_save/";
 
 /// Runs two threads: the first thread adds new missions to the same map, while
-/// the second thread
-/// removes all available missions in parallel. This test checks if a threadsafe
-/// access to the map
-/// is possible.
+/// the second thread removes all available missions in parallel. This test
+/// checks if a threadsafe access to the map is possible.
 TEST_F(MapManagerVIMapTest, ThreadSafeMapAccess) {
   addSampleMapToStorage();
   constexpr size_t kMaxIterationsPerThread = 25u;
@@ -133,14 +132,26 @@ TEST_F(MapManagerVIMapTest, CopyMap) {
 }
 
 TEST_F(MapManagerVIMapTest, CopyMapWithData) {
+  vi_map::test::generateMap(map_.get());
   addSampleMapToStorage();
-  map_manager_.getMapMutable(TestStrings::kFirstMapKey)
-      ->setMapFolder(kBasePath);
+  vi_map::VIMap* original_map =
+      map_manager_.getMapMutable(TestStrings::kFirstMapKey);
+  original_map->setMapFolder(kBasePath);
   map_manager_.copyMap(TestStrings::kFirstMapKey, TestStrings::kSecondMapKey);
   std::string second_map_folder;
-  map_manager_.getMap(TestStrings::kSecondMapKey)
-      .getMapFolder(&second_map_folder);
+  const vi_map::VIMap& copied_map =
+      map_manager_.getMap(TestStrings::kSecondMapKey);
+  copied_map.getMapFolder(&second_map_folder);
   EXPECT_EQ(common::getRealPath(kBasePath), second_map_folder);
+  EXPECT_EQ(original_map->numMissions(), copied_map.numMissions());
+  EXPECT_EQ(original_map->numVertices(), copied_map.numVertices());
+  EXPECT_EQ(original_map->numLandmarks(), copied_map.numLandmarks());
+  EXPECT_EQ(
+      original_map->getSensorManager().getNumSensors(),
+      copied_map.getSensorManager().getNumSensors());
+  EXPECT_EQ(
+      original_map->getSensorManager().getNumNCameraSensors(),
+      copied_map.getSensorManager().getNumNCameraSensors());
 }
 
 MAPLAB_UNITTEST_ENTRYPOINT

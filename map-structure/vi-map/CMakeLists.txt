@@ -4,7 +4,7 @@ project(vi_map)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-set(PROTO_DEFNS proto/vi-map/vi_map.proto  proto/vi-map/vi_map_deprecated.proto proto/vi-map/optional_camera_resources.proto)
+set(PROTO_DEFNS proto/vi-map/vi_map.proto  proto/vi-map/optional_camera_resources.proto)
 PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 
 add_definitions(--std=c++11)
@@ -12,7 +12,6 @@ add_definitions(--std=c++11)
 SET(VI_MAP_SOURCE src/check-map-consistency.cc
                   src/cklam-edge.cc
                   src/edge.cc
-                  src/gps-data-storage.cc
                   src/landmark.cc
                   src/landmark-quality-metrics.cc
                   src/landmark-store.cc
@@ -21,7 +20,6 @@ SET(VI_MAP_SOURCE src/check-map-consistency.cc
                   src/mission.cc
                   src/mission-baseframe.cc
                   src/optional-sensor-data.cc
-                  src/optional-sensor-extrinsics.cc
                   src/pose-graph.cc
                   src/sensor-manager.cc
                   src/sensor-manager-serialization.cc
@@ -32,7 +30,6 @@ SET(VI_MAP_SOURCE src/check-map-consistency.cc
                   src/vertex.cc
                   src/vi-map.cc
                   src/vi-map-serialization.cc
-                  src/vi-map-serialization-deprecated.cc
                   src/vi-mission.cc
                   src/viwls-edge.cc
                   src/test/vi-map-generator.cc
@@ -41,6 +38,9 @@ SET(VI_MAP_SOURCE src/check-map-consistency.cc
 cs_add_library(${PROJECT_NAME} ${VI_MAP_SOURCE} ${PROTO_SRCS})
 target_link_libraries(${PROJECT_NAME})
 
+##########
+# GTESTS #
+##########
 catkin_add_gtest(test_edge_serialization
  test/test_edge_serialization.cc)
 target_link_libraries(test_edge_serialization ${PROJECT_NAME})
@@ -60,6 +60,9 @@ target_link_libraries(test_map_consistencycheck_test ${PROJECT_NAME})
 catkin_add_gtest(test_map_get_vertex_ids_in_mission_test
   test/test_map_get_vertex_ids_in_mission_test.cc)
 target_link_libraries(test_map_get_vertex_ids_in_mission_test ${PROJECT_NAME})
+
+catkin_add_gtest(test_remove_mission test/test-remove-mission.cc)
+target_link_libraries(test_remove_mission ${PROJECT_NAME})
 
 catkin_add_gtest(test_merge_map test/test_merge_map.cc)
 target_link_libraries(test_merge_map ${PROJECT_NAME})
@@ -110,6 +113,13 @@ target_link_libraries(test_serialization ${PROJECT_NAME})
 catkin_add_gtest(
     test_sensor_manager_serialization test/test-sensor-manager-serialization.cc)
 target_link_libraries(test_sensor_manager_serialization ${PROJECT_NAME})
+
+##############
+# BENCHMARKS #
+##############
+add_benchmark(benchmark_map_serialization test/benchmark-vi-map-serialization.cc)
+target_link_libraries(benchmark_map_serialization ${PROJECT_NAME})
+maplab_import_test_maps(benchmark_map_serialization)
 
 cs_install()
 cs_export()

@@ -2,30 +2,48 @@
 
 #include <aslam/common/timer.h>
 #include <aslam/geometric-vision/match-outlier-rejection-twopt.h>
+#include <aslam/matcher/match.h>
 #include <aslam/tracker/feature-tracker-gyro.h>
+#include <aslam/tracker/feature-tracker.h>
 #include <aslam/visualization/basic-visualization.h>
 #include <maplab-common/conversions.h>
 #include <visualization/common-rviz-visualization.h>
 
 DEFINE_double(
-    swe_feature_tracker_two_pt_ransac_threshold, 1.0 - cos(0.5 * kDegToRad),
+    feature_tracker_two_pt_ransac_threshold, 1.0 - cos(0.5 * kDegToRad),
     "Threshold for the 2-pt RANSAC used for feature tracking outlier "
     "removal. The error is defined as (1 - cos(alpha)) where alpha is "
     "the angle between the predicted and measured bearing vectors.");
 
 DEFINE_double(
-    swe_feature_tracker_two_pt_ransac_max_iterations, 200,
+    feature_tracker_two_pt_ransac_max_iterations, 200,
     "Max iterations for the 2-pt RANSAC used for feature tracking "
     "outlier removal.");
 
 DEFINE_bool(
-    swe_feature_tracker_deterministic, false,
+    feature_tracker_deterministic, false,
     "If true, deterministic RANSAC outlier rejection is used.");
 DEFINE_bool(
     detection_visualize_keypoints, false,
     "Visualize the raw keypoint detections to a ros topic.");
 
 namespace feature_tracking {
+
+VOFeatureTrackingPipeline::VOFeatureTrackingPipeline(
+    const aslam::NCamera::ConstPtr& ncamera,
+    const FeatureTrackingExtractorSettings& extractor_settings,
+    const FeatureTrackingDetectorSettings& detector_settings)
+    : has_feature_extraction_been_performed_on_first_nframe_(false),
+      extractor_settings_(extractor_settings),
+      detector_settings_(detector_settings) {
+  initialize(ncamera);
+}
+
+VOFeatureTrackingPipeline::~VOFeatureTrackingPipeline() {
+  if (thread_pool_) {
+    thread_pool_->stop();
+  }
+}
 
 void VOFeatureTrackingPipeline::trackFeaturesNFrame(
     const aslam::Transformation& T_Bk_Bkp1, aslam::VisualNFrame* nframe_k,
@@ -142,9 +160,9 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
   bool ransac_success = aslam::geometric_vision::
       rejectOutlierFeatureMatchesTranslationRotationSAC(
           *frame_kp1, *frame_k, q_Ckp1_Ck, matches_with_score_kp1_k,
-          FLAGS_swe_feature_tracker_deterministic,
-          FLAGS_swe_feature_tracker_two_pt_ransac_threshold,
-          FLAGS_swe_feature_tracker_two_pt_ransac_max_iterations,
+          FLAGS_feature_tracker_deterministic,
+          FLAGS_feature_tracker_two_pt_ransac_threshold,
+          FLAGS_feature_tracker_two_pt_ransac_max_iterations,
           &inlier_matches_with_score_kp1_k, &outlier_matches_with_score_kp1_k);
 
   stat_ransac.AddSample(timer_ransac.Stop() * 1000);
@@ -153,7 +171,7 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
       << "Match outlier rejection RANSAC failed on camera " << camera_idx
       << ".";
   const size_t num_outliers = outlier_matches_with_score_kp1_k.size();
-  VLOG_IF(3, num_outliers > 0) << "Removed " << num_outliers << " outliers of "
+  VLOG_IF(5, num_outliers > 0) << "Removed " << num_outliers << " outliers of "
                                << matches_with_score_kp1_k.size()
                                << " matches on camera " << camera_idx << ".";
 
@@ -205,29 +223,15 @@ void VOFeatureTrackingPipeline::initialize(
 
   for (size_t cam_idx = 0u; cam_idx < num_cameras; ++cam_idx) {
     detectors_extractors_.emplace_back(
-        new FeatureDetectorExtractor(ncamera_->getCamera(cam_idx)));
+        new FeatureDetectorExtractor(
+            ncamera_->getCamera(cam_idx), extractor_settings_,
+            detector_settings_));
     trackers_.emplace_back(
         new aslam::GyroTracker(
             ncamera_->getCamera(cam_idx),
-            detectors_extractors_.back()
-                ->detector_settings_.min_tracking_distance_to_image_border_px,
+            detector_settings_.min_tracking_distance_to_image_border_px,
             detectors_extractors_.back()->getExtractorPtr()));
     track_managers_.emplace_back(new aslam::SimpleTrackManager);
-  }
-}
-
-VOFeatureTrackingPipeline::VOFeatureTrackingPipeline()
-    : has_feature_extraction_been_performed_on_first_nframe_(false) {}
-
-VOFeatureTrackingPipeline::VOFeatureTrackingPipeline(
-    const aslam::NCamera::ConstPtr& ncamera)
-    : has_feature_extraction_been_performed_on_first_nframe_(false) {
-  initialize(ncamera);
-}
-
-VOFeatureTrackingPipeline::~VOFeatureTrackingPipeline() {
-  if (thread_pool_) {
-    thread_pool_->stop();
   }
 }
 }  // namespace feature_tracking

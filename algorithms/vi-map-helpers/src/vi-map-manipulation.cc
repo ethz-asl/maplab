@@ -8,6 +8,22 @@
 #include <maplab-common/progress-bar.h>
 #include <vi-map/vi-map.h>
 
+DEFINE_int64(
+    disturb_random_generator_seed, 0,
+    "The seed for the random number generator for distrubing vertices.");
+DEFINE_double(
+    disturb_tranlation_random_walk_sigma_m, 0.005,
+    "Standard deviation of the normal distribution determining the change in "
+    "translation for each vertex.");
+DEFINE_double(
+    disturb_max_translational_disturbance_norm_m, 0.05,
+    "The maximum translational disturbance that is applied to a vertex.");
+DEFINE_double(
+    disturb_yaw_angle_stddev_rad, 0.0005,
+    "Standard deviation for determining the yaw angle disturbance.");
+DEFINE_double(
+    disturb_max_yaw_angle_rad, 0.05, "The maximum yaw angle disturbance.");
+
 namespace vi_map_helpers {
 
 VIMapManipulation::VIMapManipulation(vi_map::VIMap* map)
@@ -25,6 +41,83 @@ void VIMapManipulation::rotate(const size_t dimension, const double degrees) {
   for (const vi_map::MissionBaseFrameId& id : frames) {
     vi_map::MissionBaseFrame& frame = map_.getMissionBaseFrame(id);
     frame.set_T_G_M(T_G_old_G_new * frame.get_T_G_M());
+  }
+}
+
+void VIMapManipulation::artificiallyDisturbVertices() {
+  std::mt19937 generator(FLAGS_disturb_random_generator_seed);
+  std::normal_distribution<double> position_distribution_m(
+      0, FLAGS_disturb_tranlation_random_walk_sigma_m);
+  std::normal_distribution<double> yaw_angle_distribution_rad(
+      0, FLAGS_disturb_yaw_angle_stddev_rad);
+
+  const Eigen::Vector3d G_disturbance_rotation_axis(0, 0, 1);
+
+  vi_map::MissionIdList all_missions;
+  map_.getAllMissionIds(&all_missions);
+  for (const vi_map::MissionId& mission_id : all_missions) {
+    pose_graph::VertexIdList all_vertices_in_mission;
+    map_.getAllVertexIdsInMissionAlongGraph(
+        mission_id, &all_vertices_in_mission);
+
+    aslam::Position3D disturbance_translation(
+        position_distribution_m(generator), position_distribution_m(generator),
+        position_distribution_m(generator));
+    double disturbance_yaw_angle_rad = yaw_angle_distribution_rad(generator);
+
+    // Total disturbed mission frame.
+    aslam::Transformation T_M_M_total_disturbance;
+    aslam::Transformation last_T_M_I;
+    const aslam::Transformation& T_G_M =
+        map_.getMissionBaseFrameForMission(mission_id).get_T_G_M();
+    const aslam::Transformation T_M_G = T_G_M.inverse();
+
+    for (const pose_graph::VertexId& vertex_id : all_vertices_in_mission) {
+      vi_map::Vertex* vertex = map_.getVertexPtr(vertex_id);
+      const aslam::Transformation& current_T_M_I = vertex->get_T_M_I();
+
+      // Disturbances are scaled to the distance of the current and the previous
+      // vertex ("previous" vertex pose will evaluate to identity for the first
+      // vertex in the graph). This is to avoid overly large disturbances in
+      // places of little or not motion and will make the results of disturbing
+      // a keyframed and a non-keyframed map comparable.
+      const double vertex_distance_m =
+          (current_T_M_I * last_T_M_I.inverse()).getPosition().norm();
+
+      // Generate a translation.
+      for (int i = 0; i < 3; ++i) {
+        disturbance_translation[i] += position_distribution_m(generator);
+      }
+      if (disturbance_translation.norm() >
+          FLAGS_disturb_max_translational_disturbance_norm_m) {
+        disturbance_translation.normalize();
+        disturbance_translation *=
+            FLAGS_disturb_max_translational_disturbance_norm_m;
+      }
+
+      disturbance_yaw_angle_rad += yaw_angle_distribution_rad(generator);
+      if (disturbance_yaw_angle_rad > FLAGS_disturb_max_yaw_angle_rad) {
+        disturbance_yaw_angle_rad = FLAGS_disturb_max_yaw_angle_rad;
+      } else if (disturbance_yaw_angle_rad < -FLAGS_disturb_max_yaw_angle_rad) {
+        disturbance_yaw_angle_rad = -FLAGS_disturb_max_yaw_angle_rad;
+      }
+      const aslam::Quaternion orientation_disturbance(
+          aslam::AngleAxis(
+              disturbance_yaw_angle_rad * vertex_distance_m,
+              G_disturbance_rotation_axis));
+
+      const aslam::Transformation T_G_G_disturbance = aslam::Transformation(
+          disturbance_translation * vertex_distance_m, orientation_disturbance);
+
+      T_M_M_total_disturbance =
+          T_M_M_total_disturbance * (T_M_G * T_G_G_disturbance * T_G_M);
+      const aslam::Transformation new_T_M_I =
+          T_M_M_total_disturbance * current_T_M_I;
+
+      last_T_M_I = current_T_M_I;
+
+      vertex->set_T_M_I(new_T_M_I);
+    }
   }
 }
 

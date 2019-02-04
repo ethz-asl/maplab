@@ -22,9 +22,11 @@ endif()
 SET(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -lpthread")
 
 cs_add_library(${PROJECT_NAME} ${PROTO_SRCS} ${PROTO_HDRS}
+  src/imu-forward-propagation.cc
   src/imu-measurements-buffer.cc
-  src/test/vio-update-simulation.cc
+  src/pose-lookup-buffer.cc
   src/rostopic-settings.cc
+  src/test/vio-update-simulation.cc
   src/vio-update-serialization.cc
 )
 

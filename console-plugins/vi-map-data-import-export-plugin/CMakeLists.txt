@@ -8,7 +8,6 @@ add_definitions(-fPIC -shared)
 
 cs_add_library(${PROJECT_NAME} src/data-import-export-plugin.cc
                                src/export-ncamera-calibration.cc
-                               src/export-sensors.cc
                                src/export-vertex-data.cc
                                src/import-export-gps-data.cc)
 create_console_plugin(${PROJECT_NAME})
