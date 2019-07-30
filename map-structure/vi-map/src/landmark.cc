@@ -71,11 +71,15 @@ bool Landmark::hasObservation(
 void Landmark::removeAllObservationsAccordingToPredicate(
     const std::function<bool(const KeypointIdentifier&)>& // NOLINT
         predicate) {
+<<<<<<< HEAD
   std::vector<int>::iterator appearance_iterator = appearances_.begin();
+=======
+>>>>>>> 622389b1e... Restores the removeAllObservationsAccordingToPredicate function that was accediently removed in the appearance clean up.
   KeypointIdentifierList::iterator observation_iterator = observations_.begin();
   while (observation_iterator != observations_.end()) {
     if (predicate(*observation_iterator)) {
       observation_iterator = observations_.erase(observation_iterator);
+<<<<<<< HEAD
 
       if (appearance_iterator != appearances_.end()) {
         appearance_iterator = appearances_.erase(appearance_iterator);
@@ -86,6 +90,10 @@ void Landmark::removeAllObservationsAccordingToPredicate(
       if (appearance_iterator != appearances_.end()) {
         ++appearance_iterator;
       }
+=======
+    } else {
+      ++observation_iterator;
+>>>>>>> 622389b1e... Restores the removeAllObservationsAccordingToPredicate function that was accediently removed in the appearance clean up.
     }
   }
 }
