@@ -18,6 +18,13 @@ SET(VI_MAP_SOURCE src/check-map-consistency.cc
                   src/mission-baseframe.cc
                   src/mission.cc
                   src/pose-graph.cc
+<<<<<<< HEAD
+=======
+                  src/semantic-landmark.cc
+                  src/semantics-manager.cc
+                  src/sensor-manager-serialization.cc
+                  src/sensor-manager-utils.cc
+>>>>>>> f159f9ebc... Adds semantic landmark to map structure
                   src/sensor-manager.cc
                   src/sensor-utils.cc
                   src/structure-loopclosure-edge.cc
@@ -49,7 +56,15 @@ catkin_add_gtest(test_landmark
   test/test_landmark.cc)
 target_link_libraries(test_landmark ${PROJECT_NAME})
 
+<<<<<<< HEAD
 catkin_add_gtest(test_map_consistency_check_test
+=======
+catkin_add_gtest(test_semantic_landmark
+  test/test_semantic_landmark.cc)
+target_link_libraries(test_semantic_landmark ${PROJECT_NAME})
+
+catkin_add_gtest(test_map_consistencycheck_test
+>>>>>>> f159f9ebc... Adds semantic landmark to map structure
   test/test_map_consistency_check.cc)
 target_link_libraries(test_map_consistency_check_test ${PROJECT_NAME})
 

@@ -118,6 +118,22 @@ message Landmark {
   repeated int32 appearances = 8;
 }
 
+message SemanticLandmark {
+  optional common.proto.Id id = 1;
+  repeated double position = 2;
+  repeated double covariance = 3;
+  repeated common.proto.Id vertex_ids = 4;
+  repeated uint32 measurement_indices = 5;
+  repeated uint32 frame_indices = 6;
+  enum Quality {
+    kUnknown = 0;
+    kBad = 1;
+    kGood = 2;
+  }
+  optional Quality quality = 7 [default = kUnknown];
+  optional int32 class_id = 8 [default = -1];
+}
+
 message LandmarkStore {
   repeated Landmark landmarks = 1;
 }
