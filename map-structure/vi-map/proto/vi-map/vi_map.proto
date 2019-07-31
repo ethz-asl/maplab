@@ -33,8 +33,9 @@ message ViwlsVertex {
   optional LandmarkStore landmark_store = 8;
   repeated FrameResourceMap resource_map = 9;
   optional aslam.proto.Id mission_id = 14;
-
   repeated Absolute6DoFMeasurement absolute_6dof_measurements = 15;
+  optional SemanticLandmarkStore semantic_landmark_store = 16;
+
 }
 
 message ViwlsEdge {
@@ -136,6 +137,20 @@ message SemanticLandmark {
 
 message LandmarkStore {
   repeated Landmark landmarks = 1;
+}
+
+message SemanticLandmarkStore {
+  repeated SemanticLandmark semantic_landmarks = 1;
+}
+
+message OptionalSensorData {
+  repeated measurements.proto.GpsUtmMeasurement gps_utm_measurements = 1;
+  repeated measurements.proto.GpsWgsMeasurement gps_wgs_measurements = 2;
+}
+
+message OptionalSensorDataMissionPair {
+  optional common.proto.Id mission_id = 1;
+  optional OptionalSensorData optional_sensor_data = 2;
 }
 
 message Mission {

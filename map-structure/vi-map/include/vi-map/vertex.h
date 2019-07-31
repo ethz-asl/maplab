@@ -23,6 +23,8 @@
 #include "vi-map/landmark-store.h"
 #include "vi-map/landmark.h"
 #include "vi-map/mission.h"
+#include "vi-map/semantic-landmark-store.h"
+#include "vi-map/semantic-landmark.h"
 #include "vi-map/unique-id.h"
 #include "vi-map/vi_map.pb.h"
 
@@ -160,6 +162,7 @@ class Vertex : public pose_graph::Vertex {
   const Eigen::Vector3d& getAccelBias() const;
   const Eigen::Vector3d& getGyroBias() const;
 
+  // LandmarkId related functions
   const LandmarkId& getObservedLandmarkId(
       unsigned int frame_idx, int keypoint_idx) const;
   const LandmarkId& getObservedLandmarkId(
@@ -179,6 +182,26 @@ class Vertex : public pose_graph::Vertex {
   void getAllObservedLandmarkIds(
       std::vector<LandmarkIdList>* landmark_ids) const;
   size_t getNumLandmarkObservations(const LandmarkId& landmark_id) const;
+
+  // SemanticLandmarkId related functions
+  const SemanticLandmarkId& getObservedSemanticLandmarkId(
+      unsigned int frame_idx, int measurement_idx) const;
+  const SemanticLandmarkId& getObservedSemanticLandmarkId(
+      const SemanticObjectIdentifier& object_id) const;
+  void setObservedSemanticLandmarkId(
+      const SemanticObjectIdentifier& object_id, const SemanticLandmarkId& id);
+  void setObservedSemanticLandmarkId(
+      unsigned int frame_idx, int measurement_idx, const SemanticLandmarkId& id);
+  size_t observedSemanticLandmarkIdsSize(unsigned int frame_idx) const;
+  int numValidObservedSemanticLandmarkIds(unsigned int frame_idx) const;
+  int numValidObservedSemanticLandmarkIdsInAllFrames() const;
+  void getFrameObservedSemanticLandmarkIds(
+      unsigned int frame_idx, SemanticLandmarkIdList* landmark_ids) const;
+  const SemanticLandmarkIdList& getFrameObservedSemanticLandmarkIds(
+      unsigned int frame_idx) const;
+  void getAllObservedSemanticLandmarkIds(SemanticLandmarkIdList* landmark_ids) const;
+  void getAllObservedSemanticLandmarkIds(
+      std::vector<SemanticLandmarkIdList>* landmark_ids) const;
 
   // Calls action on each possible keypoint identifier in this vertex.
   void forEachKeypoint(
@@ -222,6 +245,15 @@ class Vertex : public pose_graph::Vertex {
       const vi_map::LandmarkId& landmark_id, const Eigen::Vector3d& LM_p_fi);
   inline void setLandmarks(const LandmarkStore& landmark_store);
 
+  inline SemanticLandmarkStore& getSemanticLandmarks();
+  inline const SemanticLandmarkStore& getSemanticLandmarks() const;
+  void getStoredSemanticLandmarkIdList(SemanticLandmarkIdList* semantic_landmark_id_list) const;
+  bool hasStoredSemanticLandmark(const SemanticLandmarkId& semantic_landmark_id) const;
+  pose::Position3D getSemanticLandmark_p_LM_fi(const SemanticLandmarkId& semantic_landmark_id) const;
+  void setSemanticLandmark_LM_p_fi(
+      const vi_map::SemanticLandmarkId& landmark_id, const Eigen::Vector3d& LM_p_fi);
+  inline void setSemanticLandmarks(const SemanticLandmarkStore& semantic_landmark_store);
+
   void setFrameAndLandmarkObservations(
       aslam::VisualNFrame::Ptr visual_n_frame,
       const std::vector<std::vector<LandmarkId>>& img_landmarks);
@@ -240,6 +272,8 @@ class Vertex : public pose_graph::Vertex {
   bool isFrameIndexValid(unsigned int frame_idx) const;
   bool areFrameAndKeypointIndicesValid(
       unsigned int frame_idx, int keypoint_idx) const;
+  bool areFrameAndMeasurementIndicesValid(
+      unsigned int frame_idx, int measurement_idx) const;
   void checkConsistencyOfVisualObservationContainers() const;
 
   typedef std::vector<backend::ResourceTypeToIdsMap> FrameResourceMap;
@@ -307,6 +341,9 @@ class Vertex : public pose_graph::Vertex {
   void addObservedLandmarkId(
       unsigned int frame_idx, const LandmarkId& landmark_id);
 
+  void addObservedSemanticLandmarkId(
+      unsigned int frame_idx, const SemanticLandmarkId& semantic_landmark_id);
+
   // Utility function to determine the new size of observed_landmark_ids_ if
   // the number of keypoints increase.
   // previous_new_size: new observed_landmark_ids size determined by a
@@ -332,10 +369,14 @@ class Vertex : public pose_graph::Vertex {
   pose_graph::EdgeIdSet outgoing_edges_;
 
   aslam::VisualNFrame::Ptr n_frame_;
+  // A list of ids observed landmarks in each visual frame.
+  // These are aligned with the visual frames.
   std::vector<LandmarkIdList> observed_landmark_ids_;
+  std::vector<SemanticLandmarkIdList> observed_semantic_landmark_ids_;
 
   // Landmark storage.
   LandmarkStore landmarks_;
+  SemanticLandmarkStore semantic_landmarks_;
 
   // VisualFrame resources;
   FrameResourceMap resource_map_;

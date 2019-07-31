@@ -390,15 +390,28 @@ void Vertex::serialize(vi_map::proto::ViwlsVertex* proto) const {
   aslam::proto::VisualNFrame* proto_n_frame = proto->mutable_n_visual_frame();
   CHECK_EQ(static_cast<int>(num_frames), proto_n_frame->frames_size());
   for (unsigned int i = 0u; i < num_frames; ++i) {
+<<<<<<< HEAD
     google::protobuf::RepeatedPtrField<aslam::proto::Id>* proto_landmark_ids =
+=======
+    // default landmarks
+    google::protobuf::RepeatedPtrField<common::proto::Id>* proto_landmark_ids =
+>>>>>>> e54cd5395... Creates semantic landmark store for storing semantic landmarks
         proto_n_frame->mutable_frames(i)->mutable_landmark_ids();
     proto_landmark_ids->Reserve(observed_landmark_ids_[i].size());
     for (const LandmarkId& landmark_id : observed_landmark_ids_[i]) {
       landmark_id.serialize(proto_landmark_ids->Add());
     }
+    // semantic landmarks
+    google::protobuf::RepeatedPtrField<common::proto::Id>* proto_semantic_landmark_ids =
+        proto_n_frame->mutable_frames(i)->mutable_semantic_landmark_ids();
+    proto_semantic_landmark_ids->Reserve(observed_semantic_landmark_ids_[i].size());
+    for (const SemanticLandmarkId& landmark_id : observed_semantic_landmark_ids_[i]) {
+      landmark_id.serialize(proto_semantic_landmark_ids->Add());
+    }
   }
 
   landmarks_.serialize(proto->mutable_landmark_store());
+  semantic_landmarks_.serialize(proto->mutable_semantic_landmark_store());
 
   // Serialize FrameResourceMap.
   for (backend::ResourceTypeToIdsMap resource_type_to_id_map : resource_map_) {
@@ -459,8 +472,12 @@ void Vertex::deserialize(
   }
 
   // Deserialize landmark store.
-  CHECK(proto.has_landmark_store());
-  getLandmarks().deserialize(proto.landmark_store());
+  if(proto.has_landmark_store()) {
+    getLandmarks().deserialize(proto.landmark_store());  
+  }
+  if(proto.has_semantic_landmark_store()) {
+    getSemanticLandmarks().deserialize(proto.semantic_landmark_store());  
+  }
 
   // Deserialize transformation.
   common::eigen_proto::deserialize(proto.t_m_i(), &T_M_I_);
@@ -634,6 +651,33 @@ bool Vertex::areFrameAndKeypointIndicesValid(
          is_keypoint_index_valid;
 }
 
+bool Vertex::areFrameAndMeasurementIndicesValid(
+    unsigned int frame_idx, int measurement_idx) const {
+  CHECK(n_frame_ != nullptr);
+
+  const bool is_frame_idx_valid = isFrameIndexValid(frame_idx);
+  LOG_IF(ERROR, !is_frame_idx_valid) << "Invalid frame index: " << frame_idx;
+  const bool is_observed_semantic_landmarks_ids_size_correct =
+      observed_semantic_landmark_ids_[frame_idx].size() ==
+      static_cast<unsigned int>(
+          n_frame_->getFrame(frame_idx).getNumSemanticObjectMeasurements());
+  LOG_IF(ERROR, !is_observed_semantic_landmarks_ids_size_correct)
+      << "Observed semantic landmark IDs vector size is incorrect. ("
+      << observed_semantic_landmark_ids_[frame_idx].size() << " vs. "
+      << n_frame_->getFrame(frame_idx).getNumSemanticObjectMeasurements() << ").";
+
+  const bool is_measurement_index_valid =
+      measurement_idx <
+      static_cast<int>(
+          n_frame_->getFrame(frame_idx).getNumSemanticObjectMeasurements());
+  LOG_IF(ERROR, !is_measurement_index_valid)
+      << "Keypoint index out of bounds. (" << measurement_idx << " vs. "
+      << n_frame_->getFrame(frame_idx).getNumSemanticObjectMeasurements() << ").";
+
+  return is_frame_idx_valid && is_observed_semantic_landmarks_ids_size_correct &&
+         is_measurement_index_valid;
+}
+
 const LandmarkId& Vertex::getObservedLandmarkId(
     unsigned int frame_idx, int keypoint_idx) const {
   return observed_landmark_ids_[frame_idx][keypoint_idx];
@@ -680,6 +724,54 @@ int Vertex::numValidObservedLandmarkIds(unsigned int frame_idx) const {
     }
   }
   return landmark_ids.size();
+}
+
+const SemanticLandmarkId& Vertex::getObservedSemanticLandmarkId(
+    unsigned int frame_idx, int measurement_idx) const {
+  return observed_semantic_landmark_ids_[frame_idx][measurement_idx];
+}
+
+const SemanticLandmarkId& Vertex::getObservedSemanticLandmarkId(
+    const SemanticObjectIdentifier& object_id) const {
+  return getObservedSemanticLandmarkId(
+      object_id.frame_id.frame_index, object_id.measurement_index);
+}
+
+void Vertex::setObservedSemanticLandmarkId(
+    const SemanticObjectIdentifier& object_id, const SemanticLandmarkId& landmark_id) {
+  setObservedSemanticLandmarkId(
+      object_id.frame_id.frame_index, object_id.measurement_index,
+      landmark_id);
+}
+
+void Vertex::setObservedSemanticLandmarkId(
+    unsigned int frame_idx, int measurement_idx, const SemanticLandmarkId& landmark_id) {
+  CHECK(areFrameAndMeasurementIndicesValid(frame_idx, measurement_idx));
+  observed_semantic_landmark_ids_[frame_idx][measurement_idx] = landmark_id;
+}
+
+void Vertex::addObservedSemanticLandmarkId(
+    unsigned int frame_idx, const SemanticLandmarkId& id) {
+  CHECK(isFrameIndexValid(frame_idx));
+  observed_semantic_landmark_ids_[frame_idx].push_back(id);
+}
+
+size_t Vertex::observedSemanticLandmarkIdsSize(unsigned int frame_idx) const {
+  CHECK(isFrameIndexValid(frame_idx));
+  return observed_semantic_landmark_ids_[frame_idx].size();
+}
+
+int Vertex::numValidObservedSemanticLandmarkIds(unsigned int frame_idx) const {
+  CHECK(isFrameIndexValid(frame_idx));
+
+  vi_map::SemanticLandmarkIdSet semantic_landmark_ids;
+  semantic_landmark_ids.rehash(observed_semantic_landmark_ids_[frame_idx].size());
+  for (unsigned int i = 0; i < observed_semantic_landmark_ids_[frame_idx].size(); ++i) {
+    if (observed_semantic_landmark_ids_[frame_idx][i].isValid()) {
+      semantic_landmark_ids.emplace(observed_semantic_landmark_ids_[frame_idx][i]);
+    }
+  }
+  return semantic_landmark_ids.size();
 }
 
 int Vertex::determineNewObservedLandmarkIdVectorSize(
@@ -864,6 +956,14 @@ int Vertex::numValidObservedLandmarkIdsInAllFrames() const {
   return valid_observed_landmark_id_count;
 }
 
+int Vertex::numValidObservedSemanticLandmarkIdsInAllFrames() const {
+  int valid_observed_landmark_id_count = 0;
+  for (unsigned int i = 0; i < numFrames(); ++i) {
+    valid_observed_landmark_id_count += numValidObservedSemanticLandmarkIds(i);
+  }
+  return valid_observed_landmark_id_count;
+}
+
 void Vertex::getFrameObservedLandmarkIds(
     unsigned int frame_idx, LandmarkIdList* landmark_ids) const {
   CHECK_NOTNULL(landmark_ids);
@@ -871,11 +971,25 @@ void Vertex::getFrameObservedLandmarkIds(
   *landmark_ids = observed_landmark_ids_[frame_idx];
 }
 
+void Vertex::getFrameObservedSemanticLandmarkIds(
+    unsigned int frame_idx, SemanticLandmarkIdList* landmark_ids) const {
+  CHECK_NOTNULL(landmark_ids);
+  landmark_ids->clear();
+  *landmark_ids = observed_semantic_landmark_ids_[frame_idx];
+}
+
 const LandmarkIdList& Vertex::getFrameObservedLandmarkIds(
     unsigned int frame_idx) const {
   CHECK_LT(frame_idx, numFrames());
   CHECK_LT(frame_idx, observed_landmark_ids_.size());
   return observed_landmark_ids_[frame_idx];
+}
+
+const SemanticLandmarkIdList& Vertex::getFrameObservedSemanticLandmarkIds(
+    unsigned int frame_idx) const {
+  CHECK_LT(frame_idx, numFrames());
+  CHECK_LT(frame_idx, observed_semantic_landmark_ids_.size());
+  return observed_semantic_landmark_ids_[frame_idx];
 }
 
 void Vertex::getAllObservedLandmarkIds(LandmarkIdList* landmark_ids) const {
@@ -887,12 +1001,22 @@ void Vertex::getAllObservedLandmarkIds(LandmarkIdList* landmark_ids) const {
   }
 }
 
+void Vertex::getAllObservedSemanticLandmarkIds(SemanticLandmarkIdList* landmark_ids) const {
+  CHECK_NOTNULL(landmark_ids)->clear();
+  for (unsigned int frame_idx = 0u; frame_idx < numFrames(); ++frame_idx) {
+    landmark_ids->insert(
+        landmark_ids->begin(), observed_semantic_landmark_ids_[frame_idx].begin(),
+        observed_semantic_landmark_ids_[frame_idx].end());
+  }
+}
+
 void Vertex::getAllObservedLandmarkIds(
     std::vector<LandmarkIdList>* landmark_ids) const {
   CHECK_NOTNULL(landmark_ids)->clear();
   *landmark_ids = observed_landmark_ids_;
 }
 
+<<<<<<< HEAD
 size_t Vertex::getNumLandmarkObservations(const LandmarkId& landmark_id) const {
   CHECK(landmark_id.isValid());
   size_t num_observations = 0u;
@@ -906,6 +1030,12 @@ size_t Vertex::getNumLandmarkObservations(const LandmarkId& landmark_id) const {
     }
   }
   return num_observations;
+=======
+void Vertex::getAllObservedSemanticLandmarkIds(
+    std::vector<SemanticLandmarkIdList>* landmark_ids) const {
+  CHECK_NOTNULL(landmark_ids)->clear();
+  *landmark_ids = observed_semantic_landmark_ids_;
+>>>>>>> e54cd5395... Creates semantic landmark store for storing semantic landmarks
 }
 
 void Vertex::forEachKeypoint(
@@ -941,11 +1071,28 @@ pose::Position3D Vertex::getLandmark_p_LM_fi(
   return get_T_M_I() * p_I_fi;
 }
 
+pose::Position3D Vertex::getSemanticLandmark_p_LM_fi(
+    const SemanticLandmarkId& id) const {
+  const Eigen::Vector3d& p_I_fi =
+      getSemanticLandmarks().getSemanticLandmark(id).get_p_B();
+
+  return get_T_M_I() * p_I_fi;
+}
+
 void Vertex::getStoredLandmarkIdList(LandmarkIdList* landmark_id_list) const {
   CHECK_NOTNULL(landmark_id_list)->clear();
   landmark_id_list->reserve(landmarks_.size());
   for (const Landmark& landmark : landmarks_) {
     landmark_id_list->emplace_back(landmark.id());
+  }
+}
+
+void Vertex::getStoredSemanticLandmarkIdList(
+    SemanticLandmarkIdList* semantic_landmark_id_list) const {
+  CHECK_NOTNULL(semantic_landmark_id_list)->clear();
+  semantic_landmark_id_list->reserve(semantic_landmarks_.size());
+  for (const SemanticLandmark& landmark : semantic_landmarks_) {
+    semantic_landmark_id_list->emplace_back(landmark.id());
   }
 }
 
@@ -955,8 +1102,19 @@ void Vertex::setLandmark_LM_p_fi(
   getLandmarks().getLandmark(landmark_id).set_p_B(I_p_fi);
 }
 
+void Vertex::setSemanticLandmark_LM_p_fi(
+    const vi_map::SemanticLandmarkId& landmark_id,
+    const Eigen::Vector3d& LM_p_fi) {
+  Eigen::Vector3d I_p_fi = get_T_M_I().inverse() * LM_p_fi;
+  getSemanticLandmarks().getSemanticLandmark(landmark_id).set_p_B(I_p_fi);
+}
+
 bool Vertex::hasStoredLandmark(const LandmarkId& landmark_id) const {
   return landmarks_.hasLandmark(landmark_id);
+}
+
+bool Vertex::hasStoredSemanticLandmark(const SemanticLandmarkId& semantic_landmark_id) const {
+  return semantic_landmarks_.hasSemanticLandmark(semantic_landmark_id);
 }
 
 bool Vertex::hasFrameResourceOfType(
