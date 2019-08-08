@@ -11,17 +11,15 @@
 namespace vi_map {
 
 VIMapGenerator::VIMapGenerator(VIMap& map, int seed)  // NOLINT
-    : map_(map),
-      rng_(seed) {
+    : map_(map), rng_(seed) {
   Eigen::VectorXd mock_intrinsics(4);
   mock_intrinsics << kMockF, kMockF, kMockC, kMockC;
   Eigen::VectorXd distortion_parameters(1);
   distortion_parameters(0) = 1;
   aslam::Distortion::UniquePtr distortion(
       new aslam::FisheyeDistortion(distortion_parameters));
-  aslam::Camera::Ptr camera(
-      new aslam::PinholeCamera(
-          mock_intrinsics, kCameraWidth, kCameraHeight, distortion));
+  aslam::Camera::Ptr camera(new aslam::PinholeCamera(
+      mock_intrinsics, kCameraWidth, kCameraHeight, distortion));
   aslam::CameraId id = aslam::createRandomId<aslam::CameraId>();
   camera->setId(id);
 
@@ -151,6 +149,96 @@ vi_map::LandmarkId VIMapGenerator::createLandmarkWithoutReferences(
       static_cast<const pose_graph::VertexIdList&>(non_referring_observers));
 }
 
+vi_map::SemanticLandmarkId VIMapGenerator::createSemanticLandmark(
+    const Eigen::Vector3d& p_G_fi, const int& class_id,
+    const pose_graph::VertexId& storing_vertex,
+    const std::initializer_list<pose_graph::VertexId>& non_storing_observers) {
+  return createSemanticLandmark(
+      p_G_fi, class_id, storing_vertex,
+      static_cast<const pose_graph::VertexIdList&>(non_storing_observers));
+}
+
+vi_map::SemanticLandmarkId VIMapGenerator::createSemanticLandmark(
+    const Eigen::Vector3d& p_G_fi, const int& class_id,
+    const pose_graph::VertexId& storing_vertex,
+    const pose_graph::VertexIdList& non_storing_observers) {
+  return createSemanticLandmarkWithMissingReferences(
+      p_G_fi, class_id, storing_vertex, non_storing_observers,
+      pose_graph::VertexIdList());
+}
+
+vi_map::SemanticLandmarkId
+VIMapGenerator::createSemanticLandmarkWithMissingReferences(
+    const Eigen::Vector3d& p_G_fi, const int& class_id,
+    const pose_graph::VertexId& storing_vertex,
+    const std::initializer_list<pose_graph::VertexId>& non_storing_observers,
+    const std::initializer_list<pose_graph::VertexId>&
+        non_referring_observers) {
+  return createSemanticLandmarkWithMissingReferences(
+      p_G_fi, class_id, storing_vertex,
+      static_cast<const pose_graph::VertexIdList&>(non_storing_observers),
+      static_cast<const pose_graph::VertexIdList&>(non_referring_observers));
+}
+
+vi_map::SemanticLandmarkId
+VIMapGenerator::createSemanticLandmarkWithMissingReferences(
+    const Eigen::Vector3d& p_G_fi, const int& class_id,
+    const pose_graph::VertexId& storing_vertex,
+    const pose_graph::VertexIdList& non_storing_observers,
+    const pose_graph::VertexIdList& non_referring_observers) {
+  std::vector<VertexInfoMap::iterator> observer_its;
+  for (const pose_graph::VertexId& observer : non_storing_observers) {
+    CHECK_NE(storing_vertex, observer)
+        << "The storing vertex id " << storing_vertex.hexString()
+        << " found among observing vertices. "
+        << "The storing vertex is automatically assumed to be an observer "
+        << "and shouldn't be explicitly added to the observer vertex ids.";
+    observer_its.push_back(vertices_.find(observer));
+    CHECK(observer_its.back() != vertices_.end());
+  }
+  for (const pose_graph::VertexId& observer : non_referring_observers) {
+    CHECK_NE(storing_vertex, observer);
+    observer_its.push_back(vertices_.find(observer));
+    CHECK(observer_its.back() != vertices_.end());
+  }
+  vi_map::SemanticLandmarkId landmark_id;
+  generateId(&landmark_id);
+  VIMap::SemanticObjectDescriptorType descriptor(
+      kSemanticObjectDescriptorSize, 1);
+  descriptor.setRandom();
+  CHECK(
+      semantic_landmarks_
+          .emplace(
+              landmark_id, SemanticLandmarkInfo(
+                               p_G_fi, class_id, descriptor, storing_vertex,
+                               non_storing_observers, non_referring_observers))
+          .second);
+
+  if (storing_vertex.isValid()) {
+    VertexInfoMap::iterator storing_vertex_it = vertices_.find(storing_vertex);
+    CHECK(storing_vertex_it != vertices_.end());
+    CHECK(storing_vertex_it->second.semantic_landmarks.emplace(landmark_id)
+              .second);
+  } else {
+    CHECK(non_storing_observers.empty())
+        << "Semantic Landmarks that are not stored "
+           "cannot be referred to.";
+  }
+  for (VertexInfoMap::iterator it : observer_its) {
+    CHECK(it->second.semantic_landmarks.emplace(landmark_id).second);
+  }
+  return landmark_id;
+}
+
+vi_map::SemanticLandmarkId
+VIMapGenerator::createSemanticLandmarkWithoutReferences(
+    const Eigen::Vector3d& p_G_fi, const int& class_id,
+    const pose_graph::VertexIdList& non_referring_observers) {
+  return createSemanticLandmarkWithMissingReferences(
+      p_G_fi, class_id, pose_graph::VertexId(), pose_graph::VertexIdList(),
+      static_cast<const pose_graph::VertexIdList&>(non_referring_observers));
+}
+
 void VIMapGenerator::setCameraRig(
     const std::shared_ptr<aslam::NCamera>& n_camera) {
   CHECK(n_camera);
@@ -216,6 +304,7 @@ void VIMapGenerator::generateMap() const {
   CHECK_EQ(0u, map_.numVertices());
   CHECK_EQ(0u, map_.numEdges());
   CHECK_EQ(0u, map_.numLandmarks());
+  CHECK_EQ(0u, map_.numSemanticLandmarks());
   CHECK_EQ(0u, map_.numMissions());
 
   // SENSORS
@@ -257,26 +346,42 @@ void VIMapGenerator::generateMap() const {
       GeneratedVertexMap;
   GeneratedVertexMap generated_vertices;
   ObservationIndexMap observation_index;
+  SemanticObservationIndexMap semantic_observation_index;
   for (const VertexInfoMap::value_type& vertex_pair : vertices_) {
     const pose_graph::VertexId& id = vertex_pair.first;
     const VertexInfo& info = vertex_pair.second;
     const MissionId& mission_id = info.mission;
 
     vi_map::Vertex::UniquePtr& vertex_ptr = generated_vertices[id];
+
     Eigen::Matrix2Xd image_points;
     aslam::VisualFrame::DescriptorsT descriptors;
     generateLandmarkObservations(
         id, &image_points, &descriptors, &observation_index);
     LandmarkIdList observed_landmark_ids(image_points.cols());
+
+    Eigen::Matrix4Xi image_object_measurements;
+    aslam::VisualFrame::SemanticObjectDescriptorsT object_descriptors;
+    Eigen::VectorXi object_class_ids;
+    generateSemanticLandmarkObservations(
+        id, &image_object_measurements, &object_class_ids, &object_descriptors,
+        &semantic_observation_index);
+    SemanticLandmarkIdList observed_semantic_landmark_ids(
+        image_object_measurements.cols());
+
     aslam::FrameId frame_id;
     aslam::generateId(&frame_id);
     const Eigen::VectorXd keypoint_uncertainties =
         Eigen::VectorXd::Ones(observed_landmark_ids.size());
+    const Eigen::VectorXd object_uncertainties =
+        Eigen::VectorXd::Ones(observed_semantic_landmark_ids.size());
     vertex_ptr.reset(new Vertex(
         id, Eigen::Matrix<double, 6, 1>::Zero(), image_points,
         keypoint_uncertainties, descriptors, observed_landmark_ids,
+        image_object_measurements, object_uncertainties, object_class_ids,
+        object_descriptors, observed_semantic_landmark_ids,
         vertex_pair.second.mission, frame_id, info.timestamp_nanoseconds,
-        mission_ncamera));
+        n_camera_));
 
     const MissionBaseFrame& base_frame =
         map_.getMissionBaseFrame(map_.getMission(mission_id).getBaseFrameId());
@@ -349,6 +454,42 @@ void VIMapGenerator::generateMap() const {
           observer_vertex_indices.keypoint_id, landmark_id);
     }
   }
+
+  // SEMANTIC LANDMARKS
+  for (const SemanticLandmarkInfoMap::value_type& landmark_pair :
+       semantic_landmarks_) {
+    const vi_map::SemanticLandmarkId landmark_id = landmark_pair.first;
+    const SemanticLandmarkInfo landmark_info = landmark_pair.second;
+    if (!landmark_info.storing_vertex_id.isValid()) {
+      continue;
+    }
+
+    SemanticLandmark landmark;
+    landmark.setId(landmark_id);
+    VertexInfoMap::const_iterator vertex_info_it =
+        vertices_.find(landmark_info.storing_vertex_id);
+    CHECK(vertex_info_it != vertices_.end());
+    pose::Transformation T_G_I(vertex_info_it->second.T_G_I);
+    landmark.set_p_B(T_G_I.inverse() * landmark_info.p_G_fi);
+    landmark.setClassId(landmark_info.class_id);
+
+    const SemanticObservationIndices& storing_vertex_indices =
+        semantic_observation_index[landmark_info.storing_vertex_id]
+                                  [landmark_id];
+
+    map_.addNewSemanticLandmark(
+        landmark, landmark_info.storing_vertex_id,
+        storing_vertex_indices.frame_id, storing_vertex_indices.measurement_id);
+
+    for (const pose_graph::VertexId vertex_id :
+         landmark_info.non_storing_vertex_ids) {
+      const SemanticObservationIndices& observer_vertex_indices =
+          semantic_observation_index[vertex_id][landmark_id];
+      map_.associateMeasurementWithExistingSemanticLandmark(
+          vertex_id, observer_vertex_indices.frame_id,
+          observer_vertex_indices.measurement_id, landmark_id);
+    }
+  }
 }
 
 template void VIMapGenerator::generateMap<TransformationEdge>() const;
@@ -409,6 +550,63 @@ void VIMapGenerator::projectLandmark(
   keypoints->block<2, 1>(0, index) = image_point_vec;
 }
 
+void VIMapGenerator::generateSemanticLandmarkObservations(
+    const pose_graph::VertexId& vertex_id, Eigen::Matrix4Xi* measurements,
+    Eigen::VectorXi* class_ids,
+    aslam::VisualFrame::SemanticObjectDescriptorsT* descriptors,
+    SemanticObservationIndexMap* observation_index) const {
+  CHECK_NOTNULL(measurements);
+  CHECK_NOTNULL(class_ids);
+  CHECK_NOTNULL(descriptors);
+  CHECK_NOTNULL(observation_index);
+
+  VertexInfoMap::const_iterator vertex_info_it = vertices_.find(vertex_id);
+  CHECK(vertex_info_it != vertices_.end());
+  const VertexInfo& vertex_info = vertex_info_it->second;
+  CHECK_EQ(n_camera_->numCameras(), 1u)
+      << "Only one camera currently supported!";
+  const pose::Transformation T_C_G(
+      n_camera_->get_T_C_B(0) * vertex_info.T_G_I.inverse());
+  size_t total = vertex_info.landmarks.size();
+  measurements->resize(4, total);
+  class_ids->resize(total);
+  descriptors->resize(kSemanticObjectDescriptorSize, total);
+  VLOG(10) << "Vertex " << vertex_id << " gets " << total << " descriptors.";
+
+  unsigned int i = 0;
+  for (const vi_map::SemanticLandmarkId& landmark_id :
+       vertex_info.semantic_landmarks) {
+    SemanticLandmarkInfoMap::const_iterator it =
+        semantic_landmarks_.find(landmark_id);
+    CHECK(it != semantic_landmarks_.cend());
+    const SemanticLandmarkInfo& info = it->second;
+    projectSemanticLandmark(info, T_C_G, measurements, i);
+    (*class_ids)(i) = info.class_id;
+    descriptors->block<kSemanticObjectDescriptorSize, 1>(0, i) = Eigen::Map<
+        const Eigen::Matrix<float, kSemanticObjectDescriptorSize, 1>>(
+        info.semantic_descriptor.data());
+    (*observation_index)[vertex_id][landmark_id] = {0, i};
+    ++i;
+  }
+}
+
+void VIMapGenerator::projectSemanticLandmark(
+    const SemanticLandmarkInfo& landmark_info,
+    const pose::Transformation& T_C_G, Eigen::Matrix4Xi* measurements,
+    size_t index) const {
+  Eigen::Vector2d image_point_vec;
+  CHECK_EQ(n_camera_->numCameras(), 1u)
+      << "Only one camera currently supported!";
+  CHECK(n_camera_->getCamera(0)
+            .project3(T_C_G.transform(landmark_info.p_G_fi), &image_point_vec)
+            .isKeypointVisible());
+  measurements->block<2, 1>(0, index) =
+      image_point_vec.array().round().cast<int>().matrix();
+  Eigen::Vector2i measurement_height_width;
+  measurement_height_width << 50, 50;
+  measurements->block<2, 1>(2, index) = measurement_height_width;
+}
+
 VIMapGenerator::VertexInfo::VertexInfo(
     const MissionId& _mission, const pose::Transformation& _T_G_I,
     const int64_t _timestamp_nanoseconds)
@@ -423,6 +621,19 @@ VIMapGenerator::LandmarkInfo::LandmarkInfo(
     const pose_graph::VertexIdList& _non_referring_vertex_ids)
     : p_G_fi(_p_G_fi),
       descriptor(_descriptor),
+      storing_vertex_id(_storing_vertex_id),
+      non_storing_vertex_ids(_non_storing_vertex_ids),
+      non_referring_vertex_ids(_non_referring_vertex_ids) {}
+
+VIMapGenerator::SemanticLandmarkInfo::SemanticLandmarkInfo(
+    const Eigen::Vector3d& _p_G_fi, const int& _class_id,
+    const VIMap::SemanticObjectDescriptorType& _descriptor,
+    const pose_graph::VertexId& _storing_vertex_id,
+    const pose_graph::VertexIdList& _non_storing_vertex_ids,
+    const pose_graph::VertexIdList& _non_referring_vertex_ids)
+    : p_G_fi(_p_G_fi),
+      class_id(_class_id),
+      semantic_descriptor(_descriptor),
       storing_vertex_id(_storing_vertex_id),
       non_storing_vertex_ids(_non_storing_vertex_ids),
       non_referring_vertex_ids(_non_referring_vertex_ids) {}

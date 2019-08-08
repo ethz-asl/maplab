@@ -35,6 +35,7 @@ namespace vi_map {
  * use of these functions.
  */
 static constexpr size_t kDescriptorSize = 48;
+static constexpr size_t kSemanticObjectDescriptorSize = 4096;
 static constexpr uint32_t kCameraWidth = 640;
 static constexpr uint32_t kCameraHeight = 480;
 static constexpr double kMockF = 1;
@@ -84,6 +85,31 @@ class VIMapGenerator {
       const Eigen::Vector3d& p_G_fi,
       const pose_graph::VertexIdList& non_referring_observers);
 
+  // The semantic object descriptor will be randomly generated and used by all
+  // vertices.
+  vi_map::SemanticLandmarkId createSemanticLandmark(
+      const Eigen::Vector3d& p_G_fi, const int& class_id, 
+      const pose_graph::VertexId& storing_vertex,
+      const std::initializer_list<pose_graph::VertexId>& non_storing_observers);
+  vi_map::SemanticLandmarkId createSemanticLandmark(
+      const Eigen::Vector3d& p_G_fi, const int& class_id,
+      const pose_graph::VertexId& storing_vertex,
+      const pose_graph::VertexIdList& non_storing_observers);
+  vi_map::SemanticLandmarkId createSemanticLandmarkWithMissingReferences(
+      const Eigen::Vector3d& p_G_fi, const int& class_id,
+      const pose_graph::VertexId& storing_vertex,
+      const std::initializer_list<pose_graph::VertexId>& non_storing_observers,
+      const std::initializer_list<pose_graph::VertexId>&
+          non_referring_observers);
+  vi_map::SemanticLandmarkId createSemanticLandmarkWithMissingReferences(
+      const Eigen::Vector3d& p_G_fi, const int& class_id,
+      const pose_graph::VertexId& storing_vertex,
+      const pose_graph::VertexIdList& non_storing_observers,
+      const pose_graph::VertexIdList& non_referring_observers);
+  vi_map::SemanticLandmarkId createSemanticLandmarkWithoutReferences(
+      const Eigen::Vector3d& p_G_fi, const int& class_id,
+      const pose_graph::VertexIdList& non_referring_observers);
+
   void setCameraRig(const std::shared_ptr<aslam::NCamera>& n_camera);
 
   void setDefaultTransformationCovariancePQ(
@@ -97,6 +123,7 @@ class VIMapGenerator {
       const Eigen::Matrix2Xd& image_points, const size_t frame_index) const;
 
  private:
+  // traditional landmarks
   struct LandmarkInfo;
   struct ObservationIndices {
     unsigned int frame_id;
@@ -113,6 +140,27 @@ class VIMapGenerator {
       const LandmarkInfo& landmark_info, const pose::Transformation& T_C_G,
       Eigen::Matrix2Xd* keypoints, size_t index) const;
 
+  // semantic landmarks
+  struct SemanticLandmarkInfo;
+  struct SemanticObservationIndices {
+    unsigned int frame_id;
+    unsigned int measurement_id;
+  };
+  typedef std::unordered_map<pose_graph::VertexId,
+                             std::unordered_map<SemanticLandmarkId, 
+                                                SemanticObservationIndices>>
+      SemanticObservationIndexMap;
+  // here we assume to project the landmark to the centroid of the bounding box
+  // we also generate a fixed size bounding box for all measurements
+  void generateSemanticLandmarkObservations(
+      const pose_graph::VertexId& vertex_id, Eigen::Matrix4Xi* measurements,
+      Eigen::VectorXi* class_ids,
+      aslam::VisualFrame::SemanticObjectDescriptorsT* descriptors,
+      SemanticObservationIndexMap* observation_index) const;
+  void projectSemanticLandmark(
+      const SemanticLandmarkInfo& landmark_info, const pose::Transformation& T_C_G,
+      Eigen::Matrix4Xi* measurements, size_t index) const;
+
   VIMap& map_;
   std::mt19937 rng_;
   std::shared_ptr<aslam::NCamera> ncamera_template_;
@@ -122,6 +170,7 @@ class VIMapGenerator {
     MissionId mission;
     pose::Transformation T_G_I;
     std::unordered_set<vi_map::LandmarkId> landmarks;
+    std::unordered_set<vi_map::SemanticLandmarkId> semantic_landmarks;
     int64_t timestamp_nanoseconds;
     VertexInfo(
         const MissionId& _mission, const pose::Transformation& _T_G_I,
@@ -145,8 +194,8 @@ class VIMapGenerator {
   EdgeType* generateEdge(const EdgeInfo& edge_info) const;
   template <typename EdgeType>
   static Mission::BackBone backBoneType();
-
   std::vector<EdgeInfo> edges_;
+
   struct LandmarkInfo {
     Eigen::Vector3d p_G_fi;
     VIMap::DescriptorType descriptor;
@@ -163,6 +212,25 @@ class VIMapGenerator {
   };
   typedef AlignedUnorderedMap<vi_map::LandmarkId, LandmarkInfo> LandmarkInfoMap;
   LandmarkInfoMap landmarks_;
+
+  struct SemanticLandmarkInfo {
+    Eigen::Vector3d p_G_fi;
+    int class_id;
+    VIMap::SemanticObjectDescriptorType semantic_descriptor;
+    pose_graph::VertexId storing_vertex_id;
+    pose_graph::VertexIdList non_storing_vertex_ids;
+    pose_graph::VertexIdList non_referring_vertex_ids;
+    SemanticLandmarkInfo(
+        const Eigen::Vector3d& _p_G_fi,
+        const int& _class_id,
+        const VIMap::SemanticObjectDescriptorType& _semantic_descriptor,
+        const pose_graph::VertexId& _storing_vertex_id,
+        const pose_graph::VertexIdList& _non_storing_vertex_ids,
+        const pose_graph::VertexIdList& _non_referring_vertex_ids);
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  };
+  typedef AlignedUnorderedMap<vi_map::SemanticLandmarkId, SemanticLandmarkInfo> SemanticLandmarkInfoMap;
+  SemanticLandmarkInfoMap semantic_landmarks_;
 
   Eigen::Matrix<double, 6, 6> default_edge_T_covariance_p_q_;
 };
