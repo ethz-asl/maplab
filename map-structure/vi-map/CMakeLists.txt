@@ -21,6 +21,7 @@ SET(VI_MAP_SOURCE src/check-map-consistency.cc
 <<<<<<< HEAD
 =======
                   src/semantic-landmark.cc
+                  src/semantic-landmark-quality-metrics.cc
                   src/semantic-landmark-store.cc
                   src/semantics-manager.cc
                   src/sensor-manager-serialization.cc
