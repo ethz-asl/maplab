@@ -79,8 +79,47 @@ class Vertex : public pose_graph::Vertex {
   Vertex(
       const pose_graph::VertexId& vertex_id,
       const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
+      const Eigen::Matrix2Xd& img_points_distorted,
+      const Eigen::VectorXd& uncertainties,
+      const aslam::VisualFrame::DescriptorsT& descriptors,
+      const Eigen::VectorXd& descriptor_scales,
+      const std::vector<LandmarkId>& observed_landmark_ids,
+      const Eigen::Matrix4Xi& semantic_object_measurements,
+      const Eigen::VectorXd& semantic_object_uncertainties,
+      const Eigen::VectorXi& semantic_object_class_ids,
+      const aslam::VisualFrame::SemanticObjectDescriptorsT& semantic_object_descriptors,
+      const std::vector<SemanticLandmarkId>& observed_semantic_landmark_ids,
+      const vi_map::MissionId& mission_id, const aslam::FrameId& frame_id,
+      int64_t frame_timestamp, const aslam::NCamera::Ptr cameras);
+
+  Vertex(
+    const pose_graph::VertexId& vertex_id,
+      const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
+      const Eigen::Matrix2Xd& img_points_distorted,
+      const Eigen::VectorXd& uncertainties,
+      const aslam::VisualFrame::DescriptorsT& descriptors,
+      const std::vector<LandmarkId>& observed_landmark_ids,
+      const Eigen::Matrix4Xi& semantic_object_measurements,
+      const Eigen::VectorXd& semantic_object_uncertainties,
+      const Eigen::VectorXi& semantic_object_class_ids,
+      const aslam::VisualFrame::SemanticObjectDescriptorsT& semantic_object_descriptors,
+      const std::vector<SemanticLandmarkId>& observed_semantic_landmark_ids,
+      const vi_map::MissionId& mission_id, const aslam::FrameId& frame_id,
+      int64_t frame_timestamp, const aslam::NCamera::Ptr cameras);
+
+  Vertex(
+      const pose_graph::VertexId& vertex_id,
+      const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
       const aslam::VisualNFrame::Ptr visual_n_frame,
       const std::vector<std::vector<LandmarkId>>& n_frame_landmarks,
+      const vi_map::MissionId& mission_id);
+
+  Vertex(
+      const pose_graph::VertexId& vertex_id,
+      const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
+      const aslam::VisualNFrame::Ptr visual_n_frame,
+      const std::vector<std::vector<LandmarkId>>& n_frame_landmarks,
+      const std::vector<std::vector<SemanticLandmarkId>>& n_frame_semantic_landmarks,
       const vi_map::MissionId& mission_id);
 
   // Create a complete vertex from an existing VisualNFrame WITHOUT IMU
@@ -326,6 +365,9 @@ class Vertex : public pose_graph::Vertex {
   // replace it with the new id.
   void updateIdInObservedLandmarkIdList(
       const LandmarkId& old_landmark_id, const LandmarkId& new_landmark_id);
+  void updateIdInObservedSemanticLandmarkIdList(
+      const SemanticLandmarkId& old_landmark_id,
+      const SemanticLandmarkId& new_landmark_id);
 
   void removeObservedLandmarkIdList(const LandmarkId& landmark_id);
 
