@@ -364,11 +364,18 @@ void VIMapGenerator::generateMap() const {
     aslam::VisualFrame::SemanticObjectDescriptorsT object_descriptors;
     Eigen::VectorXi object_class_ids;
     generateSemanticLandmarkObservations(
+<<<<<<< HEAD
         id, &image_object_measurements, &object_class_ids, &object_descriptors,
         &semantic_observation_index);
     SemanticLandmarkIdList observed_semantic_landmark_ids(
         image_object_measurements.cols());
 
+=======
+        id, &image_object_measurements, &object_class_ids,
+        &object_descriptors, &semantic_observation_index);
+    SemanticLandmarkIdList observed_semantic_landmark_ids(image_object_measurements.cols());
+  
+>>>>>>> 3b1a83144... Fixes a bug where the total size of semantic landmark is set to the size of landmarks
     aslam::FrameId frame_id;
     aslam::generateId(&frame_id);
     const Eigen::VectorXd keypoint_uncertainties =
@@ -387,7 +394,6 @@ void VIMapGenerator::generateMap() const {
         map_.getMissionBaseFrame(map_.getMission(mission_id).getBaseFrameId());
     pose::Transformation T_M_I = base_frame.get_T_G_M().inverse() * info.T_G_I;
     vertex_ptr->set_T_M_I(T_M_I);
-
     map_.addVertex(std::move(vertex_ptr));
 
     CHECK(map_.getVertex(id).getNCameras());
@@ -567,7 +573,7 @@ void VIMapGenerator::generateSemanticLandmarkObservations(
       << "Only one camera currently supported!";
   const pose::Transformation T_C_G(
       n_camera_->get_T_C_B(0) * vertex_info.T_G_I.inverse());
-  size_t total = vertex_info.landmarks.size();
+  size_t total = vertex_info.semantic_landmarks.size();
   measurements->resize(4, total);
   class_ids->resize(total);
   descriptors->resize(kSemanticObjectDescriptorSize, total);
