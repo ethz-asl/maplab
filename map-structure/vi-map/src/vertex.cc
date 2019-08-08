@@ -139,7 +139,8 @@ Vertex::Vertex(
       const aslam::VisualFrame::SemanticObjectDescriptorsT& semantic_object_descriptors,
       const std::vector<SemanticLandmarkId>& observed_semantic_landmark_ids,
       const vi_map::MissionId& mission_id, const aslam::FrameId& frame_id,
-      int64_t frame_timestamp, const aslam::NCamera::Ptr cameras) {
+      int64_t frame_timestamp, const aslam::NCamera::Ptr cameras) 
+      : id_(vertex_id), mission_id_(mission_id){
   CHECK(cameras != nullptr);
   CHECK_EQ(1u, cameras->numCameras())
       << "This constructor supports "
@@ -1104,6 +1105,7 @@ void Vertex::checkConsistencyOfVisualObservationContainers() const {
        ++frame_idx) {
     if (n_frame_->isFrameSet(frame_idx)) {
       const aslam::VisualFrame& frame = n_frame_->getFrame(frame_idx);
+      // keypoints
       if (frame.hasKeypointMeasurements()) {
         CHECK_EQ(
             frame.getKeypointMeasurements().cols(),
@@ -1133,6 +1135,27 @@ void Vertex::checkConsistencyOfVisualObservationContainers() const {
         CHECK_EQ(
             frame.getKeypointScores().rows(),
             static_cast<int>(observed_landmark_ids_[frame_idx].size()));
+      }
+      //semantic measurements
+      if (frame.hasSemanticObjectMeasurements()) {
+        CHECK_EQ(
+            frame.getSemanticObjectMeasurements().cols(),
+            static_cast<int>(observed_semantic_landmark_ids_[frame_idx].size()));
+      }
+      if (frame.hasSemanticObjectMeasurementUncertainties()) {
+        CHECK_EQ(
+            frame.getSemanticObjectMeasurementUncertainties().rows(),
+            static_cast<int>(observed_semantic_landmark_ids_[frame_idx].size()));
+      }
+      if (frame.hasSemanticObjectClassIds()) {
+        CHECK_EQ(
+            frame.getSemanticObjectClassIds().cols(),
+            static_cast<int>(observed_semantic_landmark_ids_[frame_idx].size()));
+      }
+      if (frame.hasSemanticObjectDescriptors()) {
+        CHECK_EQ(
+            frame.getSemanticObjectDescriptors().cols(),
+            static_cast<int>(observed_semantic_landmark_ids_[frame_idx].size()));
       }
     }
   }
