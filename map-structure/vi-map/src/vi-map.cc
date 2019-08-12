@@ -2068,6 +2068,7 @@ const vi_map::MissionId VIMap::duplicateMission(
   VLOG(1) << "Adding vertices.";
   for (const pose_graph::VertexId& vertex_id : all_source_vertices) {
     const vi_map::Vertex& source_vertex = getVertex(vertex_id);
+<<<<<<< HEAD
     CHECK_EQ(source_vertex.getMissionId(), source_mission_id);
     pose_graph::VertexId new_vertex_id = vertex_id;
     aslam::generateId(&new_vertex_id);
@@ -2095,6 +2096,33 @@ const vi_map::MissionId VIMap::duplicateMission(
           bool should_duplicate = true;
           if (landmarks_not_to_duplicate.count(current_landmark_id) > 0u) {
             should_duplicate = false;
+=======
+    if (source_vertex.getMissionId() == source_mission_id) {
+      pose_graph::VertexId new_vertex_id = vertex_id;
+      common::generateId(&new_vertex_id);
+
+      Eigen::Matrix<double, 6, 1> imu_ba_bw;
+      imu_ba_bw << source_vertex.getAccelBias(), source_vertex.getGyroBias();
+
+      std::vector<LandmarkIdList> landmarks_seen_by_vertex;
+      std::vector<SemanticLandmarkIdList> semantic_landmarks_seen_by_vertex;
+      const size_t num_frames = source_vertex.numFrames();
+      landmarks_seen_by_vertex.resize(num_frames);
+      semantic_landmarks_seen_by_vertex.resize(num_frames);
+      for (size_t frame_idx = 0u; frame_idx < source_vertex.numFrames();
+           ++frame_idx) {
+        if (!source_vertex.isVisualFrameSet(frame_idx)) {
+          continue;
+        }
+        for (size_t landmark_idx = 0u;
+             landmark_idx < source_vertex.observedLandmarkIdsSize(frame_idx);
+             ++landmark_idx) {
+          const vi_map::LandmarkId& current_landmark_id =
+              source_vertex.getObservedLandmarkId(frame_idx, landmark_idx);
+          vi_map::LandmarkId new_landmark_id = current_landmark_id;
+          if (!current_landmark_id.isValid()) {
+            new_landmark_id.setInvalid();
+>>>>>>> 51f47f10d... Fixes a bug where the semantic landmarks seen by vertex container was not initialized to the number of frame size and caused index access failure
           } else {
             const bool is_stored_in_source_mission =
                 (getLandmarkStoreVertex(current_landmark_id).getMissionId() ==
