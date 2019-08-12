@@ -174,8 +174,8 @@ Vertex::Vertex(
   CHECK(frame_id.isValid());
   frame->setId(frame_id);
   frame->setTimestampNanoseconds(frame_timestamp);
-
-  if (img_points_distorted.cols() != 0) {
+  // create empty channels if necessary, so we use rows instead of col
+  if (img_points_distorted.rows() != 0) {
     frame->setKeypointMeasurements(img_points_distorted);
     frame->setKeypointMeasurementUncertainties(uncertainties);
     frame->setDescriptors(descriptors);
@@ -187,7 +187,7 @@ Vertex::Vertex(
     }
   }
   
-  if (semantic_object_measurements.cols() != 0) {
+  if (semantic_object_measurements.rows() != 0) {
     frame->setSemanticObjectMeasurements(semantic_object_measurements);
     frame->setSemanticObjectMeasurementUncertainties(semantic_object_uncertainties);
     frame->setSemanticObjectClassIds(semantic_object_class_ids);
@@ -257,7 +257,6 @@ Vertex::Vertex(
       observed_landmark_ids_(observed_landmark_ids),
       observed_semantic_landmark_ids_(observed_semantic_landmark_ids) {
   CHECK(n_frame_ != nullptr);
-
   checkConsistencyOfVisualObservationContainers();
 
   accel_bias_ = imu_ba_bw.head<3>();
@@ -1147,9 +1146,10 @@ void Vertex::checkConsistencyOfVisualObservationContainers() const {
             frame.getSemanticObjectMeasurementUncertainties().rows(),
             static_cast<int>(observed_semantic_landmark_ids_[frame_idx].size()));
       }
+      // we check with rows instead of cols because empty vector has col of 1
       if (frame.hasSemanticObjectClassIds()) {
         CHECK_EQ(
-            frame.getSemanticObjectClassIds().cols(),
+            frame.getSemanticObjectClassIds().rows(),
             static_cast<int>(observed_semantic_landmark_ids_[frame_idx].size()));
       }
       if (frame.hasSemanticObjectDescriptors()) {
