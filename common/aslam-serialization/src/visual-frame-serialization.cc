@@ -175,20 +175,27 @@ void deserializeVisualFrame(
     Eigen::Map<const Eigen::VectorXd> semantic_object_uncertainties(
         proto.semantic_object_measurement_sigmas().data(),
         proto.semantic_object_measurement_sigmas_size());
-    Eigen::Map<const aslam::VisualFrame::SemanticObjectDescriptorsT> semantic_object_descriptors(
+    if (proto.semantic_object_descriptor_size() == 0) {
+      Eigen::Map<const aslam::VisualFrame::SemanticObjectDescriptorsT> semantic_object_descriptors(
+          0, 0, 0);
+      frame_ref.setSemanticObjectDescriptors(semantic_object_descriptors);
+    } else {
+      Eigen::Map<const aslam::VisualFrame::SemanticObjectDescriptorsT> semantic_object_descriptors(
         proto.semantic_object_descriptors().data(),
         proto.semantic_object_descriptor_size(),
         proto.semantic_object_descriptors_size()/proto.semantic_object_descriptor_size());
+      frame_ref.setSemanticObjectDescriptors(semantic_object_descriptors);
+    }
     Eigen::Map<const Eigen::VectorXi> semantic_object_class_ids(
         proto.semantic_object_class_ids().data(),
         proto.semantic_object_class_ids_size());
     Eigen::Map<const Eigen::VectorXi> semantic_object_track_ids(
         proto.semantic_object_track_ids().data(),
-        proto.semantic_object_track_ids_size());  
+        proto.semantic_object_track_ids_size());
     frame_ref.setSemanticObjectMeasurements(semantic_object_measurements);
     frame_ref.setSemanticObjectMeasurementUncertainties(semantic_object_uncertainties);
-    frame_ref.setSemanticObjectDescriptors(semantic_object_descriptors);
     frame_ref.setSemanticObjectClassIds(semantic_object_class_ids);
+    
     if (semantic_object_track_ids.rows() != 0) {
       CHECK_EQ(semantic_object_track_ids.cols(),
                semantic_object_uncertainties.cols());
