@@ -48,6 +48,8 @@ TEST_F(MergeMapTest, MergeIntoNonEmpty) {
   const size_t num_vertices_before = second_map.numVertices();
   const size_t num_edges_before = second_map.numEdges();
   const size_t num_landmarks_before = second_map.numLandmarks();
+  const size_t num_semantic_landmarks_before =
+      second_map.numSemanticLandmarks();
 
   ASSERT_TRUE(second_map.mergeAllMissionsFromMap(map_));
   EXPECT_EQ(2u, second_map.numMissions());
@@ -55,6 +57,9 @@ TEST_F(MergeMapTest, MergeIntoNonEmpty) {
   EXPECT_EQ(num_edges_before + map_.numEdges(), second_map.numEdges());
   EXPECT_EQ(
       num_landmarks_before + map_.numLandmarks(), second_map.numLandmarks());
+  EXPECT_EQ(
+      num_semantic_landmarks_before + map_.numSemanticLandmarks(),
+      second_map.numSemanticLandmarks());
 }
 
 TEST_F(MergeMapTest, MergeMapWithTwoLinkedMissions) {
@@ -85,12 +90,14 @@ TEST_F(MergeMapTest, MergeMapWithTwoLinkedMissions) {
   const size_t num_vertices_before = map_.numVertices();
   const size_t num_edges_before = map_.numEdges();
   const size_t num_landmarks_before = map_.numLandmarks();
+  const size_t num_semantic_landmarks_before = map_.numSemanticLandmarks();
 
   // Merge into empty map.
   ASSERT_TRUE(empty_map_.mergeAllMissionsFromMap(map_));
   EXPECT_EQ(num_vertices_before, empty_map_.numVertices());
   EXPECT_EQ(num_edges_before, empty_map_.numEdges());
   EXPECT_EQ(num_landmarks_before, empty_map_.numLandmarks());
+  EXPECT_EQ(num_semantic_landmarks_before, empty_map_.numSemanticLandmarks());
 }
 
 // Copies a map, then deletes the map's only mission and merges the mission back
@@ -124,12 +131,14 @@ TEST_F(MergeMapTest, CopyDeleteMerge) {
   // EXPECT_EQ(0u, map_.getSensorManager().getNumSensors());
   // EXPECT_EQ(0u,
   // map_.getSensorManager().getNumSensorsOfType(vi_map::SensorType::kNCamera));
+  EXPECT_EQ(0u, map_.numSemanticLandmarks());
 
   ASSERT_EQ(1u, map_copy.numMissions());
   ASSERT_TRUE(map_.mergeAllMissionsFromMap(map_copy));
   EXPECT_EQ(map_copy.numMissions(), map_.numMissions());
   EXPECT_EQ(map_copy.numVertices(), map_.numVertices());
   EXPECT_EQ(map_copy.numLandmarks(), map_.numLandmarks());
+  EXPECT_EQ(map_copy.numSemanticLandmarks(), map_.numSemanticLandmarks());
   EXPECT_EQ(
       map_copy.getSensorManager().getNumSensors(),
       map_.getSensorManager().getNumSensors());
