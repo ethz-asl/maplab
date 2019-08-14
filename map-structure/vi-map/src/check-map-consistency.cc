@@ -172,6 +172,80 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
 
   VLOG_IF(2, is_consistent) << "OK.";
 
+  // Verify that all semantic landmark IDs in the map are valid.
+  VLOG(2) << "Verifying semantic landmark validity...";
+  vi_map::SemanticLandmarkIdList all_semantic_landmark_ids;
+  vi_map.getAllSemanticLandmarkIds(&all_semantic_landmark_ids);
+
+  // Build a list of landmarks that we expect to find in every vertex, so
+  // we can then check every vertex in batch for its landmarks which is more
+  // cache efficient.
+  typedef std::unordered_map<pose_graph::VertexId,
+                             std::vector<vi_map::SemanticLandmarkId> >
+      ExpectedVertexSemanticLandmarks;
+  ExpectedVertexSemanticLandmarks vertex_expected_semantic_landmarks;
+
+  for (const vi_map::SemanticLandmarkId& landmark_id : all_semantic_landmark_ids) {
+    if (!vi_map.hasSemanticLandmark(landmark_id)) {
+      LOG(ERROR) << "Vi map claims to have global semantic landmark "
+                 << landmark_id
+                 << " but then returns false when retrieving it.";
+      is_consistent = false;
+      continue;
+    }
+
+    const pose_graph::VertexId& storing_vertex_id =
+        vi_map.getSemanticLandmarkStoreVertexId(landmark_id);
+
+    if (!vi_map.hasVertex(storing_vertex_id)) {
+      LOG(ERROR) << "Semantic Landmark: " << landmark_id
+                 << " points to vertex " << storing_vertex_id
+                 << " but this vertex is not in the map.";
+      is_consistent = false;
+      continue;
+    }
+
+    vertex_expected_semantic_landmarks[storing_vertex_id].push_back(landmark_id);
+  }
+
+  // Now check all landmarks for every vertex in batch. Iterate through vertices
+  // in cache friendly order too.
+  for (const pose_graph::VertexId& vertex_id : all_vertices) {
+    ExpectedVertexSemanticLandmarks::const_iterator it =
+        vertex_expected_semantic_landmarks.find(vertex_id);
+    if (it == vertex_expected_semantic_landmarks.end()) {
+      LOG(WARNING) << "Skip vertex " << vertex_id << " since no semantic landmarks.";
+      continue;
+    }
+    CHECK(vi_map.hasVertex(vertex_id)) << "No vertex with id "
+                                       << vertex_id.hexString();
+    const vi_map::Vertex& vertex = vi_map.getVertex(vertex_id);
+    const vi_map::SemanticLandmarkStore& semantic_landmark_store = vertex.getSemanticLandmarks();
+    for (const vi_map::SemanticLandmarkId& landmark_id : it->second) {
+      if (!semantic_landmark_store.hasSemanticLandmark(landmark_id)) {
+        LOG(ERROR) << "Semantic Landmark to vertex table claims that landmark: "
+                   << landmark_id.hexString() << " resides in vertex "
+                   << vertex_id.hexString() << " which is not the case.";
+        is_consistent = false;
+      }
+    }
+
+    for (const vi_map::SemanticLandmark& landmark : semantic_landmark_store) {
+      if (!landmark.id().isValid()) {
+        LOG(ERROR) << "Semantic Landmark stored in vertex " << vertex_id.hexString()
+                   << " has an invalid ID.";
+        is_consistent = false;
+      } else if (!vi_map.hasSemanticLandmark(landmark.id())) {
+        LOG(ERROR) << "Semantic Landmark " << landmark.id().hexString() << " stored in "
+                   << "vertex " << vertex_id.hexString() << " has no entry in "
+                   << "landmark index.";
+        is_consistent = false;
+      }
+    }
+  }
+
+  VLOG_IF(2, is_consistent) << "OK.";
+
   // Create a map of all vertices that have a reference to a given landmark
   // in order to check the back-reference from landmark to vertices.
   typedef std::unordered_multimap<vi_map::LandmarkId, pose_graph::VertexId>
@@ -201,7 +275,35 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
   }
   VLOG_IF(2, is_consistent) << "OK.";
 
-  VLOG(2) << "Verifying landmark references...";
+  typedef std::unordered_multimap<vi_map::SemanticLandmarkId, pose_graph::VertexId>
+      SemanticLandmarkToVertexMap;
+  SemanticLandmarkToVertexMap semantic_landmark_observing_vertices;
+  VLOG(2) << "Building semantic landmark observers list...";
+  for (const pose_graph::VertexId& vertex_id : all_vertices) {
+    if (!vi_map.hasVertex(vertex_id)) {
+      LOG(ERROR) << "Vi map claims to have vertex " << vertex_id
+                 << " but then returns false when retrieving it.";
+      is_consistent = false;
+      continue;
+    }
+
+    const vi_map::Vertex& vertex = vi_map.getVertex(vertex_id);
+
+    for (unsigned int i = 0; i < vertex.numFrames(); ++i) {
+      if (vertex.isVisualFrameSet(i)) {
+        for (size_t j = 0; j < vertex.observedSemanticLandmarkIdsSize(i); ++j) {
+          vi_map::SemanticLandmarkId landmark_id =
+              vertex.getObservedSemanticLandmarkId(i, j);
+          if (landmark_id.isValid()) {
+            semantic_landmark_observing_vertices.emplace(landmark_id, vertex_id);
+          }
+        }
+      }
+    }
+  }
+  VLOG_IF(2, is_consistent) << "OK.";
+
+  VLOG(2) << "Verifying landmark and semantic landmark references...";
   int num_checked = 0;
   for (const pose_graph::VertexId& vertex_id : all_vertices) {
     // Existence in map verified above.
@@ -221,10 +323,14 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
     // be apart in image space before we warn or fail.
     static constexpr double kImageDisparitySameLandmarkWarn = 10.;
     static constexpr double kImageDisparitySameLandmarkError = 75;
+    static constexpr double kImageDisparitySameSemanticLandmarkWarn = 10.;
+    static constexpr double kImageDisparitySameSemanticLandmarkError = 75;
     // How often can the same landmark ID occur before we declare a map
     // inconsistent.
     static constexpr int kMaxNumSameLandmarkId = 5;
-    std::unordered_map<LandmarkId, int> appearance_count;
+    static constexpr int kMaxNumSameSemanticLandmarkId = 5;
+    std::unordered_map<LandmarkId, int> landmark_appearance_count;
+    std::unordered_map<SemanticLandmarkId, int> semantic_landmark_appearance_count;
     const int num_frames = vertex.numFrames();
     for (int i = 0; i < num_frames; ++i) {
       if (vertex.isVisualFrameSet(i)) {
@@ -272,16 +378,17 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
           is_consistent = false;
           continue;
         }
+        // for default landmarks
         const int num_observed_landmarks = vertex.observedLandmarkIdsSize(i);
         for (int j = 0; j < num_observed_landmarks; ++j) {
           LandmarkId observed_landmark_j = vertex.getObservedLandmarkId(i, j);
           if (!observed_landmark_j.isValid()) {
             continue;
           }
-          ++appearance_count[observed_landmark_j];
-          if (appearance_count[observed_landmark_j] > kMaxNumSameLandmarkId) {
+          ++landmark_appearance_count[observed_landmark_j];
+          if (landmark_appearance_count[observed_landmark_j] > kMaxNumSameLandmarkId) {
             LOG(ERROR) << "Landmark " << observed_landmark_j << " is observed "
-                       << appearance_count[observed_landmark_j]
+                       << landmark_appearance_count[observed_landmark_j]
                        << "times in the same frame (" << vertex_id
                        << ") which is considered an "
                        << "error (threshold evaluates to "
@@ -328,11 +435,69 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
             }
           }
         }
+        // for sematnic landmarks
+        const int num_observed_semantic_landmarks = 
+            vertex.observedSemanticLandmarkIdsSize(i);
+        for (int j = 0; j < num_observed_semantic_landmarks; ++j) {
+          SemanticLandmarkId observed_landmark_j = vertex.getObservedSemanticLandmarkId(i, j);
+          if (!observed_landmark_j.isValid()) {
+            continue;
+          }
+          ++semantic_landmark_appearance_count[observed_landmark_j];
+          if (semantic_landmark_appearance_count[observed_landmark_j] > kMaxNumSameSemanticLandmarkId) {
+            LOG(ERROR) << "Semantic Landmark " << observed_landmark_j << " is observed "
+                       << semantic_landmark_appearance_count[observed_landmark_j]
+                       << "times in the same frame (" << vertex_id
+                       << ") which is considered an "
+                       << "error (threshold evaluates to "
+                       << kMaxNumSameSemanticLandmarkId << ").";
+          }
+
+          for (int k = j + 1; k < num_observed_semantic_landmarks; ++k) {
+            SemanticLandmarkId observed_landmark_k =
+                vertex.getObservedSemanticLandmarkId(i, k);
+            if (!observed_landmark_k.isValid()) {
+              continue;
+            }
+            if (observed_landmark_j != observed_landmark_k) {
+              continue;
+            }
+            // Same semantic landmark id, check the distance in image space.
+            if (vertex.getVisualFrame(i).hasSemanticObjectMeasurements()) {
+              Eigen::Matrix<int, 4, 1> measurement_i =
+                  vertex.getVisualFrame(i).getSemanticObjectMeasurement(j);
+              Eigen::Matrix<int, 4, 1> measurement_j =
+                  vertex.getVisualFrame(i).getSemanticObjectMeasurement(k);
+              double distance = (measurement_i - measurement_j).norm();
+              if (distance > kImageDisparitySameSemanticLandmarkError) {
+                LOG(ERROR) << "Semantic Landmark " << observed_landmark_j
+                           << " is observed "
+                           << " twice from the same frame (" << vertex_id
+                           << "), but the "
+                           << "observations evaluate to ["
+                           << measurement_i.transpose() << "] and ["
+                           << measurement_j.transpose() << "] (distance of "
+                           << distance << ") and threshold evaluates to "
+                           << kImageDisparitySameSemanticLandmarkError;
+                is_consistent = false;
+              } else if (distance > kImageDisparitySameSemanticLandmarkWarn) {
+                LOG(WARNING)
+                    << "Semantic Landmark " << observed_landmark_j << " is observed "
+                    << " twice from the same frame (" << vertex_id
+                    << "), but the "
+                    << "observations evaluate to [" << measurement_i.transpose()
+                    << "] and [" << measurement_j.transpose()
+                    << "] (distance of " << distance
+                    << ") and threshold evaluates to "
+                    << kImageDisparitySameSemanticLandmarkWarn;
+              }
+            }
+          }
+        }
       }
     }
-
+    // landmark store
     const vi_map::LandmarkStore& landmark_store = vertex.getLandmarks();
-
     for (const vi_map::Landmark& landmark : landmark_store) {
       const vi_map::LandmarkId& landmark_id = landmark.id();
 
@@ -459,6 +624,144 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
           LOG(ERROR) << "Back-references to vertex "
                      << observation_counts.first.hexString()
                      << " missing in the list of back-references of landmark "
+                     << landmark_id.hexString();
+          is_consistent = false;
+        }
+      }
+    }
+    // semantic landmark store
+    const vi_map::SemanticLandmarkStore& semantic_landmark_store = 
+        vertex.getSemanticLandmarks();
+    for (const vi_map::SemanticLandmark& landmark : semantic_landmark_store) {
+      const vi_map::SemanticLandmarkId& landmark_id = landmark.id();
+
+      // If this landmark id is non valid, it should not be in the global map.
+      if (!landmark_id.isValid()) {
+        LOG(ERROR) << "Semantic Landmark " << landmark_id.hexString()
+                   << " stored in vertex " << vertex_id.hexString()
+                   << " is invalid. Only valid landmarks should be in the "
+                      "store.";
+        is_consistent = false;
+      }
+      // Every landmark in the store should be in the global map.
+      if (!vi_map.hasSemanticLandmark(landmark_id)) {
+        LOG(ERROR) << "Semantic Landmark " << landmark_id.hexString()
+                   << " stored in vertex " << vertex_id.hexString()
+                   << " is not found in the global map.";
+        is_consistent = false;
+      }
+
+      const SemanticObjectIdentifierList& vertex_id_frame_idx_meas_idx =
+          semantic_landmark_store.getSemanticLandmark(landmark_id).getObservations();
+
+      // Count how often we expect to find every vertex in the backwards
+      // reference list of the current landmark.
+      std::pair<SemanticLandmarkToVertexMap::iterator,
+                SemanticLandmarkToVertexMap::iterator>
+          range = semantic_landmark_observing_vertices.equal_range(landmark_id);
+      std::unordered_map<pose_graph::VertexId, int> refound_map;
+      for (SemanticLandmarkToVertexMap::iterator it_vertex = range.first;
+           it_vertex != range.second; ++it_vertex) {
+        // Increment the number of times we expect to find this to be
+        // back-referenced from the landmarks.
+        if (refound_map.count(it_vertex->second) == 0) {
+          refound_map[it_vertex->second] = 1;
+        } else {
+          ++refound_map[it_vertex->second];
+        }
+      }
+
+      VLOG(5) << "refound map:";
+      for (const std::pair<pose_graph::VertexId, int>& observation_counts :
+           refound_map) {
+        VLOG(5) << "Back-references to vertex "
+                << observation_counts.first.hexString()
+                << " from seamntic landmark "
+                << landmark_id.hexString() << "  " << observation_counts.second;
+      }
+
+      // Check that all other observing vertices of this landmark have
+      // set the ID to the same state.
+      for (unsigned int j = 0; j < vertex_id_frame_idx_meas_idx.size(); ++j) {
+        const pose_graph::VertexId& observer_vertex_id =
+            vertex_id_frame_idx_meas_idx[j].frame_id.vertex_id;
+        if (!vi_map.hasVertex(observer_vertex_id)) {
+          LOG(ERROR) << "Semantic Landmark " << landmark_id.hexString()
+                     << " stored in vertex " << vertex_id
+                     << " lists the vertex " << observer_vertex_id
+                     << " as observer, but that vertex does not exist.";
+          is_consistent = false;
+        }
+
+        const Vertex& observer_vertex = vi_map.getVertex(observer_vertex_id);
+
+        // Check that we have seen this vertex before.
+        if (refound_map.count(observer_vertex_id) == 0u) {
+          LOG(ERROR) << "Semantic Landmark " << landmark_id.hexString()
+                     << " has an unknown vertex listed as observer: "
+                     << observer_vertex_id.hexString();
+          is_consistent = false;
+        }
+        // Check that there is still an unmatched observation for this vertex.
+        if (refound_map[observer_vertex_id] <= 0) {
+          LOG(ERROR)
+              << "The semantic landmark " << landmark_id.hexString()
+              << " has the vertex " << observer_vertex_id.hexString()
+              << " in the list of back-references, but all back-references to"
+              << " this vertex have already been matched.";
+          is_consistent = false;
+        }
+        // Mark as found.
+        --refound_map[observer_vertex_id];
+
+        if (vertex_id_frame_idx_meas_idx[j].measurement_index >=
+            observer_vertex.observedSemanticLandmarkIdsSize(
+                vertex_id_frame_idx_meas_idx[j].frame_id.frame_index)) {
+          LOG(ERROR) << "Measurementt index "
+                     << vertex_id_frame_idx_meas_idx[j].measurement_index
+                     << " to retrieve sematnic landmark ID "
+                     << vertex_id_frame_idx_meas_idx[j].frame_id.vertex_id
+                     << " is out of bounds.";
+          is_consistent = false;
+          continue;
+        }
+
+        const vi_map::SemanticLandmarkId& observer_landmark_id =
+            observer_vertex.getObservedSemanticLandmarkId(
+                vertex_id_frame_idx_meas_idx[j].frame_id.frame_index,
+                vertex_id_frame_idx_meas_idx[j].measurement_index);
+        if (!observer_landmark_id.isValid()) {
+          LOG(ERROR) << "The store semantic landmark id "
+                     << landmark_id.hexString()
+                     << " has a backlink to an observer that has an invalid"
+                     << " landmark ID.";
+          is_consistent = false;
+        } else if (
+            observer_landmark_id != landmark_id) {
+          LOG(ERROR) << "The store vertex of semantic landmark id "
+                     << landmark_id.hexString()
+                     << " and semantic landmark id in the observer table "
+                     << observer_landmark_id.hexString()
+                     << " are inconsistent";
+          is_consistent = false;
+        }
+
+        if (landmark_id.isValid() != observer_landmark_id.isValid()) {
+          LOG(ERROR)
+              << "The valid state of corresponding semantic landmarks stored in vertex "
+              << vertex_id.hexString() << " and "
+              << vertex_id_frame_idx_meas_idx[j].frame_id.vertex_id.hexString()
+              << " are inconsistent";
+          is_consistent = false;
+        }
+      }
+
+      for (const std::pair<pose_graph::VertexId, int>& observation_counts :
+           refound_map) {
+        if (observation_counts.second != 0) {
+          LOG(ERROR) << "Back-references to vertex "
+                     << observation_counts.first.hexString()
+                     << " missing in the list of back-references of semantic landmark "
                      << landmark_id.hexString();
           is_consistent = false;
         }
