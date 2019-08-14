@@ -31,8 +31,8 @@
 namespace vi_map {
 
 class Vertex : public pose_graph::Vertex {
-  friend class MapConsistencyCheckTest;              // Test.
-  friend class VertexResourcesTest;                  // Test.
+  friend class MapConsistencyCheckTest;  // Test.
+  friend class VertexResourcesTest;      // Test.
   FRIEND_TEST(MapConsistencyCheckTest, mapInconsistentMissingBackLink);
   friend class VIMap;
 
@@ -46,6 +46,8 @@ class Vertex : public pose_graph::Vertex {
   // Create a complete vertex with VisualNFrame including visual features and
   // landmarks and IMU measurements. This constructor also includes descriptor
   // scales.
+  // This constructor is kept for backward compatibility for non-semantic
+  // related usage
   Vertex(
       const pose_graph::VertexId& vertex_id,
       const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
@@ -62,6 +64,8 @@ class Vertex : public pose_graph::Vertex {
   // descriptor scales.
   // NOTE: make sure the NCamera points to the same object as the one in
   // the sensor manager of the map that contains this vertex.
+  // This constructor is kept for backward compatibility for non-semantic
+  // related usage
   Vertex(
       const pose_graph::VertexId& vertex_id,
       const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
@@ -87,13 +91,14 @@ class Vertex : public pose_graph::Vertex {
       const Eigen::Matrix4Xi& semantic_object_measurements,
       const Eigen::VectorXd& semantic_object_uncertainties,
       const Eigen::VectorXi& semantic_object_class_ids,
-      const aslam::VisualFrame::SemanticObjectDescriptorsT& semantic_object_descriptors,
+      const aslam::VisualFrame::SemanticObjectDescriptorsT&
+          semantic_object_descriptors,
       const std::vector<SemanticLandmarkId>& observed_semantic_landmark_ids,
       const vi_map::MissionId& mission_id, const aslam::FrameId& frame_id,
       int64_t frame_timestamp, const aslam::NCamera::Ptr cameras);
 
   Vertex(
-    const pose_graph::VertexId& vertex_id,
+      const pose_graph::VertexId& vertex_id,
       const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
       const Eigen::Matrix2Xd& img_points_distorted,
       const Eigen::VectorXd& uncertainties,
@@ -102,11 +107,13 @@ class Vertex : public pose_graph::Vertex {
       const Eigen::Matrix4Xi& semantic_object_measurements,
       const Eigen::VectorXd& semantic_object_uncertainties,
       const Eigen::VectorXi& semantic_object_class_ids,
-      const aslam::VisualFrame::SemanticObjectDescriptorsT& semantic_object_descriptors,
+      const aslam::VisualFrame::SemanticObjectDescriptorsT&
+          semantic_object_descriptors,
       const std::vector<SemanticLandmarkId>& observed_semantic_landmark_ids,
       const vi_map::MissionId& mission_id, const aslam::FrameId& frame_id,
       int64_t frame_timestamp, const aslam::NCamera::Ptr cameras);
-
+  // This constructor is kept for backward compatibility for non-semantic
+  // related usage
   Vertex(
       const pose_graph::VertexId& vertex_id,
       const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
@@ -119,7 +126,8 @@ class Vertex : public pose_graph::Vertex {
       const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
       const aslam::VisualNFrame::Ptr visual_n_frame,
       const std::vector<std::vector<LandmarkId>>& n_frame_landmarks,
-      const std::vector<std::vector<SemanticLandmarkId>>& n_frame_semantic_landmarks,
+      const std::vector<std::vector<SemanticLandmarkId>>&
+          n_frame_semantic_landmarks,
       const vi_map::MissionId& mission_id);
 
   // Create a complete vertex from an existing VisualNFrame WITHOUT IMU
@@ -230,7 +238,8 @@ class Vertex : public pose_graph::Vertex {
   void setObservedSemanticLandmarkId(
       const SemanticObjectIdentifier& object_id, const SemanticLandmarkId& id);
   void setObservedSemanticLandmarkId(
-      unsigned int frame_idx, int measurement_idx, const SemanticLandmarkId& id);
+      unsigned int frame_idx, int measurement_idx,
+      const SemanticLandmarkId& id);
   size_t observedSemanticLandmarkIdsSize(unsigned int frame_idx) const;
   int numValidObservedSemanticLandmarkIds(unsigned int frame_idx) const;
   int numValidObservedSemanticLandmarkIdsInAllFrames() const;
@@ -238,7 +247,8 @@ class Vertex : public pose_graph::Vertex {
       unsigned int frame_idx, SemanticLandmarkIdList* landmark_ids) const;
   const SemanticLandmarkIdList& getFrameObservedSemanticLandmarkIds(
       unsigned int frame_idx) const;
-  void getAllObservedSemanticLandmarkIds(SemanticLandmarkIdList* landmark_ids) const;
+  void getAllObservedSemanticLandmarkIds(
+      SemanticLandmarkIdList* landmark_ids) const;
   void getAllObservedSemanticLandmarkIds(
       std::vector<SemanticLandmarkIdList>* landmark_ids) const;
 
@@ -286,12 +296,17 @@ class Vertex : public pose_graph::Vertex {
 
   inline SemanticLandmarkStore& getSemanticLandmarks();
   inline const SemanticLandmarkStore& getSemanticLandmarks() const;
-  void getStoredSemanticLandmarkIdList(SemanticLandmarkIdList* semantic_landmark_id_list) const;
-  bool hasStoredSemanticLandmark(const SemanticLandmarkId& semantic_landmark_id) const;
-  pose::Position3D getSemanticLandmark_p_LM_fi(const SemanticLandmarkId& semantic_landmark_id) const;
+  void getStoredSemanticLandmarkIdList(
+      SemanticLandmarkIdList* semantic_landmark_id_list) const;
+  bool hasStoredSemanticLandmark(
+      const SemanticLandmarkId& semantic_landmark_id) const;
+  pose::Position3D getSemanticLandmark_p_LM_fi(
+      const SemanticLandmarkId& semantic_landmark_id) const;
   void setSemanticLandmark_LM_p_fi(
-      const vi_map::SemanticLandmarkId& landmark_id, const Eigen::Vector3d& LM_p_fi);
-  inline void setSemanticLandmarks(const SemanticLandmarkStore& semantic_landmark_store);
+      const vi_map::SemanticLandmarkId& landmark_id,
+      const Eigen::Vector3d& LM_p_fi);
+  inline void setSemanticLandmarks(
+      const SemanticLandmarkStore& semantic_landmark_store);
 
   void setFrameAndLandmarkObservations(
       aslam::VisualNFrame::Ptr visual_n_frame,
