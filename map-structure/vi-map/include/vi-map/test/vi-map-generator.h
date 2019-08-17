@@ -158,13 +158,15 @@ class VIMapGenerator {
   // here we assume to project the landmark to the centroid of the bounding box
   // we also generate a fixed size bounding box for all measurements
   void generateSemanticLandmarkObservations(
-      const pose_graph::VertexId& vertex_id, Eigen::Matrix4Xi* measurements,
+      const pose_graph::VertexId& vertex_id, Eigen::Matrix4Xd* measurements,
       Eigen::VectorXi* class_ids,
       aslam::VisualFrame::SemanticObjectDescriptorsT* descriptors,
       SemanticObservationIndexMap* observation_index) const;
+  // we fill in a mock 50 x 50 bounding box for the measurement because the 
+  // semantic landmark is current a point and does not have 3D volume
   void projectSemanticLandmark(
       const SemanticLandmarkInfo& landmark_info, const pose::Transformation& T_C_G,
-      Eigen::Matrix4Xi* measurements, size_t index) const;
+      Eigen::Matrix4Xd* measurements, size_t index) const;
 
   VIMap& map_;
   std::mt19937 rng_;

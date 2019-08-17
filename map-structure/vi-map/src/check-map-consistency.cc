@@ -464,9 +464,9 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
             }
             // Same semantic landmark id, check the distance in image space.
             if (vertex.getVisualFrame(i).hasSemanticObjectMeasurements()) {
-              Eigen::Matrix<int, 4, 1> measurement_i =
+              Eigen::Matrix<double, 4, 1> measurement_i =
                   vertex.getVisualFrame(i).getSemanticObjectMeasurement(j);
-              Eigen::Matrix<int, 4, 1> measurement_j =
+              Eigen::Matrix<double, 4, 1> measurement_j =
                   vertex.getVisualFrame(i).getSemanticObjectMeasurement(k);
               double distance = (measurement_i - measurement_j).norm();
               if (distance > kImageDisparitySameSemanticLandmarkError) {

@@ -169,7 +169,7 @@ void deserializeVisualFrame(
       proto.semantic_object_descriptor_size(),
       static_cast<unsigned int>(proto.semantic_object_measurement_sigmas_size()));
     }
-    Eigen::Map<const Eigen::Matrix4Xi> semantic_object_measurements(
+    Eigen::Map<const Eigen::Matrix4Xd> semantic_object_measurements(
       proto.semantic_object_measurements().data(), 4,
       proto.semantic_object_measurements_size() / 4);
     Eigen::Map<const Eigen::VectorXd> semantic_object_uncertainties(

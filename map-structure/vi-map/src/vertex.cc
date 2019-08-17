@@ -121,7 +121,7 @@ Vertex::Vertex(
     const Eigen::VectorXd& uncertainties,
     const aslam::VisualFrame::DescriptorsT& descriptors,
     const std::vector<LandmarkId>& observed_landmark_ids,
-    const Eigen::Matrix4Xi& semantic_object_measurements,
+    const Eigen::Matrix4Xd& semantic_object_measurements,
     const Eigen::VectorXd& semantic_object_uncertainties,
     const Eigen::VectorXi& semantic_object_class_ids,
     const aslam::VisualFrame::SemanticObjectDescriptorsT&
@@ -145,7 +145,7 @@ Vertex::Vertex(
     const aslam::VisualFrame::DescriptorsT& descriptors,
     const Eigen::VectorXd& descriptor_scales,
     const std::vector<LandmarkId>& observed_landmark_ids,
-    const Eigen::Matrix4Xi& semantic_object_measurements,
+    const Eigen::Matrix4Xd& semantic_object_measurements,
     const Eigen::VectorXd& semantic_object_uncertainties,
     const Eigen::VectorXi& semantic_object_class_ids,
     const aslam::VisualFrame::SemanticObjectDescriptorsT&

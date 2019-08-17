@@ -370,7 +370,7 @@ void VIMapGenerator::generateMap() const {
         id, &image_points, &descriptors, &observation_index);
     LandmarkIdList observed_landmark_ids(image_points.cols());
 
-    Eigen::Matrix4Xi image_object_measurements;
+    Eigen::Matrix4Xd image_object_measurements;
     aslam::VisualFrame::SemanticObjectDescriptorsT object_descriptors;
     Eigen::VectorXi object_class_ids;
     generateSemanticLandmarkObservations(
@@ -560,7 +560,7 @@ void VIMapGenerator::projectLandmark(
 }
 
 void VIMapGenerator::generateSemanticLandmarkObservations(
-    const pose_graph::VertexId& vertex_id, Eigen::Matrix4Xi* measurements,
+    const pose_graph::VertexId& vertex_id, Eigen::Matrix4Xd* measurements,
     Eigen::VectorXi* class_ids,
     aslam::VisualFrame::SemanticObjectDescriptorsT* descriptors,
     SemanticObservationIndexMap* observation_index) const {
@@ -601,7 +601,7 @@ void VIMapGenerator::generateSemanticLandmarkObservations(
 
 void VIMapGenerator::projectSemanticLandmark(
     const SemanticLandmarkInfo& landmark_info,
-    const pose::Transformation& T_C_G, Eigen::Matrix4Xi* measurements,
+    const pose::Transformation& T_C_G, Eigen::Matrix4Xd* measurements,
     size_t index) const {
   Eigen::Vector2d image_point_vec;
   CHECK_EQ(n_camera_->numCameras(), 1u)
@@ -609,9 +609,8 @@ void VIMapGenerator::projectSemanticLandmark(
   CHECK(n_camera_->getCamera(0)
             .project3(T_C_G.transform(landmark_info.p_G_fi), &image_point_vec)
             .isKeypointVisible());
-  measurements->block<2, 1>(0, index) =
-      image_point_vec.array().round().cast<int>().matrix();
-  Eigen::Vector2i measurement_height_width;
+  measurements->block<2, 1>(0, index) = image_point_vec;
+  Eigen::Vector2d measurement_height_width;
   measurement_height_width << 50, 50;
   measurements->block<2, 1>(2, index) = measurement_height_width;
 }

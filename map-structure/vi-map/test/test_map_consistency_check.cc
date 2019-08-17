@@ -445,7 +445,7 @@ void MapConsistencyCheckTest::addVisualFrameToVertex(
     img_points_distorted.resize(Eigen::NoChange, kNumOfKeypointsPerVertex);
     uncertainties.resize(kNumOfKeypointsPerVertex);
     descriptors.resize(kDescriptorBytes, kNumOfKeypointsPerVertex);
-    Eigen::Matrix4Xi img_semantic_object_measurements;
+    Eigen::Matrix4Xd img_semantic_object_measurements;
     Eigen::VectorXd semantic_object_measurements_uncertainties;
     Eigen::VectorXi semantic_object_class_ids;
     aslam::VisualFrame::SemanticObjectDescriptorsT semantic_object_descriptors;

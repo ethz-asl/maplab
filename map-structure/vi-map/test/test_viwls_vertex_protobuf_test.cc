@@ -47,7 +47,7 @@ class ViwlsGraph : public ::testing::Test {
   std::vector<vi_map::LandmarkIdList> img_landmarks_;
 
   // default semantic measurements data
-  Eigen::Matrix4Xi semantic_object_measurements_;
+  Eigen::Matrix4Xd semantic_object_measurements_;
   Eigen::VectorXd semantic_object_uncertainties_;
   aslam::VisualFrame::SemanticObjectDescriptorsT semantic_object_descriptors_;
   Eigen::VectorXi semantic_object_class_ids_;

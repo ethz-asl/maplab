@@ -54,7 +54,7 @@ TEST(VisualFrameSerialization, SerializeDeserializeVisualFrame) {
   Eigen::VectorXi track_ids = Eigen::VectorXi::Random(kNumRandomValues);
   frame->setTrackIds(track_ids);
 
-  Eigen::Matrix4Xi boxes = Eigen::Matrix4Xi::Random(4, kNumRandomValues);
+  Eigen::Matrix4Xd boxes = Eigen::Matrix4Xd::Random(4, kNumRandomValues);
   frame->setSemanticObjectMeasurements(boxes);
   Eigen::VectorXd sem_uncertainties = Eigen::VectorXd::Random(kNumRandomValues);
   frame->setSemanticObjectMeasurementUncertainties(sem_uncertainties);
