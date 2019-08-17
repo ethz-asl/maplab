@@ -6,14 +6,24 @@
 #include <aslam/common/memory.h>
 #include <aslam/common/pose-types.h>
 #include <aslam/common/unique-id.h>
+#include <glog/logging.h>
 #include <maplab-common/accessors.h>
-
 namespace vi_map {
 
-VIMapGenerator::VIMapGenerator(VIMap& map, int seed)  // NOLINT
+VIMapGenerator::VIMapGenerator(VIMap& map, int seed)
+    : VIMapGenerator(map, seed, Eigen::VectorXd()) {}
+
+VIMapGenerator::VIMapGenerator(
+    VIMap& map, int seed,
+    Eigen::VectorXd camera_intrinsics)  // NOLINT
     : map_(map), rng_(seed) {
-  Eigen::VectorXd mock_intrinsics(4);
-  mock_intrinsics << kMockF, kMockF, kMockC, kMockC;
+  // if camera intrinsics is not specified, use default
+  if (camera_intrinsics.size() == 0) {
+    Eigen::VectorXd mock_intrinsics(4);
+    mock_intrinsics << kMockF, kMockF, kMockC, kMockC;
+    camera_intrinsics = mock_intrinsics;
+  }
+
   Eigen::VectorXd distortion_parameters(1);
   distortion_parameters(0) = 1;
   aslam::Distortion::UniquePtr distortion(
@@ -364,18 +374,11 @@ void VIMapGenerator::generateMap() const {
     aslam::VisualFrame::SemanticObjectDescriptorsT object_descriptors;
     Eigen::VectorXi object_class_ids;
     generateSemanticLandmarkObservations(
-<<<<<<< HEAD
         id, &image_object_measurements, &object_class_ids, &object_descriptors,
         &semantic_observation_index);
     SemanticLandmarkIdList observed_semantic_landmark_ids(
         image_object_measurements.cols());
 
-=======
-        id, &image_object_measurements, &object_class_ids,
-        &object_descriptors, &semantic_observation_index);
-    SemanticLandmarkIdList observed_semantic_landmark_ids(image_object_measurements.cols());
-  
->>>>>>> 3b1a83144... Fixes a bug where the total size of semantic landmark is set to the size of landmarks
     aslam::FrameId frame_id;
     aslam::generateId(&frame_id);
     const Eigen::VectorXd keypoint_uncertainties =

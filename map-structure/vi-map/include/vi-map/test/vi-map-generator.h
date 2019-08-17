@@ -38,6 +38,8 @@ static constexpr size_t kDescriptorSize = 48;
 static constexpr size_t kSemanticObjectDescriptorSize = 4096;
 static constexpr uint32_t kCameraWidth = 640;
 static constexpr uint32_t kCameraHeight = 480;
+// Note the following intrinsic parameters are not realistic
+// and will only work in perfect scenarios
 static constexpr double kMockF = 1;
 static constexpr double kMockC = 1;
 
@@ -48,6 +50,9 @@ class VIMapGenerator {
   MAPLAB_POINTER_TYPEDEFS(VIMapGenerator);
 
   VIMapGenerator(VIMap& map, int seed);  // NOLINT
+  VIMapGenerator(
+      VIMap& map, int seed,
+      Eigen::VectorXd camera_intrinsics);  // NOLINT
 
   // * T_G_M covariance will be zero
   // * camera will be distortion-free
