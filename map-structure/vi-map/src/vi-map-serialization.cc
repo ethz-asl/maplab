@@ -106,6 +106,45 @@ void serializeLandmarkIndex(
   CHECK_EQ(static_cast<int>(num_landmarks), proto->landmark_index_size());
 }
 
+void serializeSemanticLandmarkIndex(
+    const vi_map::VIMap& map, vi_map::proto::VIMap* proto) {
+  CHECK_NOTNULL(proto);
+  SemanticLandmarkIdList landmark_ids;
+  map.getAllSemanticLandmarkIds(&landmark_ids);
+  const size_t num_landmarks = landmark_ids.size();
+  proto->mutable_semantic_landmark_index()->Reserve(num_landmarks);
+  for (const SemanticLandmarkId& id : landmark_ids) {
+    vi_map::proto::LandmarkToVertexReference* reference =
+        proto->add_semantic_landmark_index();
+    CHECK_NOTNULL(reference);
+    id.serialize(reference->mutable_landmark_id());
+    map.getSemanticLandmarkStoreVertexId(id).serialize(
+        reference->mutable_vertex_id());
+  }
+  CHECK_EQ(
+      static_cast<int>(num_landmarks), proto->semantic_landmark_index_size());
+}
+
+void serializeOptionalSensorData(const VIMap& map, proto::VIMap* proto) {
+  CHECK_NOTNULL(proto);
+  MissionIdList mission_ids;
+  map.getAllMissionIds(&mission_ids);
+  for (const MissionId& mission_id : mission_ids) {
+    CHECK(mission_id.isValid());
+    if (map.hasOptionalSensorData(mission_id)) {
+      const OptionalSensorData& optional_sensor_data =
+          map.getOptionalSensorData(mission_id);
+      vi_map::proto::OptionalSensorDataMissionPair*
+          proto_optional_sensor_data_mission_pair =
+              CHECK_NOTNULL(proto->add_optional_sensor_data_mission_id_pair());
+      mission_id.serialize(
+          proto_optional_sensor_data_mission_pair->mutable_mission_id());
+      optional_sensor_data.serialize(proto_optional_sensor_data_mission_pair
+                                         ->mutable_optional_sensor_data());
+    }
+  }
+}
+
 void deserializeVertices(
     const vi_map::proto::VIMap& proto, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
@@ -215,6 +254,61 @@ void deserializeLandmarkIndex(
   }
 }
 
+void deserializeSemanticLandmarkIndex(
+    const vi_map::proto::VIMap& proto, vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+  for (int i = 0; i < proto.semantic_landmark_index_size(); ++i) {
+    SemanticLandmarkId landmark_id;
+    landmark_id.deserialize(proto.semantic_landmark_index(i).landmark_id());
+    pose_graph::VertexId storing_vertex_id;
+    storing_vertex_id.deserialize(proto.landmark_index(i).vertex_id());
+
+    if (map->hasSemanticLandmark(landmark_id)) {
+      CHECK_EQ(
+          storing_vertex_id,
+          map->getSemanticLandmarkStoreVertexId(landmark_id));
+    } else {
+      map->addSemanticLandmarkIndexReference(landmark_id, storing_vertex_id);
+    }
+  }
+
+  if (proto.semantic_landmark_index_ids_size() > 0) {
+    LOG(WARNING) << "Legacy map with store/global semantic landmark ids found. "
+                 << "Cleaning up the ids.";
+    CHECK_EQ(
+        proto.semantic_landmark_index_size(),
+        proto.semantic_landmark_index_ids_size());
+
+    // Go over all the landmarks and change the ids in the visualframes
+    // to the actual landmark id (instead of the old global landmark id).
+    vi_map::SemanticLandmarkIdList landmark_ids;
+    map->getAllSemanticLandmarkIds(&landmark_ids);
+    for (const vi_map::SemanticLandmarkId& actual_landmark_id : landmark_ids) {
+      const vi_map::SemanticLandmark& landmark =
+          map->getSemanticLandmark(actual_landmark_id);
+      landmark.forEachObservation(
+          [&](const vi_map::SemanticObjectIdentifier& object_id) {
+            vi_map::Vertex& vertex =
+                map->getVertex(object_id.frame_id.vertex_id);
+            vertex.setObservedSemanticLandmarkId(object_id, actual_landmark_id);
+          });
+    }
+  }
+}
+
+void deserializeOptionalSensorData(const proto::VIMap& proto, VIMap* map) {
+  CHECK_NOTNULL(map);
+  for (const proto::OptionalSensorDataMissionPair&
+           proto_mission_id_with_sensor_data :
+       proto.optional_sensor_data_mission_id_pair()) {
+    MissionId mission_id;
+    mission_id.deserialize(proto_mission_id_with_sensor_data.mission_id());
+    CHECK(mission_id.isValid());
+    map->emplaceOptionalSensorData(
+        mission_id, proto_mission_id_with_sensor_data.optional_sensor_data());
+  }
+}
+
 namespace {
 
 VIMapMetadata createMetadataForVIMap(const vi_map::VIMap& map) {
@@ -247,6 +341,13 @@ VIMapMetadata createMetadataForVIMap(const vi_map::VIMap& map) {
       VIMapFileType::kEdges, internal::kFileNameEdges, num_edges_files);
   metadata.emplace(
       VIMapFileType::kLandmarkIndex, internal::kFileNameLandmarkIndex);
+  metadata.emplace(
+      VIMapFileType::kSemanticLandmarkIndex,
+      internal::kFileNameSemanticLandmarkIndex);
+  metadata.emplace(
+      VIMapFileType::kOptionalSensorData,
+      internal::kFileNameOptionalSensorData);
+
   return metadata;
 }
 
