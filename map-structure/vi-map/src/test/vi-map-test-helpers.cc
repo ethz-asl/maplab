@@ -423,7 +423,28 @@ bool compareVIMap(const vi_map::VIMap& map_a, const vi_map::VIMap& map_b) {
   }
 
   {
-    // Check the sensor camera resources.
+    // Check Semantic landmarks.
+    result = result &&
+             (map_a.numSemanticLandmarks() == map_b.numSemanticLandmarks());
+    result = result && (map_a.numSemanticLandmarksInIndex() ==
+                        map_b.numSemanticLandmarksInIndex());
+
+    vi_map::SemanticLandmarkIdList store_landmarks_a, store_landmarks_b;
+    map_a.getAllSemanticLandmarkIds(&store_landmarks_a);
+    map_b.getAllSemanticLandmarkIds(&store_landmarks_b);
+    std::sort(store_landmarks_a.begin(), store_landmarks_a.end());
+    std::sort(store_landmarks_b.begin(), store_landmarks_b.end());
+    CHECK_EQ(store_landmarks_a.size(), store_landmarks_b.size());
+    for (size_t i = 0u; i < store_landmarks_a.size(); ++i) {
+      result = result && (store_landmarks_a[i] == store_landmarks_b[i]);
+    }
+    for (size_t i = 0u; i < store_landmarks_a.size(); ++i) {
+      result = result && (map_a.getSemanticLandmark(store_landmarks_a[i]) ==
+                          map_b.getSemanticLandmark(store_landmarks_b[i]));
+    }
+  }
+  {
+    // Check the optional camera resources.
     vi_map::MissionIdList missions_a, missions_b;
     map_a.getAllMissionIds(&missions_a);
     map_b.getAllMissionIds(&missions_b);
