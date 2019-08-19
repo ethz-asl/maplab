@@ -261,8 +261,7 @@ void deserializeSemanticLandmarkIndex(
     SemanticLandmarkId landmark_id;
     landmark_id.deserialize(proto.semantic_landmark_index(i).landmark_id());
     pose_graph::VertexId storing_vertex_id;
-    storing_vertex_id.deserialize(proto.landmark_index(i).vertex_id());
-
+    storing_vertex_id.deserialize(proto.semantic_landmark_index(i).vertex_id());
     if (map->hasSemanticLandmark(landmark_id)) {
       CHECK_EQ(
           storing_vertex_id,
@@ -278,7 +277,6 @@ void deserializeSemanticLandmarkIndex(
     CHECK_EQ(
         proto.semantic_landmark_index_size(),
         proto.semantic_landmark_index_ids_size());
-
     // Go over all the landmarks and change the ids in the visualframes
     // to the actual landmark id (instead of the old global landmark id).
     vi_map::SemanticLandmarkIdList landmark_ids;
