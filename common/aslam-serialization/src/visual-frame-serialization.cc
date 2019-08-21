@@ -76,14 +76,15 @@ void serializeVisualFrame(
     CHECK_EQ(
         proto->semantic_object_measurement_sigmas_size(),
         proto->semantic_object_measurements_size()/4);
-    CHECK_EQ(
+    if(proto->semantic_object_descriptor_size() > 0u){
+      CHECK_EQ(
         proto->semantic_object_measurement_sigmas_size(),
-        proto->semantic_object_descriptors_size()/proto->semantic_object_descriptor_size());    
+        proto->semantic_object_descriptors_size()/proto->semantic_object_descriptor_size());
+    }
     CHECK_EQ(
         proto->semantic_object_measurement_sigmas_size(),
         proto->semantic_object_class_ids_size());
     proto->set_is_valid(frame.isValid());
-
     // it is optional to have track ids
     if (frame.hasSemanticObjectTrackIds()) {
       ::common::eigen_proto::serialize(
@@ -96,8 +97,6 @@ void serializeVisualFrame(
   } else {
     VLOG(200) << "Frame " << frame.getId() << " has no semantic object descriptors!";
   }
-
-
 }
 
 void deserializeVisualFrame(
