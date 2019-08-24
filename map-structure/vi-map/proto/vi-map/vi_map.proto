@@ -115,7 +115,6 @@ message Landmark {
     kGood = 2;
   }
   optional Quality quality = 7 [default = kUnknown];
-
   repeated int32 appearances = 8;
 }
 
@@ -222,13 +221,10 @@ message VIMap {
 
   repeated aslam.proto.Id landmark_index_ids = 9;
   repeated LandmarkToVertexReference landmark_index = 10;
-<<<<<<< HEAD
-=======
 
   repeated OptionalSensorDataMissionPair optional_sensor_data_mission_id_pair =
       11;
 
   repeated common.proto.Id semantic_landmark_index_ids = 12;
   repeated LandmarkToVertexReference semantic_landmark_index = 13;
->>>>>>> 4970c674e... Adds semantic_landmark_index_id and semantic_landmark_index to VIMap proto.
 }

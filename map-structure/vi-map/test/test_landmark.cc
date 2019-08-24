@@ -122,6 +122,38 @@ TEST_F(LandmarkTest, TestSerializationWithAppearances) {
   EXPECT_TRUE(verifyIncrementalAppearances(deserialized_landmark));
 }
 
+TEST_F(LandmarkTest, TestSerializationWithAppearances) {
+  const size_t num_observations = 500u;
+
+  KeypointIdentifierList observations;
+  generateObservations(num_observations, &observations);
+  ASSERT_EQ(observations.size(), num_observations);
+
+  landmark_.addObservations(observations);
+  EXPECT_EQ(landmark_.numberOfObservations(), num_observations);
+
+  allocateIncrementalAppearances();
+
+  EXPECT_TRUE(verifyIncrementalAppearances(landmark_));
+
+  vi_map::proto::Landmark proto_landmark;
+  landmark_.serialize(&proto_landmark);
+
+  EXPECT_EQ(
+      proto_landmark.vertex_ids_size(), static_cast<int>(num_observations));
+  EXPECT_EQ(
+      proto_landmark.frame_indices_size(), static_cast<int>(num_observations));
+  EXPECT_EQ(
+      proto_landmark.keypoint_indices_size(),
+      static_cast<int>(num_observations));
+  EXPECT_EQ(proto_landmark.appearances_size(), num_observations);
+
+  Landmark deserialized_landmark;
+  deserialized_landmark.deserialize(proto_landmark);
+
+  EXPECT_TRUE(verifyIncrementalAppearances(deserialized_landmark));
+}
+
 TEST_F(LandmarkTest, TestClearObservationsAndAppearances) {
   const size_t num_observations = 500u;
 
