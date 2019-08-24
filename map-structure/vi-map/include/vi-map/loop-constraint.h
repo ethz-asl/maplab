@@ -36,6 +36,13 @@ struct VertexKeyPointToStructureMatch {
         appearance(vi_map::Landmark::kInvalidAppearance) {}
   VertexKeyPointToStructureMatch(
       unsigned int keypoint_index_query_, unsigned int frame_index_query,
+      const vi_map::LandmarkId& landmark_result_)
+      : keypoint_index_query(keypoint_index_query_),
+        frame_index_query(frame_index_query),
+        landmark_result(landmark_result_),
+        appearance(vi_map::Landmark::kInvalidAppearance) {}
+  VertexKeyPointToStructureMatch(
+      unsigned int keypoint_index_query_, unsigned int frame_index_query,
       const vi_map::LandmarkId& landmark_result_, int appearance_)
       : keypoint_index_query(keypoint_index_query_),
         frame_index_query(frame_index_query),
