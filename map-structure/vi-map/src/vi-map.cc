@@ -1368,10 +1368,12 @@ void VIMap::addNewSemanticLandmark(
 
 void VIMap::addNewSemanticLandmark(
     const SemanticLandmarkId& predefined_landmark_id,
-    const SemanticObjectIdentifier& first_observation) {
+    const SemanticObjectIdentifier& first_observation,
+    int class_id) {
   CHECK(!hasSemanticLandmark(predefined_landmark_id));
   vi_map::SemanticLandmark landmark;
   landmark.setId(predefined_landmark_id);
+  landmark.setClassId(class_id);
   addNewSemanticLandmark(
       landmark, first_observation.frame_id.vertex_id,
       first_observation.frame_id.frame_index,

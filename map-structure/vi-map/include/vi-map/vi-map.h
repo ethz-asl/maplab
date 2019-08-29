@@ -376,7 +376,8 @@ class VIMap : public backend::ResourceMap,
       unsigned int frame_index, unsigned int measurement_index);
   void addNewSemanticLandmark(
       const SemanticLandmarkId& predefined_semantic_landmark_id,
-      const SemanticObjectIdentifier& first_observation);
+      const SemanticObjectIdentifier& first_observation,
+      int class_id);
 
   /// Add a new observation to an existing landmark by providing information
   /// about the vertex, frame and keypoint index of the observation.
