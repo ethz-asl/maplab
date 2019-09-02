@@ -42,6 +42,14 @@ Palette GetPalette(Palette::PaletteTypes palette_type) {
             palette.colors[i].red = i;
       }
       break;
+    case Palette::PaletteTypes::kLinearGreen:
+      // Linear green palettes.
+      for (size_t i = 0u; i < kNumColors; ++i) {
+        palette.colors[i].blue = 0;
+        palette.colors[i].green = i;
+        palette.colors[i].red = 0;
+      }
+      break;
     case Palette::PaletteTypes::kGammaLog:
       // GammaLog palettes.
       for (size_t i = 0u; i < kNumColors; ++i) {
