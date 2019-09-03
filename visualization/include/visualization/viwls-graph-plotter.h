@@ -29,6 +29,10 @@ class ViwlsGraphRvizPlotter {
       bool publish_absolute_6dof_constraints,
       bool publish_semantic_landmarks) const;
 
+  // kept for backward compatibility
+  void visualizeMap(
+      const vi_map::VIMap& map, bool publish_baseframes, bool publish_vertices,
+      bool publish_edges, bool publish_landmarks) const;
   void visualizeMap(const vi_map::VIMap& map) const;
 
   void visualizeMissions(

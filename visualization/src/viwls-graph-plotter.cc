@@ -1260,6 +1260,19 @@ void ViwlsGraphRvizPlotter::visualizeMap(const vi_map::VIMap& map) const {
 
 void ViwlsGraphRvizPlotter::visualizeMap(
     const vi_map::VIMap& map, bool publish_baseframes, bool publish_vertices,
+    bool publish_edges, bool publish_landmarks) const {
+  vi_map::MissionIdList all_missions;
+  map.getAllMissionIds(&all_missions);
+  bool publish_absolute_6dof_constraints = false;
+  bool publish_semantic_landmarks = false;
+  visualizeMissions(
+      map, all_missions, publish_baseframes, publish_vertices, publish_edges,
+      publish_landmarks, publish_absolute_6dof_constraints,
+      publish_semantic_landmarks);
+}
+
+void ViwlsGraphRvizPlotter::visualizeMap(
+    const vi_map::VIMap& map, bool publish_baseframes, bool publish_vertices,
     bool publish_edges, bool publish_landmarks,
     bool publish_absolute_6dof_constraints,
     bool publish_semantic_landmarks) const {
