@@ -55,7 +55,7 @@ class ViwlsGraph : public ::testing::Test {
 
   aslam::NCamera::Ptr cameras_;
 
-  static constexpr unsigned int kNumNFrames = 5;
+  static constexpr unsigned int kNumNFrames = 3;
 };
 
 void ViwlsGraph::serializeAndDeserialize() {
@@ -78,6 +78,7 @@ void ViwlsGraph::constructVertex() {
   biases_ << 1, 2, 3, 4, 5, 6;
 
   const int num_of_keypoints = 1000;
+  const int num_of_measurements = 20;
 
   img_points_distorted_.resize(2, num_of_keypoints);
   img_points_distorted_.setRandom();
@@ -93,17 +94,17 @@ void ViwlsGraph::constructVertex() {
     img_landmarks_[kVisualFrameIndex].push_back(landmark_id);
   }
 
-  semantic_object_measurements_.resize(4, num_of_keypoints);
+  semantic_object_measurements_.resize(4, num_of_measurements);
   semantic_object_measurements_.setRandom();
-  semantic_object_uncertainties_.resize(num_of_keypoints, 1);
+  semantic_object_uncertainties_.resize(num_of_measurements, 1);
   semantic_object_uncertainties_.setRandom();
-  semantic_object_descriptors_.resize(4096, num_of_keypoints);
+  semantic_object_descriptors_.resize(4096, num_of_measurements);
   semantic_object_descriptors_.setRandom();
-  semantic_object_class_ids_.resize(num_of_keypoints, 1);
+  semantic_object_class_ids_.resize(num_of_measurements, 1);
   semantic_object_class_ids_.setRandom();
 
   img_semantic_landmarks_.resize(kNumFrames);
-  for (int i = 0; i < num_of_keypoints; ++i) {
+  for (int i = 0; i < num_of_measurements; ++i) {
     vi_map::SemanticLandmarkId landmark_id;
     common::generateId(&landmark_id);
     img_semantic_landmarks_[kVisualFrameIndex].push_back(landmark_id);
