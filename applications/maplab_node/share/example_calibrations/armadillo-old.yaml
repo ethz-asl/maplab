@@ -1,0 +1,127 @@
+sensors:
+  - id: 5c8fcf479caf7592b35518478a2fe08f
+    sensor_type: IMU
+    description: "ADIS IMU"
+    topic: /VersaVIS/imu
+    sigmas:
+      gyro_noise_density: 0.005
+      gyro_bias_random_walk_noise_density: 0.000004
+      acc_noise_density: 0.01
+      acc_bias_random_walk_noise_density: 0.0002
+    saturation_accel_max_mps2: 150
+    saturation_gyro_max_radps: 7.5
+    gravity_magnitude_mps2: 9.808083883386614
+
+  - id: ccbb23479caf7592b35518478a2fe08f
+    sensor_type: ODOMETRY_6DOF
+    description: "ROVIOLI in Odometry mode"
+    topic: /odometry/maplab_odom_T_M_I
+
+  - id: abf123479caf7592b35518478a2fe08a
+    sensor_type: LIDAR
+    description: "Armadillo - Robosense 16"
+    topic: /rslidar_points
+
+  - id: 8af1acb2a7c5fad79f09e49e3b96d87c
+    sensor_type: NCAMERA
+    description: Blackfly S Grayscale 0.4MP (NCamera)
+    topic: ""
+    cameras:
+      - camera:
+          id: 9be7b5555f15adb3c0da8ac6b729ee05
+          sensor_type: CAMERA
+          description: "Blackfly S 0.4MP Mono Camera"
+          topic: /VersaVIS/cam0
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 318.4530660630027
+              - 318.5734247262918
+              - 380.39674745994574
+              - 285.5620119579464
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - 0.0028528620582028473
+                - 0.0025179488062516088
+                - 0.000456001527858055
+                - -0.0005519303086977144
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - 0.01708210756454359
+            - -0.009902170727936865
+            - 0.9998050553062975
+            - 0.030059509902635954
+            - 0.9998494498275216
+            - -0.0028773124647935022
+            - -0.017111363259036783
+            - 0.02564640988830385
+            - 0.0030461911883751247
+            - 0.999946832630543
+            - 0.009851529393405528
+            - -0.012930853132932338
+            - 0.0
+            - 0.0
+            - 0.0
+            - 1.0
+extrinsics:
+  - sensor_id: 8af1acb2a7c5fad79f09e49e3b96d87c
+    base_sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+  - sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    base_sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+  - sensor_id: ccbb23479caf7592b35518478a2fe08f
+    base_sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+  - sensor_id: 20000000000000000000000000000006
+    base_sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [-0.014066444847776, 0.999814129085747, -0.013184931166009, -0.028396606896071]
+        - [0.035374863848560, 0.013675585598662, 0.999280539871676, -0.136036305126748]
+        - [0.999275114338909, 0.013589909456711, -0.035560655560859, -0.389869784548960]
+        - [0, 0, 0, 1]
+  - sensor_id: abf123479caf7592b35518478a2fe08a
+    base_sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [0.0675328  ,  -0.92557 ,  -0.372504 , -0.0686585]
+        - [0.997703 ,   0.060663 ,  0.0301466 , 0.00274749]
+        - [-0.00530559 ,  -0.373684 ,   0.927541 , -0.0310439]
+        - [0, 0, 0, 1]

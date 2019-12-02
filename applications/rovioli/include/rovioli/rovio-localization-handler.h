@@ -13,11 +13,11 @@
 #include <aslam/common/pose-types.h>
 #include <aslam/common/stl-helpers.h>
 #include <aslam/common/time.h>
+#include <aslam/common/unique-id.h>
 #include <gflags/gflags.h>
 #include <maplab-common/fixed-size-queue.h>
 #include <maplab-common/geometry.h>
 #include <maplab-common/string-tools.h>
-#include <maplab-common/unique-id.h>
 #include <message-flow/message-flow.h>
 #include <vio-common/pose-lookup-buffer.h>
 #include <vio-common/vio-types.h>
@@ -66,8 +66,7 @@ class RovioLocalizationHandler {
   rovio::RovioInterface* const rovio_interface_;
   RovioMaplabTimeTranslation* const time_translator_;
 
-  enum class LocalizationState { kUninitialized, kNotLocalized, kLocalized };
-  LocalizationState localization_state_;
+  common::LocalizationState localization_state_;
 
   static constexpr int64_t kBufferPoseHistoryNs = aslam::time::seconds(5);
   static constexpr int64_t kBufferMaxPropagationNs =
@@ -78,7 +77,7 @@ class RovioLocalizationHandler {
   common::FixedSizeQueue<aslam::Transformation> T_G_M_filter_buffer_;
   std::mutex m_T_G_M_filter_buffer_;
 
-  common::FixedSizeQueue<aslam::Transformation> T_G_M_lc_buffer_;
+  common::FixedSizeQueue<aslam::Transformation> T_G_M_loc_buffer_;
 
   const aslam::NCamera& camera_calibration_;
 

@@ -4,10 +4,10 @@
 #include <Eigen/Core>
 #include <aslam/common/hash-id.h>
 #include <aslam/common/memory.h>
+#include <aslam/common/unique-id.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <posegraph/unique-id.h>
 
 #include "vi-map/mission-baseframe.h"

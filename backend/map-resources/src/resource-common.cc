@@ -51,4 +51,23 @@ bool isSameResource(
       map_A.getOccupancyLayer(), map_B.getOccupancyLayer());
 }
 
+template <>
+bool isSameResource(
+    const resources::ObjectInstanceBoundingBoxes& bboxes_A,
+    const resources::ObjectInstanceBoundingBoxes& bboxes_B) {
+  if (bboxes_A.size() != bboxes_B.size()) {
+    return false;
+  }
+
+  for (size_t idx = 0; idx < bboxes_A.size(); ++idx) {
+    const resources::ObjectInstanceBoundingBox& bbox_A = bboxes_A[idx];
+    const resources::ObjectInstanceBoundingBox& bbox_B = bboxes_B[idx];
+
+    if (bbox_A != bbox_B) {
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace backend

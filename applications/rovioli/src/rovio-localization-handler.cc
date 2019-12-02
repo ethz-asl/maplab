@@ -99,11 +99,11 @@ RovioLocalizationHandler::RovioLocalizationHandler(
       // 6dof constraint based localization does not need initialization.
       localization_state_(
           FLAGS_rovioli_use_6dof_localization
-              ? LocalizationState::kLocalized
-              : LocalizationState::kUninitialized),
+              ? common::LocalizationState::kLocalized
+              : common::LocalizationState::kUninitialized),
       T_M_I_buffer_(kBufferPoseHistoryNs, kBufferMaxPropagationNs),
       T_G_M_filter_buffer_(kFilterBaseframeBufferSize),
-      T_G_M_lc_buffer_(FLAGS_rovioli_min_num_baseframe_estimates_before_init),
+      T_G_M_loc_buffer_(FLAGS_rovioli_min_num_baseframe_estimates_before_init),
       camera_calibration_(camera_calibration),
       maplab_to_rovio_cam_indices_mapping_(
           maplab_to_rovio_cam_indices_mapping) {
@@ -119,20 +119,24 @@ void RovioLocalizationHandler::processLocalizationResult(
   CHECK(localization_result);
   switch (localization_state_) {
     // Fall-through intended.
-    case LocalizationState::kUninitialized:
-    case LocalizationState::kNotLocalized: {
+    case common::LocalizationState::kUninitialized:
+    case common::LocalizationState::kNotLocalized: {
       const bool success = initializeBaseframe(localization_result);
       if (success) {
         LOG(INFO) << "(Re-)initialized the localization baseframe.";
-        localization_state_ = LocalizationState::kLocalized;
+        localization_state_ = common::LocalizationState::kLocalized;
       }
       break;
     }
 
-    case LocalizationState::kLocalized: {
+    case common::LocalizationState::kLocalized: {
       processAsUpdate(localization_result);
       break;
     }
+    default:
+      LOG(FATAL) << "Unknown localization state: "
+                 << static_cast<int>(localization_state_);
+      break;
   }
 }
 
@@ -143,16 +147,21 @@ bool RovioLocalizationHandler::initializeBaseframe(
   // Collect a certain number of localizations before performing the actual
   // initialization.
   aslam::Transformation T_M_I;
-  if (T_M_I_buffer_.getPoseAt(localization_result->timestamp_ns, &T_M_I) ==
-      vio_common::PoseLookupBuffer::ResultStatus::kFailed) {
-    LOG(WARNING) << "Could not get T_M_I for baseframe initialization.";
-    return false;
+  switch (T_M_I_buffer_.getPoseAt(localization_result->timestamp_ns, &T_M_I)) {
+    case vio_common::PoseLookupBuffer::ResultStatus::kFailedNotYetAvailable:
+    // Fall through intended.
+    case vio_common::PoseLookupBuffer::ResultStatus::kFailedWillNeverSucceed:
+      LOG(WARNING) << "Could not get T_M_I for baseframe initialization.";
+      return false;
+    default:
+      break;
   }
-  const aslam::Transformation T_G_M_lc_estimate =
-      localization_result->T_G_I_lc_pnp * T_M_I.inverse();
 
-  T_G_M_lc_buffer_.insert(T_G_M_lc_estimate);
-  if (T_G_M_lc_buffer_.size() <
+  const aslam::Transformation T_G_M_lc_estimate =
+      localization_result->T_G_B * T_M_I.inverse();
+
+  T_G_M_loc_buffer_.insert(T_G_M_lc_estimate);
+  if (T_G_M_loc_buffer_.size() <
       FLAGS_rovioli_min_num_baseframe_estimates_before_init) {
     return false;
   }
@@ -168,13 +177,13 @@ bool RovioLocalizationHandler::initializeBaseframe(
   const int ransac_seed = device();
   aslam::Transformation T_G_M_lsq;
   common::transformationRansac(
-      T_G_M_lc_buffer_.buffer(), kInitializationMaxNumRansacIterations,
+      T_G_M_loc_buffer_.buffer(), kInitializationMaxNumRansacIterations,
       kInitializationRansacOrientationErrorThresholdRadians,
       kInitializationRansacPositionErrorThresholdMeters, ransac_seed,
       &T_G_M_lsq, &num_inliers);
   if (num_inliers < kNumInliersThreshold) {
     VLOG(1) << "Too few localization transformation inliers (" << num_inliers
-            << "/" << T_G_M_lc_buffer_.size() << ").";
+            << "/" << T_G_M_loc_buffer_.size() << ").";
     return false;
   }
 
@@ -192,12 +201,12 @@ bool RovioLocalizationHandler::initializeBaseframe(
 double getLocalizationResultGravityDisparityAngleDeg(
     const vio::LocalizationResult::ConstPtr& localization_result,
     const pose::Transformation& T_G_I_vio) {
-  const pose::Transformation& T_G_I_lc_pnp = localization_result->T_G_I_lc_pnp;
+  const pose::Transformation& T_G_B = localization_result->T_G_B;
 
   const Eigen::Vector3d gravity_direction_vio =
       T_G_I_vio.getRotation().inverse().rotate(Eigen::Vector3d::UnitZ());
   const Eigen::Vector3d gravity_direction_localization_pnp =
-      T_G_I_lc_pnp.getRotation().inverse().rotate(Eigen::Vector3d::UnitZ());
+      T_G_B.getRotation().inverse().rotate(Eigen::Vector3d::UnitZ());
 
   CHECK_NEAR(gravity_direction_vio.squaredNorm(), 1.0, 1e-8);
   CHECK_NEAR(gravity_direction_localization_pnp.squaredNorm(), 1.0, 1e-8);
@@ -208,7 +217,7 @@ double getLocalizationResultGravityDisparityAngleDeg(
   double error_angle_degrees = 180.;
   if (error_cosine <= -1) {
     error_angle_degrees = 180.;
-  } else if (error_cosine <= -1) {
+  } else if (error_cosine >= 1) {
     error_angle_degrees = 0.;
   } else {
     // Cosine is in the valid range.
@@ -227,9 +236,14 @@ bool RovioLocalizationHandler::processAsUpdate(
           localization_result->timestamp_ns);
 
   aslam::Transformation T_M_I_filter;
-  const vio_common::PoseLookupBuffer::ResultStatus lookup_result =
+  const vio_common::PoseLookupBuffer::ResultStatus result =
       T_M_I_buffer_.getPoseAt(localization_result->timestamp_ns, &T_M_I_filter);
-  CHECK(lookup_result != vio_common::PoseLookupBuffer::ResultStatus::kFailed);
+  CHECK(
+      result !=
+      vio_common::PoseLookupBuffer::ResultStatus::kFailedNotYetAvailable);
+  CHECK(
+      result !=
+      vio_common::PoseLookupBuffer::ResultStatus::kFailedWillNeverSucceed);
 
   pose::Transformation T_G_M_filter;
   {
@@ -260,10 +274,9 @@ bool RovioLocalizationHandler::processAsUpdate(
     // ROVIO coordinate frames:
     //  - J: Inertial frame of pose update
     //  - V: Body frame of pose update sensor
-    const Eigen::Vector3d JrJV =
-        localization_result->T_G_I_lc_pnp.getPosition();
+    const Eigen::Vector3d JrJV = localization_result->T_G_B.getPosition();
     const kindr::RotationQuaternionPD qJV(
-        localization_result->T_G_I_lc_pnp.getRotation().toImplementation());
+        localization_result->T_G_B.getRotation().toImplementation());
     measurement_accepted = rovio_interface_->processGroundTruthUpdate(
         JrJV, qJV, rovio_timestamp_sec);
   } else {
@@ -277,6 +290,7 @@ bool RovioLocalizationHandler::processAsUpdate(
       const size_t* rovio_cam_idx =
           maplab_to_rovio_cam_indices_mapping_.getRight(maplab_cam_idx);
       if (rovio_cam_idx == nullptr) {
+        // Camera is inactive in ROVIO.
         continue;
       }
       num_valid_matches +=
@@ -291,10 +305,9 @@ bool RovioLocalizationHandler::processAsUpdate(
         // ROVIO coordinate frames:
         //  - J: Inertial frame of pose update
         //  - V: Body frame of pose update sensor
-        const Eigen::Vector3d JrJV =
-            localization_result->T_G_I_lc_pnp.getPosition();
+        const Eigen::Vector3d JrJV = localization_result->T_G_B.getPosition();
         const kindr::RotationQuaternionPD qJV(
-            localization_result->T_G_I_lc_pnp.getRotation().toImplementation());
+            localization_result->T_G_B.getRotation().toImplementation());
         measurement_accepted = rovio_interface_->processGroundTruthUpdate(
             JrJV, qJV, rovio_timestamp_sec);
 
@@ -402,17 +415,16 @@ double RovioLocalizationHandler::getLocalizationReprojectionErrors(
 
   const int num_cameras = localization_result.G_landmarks_per_camera.size();
   CHECK_EQ(num_cameras, static_cast<int>(camera_calibration_.numCameras()));
-  for (int maplab_cam_idx = 0; maplab_cam_idx < num_cameras; ++maplab_cam_idx) {
+  for (int cam_idx = 0; cam_idx < num_cameras; ++cam_idx) {
     CHECK_EQ(
-        localization_result.G_landmarks_per_camera[maplab_cam_idx].cols(),
-        localization_result.keypoint_measurements_per_camera[maplab_cam_idx]
-            .cols());
+        localization_result.G_landmarks_per_camera[cam_idx].cols(),
+        localization_result.keypoint_measurements_per_camera[cam_idx].cols());
 
     const size_t* rovio_cam_idx =
-        maplab_to_rovio_cam_indices_mapping_.getRight(maplab_cam_idx);
+        maplab_to_rovio_cam_indices_mapping_.getRight(cam_idx);
 
     const int num_matches =
-        localization_result.G_landmarks_per_camera[maplab_cam_idx].cols();
+        localization_result.G_landmarks_per_camera[cam_idx].cols();
 
     if (num_matches == 0) {
       continue;
@@ -423,29 +435,27 @@ double RovioLocalizationHandler::getLocalizationReprojectionErrors(
       continue;
     }
 
-    const pose::Transformation& T_C_B =
-        camera_calibration_.get_T_C_B(maplab_cam_idx);
+    const pose::Transformation& T_C_B = camera_calibration_.get_T_C_B(cam_idx);
     const pose::Transformation T_G_C_filter =
         (T_C_B * T_G_I_filter.inverse()).inverse();
     const pose::Transformation T_G_C_lc =
-        (T_C_B * localization_result.T_G_I_lc_pnp.inverse()).inverse();
+        (T_C_B * localization_result.T_G_B.inverse()).inverse();
 
     for (int i = 0; i < num_matches; ++i) {
       const Eigen::Vector2d& keypoint =
-          localization_result.keypoint_measurements_per_camera[maplab_cam_idx]
-              .col(i);
+          localization_result.keypoint_measurements_per_camera[cam_idx].col(i);
       const Eigen::Vector3d& p_G =
-          localization_result.G_landmarks_per_camera[maplab_cam_idx].col(i);
+          localization_result.G_landmarks_per_camera[cam_idx].col(i);
 
       double reproj_error_sq_filter;
       double reproj_error_sq_lc;
-      bool projection_successful = true;
-      projection_successful &= getReprojectionErrorForGlobalLandmark(
-          p_G, T_G_C_filter, camera_calibration_.getCamera(maplab_cam_idx),
-          keypoint, &reproj_error_sq_filter);
-      projection_successful &= getReprojectionErrorForGlobalLandmark(
-          p_G, T_G_C_lc, camera_calibration_.getCamera(maplab_cam_idx),
-          keypoint, &reproj_error_sq_lc);
+      const aslam::Camera& camera = camera_calibration_.getCamera(cam_idx);
+      bool projection_successful = getReprojectionErrorForGlobalLandmark(
+          p_G, T_G_C_filter, camera, keypoint, &reproj_error_sq_filter);
+      if (projection_successful) {
+        projection_successful &= getReprojectionErrorForGlobalLandmark(
+            p_G, T_G_C_lc, camera, keypoint, &reproj_error_sq_lc);
+      }
 
       ++num_matches_processed;
 

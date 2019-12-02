@@ -409,6 +409,57 @@ int VIMapQueries::getVerticesWithCommonLandmarks(
   return coobserver_vertex_ids->size();
 }
 
+bool VIMapQueries::getClosestVertexIdByTimestamp(
+    const uint64_t timestamp_ns, const uint64_t tolerance_ns,
+    pose_graph::VertexId* vertex_id_out, uint64_t* timestamp_difference) {
+  CHECK_NOTNULL(vertex_id_out);
+  pose_graph::VertexIdList ids;
+  map_.getAllVertexIdsAlongGraphsSortedByTimestamp(&ids);
+
+  int64_t min_difference = -1;
+  pose_graph::VertexId best_vertex_id;
+
+  bool found_exactly = false;
+  for (const pose_graph::VertexId& vertex_id : ids) {
+    const vi_map::Vertex& vertex = map_.getVertex(vertex_id);
+
+    const size_t num_frames = vertex.numFrames();
+    CHECK_GT(num_frames, 0u);
+
+    for (size_t frame_i = 0u; frame_i < num_frames; ++frame_i) {
+      const aslam::VisualFrame& frame = vertex.getVisualFrame(frame_i);
+      const int64 difference =
+          labs(timestamp_ns - frame.getTimestampNanoseconds());
+
+      if (min_difference < 0 || difference < min_difference) {
+        min_difference = difference;
+        best_vertex_id = vertex_id;
+        if (difference == 0) {
+          found_exactly = true;
+          break;
+        }
+      }
+    }
+    if (found_exactly) {
+      break;
+    }
+  }
+
+  if (timestamp_difference != nullptr) {
+    *timestamp_difference = static_cast<uint64_t>(min_difference);
+  }
+
+  if (min_difference < static_cast<int64_t>(tolerance_ns)) {
+    *vertex_id_out = best_vertex_id;
+    constexpr bool kSuccess = true;
+    return kSuccess;
+  } else {
+    vertex_id_out = nullptr;
+    constexpr bool kNotFound = false;
+    return kNotFound;
+  }
+}
+
 int VIMapQueries::getNumberOfCommonLandmarks(
     const pose_graph::VertexId& vertex_1,
     const pose_graph::VertexId& vertex_2) const {

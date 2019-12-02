@@ -1,4 +1,7 @@
-#include <Eigen/Core>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+
 #include <glog/logging.h>
 
 #include <aslam/cameras/camera-pinhole.h>
@@ -26,12 +29,12 @@ class ViwlsGraph : public ::testing::Test {
 
   virtual void SetUp() {
     constructCamera();
-    createMission();
+    mission_id_ = createMission();
     populatePosegraphAndLandmarks();
     landmark_geometry_ = std::shared_ptr<LandmarkGeometryVerification>(
         new LandmarkGeometryVerification(
             posegraph_, landmarks_, missions_, mission_base_frames_,
-            sensor_manager_));
+            sensor_manager_, map_));
   }
 
   void constructCamera();
@@ -51,13 +54,16 @@ class ViwlsGraph : public ::testing::Test {
   std::unordered_map<vi_map::LandmarkId, pose_graph::VertexId> landmarks_;
   vi_map::MissionMap missions_;
   vi_map::MissionBaseFrameMap mission_base_frames_;
-  vi_map::PoseGraph posegraph_;
+  vi_map::VIMap map_;
+  vi_map::PoseGraph& posegraph_ = map_.posegraph;
   vi_map::SensorManager sensor_manager_;
 
   std::shared_ptr<LandmarkGeometryVerification> landmark_geometry_;
 
   vi_map::LandmarkId map_landmark_id_;
   vi_map::LandmarkId vertex_landmark_id_;
+
+  vi_map::MissionId mission_id_;
 
   aslam::NCamera::Ptr cameras_;
 
@@ -94,7 +100,7 @@ void ViwlsGraph::constructCamera() {
   intrinsics << fu, fv, cu, cv;
 
   aslam::CameraId camera_id;
-  common::generateId(&camera_id);
+  aslam::generateId(&camera_id);
   aslam::Camera::Ptr camera = std::shared_ptr<CameraType>(
       new CameraType(intrinsics, res_u, res_v, distortion));
   camera->setId(camera_id);
@@ -106,16 +112,15 @@ void ViwlsGraph::constructCamera() {
       Eigen::Quaterniond(1, 0, 0.2, 0).normalized(), Eigen::Vector3d(0, 1, 2));
   T_C_B_vector.push_back(T_C_B);
   aslam::NCameraId n_camera_id;
-  common::generateId(&n_camera_id);
-  cameras_.reset(
-      new aslam::NCamera(
-          n_camera_id, T_C_B_vector, camera_vector, "Test camera rig"));
+  aslam::generateId(&n_camera_id);
+  cameras_.reset(new aslam::NCamera(
+      n_camera_id, T_C_B_vector, camera_vector, "Test camera rig"));
 }
 
 const vi_map::MissionId ViwlsGraph::createMission() {
   vi_map::MissionBaseFrame baseframe;
   vi_map::MissionBaseFrameId baseframe_id;
-  common::generateId(&baseframe_id);
+  aslam::generateId(&baseframe_id);
   baseframe.setId(baseframe_id);
 
   baseframe.set_p_G_M(Eigen::Matrix<double, 3, 1>::Zero());
@@ -126,11 +131,15 @@ const vi_map::MissionId ViwlsGraph::createMission() {
   generateId(&mission_id);
   mission_ptr->setId(mission_id);
   mission_ptr->setBaseFrameId(baseframe_id);
-
+  mission_ptr->setNCameraId(cameras_->getId());
   missions_.emplace(mission_ptr->id(), std::move(mission_ptr));
   mission_base_frames_.emplace(baseframe.id(), baseframe);
 
-  sensor_manager_.addNCamera(cameras_, mission_id);
+  aslam::Transformation T_B_S_ncamera;
+  T_B_S_ncamera.setIdentity();
+  const aslam::SensorId& cam_sensor_id = cameras_->getId();
+  sensor_manager_.addSensor<aslam::NCamera>(
+      aligned_unique<aslam::NCamera>(*cameras_), cam_sensor_id, T_B_S_ncamera);
 
   return mission_id;
 }
@@ -158,7 +167,7 @@ void ViwlsGraph::prepareVertex(
 
   aslam::VisualFrame::Ptr frame(new aslam::VisualFrame);
   aslam::FrameId frame_id;
-  common::generateId(&frame_id);
+  aslam::generateId(&frame_id);
   frame->setId(frame_id);
   frame->setCameraGeometry(cameras_->getCameraShared(kVisualFrameIndex));
   (*vertex_ptr)->getVisualNFrame().setFrame(kVisualFrameIndex, frame);
@@ -230,8 +239,7 @@ void ViwlsGraph::addKeypointToVertex(
 
 void ViwlsGraph::populatePosegraphAndLandmarks() {
   CHECK(cameras_);
-
-  vi_map::MissionId mission_id = createMission();
+  CHECK(mission_id_.isValid());
 
   vi_map::Vertex::UniquePtr vertex0;
   vi_map::Vertex::UniquePtr vertex1;
@@ -251,10 +259,10 @@ void ViwlsGraph::populatePosegraphAndLandmarks() {
   Eigen::Vector3d G_p_I3(-0.46, -0.14, 8);
   Eigen::Quaterniond G_q_I3(sqrt(2) / 2, 0, sqrt(2) / 2, 0);
 
-  prepareVertex(G_q_I0, G_p_I0, mission_id, &vertex0);
-  prepareVertex(G_q_I1, G_p_I1, mission_id, &vertex1);
-  prepareVertex(G_q_I2, G_p_I2, mission_id, &vertex2);
-  prepareVertex(G_q_I3, G_p_I3, mission_id, &vertex3);
+  prepareVertex(G_q_I0, G_p_I0, mission_id_, &vertex0);
+  prepareVertex(G_q_I1, G_p_I1, mission_id_, &vertex1);
+  prepareVertex(G_q_I2, G_p_I2, mission_id_, &vertex2);
+  prepareVertex(G_q_I3, G_p_I3, mission_id_, &vertex3);
 
   const unsigned int kCameraIndex = 0;
   const aslam::Transformation& C_T_I = cameras_->get_T_C_B(kCameraIndex);

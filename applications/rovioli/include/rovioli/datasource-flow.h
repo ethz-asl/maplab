@@ -15,10 +15,8 @@ namespace rovioli {
 
 class DataSourceFlow {
  public:
-  explicit DataSourceFlow(
-      const aslam::NCamera& camera_system, const vi_map::Imu& imu_sensor) {
-    datasource_.reset(
-        createAndConfigureDataSourcefromGFlags(camera_system, imu_sensor));
+  explicit DataSourceFlow(const vio_common::RosTopicSettings& topic_settings) {
+    datasource_.reset(createAndConfigureDataSourcefromGFlags(topic_settings));
     CHECK(datasource_);
   }
 
@@ -32,6 +30,8 @@ class DataSourceFlow {
         flow->registerPublisher<message_flow_topics::IMAGE_MEASUREMENTS>());
     datasource_->registerImuCallback(
         flow->registerPublisher<message_flow_topics::IMU_MEASUREMENTS>());
+    datasource_->registerOdometryCallback(
+        flow->registerPublisher<message_flow_topics::ODOMETRY_MEASUREMENTS>());
   }
 
   void startStreaming() {

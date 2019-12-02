@@ -8,20 +8,10 @@ TransformationEdge::TransformationEdge(vi_map::Edge::EdgeType edge_type)
     : vi_map::Edge(edge_type) {
   CHECK(
       edge_type == vi_map::Edge::EdgeType::kOdometry ||
+      edge_type == vi_map::Edge::EdgeType::kWheelOdometry ||
       edge_type == vi_map::Edge::EdgeType::k6DoFGps)
-      << "Invalid edge"
-         "type. Only odometry and GPS edges can be transformation edges.";
-}
-
-TransformationEdge::TransformationEdge(
-    vi_map::Edge::EdgeType edge_type, const pose_graph::EdgeId& id,
-    const pose_graph::VertexId& from, const pose_graph::VertexId& to,
-    const pose::Transformation& T_A_B,
-    const Eigen::Matrix<double, 6, 6>& T_A_B_covariance_p_q)
-    : vi_map::Edge(edge_type, id, from, to),
-      T_A_B_(T_A_B),
-      T_A_B_covariance_p_q_(T_A_B_covariance_p_q) {
-  sensor_id_.setInvalid();
+      << "Invalid edge type. Only odometry, wheel odometry and GPS edges can "
+      << "be transformation edges.";
 }
 
 TransformationEdge::TransformationEdge(
@@ -29,7 +19,7 @@ TransformationEdge::TransformationEdge(
     const pose_graph::VertexId& from, const pose_graph::VertexId& to,
     const pose::Transformation& T_A_B,
     const Eigen::Matrix<double, 6, 6>& T_A_B_covariance_p_q,
-    const SensorId& sensor_id)
+    const aslam::SensorId& sensor_id)
     : vi_map::Edge(edge_type, id, from, to),
       T_A_B_(T_A_B),
       T_A_B_covariance_p_q_(T_A_B_covariance_p_q),
@@ -70,7 +60,7 @@ void TransformationEdge::set_T_A_B(const pose::Transformation& T_A_B) {
   T_A_B_ = T_A_B;
 }
 
-const pose::Transformation& TransformationEdge::getT_A_B() const {
+const pose::Transformation& TransformationEdge::get_T_A_B() const {
   return T_A_B_;
 }
 

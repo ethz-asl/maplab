@@ -33,6 +33,7 @@ namespace rovioli {
 class CallbackManager {
   DECLARE_SENSOR_CALLBACK(Image, vio::ImageMeasurement::Ptr);
   DECLARE_SENSOR_CALLBACK(Imu, vio::ImuMeasurement::Ptr);
+  DECLARE_SENSOR_CALLBACK(Odometry, vio::OdometryMeasurement::Ptr);
 };
 
 class DataSource : public CallbackManager {
@@ -65,25 +66,28 @@ class DataSource : public CallbackManager {
   bool shiftByFirstTimestamp(int64_t* timestamp_ns) {
     CHECK_NOTNULL(timestamp_ns);
     CHECK_GE(*timestamp_ns, 0);
-    {
-      std::lock_guard<std::mutex> lock(timestamp_mutex_);
-      if (timestamp_at_start_ns_ == -1) {
-        timestamp_at_start_ns_ = *timestamp_ns;
-        *timestamp_ns = 0;
-        VLOG(2)
-            << "Set the first timestamp that was received to "
-            << timestamp_at_start_ns_
-            << "ns, all subsequent timestamp will be shifted by that amount.";
-      } else {
-        if (*timestamp_ns < timestamp_at_start_ns_) {
-          LOG(WARNING) << "Received timestamp that is earlier than the first "
-                       << "timestamp of the data source! First timestamp: "
-                       << timestamp_at_start_ns_
-                       << "ns, received timestamp: " << *timestamp_ns << "ns.";
-          return false;
-        }
-        *timestamp_ns = *timestamp_ns - timestamp_at_start_ns_;
+
+    // There is a slight race condition happening here, without a mutex. But
+    // it shouldn't matter except for initialization which message actually
+    // sets the initial timestamp. Definite gain in performance like this
+    if (timestamp_at_start_ns_ == -1) {
+      timestamp_at_start_ns_ = *timestamp_ns;
+      *timestamp_ns = 0;
+      LOG(WARNING)
+          << "Set the first timestamp that was received to "
+          << timestamp_at_start_ns_
+          << "ns, all subsequent timestamp will be shifted by that amount. "
+          << "Be aware that the published estimation results are also "
+          << "expressed in this shifted time frame!";
+    } else {
+      if (*timestamp_ns < timestamp_at_start_ns_) {
+        LOG(WARNING) << "Received timestamp that is earlier than the first "
+                     << "timestamp of the data source! First timestamp: "
+                     << timestamp_at_start_ns_
+                     << "ns, received timestamp: " << *timestamp_ns << "ns.";
+        return false;
       }
+      *timestamp_ns = *timestamp_ns - timestamp_at_start_ns_;
     }
 
     CHECK_GE(timestamp_at_start_ns_, 0);
@@ -97,8 +101,7 @@ class DataSource : public CallbackManager {
  private:
   std::vector<std::function<void()>> end_of_data_callbacks_;
 
-  std::mutex timestamp_mutex_;
-  int64_t timestamp_at_start_ns_ = -1;
+  std::atomic<int64_t> timestamp_at_start_ns_;
 };
 
 }  // namespace rovioli

@@ -38,8 +38,66 @@ ResourceCache::getCachePtr<voxblox::OccupancyMap>(const ResourceType& type) {
   return voxblox_occupancy_map_cache_[type];
 }
 
+template <>
+typename ResourceCache::Cache<
+    resources::ObjectInstanceBoundingBoxes>::ResourceDequePtr&
+ResourceCache::getCachePtr<resources::ObjectInstanceBoundingBoxes>(
+    const ResourceType& type) {
+  return bounding_boxes_map_cache_[type];
+}
+
 void ResourceCache::resetStatistic() {
   statistic_.reset();
+}
+
+// NOTE: [ADD_RESOURCE_DATA_TYPE] Make sure the cache of the new data type is
+// also listed here.
+void ResourceCache::deleteResourceNoDataType(
+    const ResourceId& id, const ResourceType& type) {
+  switch (type) {
+    case ResourceType::kRawImage:
+    case ResourceType::kUndistortedImage:
+    case ResourceType::kRectifiedImage:
+    case ResourceType::kImageForDepthMap:
+    case ResourceType::kRawColorImage:
+    case ResourceType::kUndistortedColorImage:
+    case ResourceType::kRectifiedColorImage:
+    case ResourceType::kColorImageForDepthMap:
+    case ResourceType::kRawDepthMap:
+    case ResourceType::kOptimizedDepthMap:
+    case ResourceType::kDisparityMap:
+    case ResourceType::kObjectInstanceMasks:
+      deleteResource<cv::Mat>(id, type);
+      break;
+    case ResourceType::kText:
+    case ResourceType::kPmvsReconstructionPath:
+    case ResourceType::kTsdfGridPath:
+    case ResourceType::kEsdfGridPath:
+    case ResourceType::kOccupancyGridPath:
+      deleteResource<std::string>(id, type);
+      break;
+    case ResourceType::kPointCloudXYZ:
+    case ResourceType::kPointCloudXYZRGBN:
+    case ResourceType::kPointCloudXYZI:
+      deleteResource<resources::PointCloud>(id, type);
+      break;
+    case ResourceType::kVoxbloxTsdfMap:
+      deleteResource<voxblox::TsdfMap>(id, type);
+      break;
+    case ResourceType::kVoxbloxEsdfMap:
+      deleteResource<voxblox::EsdfMap>(id, type);
+      break;
+    case ResourceType::kVoxbloxOccupancyMap:
+      deleteResource<voxblox::OccupancyMap>(id, type);
+      break;
+    case ResourceType::kObjectInstanceBoundingBoxes:
+      deleteResource<resources::ObjectInstanceBoundingBoxes>(id, type);
+      break;
+    default:
+      LOG(FATAL) << "Removing a resource from this cache is not implemented "
+                 << "for this resource type!";
+      break;
+  }
 }
 
 const CacheStatistic& ResourceCache::getStatistic() const {

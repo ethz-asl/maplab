@@ -28,40 +28,6 @@
 #include <sensor_msgs/distortion_models.h>
 #include <vi-map/vi-map-serialization.h>
 
-void convertPointCloudMessage(
-    sensor_msgs::PointCloud2ConstPtr point_cloud_msg,
-    resources::PointCloud* maplab_pointcloud) {
-  CHECK(point_cloud_msg);
-  CHECK_NOTNULL(maplab_pointcloud);
-
-  pcl::PointCloud<pcl::PointXYZRGB> pointcloud_pcl;
-  pcl::fromROSMsg(*point_cloud_msg, pointcloud_pcl);
-
-  size_t flattened_size = 3u * pointcloud_pcl.size();
-  maplab_pointcloud->xyz.reserve(flattened_size);
-  // TODO(mfehr): Make sure there are colors in the point cloud.
-  maplab_pointcloud->colors.reserve(flattened_size);
-  // TODO(mfehr): Check if there are normals in the point cloud and use it
-  // if there are.
-  maplab_pointcloud->normals.resize(flattened_size, 0.0f);
-
-  for (size_t i = 0u; i < pointcloud_pcl.points.size(); ++i) {
-    if (!std::isfinite(pointcloud_pcl.points[i].x) ||
-        !std::isfinite(pointcloud_pcl.points[i].y) ||
-        !std::isfinite(pointcloud_pcl.points[i].z)) {
-      continue;
-    }
-
-    maplab_pointcloud->xyz.push_back(pointcloud_pcl.points[i].x);
-    maplab_pointcloud->xyz.push_back(pointcloud_pcl.points[i].y);
-    maplab_pointcloud->xyz.push_back(pointcloud_pcl.points[i].z);
-
-    maplab_pointcloud->colors.push_back(pointcloud_pcl.points[i].r);
-    maplab_pointcloud->colors.push_back(pointcloud_pcl.points[i].g);
-    maplab_pointcloud->colors.push_back(pointcloud_pcl.points[i].b);
-  }
-}
-
 void convertDepthImageMessage(
     sensor_msgs::ImageConstPtr image_message, cv::Mat* image) {
   CHECK(image_message);
@@ -80,16 +46,41 @@ void convertDepthImageMessage(
   *image = cv_ptr->image.clone();
 }
 
-void convertColorImageMessage(
+void convertFloatDepthImageMessage(
     sensor_msgs::ImageConstPtr image_message, cv::Mat* image) {
   CHECK(image_message);
   CHECK_NOTNULL(image);
-  CHECK_EQ(image_message->encoding, sensor_msgs::image_encodings::TYPE_8UC3);
+  CHECK_EQ(image_message->encoding, sensor_msgs::image_encodings::TYPE_32FC1);
 
   cv_bridge::CvImageConstPtr cv_ptr;
   try {
     cv_ptr = cv_bridge::toCvShare(
-        image_message, sensor_msgs::image_encodings::TYPE_8UC3);
+        image_message, sensor_msgs::image_encodings::TYPE_32FC1);
+  } catch (const cv_bridge::Exception& e) {  // NOLINT
+    LOG(FATAL) << "cv_bridge exception: " << e.what();
+  }
+  CHECK(cv_ptr);
+
+  cv::Mat milimeter_depth_map;
+  cv_ptr->image.convertTo(milimeter_depth_map, CV_16UC1, 1e3);
+
+  *image = milimeter_depth_map.clone();
+}
+
+void convertColorImageMessage(
+    sensor_msgs::ImageConstPtr image_message, cv::Mat* image) {
+  CHECK(image_message);
+  CHECK_NOTNULL(image);
+
+  cv_bridge::CvImageConstPtr cv_ptr;
+  try {
+    if (image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
+      cv_ptr = cv_bridge::toCvShare(
+          image_message, sensor_msgs::image_encodings::TYPE_8UC3);
+    } else {
+      cv_ptr = cv_bridge::toCvShare(
+          image_message, sensor_msgs::image_encodings::BGR8);
+    }
   } catch (const cv_bridge::Exception& e) {  // NOLINT
     LOG(FATAL) << "cv_bridge exception: " << e.what();
   }

@@ -14,7 +14,7 @@ void storeFrameResourceWithOptionalOverwrite(
     vi_map::VIMap* vi_map_ptr) {
   CHECK_NOTNULL(vertex_ptr);
   CHECK_NOTNULL(vi_map_ptr);
-  if (vi_map_ptr->hasFrameResource<DataType>(*vertex_ptr, frame_idx, type)) {
+  if (vi_map_ptr->hasFrameResource(*vertex_ptr, frame_idx, type)) {
     if (FLAGS_overwrite) {
       vi_map_ptr->replaceFrameResource(resource, frame_idx, type, vertex_ptr);
     } else {

@@ -3,6 +3,7 @@
 #include <vector>
 
 #include <Eigen/Dense>
+#include <aslam/cameras/camera-pinhole.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <map-resources/resource-common.h>
@@ -158,16 +159,16 @@ class StereoDenseReconstructionTest : public ::testing::Test {
 
     D_left_ = std::vector<double>(5, 0.0);
     D_left_[0] = -3.728755e-01;
-    D_left_[0] = 2.037299e-01;
-    D_left_[0] = 2.219027e-03;
-    D_left_[0] = 1.383707e-03;
-    D_left_[0] = -7.233722e-02;
+    D_left_[1] = 2.037299e-01;
+    D_left_[2] = 2.219027e-03;
+    D_left_[3] = 1.383707e-03;
+    D_left_[4] = -7.233722e-02;
     D_right_ = std::vector<double>(5, 0.0);
     D_right_[0] = -3.644661e-01;
-    D_right_[0] = 1.790019e-01;
-    D_right_[0] = 1.148107e-03;
-    D_right_[0] = -6.298563e-04;
-    D_right_[0] = -5.314062e-02;
+    D_right_[1] = 1.790019e-01;
+    D_right_[2] = 1.148107e-03;
+    D_right_[3] = -6.298563e-04;
+    D_right_[4] = -5.314062e-02;
 
     K_left_ << 9.842439e+02, 0.000000e+00, 6.900000e+02, 0.000000e+00,
         9.808141e+02, 2.331966e+02, 0.000000e+00, 0.000000e+00, 1.000000e+00;
@@ -275,21 +276,55 @@ class StereoDenseReconstructionTest : public ::testing::Test {
         << "The undistortion should have made cx_left and cx_right identical!";
     const double cy = left_params->P()(1, 2);
 
+    // Compute point cloud.
     resources::PointCloud pointcloud;
     convertDisparityMapToPointCloud(
         img_disparity, img_left_undistorted, baseline, focal_length, cx_left,
         cy, sad_window_size_, min_disparity_, num_disparities_, &pointcloud);
-
     EXPECT_EQ(pointcloud.size(), point_cloud_size);
 
-    const std::string mesh_file_name = kTestDataBaseFolder + name + ".ply";
+    // Compute depth map.
+    Eigen::VectorXd intrinsics(4);
+    intrinsics << left_params->P()(0, 0), left_params->P()(1, 1),
+        left_params->P()(0, 2), left_params->P()(1, 2);
+    aslam::PinholeCamera undistorted_left_camera(
+        intrinsics, img_disparity.cols, img_disparity.rows);
+    cv::Mat depth_map_left;
+    convertDisparityMapToDepthMap(
+        img_disparity, img_left_undistorted, baseline, focal_length, cx_left,
+        cy, sad_window_size_, min_disparity_, num_disparities_,
+        undistorted_left_camera, &depth_map_left);
+
+    const std::string camera_file_name =
+        kTestDataBaseFolder + name + "_depth_map_cam.yaml";
+    if (common::fileExists(camera_file_name)) {
+      common::deleteFile(camera_file_name);
+    }
+    undistorted_left_camera.serializeToFile(camera_file_name);
+
+    const std::string mesh_file_name =
+        kTestDataBaseFolder + name +
+        backend::ResourceTypeFileSuffix[static_cast<int>(
+            backend::ResourceType::kPointCloudXYZRGBN)];
     if (common::fileExists(mesh_file_name)) {
       common::deleteFile(mesh_file_name);
+    }
+
+    const std::string depth_map_file_name =
+        kTestDataBaseFolder + name +
+        backend::ResourceTypeFileSuffix[static_cast<int>(
+            backend::ResourceType::kRawDepthMap)];
+    if (common::fileExists(depth_map_file_name)) {
+      common::deleteFile(depth_map_file_name);
     }
 
     backend::ResourceLoader resource_loader;
     resource_loader.saveResourceToFile(
         mesh_file_name, backend::ResourceType::kPointCloudXYZRGBN, pointcloud);
+
+    resource_loader.saveResourceToFile(
+        depth_map_file_name, backend::ResourceType::kRawDepthMap,
+        depth_map_left);
   }
 
   bool compareImages(const cv::Mat& image_A, const cv::Mat& image_B) const {
@@ -348,7 +383,7 @@ TEST_F(StereoDenseReconstructionTest, TestStereoDenseReconstructionBike) {
 
 TEST_F(StereoDenseReconstructionTest, TestStereoDenseReconstructionKitti) {
   setupKittiStereoDataset();
-  computeStereoReconstruction("kitti", 386545u);
+  computeStereoReconstruction("kitti", 560229u);
 }
 
 }  // namespace stereo

@@ -17,7 +17,6 @@ class PoseGraphManipulationPlugin : public common::ConsolePluginBase {
  private:
   // Resets the vertex poses by integrating the relative pose
   // information stored in the odometry edges of the pose graph.
-  int resetVertexPosesToWheelOdometryTrajectory() const;
   int assignEdgeUncertainties();
   int assignSwitchVariableUncertaintiesForLoopClosureEdges();
   int assignSwitchVariableValuesForLoopClosureEdges();

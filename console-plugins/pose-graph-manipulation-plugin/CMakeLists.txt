@@ -7,8 +7,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 add_definitions(-fPIC -shared)
 
 cs_add_library(${PROJECT_NAME} src/edge-manipulation.cc
-                               src/pose-graph-manipulation-plugin.cc
-                               src/reset-wheel-odometry.cc)
+                               src/pose-graph-manipulation-plugin.cc)
 create_console_plugin(${PROJECT_NAME})
 
 ##################

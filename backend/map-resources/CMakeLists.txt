@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(map_resources)
 
+set(CMAKE_CXX_STANDARD 14)
+
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
@@ -8,7 +10,8 @@ catkin_simple(ALL_DEPS_REQUIRED)
 # PROTOBUF #
 ############
 set(PROTO_DEFNS proto/map-resources/resource_info_map.proto
-                proto/map-resources/resource_metadata.proto)
+                proto/map-resources/resource_metadata.proto
+                proto/map-resources/resource_object_instance_bbox.proto)
 PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -21,7 +24,6 @@ cs_add_library(${PROJECT_NAME} src/resource-cache.cc
                                src/resource-loader.cc
                                src/resource-map-serialization.cc
                                src/resource-map.cc
-                               src/tinyply/tinyply.cc
                                ${PROTO_SRCS}
                                ${PROTO_HDRS})
 
@@ -45,8 +47,8 @@ catkin_add_gtest(test_resource_conversion test/test_resource_conversion.cc)
 target_link_libraries(test_resource_conversion ${PROJECT_NAME})
 add_dependencies(test_resource_conversion ${PROJECT_TEST_DATA})
 
-catkin_add_gtest(test_optional_sensor_resources test/test_optional_sensor_resources.cc)
-target_link_libraries(test_optional_sensor_resources ${PROJECT_NAME})
+catkin_add_gtest(test_temporal_resource_id_buffer test/test-temporal-resource-id-buffer.cc)
+target_link_libraries(test_temporal_resource_id_buffer ${PROJECT_NAME})
 
 ############
 ## EXPORT ##

@@ -108,5 +108,5 @@ def test_umeyama():
     print("Translation vector=", B_t_BA_hat, sep='')
 
 
-if __name__ == '__main__':
+def main():
     test_umeyama()

@@ -12,7 +12,7 @@ DEFINE_int64(
     disturb_random_generator_seed, 0,
     "The seed for the random number generator for distrubing vertices.");
 DEFINE_double(
-    disturb_tranlation_random_walk_sigma_m, 0.005,
+    disturb_translation_random_walk_sigma_m, 0.005,
     "Standard deviation of the normal distribution determining the change in "
     "translation for each vertex.");
 DEFINE_double(
@@ -47,7 +47,7 @@ void VIMapManipulation::rotate(const size_t dimension, const double degrees) {
 void VIMapManipulation::artificiallyDisturbVertices() {
   std::mt19937 generator(FLAGS_disturb_random_generator_seed);
   std::normal_distribution<double> position_distribution_m(
-      0, FLAGS_disturb_tranlation_random_walk_sigma_m);
+      0, FLAGS_disturb_translation_random_walk_sigma_m);
   std::normal_distribution<double> yaw_angle_distribution_rad(
       0, FLAGS_disturb_yaw_angle_stddev_rad);
 
@@ -101,10 +101,9 @@ void VIMapManipulation::artificiallyDisturbVertices() {
       } else if (disturbance_yaw_angle_rad < -FLAGS_disturb_max_yaw_angle_rad) {
         disturbance_yaw_angle_rad = -FLAGS_disturb_max_yaw_angle_rad;
       }
-      const aslam::Quaternion orientation_disturbance(
-          aslam::AngleAxis(
-              disturbance_yaw_angle_rad * vertex_distance_m,
-              G_disturbance_rotation_axis));
+      const aslam::Quaternion orientation_disturbance(aslam::AngleAxis(
+          disturbance_yaw_angle_rad * vertex_distance_m,
+          G_disturbance_rotation_axis));
 
       const aslam::Transformation T_G_G_disturbance = aslam::Transformation(
           disturbance_translation * vertex_distance_m, orientation_disturbance);
@@ -218,7 +217,7 @@ void VIMapManipulation::fixViwlsEdgesWithoutImuMeasurements(
         map_.getEdgeAs<vi_map::ViwlsEdge>(edge_id);
 
     pose_graph::EdgeId new_edge_id;
-    common::generateId(&new_edge_id);
+    aslam::generateId(&new_edge_id);
 
     Eigen::Matrix<int64_t, 1, Eigen::Dynamic> new_imu_timestamps;
     Eigen::Matrix<double, 6, Eigen::Dynamic> new_imu_data;
@@ -319,10 +318,8 @@ void VIMapManipulation::fixViwlsEdgesWithoutImuMeasurements(
 
     VLOG(3) << "Adding the following IMU timestamps: " << new_imu_timestamps;
     VLOG(3) << "Adding the following IMU data: " << new_imu_data;
-    vi_map::Edge* new_edge_ptr(
-        new vi_map::ViwlsEdge(
-            new_edge_id, vertex_from, vertex_to, new_imu_timestamps,
-            new_imu_data));
+    vi_map::Edge* new_edge_ptr(new vi_map::ViwlsEdge(
+        new_edge_id, vertex_from, vertex_to, new_imu_timestamps, new_imu_data));
 
     // Align the vertex_from and vertex_to to avoid overextending the edge.
     map_.getVertexPtr(vertex_to)->set_T_M_I(
@@ -369,11 +366,12 @@ void VIMapManipulation::removeVerticesAndIncomingEdges(
 }
 
 size_t VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfMission(
-    const vi_map::MissionId& mission_id) {
+    const vi_map::MissionId& mission_id,
+    const pose_graph::VertexId& starting_vertex_id) {
   CHECK(mission_id.isValid());
   pose_graph::VertexIdList all_vertices_in_missions;
   map_.getAllVertexIdsInMissionAlongGraph(
-      mission_id, &all_vertices_in_missions);
+      mission_id, starting_vertex_id, &all_vertices_in_missions);
 
   TrackIndexToLandmarkIdMap track_id_to_landmark_id;
   track_id_to_landmark_id.reserve(1000u * all_vertices_in_missions.size());
@@ -383,6 +381,14 @@ size_t VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfMission(
 
   const size_t num_new_landmarks = map_.numLandmarks() - num_landmarks_initial;
   return num_new_landmarks;
+}
+
+size_t VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfMission(
+    const vi_map::MissionId& mission_id) {
+  const vi_map::VIMission& mission = map_.getMission(mission_id);
+  const pose_graph::VertexId& starting_vertex_id = mission.getRootVertexId();
+  return initializeLandmarksFromUnusedFeatureTracksOfMission(
+      mission_id, starting_vertex_id);
 }
 
 void VIMapManipulation::
@@ -401,64 +407,62 @@ void VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfVertex(
   CHECK_NOTNULL(trackid_landmarkid_map);
   const vi_map::Vertex& vertex = map_.getVertex(vertex_id);
 
-  vertex.forEachFrame(
-      [this, &vertex, &trackid_landmarkid_map](
-          const size_t frame_index, const aslam::VisualFrame& frame) {
-        const size_t num_keypoints = frame.getNumKeypointMeasurements();
-        if (!frame.hasTrackIds()) {
-          VLOG(3) << "Frame has no tracking information. Skipping frame...";
-          return;
-        }
-        const Eigen::VectorXi& track_ids = frame.getTrackIds();
+  vertex.forEachFrame([this, &vertex, &trackid_landmarkid_map](
+                          const size_t frame_index,
+                          const aslam::VisualFrame& frame) {
+    const size_t num_keypoints = frame.getNumKeypointMeasurements();
+    if (!frame.hasTrackIds()) {
+      VLOG(3) << "Frame has no tracking information. Skipping frame...";
+      return;
+    }
+    const Eigen::VectorXi& track_ids = frame.getTrackIds();
 
-        CHECK_EQ(static_cast<int>(num_keypoints), track_ids.rows());
+    CHECK_EQ(static_cast<int>(num_keypoints), track_ids.rows());
 
-        vi_map::LandmarkIdList landmark_ids;
-        vertex.getFrameObservedLandmarkIds(frame_index, &landmark_ids);
+    vi_map::LandmarkIdList landmark_ids;
+    vertex.getFrameObservedLandmarkIds(frame_index, &landmark_ids);
 
-        // Go over all tracks of this frame and add a new landmark if it wasn't
-        // observed before, otherwise add an observation backlink.
-        for (size_t keypoint_i = 0u; keypoint_i < num_keypoints; ++keypoint_i) {
-          const int track_id = track_ids(keypoint_i);
+    // Go over all tracks of this frame and add a new landmark if it wasn't
+    // observed before, otherwise add an observation backlink.
+    for (size_t keypoint_i = 0u; keypoint_i < num_keypoints; ++keypoint_i) {
+      const int track_id = track_ids(keypoint_i);
 
-          // Skip non-tracked landmark observation.
-          if (track_id < 0 || landmark_ids[keypoint_i].isValid()) {
-            continue;
-          }
+      // Skip non-tracked landmark observation.
+      if (track_id < 0 || landmark_ids[keypoint_i].isValid()) {
+        continue;
+      }
 
-          // Check whether this track has already a global landmark id
-          // associated.
-          const vi_map::LandmarkId* landmark_id_ptr =
-              common::getValuePtr(*trackid_landmarkid_map, track_id);
+      // Check whether this track has already a global landmark id
+      // associated.
+      const vi_map::LandmarkId* landmark_id_ptr =
+          common::getValuePtr(*trackid_landmarkid_map, track_id);
 
-          if (landmark_id_ptr != nullptr &&
-              map_.hasLandmark(*landmark_id_ptr)) {
-            map_.associateKeypointWithExistingLandmark(
-                vertex.id(), frame_index, keypoint_i, *landmark_id_ptr);
-          } else {
-            // Assign a new global landmark id to this track if it hasn't
-            // been seen before and add a new landmark to the map.
-            vi_map::LandmarkId landmark_id =
-                common::createRandomId<vi_map::LandmarkId>();
-            // operator[] intended as this is either overwriting an old outdated
-            // entry or creating a new one.
-            (*trackid_landmarkid_map)[track_id] = landmark_id;
+      if (landmark_id_ptr != nullptr && map_.hasLandmark(*landmark_id_ptr)) {
+        map_.associateKeypointWithExistingLandmark(
+            vertex.id(), frame_index, keypoint_i, *landmark_id_ptr);
+      } else {
+        // Assign a new global landmark id to this track if it hasn't
+        // been seen before and add a new landmark to the map.
+        vi_map::LandmarkId landmark_id =
+            aslam::createRandomId<vi_map::LandmarkId>();
+        // operator[] intended as this is either overwriting an old outdated
+        // entry or creating a new one.
+        (*trackid_landmarkid_map)[track_id] = landmark_id;
 
-            vi_map::KeypointIdentifier keypoint_id;
-            keypoint_id.frame_id.frame_index = frame_index;
-            keypoint_id.frame_id.vertex_id = vertex.id();
-            keypoint_id.keypoint_index = keypoint_i;
-            map_.addNewLandmark(landmark_id, keypoint_id);
-          }
-        }
-      });
+        vi_map::KeypointIdentifier keypoint_id;
+        keypoint_id.frame_id.frame_index = frame_index;
+        keypoint_id.frame_id.vertex_id = vertex.id();
+        keypoint_id.keypoint_index = keypoint_i;
+        map_.addNewLandmark(landmark_id, keypoint_id);
+      }
+    }
+  });
 }
 
 size_t VIMapManipulation::mergeLandmarksBasedOnTrackIds(
     const vi_map::MissionId& mission_id) {
   CHECK(map_.hasMission(mission_id));
-  typedef std::unordered_map<int, vi_map::LandmarkId>
-      TrackIdToLandmarkIdMap;
+  typedef std::unordered_map<int, vi_map::LandmarkId> TrackIdToLandmarkIdMap;
   TrackIdToLandmarkIdMap track_id_to_store_landmark_id;
   size_t num_merges = 0u;
 
@@ -475,8 +479,7 @@ size_t VIMapManipulation::mergeLandmarksBasedOnTrackIds(
       CHECK(vertex.getVisualFrame(frame_idx).hasTrackIds());
       const Eigen::VectorXi& track_ids =
           vertex.getVisualFrame(frame_idx).getTrackIds();
-      CHECK_EQ(
-          static_cast<size_t>(track_ids.rows()), landmark_ids.size());
+      CHECK_EQ(static_cast<size_t>(track_ids.rows()), landmark_ids.size());
 
       for (size_t keypoint_idx = 0u; keypoint_idx < landmark_ids.size();
            ++keypoint_idx) {
@@ -486,7 +489,8 @@ size_t VIMapManipulation::mergeLandmarksBasedOnTrackIds(
           CHECK(map_.hasLandmark(landmark_id));
 
           if (track_id_to_store_landmark_id
-                  .emplace(track_ids(keypoint_idx), landmark_id).second) {
+                  .emplace(track_ids(keypoint_idx), landmark_id)
+                  .second) {
             // Emplace succeeded so this track ID was not used before.
           } else {
             // Emplace failed so this track ID is already used, we need to
@@ -495,9 +499,9 @@ size_t VIMapManipulation::mergeLandmarksBasedOnTrackIds(
                 track_id_to_store_landmark_id.find(track_ids(keypoint_idx));
             CHECK(it != track_id_to_store_landmark_id.end());
             CHECK(it->second.isValid());
-            CHECK(map_.hasLandmark(it->second)) << "Landmark "
-                                                << it->second.hexString()
-                                                << " not found in the map.";
+            CHECK(map_.hasLandmark(it->second))
+                << "Landmark " << it->second.hexString()
+                << " not found in the map.";
 
             if (it->second != landmark_id) {
               map_.mergeLandmarks(landmark_id, it->second);
@@ -562,5 +566,95 @@ size_t VIMapManipulation::removeBadLandmarks() {
   return bad_landmark_ids.size();
 }
 
+void VIMapManipulation::dropMapDataBeforeVertex(
+    const vi_map::MissionId& mission_id,
+    const pose_graph::VertexId& new_root_vertex,
+    const bool delete_resources_from_file_system) {
+  pose_graph::VertexIdList all_vertices_in_mission;
+  map_.getAllVertexIdsInMissionAlongGraph(mission_id, &all_vertices_in_mission);
+
+  const vi_map::Vertex& root_vertex = map_.getVertex(new_root_vertex);
+  const int64_t root_timestamp_ns = root_vertex.getMinTimestampNanoseconds();
+
+  for (const pose_graph::VertexId& current_vertex_id :
+       all_vertices_in_mission) {
+    if (current_vertex_id == new_root_vertex) {
+      break;
+    }
+
+    vi_map::Vertex* vertex = map_.getVertexPtr(current_vertex_id);
+
+    // Delete all edges.
+    pose_graph::EdgeIdSet incoming_edges;
+    vertex->getIncomingEdges(&incoming_edges);
+    for (pose_graph::EdgeId incoming_edge_id : incoming_edges) {
+      if (map_.hasEdge(incoming_edge_id)) {
+        map_.removeEdge(incoming_edge_id);
+      }
+    }
+    pose_graph::EdgeIdSet outgoing_edges;
+    vertex->getOutgoingEdges(&outgoing_edges);
+    for (pose_graph::EdgeId outgoing_edge_id : outgoing_edges) {
+      if (map_.hasEdge(outgoing_edge_id)) {
+        map_.removeEdge(outgoing_edge_id);
+      }
+    }
+
+    // Delete all landmarks.
+    vi_map::LandmarkIdList landmark_ids;
+    vertex->getStoredLandmarkIdList(&landmark_ids);
+    for (const vi_map::LandmarkId& landmark_id : landmark_ids) {
+      map_.removeLandmark(landmark_id);
+      CHECK(!map_.hasLandmarkIdInLandmarkIndex(landmark_id));
+      CHECK(!vertex->hasStoredLandmark(landmark_id));
+      CHECK_EQ(vertex->getNumLandmarkObservations(landmark_id), 0);
+    }
+    CHECK_EQ(0u, vertex->getLandmarks().size());
+
+    // Remove references to global landmarks and landmark backlinks and frame
+    // resources.
+    for (unsigned int frame_idx = 0u; frame_idx < vertex->numFrames();
+         ++frame_idx) {
+      map_.deleteAllFrameResources(
+          frame_idx, delete_resources_from_file_system, vertex);
+
+      vi_map::LandmarkIdList frame_landmark_ids;
+      vertex->getFrameObservedLandmarkIds(frame_idx, &frame_landmark_ids);
+
+      for (size_t i = 0; i < frame_landmark_ids.size(); ++i) {
+        if (frame_landmark_ids[i].isValid()) {
+          const vi_map::LandmarkId& landmark_id = frame_landmark_ids[i];
+
+          vi_map::Landmark& landmark = map_.getLandmark(landmark_id);
+          landmark.removeAllObservationsOfVertex(current_vertex_id);
+
+          // Also clean up the global landmark id list in the current vertex
+          // so that we feed a consistent state to the removeVertex method
+          // below.
+          vi_map::LandmarkId invalid_landmark_id;
+          invalid_landmark_id.setInvalid();
+          vertex->setObservedLandmarkId(frame_idx, i, invalid_landmark_id);
+
+          // If the current vertex was the only observer of the landmark stored
+          // in some other mission, we should remove this orphaned landmark.
+          if (map_.getMissionIdForLandmark(landmark_id) != mission_id &&
+              !landmark.hasObservations()) {
+            map_.removeLandmark(landmark_id);
+            CHECK(!map_.hasLandmarkIdInLandmarkIndex(landmark_id));
+            CHECK(!vertex->hasStoredLandmark(landmark_id));
+            CHECK_EQ(vertex->getNumLandmarkObservations(landmark_id), 0u);
+          }
+        }
+      }
+    }
+    map_.removeVertex(current_vertex_id);
+  }
+
+  map_.deleteAllSensorResourcesBeforeTime(
+      mission_id, root_timestamp_ns, delete_resources_from_file_system);
+
+  // Set vertex as root vertex.
+  map_.getMission(mission_id).setRootVertexId(new_root_vertex);
+}
 
 }  // namespace vi_map_helpers

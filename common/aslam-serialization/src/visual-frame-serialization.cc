@@ -6,7 +6,6 @@
 #include <aslam/cameras/ncamera.h>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
-#include <maplab-common/aslam-id-proto.h>
 #include <maplab-common/eigen-proto.h>
 
 namespace aslam {
@@ -16,7 +15,7 @@ void serializeVisualFrame(
     const aslam::VisualFrame& frame, aslam::proto::VisualFrame* proto) {
   CHECK_NOTNULL(proto);
 
-  ::common::aslam_id_proto::serialize(frame.getId(), proto->mutable_id());
+  frame.getId().serialize(proto->mutable_id());
   proto->set_timestamp(frame.getTimestampNanoseconds());
 
   if (frame.hasKeypointMeasurements()) {
@@ -68,7 +67,7 @@ void deserializeVisualFrame(
   CHECK_NOTNULL(frame)->reset();
 
   aslam::FrameId frame_id;
-  ::common::aslam_id_proto::deserialize(proto.id(), &frame_id);
+  frame_id.deserialize(proto.id());
   // If the frame_id is invalid this frame has been un-set.
   if (frame_id.isValid()) {
     bool success = true;
@@ -133,7 +132,7 @@ void serializeVisualNFrame(
     const aslam::VisualNFrame& n_frame, aslam::proto::VisualNFrame* proto) {
   CHECK_NOTNULL(proto);
 
-  ::common::aslam_id_proto::serialize(n_frame.getId(), proto->mutable_id());
+  n_frame.getId().serialize(proto->mutable_id());
   const unsigned int num_frames = n_frame.getNumFrames();
   for (unsigned int i = 0u; i < num_frames; ++i) {
     aslam::proto::VisualFrame* visual_frame_proto =
@@ -143,8 +142,7 @@ void serializeVisualNFrame(
       serializeVisualFrame(visual_frame, visual_frame_proto);
     } else {
       // Set invalid id to proto::VisualFrame.
-      ::common::aslam_id_proto::serialize(
-          aslam::FrameId(), visual_frame_proto->mutable_id());
+      aslam::FrameId().serialize(visual_frame_proto->mutable_id());
     }
   }
 }
@@ -163,7 +161,7 @@ void deserializeVisualNFrame(
   CHECK_NOTNULL(n_frame);
 
   aslam::NFramesId n_frame_id;
-  ::common::aslam_id_proto::deserialize(proto.id(), &n_frame_id);
+  n_frame_id.deserialize(proto.id());
 
   CHECK_GT(proto.frames_size(), 0);
   const int num_frames = proto.frames_size();

@@ -10,6 +10,7 @@
 #include <aslam/cameras/distortion-fisheye.h>
 #include <aslam/cameras/distortion.h>
 #include <aslam/cameras/ncamera.h>
+#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/matcher/match.h>
 #include <aslam/matcher/matching-engine-exclusive.h>
 #include <aslam/matcher/matching-problem-frame-to-frame.h>
@@ -118,8 +119,7 @@ TEST_F(RelativeNonCentralPnpTest, testInterfaceWithOpengvSetup) {
     aslam::Camera::Ptr camera = std::shared_ptr<CameraType>(
         new CameraType(intrinsics, ru, rv, distortion));
     CHECK(camera);
-    aslam::CameraId cam_id;
-    cam_id.randomize();
+    aslam::CameraId cam_id = aslam::createRandomId<aslam::CameraId>();
     camera->setId(cam_id);
     camera_vector.push_back(camera);
 
@@ -133,21 +133,17 @@ TEST_F(RelativeNonCentralPnpTest, testInterfaceWithOpengvSetup) {
 
   // Create the camera rig.
   // Construct the ID object.
-  aslam::NCameraId camera_rig_id;
-  // Randomize the ID.
-  camera_rig_id.randomize();
+  aslam::NCameraId camera_rig_id = aslam::createRandomId<aslam::NCameraId>();
   aslam::NCamera::Ptr camera_rig;
-  camera_rig.reset(
-      new aslam::NCamera(
-          camera_rig_id, T_C_B_vector, camera_vector, "pose_estimator_test"));
+  camera_rig.reset(new aslam::NCamera(
+      camera_rig_id, T_C_B_vector, camera_vector, "pose_estimator_test"));
 
   // Convert the openGV simulation data to nframes to match the interface.
   std::vector<std::vector<size_t> > nframe_0_indices;
   std::vector<std::vector<size_t> > nframe_1_indices;
   aslam::VisualNFrame::Ptr nframe_0, nframe_1;
   for (size_t nframe_idx = 0; nframe_idx < kNumNFrames; ++nframe_idx) {
-    aslam::NFramesId nframe_id;
-    nframe_id.randomize();
+    aslam::NFramesId nframe_id = aslam::createRandomId<aslam::NFramesId>();
     if (nframe_idx == kViewpoint0) {
       nframe_0 = aligned_shared<aslam::VisualNFrame>(nframe_id, camera_rig);
     } else if (nframe_idx == kViewpoint1) {
@@ -157,16 +153,16 @@ TEST_F(RelativeNonCentralPnpTest, testInterfaceWithOpengvSetup) {
     for (size_t camera_idx = 0; camera_idx < kNumCams; ++camera_idx) {
       // Sets up the frame with id, assigns the cameras, etc.
       aslam::VisualFrame::Ptr frame(new aslam::VisualFrame);
-      aslam::FrameId frame_id;
-      frame_id.randomize();
+      aslam::FrameId frame_id = aslam::createRandomId<aslam::FrameId>();
       frame->setId(frame_id);
       aslam::Camera::ConstPtr camera = camera_rig->getCameraShared(camera_idx);
       CHECK(camera);
       frame->setCameraGeometry(camera);
 
       // Add the measurement in nframe 0 and nframe 1.
-      std::vector<Eigen::Matrix<double, 3, 1>,
-                  Eigen::aligned_allocator<Eigen::Matrix<double, 3, 1> > >
+      std::vector<
+          Eigen::Matrix<double, 3, 1>,
+          Eigen::aligned_allocator<Eigen::Matrix<double, 3, 1> > >
           bearing_vector;
       if (nframe_idx == kViewpoint0) {
         bearing_vector = *(multi_bearing_vectors_nframe_0[camera_idx]);
@@ -321,7 +317,7 @@ TEST_F(RelativeNonCentralPnpTest, testInterfaceWithGeometricVisionSetup) {
   // [1] Generate the cameras.
   // **************************************************
   const size_t kNumCams = 4;
-  aslam::NCamera::Ptr n_camera = aslam::NCamera::createTestNCamera(kNumCams);
+  aslam::NCamera::Ptr n_camera = aslam::createTestNCamera(kNumCams);
 
   // **************************************************
   // [2] Generate the path and landmarks.

@@ -22,6 +22,10 @@ class ResourceLoader {
       const ResourceId& id, const ResourceType& type,
       const std::string& folder);
 
+  void deleteResourceNoDataType(
+      const ResourceId& id, const ResourceType& type,
+      const std::string& folder);
+
   template <typename DataType>
   void addResource(
       const ResourceId& id, const ResourceType& type, const std::string& folder,
@@ -133,6 +137,16 @@ template <>
 bool ResourceLoader::loadResourceFromFile(
     const std::string& file_path, const ResourceType& type,
     resources::PointCloud* resource) const;
+
+// Implementation for ObjectInstanceBoundingBox resources.
+template <>
+void ResourceLoader::saveResourceToFile(
+    const std::string& file_path, const ResourceType& type,
+    const resources::ObjectInstanceBoundingBoxes& resource) const;
+template <>
+bool ResourceLoader::loadResourceFromFile(
+    const std::string& file_path, const ResourceType& type,
+    resources::ObjectInstanceBoundingBoxes* resource) const;
 
 }  // namespace backend
 

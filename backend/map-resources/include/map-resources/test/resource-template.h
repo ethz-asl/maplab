@@ -24,7 +24,8 @@ enum class DataTypes {
   kPointCloud,
   kVoxbloxTsdfMap,
   kVoxbloxEsdfMap,
-  kVoxbloxOccupancyMap
+  kVoxbloxOccupancyMap,
+  kObjectInstanceBoundingBoxes
 };
 
 struct ResourceTemplateBase {
@@ -57,7 +58,7 @@ struct ResourceTemplateBase {
       const ResourceType& _type, const std::string& _folder,
       bool _is_external_folder)
       : type(_type), folder(_folder), is_external_folder(_is_external_folder) {
-    common::generateId(&id);
+    aslam::generateId(&id);
   }
 };
 
@@ -134,6 +135,12 @@ DataTypes ResourceTemplate<voxblox::EsdfMap>::getDataType() {
 template <>
 DataTypes ResourceTemplate<voxblox::OccupancyMap>::getDataType() {
   return DataTypes::kVoxbloxOccupancyMap;
+}
+
+template <>
+DataTypes
+ResourceTemplate<resources::ObjectInstanceBoundingBoxes>::getDataType() {
+  return DataTypes::kObjectInstanceBoundingBoxes;
 }
 
 template <>
@@ -255,6 +262,26 @@ void ResourceTemplate<voxblox::OccupancyMap>::createUniqueResource(
   (*unique_resource)
       ->getOccupancyLayerPtr()
       ->allocateBlockPtrByIndex(unique_block_idx);
+}
+
+template <>
+void ResourceTemplate<resources::ObjectInstanceBoundingBoxes>::
+    createUniqueResource(
+        const resources::ObjectInstanceBoundingBoxes& default_resource,
+        const ResourceId& id,
+        std::unique_ptr<resources::ObjectInstanceBoundingBoxes>*
+            unique_resource) {
+  CHECK_NOTNULL(unique_resource)
+      ->reset(new resources::ObjectInstanceBoundingBoxes(default_resource));
+
+  const voxblox::BlockIndex unique_block_idx = hashToBlockIndex(id);
+
+  resources::ObjectInstanceBoundingBox bbox;
+  bbox.instance_number = unique_block_idx.x();
+  bbox.class_number = unique_block_idx.y();
+  bbox.bounding_box.x = unique_block_idx.z();
+
+  (*unique_resource)->push_back(bbox);
 }
 
 void showTwoImagesSideBySide(

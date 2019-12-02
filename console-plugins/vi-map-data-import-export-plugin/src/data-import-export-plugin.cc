@@ -6,8 +6,6 @@
 #include <maplab-common/file-logger.h>
 #include <vi-map-data-import-export/export-ncamera-calibration.h>
 #include <vi-map-data-import-export/export-vertex-data.h>
-#include <vi-map-data-import-export/import-export-gps-data.h>
-#include <vi-map/vi-map.h>
 
 DECLARE_string(map_mission);
 DECLARE_bool(csv_export_imu_data);
@@ -19,26 +17,13 @@ DECLARE_bool(csv_export_observations);
 DEFINE_string(csv_export_path, "", "Path to save the map in CSV format into.");
 DEFINE_string(
     mission_info_export_path, "", "Export path of the mission info yaml.");
-
 DEFINE_string(
     ncamera_calibration_export_folder, "",
     "Folder to export the ncamera calibration into.");
-
 DEFINE_string(pose_export_file, "", "File to export poses to.");
-
-DEFINE_string(bag_file, "", "Bag file to import data from.");
-
 DEFINE_string(
-    gps_topic, "", "The topic name for importing GPS/UTM data from a rosbag.");
-
-DEFINE_string(
-    gps_yaml, "",
-    "The GPS sensor YAML file containing ID, type and calibration parameters.");
-
-DEFINE_string(
-    pose_export_reference_sensor_type, "IMU",
-    "Sensor defining in "
-    "what coordinate frame to express the vertex poses.");
+    pose_export_reference_sensor_id, "",
+    "Sensor id defining in what coordinate frame to express the vertex poses.");
 
 namespace data_import_export {
 
@@ -102,26 +87,6 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
       [this]() -> int { return exportNCameraCalibration(); },
       "Exports the ncamera calibration to the folder specified with "
       "--ncamera_calibration_export_folder.",
-      common::Processing::Sync);
-
-  addCommand(
-      {"import_gps_data_from_rosbag"},
-      [this]() -> int { return importGpsDataFromRosbag(); },
-      "Imports GPS (UTM, WGS) data from the rosbag specified with --bag_file. "
-      "The topic can be specified with --gps_topic and the YAML file with "
-      "--gps_yaml.",
-      common::Processing::Sync);
-
-  addCommand(
-      {"export_gps_utm_data_to_csv"},
-      [this]() -> int { return exportGpsUtmToCsv(); },
-      "Exports GPS UTM data to a CSV file placed inside the loaded map folder.",
-      common::Processing::Sync);
-
-  addCommand(
-      {"export_gps_wgs_data_to_csv"},
-      [this]() -> int { return exportGpsWgsToCsv(); },
-      "Exports GPS WGS data to a CSV file placed inside the loaded map folder.",
       common::Processing::Sync);
 }
 
@@ -203,31 +168,39 @@ int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv() const {
           : FLAGS_pose_export_file;
   CHECK(!filepath.empty());
 
-  const vi_map::SensorType sensor_type =
-      vi_map::stringToSensorType(FLAGS_pose_export_reference_sensor_type);
-  if (sensor_type == vi_map::SensorType::kInvalidSensor) {
-    return common::kStupidUserError;
+  aslam::SensorId reference_sensor_id;
+  if (FLAGS_pose_export_reference_sensor_id.empty()) {
+    // Pick first valid IMU from mission
+    for (const vi_map::MissionId& mission_id : mission_ids) {
+      const vi_map::VIMission& mission = map->getMission(mission_id);
+      if (mission.hasImu()) {
+        reference_sensor_id = mission.getImuId();
+        break;
+      }
+    }
+
+    if (!reference_sensor_id.isValid()) {
+      LOG(ERROR)
+          << "Could not find a mission with a valid IMU, reference sensor id"
+          << "must be specified manually.";
+      return common::kStupidUserError;
+    }
+  } else {
+    reference_sensor_id.fromHexString(FLAGS_pose_export_reference_sensor_id);
+
+    if (!reference_sensor_id.isValid()) {
+      LOG(ERROR) << "Invalid sensor id.";
+      return common::kStupidUserError;
+    }
   }
 
-  const vi_map::SensorManager& sensor_manager = map->getSensorManager();
-  vi_map::SensorIdSet sensor_ids;
-  sensor_manager.getAllSensorIdsOfType(sensor_type, &sensor_ids);
-  if (sensor_ids.empty()) {
-    LOG(ERROR) << "No sensor of type "
-               << vi_map::sensorTypeToString(sensor_type) << " available.";
+  if (!map->getSensorManager().hasSensor(reference_sensor_id)) {
+    LOG(ERROR) << "Sensor does not exist";
     return common::kStupidUserError;
   }
-  if (sensor_ids.size() > 1u) {
-    LOG(ERROR) << "More than one sensor of type "
-               << vi_map::sensorTypeToString(sensor_type)
-               << " available. Don't know "
-               << "how to choose.";
-    return common::kStupidUserError;
-  }
-  CHECK_EQ(sensor_ids.size(), 1u);
 
   data_import_export::exportPosesVelocitiesAndBiasesToCsv(
-      *map, mission_ids, *sensor_ids.begin(), filepath);
+      *map, mission_ids, reference_sensor_id, filepath);
   return common::kSuccess;
 }
 
@@ -249,114 +222,6 @@ int DataImportExportPlugin::exportNCameraCalibration() const {
 
   data_import_export::exportNCameraCalibration(
       *map, FLAGS_ncamera_calibration_export_folder);
-  return common::kSuccess;
-}
-
-int DataImportExportPlugin::importGpsDataFromRosbag() const {
-  const std::string& bag_file = FLAGS_bag_file;
-  if (bag_file.empty()) {
-    LOG(ERROR) << "The specified bag file parameter is empty. "
-               << "Please specify a valid bag file with --bag_file.";
-    return common::kStupidUserError;
-  }
-
-  if (!common::fileExists(bag_file)) {
-    LOG(ERROR) << "The specified bag file does not "
-               << "exist on the file-system. Please point to an existing bag "
-               << "file with --bag_file.";
-    return common::kStupidUserError;
-  }
-
-  const std::string& gps_topic = FLAGS_gps_topic;
-  if (gps_topic.empty()) {
-    LOG(ERROR) << "GPS topic is empty. Please specify "
-               << "valid GPS topic with --gps_topic.";
-    return common::kStupidUserError;
-  }
-
-  const std::string& gps_yaml = FLAGS_gps_yaml;
-  if (gps_yaml.empty()) {
-    LOG(ERROR) << "The specified GPS YAML file parameter is empty. "
-               << "Please specify a valid yaml file with --gps_yaml.";
-    return common::kStupidUserError;
-  }
-
-  if (!common::fileExists(gps_yaml)) {
-    LOG(ERROR) << "The specified GPS YAML file does not "
-               << "exist on the file-system. Please point to an existing YAML "
-               << "file with --gps_yaml.";
-    return common::kStupidUserError;
-  }
-
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapWriteAccess map =
-      map_manager.getMapWriteAccess(selected_map_key);
-
-  vi_map::MissionIdList mission_ids;
-  map->getAllMissionIds(&mission_ids);
-  if (mission_ids.empty()) {
-    LOG(ERROR) << "The loaded map does not contain any missions yet.";
-    return common::kUnknownError;
-  }
-
-  vi_map::MissionId mission_id;
-  CHECK(!mission_id.isValid());
-  if (mission_ids.size() == 1u) {
-    mission_id = mission_ids.front();
-  } else {
-    if (FLAGS_map_mission.empty()) {
-      LOG(ERROR)
-          << "There are more than 1 mission present in the loaded map. "
-          << "Please specify the mission to which you want to add the GPS "
-          << "data with --map_mission.";
-      return common::kStupidUserError;
-    }
-    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
-  }
-  CHECK(mission_id.isValid());
-  data_import_export::importGpsDataFromRosbag(
-      bag_file, gps_topic, gps_yaml, mission_id, map.get());
-
-  return common::kSuccess;
-}
-
-int DataImportExportPlugin::exportGpsUtmToCsv() const {
-  const std::string kCsvFilename = "gps_utm_measurements.csv";
-
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapReadAccess map =
-      map_manager.getMapReadAccess(selected_map_key);
-
-  exportGpsDataMatchedToVerticesToCsv<vi_map::GpsUtmMeasurement>(
-      *map, kCsvFilename);
-
-  return common::kSuccess;
-}
-
-int DataImportExportPlugin::exportGpsWgsToCsv() const {
-  const std::string kCsvFilename = "gps_wgs_measurements.csv";
-
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapReadAccess map =
-      map_manager.getMapReadAccess(selected_map_key);
-
-  exportGpsDataMatchedToVerticesToCsv<vi_map::GpsWgsMeasurement>(
-      *map, kCsvFilename);
   return common::kSuccess;
 }
 

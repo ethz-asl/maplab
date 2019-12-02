@@ -75,8 +75,8 @@ void MapSparsificationVisualizer::plotSegment(
   }
   const size_t kMarkerIndex = 0u;
   visualization::publishSpheres(
-      spheres, kMarkerIndex, visualization::kDefaultMapFrame,
-      visualization::kDefaultNamespace, segment_vertices_topic_);
+      spheres, kMarkerIndex, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
+      segment_vertices_topic_);
 }
 
 // Plots landmarks to visualize the partitioning and summarization process.
@@ -198,13 +198,13 @@ void MapSparsificationVisualizer::plotLandmarks(
   }
   const size_t kMarkerId = 1u;
   visualization::publishSpheres(
-      spheres, kMarkerId, visualization::kDefaultMapFrame,
-      visualization::kDefaultNamespace, landmarks_topic_);
+      spheres, kMarkerId, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
+      landmarks_topic_);
   // Separate marker index for smaller spheres of deselected landmarks (it's
   // not possible to mix sphere size in a single Spheres ROS message).
   const size_t kSmallSphereMarkerId = 2u;
   visualization::publishSpheres(
-      unselected_spheres, kSmallSphereMarkerId, visualization::kDefaultMapFrame,
-      visualization::kDefaultNamespace, landmarks_topic_);
+      unselected_spheres, kSmallSphereMarkerId, FLAGS_tf_map_frame,
+      FLAGS_vis_default_namespace, landmarks_topic_);
 }
 }  // namespace map_sparsification_visualization

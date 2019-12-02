@@ -5,33 +5,32 @@
 
 namespace vi_map {
 
-template <>
-SensorType sensorToType<Lidar>() {
-  return SensorType::kLidar;
-}
+constexpr char kDefaultLidarTopic[] = "/os1_node/points";
 
-template <>
-SensorType measurementToSensorType<LidarMeasurement>() {
-  return SensorType::kLidar;
-}
+Lidar::Lidar(const aslam::SensorId& sensor_id)
+    : Lidar(sensor_id, static_cast<std::string>(kDefaultLidarTopic)) {}
 
-constexpr char kDefaultLidarHardwareId[] = "/velodyne0";
-
-Lidar::Lidar()
-    : Sensor(
-          SensorType::kLidar,
-          static_cast<std::string>(kDefaultLidarHardwareId)) {}
-
-Lidar::Lidar(const SensorId& sensor_id, const std::string& hardware_id)
-    : Sensor(sensor_id, SensorType::kLidar, hardware_id) {}
+Lidar::Lidar(const aslam::SensorId& sensor_id, const std::string& topic)
+    : Sensor(sensor_id, topic) {}
 
 bool Lidar::loadFromYamlNodeImpl(const YAML::Node& /*sensor_node*/) {
+  // Nothing todo, since the sensor does not have any additional members other
+  // than the inherited ones.
   return true;
 }
 
-void Lidar::saveToYamlNodeImpl(YAML::Node* /*sensor_node*/) const {}
+void Lidar::saveToYamlNodeImpl(YAML::Node* /*sensor_node*/) const {
+  // Nothing todo, since the sensor does not have any additional members other
+  // than the inherited ones.
+}
 
-void LidarMeasurement::setRandomImpl() {
+template <>
+void LidarMeasurement<resources::PointCloud>::setRandomImpl() {
+  static constexpr double kMinDistanceMeters = 0.0;
+  static constexpr double kMaxDistanceMeters = 1e3;
+  static constexpr double kMinIntensity = 0.0;
+  static constexpr double kMaxIntensity = 255.0;
+
   std::random_device random_device;
   std::default_random_engine random_engine(random_device());
   std::uniform_real_distribution<float> distance_distribution(
@@ -75,28 +74,48 @@ void LidarMeasurement::setRandomImpl() {
   }
 }
 
-bool LidarMeasurement::isValidImpl() const {
-  if (!point_cloud_.colors.empty()) {
-    return false;
-  }
-  if (!point_cloud_.normals.empty()) {
-    return false;
-  }
-  const size_t num_points = point_cloud_.xyz.size();
-  if (point_cloud_.scalars.size() != num_points) {
-    return false;
-  }
+template <>
+bool LidarMeasurement<resources::PointCloud>::isValidImpl() const {
+  return point_cloud_.checkConsistency();
+}
 
-  for (const float distance : point_cloud_.xyz) {
-    if (distance < kMinDistanceMeters || distance > kMaxDistanceMeters) {
-      return false;
-    }
-  }
-  for (const float intensity : point_cloud_.scalars) {
-    if (intensity < kMinIntensity || intensity > kMaxIntensity) {
-      return false;
-    }
-  }
+template <>
+void LidarMeasurement<pcl::PointCloud<pcl::PointXYZI>>::setRandomImpl() {
+  // TODO(mfehr): implement or remove. We could use the
+  // general point cloud conversion tools to make one
+  // function to fill all point cloud types randomly.
+  LOG(FATAL) << "NOT IMPLEMENTED!";
+}
+
+template <>
+bool LidarMeasurement<pcl::PointCloud<pcl::PointXYZI>>::isValidImpl() const {
+  return true;
+}
+
+template <>
+void LidarMeasurement<sensor_msgs::PointCloud2>::setRandomImpl() {
+  // TODO(mfehr): implement or remove. We could use the
+  // general point cloud conversion tools to make one
+  // function to fill all point cloud types randomly.
+  LOG(FATAL) << "NOT IMPLEMENTED!";
+}
+
+template <>
+bool LidarMeasurement<sensor_msgs::PointCloud2>::isValidImpl() const {
+  return true;
+}
+
+template <>
+void LidarMeasurement<pcl::PointCloud<pcl::OusterPointType>>::setRandomImpl() {
+  // TODO(mfehr): implement or remove. We could use the
+  // general point cloud conversion tools to make one
+  // function to fill all point cloud types randomly.
+  LOG(FATAL) << "NOT IMPLEMENTED!";
+}
+
+template <>
+bool LidarMeasurement<pcl::PointCloud<pcl::OusterPointType>>::isValidImpl()
+    const {
   return true;
 }
 

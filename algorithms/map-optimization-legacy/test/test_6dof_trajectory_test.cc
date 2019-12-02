@@ -10,8 +10,7 @@
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-
-#include "map-optimization-legacy/test/6dof-test-trajectory-gen.h"
+#include <vi-map/6dof-test-trajectory-gen.h>
 
 using imu_integrator::ImuIntegratorRK4;
 using imu_integrator::kErrorStateSize;
@@ -86,7 +85,7 @@ class ViwlsGraph : public ::testing::Test {
 };
 
 void ViwlsGraph::generatePath() {
-  SixDofTestTrajectoryGenerator generator(settings_);
+  vi_map::SixDofTestTrajectoryGenerator generator(settings_);
 
   LOG(INFO) << "Generating trajectory, may take a while...";
   generator.generate6DofPath();

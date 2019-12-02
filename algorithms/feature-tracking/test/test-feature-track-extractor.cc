@@ -8,6 +8,7 @@
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/camera.h>
 #include <aslam/cameras/ncamera.h>
+#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/frames/feature-track.h>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
@@ -26,7 +27,7 @@ TEST(FeatureTrackExtractor, TestExtractionFromStream) {
   //  Track 4                      *-----*------*
   //  Track 5                            *------*
   //  Untracked  *            *          *
-  aslam::NCamera::Ptr ncamera = aslam::NCamera::createTestNCamera(1);
+  aslam::NCamera::Ptr ncamera = aslam::createTestNCamera(1);
   std::vector<aslam::VisualNFrame::Ptr> nframes;
   for (int c = 0; c < 7; ++c) {
     nframes.emplace_back(
@@ -165,7 +166,7 @@ TEST(FeatureTrackExtractor, TestExtractionFromStreamWithMinTrackLength) {
   size_t kMinTrackLength = 3u;
   // Expecting track 0, 1, 4 to terminate.
 
-  aslam::NCamera::Ptr ncamera = aslam::NCamera::createTestNCamera(1);
+  aslam::NCamera::Ptr ncamera = aslam::createTestNCamera(1);
   std::vector<aslam::VisualNFrame::Ptr> nframes;
   for (int c = 0; c < 7; ++c) {
     nframes.emplace_back(
@@ -311,7 +312,7 @@ TEST(FeatureTrackExtractor, TestFullTrackInitialization) {
   //  Track 3    *------*                *------*
   //  Untracked  *            *          *
   const size_t kCamera0Idx = 0u;
-  aslam::NCamera::Ptr ncamera = aslam::NCamera::createTestNCamera(1);
+  aslam::NCamera::Ptr ncamera = aslam::createTestNCamera(1);
   std::vector<aslam::VisualNFrame::Ptr> nframes;
   for (int c = 0; c < 7; ++c) {
     nframes.emplace_back(
@@ -550,7 +551,7 @@ TEST(FeatureTrackExtractor, TestFullTrackInitialization_MinMaxTrackLength) {
 
   // Max track length: 2
   const size_t kCamera0Idx = 0u;
-  aslam::NCamera::Ptr ncamera = aslam::NCamera::createTestNCamera(1);
+  aslam::NCamera::Ptr ncamera = aslam::createTestNCamera(1);
   std::vector<aslam::VisualNFrame::Ptr> nframes;
   for (int c = 0; c < 7; ++c) {
     nframes.emplace_back(
@@ -846,7 +847,7 @@ TEST(FeatureTrackExtractor, TestTrackTruncating) {
   //  Track 0    *-----*--x--*-----*--x--*-----*--x--*
   //                            X (cut here, max. length=2)
   const size_t kCamera0Idx = 0u;
-  aslam::NCamera::Ptr ncamera = aslam::NCamera::createTestNCamera(1);
+  aslam::NCamera::Ptr ncamera = aslam::createTestNCamera(1);
   std::vector<aslam::VisualNFrame::Ptr> nframes;
   const size_t kNumFrame = 8;
   for (size_t c = 0; c < kNumFrame; ++c) {
@@ -928,7 +929,7 @@ TEST(FeatureTrackExtractor, TestOutputIfNoKeypoints) {
   track_ids.resize(0);
 
   const size_t kCamera0Idx = 0u;
-  aslam::NCamera::Ptr ncamera = aslam::NCamera::createTestNCamera(1);
+  aslam::NCamera::Ptr ncamera = aslam::createTestNCamera(1);
   aslam::VisualNFrame::Ptr nframe =
       aslam::VisualNFrame::createEmptyTestVisualNFrame(ncamera, 0);
 
@@ -958,7 +959,7 @@ TEST(FeatureTrackExtractor, TestExtractionWithTwoVisualFramesAndExtractBatch) {
   // Cam1: Track 3    *------*
   // Cam1: Track 4                 *-----*
 
-  aslam::NCamera::Ptr ncamera = aslam::NCamera::createTestNCamera(2);
+  aslam::NCamera::Ptr ncamera = aslam::createTestNCamera(2);
   std::vector<aslam::VisualNFrame::Ptr> nframes;
   for (int c = 0; c < 5; ++c) {
     nframes.emplace_back(

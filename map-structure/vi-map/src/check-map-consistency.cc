@@ -35,8 +35,6 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
   // Verify that every mission has a valid base-frame.
   VLOG(2) << "Verifying mission base-frames...";
 
-  const SensorManager& sensor_manager = vi_map.getSensorManager();
-
   vi_map::MissionIdList mission_ids;
   vi_map.getAllMissionIds(&mission_ids);
 
@@ -76,13 +74,6 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
       is_consistent = false;
       continue;
     }
-
-    if (!sensor_manager.hasNCamera(mission_id)) {
-      LOG(ERROR) << "Mission " << mission_id.hexString() << " does not have "
-          << "an ncamera.";
-      is_consistent = false;
-      continue;
-    }
   }
   VLOG_IF(2, is_consistent) << "OK.";
 
@@ -117,8 +108,8 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
   // Build a list of landmarks that we expect to find in every vertex, so
   // we can then check every vertex in batch for its landmarks which is more
   // cache efficient.
-  typedef std::unordered_map<pose_graph::VertexId,
-                             std::vector<vi_map::LandmarkId> >
+  typedef std::unordered_map<
+      pose_graph::VertexId, std::vector<vi_map::LandmarkId> >
       ExpectedVertexLandmarks;
   ExpectedVertexLandmarks vertex_expected_landmarks;
 
@@ -134,9 +125,8 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
         vi_map.getLandmarkStoreVertexId(landmark_id);
 
     if (!vi_map.hasVertex(storing_vertex_id)) {
-      LOG(ERROR) << "Landmark: " << landmark_id
-                 << " points to vertex " << storing_vertex_id
-                 << " but this vertex is not in the map.";
+      LOG(ERROR) << "Landmark: " << landmark_id << " points to vertex "
+                 << storing_vertex_id << " but this vertex is not in the map.";
       is_consistent = false;
       continue;
     }
@@ -153,8 +143,8 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
       LOG(WARNING) << "Skip vertex " << vertex_id << " since no landmarks.";
       continue;
     }
-    CHECK(vi_map.hasVertex(vertex_id)) << "No vertex with id "
-                                       << vertex_id.hexString();
+    CHECK(vi_map.hasVertex(vertex_id))
+        << "No vertex with id " << vertex_id.hexString();
     const vi_map::Vertex& vertex = vi_map.getVertex(vertex_id);
     const vi_map::LandmarkStore& landmark_store = vertex.getLandmarks();
     for (const vi_map::LandmarkId& landmark_id : it->second) {
@@ -201,8 +191,7 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
     for (unsigned int i = 0; i < vertex.numFrames(); ++i) {
       if (vertex.isVisualFrameSet(i)) {
         for (size_t j = 0; j < vertex.observedLandmarkIdsSize(i); ++j) {
-          vi_map::LandmarkId landmark_id =
-              vertex.getObservedLandmarkId(i, j);
+          vi_map::LandmarkId landmark_id = vertex.getObservedLandmarkId(i, j);
           if (landmark_id.isValid()) {
             landmark_observing_vertices.emplace(landmark_id, vertex_id);
           }
@@ -239,6 +228,44 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
     const int num_frames = vertex.numFrames();
     for (int i = 0; i < num_frames; ++i) {
       if (vertex.isVisualFrameSet(i)) {
+        const aslam::VisualFrame& vnframe = vertex.getVisualFrame(i);
+        if (vnframe.hasKeypointMeasurements()) {
+          const size_t num_keypoints = vnframe.getNumKeypointMeasurements();
+          for (size_t keypoint_idx = 0u; keypoint_idx < num_keypoints;
+               ++keypoint_idx) {
+            const vi_map::LandmarkId landmark_id =
+                vertex.getObservedLandmarkId(i, keypoint_idx);
+            // Invalid landmark_id means that the keypoint is not actually
+            // associated to an existing landmark object.
+            if (!landmark_id.isValid()) {
+              continue;
+            }
+
+            if (!vi_map.hasLandmarkIdInLandmarkIndex(landmark_id)) {
+              LOG(ERROR)
+                  << "Landmark " << landmark_id
+                  << " that is observed by the vertex " << vertex_id
+                  << " is not in the global landmark index! Is in landmark "
+                  << "store of same vertex: "
+                  << vertex.hasStoredLandmark(landmark_id);
+              is_consistent = false;
+              continue;
+            }
+
+            const vi_map::Vertex& landmark_store_vertex =
+                vi_map.getLandmarkStoreVertex(landmark_id);
+            if (!landmark_store_vertex.getLandmarks().hasLandmark(
+                    landmark_id)) {
+              LOG(ERROR) << "Landmark " << landmark_id
+                         << " that is observed by the vertex " << vertex_id
+                         << " is not present in the landmark store of its "
+                         << "storing vertex " << landmark_store_vertex.id();
+              is_consistent = false;
+              continue;
+            }
+          }
+        }
+
         if (!vertex.getVisualFrame(i).getId().isValid()) {
           LOG(ERROR) << "Visual frame id for frame " << i << " in vertex "
                      << vertex_id << " is invalid.";
@@ -262,8 +289,7 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
           }
 
           for (int k = j + 1; k < num_observed_landmarks; ++k) {
-            LandmarkId observed_landmark_k =
-                vertex.getObservedLandmarkId(i, k);
+            LandmarkId observed_landmark_k = vertex.getObservedLandmarkId(i, k);
             if (!observed_landmark_k.isValid()) {
               continue;
             }
@@ -331,8 +357,7 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
 
       // Count how often we expect to find every vertex in the backwards
       // reference list of the current landmark.
-      std::pair<LandmarkToVertexMap::iterator,
-                LandmarkToVertexMap::iterator>
+      std::pair<LandmarkToVertexMap::iterator, LandmarkToVertexMap::iterator>
           range = landmark_observing_vertices.equal_range(landmark_id);
       std::unordered_map<pose_graph::VertexId, int> refound_map;
       for (LandmarkToVertexMap::iterator it_vertex = range.first;
@@ -347,8 +372,8 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
       }
 
       VLOG(5) << "refound map:";
-      for (const std::pair<pose_graph::VertexId, int>& observation_counts :
-           refound_map) {
+      for (const std::pair<const pose_graph::VertexId, int>&
+               observation_counts : refound_map) {
         VLOG(5) << "Back-references to vertex "
                 << observation_counts.first.hexString() << " from landmark "
                 << landmark_id.hexString() << "  " << observation_counts.second;
@@ -365,6 +390,7 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
                      << " lists the vertex " << observer_vertex_id
                      << " as observer, but that vertex does not exist.";
           is_consistent = false;
+          continue;
         }
 
         const Vertex& observer_vertex = vi_map.getVertex(observer_vertex_id);
@@ -409,13 +435,11 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
                      << " has a backlink to an observer that has an invalid"
                      << " landmark ID.";
           is_consistent = false;
-        } else if (
-            observer_landmark_id != landmark_id) {
+        } else if (observer_landmark_id != landmark_id) {
           LOG(ERROR) << "The store vertex of landmark id "
                      << landmark_id.hexString()
                      << " and landmark id in the observer table "
-                     << observer_landmark_id.hexString()
-                     << " are inconsistent";
+                     << observer_landmark_id.hexString() << " are inconsistent";
           is_consistent = false;
         }
 
@@ -429,8 +453,8 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
         }
       }
 
-      for (const std::pair<pose_graph::VertexId, int>& observation_counts :
-           refound_map) {
+      for (const std::pair<const pose_graph::VertexId, int>&
+               observation_counts : refound_map) {
         if (observation_counts.second != 0) {
           LOG(ERROR) << "Back-references to vertex "
                      << observation_counts.first.hexString()
@@ -444,15 +468,8 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
   }
   VLOG_IF(2, is_consistent) << "OK.";
 
-  VLOG(2) << "Verifying sensor consistency...";
-  if (!checkSensorConsistency(vi_map)) {
-    LOG(ERROR) << "Inconsistent sensors detected.";
-    is_consistent = false;
-  } else {
-    VLOG(2) << "OK.";
-  }
-
   VLOG(2) << "Verifying posegraph consistency for each mission...";
+  bool is_posegraph_consistent = true;
   for (const vi_map::MissionId& mission_id : mission_ids) {
     VLOG(2) << "Verifying mission: " << mission_id << "...";
     if (!vi_map.hasMission(mission_id)) {
@@ -465,25 +482,52 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
     if (!checkPosegraphConsistency(vi_map, mission_id)) {
       LOG(ERROR) << "Posegraph inconsistent.";
       is_consistent = false;
+      is_posegraph_consistent &= false;
     } else {
       VLOG(2) << "OK.";
     }
   }
 
-  VLOG(2) << "Looking for orphaned posegraph items...";
-  if (!checkForOrphanedPosegraphItems(vi_map)) {
-    LOG(ERROR) << "Orphaned items detected.";
-    is_consistent = false;
+  VLOG(2) << "Verifying sensor consistency...";
+  if (is_posegraph_consistent) {
+    if (!checkSensorConsistency(vi_map)) {
+      LOG(ERROR) << "Inconsistent sensors detected.";
+      is_consistent = false;
+    } else {
+      VLOG(2) << "OK.";
+    }
   } else {
-    VLOG(2) << "OK.";
+    LOG(WARNING)
+        << "Skipping sensor consistency check, because the pose-graph is "
+        << "inconsistent and traversal might not be possible.";
+  }
+
+  VLOG(2) << "Looking for orphaned posegraph items...";
+  if (is_posegraph_consistent) {
+    if (!checkForOrphanedPosegraphItems(vi_map)) {
+      LOG(ERROR) << "Orphaned items detected.";
+      is_consistent = false;
+    } else {
+      VLOG(2) << "OK.";
+    }
+  } else {
+    LOG(WARNING)
+        << "Skipping check for orphaned posegraph items, because the "
+        << "pose-graph is inconsistent and traversal might not be possible.";
   }
 
   VLOG(2) << "Verifying resource consistency...";
-  if (!vi_map.checkResourceConsistency()) {
-    LOG(ERROR) << "Inconsistent resources or resource info entries detected.";
-    is_consistent = false;
+  if (is_posegraph_consistent) {
+    if (!vi_map.checkResourceConsistency()) {
+      LOG(ERROR) << "Inconsistent resources or resource info entries detected.";
+      is_consistent = false;
+    } else {
+      VLOG(2) << "OK.";
+    }
   } else {
-    VLOG(2) << "OK.";
+    LOG(WARNING) << "Skipping resource consistency check, because the "
+                 << "pose-graph is inconsistent and traversal "
+                 << "might not be possible.";
   }
 
   LOG_IF(INFO, is_consistent) << "VI-Map is consistent.";
@@ -503,13 +547,25 @@ bool checkPosegraphConsistency(
   const pose_graph::Edge::EdgeType traversal_edge_type =
       vi_map.getGraphTraversalEdgeType(mission_id);
 
-  const aslam::NCamera& ncamera =
-      vi_map.getSensorManager().getNCameraForMission(mission_id);
-  const aslam::NCameraId& mission_ncamera_id = ncamera.getId();
-  CHECK(mission_ncamera_id.isValid());
+  aslam::NCameraId mission_ncamera_id;
+  mission_ncamera_id.setInvalid();
+  if (mission.hasNCamera()) {
+    mission_ncamera_id = mission.getNCameraId();
+    CHECK(mission_ncamera_id.isValid());
+    // Just some more checking.
+    const aslam::NCamera& ncamera = vi_map.getMissionNCamera(mission_id);
+    CHECK_EQ(ncamera.getId(), mission_ncamera_id);
+  }
 
   // This traverses the backbone of the posegraph.
   pose_graph::VertexId current_vertex_id = mission.getRootVertexId();
+
+  if (!current_vertex_id.isValid()) {
+    LOG(ERROR) << "Mission with ID " << mission_id
+               << " does not have a root vertex!";
+    return false;
+  }
+
   pose_graph::VertexId previous_vertex_id;
   previous_vertex_id.setInvalid();
   do {
@@ -537,22 +593,41 @@ bool checkPosegraphConsistency(
       return false;
     }
 
-    // Check that the ncamera of this vertex is the same as the one of the
-    // corresponding mission.
-    aslam::NCamera::ConstPtr vertex_ncamera =
-        vi_map.getVertex(current_vertex_id).getNCameras();
-    CHECK(vertex_ncamera);
-    if (vertex_ncamera->getId() != mission_ncamera_id) {
-      LOG(ERROR) << "Vertex " << current_vertex_id.hexString()
-                 << " belonging to mission " << mission_id.hexString()
-                 << " does not have the correct NCamera ID ("
-                 << vertex_ncamera->getId().hexString() << " vs "
-                 << mission_ncamera_id.hexString() << ").";
-      return false;
+    const Vertex& vertex = vi_map.getVertex(current_vertex_id);
+
+    if (vertex.hasVisualNFrame()) {
+      if (!mission_ncamera_id.isValid()) {
+        LOG(ERROR) << "Vertex " << current_vertex_id.hexString()
+                   << " belonging to mission " << mission_id.hexString()
+                   << " has a VisualNFrame, but the mission has no associated "
+                      "NCamera!";
+        return false;
+      }
+      // Check that the ncamera of this vertex is the same as the one of the
+      // corresponding mission.
+      aslam::NCamera::ConstPtr vertex_ncamera =
+          vi_map.getVertex(current_vertex_id).getNCameras();
+      CHECK(vertex_ncamera);
+      if (vertex_ncamera->getId() != mission_ncamera_id) {
+        LOG(ERROR) << "Vertex " << current_vertex_id.hexString()
+                   << " belonging to mission " << mission_id.hexString()
+                   << " does not have the correct NCamera ID ("
+                   << vertex_ncamera->getId().hexString() << " vs "
+                   << mission_ncamera_id.hexString() << ").";
+        return false;
+      }
+    } else {
+      if (mission_ncamera_id.isValid()) {
+        LOG(ERROR) << "Vertex " << current_vertex_id.hexString()
+                   << " belonging to mission " << mission_id.hexString()
+                   << " has no VisualNFrame, but the mission has an associated "
+                   << "NCamera!";
+        return false;
+      }
     }
 
     pose_graph::EdgeIdSet incoming_edge_ids;
-    vi_map.getVertex(current_vertex_id).getIncomingEdges(&incoming_edge_ids);
+    vertex.getIncomingEdges(&incoming_edge_ids);
 
     pose_graph::EdgeIdSet incoming_traversal_edge_ids;
     for (const pose_graph::EdgeId& incoming_edge_id : incoming_edge_ids) {
@@ -617,7 +692,7 @@ bool checkPosegraphConsistency(
     }
 
     pose_graph::EdgeIdSet outgoing_edge_ids;
-    vi_map.getVertex(current_vertex_id).getOutgoingEdges(&outgoing_edge_ids);
+    vertex.getOutgoingEdges(&outgoing_edge_ids);
     pose_graph::EdgeIdSet outgoing_traversal_edge_ids;
     for (const pose_graph::EdgeId& outgoing_edge_id : outgoing_edge_ids) {
       // Check that the edge exists.
@@ -708,6 +783,13 @@ bool checkForOrphanedPosegraphItems(const vi_map::VIMap& vi_map) {
 
     pose_graph::VertexId current_vertex_id =
         vi_map.getMission(mission_id).getRootVertexId();
+
+    if (!current_vertex_id.isValid()) {
+      LOG(ERROR) << "Mission with ID " << mission_id
+                 << " does not have a root vertex!";
+      continue;
+    }
+
     CHECK(vi_map.hasVertex(current_vertex_id));
 
     do {
@@ -734,7 +816,7 @@ bool checkForOrphanedPosegraphItems(const vi_map::VIMap& vi_map) {
   }
 
   // Look for orphaned elements.
-  for (const std::pair<pose_graph::VertexId, bool>& vertex :
+  for (const std::pair<const pose_graph::VertexId, bool>& vertex :
        vertices_observed) {
     // If this vertex was not traversed and it's not a GPS reference vertex,
     // it is orphaned.
@@ -747,7 +829,7 @@ bool checkForOrphanedPosegraphItems(const vi_map::VIMap& vi_map) {
     }
   }
 
-  for (const std::pair<pose_graph::EdgeId, bool>& edge : edges_observed) {
+  for (const std::pair<const pose_graph::EdgeId, bool>& edge : edges_observed) {
     if (!edge.second) {
       LOG(ERROR)
           << "Edge with ID " << edge.first << " does not "
@@ -768,42 +850,105 @@ bool checkSensorConsistency(const vi_map::VIMap& vi_map) {
 
   for (const MissionId& mission_id : mission_ids) {
     CHECK(mission_id.isValid());
-    const aslam::NCamera& mission_ncamera =
-        sensor_manager.getNCameraForMission(mission_id);
-    const aslam::NCameraId& mission_ncamera_id = mission_ncamera.getId();
-    if (!mission_ncamera_id.isValid()) {
-      LOG(ERROR) << "Mission " << mission_id.hexString()
-          << " has an invalid ncamera id.";
-      return false;
-    }
+    const vi_map::VIMission& mission = vi_map.getMission(mission_id);
 
-    if (!sensor_manager.hasNCamera(mission_ncamera_id)) {
-      LOG(ERROR) << "The ncamera with id " << mission_ncamera_id.hexString()
-          << " referenced by mission " << mission_id.hexString()
-          << " is not present in the sensor manager of the corresponding map.";
-      return false;
-    }
+    if (mission.hasNCamera()) {
+      const aslam::SensorId& ncamera_id = mission.getNCameraId();
+      if (!sensor_manager.hasSensor(ncamera_id)) {
+        LOG(ERROR)
+            << "Mission " << mission_id.hexString()
+            << " is assigned to a NCamera that is not in the sensor manager!";
+        return false;
+      }
 
-    if (vi_map.hasOptionalSensorData(mission_id)) {
-      const OptionalSensorData& optional_sensor_data =
-          vi_map.getOptionalSensorData(mission_id);
-      SensorIdSet sensor_ids_with_optional_sensor_data;
-      optional_sensor_data.getAllSensorIds(
-          &sensor_ids_with_optional_sensor_data);
-      for (const SensorId& sensor_id_with_optional_sensor_data :
-          sensor_ids_with_optional_sensor_data) {
-        CHECK(sensor_id_with_optional_sensor_data.isValid());
+      aslam::NCamera::Ptr ncamera =
+          sensor_manager.getSensorPtr<aslam::NCamera>(ncamera_id);
+      CHECK(ncamera);
 
-        if (!sensor_manager.hasSensor(sensor_id_with_optional_sensor_data)) {
-          LOG(ERROR)
-              << "The sensor with id "
-              << sensor_id_with_optional_sensor_data.hexString()
-              << " has optional data stored in mission "
-              << mission_id.hexString()
-              << ", yet, the sensor id is not present in the sensor manager of "
-              << "the corresponding map.";
-          return false;
+      // Check if the NCameras associated with the VisualNFrames are the same as
+      // in the sensor manager of the VIMap.
+      pose_graph::VertexIdList all_vertices;
+      vi_map.getAllVertexIdsInMission(mission_id, &all_vertices);
+      for (const pose_graph::VertexId& vertex_id : all_vertices) {
+        const vi_map::Vertex& vertex = vi_map.getVertex(vertex_id);
+        for (size_t frame_idx = 0u; frame_idx < vertex.numFrames();
+             ++frame_idx) {
+          aslam::Camera::ConstPtr frame_camera = vertex.getCamera(frame_idx);
+          CHECK(frame_camera);
+
+          aslam::Camera::ConstPtr vi_map_camera =
+              ncamera->getCameraShared(frame_idx);
+          CHECK(vi_map_camera);
+
+          CHECK(frame_camera->getId().isValid());
+          CHECK(vi_map_camera->getId().isValid());
+          if (frame_camera->getId() != vi_map_camera->getId()) {
+            LOG(ERROR) << "The VisualFrame " << frame_idx << " of vertex "
+                       << vertex_id
+                       << " has a different camera then the VIMap!";
+            return false;
+          }
+
+          if (frame_camera != vi_map_camera) {
+            LOG(ERROR) << "The VisualFrame " << frame_idx << " of vertex "
+                       << vertex_id
+                       << " points to a different camera then the VIMap!";
+            return false;
+          }
         }
+      }
+    }
+
+    if (mission.hasImu()) {
+      const aslam::SensorId& imu_id = mission.getImuId();
+      if (!sensor_manager.hasSensor(imu_id)) {
+        LOG(ERROR)
+            << "Mission " << mission_id.hexString()
+            << " is assigned to a IMU that is not in the sensor manager!";
+        return false;
+      }
+    }
+
+    if (mission.hasOdometry6DoFSensor()) {
+      const aslam::SensorId& odometry_6dof_id = mission.getOdometry6DoFSensor();
+      if (!sensor_manager.hasSensor(odometry_6dof_id)) {
+        LOG(ERROR)
+            << "Mission " << mission_id.hexString()
+            << " is assigned to a Odometry 6Dof sensor that is not in the "
+               "sensor manager!";
+        return false;
+      }
+    }
+
+    if (mission.hasLoopClosureSensor()) {
+      const aslam::SensorId& loop_closure_id = mission.getLoopClosureSensor();
+      if (!sensor_manager.hasSensor(loop_closure_id)) {
+        LOG(ERROR)
+            << "Mission " << mission_id.hexString()
+            << " is assigned to a loop closure sensor that is not in the "
+               "sensor manager!";
+        return false;
+      }
+    }
+
+    if (mission.hasAbsolute6DoFSensor()) {
+      const aslam::SensorId& absolute_6dof_id = mission.getAbsolute6DoFSensor();
+      if (!sensor_manager.hasSensor(absolute_6dof_id)) {
+        LOG(ERROR)
+            << "Mission " << mission_id.hexString()
+            << " is assigned to a Absolute 6Dof sensor that is not in the "
+               "sensor manager!";
+        return false;
+      }
+    }
+
+    if (mission.hasLidar()) {
+      const aslam::SensorId& lidar_id = mission.getLidarId();
+      if (!sensor_manager.hasSensor(lidar_id)) {
+        LOG(ERROR) << "Mission " << mission_id.hexString()
+                   << " is assigned to a Lidar that is not in the "
+                      "sensor manager!";
+        return false;
       }
     }
   }

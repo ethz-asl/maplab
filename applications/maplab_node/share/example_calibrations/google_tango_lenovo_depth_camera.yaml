@@ -1,0 +1,74 @@
+sensors:
+  - id: 5d2fcf479caf7592b35518478a2fe08f
+    sensor_type: IMU
+    topic: /imu0
+    description: Tango Lenovo IMU (BMI055)
+    sigmas:
+      gyro_noise_density: 0.0007309
+      gyro_bias_random_walk_noise_density: 0.01413
+      acc_noise_density: 0.0188
+      acc_bias_random_walk_noise_density: 0.012589
+    saturation_accel_max_mps2: 150
+    saturation_gyro_max_radps: 7.5
+    gravity_magnitude_mps2: 9.808083883386614
+  - id:                           abc1bac2a7c5fad79f09e49e3b96d87c
+    sensor_type:                  NCAMERA
+    topic:                        ""
+    description:                  Tango Lenovo Depth Camera
+    cameras:
+      - camera:
+          id:                     abc7b5000f15adb3c0da8ac6b729ee05
+          sensor_type:            CAMERA
+          topic:                  /camera/depth
+          description:            Tango Lenovo Depth Camera
+          line-delay-nanoseconds: 0
+          image_height:           172
+          image_width:            224
+          type:                   pinhole
+          intrinsics:
+            rows:                 4
+            cols:                 1
+            data:
+              - 214.342
+              - 214.342
+              - 111.655
+              - 85.2853
+          distortion:
+            type:                 radial-tangential
+            parameters:
+              rows:               4
+              cols:               1
+              data:
+                - 0.0
+                - 0.0
+                - 0.0
+                - 0.0
+        T_C_B:
+          rows:                   4
+          cols:                   4
+          data:
+            - [ 0.00983337,  0.99994112,  0.00458865,  0.00669899]
+            - [ 0.9999449 , -0.00981633, -0.00372033, -0.03596598]
+            - [-0.00367506,  0.00462498, -0.99998255, -0.0024146 ]
+            - [ 0.        ,  0.        ,  0.        ,  1.        ]
+extrinsics:
+  - sensor_id:                    abc1bac2a7c5fad79f09e49e3b96d87c
+    base_sensor_id:               5d2fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows:                       4
+      cols:                       4
+      data:
+        - [1, 0, 0, 0]
+        - [0, 1, 0, 0]
+        - [0, 0, 1, 0]
+        - [0, 0, 0, 1]
+  - sensor_id: 5d2fcf479caf7592b35518478a2fe08f
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1, 0, 0, 0]
+        - [0, 1, 0, 0]
+        - [0, 0, 1, 0]
+        - [0, 0, 0, 1]

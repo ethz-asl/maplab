@@ -8,6 +8,7 @@
 #include <map-optimization/optimization-problem.h>
 #include <maplab-common/stringprintf.h>
 
+DECLARE_bool(ba_hide_iterations_console_output);
 namespace map_optimization {
 
 struct OutlierRejectionSolverOptions {
@@ -43,7 +44,7 @@ class OutlierRejectionCallback : public ceres::IterationCallback {
     initial_trust_region_radius_ = summary.trust_region_radius;
 
     if (iteration_ == 0) {
-      LOG(INFO)
+      VLOG_IF(0, !FLAGS_ba_hide_iterations_console_output)
           << "iter      cost      cost_change  |gradient|   |step|    tr_ratio "
              " tr_radius  ls_iter  iter_time  total_time";  // NOLINT
     }
@@ -59,7 +60,8 @@ class OutlierRejectionCallback : public ceres::IterationCallback {
           summary.relative_decrease, summary.trust_region_radius,
           summary.linear_solver_iterations, summary.iteration_time_in_seconds,
           summary.cumulative_time_in_seconds);
-      LOG(INFO) << output;
+      VLOG_IF(0, !FLAGS_ba_hide_iterations_console_output)
+          << output;
 
       ++iteration_;
     }

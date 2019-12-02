@@ -178,9 +178,19 @@ class MapManager {
   /// \param generate_new_ids If set to true, this will generate new ids for the
   /// missions, vertices,
   /// edges and landmarks in \p source_key_b.
-  void mergeMaps(
+  /// returns true if the merge was successful, false otherwise.
+  bool mergeMaps(
       const std::string& source_key_merge_base,
       const std::string& source_key_merge_from);
+
+  /// \brief Merges \p source_key_merge_from into \p source_key_merge_base.
+  /// \param source_key_merge_base_map The base map for the merge operation.
+  /// \param source_key_merge_submap The submap which will be attached to its
+  /// correspinding vertex in the base map.
+  /// returns true if the merge was successful, false otherwise.
+  bool mergeSubmapIntoBaseMap(
+      const std::string& source_key_merge_base_map,
+      const std::string& source_key_merge_submap);
 
   // TODO(eggerk): implement split.
 
@@ -298,8 +308,9 @@ class MapManager {
   ///
   /// \param map_list List of map folders.
   /// \param key_list: The default keys of the given maps.
-  void getDefaultMapKeys(const std::vector<std::string>& map_list,
-                         std::vector<std::string>* key_list);
+  void getDefaultMapKeys(
+      const std::vector<std::string>& map_list,
+      std::vector<std::string>* key_list);
 
   /// \brief Lists all maps in a given folder.
   ///
@@ -307,8 +318,8 @@ class MapManager {
   /// in all its subdirectories.
   /// \param folder_path Folder to search.
   /// \param map_list: List of map folders found in the given folder.
-  void listAllMapsInFolder(const std::string& folder_path,
-                           std::vector<std::string>* map_list);
+  void listAllMapsInFolder(
+      const std::string& folder_path, std::vector<std::string>* map_list);
 
  protected:
   MapStorage<MapType>* map_storage_;

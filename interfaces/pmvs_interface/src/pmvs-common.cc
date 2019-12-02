@@ -35,17 +35,19 @@ ObserverCamera::ObserverCamera(
   VLOG(2) << "Create ObserverCamera from camera " << camera_id;
   const aslam::Camera* camera = nullptr;
   if (is_optional_camera) {
-    const backend::CameraWithExtrinsics& cam_with_extrinsics =
-        vi_map.getSensorManager().getOptionalCameraWithExtrinsics(camera_id);
-    camera = cam_with_extrinsics.second.get();
-    T_B_C = cam_with_extrinsics.first.inverse();
-    VLOG(2) << "  -> is optional camera.";
+    camera = &vi_map.getSensorManager().getSensor<aslam::Camera>(camera_id);
+    T_B_C = vi_map.getSensorManager().getSensor_T_B_S(camera_id);
+    VLOG(2)
+        << "  -> is additional camera, not part of primary tracking NCamera.";
   } else {
-    const aslam::NCamera& n_camera =
-        vi_map.getSensorManager().getNCameraForMission(mission_id);
-    camera = &(n_camera.getCamera(frame_idx));
-    T_B_C = n_camera.get_T_C_B(frame_idx).inverse();
-    VLOG(2) << "  -> is nframe camera.";
+    aslam::SensorId ncamera_id = vi_map.getMission(mission_id).getNCameraId();
+    const aslam::NCamera& ncamera =
+        vi_map.getSensorManager().getSensor<aslam::NCamera>(ncamera_id);
+    const aslam::Transformation T_B_Cn =
+        vi_map.getSensorManager().getSensor_T_B_S(ncamera_id);
+    camera = &(ncamera.getCamera(frame_idx));
+    T_B_C = T_B_Cn * ncamera.get_T_C_B(frame_idx).inverse();
+    VLOG(2) << "  -> is a camera part of the primary tracking NCamera.";
   }
 
   const aslam::Camera::Type camera_type = camera->getType();
@@ -158,10 +160,9 @@ void ObserverPose::loadImage(
     const vi_map::VIMap& vi_map, cv::Mat* image) const {
   CHECK_NOTNULL(image);
   if (is_optional_camera_image) {
-    CHECK(
-        vi_map.getOptionalSensorResource(
-            vi_map.getMission(mission_id), image_type, camera_id, timestamp_ns,
-            image));
+    CHECK(vi_map.getSensorResource(
+        vi_map.getMission(mission_id), image_type, camera_id, timestamp_ns,
+        image));
   } else {
     const vi_map::Vertex& vertex = vi_map.getVertex(vertex_id);
     CHECK(vi_map.getFrameResource(vertex, frame_idx, image_type, image));

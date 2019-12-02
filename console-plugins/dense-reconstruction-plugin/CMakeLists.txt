@@ -10,7 +10,10 @@ add_definitions(-fPIC -shared)
 #############
 # LIBRARIES #
 #############
-cs_add_library(${PROJECT_NAME} src/dense-reconstruction-plugin.cc)
+cs_add_library(${PROJECT_NAME}
+  src/dense-reconstruction-plugin.cc
+  src/voxblox-params.cc
+)
 create_console_plugin(${PROJECT_NAME})
 
 ##########

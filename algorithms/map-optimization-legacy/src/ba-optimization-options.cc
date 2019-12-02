@@ -45,7 +45,7 @@ DEFINE_bool(
     "not to fix the positions of landmarks based at fixed vertices.");
 DEFINE_bool(
     lba_include_wheel_odometry, false,
-    "Whether or not to include wheel-odometry error-terms.");
+    "Whether or not to include wheel odometry error-terms.");
 DEFINE_bool(
     lba_include_gps, false, "Whether or not to include GPS error-terms.");
 DEFINE_bool(

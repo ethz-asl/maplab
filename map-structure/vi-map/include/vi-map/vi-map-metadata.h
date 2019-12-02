@@ -19,8 +19,7 @@ enum class VIMapFileType : int32_t {
   kMissions = 0,
   kVertices = 1,
   kEdges = 2,
-  kLandmarkIndex = 3,
-  kOptionalSensorData = 10
+  kLandmarkIndex = 3
 };
 
 typedef std::multimap<VIMapFileType, std::string> VIMapMetadata;

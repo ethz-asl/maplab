@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <aslam/common/pose-types.h>
+#include <maplab-common/localization-result.h>
 #include <maplab-common/macros.h>
 
 #include "vio-common/vio-types.h"
@@ -23,8 +24,6 @@ class VIMap;
 namespace vio {
 struct SynchronizedNFrameImu;
 
-enum class UpdateType { kInvalid, kNormalUpdate, kZeroVelocityUpdate };
-
 struct VioUpdate {
   MAPLAB_POINTER_TYPEDEFS(VioUpdate);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -38,7 +37,7 @@ struct VioUpdate {
   ViNodeCovariance vinode_covariance;
 
   // Localization update states.
-  LocalizationState localization_state;
+  common::LocalizationState localization_state;
   aslam::Transformation T_G_M;
 
   inline bool check() const {

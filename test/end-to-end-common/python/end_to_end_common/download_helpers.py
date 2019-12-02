@@ -64,7 +64,7 @@ def download_and_untar_dataset(download_url, local_file_name):
     tar.close()
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Download helper")
     parser.add_argument("--download_url", dest="download_url", required=True)
     parser.add_argument(

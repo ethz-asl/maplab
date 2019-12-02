@@ -14,6 +14,7 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
+#include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
@@ -22,7 +23,7 @@
 
 #include "rovioli/datasource.h"
 
-DECLARE_int64(rovioli_imu_to_camera_time_offset_ns);
+DECLARE_int64(imu_to_camera_time_offset_ns);
 
 namespace rovioli {
 
@@ -47,6 +48,7 @@ class DataSourceRostopic : public DataSource {
   void registerSubscribers(const vio_common::RosTopicSettings& ros_topics);
   void imageCallback(const sensor_msgs::ImageConstPtr& msg, size_t camera_idx);
   void imuMeasurementCallback(const sensor_msgs::ImuConstPtr& msg);
+  void odometryMeasurementCallback(const nav_msgs::OdometryConstPtr& msg);
 
   std::atomic<bool> shutdown_requested_;
   const vio_common::RosTopicSettings ros_topics_;
@@ -54,6 +56,7 @@ class DataSourceRostopic : public DataSource {
   image_transport::ImageTransport image_transport_;
   std::vector<image_transport::Subscriber> sub_images_;
   ros::Subscriber sub_imu_;
+  std::vector<ros::Subscriber> sub_odometry_;
 };
 
 }  // namespace rovioli

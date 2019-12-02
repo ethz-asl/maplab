@@ -10,7 +10,8 @@ from end_to_end_common.end_to_end_utility import align_datasets
 from end_to_end_common.plotting_common import PlottingSettings
 from end_to_end_common.test_structs import TestDataStruct
 
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser(description="Plot evaluation results.")
     parser.add_argument(
         "--ground_truth_csv", dest="ground_truth_csv", required=True)

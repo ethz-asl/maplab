@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>pose_graph_manipulation_plugin</name>
-  <version>0.0.0</version>
+  <version>2.2.0</version>
   <description>Commands to manipulate the pose-graph</description>
   <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
   <license>Apache 2.0</license>

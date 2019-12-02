@@ -2,7 +2,6 @@
 
 #include <aslam-serialization/visual-frame-serialization.h>
 #include <aslam/cameras/ncamera.h>
-#include <maplab-common/aslam-id-proto.h>
 #include <maplab-common/eigen-proto.h>
 
 #include "vio-common/vio-types.h"
@@ -131,7 +130,7 @@ void deserializeVioUpdate(
   update->vinode.setGyroBias(gyro_bias);
 
   update->localization_state =
-      static_cast<vio::LocalizationState>(proto.localization_state());
+      static_cast<common::LocalizationState>(proto.localization_state());
 
   common::eigen_proto::deserialize(proto.t_g_m(), &update->T_G_M);
 }

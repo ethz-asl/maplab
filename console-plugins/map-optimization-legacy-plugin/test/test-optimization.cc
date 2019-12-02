@@ -42,7 +42,7 @@ bool ViMappingTest::optimize(
   map_optimization_legacy::BaOptimizationOptions options;
   options.include_inertial = !vision_only;
   options.fix_vertex_poses = false;
-  options.fix_landmark_positions = false;
+  options.fix_landmark_positions = vision_only;
   options.fix_landmark_positions_of_fixed_vertices = false;
   options.include_wheel_odometry = false;
   options.include_gps = false;
@@ -69,7 +69,7 @@ TEST_F(ViMappingTest, TestCorruptedVisualInertialOptimization) {
   EXPECT_TRUE(optimize(kVisionOnly, &summary));
   EXPECT_GT(summary.num_successful_steps, summary.num_unsuccessful_steps);
 
-  const double kPrecisionM = 0.01;
+  const double kPrecisionM = 0.075;
   test_app_.testIfKeyframesMatchReference(kPrecisionM);
   const double kMinPassingLandmarkFraction = 0.99;
   test_app_.testIfLandmarksMatchReference(
@@ -77,14 +77,14 @@ TEST_F(ViMappingTest, TestCorruptedVisualInertialOptimization) {
 }
 
 TEST_F(ViMappingTest, TestCorruptedVisualOptimization) {
-  corruptLandmarks();
+  corruptVertices();
 
   const bool kVisionOnly = true;
   ceres::Solver::Summary summary;
   EXPECT_TRUE(optimize(kVisionOnly, &summary));
   EXPECT_GT(summary.num_successful_steps, summary.num_unsuccessful_steps);
 
-  const double kPrecisionM = 0.1;
+  const double kPrecisionM = 0.3;
   const double kMinPassingLandmarkFraction = 0.99;
   test_app_.testIfKeyframesMatchReference(kPrecisionM);
   test_app_.testIfLandmarksMatchReference(

@@ -23,7 +23,7 @@ class LoopClosureAppTest : public ::testing::Test {
   virtual void SetUp() {
     FLAGS_lc_detector_engine =
         matching_based_loopclosure::kMatchingLDInvertedMultiIndexString;
-    FLAGS_feature_descriptor_type = loop_closure::kFeatureDescriptorFREAK;
+    FLAGS_feature_descriptor_type = loop_closure::kFeatureDescriptorBRISK;
     FLAGS_lc_scoring_function =
         matching_based_loopclosure::kProbabilisticString;
     FLAGS_lc_use_random_pnp_seed = false;

@@ -155,6 +155,215 @@ void VIMappingTestApp::corruptKeyframePoses(
   }
 }
 
+void VIMappingTestApp::corruptAbs6DoFSensorExtrinsics(
+    double position_std_dev_m, double orientation_std_dev_quat) {
+  CHECK_GE(position_std_dev_m, 0);
+  CHECK_GE(orientation_std_dev_quat, 0);
+  std::mt19937 gen(random_seed_);
+  std::normal_distribution<> p_dis(0, position_std_dev_m);
+  std::normal_distribution<> q_dis(0, orientation_std_dev_quat);
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(map_key_);
+
+  // Get set of first two vertices that shouldn't be corrupted.
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+  pose_graph::VertexIdSet not_to_corrupt_vertices;
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    vi_map::VIMission& mission = map->getMission(mission_id);
+
+    if (!mission.hasAbsolute6DoFSensor()) {
+      continue;
+    }
+
+    const aslam::SensorId& sensor_id = mission.getAbsolute6DoFSensor();
+
+    aslam::Transformation& T_B_S =
+        map->getSensorManager().getSensor_T_B_S(sensor_id);
+
+    const Eigen::Vector3d p_noise(p_dis(gen), p_dis(gen), p_dis(gen));
+    T_B_S.getPosition() += p_noise;
+
+    Eigen::Quaterniond q_noise(1, q_dis(gen), q_dis(gen), q_dis(gen));
+    q_noise.normalize();
+    T_B_S.getRotation().toImplementation() *= q_noise;
+  }
+}
+
+void VIMappingTestApp::corruptCameraExtrinsics(
+    double position_std_dev_m, double orientation_std_dev_quat) {
+  CHECK_GE(position_std_dev_m, 0);
+  CHECK_GE(orientation_std_dev_quat, 0);
+  std::mt19937 gen(random_seed_);
+  std::normal_distribution<> p_dis(0, position_std_dev_m);
+  std::normal_distribution<> q_dis(0, orientation_std_dev_quat);
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(map_key_);
+
+  // Get set of first two vertices that shouldn't be corrupted.
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+  pose_graph::VertexIdSet not_to_corrupt_vertices;
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    vi_map::VIMission& mission = map->getMission(mission_id);
+
+    if (!mission.hasNCamera()) {
+      continue;
+    }
+
+    const aslam::SensorId& sensor_id = mission.getNCameraId();
+
+    aslam::NCamera::Ptr ncamera =
+        map->getSensorManager().getSensorPtr<aslam::NCamera>(sensor_id);
+    CHECK(ncamera);
+
+    for (size_t camera_idx = 0u; camera_idx < ncamera->getNumCameras();
+         ++camera_idx) {
+      aslam::Transformation& T_C_B = ncamera->get_T_C_B_Mutable(camera_idx);
+
+      const Eigen::Vector3d p_noise(p_dis(gen), p_dis(gen), p_dis(gen));
+      T_C_B.getPosition() += p_noise;
+
+      Eigen::Quaterniond q_noise(1, q_dis(gen), q_dis(gen), q_dis(gen));
+      q_noise.normalize();
+      T_C_B.getRotation().toImplementation() *= q_noise;
+    }
+  }
+}
+
+void VIMappingTestApp::addAbsolute6DoFConstraints(
+    const size_t add_constraint_at_every_nth_vertex) {
+  CHECK_GT(add_constraint_at_every_nth_vertex, 1u);
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(map_key_);
+
+  // Fixed covariance.
+  Eigen::Matrix<double, 6, 6> T_G_S_covariance;
+  T_G_S_covariance.setIdentity();
+  T_G_S_covariance *= 1e-2 * 1e-2;
+
+  // Add sensor.
+  aslam::SensorId sensor_id;
+  aslam::generateId(&sensor_id);
+  vi_map::Absolute6DoF::UniquePtr sensor_template =
+      aligned_unique<vi_map::Absolute6DoF>(sensor_id, "no_topic");
+
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    vi_map::VIMission& mission = map->getMission(mission_id);
+    CHECK(mission.hasImu())
+        << "This function assumes the mission baseframe is equal to the IMU "
+           "frame, hence it requires an IMU to be present.";
+    const aslam::SensorId& base_sensor_id = mission.getImuId();
+
+    aslam::Transformation T_B_S;
+    T_B_S.setRandom();
+
+    vi_map::Absolute6DoF::UniquePtr sensor(sensor_template->cloneWithNewIds());
+    const aslam::SensorId sensor_id = sensor->getId();
+    map->getSensorManager().addSensor<vi_map::Absolute6DoF>(
+        std::move(sensor), base_sensor_id, T_B_S);
+    mission.setAbsolute6DoFSensor(sensor_id);
+  }
+
+  pose_graph::VertexIdList all_vertex_ids;
+  map->getAllVertexIds(&all_vertex_ids);
+
+  // Sort by vertex ids to get a somewhat random order of vertices;
+  std::sort(all_vertex_ids.begin(), all_vertex_ids.end());
+
+  size_t num_abs_constraints_added = 0u;
+  for (size_t vertex_id = 0u; vertex_id < all_vertex_ids.size();
+       vertex_id += add_constraint_at_every_nth_vertex) {
+    // Get vertex information.
+    const pose_graph::VertexId vertex_id_a = all_vertex_ids[vertex_id];
+    const aslam::Transformation T_G_B = map->getVertex_T_G_I(vertex_id_a);
+    vi_map::Vertex& vertex = map->getVertex(vertex_id_a);
+
+    // Get corresponding absolute pose sensor.
+    const vi_map::VIMission& mission = map->getMission(vertex.getMissionId());
+    CHECK(mission.hasAbsolute6DoFSensor());
+    const aslam::SensorId& sensor_id = mission.getAbsolute6DoFSensor();
+    const aslam::Transformation T_B_S =
+        map->getSensorManager().getSensor_T_B_S(sensor_id);
+
+    CHECK(vertex_id_a.isValid());
+    CHECK(sensor_id.isValid());
+
+    const aslam::Transformation T_G_S = T_G_B * T_B_S;
+
+    const vi_map::Absolute6DoFMeasurement abs_6dof_measurement(
+        sensor_id, vertex.getMinTimestampNanoseconds(), T_G_S,
+        T_G_S_covariance);
+    vertex.addAbsolute6DoFMeasurement(abs_6dof_measurement);
+
+    ++num_abs_constraints_added;
+  }
+
+  LOG(INFO) << "Added " << num_abs_constraints_added
+            << " absolute 6DoF constraints to pose graph.";
+}
+
+void VIMappingTestApp::addLoopClosureEdges(
+    const size_t add_lc_edge_between_every_nth_vertex) {
+  CHECK_GT(add_lc_edge_between_every_nth_vertex, 1u);
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(map_key_);
+
+  const double kSwitchVariable = 1.0;
+  const double kSwitchVariableVariance = 1e-3;
+  Eigen::Matrix<double, 6, 6> T_B_a_B_b_covariance;
+  T_B_a_B_b_covariance.setIdentity();
+  T_B_a_B_b_covariance *= 1e-2 * 1e-2;
+
+  pose_graph::VertexIdList all_vertex_ids;
+  map->getAllVertexIds(&all_vertex_ids);
+
+  // Sort by vertex ids to get a somewhat random order of vertices;
+  std::sort(all_vertex_ids.begin(), all_vertex_ids.end());
+
+  size_t num_lc_edges_added = 0u;
+  for (size_t vertex_a_idx = 0u; vertex_a_idx < all_vertex_ids.size();
+       vertex_a_idx += add_lc_edge_between_every_nth_vertex) {
+    size_t vertex_b_idx = vertex_a_idx + add_lc_edge_between_every_nth_vertex;
+    if (vertex_b_idx >= all_vertex_ids.size()) {
+      break;
+    }
+
+    const pose_graph::VertexId vertex_id_a = all_vertex_ids[vertex_a_idx];
+    const pose_graph::VertexId vertex_id_b = all_vertex_ids[vertex_b_idx];
+    const aslam::Transformation T_G_B_a = map->getVertex_T_G_I(vertex_id_a);
+    const aslam::Transformation T_G_B_b = map->getVertex_T_G_I(vertex_id_b);
+    const aslam::Transformation T_B_a_B_b = T_G_B_a.inverse() * T_G_B_b;
+
+    CHECK(vertex_id_a.isValid());
+    CHECK(vertex_id_b.isValid());
+
+    pose_graph::EdgeId edge_id;
+    aslam::generateId(&edge_id);
+    vi_map::LoopClosureEdge::UniquePtr loop_closure_edge(
+        new vi_map::LoopClosureEdge(
+            edge_id, vertex_id_a, vertex_id_b, kSwitchVariable,
+            kSwitchVariableVariance, T_B_a_B_b, T_B_a_B_b_covariance));
+
+    map->addEdge(std::move(loop_closure_edge));
+
+    ++num_lc_edges_added;
+  }
+
+  LOG(INFO) << "Added " << num_lc_edges_added << " lc edges to pose graph.";
+}
+
 pose_graph::EdgeId VIMappingTestApp::addWrongLoopClosureEdge() {
   vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapWriteAccess map =
@@ -198,7 +407,7 @@ pose_graph::EdgeId VIMappingTestApp::addWrongLoopClosureEdge() {
   CHECK(vertex_id_to.isValid());
 
   pose_graph::EdgeId edge_id;
-  common::generateId(&edge_id);
+  aslam::generateId(&edge_id);
   vi_map::LoopClosureEdge::UniquePtr loop_closure_edge(
       new vi_map::LoopClosureEdge(
           edge_id, vertex_id_from, vertex_id_to, kSwitchVariable,
@@ -236,13 +445,29 @@ void VIMappingTestApp::testIfKeyframesMatchReference(double precision_m) const {
   vi_map::VIMapManager::MapReadAccess map =
       map_manager.getMapReadAccess(map_key_);
 
+  double max_error = 0.0;
+  double error_sum = 0.0;
+
   pose_graph::VertexIdList vertex_ids;
   map->getAllVertexIds(&vertex_ids);
   for (const pose_graph::VertexId& vertex_id : vertex_ids) {
     const pose::Transformation& T_M_I = map->getVertex(vertex_id).get_T_M_I();
     EXPECT_NEAR_ASLAM_TRANSFORMATION(
         getVertexReferencePose(vertex_id), T_M_I, precision_m);
+
+    const double error =
+        (((getVertexReferencePose(vertex_id)).getTransformationMatrix()) -
+         ((T_M_I).getTransformationMatrix()))
+            .cwiseAbs()
+            .maxCoeff();
+
+    max_error = std::max(max_error, error);
+    error_sum += error;
   }
+
+  LOG(INFO) << "Max error of keyframes: " << max_error;
+  LOG(INFO) << "Mean error of keyframes: "
+            << error_sum / static_cast<double>(vertex_ids.size());
 }
 
 void VIMappingTestApp::testIfLandmarksMatchReference(
@@ -253,6 +478,9 @@ void VIMappingTestApp::testIfLandmarksMatchReference(
   const vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapReadAccess map =
       map_manager.getMapReadAccess(map_key_);
+
+  double max_error = 0.0;
+  double error_sum = 0.0;
 
   vi_map::LandmarkIdSet landmark_ids;
   map->getAllLandmarkIds(&landmark_ids);
@@ -269,19 +497,29 @@ void VIMappingTestApp::testIfLandmarksMatchReference(
         std::numeric_limits<double>::epsilon()) {
       EXPECT_NEAR_EIGEN(
           getLandmarkReferencePosition(landmark_id), p_B_fi, scaled_precision);
+
     } else {
       if (!getLandmarkReferencePosition(landmark_id)
                .isApprox(p_B_fi, scaled_precision)) {
         ++num_failing;
       }
     }
+    const double error = (getLandmarkReferencePosition(landmark_id) - p_B_fi)
+                             .cwiseAbs()
+                             .maxCoeff();
+    max_error = std::max(max_error, error);
+    error_sum += error;
   }
 
   if (!landmark_ids.empty()) {
-    CHECK_LE(
+    EXPECT_LE(
         (static_cast<double>(num_failing) / landmark_ids.size()),
         min_required_fraction);
   }
+
+  LOG(INFO) << "Max error of landmarks positions: " << max_error;
+  LOG(INFO) << "Mean error of landmarks positions: "
+            << error_sum / static_cast<double>(landmark_ids.size());
 }
 
 void VIMappingTestApp::testIfSwitchVariablesLargerThan(

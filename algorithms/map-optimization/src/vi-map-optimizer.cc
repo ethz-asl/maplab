@@ -1,9 +1,6 @@
 #include "map-optimization/vi-map-optimizer.h"
 
-#include <functional>
-#include <string>
-#include <unordered_map>
-
+#include <map-optimization/augment-loopclosure.h>
 #include <map-optimization/callbacks.h>
 #include <map-optimization/outlier-rejection-solver.h>
 #include <map-optimization/solver-options.h>
@@ -12,6 +9,10 @@
 #include <maplab-common/file-logger.h>
 #include <maplab-common/progress-bar.h>
 #include <visualization/viwls-graph-plotter.h>
+
+#include <functional>
+#include <string>
+#include <unordered_map>
 
 DEFINE_int32(
     ba_visualize_every_n_iterations, 3,
@@ -24,7 +25,7 @@ VIMapOptimizer::VIMapOptimizer(
     bool signal_handler_enabled)
     : plotter_(plotter), signal_handler_enabled_(signal_handler_enabled) {}
 
-bool VIMapOptimizer::optimizeVisualInertial(
+bool VIMapOptimizer::optimize(
     const map_optimization::ViProblemOptions& options,
     const vi_map::MissionIdSet& missions_to_optimize,
     const map_optimization::OutlierRejectionSolverOptions* const
@@ -35,12 +36,12 @@ bool VIMapOptimizer::optimizeVisualInertial(
 
   ceres::Solver::Options solver_options =
       map_optimization::initSolverOptionsFromFlags();
-  return optimizeVisualInertial(
+  return optimize(
       options, solver_options, missions_to_optimize, outlier_rejection_options,
       map);
 }
 
-bool VIMapOptimizer::optimizeVisualInertial(
+bool VIMapOptimizer::optimize(
     const map_optimization::ViProblemOptions& options,
     const ceres::Solver::Options& solver_options,
     const vi_map::MissionIdSet& missions_to_optimize,
@@ -55,18 +56,21 @@ bool VIMapOptimizer::optimizeVisualInertial(
     return false;
   }
 
-  map_optimization::OptimizationProblem* optimization_problem =
-      map_optimization::constructViProblem(missions_to_optimize, options, map);
-  CHECK_NOTNULL(optimization_problem);
+  map_optimization::OptimizationProblem::UniquePtr optimization_problem(
+      map_optimization::constructOptimizationProblem(
+          missions_to_optimize, options, map));
+  CHECK(optimization_problem);
 
   std::vector<std::shared_ptr<ceres::IterationCallback>> callbacks;
   if (plotter_) {
     map_optimization::appendVisualizationCallbacks(
         FLAGS_ba_visualize_every_n_iterations,
-        *optimization_problem->getOptimizationStateBufferMutable(), *plotter_,
+        *(optimization_problem->getOptimizationStateBufferMutable()), *plotter_,
         map, &callbacks);
   }
-  map_optimization::appendSignalHandlerCallback(&callbacks);
+  if (FLAGS_ba_enable_signal_handler) {
+    map_optimization::appendSignalHandlerCallback(&callbacks);
+  }
   ceres::Solver::Options solver_options_with_callbacks = solver_options;
   map_optimization::addCallbacksToSolverOptions(
       callbacks, &solver_options_with_callbacks);
@@ -74,10 +78,10 @@ bool VIMapOptimizer::optimizeVisualInertial(
   if (outlier_rejection_options != nullptr) {
     map_optimization::solveWithOutlierRejection(
         solver_options_with_callbacks, *outlier_rejection_options,
-        optimization_problem);
+        optimization_problem.get());
   } else {
     map_optimization::solve(
-        solver_options_with_callbacks, optimization_problem);
+        solver_options_with_callbacks, optimization_problem.get());
   }
 
   if (plotter_ != nullptr) {

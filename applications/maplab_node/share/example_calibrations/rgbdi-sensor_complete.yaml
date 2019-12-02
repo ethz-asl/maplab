@@ -1,0 +1,133 @@
+sensors:
+  - id: 5d2fcf479caf7592b35518fffa2fe08f
+    sensor_type: IMU
+    description: "RGBDI-Sensor - ADIS-16448 IMU"
+    topic: /arduino_vi/imu
+    sigmas:
+      acc_noise_density: 4e-3
+      acc_bias_random_walk_noise_density: 4e-3
+      gyro_noise_density: 1e-4
+      gyro_bias_random_walk_noise_density: 1e-4
+    saturation_accel_max_mps2: 150
+    saturation_gyro_max_radps: 7.5
+    gravity_magnitude_mps2: 9.808083883386614
+
+  - id: aabb23479caf7592bccc18478a2fe08f
+    sensor_type: ODOMETRY_6DOF
+    description: "ROVIOLI in Odometry mode"
+    topic: /odometry/maplab_odom_T_M_I
+
+  - id: 8af1bacaaac5fad79f09e49e3b96d87c
+    sensor_type: NCAMERA
+    description: "RGBDI-Sensor - Downscaled Blackfly S 1.6MP Color Camera"
+    topic: ""
+    cameras:
+      - camera:
+          id: ca27b5000f15adb3c0da8acbbb29ee05
+          sensor_type: CAMERA
+          description: "RGBDI-Sensor - Downscaled Blackfly S 1.6MP Color Camera"
+          topic: /arduino_vi/rgb_downsampled
+          line-delay-nanoseconds: 0
+          image_height: 480
+          image_width: 640
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 283.6180612179999
+              - 283.59733652086277
+              - 324.01932299260216
+              - 230.77136448609954
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - 0.0023714696046811296
+                - 0.005536170757297296
+                - -0.0032183272125010497
+                - 0.0004886436848871066
+        T_C_B:
+          rows: 4
+          cols: 4
+          data:
+            - [-0.002730442625254122, -0.00371939363787526, 0.9999893553403647, 0.032925706868075465]
+            - [-0.011764165335412038, -0.9999237632824307, -0.003751271393002485, -0.0038732640997883824]
+            - [0.9999270718892617, -0.011774282741186493, 0.002686478903567439, -0.010551793400137262]
+            - [0.0, 0.0, 0.0, 1.0]
+
+  - id: fffcccc2a7c5fad79f09e49e3b96d87c
+    sensor_type: NCAMERA
+    description: "RGBDI-Sensor - Monstah ToF Depth Camera"
+    topic: ""
+    cameras:
+      - camera:
+          id: cccfff000f15adb3c0da8ac6b729ee05
+          sensor_type: CAMERA
+          description: "RGBDI-Sensor - Monstah ToF Depth Camera"
+          topic: /arduino_vi/depth
+          line-delay-nanoseconds: 0
+          image_height: 287
+          image_width: 352
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 211.00841654083243
+              - 210.92415742721013
+              - 177.43913827912775
+              - 144.53970643950848
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - -0.09514266111157793
+                - 0.02788056834656091
+                - -0.04499784791320275
+                - 0.017795519409619265
+        T_C_B:
+          rows: 4
+          cols: 4
+          data:
+            - [-0.009637734462359682, -0.009265239741541554, 0.9999106307100477, 0.03465622076656755]
+            - [-0.0060307550306272825, -0.9999383481087177, -0.009323624583289818, -0.04734660525675514]
+            - [0.9999353699455752, -0.006120074684292793, 0.009581263886621094, -0.005775314811183392]
+            - [0.0, 0.0, 0.0, 1.0]
+extrinsics:
+  - sensor_id: 5d2fcf479caf7592b35518fffa2fe08f
+    base_sensor_id: 5d2fcf479caf7592b35518fffa2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: aabb23479caf7592bccc18478a2fe08f
+    base_sensor_id: 5d2fcf479caf7592b35518fffa2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: 8af1bacaaac5fad79f09e49e3b96d87c
+    base_sensor_id: 5d2fcf479caf7592b35518fffa2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]

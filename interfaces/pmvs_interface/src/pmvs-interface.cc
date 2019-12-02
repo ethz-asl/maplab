@@ -132,8 +132,14 @@ void getAllObserverCameras(
   // Get all main cameras.
   constexpr bool kIsOptionalCamera = false;
   for (const vi_map::MissionId& mission_id : mission_ids) {
+    if (!vi_map.getMission(mission_id).hasNCamera()) {
+      continue;
+    }
+    const aslam::SensorId ncamera_id =
+        vi_map.getMission(mission_id).getNCameraId();
     const aslam::NCamera& ncamera =
-        vi_map.getSensorManager().getNCameraForMission(mission_id);
+        vi_map.getSensorManager().getSensor<aslam::NCamera>(ncamera_id);
+
     const size_t num_cameras = ncamera.getNumCameras();
     for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
       const aslam::Camera& camera = ncamera.getCamera(camera_idx);
@@ -149,17 +155,36 @@ void getAllObserverCameras(
 
   // Get all optional cameras.
   for (const vi_map::MissionId& mission_id : mission_ids) {
-    std::vector<backend::CameraWithExtrinsics> cameras_with_extrinsics;
-    vi_map.getSensorManager().getOptionalCamerasWithExtrinsicsForMissionId(
-        mission_id, &cameras_with_extrinsics);
+    backend::SensorIdToResourcesMap camera_to_img_resources;
 
-    for (const backend::CameraWithExtrinsics& pair : cameras_with_extrinsics) {
-      CHECK(pair.second);
-      const aslam::CameraId& camera_id = pair.second->getId();
-      CHECK(camera_id.isValid());
+    const backend::SensorIdToResourcesMap& sensor_to_color_img_resources =
+        *vi_map.getMission(mission_id)
+             .getAllSensorResourceIdsOfType(
+                 backend::ResourceType::kRawColorImage);
+    const backend::SensorIdToResourcesMap& sensor_to_grayscale_img_resources =
+        *vi_map.getMission(mission_id)
+             .getAllSensorResourceIdsOfType(backend::ResourceType::kRawImage);
+    camera_to_img_resources.insert(
+        sensor_to_color_img_resources.begin(),
+        sensor_to_color_img_resources.begin());
+    camera_to_img_resources.insert(
+        sensor_to_grayscale_img_resources.begin(),
+        sensor_to_grayscale_img_resources.begin());
+
+    for (const backend::SensorIdToResourcesMap::value_type&
+             resources_per_sensor : camera_to_img_resources) {
+      const aslam::SensorId& sensor_id = resources_per_sensor.first;
+      if (vi_map.getSensorManager().getSensorType(sensor_id) !=
+          vi_map::SensorType::kCamera) {
+        LOG(WARNING)
+            << "This VIMap has images associated with another sensor than a "
+            << "camera, we cannot process them in the PMVS-interface!";
+        continue;
+      }
+
       observer_cameras->emplace(
-          camera_id,
-          ObserverCamera(vi_map, pmvs_settings, mission_id, camera_id));
+          sensor_id,
+          ObserverCamera(vi_map, pmvs_settings, mission_id, sensor_id));
     }
   }
 }
@@ -220,7 +245,7 @@ void getObserverPosesFromOptionalCameras(
     for (const backend::ResourceType& resource_type : supported_image_types) {
       aslam::CameraIdList opt_camera_ids;
       std::vector<int64_t> closest_timestamps_ns;
-      mission.findAllCloseOptionalSensorResources(
+      mission.findAllCloseSensorResources(
           resource_type, vertex_timestamp_ns,
           pmvs_settings.kOptionalCameraResourceMatchingToleranceNs,
           &opt_camera_ids, &closest_timestamps_ns);
@@ -289,8 +314,7 @@ void getObserverPosesFromNCamera(
       // camera resource that fits.
       aslam::CameraIdSet nframe_cameras;
       for (const backend::ResourceType& resource_type : supported_image_types) {
-        if (!vi_map.hasFrameResource<cv::Mat>(
-                vertex, frame_idx, resource_type)) {
+        if (!vi_map.hasFrameResource(vertex, frame_idx, resource_type)) {
           continue;
         }
 
@@ -423,10 +447,8 @@ bool isLandmarkVisibleForObserverCamera(
   // Retrieve aslam::Camera from either optional cameras or NCamera.
   const aslam::Camera* camera = nullptr;
   if (observer_camera.is_optional_camera) {
-    const backend::CameraWithExtrinsics& cam_with_extrinsics =
-        vi_map.getSensorManager().getOptionalCameraWithExtrinsics(
-            observer_camera.camera_id);
-    camera = cam_with_extrinsics.second.get();
+    camera = &vi_map.getSensorManager().getSensor<aslam::Camera>(
+        observer_camera.camera_id);
   } else {
     CHECK_LT(observer_camera.frame_idx, vertex.numFrames());
     camera = vertex.getCamera(observer_camera.frame_idx).get();

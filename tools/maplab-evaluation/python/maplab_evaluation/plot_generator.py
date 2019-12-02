@@ -58,15 +58,16 @@ def overview_plot(labels, list_of_evaluation_summaries):
     ax.set_xticks(indices + width / 2)
     ax.set_xticklabels(labels, rotation=90)
 
-    max_number = max(max(num_of_successful_jobs), max(num_of_failed_jobs))
-    yticks = range(0, max_number + 1)
-    ax.set_yticks(yticks)
-    ax.set_yticklabels(yticks)
+    if num_of_successful_jobs and num_of_failed_jobs:
+        max_number = max(max(num_of_successful_jobs), max(num_of_failed_jobs))
+        yticks = range(0, max_number + 1)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(yticks)
 
-    ax.legend((total_plots[0], success_plots[0], failed_plots[0]),
-              ('Total jobs', 'Successful jobs', 'Failed jobs'))
+        ax.legend((total_plots[0], success_plots[0], failed_plots[0]),
+                  ('Total jobs', 'Successful jobs', 'Failed jobs'))
 
-    plt.subplots_adjust(bottom=0.2)
+        plt.subplots_adjust(bottom=0.2)
     save_path = os.path.join(PLOT_DIR, 'summary.pdf')
     plt.savefig(save_path)
     plt.close()

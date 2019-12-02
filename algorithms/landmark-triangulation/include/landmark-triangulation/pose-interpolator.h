@@ -66,11 +66,16 @@ class PoseInterpolator {
       int64_t* min_timestamp_ns = nullptr,
       int64_t* max_timestamp_ns = nullptr) const;
 
+  // Returns a vector if vertex timestamps based on the first frame timestamp.
+  void getVertexTimeStampVector(
+      const vi_map::VIMap& map, const vi_map::MissionId& mission_id,
+      std::vector<int64_t>* vertex_timestamps_nanoseconds) const;
+
  private:
   typedef std::pair<int64_t, StateLinearizationPoint> state_buffer_value_type;
   typedef common::TemporalBuffer<
       StateLinearizationPoint,
-      Eigen::aligned_allocator<state_buffer_value_type> >
+      Eigen::aligned_allocator<state_buffer_value_type>>
       StateBuffer;
 
   // Determine the earliest and latest IMU measurements across an entire

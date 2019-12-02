@@ -13,6 +13,7 @@
 #include <vi-map/sensor-manager.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vertex.h>
+#include <vi-map/vi-map.h>
 
 namespace map_optimization_legacy {
 
@@ -27,7 +28,8 @@ class LandmarkGeometryVerification final {
       const LandmarkIdToVertexIdMap& landmarks,
       const vi_map::MissionMap& missions,
       const vi_map::MissionBaseFrameMap& mission_base_frames,
-      const vi_map::SensorManager& sensor_manager);
+      const vi_map::SensorManager& sensor_manager, 
+      const vi_map::VIMap &map);
 
   void getMergeReprojectionErrors(
       const vi_map::LandmarkId& change_from,
@@ -46,6 +48,7 @@ class LandmarkGeometryVerification final {
   const vi_map::MissionMap& missions_;
   const vi_map::MissionBaseFrameMap& mission_base_frames_;
   const vi_map::SensorManager& sensor_manager_;
+  const vi_map::VIMap &map_;
 };
 
 }  // namespace map_optimization_legacy

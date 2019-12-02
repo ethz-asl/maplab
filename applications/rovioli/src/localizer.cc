@@ -61,7 +61,7 @@ bool Localizer::localizeNFrame(
   localization_result->summary_map_id = localization_summary_map_.id();
   localization_result->timestamp_ns = nframe->getMinTimestampNanoseconds();
   localization_result->nframe_id = nframe->getId();
-  localization_result->localization_type = current_localization_mode_;
+  localization_result->localization_mode = current_localization_mode_;
   return result;
 }
 
@@ -75,8 +75,7 @@ bool Localizer::localizeNFrameGlobal(
   vi_map::VertexKeyPointToStructureMatchList inlier_structure_matches;
   const bool success = global_loop_detector_->findNFrameInSummaryMapDatabase(
       *nframe, kSkipUntrackedKeypoints, localization_summary_map_,
-      &localization_result->T_G_I_lc_pnp, &num_lc_matches,
-      &inlier_structure_matches);
+      &localization_result->T_G_B, &num_lc_matches, &inlier_structure_matches);
 
   if (!success || inlier_structure_matches.empty()) {
     return false;

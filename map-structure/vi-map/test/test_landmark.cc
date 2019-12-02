@@ -1,10 +1,10 @@
 #include <vector>
 
 #include <aslam/common/memory.h>
+#include <aslam/common/unique-id.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <maplab-common/test/testing-entrypoint.h>
-#include <maplab-common/unique-id.h>
 #include <posegraph/unique-id.h>
 
 #include "vi-map/landmark.h"
@@ -23,7 +23,7 @@ class LandmarkTest : public ::testing::Test {
 
     for (size_t idx = 0u; idx < num_observations_to_add; ++idx) {
       KeypointIdentifier observation;
-      common::generateId(&observation.frame_id.vertex_id);
+      aslam::generateId(&observation.frame_id.vertex_id);
       observation.frame_id.frame_index = idx % 2u;
       observation.keypoint_index = idx;
 

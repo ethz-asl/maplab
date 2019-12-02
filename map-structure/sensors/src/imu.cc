@@ -24,11 +24,6 @@ constexpr double Imu::kMaxGravity;
 constexpr double Imu::kMinSaturationAccelMax;
 constexpr double Imu::kMinSaturationGyroMax;
 
-template <>
-SensorType sensorToType<Imu>() {
-  return SensorType::kImu;
-}
-
 constexpr double kDefaultGyroNoiseDensity = 1e-4;
 constexpr double kDefaultGyroBiasRandomWalk = 1e-4;
 constexpr double kDefaultAccNoiseDensity = 4e-3;
@@ -42,39 +37,41 @@ ImuSigmas::ImuSigmas()
   CHECK(isValid());
 }
 
-constexpr char kDefaultImuHardwareId[] = "imu";
-
 ImuSigmas::ImuSigmas(
     const double _gyro_noise_density, const double _gyro_bias_noise_density,
     const double _acc_noise_density, const double _acc_bias_noise_density)
     : gyro_noise_density(_gyro_noise_density),
       gyro_bias_random_walk_noise_density(_gyro_bias_noise_density),
       acc_noise_density(_acc_noise_density),
-      acc_bias_random_walk_noise_density(_acc_bias_noise_density) {}
+      acc_bias_random_walk_noise_density(_acc_bias_noise_density) {
+  CHECK(isValid());
+}
 
 constexpr double kDefaultSaturationAccelMax = 150.0;
 constexpr double kDefaultSaturationGyroMax = 7.5;
 
-Imu::Imu()
-    : Sensor(SensorType::kImu, static_cast<std::string>(kDefaultImuHardwareId)),
-      saturation_accel_max_(kDefaultSaturationAccelMax),
-      saturation_gyro_max_radps_(kDefaultSaturationGyroMax) {
-  common::GravityProvider gravity_provider(
-      common::locations::kAltitudeZurichMeters,
-      common::locations::kLatitudeZurichDegrees);
-  gravity_magnitude_ = gravity_provider.getGravityMagnitude();
+Imu::Imu() : Sensor() {
+  initializeDefault();
+}
+
+Imu::Imu(const aslam::SensorId& sensor_id) : Sensor(sensor_id) {
+  initializeDefault();
   CHECK(isValid());
 }
 
-Imu::Imu(const SensorId& sensor_id, const std::string& hardware_id)
-    : Sensor(sensor_id, SensorType::kImu, hardware_id),
-      saturation_accel_max_(kDefaultSaturationAccelMax),
-      saturation_gyro_max_radps_(kDefaultSaturationGyroMax) {
+Imu::Imu(const aslam::SensorId& sensor_id, const std::string& topic)
+    : Sensor(sensor_id, topic) {
+  initializeDefault();
+  CHECK(isValid());
+}
+
+void Imu::initializeDefault() {
+  saturation_accel_max_ = kDefaultSaturationAccelMax;
+  saturation_gyro_max_radps_ = kDefaultSaturationGyroMax;
   common::GravityProvider gravity_provider(
       common::locations::kAltitudeZurichMeters,
       common::locations::kLatitudeZurichDegrees);
   gravity_magnitude_ = gravity_provider.getGravityMagnitude();
-  CHECK(isValid());
 }
 
 bool Imu::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
@@ -165,23 +162,6 @@ void ImuSigmas::setRandom() {
       kMinRandomWalkNoiseDensity, kMaxRandomWalkNoiseDensity);
   gyro_bias_random_walk_noise_density = noise_density(random_engine);
   acc_bias_random_walk_noise_density = noise_density(random_engine);
-}
-
-void ImuMeasurement::serialize(
-    measurements::proto::ImuMeasurement* proto_measurement) const {
-  CHECK_NOTNULL(proto_measurement);
-  Measurement::serialize(proto_measurement->mutable_measurement_base());
-  common::eigen_proto::serialize(
-      I_accel_xyz_m_s2_gyro_xyz_rad_s_,
-      proto_measurement->mutable_i_accel_xyz_m_s2_gyro_xyz_rad_s());
-}
-
-void ImuMeasurement::deserialize(
-    const measurements::proto::ImuMeasurement& proto_measurement) {
-  Measurement::deserialize(proto_measurement.measurement_base());
-  common::eigen_proto::deserialize(
-      proto_measurement.i_accel_xyz_m_s2_gyro_xyz_rad_s(),
-      &I_accel_xyz_m_s2_gyro_xyz_rad_s_);
 }
 
 void ImuMeasurement::setRandomImpl() {

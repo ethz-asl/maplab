@@ -3,16 +3,15 @@
 
 #include <Eigen/Core>
 #include <aslam/common/memory.h>
+#include <aslam/common/unique-id.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <posegraph/edge.h>
 #include <posegraph/unique-id.h>
 #include <posegraph/vertex.h>
-#include <sensors/sensor-factory.h>
 
 #include "vi-map/mission.h"
 #include "vi-map/test/vi-map-test-helpers.h"
@@ -56,13 +55,18 @@ class VIMapEdgeMergingTest : public ::testing::Test {
 void VIMapEdgeMergingTest::addWheelOdometryEdges() {
   CHECK(mission_id_.isValid());
 
-  Sensor::UniquePtr wheel_odometry_sensor =
-      createTestSensor(SensorType::kRelative6DoFPose);
+  WheelOdometry::UniquePtr wheel_odometry_sensor(new WheelOdometry());
   CHECK(wheel_odometry_sensor);
-  const SensorId wheel_odometry_sensor_id = wheel_odometry_sensor->getId();
-  map_.getSensorManager().addSensor(
-      std::move(wheel_odometry_sensor), mission_id_);
+  wheel_odometry_sensor->setRandom();
+
+  const aslam::SensorId& wheel_odometry_sensor_id =
+      wheel_odometry_sensor->getId();
+  aslam::Transformation T_B_S;
+  T_B_S.setIdentity();
+  map_.getSensorManager().addSensor<WheelOdometry>(
+      std::move(wheel_odometry_sensor), wheel_odometry_sensor_id, T_B_S);
   CHECK(wheel_odometry_sensor_id.isValid());
+  map_.getMission(mission_id_).setWheelOdometrySensor(wheel_odometry_sensor_id);
 
   const pose_graph::Edge::EdgeType traversal_edge_type =
       map_.getGraphTraversalEdgeType(mission_id_);
@@ -82,8 +86,8 @@ void VIMapEdgeMergingTest::addWheelOdometryEdges() {
     const aslam::Transformation T_Ik_Ikp1 = T_G_Ik.inverse() * T_G_Ikp1;
     TransformationEdge::UniquePtr transformation_edge =
         aligned_unique<TransformationEdge>(
-            Edge::EdgeType::kOdometry,
-            common::createRandomId<pose_graph::EdgeId>(), vertex_id_k,
+            Edge::EdgeType::kWheelOdometry,
+            aslam::createRandomId<pose_graph::EdgeId>(), vertex_id_k,
             vertex_id_kp1, T_Ik_Ikp1,
             aslam::TransformationCovariance::Identity(),
             wheel_odometry_sensor_id);
@@ -107,7 +111,7 @@ TransformationEdge VIMapEdgeMergingTest::getOutgoingTransformationEdge(
   outgoing_transformation_edge_id.setInvalid();
   for (const pose_graph::EdgeId& edge_id : outgoing_edge_ids) {
     CHECK(edge_id.isValid());
-    if (map_.getEdgeType(edge_id) == Edge::EdgeType::kOdometry) {
+    if (map_.getEdgeType(edge_id) == Edge::EdgeType::kWheelOdometry) {
       outgoing_transformation_edge_id = edge_id;
     }
   }
@@ -159,7 +163,7 @@ void VIMapEdgeMergingTest::mergeRandomVertex(
     const TransformationEdge wheel_odometry_edge_1 =
         getOutgoingTransformationEdge(vertex_id_from);
     wheel_odometry_edge_1_id = wheel_odometry_edge_1.id();
-    wheel_odometry_edge_1_T_A_B = wheel_odometry_edge_1.getT_A_B();
+    wheel_odometry_edge_1_T_A_B = wheel_odometry_edge_1.get_T_A_B();
     ASSERT_EQ(wheel_odometry_edge_1.to(), in_between_vertex_id);
   }
 
@@ -176,7 +180,7 @@ void VIMapEdgeMergingTest::mergeRandomVertex(
       const TransformationEdge wheel_odometry_edge_2 =
           getOutgoingTransformationEdge(in_between_vertex_id);
       wheel_odometry_edge_2_id = wheel_odometry_edge_2.id();
-      wheel_odometry_edge_2_T_A_B = wheel_odometry_edge_2.getT_A_B();
+      wheel_odometry_edge_2_T_A_B = wheel_odometry_edge_2.get_T_A_B();
       ASSERT_EQ(wheel_odometry_edge_2.to(), viwls_edge_2.to());
     }
 
@@ -195,7 +199,7 @@ void VIMapEdgeMergingTest::mergeRandomVertex(
 
       const TransformationEdge merged_wheel_odometry_edge =
           getOutgoingTransformationEdge(vertex_id_from);
-      EXPECT_EQ(merged_wheel_odometry_edge.getT_A_B(), T_A_B_merged);
+      EXPECT_EQ(merged_wheel_odometry_edge.get_T_A_B(), T_A_B_merged);
       EXPECT_EQ(merged_wheel_odometry_edge.from(), vertex_id_from);
       EXPECT_EQ(merged_wheel_odometry_edge.to(), viwls_edge_2.to());
 

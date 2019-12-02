@@ -7,7 +7,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 ########
 # LIB  #
 ########
-cs_add_library(${PROJECT_NAME} 
+cs_add_library(${PROJECT_NAME}
   src/augment-loopclosure.cc
   src/optimization-problem.cc
   src/optimization-state-buffer.cc

@@ -3,10 +3,11 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <aslam/cameras/random-camera-generator.h>
+#include <aslam/common/unique-id.h>
 #include <glog/logging.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 
 #include "vi-map/check-map-consistency.h"
 #include "vi-map/pose-graph.h"
@@ -17,7 +18,7 @@ namespace map_optimization_legacy {
 class ViwlsGraph : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    cameras_ = aslam::NCamera::createTestNCamera(kNumCameras);
+    cameras_ = aslam::createTestNCamera(kNumCameras);
   }
 
   void addMissions(
@@ -81,7 +82,7 @@ void ViwlsGraph::addVisualFrameToVertex(vi_map::Vertex* vertex_ptr) {
   uncertainties.resize(kNumOfKeypointsPerVertex);
   descriptors.resize(kDescriptorBytes, kNumOfKeypointsPerVertex);
   aslam::FrameId frame_id;
-  common::generateId(&frame_id);
+  aslam::generateId(&frame_id);
   frame->setId(frame_id);
   frame->setKeypointMeasurements(img_points_distorted);
   frame->setKeypointMeasurementUncertainties(uncertainties);

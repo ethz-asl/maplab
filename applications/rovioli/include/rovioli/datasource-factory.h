@@ -5,6 +5,7 @@
 
 #include <glog/logging.h>
 #include <sensors/imu.h>
+#include <vio-common/rostopic-settings.h>
 
 #include "rovioli/datasource.h"
 
@@ -16,6 +17,6 @@ DataSourceType stringToDataSource(const std::string& str);
 // Camera topics are read from the camera calibration file. Caller takes
 // ownership!
 DataSource* createAndConfigureDataSourcefromGFlags(
-    const aslam::NCamera& camera_system, const vi_map::Imu& imu_sensor);
+    const vio_common::RosTopicSettings& topic_settings);
 }  // namespace rovioli
 #endif  // ROVIOLI_DATASOURCE_FACTORY_H_

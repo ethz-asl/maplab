@@ -3,6 +3,7 @@
 #include <vector>
 
 #include <aslam/cameras/ncamera.h>
+#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/memory.h>
 #include <aslam/common/pose-types.h>
 #include <aslam/common/time.h>
@@ -30,7 +31,7 @@ void VioUpdateSimulation::generateVioUpdates() {
 
   // Get needed data.
   constexpr size_t kNumberOfCameras = 1u;
-  n_camera_ = aslam::NCamera::createTestNCamera(kNumberOfCameras);
+  n_camera_ = aslam::createTestNCamera(kNumberOfCameras);
   const Eigen::VectorXd& timestamps = path_generator.getTimestampsInSeconds();
   path_generator.getGroundTruthTransformations(&transformation_vector_);
   velocities_ = path_generator.getTrueVelocities();
@@ -94,7 +95,7 @@ void VioUpdateSimulation::generateVioUpdates() {
     vio_update->vinode.set_T_M_I(transformation_vector_[index]);
     vio_update->vinode.set_v_M_I(velocities_.col(index));
 
-    vio_update->localization_state = vio::LocalizationState::kUninitialized;
+    vio_update->localization_state = common::LocalizationState::kUninitialized;
     // Entry vio_update->T_G_M stays at default (identity).
 
     vio_update_list_.push_back(vio_update);

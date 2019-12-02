@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <package format="2">
   <name>maplab_console_full</name>
-  <version>0.0.0</version>
+  <version>2.2.0</version>
   <description>
     Metapackage to build the maplab_console and its core plugins.
   </description>
@@ -9,6 +9,7 @@
   <license>Apache 2.0</license>
 
   <buildtool_depend>catkin</buildtool_depend>
+
 
   <exec_depend>dense_reconstruction_plugin</exec_depend>
   <exec_depend>landmark_manipulation_plugin</exec_depend>
@@ -26,6 +27,6 @@
   <exec_depend>vi_map_summarization_plugin</exec_depend>
   <exec_depend>vi_map_visualization_plugin</exec_depend>
   <export>
-    <metapackage />
+    <metapackage/>
   </export>
 </package>

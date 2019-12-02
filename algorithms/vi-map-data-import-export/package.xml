@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>vi_map_data_import_export</name>
-  <version>0.0.0</version>
+  <version>2.2.0</version>
   <description>
     Code to import or export data to/from the VIMap such as the trajectory,
     or sensor extrinsics.
@@ -20,4 +20,5 @@
   <depend>rosbag</depend>
   <depend>roscpp</depend>
   <depend>vi_map</depend>
+  <depend>landmark_triangulation</depend>
 </package>

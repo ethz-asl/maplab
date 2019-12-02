@@ -1,15 +1,15 @@
 #ifndef VISUALIZATION_VIWLS_GRAPH_PLOTTER_H_
 #define VISUALIZATION_VIWLS_GRAPH_PLOTTER_H_
 
-#include <string>
-#include <vector>
-
-#include <Eigen/Core>
 #include <aslam/common/pose-types.h>
 #include <vi-map-helpers/near-camera-pose-sampling.h>
 #include <vi-map/mission-baseframe.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vi-map.h>
+
+#include <Eigen/Core>
+#include <string>
+#include <vector>
 
 #include "visualization/common-rviz-visualization.h"
 #include "visualization/viz-primitives.h"
@@ -25,13 +25,14 @@ class ViwlsGraphRvizPlotter {
 
   void visualizeMap(
       const vi_map::VIMap& map, bool publish_baseframes, bool publish_vertices,
-      bool publish_edges, bool publish_landmarks) const;
+      bool publish_edges, bool publish_landmarks,
+      bool publish_absolute_6dof_constraints) const;
   void visualizeMap(const vi_map::VIMap& map) const;
 
   void visualizeMissions(
       const vi_map::VIMap& map, const vi_map::MissionIdList& mission_ids,
       bool publish_baseframes, bool publish_vertices, bool publish_edges,
-      bool publish_landmarks) const;
+      bool publish_landmarks, bool publish_absolute_6dof_constraints) const;
 
   void plotSlidingWindowLocalizationResult(
       const aslam::Transformation& T_G_B, size_t marker_id) const;
@@ -82,6 +83,11 @@ class ViwlsGraphRvizPlotter {
   void publishLandmarks(
       const Eigen::Matrix3Xd& W_landmarks, const visualization::Color& color,
       const std::string& topic) const;
+  void publishAbsolute6DoFConstraints(
+      const vi_map::VIMap& map, const pose_graph::VertexIdList& vertices) const;
+  void publishAbsolute6DoFConstraints(
+      const vi_map::VIMap& map, const vi_map::MissionIdList& missions) const;
+
   void appendLandmarksToSphereVector(
       const vi_map::VIMap& map, const vi_map::MissionIdList& missions,
       visualization::SphereVector* spheres) const;
@@ -117,12 +123,12 @@ class ViwlsGraphRvizPlotter {
   static const std::string kLandmarkTopic;
   static const std::string kLoopclosureTopic;
   static const std::string kMeshTopic;
-  static const std::string kNcamExtrinsicsTopic;
   static const std::string kSensorExtrinsicsTopic;
   static const std::string kSlidingWindowLocalizationResultTopic;
   static const std::string kUniqueKeyFramesTopic;
   static const std::string kVertexPartitioningTopic;
   static const std::string kVertexTopic;
+  static const std::string kAbsolute6DoFTopic;
 
  private:
   visualization::LineSegmentVector reference_edges_line_segments_;

@@ -34,7 +34,23 @@ class VIMappingTestApp {
   void corruptKeyframePoses(
       double position_std_dev_m, double orientation_std_dev_quat,
       int every_nth);
+  void corruptAbs6DoFSensorExtrinsics(
+      double position_std_dev_m, double orientation_std_dev_quat);
+  void corruptCameraExtrinsics(
+      double position_std_dev_m, double orientation_std_dev_quat);
+
+  // This function adds loop closure edges that correspond exactly to the
+  // current state of the map between pairs of vertices. The pairs are selected
+  // by sorting all vertices based on their id and then building pairs based on
+  // stepping through the list with the step size provided to the function.
+  void addLoopClosureEdges(const size_t add_lc_edge_between_every_nth_vertex);
+
   pose_graph::EdgeId addWrongLoopClosureEdge();
+
+  // This function adds absolute 6DoF constraints that correspond exactly to the
+  // current state of the map.
+  void addAbsolute6DoFConstraints(
+      const size_t add_constraint_at_every_nth_vertex);
 
   const Eigen::Vector3d& getLandmarkReferencePosition(
       const vi_map::LandmarkId& landmark_id) const;

@@ -11,12 +11,13 @@ LandmarkGeometryVerification::LandmarkGeometryVerification(
     const LandmarkIdToVertexIdMap& landmarks,
     const vi_map::MissionMap& missions,
     const vi_map::MissionBaseFrameMap& mission_base_frames,
-    const vi_map::SensorManager& sensor_manager)
+    const vi_map::SensorManager& sensor_manager, const vi_map::VIMap& map)
     : posegraph_(posegraph),
       landmarks_(landmarks),
       missions_(missions),
       mission_base_frames_(mission_base_frames),
-      sensor_manager_(sensor_manager) {}
+      sensor_manager_(sensor_manager),
+      map_(map) {}
 
 void LandmarkGeometryVerification::getMergeReprojectionErrors(
     const vi_map::LandmarkId& change_from, const vi_map::LandmarkId& change_to,
@@ -80,11 +81,16 @@ void LandmarkGeometryVerification::getReprojectionErrors(
             common::getChecked(missions_, keyframe_vertex->getMissionId())
                 ->getAs<vi_map::VIMission>();
 
+        const aslam::SensorId& camera_id = keyframe_mission.getNCameraId();
         const aslam::NCamera& ncamera =
-            sensor_manager_.getNCameraForMission(keyframe_mission.id());
+            sensor_manager_.getSensor<aslam::NCamera>(camera_id);
+
+        const aslam::Transformation& T_B_Cn =
+            sensor_manager_.getSensor_T_B_S(camera_id);
 
         const pose::Transformation& T_C_I =
-            ncamera.get_T_C_B(observation.frame_id.frame_index);
+            ncamera.get_T_C_B(observation.frame_id.frame_index) *
+            T_B_Cn.inverse();
 
         const vi_map::MissionBaseFrame& keyframe_mission_baseframe =
             common::getChecked(

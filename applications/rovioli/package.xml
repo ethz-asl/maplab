@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <package format="2">
   <name>rovioli</name>
-  <version>0.0.0</version>
+  <version>2.2.0</version>
   <description>
     ROVIO with Localization Integrated (ROVIO-LI): Integration of ROVIO into
     Maplab to extend it with localization and mapping capabilities.
@@ -21,6 +21,8 @@
   <depend>localization_summary_map</depend>
   <depend>loop_closure_handler</depend>
   <depend>maplab_common</depend>
+  <depend>maplab_ros_common</depend>
+  <depend>maplab_msgs</depend>
   <depend>mapping_workflows_plugin</depend>
   <depend>message_flow</depend>
   <depend>online_map_builders</depend>

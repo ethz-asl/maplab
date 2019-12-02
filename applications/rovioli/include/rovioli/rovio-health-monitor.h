@@ -21,9 +21,9 @@ class RovioHealthMonitor {
     CHECK(state.hasFeatureState());
     const rovio::RovioFeatureState& feature_state = state.getFeatureState();
 
-    const int max_num_features = feature_state.get_MaxNumFeatures();
+    const size_t max_num_features = feature_state.get_MaxNumFeatures();
     std::vector<float> distance_covs;
-    for (int i = 0; i < max_num_features; ++i) {
+    for (size_t i = 0u; i < max_num_features; ++i) {
       if (feature_state.get_isFeatureValid(i)) {
         distance_covs.push_back(feature_state.get_DistanceCov(i));
       }

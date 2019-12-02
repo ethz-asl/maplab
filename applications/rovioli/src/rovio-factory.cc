@@ -19,6 +19,11 @@ DEFINE_double(
     rovioli_position_noise_density, 0.01,
     "Position prediction noise density [m/sqrt(s)].");
 
+DEFINE_string(
+    rovio_image_mask_path, "",
+    "Path to image mask to be applied to the ROVIO. No features are extracted "
+    "on the masked areas. Currently only supports a single camera.");
+
 namespace rovioli {
 namespace {
 template <int kNumCameras>
@@ -36,9 +41,9 @@ struct RovioBuilder {
   rovio::RovioInterface* operator()(
       const rovio::FilterConfiguration& filter_config,
       const rovio::CameraCalibrationVector& camera_calibrations) {
-    return rovio::createRovioInterface<kNumCameras, kEnableMapLocalization,
-                                       kNPoses, kMaxNumFeatures, kPyramidLevels,
-                                       kFeaturePatchSizePx>(
+    return rovio::createRovioInterface<
+        kNumCameras, kEnableMapLocalization, kNPoses, kMaxNumFeatures,
+        kPyramidLevels, kFeaturePatchSizePx>(
         filter_config, camera_calibrations);
   }
 };
@@ -107,6 +112,9 @@ void initFilterConfigurationFromGFLags(
     rovio::FilterConfiguration* rovio_config) {
   CHECK_NOTNULL(rovio_config);
   rovio_config->setDoFrameVisualization(FLAGS_rovio_enable_frame_visualization);
+  if (!FLAGS_rovio_image_mask_path.empty()) {
+    rovio_config->setImageMaskPath(FLAGS_rovio_image_mask_path);
+  }
 }
 
 void setRovioImuSigmas(
@@ -194,6 +202,7 @@ rovio::RovioInterface* constructAndConfigureRovio(
       LOG(WARNING) << "ROVIO support is only compiled for up to 2 cameras. "
                    << "Please adapt the code if you need more.";
   }
+
   return rovio;
 }
 }  // namespace rovioli

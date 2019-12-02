@@ -5,20 +5,12 @@ find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
 SET(MAP_OPTIMIZATION_SOURCE src/ba-optimization-options.cc
-                       src/double-window.cc
-                       src/graph-ba-optimizer.cc
-                       src/landmark-covariance-estimation.cc
-                       src/landmark-geometry-verification.cc
-                       src/pose-prior-import.cc
-                       src/test/6dof-test-trajectory-gen.cc)
+                            src/double-window.cc
+                            src/graph-ba-optimizer.cc
+                            src/landmark-covariance-estimation.cc
+                            src/landmark-geometry-verification.cc
+                            src/pose-prior-import.cc)
 cs_add_library(${PROJECT_NAME} ${MAP_OPTIMIZATION_SOURCE})
-
-SET(VIOPT_TEST_SOURCE src/test/6dof-test-trajectory-gen.cc
-                      src/test/6dof-pose-graph-gen.cc
-                      src/test/6dof-vi-map-gen.cc)
-
-cs_add_library(${PROJECT_NAME}_test ${VIOPT_TEST_SOURCE})
-target_link_libraries(${PROJECT_NAME}_test pthread)
 
 file(COPY test/test-data DESTINATION
        ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
@@ -33,11 +25,11 @@ target_link_libraries(test_6dof_trajectory_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_6dof_ba_test
   test/test_6dof_ba_test.cc)
-target_link_libraries(test_6dof_ba_test ${PROJECT_NAME}_test)
+target_link_libraries(test_6dof_ba_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_6dof_full_visual_ba_test
   test/test_6dof_full_visual_ba_test.cc)
-target_link_libraries(test_6dof_full_visual_ba_test ${PROJECT_NAME}_test)
+target_link_libraries(test_6dof_full_visual_ba_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_basic_viwls_graph_test
   test/test_basic_viwls_graph_test.cc)
@@ -73,15 +65,15 @@ target_link_libraries(test_optimizer_copy_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_remove_mission_test
   test/test_remove_mission_test.cc)
-target_link_libraries(test_remove_mission_test ${PROJECT_NAME}  ${PROJECT_NAME}_test)
+target_link_libraries(test_remove_mission_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_remove_vertex_edge_test
   test/test_remove_vertex_edge_test.cc)
-target_link_libraries(test_remove_vertex_edge_test ${PROJECT_NAME}  ${PROJECT_NAME}_test)
+target_link_libraries(test_remove_vertex_edge_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_vertex_getter_test
   test/test_vertex_getter_test.cc)
-target_link_libraries(test_vertex_getter_test ${PROJECT_NAME} ${PROJECT_NAME}_test)
+target_link_libraries(test_vertex_getter_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_visual_ba_test
   test/test_visual_ba_test.cc)

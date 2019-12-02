@@ -13,7 +13,6 @@ struct ProbeResult {
   int num_vertex_candidate_links;
   double average_landmark_match_inlier_ratio;
   pose::Transformation T_G_M;
-  vi_map::MissionIdList matching_missions;
 
   ProbeResult();
 

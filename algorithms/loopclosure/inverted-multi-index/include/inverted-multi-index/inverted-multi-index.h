@@ -207,7 +207,8 @@ class InvertedMultiIndex {
     proto_inverted_multi_index->set_max_db_descriptor_index(
         max_db_descriptor_index_);
 
-    for (const std::pair<int, int>& word_index_element : word_index_map_) {
+    for (const std::pair<const int, int>& word_index_element :
+         word_index_map_) {
       proto::InvertedMultiIndex_WordIndexMapEntry* proto_word_index_map_entry =
           CHECK_NOTNULL(proto_inverted_multi_index->add_word_index_map());
 

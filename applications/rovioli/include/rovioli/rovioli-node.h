@@ -7,6 +7,7 @@
 
 #include <message-flow/message-flow.h>
 #include <sensors/imu.h>
+#include <sensors/wheel-odometry-sensor.h>
 
 #include "rovioli/data-publisher-flow.h"
 #include "rovioli/datasource-flow.h"
@@ -20,8 +21,7 @@ namespace rovioli {
 class RovioliNode final {
  public:
   RovioliNode(
-      const aslam::NCamera::Ptr& camera_system,
-      vi_map::Imu::UniquePtr maplab_imu_sensor,
+      const vi_map::SensorManager& sensor_manager,
       const vi_map::ImuSigmas& rovio_imu_sigmas,
       const std::string& save_map_folder,
       const summary_map::LocalizationSummaryMap* const localization_map,

@@ -201,7 +201,7 @@ void CommandRegisterer::listJobs() const {
     return;
   }
   std::cout << "Status of all known jobs:" << std::endl;
-  for (const std::pair<int, std::shared_ptr<Job> > id_job : jobs_) {
+  for (const std::pair<const int, std::shared_ptr<Job> > id_job : jobs_) {
     CHECK(id_job.second != nullptr);
     const Job& job = *id_job.second;
     std::cout << job.printInfo() << std::endl;
@@ -214,7 +214,7 @@ void CommandRegisterer::waitForJobsToFinish() const {
     return;
   }
   std::cout << "Waiting for all known jobs to end:" << std::endl;
-  for (const std::pair<int, std::shared_ptr<Job> >& id_job : jobs_) {
+  for (const std::pair<const int, std::shared_ptr<Job> >& id_job : jobs_) {
     CHECK(id_job.second != nullptr);
     Job& job = *id_job.second;
     job.joinThread();

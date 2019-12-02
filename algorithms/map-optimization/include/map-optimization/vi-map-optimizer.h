@@ -24,14 +24,14 @@ class VIMapOptimizer {
       const visualization::ViwlsGraphRvizPlotter* plotter,
       bool signal_handler_enabled);
 
-  bool optimizeVisualInertial(
+  bool optimize(
       const map_optimization::ViProblemOptions& options,
       const vi_map::MissionIdSet& missions_to_optimize,
       const map_optimization::OutlierRejectionSolverOptions* const
           outlier_rejection_options,
       vi_map::VIMap* map);
 
-  bool optimizeVisualInertial(
+  bool optimize(
       const map_optimization::ViProblemOptions& options,
       const ceres::Solver::Options& solver_options,
       const vi_map::MissionIdSet& missions_to_optimize,

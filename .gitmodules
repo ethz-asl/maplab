@@ -4,3 +4,6 @@
 [submodule "aslam_cv2"]
 	path = aslam_cv2
 	url = https://github.com/ethz-asl/aslam_cv2.git
+[submodule "tools/evaluation_tools"]
+	path = tools/evaluation_tools
+	url = https://github.com/ethz-asl/evaluation_tools.git

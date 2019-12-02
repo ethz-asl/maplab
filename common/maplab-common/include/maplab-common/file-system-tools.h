@@ -67,6 +67,12 @@ int getFileLists(
     const std::vector<std::string>& initial_paths, bool sort_lexical,
     const std::string& extension_filter, std::vector<std::string>* file_paths);
 
+// Check if this folder already exists, and if it does, append a number until
+// you find a folder name that doesn't exist yet. Example: if you would like to
+// create a folder at /foo/bar but there is already a file or folder with that
+// name, this function will check if /foo/bar_1 exists and so on.
+std::string getUniqueFolderName(const std::string& folder_path);
+
 // Generate a date-time string from a given input time in integer seconds.
 // Source:
 // https://stackoverflow.com/questions/16357999/current-date-and-time-as-string

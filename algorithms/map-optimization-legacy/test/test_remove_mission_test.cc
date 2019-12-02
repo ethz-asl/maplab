@@ -2,9 +2,8 @@
 
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
+#include <vi-map/6dof-vi-map-gen.h>
 #include <vi-map/check-map-consistency.h>
-
-#include "map-optimization-legacy/test/6dof-vi-map-gen.h"
 
 namespace map_optimization_legacy {
 
@@ -111,7 +110,7 @@ class RemoveMissionTest : public testing::Test {
   }
 
  protected:
-  SixDofVIMapGenerator generator_;
+  vi_map::SixDofVIMapGenerator generator_;
   vi_map::VIMap& map_;
   vi_map::MissionId first_mission_id_;
 };

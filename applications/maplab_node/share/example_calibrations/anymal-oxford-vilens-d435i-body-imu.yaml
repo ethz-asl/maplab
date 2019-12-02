@@ -1,0 +1,157 @@
+sensors:
+  # - id:                                  a11fcf479caf7592b35518478a2fe08f
+  #   sensor_type:                         IMU
+  #   description:                         "Realsense D435i IMU"
+  #   topic:                               /realsense_d435_front_forward/imu
+  #   sigmas:
+  #     gyro_noise_density:                0.000208
+  #     gyro_bias_random_walk_noise_density: 0.000004
+  #     acc_noise_density:                 0.001249
+  #     acc_bias_random_walk_noise_density: 0.000106
+  #   saturation_accel_max_mps2:           150
+  #   saturation_gyro_max_radps:           7.5
+  #   gravity_magnitude_mps2:              9.808083883386614
+
+  - id:                                    a3bb23479caf7592b35518478a2fe08f
+    sensor_type:                           ODOMETRY_6DOF
+    topic:                                 /odometry/maplab_odom_T_M_I
+    description:                           ROVIOLI in Odometry mode
+
+  - id:                                    a12fcf479caf7592b35518478a2fe08f
+    sensor_type:                           IMU
+    topic:                                 /sensors/imu
+    description:                           Anymal Base IMU Xsense MTI100
+    sigmas:
+      gyro_noise_density:                  0.0001745
+      gyro_bias_random_walk_noise_density: 4.848e-06
+      acc_noise_density:                   0.0005886
+      acc_bias_random_walk_noise_density:  1.472e-05
+    saturation_accel_max_mps2:             150
+    saturation_gyro_max_radps:             7.5
+    gravity_magnitude_mps2:                9.808083883386614
+
+  - id:                                    a4f1bac2a7c5fad79f09e49e3b96d87c
+    sensor_type:                           NCAMERA
+    topic:                                 ""
+    description:                           Realsense D435i Infrared Stereo
+    cameras:
+      - camera:
+          id:                              a412b5000f15adb3c0da8ac6b729ee05
+          sensor_type:                     CAMERA
+          topic:                           /realsense_d435_front_forward/infra1/image_rect_raw/compressed/processed
+          description:                     Realsense D435i Infrared Left
+          compressed:                      true
+          line-delay-nanoseconds:          0
+          image_height:                    480
+          image_width:                     848
+          type:                            pinhole
+          intrinsics:
+            rows:                          4
+            cols:                          1
+            data:
+              - 425.9027058872394
+              - 426.1311770461779
+              - 425.1527505841169
+              - 235.3935160950008
+          distortion:
+            type:                          radial-tangential
+            parameters:
+              rows:                        4
+              cols:                        1
+              data:
+                - 0.01405281529661746
+                - -0.01181580443690514
+                - -0.001188281912684896
+                - -0.005292905510455115
+        T_B_C:
+          rows:                            4
+          cols:                            4
+          data:
+            - [0.02863212101951451, 0.193475656163598, -0.9806871938176767, -0.3179372448742083]
+            - [-0.9995763167554461, 0.01067836806658007, -0.0270769170521884, -0.05845831892485143]
+            - [0.005233414520207424, 0.981046962651381, 0.1936994280966255, -0.07762727139419612]
+            - [0, 0, 0, 1]
+
+      - camera:
+          id:                              a427b5000f15adb3c0da8ac6b729ee05
+          sensor_type:                     CAMERA
+          topic:                           /realsense_d435_front_forward/infra2/image_rect_raw/compressed/processed
+          description:                     Realsense D435i Infrared Right
+          compressed:                      true
+          line-delay-nanoseconds:          0
+          image_height:                    480
+          image_width:                     848
+          type:                            pinhole
+          intrinsics:
+            rows:                          4
+            cols:                          1
+            data:
+              - 425.7683968865546
+              - 425.9879412002741
+              - 425.0053418001372
+              - 235.4704309216935
+          distortion:
+            type:                          radial-tangential
+            parameters:
+              rows:                        4
+              cols:                        1
+              data:
+                - 0.008857236828781036
+                - -0.007330545415146457
+                - -0.0001348536416433284
+                - 0.001018992205669313
+        T_B_C:
+          rows:                            4
+          cols:                            4
+          data:
+            - [0.02863212101951451, 0.193475656163598, -0.9806871938176767, -0.3179372448742083]
+            - [-0.9995763167554461, 0.01067836806658007, -0.0270769170521884, -0.05845831892485143]
+            - [0.005233414520207424, 0.981046962651381, 0.1936994280966255, -0.07762727139419612]
+            - [0, 0, 0, 1]
+
+extrinsics:
+
+  # Realsense IMU to Base IMU
+  # - sensor_id:                           a11fcf479caf7592b35518478a2fe08f
+  #   base_sensor_id:                      a12fcf479caf7592b35518478a2fe08f
+  #   T_B_S:
+  #     rows:                              4
+  #     cols:                              4
+  #     data:
+  #       - [-9.6585319943920644e-01,  1.2653967243692757e-02, 2.5878074550871066e-01,  3.6662877958554752e-01]
+  #       - [ 1.3123792017553086e-02,  9.9991387545865285e-01, 8.8024641539348103e-05,  3.3492426047125462e-02]
+  #       - [-2.5875734427476360e-01,  3.4812035638639221e-03, -9.6593608380969931e-01,  4.1253527730417228e-01]
+  #       - [0,0,0,1]
+
+  - sensor_id:                             a3bb23479caf7592b35518478a2fe08f
+    base_sensor_id:                        a12fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [-1, 0, 0, 0.038]
+        - [0, 1, 0, 0.06245]
+        - [0, 0, -1, 0.1837]
+        - [0, 0, 0, 1]
+
+  - sensor_id:                             a12fcf479caf7592b35518478a2fe08f
+    base_sensor_id:                        a12fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1, 0, 0, 0]
+        - [0, 1, 0, 0]
+        - [0, 0, 1, 0]
+        - [0, 0, 0, 1]
+
+  - sensor_id:                             a4f1bac2a7c5fad79f09e49e3b96d87c
+    base_sensor_id:                        a12fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1, 0, 0, 0]
+        - [0, 1, 0, 0]
+        - [0, 0, 1, 0]
+        - [0, 0, 0, 1]

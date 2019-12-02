@@ -48,8 +48,14 @@ bool anchorAllMissions(vi_map::VIMap* map) {
 bool anchorAllMissions(
     vi_map::VIMap* map, const visualization::ViwlsGraphRvizPlotter* plotter) {
   CHECK_NOTNULL(map);
+
+  // How often do we try to anchor. Prevent locking forever.
+  constexpr int kTrialsPerMission = 3;
+
   // Build a list of all unknown baseframes.
-  std::queue<vi_map::MissionId> missions_with_unknown_baseframe;
+  std::queue<vi_map::MissionId> missions_to_anchor;
+  std::vector<vi_map::MissionId> abandoned_missions;
+  std::unordered_map<vi_map::MissionId, int> remaining_trials_for_mission_map;
   vi_map::MissionIdList all_missions;
   map->getAllMissionIds(&all_missions);
   for (const vi_map::MissionId& mission_id : all_missions) {
@@ -57,16 +63,17 @@ bool anchorAllMissions(
     const vi_map::MissionBaseFrame& base_frame =
         map->getMissionBaseFrame(mission.getBaseFrameId());
     if (!base_frame.is_T_G_M_known()) {
-      missions_with_unknown_baseframe.push(mission_id);
+      missions_to_anchor.push(mission_id);
+      remaining_trials_for_mission_map[mission_id] = kTrialsPerMission;
     }
   }
 
-  if (missions_with_unknown_baseframe.size() == all_missions.size()) {
+  if (missions_to_anchor.size() == all_missions.size()) {
     LOG(ERROR) << "At least one mission needs to have a known baseframe.";
     return false;
   }
 
-  if (missions_with_unknown_baseframe.empty()) {
+  if (missions_to_anchor.empty()) {
     LOG(INFO) << "All baseframes are known -- nothing to do.";
     return true;
   }
@@ -78,11 +85,7 @@ bool anchorAllMissions(
 
   // Add the known missions to the database.
   bool initial_mission_added = false;
-
-  // How often do we try to anchor. Prevent locking forever.
-  constexpr int kTrialsPerMission = 2;
-  int remaining_trials_for_mission = kTrialsPerMission;
-  while (!missions_with_unknown_baseframe.empty()) {
+  while (!missions_to_anchor.empty()) {
     if (FLAGS_add_anchored_missions_to_database || !initial_mission_added) {
       VLOG(1) << "Adding known missions to loop-detector.";
       // Add all missions that have a known base-frame (if any).
@@ -91,8 +94,8 @@ bool anchorAllMissions(
       initial_mission_added = true;
     }
 
-    vi_map::MissionId mission_id = missions_with_unknown_baseframe.front();
-    missions_with_unknown_baseframe.pop();
+    vi_map::MissionId mission_id = missions_to_anchor.front();
+    missions_to_anchor.pop();
 
     // Assemble the current working set.
     vi_map::MissionIdSet selected_missions;
@@ -113,16 +116,27 @@ bool anchorAllMissions(
         anchorMissionUsingProvidedLoopDetector(mission_id, loop_detector, map);
 
     if (!success) {
-      LOG(WARNING) << "Failed to anchor mission " << mission_id
-                   << ", pushing it back to the work-list.";
-      --remaining_trials_for_mission;
-      if (remaining_trials_for_mission > 0) {
-        missions_with_unknown_baseframe.push(mission_id);
+      --(remaining_trials_for_mission_map[mission_id]);
+
+      if (missions_to_anchor.empty()) {
+        VLOG(1)
+            << "Failed to anchor mission " << mission_id
+            << ", since this is the last mission to be anchored, retrying is "
+            << "very unlikely to succeed. Anchoring failed!";
+        abandoned_missions.push_back(mission_id);
         continue;
       }
 
-      // Continuing to next mission, reset number of remaining trials.
-      remaining_trials_for_mission = kTrialsPerMission;
+      if (remaining_trials_for_mission_map[mission_id] > 0) {
+        VLOG(1) << "Failed to anchor mission " << mission_id
+                << ", pushing it back to the end of the work-list.";
+        missions_to_anchor.push(mission_id);
+        continue;
+      }
+
+      VLOG(1) << "Used up all (" << kTrialsPerMission << ") trials for mission "
+              << mission_id << ". Anchoring failed!";
+      abandoned_missions.push_back(mission_id);
       continue;
     }
 
@@ -130,14 +144,15 @@ bool anchorAllMissions(
       plotter->visualizeMap(*map);
     }
   }
+  // There should be nothing left to anchor, either we succeeded or we have run
+  // out of trials for each mission.
+  CHECK(missions_to_anchor.empty());
 
-  if (!missions_with_unknown_baseframe.empty()) {
-    LOG(ERROR) << "Could not anchor all missions. Still have the following "
-               << "unanchored:";
-    while (!missions_with_unknown_baseframe.empty()) {
-      vi_map::MissionId mission_id = missions_with_unknown_baseframe.front();
-      missions_with_unknown_baseframe.pop();
-      LOG(ERROR) << "\t" << mission_id;
+  if (!abandoned_missions.empty()) {
+    LOG(WARNING) << "Could not anchor all missions. Still have the following "
+                 << "unanchored:";
+    for (const vi_map::MissionId& abandoned_mission_id : abandoned_missions) {
+      LOG(WARNING) << "\t" << abandoned_mission_id;
     }
     map->resetMissionSelection();
     return false;
@@ -194,7 +209,6 @@ bool anchorMissionUsingProvidedLoopDetector(
   probeMissionAnchoring(mission_id, loop_detector, map, &probe_result);
 
   if (probe_result.wasSuccessful()) {
-    CHECK(!probe_result.matching_missions.empty());
     VLOG(1) << "Probe successful, will anchor mission " << mission_id;
 
     vi_map::VIMission& mission = map->getMission(mission_id);
@@ -210,8 +224,8 @@ bool anchorMissionUsingProvidedLoopDetector(
 
     return true;
   }
-  LOG(WARNING) << "Probe did not meet criteria, not merging mission "
-               << mission_id;
+  VLOG(1) << "Probe did not meet criteria, will not anchor mission "
+          << mission_id;
   return false;
 }
 
@@ -219,7 +233,7 @@ ProbeResult::ProbeResult()
     : num_vertex_candidate_links(0), average_landmark_match_inlier_ratio(0.) {}
 
 bool ProbeResult::wasSuccessful() const {
-  return num_vertex_candidate_links >= kMinMergingNumLinks ||
+  return num_vertex_candidate_links >= kMinMergingNumLinks &&
          average_landmark_match_inlier_ratio >= kMinMergingInlierRatioThreshold;
 }
 
@@ -239,42 +253,6 @@ void probeMissionAnchoring(
       &result->num_vertex_candidate_links,
       &result->average_landmark_match_inlier_ratio, map, &result->T_G_M,
       &inlier_constraints);
-
-  // Create a list of the missions that received matches.
-  std::unordered_map<vi_map::MissionId, int> mission_matches;
-  for (const vi_map::LoopClosureConstraint& constraint : inlier_constraints) {
-    for (const vi_map::VertexKeyPointToStructureMatch& structure_match :
-         constraint.structure_matches) {
-      const vi_map::Vertex& storing_vertex =
-          map->getLandmarkStoreVertex(structure_match.landmark_result);
-      mission_matches[storing_vertex.getMissionId()] += 1;
-    }
-  }
-  std::vector<std::pair<vi_map::MissionId, int>> sorted_matches;
-  for (const std::pair<const vi_map::MissionId, int>& match : mission_matches) {
-    sorted_matches.emplace_back(match);
-  }
-  std::sort(
-      sorted_matches.begin(), sorted_matches.end(),
-      [](const std::pair<vi_map::MissionId, int>& lhs,
-         const std::pair<vi_map::MissionId, int>& rhs) {
-        return lhs.second > rhs.second;
-      });
-
-  // Only take the two best matching missions.
-  sorted_matches.resize(std::min<size_t>(sorted_matches.size(), 2u));
-  for (const std::pair<vi_map::MissionId, int>& match : sorted_matches) {
-    if (match.first != mission_id) {
-      VLOG(1) << "Selecting mission " << match.first << " with score "
-              << match.second;
-      result->matching_missions.push_back(match.first);
-    }
-  }
-
-  VLOG(2) << "num_vertex_candidate_links "
-          << result->num_vertex_candidate_links;
-  VLOG(2) << "average_landmark_match_inlier_ratio "
-          << result->average_landmark_match_inlier_ratio;
 }
 
 }  // namespace map_anchoring

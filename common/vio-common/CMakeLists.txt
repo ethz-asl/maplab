@@ -14,8 +14,6 @@ PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 #############
 # LIBRARIES #
 #############
-add_definitions(-std=c++11)
-
 if(APPLE)
   add_definitions(-DGTEST_HAS_TR1_TUPLE=0)
 endif()

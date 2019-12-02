@@ -179,6 +179,7 @@ class LongTermReportGenerator(ReportGeneratorBase):
         if len(all_yaml_files) > 1:
             all_yaml_files[1:] = sorted(all_yaml_files[1:])
 
+        file_name_to_label_map = {}
         if len(self.all_evaluation_runs) >= 2:
             if len(self.all_evaluation_runs) > 5:
                 evaluation_runs_in_overview = self.all_evaluation_runs[-5:]
@@ -205,7 +206,6 @@ class LongTermReportGenerator(ReportGeneratorBase):
                                 evaluation_run.timestamp,
                                 new_line_between_date_and_time=False)))
             output += '\\\\\n'
-            file_name_to_label_map = {}
             for yaml_file in all_yaml_files:
                 if yaml_file not in file_name_to_label_map:
                     file_name_to_label_map.update({
@@ -281,7 +281,8 @@ class LongTermReportGenerator(ReportGeneratorBase):
                     os.path.basename(yaml_file)
                     if title is None else title, last_path))
             output += title_output
-            output += '\\label{%s}\n' % file_name_to_label_map[yaml_file]
+            if yaml_file in file_name_to_label_map:
+                output += '\\label{%s}\n' % file_name_to_label_map[yaml_file]
             output += generated_output
 
         return output

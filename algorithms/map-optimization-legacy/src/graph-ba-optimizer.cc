@@ -176,7 +176,7 @@ void GraphBaOptimizer::copyDataFromMap() {
       mission_base_frame_ids.size(), baseframe_id_to_baseframe_idx_.size());
 
   const vi_map::SensorManager& sensor_manager = map_.getSensorManager();
-  vi_map::SensorIdSet sensor_ids;
+  aslam::SensorIdSet sensor_ids;
   sensor_manager.getAllSensorIds(&sensor_ids);
 
   const size_t total_num_sensors = sensor_ids.size();
@@ -184,21 +184,22 @@ void GraphBaOptimizer::copyDataFromMap() {
   sensor_extrinsics_.resize(Eigen::NoChange, total_num_sensors);
 
   size_t sensor_extrinsics_col_idx = 0u;
-  for (const vi_map::SensorId& sensor_id : sensor_ids) {
+  for (const aslam::SensorId& sensor_id : sensor_ids) {
     CHECK(sensor_id.isValid());
-    aslam::Transformation T_R_S;
-    if (sensor_manager.getSensor_T_R_S(sensor_id, &T_R_S)) {
-      const aslam::Transformation T_S_I = T_R_S.inverse();
+    if (sensor_manager.hasSensor(sensor_id)) {
+      const aslam::Transformation& T_B_S =
+          sensor_manager.getSensor_T_B_S(sensor_id);
+      const aslam::Transformation T_S_B = T_B_S.inverse();
 
       Eigen::Quaterniond q_S_I =
-          T_S_I.getRotation().toImplementation().inverse();
+          T_S_B.getRotation().toImplementation().inverse();
       if (q_S_I.w() < 0.0) {
         q_S_I.coeffs() = -q_S_I.coeffs();
       }
       CHECK_GE(q_S_I.w(), 0.0);
 
       sensor_extrinsics_.col(sensor_extrinsics_col_idx) << q_S_I.coeffs(),
-          T_S_I.getPosition();
+          T_S_B.getPosition();
 
       CHECK(
           sensor_id_to_extrinsics_col_idx_
@@ -207,8 +208,7 @@ void GraphBaOptimizer::copyDataFromMap() {
       ++sensor_extrinsics_col_idx;
     } else {
       const bool is_reference_sensor =
-          sensor_manager.hasSensorSystem() &&
-          sensor_manager.getSensorSystem().getReferenceSensorId() == sensor_id;
+        sensor_manager.isBaseSensor(sensor_id);
       LOG_IF(WARNING, !is_reference_sensor) << "Unable to retrieve the sensor "
                                             << "extrinsics of sensor "
                                             << sensor_id.hexString();
@@ -216,12 +216,14 @@ void GraphBaOptimizer::copyDataFromMap() {
   }
 
   aslam::NCameraIdSet ncamera_sensor_ids;
-  sensor_manager.getAllNCameraIds(&ncamera_sensor_ids);
+  sensor_manager.getAllSensorIdsOfType(
+      vi_map::SensorType::kNCamera, &ncamera_sensor_ids);
 
   size_t total_num_cameras = 0u;
   for (const aslam::NCameraId& ncamera_id : ncamera_sensor_ids) {
     CHECK(ncamera_id.isValid());
-    total_num_cameras += sensor_manager.getNCamera(ncamera_id).numCameras();
+    total_num_cameras += sensor_manager
+      .getSensor<aslam::NCamera>(ncamera_id).numCameras();
   }
 
   // Now loop over unique CameraIds in the system and store the
@@ -229,7 +231,8 @@ void GraphBaOptimizer::copyDataFromMap() {
   T_C_I_JPL_.resize(Eigen::NoChange, total_num_cameras);
   size_t T_C_I_column_index = 0u;
   for (const aslam::NCameraId& ncamera_id : ncamera_sensor_ids) {
-    const aslam::NCamera& ncamera = sensor_manager.getNCamera(ncamera_id);
+    const aslam::NCamera& ncamera = sensor_manager
+      .getSensor<aslam::NCamera>(ncamera_id);
     for (size_t camera_idx = 0u; camera_idx < ncamera.numCameras();
          ++camera_idx) {
       const aslam::Transformation& T_C_I = ncamera.get_T_C_B(camera_idx);
@@ -364,14 +367,15 @@ void GraphBaOptimizer::copyDataOfSelectedVerticesToMap(
         static_cast<size_t>(T_C_I_JPL_.cols()), camera_id_to_T_C_I_idx_.size());
 
     vi_map::SensorManager& sensor_manager = map_.getSensorManager();
-    for (const std::pair<aslam::CameraId, aslam::NCameraId>&
+    for (const std::pair<const aslam::CameraId, aslam::NCameraId>&
              camera_id_ncamera_id_pair : camera_id_to_ncamera_ids_) {
       const aslam::CameraId& camera_id = camera_id_ncamera_id_pair.first;
       CHECK(camera_id.isValid());
       const aslam::NCameraId& ncamera_id = camera_id_ncamera_id_pair.second;
       CHECK(ncamera_id.isValid());
 
-      aslam::NCamera::Ptr ncamera = sensor_manager.getNCameraShared(ncamera_id);
+      aslam::NCamera::Ptr ncamera = sensor_manager
+        .getSensorPtr<aslam::NCamera>(ncamera_id);
       CHECK(ncamera);
 
       Eigen::Map<const Eigen::Vector3d> p_C_I(get_p_C_I_Mutable(camera_id));
@@ -402,7 +406,7 @@ void GraphBaOptimizer::copyDataOfSelectedVerticesToMap(
 
     for (const SensorExtrinsicsIdxMap::value_type& sensor_id_with_col_idx :
          sensor_id_to_extrinsics_col_idx_) {
-      const vi_map::SensorId& sensor_id = sensor_id_with_col_idx.first;
+      const aslam::SensorId& sensor_id = sensor_id_with_col_idx.first;
       CHECK(sensor_id.isValid());
       const size_t col_idx = sensor_id_with_col_idx.second;
       CHECK_LT(col_idx, static_cast<size_t>(sensor_extrinsics_.cols()));
@@ -415,11 +419,11 @@ void GraphBaOptimizer::copyDataOfSelectedVerticesToMap(
       // quaternion in the system.
       Eigen::Quaterniond q_S_I = q_S_I_JPL.inverse();
 
-      aslam::Transformation T_S_I_updated;
-      T_S_I_updated.getPosition() = p_S_I;
-      T_S_I_updated.getRotation().toImplementation() = q_S_I;
+      aslam::Transformation T_S_B_updated;
+      T_S_B_updated.getPosition() = p_S_I;
+      T_S_B_updated.getRotation().toImplementation() = q_S_I;
 
-      sensor_manager.setSensor_T_R_S(sensor_id, T_S_I_updated.inverse());
+      sensor_manager.setSensor_T_B_S(sensor_id, T_S_B_updated.inverse());
     }
   }
 }
@@ -1230,8 +1234,6 @@ void GraphBaOptimizer::addInertialResidualBlocks(
     const_map_.getAllEdgeIds(&edges);
   }
 
-  const vi_map::SensorManager& sensor_manger = const_map_.getSensorManager();
-
   common::ProgressBar progress_bar(edges.size());
   size_t edge_idx = 0;
   for (const pose_graph::EdgeId& edge_id : edges) {
@@ -1261,7 +1263,7 @@ void GraphBaOptimizer::addInertialResidualBlocks(
     CHECK_LT(it_to->second, vertex_poses_.cols());
 
     const vi_map::Imu& imu_sensor =
-        sensor_manger.getSensorForMission<vi_map::Imu>(mission_id);
+        map_.getMissionImu(mission_id);
     const vi_map::ImuSigmas& imu_sigmas = imu_sensor.getImuSigmas();
 
     std::shared_ptr<ceres_error_terms::InertialErrorTerm> inertial_term_cost(
@@ -1372,7 +1374,7 @@ void GraphBaOptimizer::addPositionOnlyGPSResidualBlock(
 
     std::shared_ptr<ceres::CostFunction> cost_function(
         new ceres_error_terms::PositionErrorTerm(
-            transformation_edge.getT_A_B().getPosition(),
+            transformation_edge.get_T_A_B().getPosition(),
             transformation_edge.get_T_A_B_Covariance_p_q()
                 .topLeftCorner<3, 3>()));
 
@@ -1417,9 +1419,9 @@ void GraphBaOptimizer::addLoopClosureEdges(
 
     vi_map::LoopClosureEdge& loop_closure_edge =
         edge->getAs<vi_map::LoopClosureEdge>();
-    const aslam::Transformation& T_A_B = loop_closure_edge.getT_A_B();
+    const aslam::Transformation& T_A_B = loop_closure_edge.get_T_A_B();
     const aslam::TransformationCovariance& T_A_B_covariance =
-        loop_closure_edge.getT_A_BCovariance();
+        loop_closure_edge.get_T_A_B_Covariance();
 
     VertexIdPoseIdxMap::const_iterator vertex_from_iterator, vertex_to_iterator;
     vertex_from_iterator = vertex_id_to_pose_idx_.find(vertex_from.id());
@@ -1496,8 +1498,8 @@ void GraphBaOptimizer::addLoopClosureEdges(
               ceres_error_terms::poseblocks::kPoseSize,
               LoopClosureBlockPoseErrorTerm::switchVariableBlockSize>(
               new LoopClosureBlockPoseErrorTerm(
-                  loop_closure_edge.getT_A_B(),
-                  loop_closure_edge.getT_A_BCovariance())));
+                  loop_closure_edge.get_T_A_B(),
+                  loop_closure_edge.get_T_A_B_Covariance())));
       if (use_switchable_constraints) {
         problem_information_.addResidualBlock(
             ceres_error_terms::ResidualType::kLoopClosure, loop_closure_cost,
@@ -1617,8 +1619,8 @@ void GraphBaOptimizer::addRelativePoseResidualBlocks(
 
     const vi_map::TransformationEdge& transformation_edge =
         edge->getAs<vi_map::TransformationEdge>();
-    const aslam::Transformation T_A_B = transformation_edge.getT_A_B();
-    const aslam::TransformationCovariance T_A_B_covariance =
+    const aslam::Transformation& T_A_B = transformation_edge.get_T_A_B();
+    const aslam::TransformationCovariance& T_A_B_covariance =
         transformation_edge.get_T_A_B_Covariance_p_q();
 
     VertexIdPoseIdxMap::const_iterator it_from, it_to;
@@ -1632,7 +1634,7 @@ void GraphBaOptimizer::addRelativePoseResidualBlocks(
     CHECK_LT(it_to->second, vertex_poses_.cols());
 
     // Account for optional sensor extrinsics.
-    const vi_map::SensorId& sensor_id = transformation_edge.getSensorId();
+    const aslam::SensorId& sensor_id = transformation_edge.getSensorId();
     if (sensor_id.isValid()) {
       // Figure out which optional sensor extrinsics belongs to the current
       // transformation edge.

@@ -1,0 +1,228 @@
+sensors:
+  - id: 5c8fcf479caf7592b35518478a2fe08f
+    sensor_type: IMU
+    description: "ADIS IMU"
+    topic: /mavros/imu/data_raw
+    sigmas:
+      gyro_noise_density: 0.005
+      gyro_bias_random_walk_noise_density: 0.000004
+      acc_noise_density: 0.01
+      acc_bias_random_walk_noise_density: 0.0002
+    saturation_accel_max_mps2: 150
+    saturation_gyro_max_radps: 7.5
+    gravity_magnitude_mps2: 9.808083883386614
+
+  - id: ccbb23479caf7592b35518478a2fe08f
+    sensor_type: ODOMETRY_6DOF
+    description: "ROVIOLI in Odometry mode"
+    topic: /odometry/maplab_odom_T_M_I
+
+  - id: aaee23479caf7592b35518478a2fe08f
+    sensor_type: ABSOLUTE_6DOF
+    description: "Absolute pose constraints from AprilTags"
+    topic: /darpa_frame_absolute_pose
+    T_G_S_fixed_covariance:
+      rows: 6
+      cols: 6
+      data:
+        - [0.25, 0.0,  0.0,  0.0,        0.0,        0.0]
+        - [0.0,  0.25, 0.0,  0.0,        0.0,        0.0]
+        - [0.0,  0.0,  0.25, 0.0,        0.0,        0.0]
+        - [0.0,  0.0,  0.0,  10000000.0, 0.0,        0.0]
+        - [0.0,  0.0,  0.0,  0.0,        10000000.0, 0.0]
+        - [0.0,  0.0,  0.0,  0.0,        0.0,        0.001]
+
+  - id: abf124379caf7592b35518478a2fe08a
+    sensor_type: LIDAR
+    description: "Armadillo - Robosense 16"
+    topic: /rslidar_points
+    n_beams: 64
+    spin_frequency_hz: 10
+    provides_timestamp_per_beam: false
+
+  - id: 8af1acb2a7c5fad79f09e49e3b96d87c
+    sensor_type: NCAMERA
+    description: Blackfly S (NCamera)
+    topic: ""
+    cameras:
+      - camera:
+          id: 9be7b5000f15adb3c0da8ac6b729ee02
+          sensor_type: CAMERA
+          description: "Blackfly S 1.6MP Color Front Camera"
+          topic: /color/image_bgr_raw/compressed
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          compressed: true
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 316.23339995553
+              - 316.56634704048
+              - 365.3668219069
+              - 284.27974426
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - 0.005055720158272962
+                - 0.0013159099809374947
+                - 0.001566237202250324
+                - -0.0009983604077560993
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [-0.03747292223147602, -0.01465028279240164, -0.9991902468066507, -0.08937068092841199]
+            - [-0.9992489005694524, 0.01042511767373366, 0.03732226724394695, -0.114739693235524]
+            - [0.009869894131828476, 0.9998383299992007, -0.01502993859718038, 0.389004452294144]
+            - [0, 0, 0, 1]
+      - camera:
+          id: 9be7b5000f15adb3c0da8ac6b729ee01
+          sensor_type: CAMERA
+          description: "Blackfly S 1.6MP Color Rear Camera"
+          topic: /color_rear/image_bgr_raw/compressed
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          compressed: true
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 315.22833021077
+              - 315.80069225386
+              - 358.42531966499
+              - 288.02747485964
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - 0.009123754716527691
+                - -0.0035449557672061183
+                - 0.004431567636494104
+                - -0.0015272633586756745
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [0.02810653658237416, -0.01493912992443225, 0.9994932941237997, 0.434958631122763]
+            - [0.9990396970757522, -0.03320081631406979, -0.02859002383469441, -0.154641335265724]
+            - [0.03361110334595808, 0.9993370443414875, 0.01399162387598407, 0.30009415765677]
+            - [0, 0, 0, 1]
+      - camera:
+          id: 9be7b5000f15adb3c0da8ac6b729aa02
+          sensor_type: CAMERA
+          description: "Blackfly S 0.4MP mono front Camera"
+          topic: /front
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          compressed: true
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 315.90257907817875
+              - 316.33581559230134
+              - 372.63603672386233
+              - 285.8667069042081
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - 0.004168504504441503
+                - 0.0024594587679913904
+                - 0.000149485297941005
+                - -0.0005212737709324784
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - 0.04859154296768925
+            - -0.2904307219524824
+            - -0.9556614765167526
+            - -0.1481390415176308
+            - 0.9982651408046757
+            - -0.017729729181117537
+            - 0.056145929125678284
+            - 0.12018097502437203
+            - -0.033250121898132534
+            - -0.9567317557441712
+            - 0.28906535064658856
+            - -0.21011515809352377
+            - 0.0
+            - 0.0
+            - 0.0
+            - 1.0
+extrinsics:
+  - sensor_id: 8af1acb2a7c5fad79f09e49e3b96d87c
+    base_sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+  - sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    base_sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+  - sensor_id: ccbb23479caf7592b35518478a2fe08f
+    base_sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+  - sensor_id: aabb23479caf7592b35518478a2de04c
+    base_sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+  - sensor_id: aaee23479caf7592b35518478a2fe08f
+    base_sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+  - sensor_id: abf124379caf7592b35518478a2fe08a
+    base_sensor_id: 5c8fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [0.006941659965939873, 0.99986858265025, 0.01465028279240134, -0.0402242]
+        - [0.9999226082770725, -0.00678928404656709, -0.01042511767373324, 0.0951456]
+        - [-0.01032428270115758, 0.01472151660377063, -0.9998383299992011, 0.263164]
+        - [0, 0, 0, 1]

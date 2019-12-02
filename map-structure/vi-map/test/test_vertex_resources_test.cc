@@ -43,13 +43,13 @@ class VertexResourcesTest : public ::testing::Test {
     aslam::NFramesId id;
     vertex_->n_frame_.reset(new aslam::VisualNFrame(id, 3));
 
-    common::generateId(&kResourceId0);
-    common::generateId(&kResourceId1);
-    common::generateId(&kResourceId2);
-    common::generateId(&kResourceId3);
-    common::generateId(&kResourceId4);
+    aslam::generateId(&kResourceId0);
+    aslam::generateId(&kResourceId1);
+    aslam::generateId(&kResourceId2);
+    aslam::generateId(&kResourceId3);
+    aslam::generateId(&kResourceId4);
 
-    common::generateId(&kUnusedResourceId);
+    aslam::generateId(&kUnusedResourceId);
 
     vertex_->resource_map_.resize(3);
     vertex_->resource_map_.at(kFrameIdx0)[kType0].insert(kResourceId0);

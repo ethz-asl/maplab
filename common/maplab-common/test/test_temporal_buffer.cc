@@ -280,5 +280,113 @@ TEST_F(TemporalBufferFixture, MaintaingBufferLengthWorks) {
   EXPECT_EQ(retrieved_item.timestamp, 150);
 }
 
+TEST_F(TemporalBufferFixture, RemovingItemsByThreshold) {
+  addValue(TestData(70));
+  addValue(TestData(99));
+  addValue(TestData(100));
+  addValue(TestData(101));
+  addValue(TestData(110));
+  EXPECT_EQ(buffer_.size(), 5u);
+
+  EXPECT_EQ(buffer_.removeItemsBefore(100), 2u);
+  EXPECT_EQ(buffer_.size(), 3u);
+
+  TestData retrieved_item;
+  EXPECT_TRUE(buffer_.getOldestValue(&retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 100);
+
+  EXPECT_TRUE(buffer_.getNewestValue(&retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 110);
+
+  EXPECT_EQ(buffer_.removeItemsBefore(120), 3u);
+  EXPECT_EQ(buffer_.size(), 0u);
+}
+
+TEST_F(TemporalBufferFixture, RemovingAndRetrieveItemsByThreshold) {
+  addValue(TestData(70));
+  addValue(TestData(99));
+  addValue(TestData(100));
+  addValue(TestData(101));
+  addValue(TestData(110));
+  EXPECT_EQ(buffer_.size(), 5u);
+
+  std::vector<TestData> removed_values;
+  EXPECT_EQ(buffer_.extractItemsBeforeIncluding(100, &removed_values), 3u);
+  EXPECT_EQ(buffer_.size(), 2u);
+  ASSERT_EQ(removed_values.size(), 3u);
+  EXPECT_EQ(removed_values[0].timestamp, 70);
+  EXPECT_EQ(removed_values[1].timestamp, 99);
+  EXPECT_EQ(removed_values[2].timestamp, 100);
+
+  // Try to remove values older the buffer range.
+  EXPECT_EQ(buffer_.extractItemsBeforeIncluding(10, &removed_values), 0u);
+  EXPECT_EQ(buffer_.size(), 2u);
+  ASSERT_TRUE(removed_values.empty());
+
+  // Try to remove based on threshold newer than the buffer range.
+  EXPECT_EQ(buffer_.extractItemsBeforeIncluding(200, &removed_values), 2u);
+  EXPECT_EQ(buffer_.size(), 0u);
+  ASSERT_EQ(removed_values.size(), 2u);
+  EXPECT_EQ(removed_values[0].timestamp, 101);
+  EXPECT_EQ(removed_values[1].timestamp, 110);
+
+  // Try to remove values in an empty buffer.
+  EXPECT_EQ(buffer_.extractItemsBeforeIncluding(110, &removed_values), 0u);
+  EXPECT_EQ(buffer_.size(), 0u);
+  ASSERT_TRUE(removed_values.empty());
+}
+
+TEST_F(TemporalBufferFixture, GetValuesFromIncludingToIncluding) {
+  addValue(TestData(10));
+  addValue(TestData(20));
+  addValue(TestData(30));
+  addValue(TestData(40));
+  addValue(TestData(50));
+
+  // Test aligned borders.
+  std::vector<TestData> values;
+  buffer_.getValuesFromIncludingToIncluding(20, 40, &values);
+  ASSERT_EQ(values.size(), 3u);
+  EXPECT_EQ(values[0].timestamp, 20);
+  EXPECT_EQ(values[1].timestamp, 30);
+  EXPECT_EQ(values[2].timestamp, 40);
+
+  // Test unaligned borders.
+  buffer_.getValuesFromIncludingToIncluding(15, 45, &values);
+  ASSERT_EQ(values.size(), 3u);
+  EXPECT_EQ(values[0].timestamp, 20);
+  EXPECT_EQ(values[1].timestamp, 30);
+  EXPECT_EQ(values[2].timestamp, 40);
+
+  // Test lower than first item.
+  buffer_.getValuesFromIncludingToIncluding(5, 45, &values);
+  ASSERT_EQ(values.size(), 4u);
+  EXPECT_EQ(values[0].timestamp, 10);
+  EXPECT_EQ(values[1].timestamp, 20);
+  EXPECT_EQ(values[2].timestamp, 30);
+  EXPECT_EQ(values[3].timestamp, 40);
+
+  // Test higher than last item.
+  buffer_.getValuesFromIncludingToIncluding(30, 55, &values);
+  ASSERT_EQ(values.size(), 3u);
+  EXPECT_EQ(values[0].timestamp, 30);
+  EXPECT_EQ(values[1].timestamp, 40);
+  EXPECT_EQ(values[2].timestamp, 50);
+
+  // Return empty list if there nothing in that range in the buffer.
+  buffer_.getValuesFromIncludingToIncluding(21, 29, &values);
+  EXPECT_TRUE(values.empty());
+
+  // Return empty list if there none in the buffer.
+  buffer_.clear();
+  buffer_.getValuesFromIncludingToIncluding(10, 50, &values);
+  EXPECT_TRUE(values.empty());
+
+  // Expect check-fail when the lower query timestamp is higher than the
+  // higher query timestamp.
+  EXPECT_DEATH(buffer_.getValuesFromIncludingToIncluding(40, 30, &values), "");
+  EXPECT_TRUE(values.empty());
+}
+
 }  // namespace common
 MAPLAB_UNITTEST_ENTRYPOINT

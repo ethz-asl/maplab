@@ -8,6 +8,7 @@
 #include <maplab-common/threading-helpers.h>
 
 DECLARE_int32(ba_num_iterations);
+DECLARE_bool(ba_enable_signal_handler);
 DECLARE_bool(ba_use_cgnr_linear_solver);
 DECLARE_bool(ba_use_jacobi_scaling);
 

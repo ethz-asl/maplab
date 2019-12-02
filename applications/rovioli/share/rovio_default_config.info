@@ -136,7 +136,7 @@ ImgUpdate
   noiseGainForOffCamera 10.0;       Factor added on update noise if not main camera
   discriminativeSamplingDistance 0.02; Sampling distance for checking discriminativity of patch (if <= 0.0 no check is performed).
   discriminativeSamplingGain 1.1;   Gain for threshold above which the samples must lie (if <= 1.0 the patchRejectionTh is used).
-  
+  imageMaskPath ;      Image mask applied to the feature detection. All features in this area will be rejected. !!! This value will be overwritten by ROVIOLI !!!
   MotionDetection
   {
     isEnabled 1;                            Is the motion detection enabled

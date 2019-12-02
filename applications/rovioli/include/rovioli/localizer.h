@@ -4,6 +4,7 @@
 #include <localization-summary-map/localization-summary-map-queries.h>
 #include <localization-summary-map/localization-summary-map.h>
 #include <loop-closure-handler/loop-detector-node.h>
+#include <maplab-common/localization-result.h>
 #include <maplab-common/macros.h>
 #include <vio-common/vio-types.h>
 
@@ -11,7 +12,7 @@ namespace rovioli {
 
 class Localizer {
  public:
-  typedef vio::LocalizationResult::LocalizationMode LocalizationMode;
+  typedef common::LocalizationMode LocalizationMode;
 
   Localizer() = delete;
   MAPLAB_POINTER_TYPEDEFS(Localizer);

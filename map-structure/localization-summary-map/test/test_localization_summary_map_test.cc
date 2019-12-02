@@ -2,10 +2,10 @@
 
 #include <Eigen/Core>
 #include <aslam/common/hash-id.h>
+#include <aslam/common/unique-id.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <posegraph/unique-id.h>
 #include <vi-map/test/vi-map-generator.h>
 #include <vi-map/unique-id.h>
@@ -49,7 +49,7 @@ void LocalizationSummaryMapTest::constructProblem() {
 TEST_F(LocalizationSummaryMapTest, LocalizationSummaryCreationFromMapTest) {
   summary_map::LocalizationSummaryMap summary_map;
   summary_map::LocalizationSummaryMapId id;
-  common::generateId(&id);
+  aslam::generateId(&id);
   summary_map.setId(id);
 
   vi_map::LandmarkIdList summary_landmark_ids;

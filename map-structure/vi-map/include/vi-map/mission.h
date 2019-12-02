@@ -7,6 +7,7 @@
 
 #include <Eigen/Core>
 #include <aslam/common/memory.h>
+#include <aslam/common/unique-id.h>
 #include <maplab-common/macros.h>
 #include <maplab-common/pose_types.h>
 #include <posegraph/unique-id.h>
@@ -17,7 +18,7 @@
 namespace vi_map {
 class Mission {
  public:
-  enum class BackBone { kViwls = 0, kOdometry = 1 };
+  enum class BackBone { kViwls = 0, kOdometry = 1, kWheelOdometry = 2 };
 
   Mission() : backbone_type_(BackBone::kViwls) {}
 

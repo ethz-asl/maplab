@@ -4,6 +4,7 @@
 #include <Eigen/Core>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <map-resources/resource-conversion.h>
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/map-manager-config.h>
 #include <opencv2/opencv.hpp>
@@ -12,6 +13,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <vi-map/check-map-consistency.h>
+#include <vi-map/sensor-utils.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vi-map-serialization.h>
 
@@ -41,10 +43,20 @@ DEFINE_string(
     "ROS topic of camera info for the resources.");
 DEFINE_string(camera_extrinsics_imu_frame, "fisheye", "TF IMU frame name.");
 DEFINE_string(camera_extrinsics_camera_frame, "depth", "TF camera frame name");
-// ...or we provide an ncamera file.
 DEFINE_string(
-    camera_calibration_file, "",
-    "Path to NCamera YAML file to load camera calibration and extrinsics.");
+    camera_extrinsics_base_sensor_id, "",
+    "Sensor id of the base sensor the camera extrinsics are relative to. Only "
+    "needed if the camera calibration and extrinsics are parsed from ROS tf "
+    "and CameraInfo.");
+// ...or we provide an sensor calibration file.
+DEFINE_string(
+    sensor_calibration_file, "",
+    "Path to Sensor YAML file to load sensor calibration and extrinsics.");
+
+DEFINE_int64(
+    resource_time_offset_ns, 0u,
+    "Time offset between camera/sensor and the clock of the primary motion "
+    "estimation camera. The offset will be added to the resource timestamps.");
 
 int main(int argc, char* argv[]) {
   google::ParseCommandLineFlags(&argc, &argv, true);
@@ -96,8 +108,8 @@ int main(int argc, char* argv[]) {
   vi_map::VIMission& selected_mission = map.getMission(selected_mission_id);
 
   // Prepare camera/sensor id.
-  aslam::CameraId camera_id;
-  common::generateId(&camera_id);
+  aslam::SensorId sensor_id;
+  sensor_id.setInvalid();
 
   SimpleRosbagSource rosbag_source(
       FLAGS_rosbag_path, FLAGS_resource_topic, FLAGS_camera_calibration_topic,
@@ -109,66 +121,9 @@ int main(int argc, char* argv[]) {
     cv::namedWindow(window_name, cv::WINDOW_AUTOSIZE);
   }
 
-  std::function<void(sensor_msgs::ImageConstPtr)> image_callback = [&](
-      sensor_msgs::ImageConstPtr image_message) {
-    CHECK(image_message);
-    const int64_t timestamp_ns = image_message->header.stamp.toNSec();
-    CHECK_GE(timestamp_ns, 0);
-
-    if (image_message->encoding == sensor_msgs::image_encodings::TYPE_16UC1) {
-      LOG(INFO) << "Found depth map at " << timestamp_ns << " ns";
-
-      cv::Mat image;
-      convertDepthImageMessage(image_message, &image);
-
-      if (FLAGS_visualize_image_resources) {
-        cv::imshow(window_name, image);
-        constexpr int kDepthMapVisualizationWaitTimeMs = 10;
-        cv::waitKey(kDepthMapVisualizationWaitTimeMs);
-      }
-
-      map.storeOptionalRawDepthMap(
-          camera_id, timestamp_ns, image, &selected_mission);
-    } else if (
-        image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
-      LOG(INFO) << "Found color image at " << timestamp_ns;
-
-      cv::Mat image;
-      convertColorImageMessage(image_message, &image);
-
-      cv::imshow(window_name, image);
-      constexpr int kDepthMapVisualizationWaitTimeMs = 10;
-      cv::waitKey(kDepthMapVisualizationWaitTimeMs);
-
-      map.storeOptionalRawColorImage(
-          camera_id, timestamp_ns, image, &selected_mission);
-    } else {
-      LOG(FATAL) << "This image resource type is currently not supported by "
-                    "this importer! encoding: "
-                 << image_message->encoding;
-    }
-  };
-  rosbag_source.setImageCallback(image_callback);
-
-  std::function<void(sensor_msgs::PointCloud2ConstPtr)> pointcloud_callback =
-      [&](sensor_msgs::PointCloud2ConstPtr point_cloud_msg) {
-        CHECK(point_cloud_msg);
-        const int64_t timestamp_ns = point_cloud_msg->header.stamp.toNSec();
-        CHECK_GE(timestamp_ns, 0);
-
-        LOG(INFO) << "Found Pointcloud at " << timestamp_ns << "ns";
-
-        resources::PointCloud maplab_pointcloud;
-        convertPointCloudMessage(point_cloud_msg, &maplab_pointcloud);
-
-        map.storeOptionalPointCloudXYZRGBN(
-            camera_id, timestamp_ns, maplab_pointcloud, &selected_mission);
-      };
-  rosbag_source.setPointcloudCallback(pointcloud_callback);
-
   // NOTE: We either get the camera calibration and extrinsics from the
-  // CameraInfo topic and tfs or we load the NCamera file. The latter is
-  // preferred.
+  // CameraInfo topic and tfs or we load a sensor calibration yaml file. The
+  // latter is preferred and should support other sensor types, such as lidars.
 
   // Camera calibration and extrinsics retrieved from CameraInfo and tf:
   bool got_calibration_from_camera_info = false;
@@ -176,32 +131,47 @@ int main(int argc, char* argv[]) {
   sensor_msgs::CameraInfoConstPtr resource_camera_info_msg;
   geometry_msgs::Transform T_C_I_msg;
 
-  // Camera calibration and extrinsics retrieved from NCamera yaml file.
-  bool got_ncamera_from_file = false;
-  aslam::NCamera::Ptr ncamera;
+  // Camera calibration and extrinsics retrieved from the sensor calibration
+  // yaml file.
+  bool got_sensor_from_file = false;
 
-  if (!FLAGS_camera_calibration_file.empty()) {
-    CHECK(common::fileExists(FLAGS_camera_calibration_file))
-        << "Could not find NCamera YAML file at: "
-        << FLAGS_camera_calibration_file << "!";
+  if (!FLAGS_sensor_calibration_file.empty()) {
+    CHECK(common::fileExists(FLAGS_sensor_calibration_file))
+        << "Could not find sensor calibration YAML file at: "
+        << FLAGS_sensor_calibration_file << "!";
 
-    ncamera = aslam::NCamera::loadFromYaml(FLAGS_camera_calibration_file);
-    CHECK(ncamera);
-
-    const bool has_one_camera = ncamera->getNumCameras() == 1u;
-    if (has_one_camera) {
-      LOG(INFO) << "Loaded camera calibration and extrinsics from: "
-                << FLAGS_camera_calibration_file;
-      got_ncamera_from_file = true;
-    } else {
-      LOG(FATAL) << "The NCamera loaded from " << FLAGS_camera_calibration_file
-                 << " contains none or more than one camera!";
+    vi_map::SensorManager sensor_manager;
+    if (!sensor_manager.deserializeFromFile(FLAGS_sensor_calibration_file)) {
+      LOG(FATAL) << "Failed to read the sensor calibration from '"
+                 << FLAGS_sensor_calibration_file << "'!";
     }
+
+    if (sensor_manager.getNumSensors() != 2u) {
+      LOG(FATAL) << "The sensor calibration file should only contain the "
+                    "resource sensor and its base sensor (=2)!";
+    }
+
+    aslam::SensorIdSet all_sensor_ids;
+    sensor_manager.getAllSensorIds(&all_sensor_ids);
+    CHECK_EQ(all_sensor_ids.size(), 2u);
+    for (const aslam::SensorId& any_sensor_id : all_sensor_ids) {
+      if (!sensor_manager.isBaseSensor(any_sensor_id)) {
+        sensor_id = any_sensor_id;
+      }
+    }
+    CHECK(sensor_id.isValid());
+
+    // Add sensor to the maps sensor manager.
+    map.getSensorManager().merge(sensor_manager);
+
+    got_sensor_from_file = true;
   } else if (!FLAGS_camera_calibration_topic.empty()) {
     CHECK(!FLAGS_camera_extrinsics_imu_frame.empty())
         << "You have to provide a tf frame for the IMU!";
     CHECK(!FLAGS_camera_extrinsics_camera_frame.empty())
         << "You have to provide a tf frame for the depth camera!";
+
+    aslam::generateId(&sensor_id);
 
     std::function<void(sensor_msgs::CameraInfoConstPtr)> camera_info_callback =
         [&](sensor_msgs::CameraInfoConstPtr camera_info_msg) {
@@ -231,37 +201,146 @@ int main(int argc, char* argv[]) {
                << "--camera_extrinsics_camera_frame\n\t"
                << "=> Import from CameraInfo topic and tf.\n"
                << "OR\n\t"
-               << "--camera_calibration_file\n\t"
-               << "=> Import from NCamera calibration file.\n ";
+               << "--sensor_calibration_file\n\t"
+               << "=> Import from calibration file.\n ";
     return -1;
   }
 
+  std::function<void(sensor_msgs::ImageConstPtr)> image_callback =
+      [&](sensor_msgs::ImageConstPtr image_message) {
+        CHECK(image_message);
+        int64_t timestamp_ns = image_message->header.stamp.toNSec();
+        CHECK_GE(timestamp_ns, 0);
+
+        // Apply time offset.
+        timestamp_ns += FLAGS_resource_time_offset_ns;
+
+        if (image_message->encoding ==
+            sensor_msgs::image_encodings::TYPE_16UC1) {
+          LOG(INFO) << "Found depth map at " << timestamp_ns << " ns";
+
+          cv::Mat image;
+          convertDepthImageMessage(image_message, &image);
+
+          if (FLAGS_visualize_image_resources) {
+            cv::imshow(window_name, image);
+            constexpr int kDepthMapVisualizationWaitTimeMs = 10;
+            cv::waitKey(kDepthMapVisualizationWaitTimeMs);
+          }
+
+          map.addSensorResource(
+              backend::ResourceType::kRawDepthMap, sensor_id, timestamp_ns,
+              image, &selected_mission);
+        } else if (
+            image_message->encoding ==
+            sensor_msgs::image_encodings::TYPE_32FC1) {
+          LOG(INFO) << "Found metric depth map at " << timestamp_ns;
+
+          cv::Mat image;
+          convertFloatDepthImageMessage(image_message, &image);
+
+          if (FLAGS_visualize_image_resources) {
+            cv::imshow(window_name, image);
+            constexpr int kDepthMapVisualizationWaitTimeMs = 10;
+            cv::waitKey(kDepthMapVisualizationWaitTimeMs);
+          }
+
+          map.addSensorResource(
+              backend::ResourceType::kRawDepthMap, sensor_id, timestamp_ns,
+              image, &selected_mission);
+        } else if (
+            image_message->encoding ==
+                sensor_msgs::image_encodings::TYPE_8UC3 ||
+            image_message->encoding == sensor_msgs::image_encodings::BGR8 ||
+            image_message->encoding == sensor_msgs::image_encodings::RGB8) {
+          LOG(INFO) << "Found color image at " << timestamp_ns;
+
+          cv::Mat image;
+          convertColorImageMessage(image_message, &image);
+
+          cv::imshow(window_name, image);
+          constexpr int kDepthMapVisualizationWaitTimeMs = 10;
+          cv::waitKey(kDepthMapVisualizationWaitTimeMs);
+
+          map.addSensorResource(
+              backend::ResourceType::kRawColorImage, sensor_id, timestamp_ns,
+              image, &selected_mission);
+        } else {
+          LOG(FATAL)
+              << "This image resource type is currently not supported by "
+                 "this importer! encoding: "
+              << image_message->encoding;
+        }
+      };
+  rosbag_source.setImageCallback(image_callback);
+
+  std::function<void(sensor_msgs::PointCloud2ConstPtr)> pointcloud_callback =
+      [&](sensor_msgs::PointCloud2ConstPtr point_cloud_msg) {
+        CHECK(point_cloud_msg);
+        int64_t timestamp_ns = point_cloud_msg->header.stamp.toNSec();
+        CHECK_GE(timestamp_ns, 0);
+
+        // Apply time offset.
+        timestamp_ns += FLAGS_resource_time_offset_ns;
+
+        LOG(INFO) << "Found pointcloud at " << timestamp_ns << "ns";
+
+        resources::PointCloud maplab_pointcloud;
+        backend::convertPointCloudType(*point_cloud_msg, &maplab_pointcloud);
+
+        if (maplab_pointcloud.xyz.size() > 0u) {
+          if (backend::hasColorInformation(maplab_pointcloud)) {
+            map.addSensorResource(
+                backend::ResourceType::kPointCloudXYZRGBN, sensor_id,
+                timestamp_ns, maplab_pointcloud, &selected_mission);
+          } else if (backend::hasScalarInformation(maplab_pointcloud)) {
+            map.addSensorResource(
+                backend::ResourceType::kPointCloudXYZI, sensor_id, timestamp_ns,
+                maplab_pointcloud, &selected_mission);
+          } else {
+            map.addSensorResource(
+                backend::ResourceType::kPointCloudXYZ, sensor_id, timestamp_ns,
+                maplab_pointcloud, &selected_mission);
+          }
+        } else {
+          LOG(WARNING) << "Received empty point cloud, ignoring...";
+        }
+      };
+  rosbag_source.setPointcloudCallback(pointcloud_callback);
+
   rosbag_source.readRosbag();
 
-  aslam::Camera::UniquePtr aslam_camera;
-  aslam::Transformation T_C_I;
   if (got_calibration_from_camera_info && got_tf_from_extrinsics) {
     // Camera with extrinsics (T_C_I, C: Camera, I: IMU frame).
+    aslam::Camera::Ptr aslam_camera;
     std::pair<aslam::Camera*, aslam::Transformation> camera_with_extrinsics;
     convertCameraInfo(
         resource_camera_info_msg, T_C_I_msg, &camera_with_extrinsics);
     aslam_camera.reset(camera_with_extrinsics.first);
     CHECK(aslam_camera);
-    T_C_I = camera_with_extrinsics.second;
-  } else if (got_ncamera_from_file) {
-    CHECK(ncamera);
-    aslam_camera.reset(ncamera->getCamera(0).clone());
-    T_C_I = ncamera->get_T_C_B(0);
+
+    std::vector<aslam::Camera::Ptr> camera_list = {aslam_camera};
+    aslam::TransformationVector T_C_Cn_vec = {camera_with_extrinsics.second};
+
+    aslam::NCamera::UniquePtr ncamera(
+        new aslam::NCamera(sensor_id, T_C_Cn_vec, camera_list, ""));
+
+    aslam::Transformation T_Cn_B;
+    T_Cn_B.setIdentity();
+
+    CHECK(!FLAGS_camera_extrinsics_base_sensor_id.empty())
+        << "A base sensor id is needed position the new sensor with respect to "
+           "the others!";
+    aslam::SensorId base_sensor_id;
+    base_sensor_id.fromHexString(FLAGS_camera_extrinsics_base_sensor_id);
+
+    map.getSensorManager().addSensor<aslam::NCamera>(
+        std::move(ncamera), base_sensor_id, T_Cn_B);
+  } else if (got_sensor_from_file) {
+    // Nothing to do. Sensor is already added to the sensor manager.
   } else {
     LOG(FATAL) << "Failed to get camera calibration and extrinsics!";
   }
-
-  // Add calibration and extrinsics to VIMap.
-  CHECK(aslam_camera);
-  // Replace the camera id with the id we've been using to attach the resources.
-  aslam_camera->setId(camera_id);
-  map.getSensorManager().addOptionalCameraWithExtrinsics(
-      *aslam_camera, T_C_I, selected_mission_id);
 
   backend::SaveConfig save_config;
   save_config.overwrite_existing_files = true;
@@ -272,8 +351,6 @@ int main(int argc, char* argv[]) {
       FLAGS_map_output_path, save_config, &map);
 
   CHECK(write_map_result) << "Saving the output map to the file system failed.";
-
-  CHECK(vi_map::checkMapConsistency(map));
 
   return 0;
 }

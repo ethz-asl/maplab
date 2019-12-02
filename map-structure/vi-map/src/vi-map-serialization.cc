@@ -11,7 +11,6 @@
 #include <maplab-common/proto-serialization-helper.h>
 
 #include "vi-map/vi-map-metadata.h"
-#include "vi-map/vi-map-serialization-deprecated.h"
 #include "vi-map/vi-map.h"
 #include "vi-map/vi_map.pb.h"
 
@@ -107,27 +106,6 @@ void serializeLandmarkIndex(
   CHECK_EQ(static_cast<int>(num_landmarks), proto->landmark_index_size());
 }
 
-void serializeOptionalSensorData(const VIMap& map, proto::VIMap* proto) {
-  CHECK_NOTNULL(proto);
-  MissionIdList mission_ids;
-  map.getAllMissionIds(&mission_ids);
-  for (const MissionId& mission_id : mission_ids) {
-    CHECK(mission_id.isValid());
-    if (map.hasOptionalSensorData(mission_id)) {
-      const OptionalSensorData& optional_sensor_data =
-          map.getOptionalSensorData(mission_id);
-      vi_map::proto::OptionalSensorDataMissionPair*
-          proto_optional_sensor_data_mission_pair =
-              CHECK_NOTNULL(proto->add_optional_sensor_data_mission_id_pair());
-      mission_id.serialize(
-          proto_optional_sensor_data_mission_pair->mutable_mission_id());
-      optional_sensor_data.serialize(
-          proto_optional_sensor_data_mission_pair
-              ->mutable_optional_sensor_data());
-    }
-  }
-}
-
 void deserializeVertices(
     const vi_map::proto::VIMap& proto, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
@@ -140,8 +118,7 @@ void deserializeVertices(
 
     const vi_map::MissionId& mission_id = vertex->getMissionId();
     CHECK(map->hasMission(mission_id));
-    aslam::NCamera::Ptr ncamera =
-        map->getSensorManager().getNCameraSharedForMission(mission_id);
+    aslam::NCamera::Ptr ncamera = map->getMissionNCameraPtr(mission_id);
     CHECK(ncamera);
     vertex->setNCameras(ncamera);
 
@@ -238,19 +215,6 @@ void deserializeLandmarkIndex(
   }
 }
 
-void deserializeOptionalSensorData(const proto::VIMap& proto, VIMap* map) {
-  CHECK_NOTNULL(map);
-  for (const proto::OptionalSensorDataMissionPair&
-           proto_mission_id_with_sensor_data :
-       proto.optional_sensor_data_mission_id_pair()) {
-    MissionId mission_id;
-    mission_id.deserialize(proto_mission_id_with_sensor_data.mission_id());
-    CHECK(mission_id.isValid());
-    map->emplaceOptionalSensorData(
-        mission_id, proto_mission_id_with_sensor_data.optional_sensor_data());
-  }
-}
-
 namespace {
 
 VIMapMetadata createMetadataForVIMap(const vi_map::VIMap& map) {
@@ -267,8 +231,9 @@ VIMapMetadata createMetadataForVIMap(const vi_map::VIMap& map) {
   VIMapMetadata metadata;
 
   auto fill_function = [&metadata](
-      const VIMapFileType& file_type, const std::string& base_file_name,
-      const size_t num_files) {
+                           const VIMapFileType& file_type,
+                           const std::string& base_file_name,
+                           const size_t num_files) {
     for (size_t i = 0u; i < num_files; ++i) {
       const std::string file_name = base_file_name + std::to_string(i);
       metadata.emplace(file_type, file_name);
@@ -282,10 +247,6 @@ VIMapMetadata createMetadataForVIMap(const vi_map::VIMap& map) {
       VIMapFileType::kEdges, internal::kFileNameEdges, num_edges_files);
   metadata.emplace(
       VIMapFileType::kLandmarkIndex, internal::kFileNameLandmarkIndex);
-  metadata.emplace(
-      VIMapFileType::kOptionalSensorData,
-      internal::kFileNameOptionalSensorData);
-
   return metadata;
 }
 
@@ -311,21 +272,11 @@ bool getListOfExistingMapFiles(
   const std::string metadata_filepath = common::concatenateFolderAndFileName(
       path_to_vi_map_folder, internal::kFileNameMetadata);
 
-  if (!common::fileExists(metadata_filepath)) {
-    // Deprecated map format.
-    std::string sensors_yaml_filepath;
-    std::vector<std::string> list_of_map_proto_filepaths;
-    return deprecated::getListOfExistingMapFiles(
-        map_folder, &sensors_yaml_filepath, list_of_resource_filenames,
-        &list_of_map_proto_filepaths);
-  }
-
   // There needs to be exactly one sensors file.
-  if (!common::fileExists(
-          common::concatenateFolderAndFileName(
-              path_to_vi_map_folder, internal::kYamlSensorsFilename))) {
-    LOG(ERROR) << "The sensor manager file (" << internal::kYamlSensorsFilename
-               << ") doesn't exist in the map folder.";
+  if (!common::fileExists(common::concatenateFolderAndFileName(
+          path_to_vi_map_folder, internal::kYamlSensorsFilename))) {
+    VLOG(2) << "No sensor manager file (" << internal::kYamlSensorsFilename
+            << ") found in folder: " << path_to_vi_map_folder;
     return false;
   }
 
@@ -377,19 +328,9 @@ bool loadMapFromFolder(const std::string& folder_path, vi_map::VIMap* map) {
     return false;
   }
 
-  if (metadata.empty()) {
-    // Try loading with the deprecated style.
-    LOG(WARNING) << "!!! WARNING !!!\nThis map is in a deprecated format. To "
-                 << "convert the map to the new format, please resave the map. "
-                 << "Please convert all your maps as soon as possible to the "
-                 << "new format by loading and resaving them.";
-    return deprecated::loadMapFromFolder(folder_path, map);
-  }
-
   // Load map resources metadata first.
-  CHECK(
-      backend::resource_map_serialization::loadMetaDataFromFolder(
-          folder_path, map));
+  CHECK(backend::resource_map_serialization::loadMetaDataFromFolder(
+      folder_path, map));
 
   // Since we load this map from what obviously is the map folder, we can
   // replace the previous map folder (and resource folder) with the path of
@@ -475,7 +416,8 @@ bool saveMapToFolder(
       [&](const std::string& file_name, const proto::VIMap& proto) -> bool {
         CHECK(!file_name.empty());
         return common::proto_serialization_helper::serializeProtoToFile(
-            complete_folder_path, file_name, proto);
+            complete_folder_path, file_name, proto,
+            false /* use_text_format */);
       });
   // Save metadata.
   constexpr bool kIsTextFormat = true;

@@ -1,14 +1,15 @@
 #include "map-sparsification/keyframe-pruning.h"
 
-#include <memory>
-#include <vector>
-
-#include <Eigen/Core>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <maplab-common/progress-bar.h>
 #include <posegraph/unique-id.h>
 #include <vi-map-helpers/vi-map-queries.h>
 #include <vi-map/vi-map.h>
+
+#include <Eigen/Core>
+#include <memory>
+#include <vector>
 
 DEFINE_double(
     kf_distance_threshold_m, 0.75,
@@ -32,15 +33,64 @@ size_t removeAllVerticesBetweenTwoVertices(
   CHECK(start_kf_id.isValid());
   CHECK(end_kf_id.isValid());
 
+  pose_graph::VertexId current_vertex_id = start_kf_id;
+
+  // First check which edge types we can merge
+  bool merge_viwls_edges = true;
+  bool merge_odometry_edges = true;
+  bool merge_wheel_odometry_edges = true;
+
+  do {
+    const bool edge_found = map->getNextVertex(
+        current_vertex_id, traversal_edge, &current_vertex_id);
+    CHECK(edge_found)
+        << "Cannot merge vertice ids " << start_kf_id << " and " << end_kf_id
+        << " since no traversable path between them in the graph was found!";
+    CHECK(current_vertex_id.isValid());
+
+    // Since we iterate inclusively to the last vertex it's enough to check only
+    // incoming edge types
+    pose_graph::EdgeIdSet current_vertex_incoming_edge_ids;
+    map->getVertex(current_vertex_id)
+        .getIncomingEdges(&current_vertex_incoming_edge_ids);
+
+    bool found_viwls_edge = false;
+    bool found_odometry_edge = false;
+    bool found_wheel_odometry_edge = false;
+    for (const pose_graph::EdgeId& incoming_edge :
+         current_vertex_incoming_edge_ids) {
+      if (map->getEdgeType(incoming_edge) ==
+          pose_graph::Edge::EdgeType::kViwls) {
+        found_viwls_edge = true;
+      }
+      if (map->getEdgeType(incoming_edge) ==
+          pose_graph::Edge::EdgeType::kOdometry) {
+        found_odometry_edge = true;
+      }
+      if (map->getEdgeType(incoming_edge) ==
+          pose_graph::Edge::EdgeType::kWheelOdometry) {
+        found_wheel_odometry_edge = true;
+      }
+    }
+
+    // If we are missing even one edge then drop the entire edge merger
+    // between the two vertices. TODO(ben): improve logic to deal with
+    // missing edges e.g. by interpolating using IMU measurements.
+    merge_viwls_edges &= found_viwls_edge;
+    merge_odometry_edges &= found_odometry_edge;
+    merge_wheel_odometry_edges &= found_wheel_odometry_edge;
+  } while (current_vertex_id != end_kf_id);
+
+  // Merge consecutive vertices adding up the edges we are able to merge
   size_t num_merged_vertices = 0u;
-  pose_graph::VertexId current_vertex_id;
   while (map->getNextVertex(start_kf_id, traversal_edge, &current_vertex_id) &&
          current_vertex_id != end_kf_id) {
-    CHECK(current_vertex_id.isValid());
-    CHECK(start_kf_id != current_vertex_id);
-    map->mergeNeighboringVertices(start_kf_id, current_vertex_id);
+    map->mergeNeighboringVertices(
+        start_kf_id, current_vertex_id, merge_viwls_edges, merge_odometry_edges,
+        merge_wheel_odometry_edges);
     ++num_merged_vertices;
   }
+
   return num_merged_vertices;
 }
 }  // namespace
@@ -105,16 +155,21 @@ size_t selectKeyframesBasedOnHeuristics(
   // The first vertex in the range is always a keyframe.
   insert_keyframe(start_keyframe_id);
 
-  // Traverse the posegraph and select keyframes to keep based on the following
-  // conditions.
-  // The ordering of the condition evaluation is important.
+  // Traverse the posegraph and select keyframes to keep based on the
+  // following conditions. The ordering of the condition evaluation is
+  // important.
   //   - max. temporal spacing (force a keyframe every n-th frame)
   //   - common landmark/track count
   //   - distance and rotation threshold
-  // TODO(schneith): Online-viwls should add special vio constraints (rot. only,
-  // stationary) and avoid keyframes during these states.
+  // TODO(schneith): Online-viwls should add special vio constraints (rot.
+  // only, stationary) and avoid keyframes during these states.
+  bool is_end_vertex_reached = false;
   while (
-      map.getNextVertex(current_vertex_id, backbone_type, &current_vertex_id)) {
+      map.getNextVertex(current_vertex_id, backbone_type, &current_vertex_id) &&
+      !is_end_vertex_reached) {
+    if (current_vertex_id == end_vertex_id) {
+      is_end_vertex_reached = true;
+    }
     // Add a keyframe every n-th frame.
     if (num_frames_since_last_keyframe >= options.kf_every_nth_vertex) {
       VLOG(3) << "Adding keyframe " << current_vertex_id
@@ -139,8 +194,32 @@ size_t selectKeyframesBasedOnHeuristics(
       continue;
     }
 
-    // Select keyframe if the distance or rotation to the last keyframe exceeds
-    // a threshold.
+    // select keyframe if there is an absolute 6DoF pose constraint
+    const vi_map::Vertex& vertex = map.getVertex(current_vertex_id);
+    if (vertex.getNumAbsolute6DoFMeasurements() > 0u) {
+      VLOG(3) << "Adding keyframe " << current_vertex_id
+              << ". Condition: has absolute 6DoF measurement.";
+      insert_keyframe(current_vertex_id);
+      continue;
+    }
+
+    // Select keyframe if there is an incoming or outgoing loop closure edge.
+    pose_graph::EdgeIdList outgoing_edges, incoming_edges;
+    map.getOutgoingOfType(
+        pose_graph::Edge::EdgeType::kLoopClosure, current_vertex_id,
+        &outgoing_edges);
+    map.getIncomingOfType(
+        pose_graph::Edge::EdgeType::kLoopClosure, current_vertex_id,
+        &incoming_edges);
+    if (!outgoing_edges.empty() || !incoming_edges.empty()) {
+      VLOG(3) << "Adding keyframe " << current_vertex_id
+              << ". Condition: has incoming or outgoing lc edges.";
+      insert_keyframe(current_vertex_id);
+      continue;
+    }
+
+    // Select keyframe if the distance or rotation to the last keyframe
+    // exceeds a threshold.
     aslam::Transformation T_M_Bkf = map.getVertex_T_G_I(last_keyframe_id);
     aslam::Transformation T_M_Bi = map.getVertex_T_G_I(current_vertex_id);
 
@@ -171,6 +250,9 @@ size_t selectKeyframesBasedOnHeuristics(
     ++num_frames_since_last_keyframe;
   }
 
+  // The last vertex is always a keyframe
+  insert_keyframe(current_vertex_id);
+
   return selected_keyframes->size();
 }
 
@@ -187,11 +269,17 @@ size_t removeVerticesBetweenKeyframes(
       map->getGraphTraversalEdgeType(mission_id);
 
   size_t num_removed_vertices = 0u;
-  for (size_t idx = 0u; idx < keyframe_ids.size() - 1; ++idx) {
+  const size_t num_keyframe_id_pairs = keyframe_ids.size() - 1;
+  common::ProgressBar progress_bar(num_keyframe_id_pairs);
+  for (size_t idx = 0u; idx < num_keyframe_id_pairs; ++idx) {
     CHECK_EQ(mission_id, map->getMissionIdForVertex(keyframe_ids[idx + 1]))
         << "All keyframes must be of the same mission.";
     num_removed_vertices += removeAllVerticesBetweenTwoVertices(
         traversal_edge, keyframe_ids[idx], keyframe_ids[idx + 1], map);
+
+    if (idx % 10 == 0u) {
+      progress_bar.update(idx);
+    }
   }
   return num_removed_vertices;
 }

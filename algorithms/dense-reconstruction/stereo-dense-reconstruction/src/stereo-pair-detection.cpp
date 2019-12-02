@@ -159,68 +159,71 @@ void findAllStereoCameras(
   vi_map::MissionIdList all_mission_ids;
   vi_map.getAllMissionIds(&all_mission_ids);
   for (const vi_map::MissionId& mission_id : all_mission_ids) {
-    const vi_map::SensorManager& sensor_manager = vi_map.getSensorManager();
-    const aslam::NCamera& ncamera =
-        sensor_manager.getNCameraForMission(mission_id);
+    const aslam::NCamera& ncamera = vi_map.getMissionNCamera(mission_id);
 
-    std::unordered_map<size_t, size_t> pairs_found;
-
-    for (size_t first_camera_idx = 0u;
-         first_camera_idx < ncamera.getNumCameras(); ++first_camera_idx) {
-      const aslam::Camera& first_camera = ncamera.getCamera(first_camera_idx);
-
-      for (size_t second_camera_idx = 0u;
-           second_camera_idx < ncamera.getNumCameras(); ++second_camera_idx) {
-        if (first_camera_idx == second_camera_idx) {
-          continue;
-        }
-
-        // Make sure we didn't discover the opposite direciton already.
-        if (pairs_found.count(second_camera_idx) > 0u) {
-          if (pairs_found[second_camera_idx] == first_camera_idx) {
-            continue;
-          }
-        }
-
-        CHECK_LT(second_camera_idx, ncamera.getNumCameras());
-        const aslam::Camera& second_camera =
-            ncamera.getCamera(second_camera_idx);
-
-        const aslam::Transformation& T_C1_B =
-            ncamera.get_T_C_B(first_camera_idx);
-        const aslam::Transformation& T_C2_B =
-            ncamera.get_T_C_B(second_camera_idx);
-        const aslam::Transformation T_C2_C1 = T_C2_B * T_C1_B.inverse();
-
-        StereoPairMetrics stereo_metrics;
-        computeStereoPairMetrics(
-            first_camera, second_camera, T_C2_C1, &stereo_metrics);
-
-        if (!isStereoCamera(stereo_metrics)) {
-          continue;
-        }
-
-        // Write the pair into this map to prevent discovery of another stereo
-        // camera with these two cameras.
-        pairs_found[first_camera_idx] = second_camera_idx;
-
-        // Store stereo pair.
-        StereoPairIdentifier identifier;
-        identifier.first_camera_id = first_camera.getId();
-        identifier.second_camera_id = second_camera.getId();
-        identifier.T_C2_C1 = T_C2_C1;
-
-        (*stereo_camera_ids_per_mission)[mission_id].push_back(identifier);
-
-        // Found a stereo pair with the current first_camera_idx as first
-        // camera. This camera should not be the first camera for another
-        // pair, because it would overwrite the depth resource of the first
-        // reconstruction.
-        break;
-      }
-    }
+    StereoPairIdsVector stereo_pairs;
+    findAllStereoCamerasForNCamera(ncamera, &stereo_pairs);
+    (*stereo_camera_ids_per_mission)[mission_id] = stereo_pairs;
   }
 }
 
+void findAllStereoCamerasForNCamera(
+    const aslam::NCamera& ncamera, StereoPairIdsVector* stereo_pairs) {
+  CHECK_NOTNULL(stereo_pairs);
+  std::unordered_map<size_t, size_t> pairs_found;
+
+  for (size_t first_camera_idx = 0u; first_camera_idx < ncamera.getNumCameras();
+       ++first_camera_idx) {
+    const aslam::Camera& first_camera = ncamera.getCamera(first_camera_idx);
+
+    for (size_t second_camera_idx = 0u;
+         second_camera_idx < ncamera.getNumCameras(); ++second_camera_idx) {
+      if (first_camera_idx == second_camera_idx) {
+        continue;
+      }
+
+      // Make sure we didn't discover the opposite direciton already.
+      if (pairs_found.count(second_camera_idx) > 0u) {
+        if (pairs_found[second_camera_idx] == first_camera_idx) {
+          continue;
+        }
+      }
+
+      CHECK_LT(second_camera_idx, ncamera.getNumCameras());
+      const aslam::Camera& second_camera = ncamera.getCamera(second_camera_idx);
+
+      const aslam::Transformation& T_C1_B = ncamera.get_T_C_B(first_camera_idx);
+      const aslam::Transformation& T_C2_B =
+          ncamera.get_T_C_B(second_camera_idx);
+      const aslam::Transformation T_C2_C1 = T_C2_B * T_C1_B.inverse();
+
+      StereoPairMetrics stereo_metrics;
+      computeStereoPairMetrics(
+          first_camera, second_camera, T_C2_C1, &stereo_metrics);
+
+      if (!isStereoCamera(stereo_metrics)) {
+        continue;
+      }
+
+      // Write the pair into this map to prevent discovery of another stereo
+      // camera with these two cameras.
+      pairs_found[first_camera_idx] = second_camera_idx;
+
+      // Store stereo pair.
+      StereoPairIdentifier identifier;
+      identifier.first_camera_id = first_camera.getId();
+      identifier.second_camera_id = second_camera.getId();
+      identifier.T_C2_C1 = T_C2_C1;
+
+      (*stereo_pairs).push_back(identifier);
+
+      // Found a stereo pair with the current first_camera_idx as first
+      // camera. This camera should not be the first camera for another
+      // pair, because it would overwrite the depth resource of the first
+      // reconstruction.
+      break;
+    }
+  }
+}
 }  // namespace stereo
 }  // namespace dense_reconstruction

@@ -11,6 +11,7 @@
 #include <maplab-common/binary-serialization.h>
 #include <maplab-common/eigen-proto.h>
 #include <vi-map-helpers/vi-map-queries.h>
+#include <vi-map/vi-map-serialization.h>
 #include <vi-map/vi-map.h>
 
 #include "localization-summary-map/localization-summary-map-cache.h"
@@ -60,8 +61,7 @@ void createLocalizationSummaryMapFromLandmarkList(
 }
 
 void createLocalizationSummaryMapFromLandmarkList(
-    const vi_map::VIMap& map,
-    const vi_map::LandmarkIdList& landmark_ids,
+    const vi_map::VIMap& map, const vi_map::LandmarkIdList& landmark_ids,
     LocalizationSummaryMapCache* summary_map_cache,
     summary_map::LocalizationSummaryMap* summary_map) {
   CHECK_NOTNULL(summary_map);
@@ -201,4 +201,33 @@ void createLocalizationSummaryMapFromLandmarkList(
   summary_map->setObserverIndices(observer_indices);
   summary_map->setObservationToLandmarkIndex(observation_to_landmark_index);
 }
+
+void loadLocalizationSummaryMapFromAnyMapFile(
+    const std::string& localization_map_folder,
+    summary_map::LocalizationSummaryMap* summary_map) {
+  CHECK(!localization_map_folder.empty());
+  CHECK_NOTNULL(summary_map);
+
+  if (!summary_map->loadFromFolder(localization_map_folder)) {
+    VLOG(1) << "Could not load a localization summary map from "
+            << localization_map_folder
+            << ". Will try to load it as a full VI map.";
+
+    vi_map::VIMap vi_map;
+    CHECK(vi_map::serialization::loadMapFromFolder(
+        localization_map_folder, &vi_map))
+        << "Loading a VI map failed. Either provide a valid localization "
+        << "map or leave the map folder flag empty.";
+
+    summary_map::createLocalizationSummaryMapForWellConstrainedLandmarks(
+        vi_map, summary_map);
+
+    if (summary_map->GLandmarkPosition().cols() == 0) {
+      LOG(FATAL) << "The localization map loaded from '"
+                 << localization_map_folder
+                 << "' doesn't contain any landmarks!";
+    }
+  }
+}
+
 }  // namespace summary_map

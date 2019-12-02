@@ -9,6 +9,7 @@
 #include <resources-common/point-cloud.h>
 #include <voxblox/core/common.h>
 
+#include "map-resources/resource-common.h"
 #include "map-resources/resource-typedefs.h"
 
 namespace backend {
@@ -47,6 +48,38 @@ bool convertDepthMapWithImageToPointCloud(
 // camera that does not have a distortion.
 void createCameraWithoutDistortion(
     const aslam::Camera& camera, aslam::Camera::Ptr* camera_without_distortion);
+
+template <typename PointCloudType>
+void addPointToPointCloud(
+    const Eigen::Vector3d& point_C, const size_t index,
+    PointCloudType* point_cloud);
+template <typename PointCloudType>
+void addScalarToPointCloud(
+    const float scalar, const size_t index, PointCloudType* point_cloud);
+template <typename PointCloudType>
+void addColorToPointCloud(
+    const resources::RgbaColor& color, const size_t index,
+    PointCloudType* point_cloud);
+
+template <typename PointCloudType>
+size_t getPointCloudSize(const PointCloudType& point_cloud);
+
+// Tries to figure out which maplab point cloud resource type fits the fields
+// present in this point cloud type.
+template <typename PointCloudType>
+ResourceType getResourceTypeForPointCloud(const PointCloudType& point_cloud);
+
+template <typename PointCloudType>
+bool hasColorInformation(const PointCloudType& point_cloud);
+template <typename PointCloudType>
+bool hasNormalsInformation(const PointCloudType& point_cloud);
+template <typename PointCloudType>
+bool hasScalarInformation(const PointCloudType& point_cloud);
+
+template <typename PointCloudType>
+void resizePointCloud(
+    const size_t size, const bool has_color, const bool has_normals,
+    const bool has_scalar, PointCloudType* point_cloud);
 
 }  // namespace backend
 

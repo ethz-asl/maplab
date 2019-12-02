@@ -8,7 +8,8 @@
 #include "sensors/gps-wgs.h"
 #include "sensors/imu.h"
 #include "sensors/lidar.h"
-#include "sensors/relative-6dof-pose.h"
+#include "sensors/loop-closure-sensor.h"
+#include "sensors/wheel-odometry-sensor.h"
 
 namespace vi_map {
 
@@ -44,22 +45,17 @@ class MeasurementsTest : public ::testing::Test {
 
 TEST_F(MeasurementsTest, TestAccessorsGpsUtm) {
   // Testing construction with invalid id.
-  SensorId sensor_id;
+  aslam::SensorId sensor_id;
   CHECK(!sensor_id.isValid());
-  EXPECT_DEATH(GpsUtmMeasurement gps_utm_measurement(sensor_id), "");
-
   int64_t timestamp_nanoseconds = 0;
   EXPECT_DEATH(
       GpsUtmMeasurement(
           sensor_id, timestamp_nanoseconds, aslam::Transformation(),
           UtmZone(32u, 'N')),
-      "");
+      "sensor_id_.isValid()");
   timestamp_nanoseconds = -1;
 
-  // Testing sensor id getter.
-  common::generateId(&sensor_id);
-  GpsUtmMeasurement gps_utm_measurement(sensor_id);
-  EXPECT_EQ(gps_utm_measurement.getSensorId(), sensor_id);
+  aslam::generateId(&sensor_id);
 
   // Testing construction with invalid timestamp.
   EXPECT_DEATH(
@@ -72,21 +68,17 @@ TEST_F(MeasurementsTest, TestAccessorsGpsUtm) {
   timestamp_nanoseconds = getRandomTimestampNanoseconds();
   aslam::Transformation T_UTM_S;
   T_UTM_S.setRandom();
-  gps_utm_measurement = GpsUtmMeasurement(
+  GpsUtmMeasurement gps_utm_measurement = GpsUtmMeasurement(
       sensor_id, timestamp_nanoseconds, T_UTM_S, UtmZone::createInvalid());
   EXPECT_EQ(
       gps_utm_measurement.getTimestampNanoseconds(), timestamp_nanoseconds);
   EXPECT_EQ(gps_utm_measurement.get_T_UTM_S(), T_UTM_S);
+  EXPECT_EQ(gps_utm_measurement.getSensorId(), sensor_id);
 }
 
 TEST_F(MeasurementsTest, TestAccessorsGpsWgs) {
-  // Testing construction with invalid id.
-  SensorId sensor_id;
-  EXPECT_DEATH(GpsWgsMeasurement gps_wgs_measurement(sensor_id), "");
-
-  common::generateId(&sensor_id);
-  GpsWgsMeasurement gps_wgs_measurement(sensor_id);
-  EXPECT_EQ(gps_wgs_measurement.getSensorId(), sensor_id);
+  aslam::SensorId sensor_id;
+  aslam::generateId(&sensor_id);
 
   // Testing construction with invalid GPS values.
   double latidude_deg = 91.0;
@@ -122,7 +114,7 @@ TEST_F(MeasurementsTest, TestAccessorsGpsWgs) {
       GpsWgsMeasurement::kMinAltitudeMeters,
       GpsWgsMeasurement::kMaxAltitudeMeters);
   // Testing construction with valid GPS values.
-  gps_wgs_measurement = GpsWgsMeasurement(
+  GpsWgsMeasurement gps_wgs_measurement = GpsWgsMeasurement(
       sensor_id, timestamp_nanoseconds, latidude_deg, longitude_deg,
       altitude_meters);
 
@@ -130,6 +122,7 @@ TEST_F(MeasurementsTest, TestAccessorsGpsWgs) {
   gps_wgs_measurement = GpsWgsMeasurement(
       sensor_id, timestamp_nanoseconds, latidude_deg, longitude_deg,
       altitude_meters);
+  EXPECT_EQ(gps_wgs_measurement.getSensorId(), sensor_id);
 
   // Testing timestamp and GPS values getters.
   EXPECT_EQ(
@@ -139,45 +132,52 @@ TEST_F(MeasurementsTest, TestAccessorsGpsWgs) {
   EXPECT_EQ(gps_wgs_measurement.getLongitudeDeg(), longitude_deg);
 }
 
-TEST_F(MeasurementsTest, TestAccessorsRelative6DoFPoseMeasurement) {
+TEST_F(MeasurementsTest, TestAccessorsLoopClosureMeasurement) {
   // Testing construction with invalid sensor id and invalid timestamp.
-  SensorId sensor_id;
-  int64_t timestamp_nanoseconds = -1;
-  aslam::Transformation T_R_Sk;
-  T_R_Sk.setRandom();
+  aslam::SensorId sensor_id;
+  int64_t timestamp_ns_A = aslam::time::getInvalidTime();
+  int64_t timestamp_ns_B = aslam::time::getInvalidTime();
+  aslam::Transformation T_A_B;
+  T_A_B.setRandom();
   const aslam::TransformationCovariance measurement_covariance =
       aslam::TransformationCovariance::Random();
   EXPECT_DEATH(
-      Relative6DoFPoseMeasurement(
-          sensor_id, timestamp_nanoseconds, T_R_Sk, measurement_covariance),
+      LoopClosureMeasurement(
+          sensor_id, timestamp_ns_A, timestamp_ns_B, T_A_B,
+          measurement_covariance),
       "");
-  common::generateId(&sensor_id);
+  aslam::generateId(&sensor_id);
   EXPECT_DEATH(
-      Relative6DoFPoseMeasurement(
-          sensor_id, timestamp_nanoseconds, T_R_Sk, measurement_covariance),
+      LoopClosureMeasurement(
+          sensor_id, timestamp_ns_A, timestamp_ns_B, T_A_B,
+          measurement_covariance),
       "");
 
-  timestamp_nanoseconds = getRandomTimestampNanoseconds();
-  Relative6DoFPoseMeasurement rel_6dof_pose_measurement(
-      sensor_id, timestamp_nanoseconds, T_R_Sk, measurement_covariance);
+  timestamp_ns_A = getRandomTimestampNanoseconds();
+  timestamp_ns_B = getRandomTimestampNanoseconds();
+  LoopClosureMeasurement loop_closure_measurement(
+      sensor_id, timestamp_ns_A, timestamp_ns_B, T_A_B, measurement_covariance);
 
-  // Testing T_R_Sk and measurement covariance getters.
-  EXPECT_EQ(rel_6dof_pose_measurement.get_T_R_Sk(), T_R_Sk);
+  // Testing T_A_B and measurement covariance getters.
+  EXPECT_EQ(loop_closure_measurement.get_T_A_B(), T_A_B);
   EXPECT_EQ(
-      rel_6dof_pose_measurement.getMeasurementCovariance(),
-      measurement_covariance);
+      loop_closure_measurement.get_T_A_B_covariance(), measurement_covariance);
+  EXPECT_EQ(
+      loop_closure_measurement.getTimestampNanosecondsA(), timestamp_ns_A);
+  EXPECT_EQ(
+      loop_closure_measurement.getTimestampNanosecondsB(), timestamp_ns_B);
 }
 
 TEST_F(MeasurementsTest, TestAccessorsLidarMeasurement) {
   // Testing construction with invalid sensor id and invalid timestamp.
-  SensorId sensor_id;
+  aslam::SensorId sensor_id;
   int64_t timestamp_nanoseconds = -1;
-  EXPECT_DEATH(LidarMeasurement(sensor_id, timestamp_nanoseconds), "");
-  common::generateId(&sensor_id);
-  EXPECT_DEATH(LidarMeasurement(sensor_id, timestamp_nanoseconds), "");
+  EXPECT_DEATH(MaplabLidarMeasurement(sensor_id, timestamp_nanoseconds), "");
+  aslam::generateId(&sensor_id);
+  EXPECT_DEATH(MaplabLidarMeasurement(sensor_id, timestamp_nanoseconds), "");
 
   timestamp_nanoseconds = getRandomTimestampNanoseconds();
-  LidarMeasurement lidar_measurement(sensor_id, timestamp_nanoseconds);
+  MaplabLidarMeasurement lidar_measurement(sensor_id, timestamp_nanoseconds);
   EXPECT_TRUE(lidar_measurement.getPointCloud().empty());
 }
 
@@ -185,13 +185,13 @@ TEST_F(MeasurementsTest, TestAccessorsImuMeasurement) {
   // Testing construction with invalid sensor id and invalid timestamp.
   const Eigen::Vector3d I_accel_xyz_m_s2 = Eigen::Vector3d::Random();
   const Eigen::Vector3d I_gyro_xyz_rad_s = Eigen::Vector3d::Random();
-  SensorId sensor_id;
+  aslam::SensorId sensor_id;
   int64_t timestamp_nanoseconds = -1;
   EXPECT_DEATH(
       ImuMeasurement(
           sensor_id, timestamp_nanoseconds, I_accel_xyz_m_s2, I_gyro_xyz_rad_s),
       "");
-  common::generateId(&sensor_id);
+  aslam::generateId(&sensor_id);
   EXPECT_DEATH(
       ImuMeasurement(
           sensor_id, timestamp_nanoseconds, I_accel_xyz_m_s2, I_gyro_xyz_rad_s),

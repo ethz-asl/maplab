@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+
+<launch>
+	<node pkg="rosbag" type="play" name="rosbag" args="path/to/arl/bag -q -d 5 -s 0 -r 2.0"/>
+
+  <!--not needed for the ARL demo bag!-->
+	<node if="0" pkg="maplab_camera_info_publisher" type="maplab_camera_info_publisher"
+			name="maplab_camera_info_publisher">
+		<param name="alsologtostderr" value="true"/>
+    <param name="colorlogtostderr" value="true"/>
+    <param name="sensor_calibration_file" value="$(find maplab_node)/share/example_calibrations/mav-alpha-sensors.yaml"/>
+    <param name="image_scale_factor" value="0.5"/>
+    <param name="start_service" value="true"/>
+	</node>
+
+  <node pkg="tf" type="static_transform_publisher" name="tf_lidar_cam" args="0.134511649474800  -0.000717757821675  -0.163252056591126 -1.597182973971889 -0.008683727836321  -1.738681715721126 /velodyne /cam_blackfly 100"/>
+
+	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
+
+	<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
+		<arg name="robot_name" default=""/>
+		<arg name="maplab_sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/mav-alpha-sensors.yaml"/>
+		<arg name="maplab_imu_to_camera_time_offset_ns" default="0"/>
+
+		<arg name="maplab_image_topic_suffix" default="/image_raw"/>
+
+	  <arg name="maplab_world_frame" default="map"/>
+
+	  <arg name="maplab_verbosity" default="0"/>
+
+	  <arg name="maplab_save_map_every_n_sec" default="0"/>
+		<arg name="maplab_keyframe_when_saving" default="false"/>
+
+	  <arg name="maplab_attach_images" default="false"/>
+	  <arg name="maplab_attach_point_clouds" default="false"/>
+	  <arg name="maplab_attach_point_cloud_maps" default="false"/>
+
+	  <arg name="maplab_map_folder" default="/tmp/"/>
+	</include>
+</launch>

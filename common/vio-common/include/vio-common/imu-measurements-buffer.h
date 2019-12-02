@@ -39,8 +39,7 @@ class ImuMeasurementBuffer {
     /// of the buffer input data.
     kDataNeverAvailable,
     /// Queue shutdown.
-    kQueueShutdown,
-    kTooFewMeasurementsAvailable
+    kQueueShutdown
   };
 
   explicit ImuMeasurementBuffer(int64_t buffer_length_ns)
@@ -91,6 +90,10 @@ class ImuMeasurementBuffer {
       int64_t wait_timeout_nanoseconds,
       Eigen::Matrix<int64_t, 1, Eigen::Dynamic>* imu_timestamps,
       Eigen::Matrix<double, 6, Eigen::Dynamic>* imu_measurements) const;
+
+  /// Return the newest and oldest timestamp present in the buffer.
+  bool getNewestTime(int64_t* timestamp_ns) const;
+  bool getOldestTime(int64_t* timestamp_ns) const;
 
  private:
   /// Is data available up to this timestamp? Note this function does not lock

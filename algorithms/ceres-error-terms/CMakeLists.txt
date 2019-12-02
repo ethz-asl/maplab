@@ -6,10 +6,11 @@ link_directories(${CATKIN_DEVEL_PREFIX}/lib)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-add_definitions(-std=c++11 -Wno-enum-compare)
+add_definitions(-Wno-enum-compare)
 
 cs_add_library(${PROJECT_NAME}
   src/block-pose-prior-error-term.cc
+  src/block-pose-prior-error-term-v2.cc
   src/ceres-signal-handler.cc
   src/inertial-error-term.cc
   src/inertial-error-term-eigen.cc

@@ -14,6 +14,10 @@ inline void Vertex::setMissionId(const vi_map::MissionId& mission_id) {
   mission_id_ = mission_id;
 }
 
+inline bool Vertex::hasVisualNFrame() const {
+  return n_frame_ != nullptr;
+}
+
 inline aslam::VisualNFrame& Vertex::getVisualNFrame() {
   CHECK(n_frame_ != nullptr);
   return *n_frame_;

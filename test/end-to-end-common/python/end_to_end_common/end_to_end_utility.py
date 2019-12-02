@@ -3,9 +3,12 @@
 from __future__ import print_function
 
 import bisect
+import os
 
 import numpy as np
 
+from hand_eye_calibration.dual_quaternion import DualQuaternion
+from hand_eye_calibration.extrinsic_calibration import ExtrinsicCalibration
 from hand_eye_calibration.quaternion import Quaternion
 import hand_eye_calibration.time_alignment as time_alignment
 
@@ -20,17 +23,36 @@ def get_cumulative_trajectory_length_for_each_point(trajectory):
     num_points = trajectory.shape[0]
     trajectory_length = np.zeros(num_points)
     for row_idx in range(1, num_points):
-        delta = np.linalg.norm(
-            trajectory[row_idx, :] - trajectory[row_idx - 1, :])
+        delta = np.linalg.norm(trajectory[row_idx, :] -
+                               trajectory[row_idx - 1, :])
         trajectory_length[row_idx] = trajectory_length[row_idx - 1] + delta
     return trajectory_length
+
+
+def apply_hand_eye_calibration(trajectory_G_I, marker_calibration_file):
+    """Returns the transformed estimator trajectory.
+
+    Computes the trajectory of the marker frame, given the trajectory if the eye
+    and the hand_eye_calibration output.
+    """
+    assert os.path.isfile(marker_calibration_file)
+    # Frames of reference: M = marker (hand), I = IMU (eye).
+    dq_I_M = ExtrinsicCalibration.fromJson(
+        marker_calibration_file).pose_dq.inverse()
+    trajectory_G_M = trajectory_G_I
+    for idx in range(trajectory_G_M.shape[0]):
+        dq_G_I = DualQuaternion.from_pose_vector(trajectory_G_I[idx, 1:8])
+        dq_G_M = dq_G_I * dq_I_M
+        trajectory_G_M[idx, 1:8] = dq_G_M.to_pose()
+    return trajectory_G_M
 
 
 def align_datasets(estimator_data_unaligned_G_I,
                    ground_truth_data_unaligned_W_M,
                    estimate_scale,
                    align_data_to_use_meters=-1,
-                   time_offset=0.0):
+                   time_offset=0.0,
+                   marker_calibration_file=None):
     """Sample and align the estimator trajectory to the ground truth trajectory.
 
     Input:
@@ -48,24 +70,24 @@ def align_datasets(estimator_data_unaligned_G_I,
       - time_offset: Indicates the time offset (in seconds) between the data
             from the bag file and the ground truth data. In the alignment, the
             estimator data will be shifted by this offset.
+      - marker_calibration_file: Contains the calibration between the marker
+            frame M and the eye frame I. If no file is given, the frames M and I
+            are assumed to be identical.
 
     Returns:
         Sampled, aligned and transformed estimator trajectory, sampled ground
         truth.
-
-    Output data frames:
-        Estimator:      W --> I
-
-        Ground truth:   W --> M
-        (M and I should be at the same position.)
     """
+    if marker_calibration_file:
+        estimator_data_unaligned_G_I = apply_hand_eye_calibration(
+            estimator_data_unaligned_G_I, marker_calibration_file)
+    else:
+        estimator_data_unaligned_G_I = estimator_data_unaligned_G_I
+
     [estimator_data_G_I,
      ground_truth_data_W_M] = time_alignment.compute_aligned_poses(
          estimator_data_unaligned_G_I, ground_truth_data_unaligned_W_M,
          time_offset)
-
-    # Create a matrix of the right size to store aligned trajectory.
-    estimator_data_aligned_W_I = estimator_data_G_I
 
     # Align trajectories (umeyama).
     if align_data_to_use_meters < 0.0:
@@ -85,19 +107,29 @@ def align_datasets(estimator_data_unaligned_G_I,
                            umeyama_ground_truth_W_M.T, estimate_scale)
     assert T_W_G.shape[0] == 4
     assert T_W_G.shape[1] == 4
-    if abs(1.0 - scale) > 1e-5:
-        print("WARNING: Estimator scale is not 1, but ", scale, ".", end='')
+
+    if estimate_scale:
+        assert scale > 0.0
+        print("Estimator scale:", 1. / scale)
+
+    estimator_data_G_I_scaled = estimator_data_G_I.copy()
+    estimator_data_G_I_scaled[:, 1:4] *= scale
+
+    ground_truth_data_G_M_aligned = ground_truth_data_W_M.copy()
 
     num_data_points = ground_truth_data_W_M.shape[0]
     for index in range(num_data_points):
-        T_estimator_G_I_scaled = csv_row_data_to_transformation(
-            scale * estimator_data_G_I[index, 1:4],
-            estimator_data_G_I[index, 4:8] / np.linalg.norm(
-                estimator_data_G_I[index, 4:8]))
-        T_estimator_W_I_scaled = np.dot(T_W_G, T_estimator_G_I_scaled)
-        estimator_data_aligned_W_I[index, 1:4] = T_estimator_W_I_scaled[0:3, 3]
-        q_estimator_W_I = Quaternion.from_rotation_matrix(
-            T_estimator_W_I_scaled[0:3, 0:3])
-        estimator_data_aligned_W_I[index, 4:8] = q_estimator_W_I.q
+        # Get transformation matrix from quaternion (normalized) and position.
+        T_ground_truth_W_M = csv_row_data_to_transformation(
+            ground_truth_data_W_M[index, 1:4],
+            ground_truth_data_W_M[index, 4:8] / np.linalg.norm(
+                ground_truth_data_W_M[index, 4:8]))
+        # Apply found calibration between G and M frame.
+        T_ground_truth_G_M = np.dot(np.linalg.inv(T_W_G), T_ground_truth_W_M)
+        # Extract quaternion and position.
+        q_ground_truth_G_M = Quaternion.from_rotation_matrix(
+            T_ground_truth_G_M[0:3, 0:3])
+        ground_truth_data_G_M_aligned[index, 4:8] = q_ground_truth_G_M.q
+        ground_truth_data_G_M_aligned[index, 1:4] = T_ground_truth_G_M[0:3, 3]
 
-    return estimator_data_aligned_W_I, ground_truth_data_W_M
+    return estimator_data_G_I_scaled, ground_truth_data_G_M_aligned

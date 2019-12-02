@@ -2,8 +2,8 @@
 #define ROVIOLI_FLOW_TOPICS_H_
 #include <message-flow/message-topic-registration.h>
 #include <vi-map/vi-map.h>
+#include <vio-common/map-update.h>
 #include <vio-common/vio-types.h>
-#include <vio-common/vio-update.h>
 
 #include "rovioli/rovio-estimate.h"
 #include "rovioli/vi-map-with-mutex.h"
@@ -13,6 +13,7 @@
 // Raw sensor data.
 MESSAGE_FLOW_TOPIC(IMAGE_MEASUREMENTS, vio::ImageMeasurement::Ptr);
 MESSAGE_FLOW_TOPIC(IMU_MEASUREMENTS, vio::ImuMeasurement::Ptr);
+MESSAGE_FLOW_TOPIC(ODOMETRY_MEASUREMENTS, vio::OdometryMeasurement::Ptr);
 
 // Synchronized images from multiple cameras and IMU data.
 MESSAGE_FLOW_TOPIC(SYNCED_NFRAMES_AND_IMU, vio::SynchronizedNFrameImu::Ptr);
@@ -24,7 +25,7 @@ MESSAGE_FLOW_TOPIC(
 MESSAGE_FLOW_TOPIC(LOCALIZATION_RESULT, vio::LocalizationResult::ConstPtr);
 
 // Raw estimate of the VINS.
-MESSAGE_FLOW_TOPIC(VIO_UPDATES, vio::VioUpdate::ConstPtr);
+MESSAGE_FLOW_TOPIC(MAP_UPDATES, vio::MapUpdate::ConstPtr);
 
 // Raw estimate output of ROVIO.
 MESSAGE_FLOW_TOPIC(ROVIO_ESTIMATES, rovioli::RovioEstimate::ConstPtr);

@@ -78,7 +78,7 @@ class ViwlsGraph : public ::testing::Test {
         new CameraType(intrinsics, res_u_, res_v_, distortion));
 
     aslam::CameraId camera_id;
-    common::generateId(&camera_id);
+    aslam::generateId(&camera_id);
     camera->setId(camera_id);
 
     std::vector<aslam::Camera::Ptr> camera_vector;
@@ -87,7 +87,7 @@ class ViwlsGraph : public ::testing::Test {
     // We use identity transformation to T_C_B from default constructor.
     T_C_B_vector.resize(kNumCameras);
     aslam::NCameraId n_camera_id;
-    common::generateId(&n_camera_id);
+    aslam::generateId(&n_camera_id);
     cameras_.reset(
         new aslam::NCamera(
             n_camera_id, T_C_B_vector, camera_vector, "Test camera rig"));
@@ -277,7 +277,7 @@ void ViwlsGraph::addPosegraphVertices() {
     descriptors.setRandom();
 
     aslam::FrameId frame_id;
-    common::generateId(&frame_id);
+    aslam::generateId(&frame_id);
     int64_t frame_timestamp = 0;
 
     CHECK_EQ(landmark_ids.size(), static_cast<unsigned int>(points.cols()));

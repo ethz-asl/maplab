@@ -3,6 +3,7 @@
 #include <limits>
 
 #include <aslam/frames/visual-frame.h>
+#include <landmark-triangulation/pose-interpolator.h>
 #include <maplab-common/geometry.h>
 #include <maplab-common/parallel-process.h>
 #include <vi-map/vi-map.h>
@@ -96,6 +97,41 @@ Eigen::Vector3d VIMapGeometry::get_bv_G_root_average(
   Eigen::Matrix3Xd p_G_I;
   map_.getAllVertex_p_G_I(mission_id, &p_G_I);
   return p_G_I.rowwise().mean() - map_.getVertex_G_p_I(root_vertex_id);
+}
+
+void VIMapGeometry::interpolateForTimestamps_T_G_I(
+    const vi_map::MissionId& mission_id,
+    const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& timestamps_ns,
+    aslam::TransformationVector* T_G_I_vector) const {
+  CHECK_NOTNULL(T_G_I_vector)->clear();
+  CHECK_GT(timestamps_ns.cols(), 0);
+
+  const aslam::Transformation& T_G_M =
+      map_.getMissionBaseFrameForMission(mission_id).get_T_G_M();
+
+  landmark_triangulation::VertexToTimeStampMap vertex_to_time_map;
+  int64_t min_timestamp_ns;
+  int64_t max_timestamp_ns;
+  const landmark_triangulation::PoseInterpolator pose_interpolator;
+  pose_interpolator.getVertexToTimeStampMap(
+      map_, mission_id, &vertex_to_time_map, &min_timestamp_ns,
+      &max_timestamp_ns);
+  if (vertex_to_time_map.empty()) {
+    LOG(FATAL) << "Couldn't find any IMU data to interpolate exact T_G_I for "
+                  "the given timestamps: "
+               << timestamps_ns;
+  }
+
+  aslam::TransformationVector T_M_I_vector;
+  pose_interpolator.getPosesAtTime(
+      map_, mission_id, timestamps_ns, &T_M_I_vector);
+  CHECK_EQ(static_cast<int>(T_M_I_vector.size()), timestamps_ns.cols());
+
+  // Transform all T_M_I into T_G_I
+  T_G_I_vector->reserve(T_M_I_vector.size());
+  for (aslam::Transformation& T_M_I : T_M_I_vector) {
+    T_G_I_vector->emplace_back(T_G_M * T_M_I);
+  }
 }
 
 }  // namespace vi_map_helpers

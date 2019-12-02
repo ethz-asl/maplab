@@ -11,9 +11,9 @@
 
 namespace common {
 
-template <typename ValueType,
-          typename AllocatorType =
-              std::allocator<std::pair<int64_t, ValueType> > >
+template <
+    typename ValueType,
+    typename AllocatorType = std::allocator<std::pair<int64_t, ValueType> > >
 class TemporalBuffer {
  public:
   typedef std::map<int64_t, ValueType, std::less<int64_t>, AllocatorType>
@@ -92,6 +92,11 @@ class TemporalBuffer {
       const int64_t timestamp_lower_ns, const int64_t timestamp_higher_ns,
       ValueContainerType* values) const;
 
+  template <typename ValueContainerType>
+  void getValuesFromIncludingToIncluding(
+      const int64_t timestamp_lower_ns, const int64_t timestamp_higher_ns,
+      ValueContainerType* values) const;
+
   bool operator==(const TemporalBuffer& other) const {
     return values_ == other.values_ &&
            buffer_length_nanoseconds_ == other.buffer_length_nanoseconds_;
@@ -132,6 +137,18 @@ class TemporalBuffer {
   typename BufferType::const_reverse_iterator rend() const {
     return values_.crend();
   }
+
+  size_t removeItemsBefore(const int64_t timestamp_ns);
+
+  template <typename ValueContainerType>
+  size_t extractItemsBeforeIncluding(
+      const int64_t timestamp_ns, ValueContainerType* removed_values);
+
+  // in contrast to extractItemsBeforeIncluding(), last element with older ts
+  // than timestamp_ns is kept in buffer
+  template <typename ValueContainerType>
+  size_t extractItemsBeforeIncludingKeepMostRecent(
+      const int64_t timestamp_ns, ValueContainerType* values);
 
  protected:
   BufferType& getValues() {

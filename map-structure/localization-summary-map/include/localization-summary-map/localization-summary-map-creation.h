@@ -1,6 +1,8 @@
 #ifndef LOCALIZATION_SUMMARY_MAP_LOCALIZATION_SUMMARY_MAP_CREATION_H_
 #define LOCALIZATION_SUMMARY_MAP_LOCALIZATION_SUMMARY_MAP_CREATION_H_
 
+#include <string>
+
 #include <vi-map/unique-id.h>
 
 namespace vi_map {
@@ -25,6 +27,12 @@ void createLocalizationSummaryMapFromLandmarkList(
 void createLocalizationSummaryMapFromLandmarkList(
     const vi_map::VIMap& map, const vi_map::LandmarkIdList& landmark_ids,
     LocalizationSummaryMapCache* summary_map_cache,
+    summary_map::LocalizationSummaryMap* summary_map);
+
+// Load a LocalizationSummaryMap from a serialized map that can be either a
+// LocalizationSummaryMap or a VIMap. The latter will trigger a conversion.
+void loadLocalizationSummaryMapFromAnyMapFile(
+    const std::string& localization_map_folder,
     summary_map::LocalizationSummaryMap* summary_map);
 
 }  // namespace summary_map

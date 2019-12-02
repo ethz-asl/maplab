@@ -154,7 +154,7 @@ void LoopClosureHandlerTest::constructCamera() {
       new CameraType(intrinsics, res_u, res_v, distortion));
 
   aslam::CameraId camera_id;
-  common::generateId(&camera_id);
+  aslam::generateId(&camera_id);
   camera->setId(camera_id);
 
   std::vector<aslam::Camera::Ptr> camera_vector;
@@ -165,7 +165,7 @@ void LoopClosureHandlerTest::constructCamera() {
       Eigen::Vector3d(1, 2, 3));
   T_C_B_vector.push_back(T_C_B);
   aslam::NCameraId n_camera_id;
-  common::generateId(&n_camera_id);
+  aslam::generateId(&n_camera_id);
   cameras_.reset(
       new aslam::NCamera(
           n_camera_id, T_C_B_vector, camera_vector, "Test camera rig"));
@@ -174,7 +174,7 @@ void LoopClosureHandlerTest::constructCamera() {
 void LoopClosureHandlerTest::createMission() {
   vi_map::MissionBaseFrame baseframe;
   vi_map::MissionBaseFrameId baseframe_id;
-  common::generateId(&baseframe_id);
+  aslam::generateId(&baseframe_id);
   baseframe.setId(baseframe_id);
 
   baseframe.set_p_G_M(Eigen::Matrix<double, 3, 1>::Zero());
@@ -182,7 +182,7 @@ void LoopClosureHandlerTest::createMission() {
 
   vi_map::VIMission::UniquePtr mission_ptr(new vi_map::VIMission);
 
-  common::generateId(&mission_id_);
+  aslam::generateId(&mission_id_);
   mission_ptr->setId(mission_id_);
 
   mission_ptr->setBaseFrameId(baseframe_id);
@@ -198,7 +198,7 @@ void LoopClosureHandlerTest::populatePosegraph() {
   pose_graph::VertexId vertex_id;
   vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(cameras_));
 
-  common::generateId(&vertex_id);
+  aslam::generateId(&vertex_id);
   vertex->setId(vertex_id);
   vertex->set_p_M_I(position);
   vertex->set_q_M_I(orientation);
@@ -210,7 +210,7 @@ void LoopClosureHandlerTest::populatePosegraph() {
 
   for (unsigned int i = 1; i < kNumOfMapVertices + kNumOfQueryVertices; ++i) {
     vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(cameras_));
-    common::generateId(&vertex_id);
+    aslam::generateId(&vertex_id);
     vertex->setId(vertex_id);
     position.x() += i * 0.2;
     vertex->set_p_M_I(position);
@@ -220,12 +220,12 @@ void LoopClosureHandlerTest::populatePosegraph() {
     vertex_ids_[i] = vertex_id;
 
     pose_graph::EdgeId edge_id;
-    common::generateId(&edge_id);
+    aslam::generateId(&edge_id);
 
     Eigen::Matrix<int64_t, 1, Eigen::Dynamic> imu_timestamps;
     Eigen::Matrix<double, 6, Eigen::Dynamic> imu_data;
     vi_map::MissionId mission_id;
-    common::generateId(&mission_id);
+    aslam::generateId(&mission_id);
 
     vi_map::ViwlsEdge::UniquePtr edge(
         new vi_map::ViwlsEdge(
@@ -244,7 +244,7 @@ void LoopClosureHandlerTest::generateAndProjectLandmarksToMapKeyframes() {
     G_p_fi += Eigen::Vector3d(dis_(gen_), dis_(gen_), dis_(gen_));
 
     vi_map::LandmarkId landmark_id;
-    common::generateId(&landmark_id);
+    aslam::generateId(&landmark_id);
 
     addLandmarkToVertex(G_p_fi, landmark_id, &landmark_vertex);
 
@@ -349,7 +349,7 @@ void LoopClosureHandlerTest::addDuplicateLandmarksToQueryKeyframes() {
         Eigen::Vector3d(dis_(gen_) / 100, dis_(gen_) / 100, dis_(gen_) / 100);
 
     vi_map::LandmarkId new_landmark_id;
-    common::generateId(&new_landmark_id);
+    aslam::generateId(&new_landmark_id);
 
     addLandmarkToVertex(LM_p_fi, new_landmark_id, &landmark_vertex);
     duplicate_landmark_to_landmark_map_.emplace(

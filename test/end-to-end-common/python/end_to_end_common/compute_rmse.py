@@ -17,25 +17,45 @@ class ErrorStatistics(object):
 
     def __str__(self):
         return ('[mean = ' + str(self.mean) + ', RMSE = ' + str(self.rmse) +
-                ', min = ' + str(self.min_value) + ', max = ' +
-                str(self.max_value) + ']')
+                ', min = ' + str(self.min_value) + ', max = ' + str(
+                    self.max_value) + ']')
 
 
-def compute_position_mean_and_rmse(p_A_list, p_B_list, axis=-1):
+POSITION_ERROR_TYPES = {
+    # Individual axes.
+    "x": 0,
+    "y": 1,
+    "z": 2,
+    # Horizontal (x and y axis combined).
+    "horizontal": 3,
+    # All axes.
+    "total": 4
+}
+
+
+def compute_position_mean_and_rmse(p_A_list,
+                                   p_B_list,
+                                   position_error_type="total"):
     """Computes the position mean and RMSE between two different point lists.
 
-    If axis is a negative value, the mean and RMSE will be calculated from the
-    norm of the difference between a pair of points in the two lists, otherwise
-    only the specified axis is taken into account.
+    The position_error_type argument defines which errors are computed.
+    Options: individual axes ("x", "y" or "z"), "horitonal" (x and y combined),
+    "total" (all axes combined, default).
     """
     assert p_A_list.shape == p_B_list.shape
     assert p_A_list.shape[1] == 3
-    assert axis < 3
+    assert position_error_type in POSITION_ERROR_TYPES
 
-    if axis < 0:
+    position_error_index = POSITION_ERROR_TYPES[position_error_type]
+    if position_error_index < 3:
+        axis_index = position_error_index
+        errors_m = np.abs(p_A_list[:, axis_index] - p_B_list[:, axis_index])
+    elif position_error_index == 3:
+        errors_m = np.linalg.norm(p_A_list[:, 0:2] - p_B_list[:, 0:2], axis=1)
+    elif position_error_index == 4:
         errors_m = np.linalg.norm(p_A_list - p_B_list, axis=1)
     else:
-        errors_m = np.abs(p_A_list[:, axis] - p_B_list[:, axis])
+        raise Exception("Position error type not valid.")
 
     return ErrorStatistics(errors_m)
 

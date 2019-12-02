@@ -70,11 +70,10 @@ ImuMeasurementBuffer::getImuDataInterpolatedBordersImpl(
 
   if (between_values.empty()) {
     LOG(WARNING) << "Too few IMU measurements available between time "
-                 << timestamp_ns_from << "[ns] and " << timestamp_ns_to
-                 << "[ns].";
-    imu_timestamps->resize(Eigen::NoChange, 0);
-    imu_measurements->resize(Eigen::NoChange, 0);
-    return QueryResult::kTooFewMeasurementsAvailable;
+                 << aslam::time::timeNanosecondsToString(timestamp_ns_from)
+                 << " and "
+                 << aslam::time::timeNanosecondsToString(timestamp_ns_to)
+                 << ".";
   }
 
   // The first and last index will be replaced with the interpolated values.
@@ -93,13 +92,18 @@ ImuMeasurementBuffer::getImuDataInterpolatedBordersImpl(
   vio::ImuData interpolated_measurement;
 
   // Interpolate lower border.
-  CHECK(
+  bool lower_border_available =
       buffer_.getValueAtOrBeforeTime(
-          timestamp_ns_from, &pre_border_timestamp, &pre_border_value));
-  CHECK_EQ(pre_border_timestamp, pre_border_value.timestamp);
-  CHECK(
+          timestamp_ns_from, &pre_border_timestamp, &pre_border_value) &&
       buffer_.getValueAtOrAfterTime(
-          timestamp_ns_from, &post_border_timestamp, &post_border_value));
+          timestamp_ns_from, &post_border_timestamp, &post_border_value);
+  if (!lower_border_available) {
+    LOG(WARNING)
+        << "Could not interpolate IMU measurement lower border at timestamp "
+        << timestamp_ns_from << "[ns]";
+    return QueryResult::kDataNeverAvailable;
+  }
+  CHECK_EQ(pre_border_timestamp, pre_border_value.timestamp);
   CHECK_EQ(post_border_timestamp, post_border_value.timestamp);
   common::linearInterpolation(
       pre_border_value.timestamp, pre_border_value.imu_data,
@@ -109,13 +113,18 @@ ImuMeasurementBuffer::getImuDataInterpolatedBordersImpl(
   (*imu_measurements).leftCols<1>() = interpolated_measurement;
 
   // Interpolate upper border.
-  CHECK(
+  bool upper_border_available =
       buffer_.getValueAtOrBeforeTime(
-          timestamp_ns_to, &pre_border_timestamp, &pre_border_value));
-  CHECK_EQ(pre_border_timestamp, pre_border_value.timestamp);
-  CHECK(
+          timestamp_ns_to, &pre_border_timestamp, &pre_border_value) &&
       buffer_.getValueAtOrAfterTime(
-          timestamp_ns_to, &post_border_timestamp, &post_border_value));
+          timestamp_ns_to, &post_border_timestamp, &post_border_value);
+  if (!upper_border_available) {
+    LOG(WARNING)
+        << "Could not interpolate IMU measurement upper border at timestamp "
+        << timestamp_ns_from << "[ns]";
+    return QueryResult::kDataNotYetAvailable;
+  }
+  CHECK_EQ(pre_border_timestamp, pre_border_value.timestamp);
   CHECK_EQ(post_border_timestamp, post_border_value.timestamp);
   common::linearInterpolation(
       pre_border_value.timestamp, pre_border_value.imu_data,
@@ -161,8 +170,11 @@ ImuMeasurementBuffer::getImuDataInterpolatedBordersBlocking(
       imu_timestamps->resize(Eigen::NoChange, 0);
       imu_measurements->resize(Eigen::NoChange, 0);
       LOG(WARNING) << "Timeout reached while trying to get the requested "
-                   << "IMU data. Requested range: " << timestamp_ns_from
-                   << " to " << timestamp_ns_to << ".";
+                   << "IMU data. Requested range: "
+                   << aslam::time::timeNanosecondsToString(timestamp_ns_from)
+                   << " to "
+                   << aslam::time::timeNanosecondsToString(timestamp_ns_to)
+                   << ".";
       if (query_result == QueryResult::kDataNotYetAvailable) {
         LOG(WARNING) << "The relevant IMU data is not yet available.";
       } else if (query_result == QueryResult::kDataNeverAvailable) {
@@ -181,6 +193,18 @@ ImuMeasurementBuffer::getImuDataInterpolatedBordersBlocking(
       aslam::time::to_milliseconds(total_elapsed_time_nanoseconds));
   return getImuDataInterpolatedBordersImpl(
       timestamp_ns_from, timestamp_ns_to, imu_timestamps, imu_measurements);
+}
+
+bool ImuMeasurementBuffer::getNewestTime(int64_t* timestamp_ns) const {
+  CHECK_NOTNULL(timestamp_ns);
+  std::unique_lock<std::mutex> lock(m_buffer_);
+  return buffer_.getNewestTime(timestamp_ns);
+}
+
+bool ImuMeasurementBuffer::getOldestTime(int64_t* timestamp_ns) const {
+  CHECK_NOTNULL(timestamp_ns);
+  std::unique_lock<std::mutex> lock(m_buffer_);
+  return buffer_.getOldestTime(timestamp_ns);
 }
 
 }  // namespace vio_common

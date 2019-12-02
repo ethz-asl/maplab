@@ -3,6 +3,8 @@
 
 #include <aslam/cameras/ncamera.h>
 #include <message-flow/message-flow.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <sensors/imu.h>
 #include <vio-common/vio-types.h>
 

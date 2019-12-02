@@ -62,10 +62,9 @@ bool getImagePatch(
     const size_t patch_size_pixels = (2 * half_patch_size_pixels) + 1;
     image_patch->create(patch_size_pixels, patch_size_pixels, CV_8UC3);
 
-    image(
-        cv::Rect(
-            patch_upper_left_x, patch_upper_left_y, patch_size_pixels,
-            patch_size_pixels))
+    image(cv::Rect(
+              patch_upper_left_x, patch_upper_left_y, patch_size_pixels,
+              patch_size_pixels))
         .copyTo(*image_patch);
     return true;
   } else {
@@ -107,11 +106,8 @@ void createBloatedColorImageFromColorImage(
   bloated_color_image->create(
       bloated_image_height, bloated_image_width, CV_8UC3);
   bloated_color_image->setTo(0);
-  color_image.copyTo(
-      (*bloated_color_image)(
-          cv::Rect(
-              border_size_pixels, border_size_pixels, image_width,
-              image_height)));
+  color_image.copyTo((*bloated_color_image)(cv::Rect(
+      border_size_pixels, border_size_pixels, image_width, image_height)));
 
   CHECK_NOTNULL(bloated_color_image->data);
 }
@@ -123,11 +119,12 @@ bool getCopyOfImageAsColorImage(
 
   vi_map::VIMap& nonconst_map = const_cast<vi_map::VIMap&>(map);
   cv::Mat image_from_vertex;
-  if (nonconst_map.getRawImage(
-          vertex, static_cast<int>(camera_index), &image_from_vertex)) {
-  } else if (
-      nonconst_map.getRawColorImage(
-          vertex, static_cast<int>(camera_index), &image_from_vertex)) {
+  if (nonconst_map.getFrameResource(
+          vertex, static_cast<int>(camera_index),
+          backend::ResourceType::kRawImage, &image_from_vertex)) {
+  } else if (nonconst_map.getFrameResource(
+                 vertex, static_cast<int>(camera_index),
+                 backend::ResourceType::kRawColorImage, &image_from_vertex)) {
   } else {
     LOG(WARNING) << "No raw image available for vertex "
                  << vertex.id().hexString() << " and camera index "
@@ -196,9 +193,8 @@ bool getCopyOfImageAsBloatedColorImage(
 }
 
 void getImagePatchesForLandmark(
-    const vi_map::LandmarkId& landmark_id,
-    int half_patch_size_pixels, bool draw_bounding_boxes,
-    bool draw_center_circle, const vi_map::VIMap& map,
+    const vi_map::LandmarkId& landmark_id, int half_patch_size_pixels,
+    bool draw_bounding_boxes, bool draw_center_circle, const vi_map::VIMap& map,
     std::vector<cv::Mat>* patches) {
   CHECK_NOTNULL(patches);
   CHECK(map.hasLandmark(landmark_id));
@@ -242,15 +238,13 @@ void getImagePatchesForLandmark(
 
     cv::Mat bloated_map_image;
     // Bloating the image by half the path size on each side.
-    CHECK(
-        getCopyOfImageAsBloatedColorImage(
-            observer_vertex, frame_index, half_patch_size_pixels, map,
-            &bloated_map_image));
+    CHECK(getCopyOfImageAsBloatedColorImage(
+        observer_vertex, frame_index, half_patch_size_pixels, map,
+        &bloated_map_image));
 
-    CHECK(
-        getImagePatch(
-            bloated_map_image, keypoint_bloated_x, keypoint_bloated_y,
-            half_patch_size_pixels, &(patches->at(observation_idx))));
+    CHECK(getImagePatch(
+        bloated_map_image, keypoint_bloated_x, keypoint_bloated_y,
+        half_patch_size_pixels, &(patches->at(observation_idx))));
 
     if (draw_bounding_boxes) {
       drawBoundingBoxOntoPatch(&(patches->at(observation_idx)));
@@ -262,9 +256,9 @@ void getImagePatchesForLandmark(
 }
 
 void getImagePatchesForLandmark(
-    const vi_map::LandmarkId& landmark_id,
-    int half_patch_size_pixels, bool draw_bounding_boxes,
-    bool draw_center_circle, const vi_map::VIMap& map, cv::Mat* patch_row) {
+    const vi_map::LandmarkId& landmark_id, int half_patch_size_pixels,
+    bool draw_bounding_boxes, bool draw_center_circle, const vi_map::VIMap& map,
+    cv::Mat* patch_row) {
   CHECK_NOTNULL(patch_row);
 
   std::vector<cv::Mat> patches;
@@ -281,11 +275,9 @@ void getImagePatchesForLandmark(
 
   // Copy all patches onto a single row.
   for (int patch_idx = 0; patch_idx < num_patches; ++patch_idx) {
-    patches[patch_idx].copyTo(
-        (*patch_row)(
-            cv::Rect(
-                patch_idx * patch_size_pixels, 0, patch_size_pixels,
-                patch_size_pixels)));
+    patches[patch_idx].copyTo((*patch_row)(cv::Rect(
+        patch_idx * patch_size_pixels, 0, patch_size_pixels,
+        patch_size_pixels)));
   }
 }
 
@@ -319,11 +311,9 @@ void copyPatchOntoBloatedImage(
   const int patch_size_pixels = ((2 * half_patch_size_pixels) + 1);
   CHECK_EQ(patch.rows, patch_size_pixels);
   CHECK_EQ(patch.cols, patch_size_pixels);
-  patch.copyTo(
-      (*image)(
-          cv::Rect(
-              x_bloated_upper_left, y_bloated_upper_left, patch_size_pixels,
-              patch_size_pixels)));
+  patch.copyTo((*image)(cv::Rect(
+      x_bloated_upper_left, y_bloated_upper_left, patch_size_pixels,
+      patch_size_pixels)));
 }
 
 void visualizeImage(const cv::Mat& image, const std::string& label) {
@@ -355,9 +345,8 @@ void visualizePatchesOfLandmarkKeypointMatches(
 
   cv::Mat bloated_query_image;
   // Bloating the image by half the path size on each side.
-  CHECK(
-      getCopyOfImageAsBloatedColorImage(
-          frame, half_patch_size_pixels, &bloated_query_image));
+  CHECK(getCopyOfImageAsBloatedColorImage(
+      frame, half_patch_size_pixels, &bloated_query_image));
   CHECK_NOTNULL(bloated_query_image.data);
 
   const int patch_size_pixels = ((2 * half_patch_size_pixels) + 1);
@@ -406,10 +395,9 @@ void visualizePatchesOfLandmarkKeypointMatches(
         getBloatedCoordinate<int>(query_keypoint_x, half_patch_size_pixels);
     const int query_keypoint_bloated_y =
         getBloatedCoordinate<int>(query_keypoint_y, half_patch_size_pixels);
-    CHECK(
-        getImagePatch(
-            bloated_query_image, query_keypoint_bloated_x,
-            query_keypoint_bloated_y, half_patch_size_pixels, &query_patch));
+    CHECK(getImagePatch(
+        bloated_query_image, query_keypoint_bloated_x, query_keypoint_bloated_y,
+        half_patch_size_pixels, &query_patch));
     drawCenterCircleOntoPatch(&query_patch);
     // Copy the query patch onto the beginning of the image row.
     query_patch.copyTo(
@@ -429,11 +417,9 @@ void visualizePatchesOfLandmarkKeypointMatches(
 
     // Copy the landmark patches patch onto the image row,
     // right of the query patch.
-    landmark_patches_row.copyTo(
-        image_row(
-            cv::Rect(
-                (patch_size_pixels + kVerticalBarWidth), 0,
-                landmark_patches_width, patch_size_pixels)));
+    landmark_patches_row.copyTo(image_row(cv::Rect(
+        (patch_size_pixels + kVerticalBarWidth), 0, landmark_patches_width,
+        patch_size_pixels)));
 
     // Draw a blue bar between the query patch and the landmark patches to
     // visually separate the two.
@@ -446,16 +432,15 @@ void visualizePatchesOfLandmarkKeypointMatches(
     // Add some text indicating the matching score.
     const int hamming_distance = static_cast<int>(
         std::round((1.0 - score) * static_cast<double>(descriptor_size_bits)));
-    const std::string score_text = "Match Score: " + std::to_string(score) +
-                                   ", Hamming Distance: " +
-                                   std::to_string(hamming_distance);
+    const std::string score_text =
+        "Match Score: " + std::to_string(score) +
+        ", Hamming Distance: " + std::to_string(hamming_distance);
     const cv::Scalar kWhite(255.0, 255.0, 255.0);
     const int kFontFace = CV_FONT_NORMAL;
     const double kFontScaling = 0.5;
     const int y_bottom_left =
-        kRowHeightPixels -
-        static_cast<int>(
-            std::floor(static_cast<double>(kTextWidthPixels) / 2.0));
+        kRowHeightPixels - static_cast<int>(std::floor(
+                               static_cast<double>(kTextWidthPixels) / 2.0));
     cv::putText(
         image_row, score_text, cv::Point2d(0, y_bottom_left), kFontFace,
         kFontScaling, kWhite);
@@ -503,9 +488,8 @@ void visualizePatchesOfProjectedMatchedLandmarksInVisualFrameImage(
       << "equal, because they are expected to denote matches.";
 
   // Bloating the image by half the path size on each side.
-  CHECK(
-      getCopyOfImageAsBloatedColorImage(
-          frame, half_patch_size_pixels, bloated_image));
+  CHECK(getCopyOfImageAsBloatedColorImage(
+      frame, half_patch_size_pixels, bloated_image));
   CHECK_NOTNULL(bloated_image->data);
 
   const int bloated_image_height = bloated_image->rows;
@@ -539,9 +523,8 @@ void visualizePatchesOfProjectedMatchedLandmarksInVisualFrameImage(
 
     Eigen::Vector2d landmark_projection;
     const Eigen::Vector3d& p_C_landmark = p_C_landmarks.col(match_idx);
-    CHECK(
-        (camera->project3(p_C_landmark, &landmark_projection))
-            .isKeypointVisible());
+    CHECK((camera->project3(p_C_landmark, &landmark_projection))
+              .isKeypointVisible());
 
     int landmark_projection_x_upper_left, landmark_projection_y_upper_left;
     getBloatedImageCoordinatesOfPatchUpperLeftCorner(
@@ -562,12 +545,9 @@ void visualizePatchesOfProjectedMatchedLandmarksInVisualFrameImage(
     // TODO(mbuerki): Don't just copy the first patch, but copy the one
     // that actually got matched.
     const int patch_size_pixels = ((2 * half_patch_size_pixels) + 1);
-    landmark_patches[0].copyTo(
-        (*bloated_image)(
-            cv::Rect(
-                landmark_projection_x_upper_left,
-                landmark_projection_y_upper_left, patch_size_pixels,
-                patch_size_pixels)));
+    landmark_patches[0].copyTo((*bloated_image)(cv::Rect(
+        landmark_projection_x_upper_left, landmark_projection_y_upper_left,
+        patch_size_pixels, patch_size_pixels)));
 
     const int kCircleRadiusPixels = 5;
     cv::circle(
@@ -602,9 +582,8 @@ void visualizePatchesOfLandmarksOfVertexAsProjectionsOntoTheVisualFrame(
   const aslam::VisualFrame& frame = vertex.getVisualFrame(frame_index);
 
   // Bloating the image by half the path size on each side.
-  CHECK(
-      getCopyOfImageAsBloatedColorImage(
-          vertex, frame_index, half_patch_size_pixels, map, image));
+  CHECK(getCopyOfImageAsBloatedColorImage(
+      vertex, frame_index, half_patch_size_pixels, map, image));
 
   // Get all global landmark ids of this frame.
   vi_map::LandmarkIdList landmark_ids;
@@ -622,9 +601,8 @@ void visualizePatchesOfLandmarksOfVertexAsProjectionsOntoTheVisualFrame(
   aslam::Transformation T_I_G = map.getVertex_T_G_I(vertex_id).inverse();
 
   cv::Mat vertex_image_standard_size;
-  CHECK(
-      getCopyOfImageAsColorImage(
-          vertex, frame_index, map, &vertex_image_standard_size));
+  CHECK(getCopyOfImageAsColorImage(
+      vertex, frame_index, map, &vertex_image_standard_size));
 
   size_t num_valid = 0u;
   // Iterate over all valid global landmark ids and get the image patches.
@@ -635,7 +613,7 @@ void visualizePatchesOfLandmarksOfVertexAsProjectionsOntoTheVisualFrame(
       vertex.getVisualNFrame().get_T_C_B(frame_index);
 
   for (size_t landmark_id_idx = 0u; landmark_id_idx < num_landmark_ids;
-      ++landmark_id_idx) {
+       ++landmark_id_idx) {
     const vi_map::LandmarkId& landmark_id = landmark_ids[landmark_id_idx];
     if (landmark_id.isValid()) {
       bool kDrawBoundingBoxes = true;
@@ -675,11 +653,9 @@ void visualizePatchesOfLandmarksOfVertexAsProjectionsOntoTheVisualFrame(
       const int patch_size_pixels = ((2 * half_patch_size_pixels) + 1);
       CHECK_EQ(patches[0].rows, patch_size_pixels);
       CHECK_EQ(patches[0].cols, patch_size_pixels);
-      patches[0].copyTo(
-          (*image)(
-              cv::Rect(
-                  bloated_x_upper_left, bloated_y_upper_left, patch_size_pixels,
-                  patch_size_pixels)));
+      patches[0].copyTo((*image)(cv::Rect(
+          bloated_x_upper_left, bloated_y_upper_left, patch_size_pixels,
+          patch_size_pixels)));
 
       const int kKeypointCircleRadiusPixels = 5;
       cv::circle(
@@ -701,8 +677,7 @@ void visualizePatchesOfLandmarksOfVertexAsProjectionsOntoTheVisualFrame(
 }
 
 void visualizePatchesOfLandmarksInVisualFrameImage(
-    const aslam::VisualFrame& frame,
-    const vi_map::LandmarkIdList& landmark_ids,
+    const aslam::VisualFrame& frame, const vi_map::LandmarkIdList& landmark_ids,
     const Eigen::Matrix3Xd& p_C_landmarks, int half_patch_size_pixels,
     const vi_map::VIMap& map, cv::Mat* image) {
   CHECK_NOTNULL(image);

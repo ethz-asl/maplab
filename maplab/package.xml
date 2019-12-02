@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <package format="2">
   <name>maplab</name>
-  <version>0.0.0</version>
+  <version>2.2.0</version>
   <description>
     Metapackage to build the
       (i)  maplab console and its core plugins, and
@@ -13,7 +13,11 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <exec_depend>maplab_console_full</exec_depend>
+  <exec_depend>maplab_node</exec_depend>
+  <exec_depend>maplab_server_node</exec_depend>
+  <exec_depend>resource_importer</exec_depend>
   <exec_depend>rovioli</exec_depend>
+
   <export>
     <metapackage />
   </export>

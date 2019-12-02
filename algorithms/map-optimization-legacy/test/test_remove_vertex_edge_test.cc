@@ -70,7 +70,7 @@ class RemoveVertexEdgeTest : public testing::Test {
     vi_map::Vertex& vertex = map_.getVertex(vertices_[vertex_index]);
 
     backend::ResourceId resource_id;
-    common::generateId(&resource_id);
+    aslam::generateId(&resource_id);
 
     static constexpr size_t kFrameIndex = 0;
     vertex.addFrameResourceIdOfType(

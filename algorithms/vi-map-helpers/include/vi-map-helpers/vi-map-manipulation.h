@@ -73,6 +73,9 @@ class VIMapManipulation {
   // observation, you should pass in the vertices in order.
   size_t initializeLandmarksFromUnusedFeatureTracksOfMission(
       const vi_map::MissionId& mission_id);
+  size_t initializeLandmarksFromUnusedFeatureTracksOfMission(
+      const vi_map::MissionId& mission_id,
+      const pose_graph::VertexId& starting_vertex_id);
   void initializeLandmarksFromUnusedFeatureTracksOfOrderedVertices(
       const pose_graph::VertexIdList& ordered_vertex_ids,
       TrackIndexToLandmarkIdMap* trackid_landmarkid_map);
@@ -90,6 +93,16 @@ class VIMapManipulation {
 
   // Remove all landmarks from the map that are flagged as bad.
   size_t removeBadLandmarks();
+
+  // This function will remove all vertices and data before the new root vertex.
+  // The intended use case is to seriallize the current map state and then drop
+  // everything except the latest vertex.
+  // NOTE: currently only tested when calling it with the last vertex of the
+  // mission as new root vertex.
+  void dropMapDataBeforeVertex(
+      const vi_map::MissionId& mission_id,
+      const pose_graph::VertexId& new_root_vertex,
+      const bool delete_resources_from_file_system);
 
  private:
   vi_map::VIMap& map_;

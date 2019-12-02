@@ -10,6 +10,7 @@
 #include <mapping-workflows-plugin/localization-map-creation.h>
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
+#include <vi-map/check-map-consistency.h>
 #include <vi-map/vi-map-serialization.h>
 #include <vi-map/vi-map.h>
 #include <visualization/viwls-graph-plotter.h>
@@ -22,11 +23,11 @@ DECLARE_bool(rovioli_visualize_map);
 namespace rovioli {
 
 MapBuilderFlow::MapBuilderFlow(
-    const std::shared_ptr<aslam::NCamera>& n_camera, vi_map::Imu::UniquePtr imu,
+    const vi_map::SensorManager& sensor_manager,
     const std::string& save_map_folder)
     : map_with_mutex_(aligned_shared<VIMapWithMutex>()),
       mapping_terminated_(false),
-      stream_map_builder_(n_camera, std::move(imu), &map_with_mutex_->vi_map) {
+      stream_map_builder_(sensor_manager, &map_with_mutex_->vi_map) {
   if (!save_map_folder.empty()) {
     VLOG(1) << "Set VIMap folder to: " << save_map_folder;
     map_with_mutex_->vi_map.setMapFolder(save_map_folder);
@@ -39,9 +40,9 @@ void MapBuilderFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
   std::function<void(const VIMapWithMutex::ConstPtr&)> map_publish_function =
       flow->registerPublisher<message_flow_topics::RAW_VIMAP>();
   CHECK(map_publish_function);
-  flow->registerSubscriber<message_flow_topics::VIO_UPDATES>(
+  flow->registerSubscriber<message_flow_topics::MAP_UPDATES>(
       kSubscriberNodeName, message_flow::DeliveryOptions(),
-      [this, map_publish_function](const vio::VioUpdate::ConstPtr& vio_update) {
+      [this, map_publish_function](const vio::MapUpdate::ConstPtr& vio_update) {
         CHECK(vio_update != nullptr);
         {
           std::lock_guard<std::mutex> lock(map_with_mutex_->mutex);
@@ -57,9 +58,9 @@ void MapBuilderFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
         map_publish_function(map_with_mutex_);
       });
 
-  std::function<void(const vio::VioUpdate::ConstPtr&)>
+  std::function<void(const vio::MapUpdate::ConstPtr&)>
       vio_update_builder_publisher =
-          flow->registerPublisher<message_flow_topics::VIO_UPDATES>();
+          flow->registerPublisher<message_flow_topics::MAP_UPDATES>();
   vio_update_builder_.registerVioUpdatePublishFunction(
       vio_update_builder_publisher);
   flow->registerSubscriber<message_flow_topics::TRACKED_NFRAMES_AND_IMU>(

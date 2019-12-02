@@ -1,6 +1,13 @@
-<img src="https://github.com/ethz-asl/maplab/wiki/logos/maplab.png" width="500">
+<img src="https://github.com/ethz-asl/maplab/wiki/logos/maplab_new.png" width="500">
 
-*Ubuntu 14.04+ROS indigo* and *Ubuntu 16.04+ROS kinetic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly)
+*Ubuntu 14.04+ROS indigo*, *Ubuntu 16.04+ROS kinetic* and *Ubuntu 18.04+ROS melodic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly)
+
+## News
+
+ * **May 2018:** maplab was presented at [ICRA](https://icra2018.org/) in Brisbane. ([paper](https://arxiv.org/abs/1711.10250))
+ * **March 2018:** Check out our release candidate with improved localization and lots of new features! [PR](https://github.com/ethz-asl/maplab/pull/55)
+ 
+## Description
 
 This repository contains **maplab**,  an  open,  research-oriented visual-inertial  mapping  framework, written  in  C++,  for  creating, processing  and  manipulating  multi-session  maps.
 On  the  one  hand, maplab  can  be  considered  as  a  ready-to-use  visual-inertial mapping  and  localization  system.
@@ -12,8 +19,7 @@ For documentation, tutorials and datasets, please visit the [wiki](https://githu
 
 Please also check out our video:
 
-<a href="https://www.youtube.com/watch?v=CrfG4v25B8k">
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/maplab_video_thumbnail.png" alt="https://www.youtube.com/watch?v=CrfG4v25B8k" width="600">
+<a href="https://www.youtube.com/watch?v=CrfG4v25B8k"> <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/maplab_video_thumbnail.png" alt="https://www.youtube.com/watch?v=CrfG4v25B8k" width="600">
 
 ## Features
 

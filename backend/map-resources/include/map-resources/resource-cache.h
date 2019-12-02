@@ -8,8 +8,8 @@
 #include <utility>
 #include <vector>
 
+#include <aslam/common/unique-id.h>
 #include <glog/logging.h>
-#include <maplab-common/unique-id.h>
 #include <opencv2/core/core.hpp>
 
 #include "map-resources/resource-common.h"
@@ -57,6 +57,8 @@ class ResourceCache {
   template <typename DataType>
   bool deleteResource(const ResourceId& id, const ResourceType& type);
 
+  void deleteResourceNoDataType(const ResourceId& id, const ResourceType& type);
+
   void resetStatistic();
 
   const CacheStatistic& getStatistic() const;
@@ -94,6 +96,8 @@ class ResourceCache {
   Cache<voxblox::TsdfMap>::ResourceTypeMap voxblox_tsdf_map_cache_;
   Cache<voxblox::EsdfMap>::ResourceTypeMap voxblox_esdf_map_cache_;
   Cache<voxblox::OccupancyMap>::ResourceTypeMap voxblox_occupancy_map_cache_;
+  Cache<resources::ObjectInstanceBoundingBoxes>::ResourceTypeMap
+      bounding_boxes_map_cache_;
 
   CacheStatistic statistic_;
 
@@ -123,6 +127,12 @@ ResourceCache::getCachePtr<voxblox::EsdfMap>(const ResourceType& type);
 template <>
 typename ResourceCache::Cache<voxblox::OccupancyMap>::ResourceDequePtr&
 ResourceCache::getCachePtr<voxblox::OccupancyMap>(const ResourceType& type);
+
+template <>
+typename ResourceCache::Cache<
+    resources::ObjectInstanceBoundingBoxes>::ResourceDequePtr&
+ResourceCache::getCachePtr<resources::ObjectInstanceBoundingBoxes>(
+    const ResourceType& type);
 
 template <typename DataType>
 void updateCacheSizeStatistic(

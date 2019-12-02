@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
+#include <aslam/common/unique-id.h>
 #include <glog/logging.h>
-#include <maplab-common/unique-id.h>
 
 namespace message_flow {
 UNIQUE_ID_DEFINE_ID(MessageDeliveryQueueId);

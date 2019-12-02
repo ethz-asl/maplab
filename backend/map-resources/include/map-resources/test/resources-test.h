@@ -10,10 +10,10 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+#include <resources-common/tinyply/tinyply.h>
 
 #include "map-resources/resource-common.h"
 #include "map-resources/test/resource-template.h"
-#include "map-resources/tinyply/tinyply.h"
 
 namespace backend {
 
@@ -46,28 +46,7 @@ class ResourceTest : public ::testing::Test {
   void loadPointcloud(
       const std::string& filename, resources::PointCloud* pointcloud) {
     CHECK_NOTNULL(pointcloud);
-    CHECK(common::fileExists(filename));
-
-    std::ifstream stream_ply(filename, std::ios::binary);
-    tinyply::PlyFile ply_file(stream_ply);
-    const int xyz_point_count = ply_file.request_properties_from_element(
-        "vertex", {"x", "y", "z"}, pointcloud->xyz);
-    const int colors_count = ply_file.request_properties_from_element(
-        "vertex", {"nx", "ny", "nz"}, pointcloud->normals);
-    const int normals_count = ply_file.request_properties_from_element(
-        "vertex", {"red", "green", "blue"}, pointcloud->colors);
-    CHECK_GT(xyz_point_count, 0);
-    if (colors_count > 0) {
-      // If colors are present, their count should match the point count.
-      CHECK_EQ(xyz_point_count, colors_count);
-    }
-    if (normals_count > 0) {
-      // If normals are present, their count should match the point count.
-      CHECK_EQ(xyz_point_count, normals_count);
-    }
-    ply_file.read(stream_ply);
-
-    stream_ply.close();
+    pointcloud->loadFromFile(filename);
   }
 
   // NOTE: [ADD_RESOURCE_DATA_TYPE] Add and load test resource of new type.
@@ -104,6 +83,28 @@ class ResourceTest : public ::testing::Test {
     loadPointcloud(
         kTestDataBaseFolder + "pcl_resource_xyz_rgb_normal.ply",
         &pointcloud_xyzrgbn_resource_);
+
+    test_object_bounding_boxes_.resize(2);
+    resources::ObjectInstanceBoundingBox& bbox_A =
+        test_object_bounding_boxes_[0];
+    bbox_A.bounding_box.x = 1;
+    bbox_A.bounding_box.y = 2;
+    bbox_A.bounding_box.width = 3;
+    bbox_A.bounding_box.height = 4;
+    bbox_A.class_number = 5;
+    bbox_A.instance_number = 6;
+    bbox_A.confidence = 0.97f;
+    bbox_A.class_name = "class_A";
+    resources::ObjectInstanceBoundingBox& bbox_B =
+        test_object_bounding_boxes_[1];
+    bbox_B.bounding_box.x = 7;
+    bbox_B.bounding_box.y = 8;
+    bbox_B.bounding_box.width = 9;
+    bbox_B.bounding_box.height = 10;
+    bbox_B.class_number = 11;
+    bbox_B.instance_number = 12;
+    bbox_B.confidence = 0.80f;
+    bbox_B.class_name = "class_B";
   }
 
   // Create the resource templates for a predefined resource folder (map or
@@ -146,6 +147,7 @@ class ResourceTest : public ::testing::Test {
     templates->emplace_back(new ResourceTemplate<cv::Mat>(
         ResourceType::kRawDepthMap, resource_folder, is_external_folder,
         depth_cvmat_resource_));
+
 #ifndef __APPLE__
     templates->emplace_back(new ResourceTemplate<cv::Mat>(
         ResourceType::kOptimizedDepthMap, resource_folder, is_external_folder,
@@ -233,6 +235,14 @@ class ResourceTest : public ::testing::Test {
         ResourceType::kVoxbloxOccupancyMap, resource_folder, is_external_folder,
         voxblox_occupancy_map_));
 #endif
+
+#ifndef __APPLE__
+    // Add object bounding box resources.
+    templates->emplace_back(
+        new ResourceTemplate<resources::ObjectInstanceBoundingBoxes>(
+            ResourceType::kObjectInstanceBoundingBoxes, resource_folder,
+            is_external_folder, test_object_bounding_boxes_));
+#endif
   }
 
   cv::Mat depth_cvmat_resource_;
@@ -252,6 +262,8 @@ class ResourceTest : public ::testing::Test {
   voxblox::OccupancyMap voxblox_occupancy_map_;
 
   std::string test_result_folder_;
+
+  resources::ObjectInstanceBoundingBoxes test_object_bounding_boxes_;
 };
 
 }  // namespace backend

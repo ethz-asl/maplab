@@ -2,10 +2,11 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <aslam/cameras/random-camera-generator.h>
+#include <aslam/common/unique-id.h>
 #include <glog/logging.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <vi-map/pose-graph.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vi-map.h>
@@ -17,7 +18,7 @@ class ViwlsGraph : public ::testing::Test {
   ViwlsGraph() {}
 
   virtual void SetUp() {
-    cameras_ = aslam::NCamera::createTestNCamera(kNumCameras);
+    ncamera_template = aslam::createTestNCamera(kNumCameras);
 
     addVertices();
     addLandmarksAndKeypoints();
@@ -32,7 +33,7 @@ class ViwlsGraph : public ::testing::Test {
   std::vector<pose_graph::VertexId> vertex_ids_;
   std::vector<vi_map::LandmarkId> landmark_ids_;
 
-  aslam::NCamera::Ptr cameras_;
+  aslam::NCamera::Ptr ncamera_template;
 
   static constexpr unsigned int kNumOfVertices = 2;
   static constexpr unsigned int kNumOfLandmarksPerStoreLandmark = 2;
@@ -51,7 +52,7 @@ void ViwlsGraph::addVertices() {
   generateId(&mission_id);
   for (unsigned int i = 0; i < kNumOfVertices; ++i) {
     pose_graph::VertexId vertex_id;
-    vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(cameras_));
+    vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(ncamera_template));
     generateId(&vertex_id);
     vertex->setId(vertex_id);
     vertex->setMissionId(mission_id);
@@ -64,12 +65,13 @@ void ViwlsGraph::addVertices() {
     uncertainties.resize(kNumOfKeypointsPerVertex);
     descriptors.resize(kDescriptorBytes, kNumOfKeypointsPerVertex);
     aslam::FrameId frame_id;
-    common::generateId(&frame_id);
+    aslam::generateId(&frame_id);
     frame->setId(frame_id);
     frame->setKeypointMeasurements(img_points_distorted);
     frame->setKeypointMeasurementUncertainties(uncertainties);
     frame->setDescriptors(descriptors);
-    frame->setCameraGeometry(cameras_->getCameraShared(kVisualFrameIndex));
+    frame->setCameraGeometry(
+        ncamera_template->getCameraShared(kVisualFrameIndex));
     vertex->getVisualNFrame().setFrame(kVisualFrameIndex, frame);
     CHECK_EQ(kNumCameras, vertex->numFrames());
 
@@ -93,7 +95,7 @@ void ViwlsGraph::addLandmarksAndKeypoints() {
   landmark_ids_.clear();
   for (unsigned int i = 0; i < kNumOfStoreLandmarks; ++i) {
     vi_map::LandmarkId landmark_id;
-    common::generateId(&landmark_id);
+    aslam::generateId(&landmark_id);
     landmark_ids_.push_back(landmark_id);
 
     vi_map::Landmark store_landmark;

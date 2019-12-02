@@ -7,7 +7,7 @@ namespace map_optimization {
 
 namespace {
 
-void addLoopclosureEdges(
+int addLoopclosureEdges(
     const pose_graph::EdgeIdList& provided_edges,
     const bool use_switchable_constraints, const double cauchy_loss,
     OptimizationProblem* problem) {
@@ -38,9 +38,9 @@ void addLoopclosureEdges(
     vi_map::Vertex& vertex_to = map->getVertex(loop_closure_edge.to());
     CHECK_NE(vertex_from.id(), vertex_to.id());
 
-    const aslam::Transformation& T_A_B = loop_closure_edge.getT_A_B();
+    const aslam::Transformation& T_A_B = loop_closure_edge.get_T_A_B();
     const aslam::TransformationCovariance& T_A_B_covariance =
-        loop_closure_edge.getT_A_BCovariance();
+        loop_closure_edge.get_T_A_B_Covariance();
 
     // The error terms require a JPL convention for the rotation so let's
     // create a T_A_B transform with a rotation in this convention.
@@ -93,8 +93,9 @@ void addLoopclosureEdges(
               new LoopClosureEdgeErrorTerm(q_AB__A_p_AB, T_A_B_covariance)));
       problem_information->addResidualBlock(
           ceres_error_terms::ResidualType::kLoopClosure, loop_closure_cost,
-          loss_function, {vertex_from_q_IM__M_p_MI, vertex_to_q_IM__M_p_MI,
-                          loop_closure_edge.getSwitchVariableMutable()});
+          loss_function,
+          {vertex_from_q_IM__M_p_MI, vertex_to_q_IM__M_p_MI,
+           loop_closure_edge.getSwitchVariableMutable()});
     } else {
       std::shared_ptr<ceres::CostFunction> loop_closure_cost(
           new ceres::AutoDiffCostFunction<
@@ -113,9 +114,10 @@ void addLoopclosureEdges(
           buffer->get_baseframe_q_GM__G_p_GM_JPL(to_baseframe_id);
       problem_information->addResidualBlock(
           ceres_error_terms::ResidualType::kLoopClosure, loop_closure_cost,
-          loss_function, {baseframe_from_q_GM__G_p_GM, vertex_from_q_IM__M_p_MI,
-                          baseframe_to_q_GM__G_p_GM, vertex_to_q_IM__M_p_MI,
-                          loop_closure_edge.getSwitchVariableMutable()});
+          loss_function,
+          {baseframe_from_q_GM__G_p_GM, vertex_from_q_IM__M_p_MI,
+           baseframe_to_q_GM__G_p_GM, vertex_to_q_IM__M_p_MI,
+           loop_closure_edge.getSwitchVariableMutable()});
 
       problem->getProblemInformationMutable()->setParameterBlockConstant(
           baseframe_from_q_GM__G_p_GM);
@@ -152,33 +154,16 @@ void addLoopclosureEdges(
     ++num_residual_blocks_added;
   }
 
-  // Open the initial yaw and position DoF.
-  MissionClusterGaugeFixes relaxation_fix;
-  relaxation_fix.position_dof_fixed = false;
-  relaxation_fix.rotation_dof_fixed = FixedRotationDoF::kNone;
-  relaxation_fix.scale_fixed = false;
+  VLOG(1) << "Added " << num_residual_blocks_added
+          << " loop-closure edge constraints.";
 
-  const size_t num_clusters = problem->getMissionCoobservationClusters().size();
-  std::vector<MissionClusterGaugeFixes> relaxation_fixes(
-      num_clusters, relaxation_fix);
-
-  const std::vector<MissionClusterGaugeFixes>* already_applied_fixes =
-      problem->getAppliedGaugeFixesForInitialVertices();
-  if (already_applied_fixes) {
-    std::vector<MissionClusterGaugeFixes> merged_fixes;
-    mergeGaugeFixes(relaxation_fixes, *already_applied_fixes, &merged_fixes);
-    problem->applyGaugeFixesForInitialVertices(merged_fixes);
-  } else {
-    problem->applyGaugeFixesForInitialVertices(relaxation_fixes);
-  }
-
-  LOG(INFO) << "Added " << num_residual_blocks_added
-            << " loop-closure error terms.";
+  return num_residual_blocks_added;
 }
 
 }  // namespace
 
-void augmentViProblemWithLoopclosureEdges(OptimizationProblem* problem) {
+int augmentOptimizationProblemWithLoopclosureEdges(
+    OptimizationProblem* problem) {
   CHECK_NOTNULL(problem);
 
   const vi_map::VIMap& map = *CHECK_NOTNULL(problem->getMapMutable());
@@ -203,7 +188,23 @@ void augmentViProblemWithLoopclosureEdges(OptimizationProblem* problem) {
     }
   }
 
-  addLoopclosureEdges(lc_edges, true, 0, problem);
+  return addLoopclosureEdges(
+      lc_edges, true /*use_switchable_constraints*/, 0 /*cauchy_loss*/,
+      problem);
+}
+
+int numLoopclosureEdges(const vi_map::VIMap& map) {
+  pose_graph::EdgeIdList edges;
+  map.getAllEdgeIds(&edges);
+
+  int num_lc_edges = 0;
+  for (const pose_graph::EdgeId edge_id : edges) {
+    if (map.getEdgeType(edge_id) == pose_graph::Edge::EdgeType::kLoopClosure) {
+      ++num_lc_edges;
+    }
+  }
+
+  return num_lc_edges;
 }
 
 }  // namespace map_optimization

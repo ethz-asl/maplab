@@ -42,6 +42,9 @@ std::string Edge::edgeTypeToString(const EdgeType edge_type) {
     case EdgeType::kCklamImuLandmark:
       return "cklam_imu_landmark";
       break;
+    case EdgeType::kWheelOdometry:
+      return "wheel_odometry";
+      break;
     default:
       LOG(FATAL) << "No string translation for edge type "
                  << static_cast<int>(edge_type);
@@ -69,6 +72,8 @@ Edge::EdgeType Edge::stringToEdgeType(const std::string& edge_type) {
     return EdgeType::kTrajectory;
   } else if (edge_type == "cklam_imu_landmark") {
     return EdgeType::kCklamImuLandmark;
+  } else if (edge_type == "wheel_odometry") {
+    return EdgeType::kWheelOdometry;
   } else {
     LOG(FATAL) << "Unknown edge type string: " << edge_type;
     return EdgeType::kUndefined;

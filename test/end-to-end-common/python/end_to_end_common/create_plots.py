@@ -11,13 +11,15 @@ import end_to_end_common.plotting_common as plotting_common
 
 def plot_position_error(test_data_list_or_dict,
                         plotting_settings=plotting_common.PlottingSettings(),
-                        title=None):
+                        title=None,
+                        horizontal_errors_only=False):
     """ Creates a plot of the absolute position error over the trajectory
     length.
 
     If title is None and a title should be set, a title will be chosen
     automatically: if there only one dataset is given, the name of that dataset
-    is chosen, otherwise a generic title will be set.
+    is chosen, otherwise a generic title will be set. If the flag
+    horizontal_errors_only is set, only the horizontal errors will be plotted.
     """
     if isinstance(test_data_list_or_dict, dict):
         test_data_list = []
@@ -42,8 +44,13 @@ def plot_position_error(test_data_list_or_dict,
     max_error = 0
     for idx, data in enumerate(test_data_list):
         print "Plotting position error for ", data.label
+        max_index = 4
+        if horizontal_errors_only:
+            max_index = 3
         pos_errors = np.linalg.norm(
-            data.estimator_G_I[:, 1:4] - data.ground_truth_G_M[:, 1:4], axis=1)
+            data.estimator_G_I[:, 1:max_index] -
+            data.ground_truth_G_M[:, 1:max_index],
+            axis=1)
         if np.max(pos_errors) > max_error:
             max_error = np.max(pos_errors)
 
@@ -206,9 +213,10 @@ def plot_xyz_errors(test_data,
     labels = ["x", "y", "z"]
     for i in range(3):
         plt.subplot(3, 1, i + 1)
-        plt.plot(test_data.estimator_G_I[:, 0] - test_data.estimator_G_I[0, 0],
-                 test_data.estimator_G_I[:, 1 + i] -
-                 test_data.ground_truth_G_M[:, 1 + i])
+        plt.plot(
+            test_data.estimator_G_I[:, 0] - test_data.estimator_G_I[0, 0],
+            np.abs(test_data.estimator_G_I[:, 1 + i] -
+                   test_data.ground_truth_G_M[:, 1 + i]))
         plt.xlabel("Time [s]")
         plt.ylabel(labels[i] + " error [m]")
         if plotting_settings.show_grid:

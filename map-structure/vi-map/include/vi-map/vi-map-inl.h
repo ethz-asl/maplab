@@ -15,6 +15,7 @@
 #include <eigen-checks/glog.h>
 #include <map-resources/resource-common.h>
 #include <map-resources/resource-map.h>
+#include <map-resources/temporal-resource-id-buffer.h>
 
 #include "vi-map/vertex.h"
 #include "vi-map/vi-map.h"
@@ -154,6 +155,7 @@ vi_map::VIMission& VIMap::getMission(const vi_map::MissionId& id) {
       common::getChecked(missions, id)->getAs<vi_map::VIMission>();
   return mission;
 }
+
 const vi_map::VIMission& VIMap::getMission(const vi_map::MissionId& id) const {
   CHECK(id.isValid());
   return common::getChecked(missions, id)->getAs<vi_map::VIMission>();
@@ -258,8 +260,8 @@ void VIMap::getObserverMissionsForLandmark(
     std::unordered_set<vi_map::MissionId>* missions) const {
   CHECK_NOTNULL(missions);
   CHECK(landmark_id.isValid());
-  CHECK(hasLandmark(landmark_id)) << "Landmark " << landmark_id
-                                  << " not found!";
+  CHECK(hasLandmark(landmark_id))
+      << "Landmark " << landmark_id << " not found!";
   missions->clear();
 
   const vi_map::Landmark& landmark = getLandmark(landmark_id);
@@ -436,7 +438,7 @@ Eigen::Vector3d VIMap::getLandmark_p_C_fi(
   CHECK(hasVertex(observer_vertex.id()));
 
   const aslam::NCamera& ncamera =
-      sensor_manager_.getNCameraForMission(observer_vertex.getMissionId());
+      getMissionNCamera(observer_vertex.getMissionId());
   const pose::Transformation& C_T_I = ncamera.get_T_C_B(frame_idx);
   const Eigen::Vector3d& M_p_I = observer_vertex.get_p_M_I();
   const Eigen::Quaterniond& M_q_I = observer_vertex.get_q_M_I();
@@ -462,7 +464,7 @@ Eigen::Vector3d VIMap::getVertex_G_p_I(
       vertex.get_p_M_I());
 }
 
-inline Eigen::Quaterniond VIMap::getVertex_G_q_I(
+Eigen::Quaterniond VIMap::getVertex_G_q_I(
     const pose_graph::VertexId& vertex_id) const {
   CHECK(hasVertex(vertex_id));
 
@@ -473,7 +475,7 @@ inline Eigen::Quaterniond VIMap::getVertex_G_q_I(
       vertex.get_q_M_I());
 }
 
-inline pose::Transformation VIMap::getVertex_T_G_I(
+pose::Transformation VIMap::getVertex_T_G_I(
     const pose_graph::VertexId& vertex_id) const {
   CHECK(hasVertex(vertex_id));
   const vi_map::Vertex& vertex = getVertex(vertex_id);
@@ -482,7 +484,7 @@ inline pose::Transformation VIMap::getVertex_T_G_I(
   return mission_baseframe.get_T_G_M() * vertex.get_T_M_I();
 }
 
-inline void VIMap::getLandmarkDescriptors(
+void VIMap::getLandmarkDescriptors(
     const LandmarkId& id, DescriptorsType* result) const {
   CHECK_NOTNULL(result);
   const Landmark& landmark = getLandmark(id);
@@ -565,10 +567,9 @@ void VIMap::forEachVisualFrame(
   }
 }
 
-void VIMap::forEachVisualFrame(
-    const std::function<void(
-        const aslam::VisualFrame& visual_frame, const Vertex&, size_t)>& action)
-    const {
+void VIMap::forEachVisualFrame(const std::function<void(
+                                   const aslam::VisualFrame& visual_frame,
+                                   const Vertex&, size_t)>& action) const {
   pose_graph::VertexIdList all_vertex_ids;
   getAllVertexIds(&all_vertex_ids);
   for (const pose_graph::VertexId& vertex_id : all_vertex_ids) {
@@ -581,7 +582,7 @@ void VIMap::forEachVisualFrame(
   }
 }
 
-inline void VIMap::forEachVisualFrame(
+void VIMap::forEachVisualFrame(
     const std::function<void(const VisualFrameIdentifier&)>& action) const {
   pose_graph::VertexIdList all_vertex_ids;
   getAllVertexIds(&all_vertex_ids);
@@ -594,7 +595,7 @@ inline void VIMap::forEachVisualFrame(
   }
 }
 
-inline void VIMap::forEachListedVisualFrame(
+void VIMap::forEachListedVisualFrame(
     const VisualFrameIdentifierList& list,
     const std::function<void(
         const aslam::VisualFrame&, const Vertex&, const size_t,
@@ -795,8 +796,8 @@ void VIMap::removeLandmark(const LandmarkId landmark_id) {
 
 void VIMap::addVertex(vi_map::Vertex::UniquePtr vertex_ptr) {
   CHECK(hasMission(vertex_ptr->getMissionId()));
-  CHECK(!hasVertex(vertex_ptr->id())) << "A vertex with id " << vertex_ptr->id()
-                                      << " already exists.";
+  CHECK(!hasVertex(vertex_ptr->id()))
+      << "A vertex with id " << vertex_ptr->id() << " already exists.";
 
   posegraph.addVertex(std::move(vertex_ptr));
 }
@@ -815,25 +816,42 @@ pose_graph::Edge::EdgeType VIMap::getEdgeType(
   return posegraph.getEdgePtr(edge_id)->getType();
 }
 
-inline bool VIMap::getNextVertex(
+bool VIMap::getNextVertex(
     const pose_graph::VertexId& current_vertex_id,
     pose_graph::Edge::EdgeType edge_type,
     pose_graph::VertexId* next_vertex_id) const {
   CHECK_NOTNULL(next_vertex_id);
-  CHECK(hasVertex(current_vertex_id)) << "No vertex with id "
-                                      << current_vertex_id.hexString() << ".";
+  CHECK(hasVertex(current_vertex_id))
+      << "No vertex with id " << current_vertex_id.hexString() << ".";
 
   std::unordered_set<pose_graph::EdgeId> outgoing_edges;
-  getVertex(current_vertex_id).getOutgoingEdges(&outgoing_edges);
+  const vi_map::Vertex& vertex = getVertex(current_vertex_id);
+  vertex.getOutgoingEdges(&outgoing_edges);
 
+  const pose_graph::Edge::EdgeType traversal_edge_type =
+      getGraphTraversalEdgeType(vertex.getMissionId());
+  CHECK(edge_type == traversal_edge_type)
+      << "Cannot call getNextVertex with an edge type that is not the "
+      << "traversal_type of that mission! edge-type '"
+      << pose_graph::Edge::edgeTypeToString(edge_type)
+      << "' vs traversal-edge-type: '"
+      << pose_graph::Edge::edgeTypeToString(traversal_edge_type) << "'";
+
+  bool edge_found = false;
   for (const pose_graph::EdgeId& edge_id : outgoing_edges) {
     const pose_graph::Edge* edge = posegraph.getEdgePtr(edge_id);
     if (edge->getType() == edge_type) {
+      CHECK(!edge_found)
+          << "There is more than one outgoing edge of type '"
+          << pose_graph::Edge::edgeTypeToString(edge_type) << "' from vertex "
+          << current_vertex_id
+          << "! The map is either inconsistent or this edge type cannot be "
+             "used to traverse the pose graph in a unique way.";
       *next_vertex_id = edge->to();
-      return true;
+      edge_found = true;
     }
   }
-  return false;
+  return edge_found;
 }
 
 bool VIMap::getPreviousVertex(
@@ -1031,14 +1049,6 @@ bool VIMap::getFrameResource(
 }
 
 template <typename DataType>
-bool VIMap::hasFrameResource(
-    const Vertex& vertex, const unsigned int frame_idx,
-    const backend::ResourceType& resource_type) const {
-  std::lock_guard<std::recursive_mutex> lock(resource_mutex_);
-  return vertex.hasFrameResourceOfType(frame_idx, resource_type);
-}
-
-template <typename DataType>
 void VIMap::replaceFrameResource(
     const DataType& resource, const unsigned int frame_idx,
     const backend::ResourceType& type, Vertex* vertex_ptr) {
@@ -1075,15 +1085,15 @@ void VIMap::clear() {
   selected_missions_.clear();
 }
 
-template <typename SensorId, typename DataType>
-bool VIMap::getOptionalSensorResource(
+template <typename DataType>
+bool VIMap::getSensorResource(
     const VIMission& mission, const backend::ResourceType& type,
-    const SensorId& sensor_id, const int64_t timestamp_ns,
+    const aslam::SensorId& sensor_id, const int64_t timestamp_ns,
     DataType* resource) const {
   CHECK_NOTNULL(resource);
 
   backend::ResourceId resource_id;
-  if (!mission.getOptionalSensorResourceId(
+  if (!mission.getSensorResourceId(
           type, sensor_id, timestamp_ns, &resource_id)) {
     return false;
   }
@@ -1091,17 +1101,17 @@ bool VIMap::getOptionalSensorResource(
   return getResource(resource_id, type, resource);
 }
 
-template <typename SensorId, typename DataType>
-bool VIMap::getClosestOptionalSensorResource(
+template <typename DataType>
+bool VIMap::getClosestSensorResource(
     const VIMission& mission, const backend::ResourceType& type,
-    const SensorId& sensor_id, const int64_t timestamp_ns,
+    const aslam::SensorId& sensor_id, const int64_t timestamp_ns,
     const int64_t tolerance_ns, DataType* resource,
     int64_t* closest_timestamp_ns) const {
   CHECK_NOTNULL(resource);
   CHECK_NOTNULL(closest_timestamp_ns);
 
   backend::StampedResourceId stamped_resource_id;
-  if (!mission.getClosestOptionalSensorResourceId(
+  if (!mission.getClosestSensorResourceId(
           type, sensor_id, timestamp_ns, tolerance_ns, &stamped_resource_id)) {
     return false;
   }
@@ -1110,53 +1120,52 @@ bool VIMap::getClosestOptionalSensorResource(
   return getResource(stamped_resource_id.second, type, resource);
 }
 
-template <typename SensorId, typename DataType>
-void VIMap::addOptionalSensorResource(
-    const backend::ResourceType& type, const SensorId& sensor_id,
+template <typename DataType>
+void VIMap::addSensorResource(
+    const backend::ResourceType& type, const aslam::SensorId& sensor_id,
     const int64_t timestamp_ns, const DataType& resource, VIMission* mission) {
   CHECK_NOTNULL(mission);
 
-  CHECK(!mission->hasOptionalSensorResourceId(type, sensor_id, timestamp_ns));
+  CHECK(!mission->hasSensorResourceId(type, sensor_id, timestamp_ns));
 
   backend::ResourceId resource_id;
   addResource(type, resource, &resource_id);
 
-  mission->addOptionalSensorResourceId(
-      type, sensor_id, resource_id, timestamp_ns);
+  mission->addSensorResourceId(type, sensor_id, resource_id, timestamp_ns);
 }
 
-template <typename SensorId, typename DataType>
-bool VIMap::deleteOptionalSensorResource(
-    const backend::ResourceType& type, const SensorId& sensor_id,
+template <typename DataType>
+bool VIMap::deleteSensorResource(
+    const backend::ResourceType& type, const aslam::SensorId& sensor_id,
     const int64_t timestamp_ns, const bool keep_resource_file,
     VIMission* mission) {
   CHECK_NOTNULL(mission);
 
   backend::ResourceId resource_id;
-  if (!mission->getOptionalSensorResourceId(
+  if (!mission->getSensorResourceId(
           type, sensor_id, timestamp_ns, &resource_id)) {
     return false;
   }
 
-  if (!mission->deleteOptionalSensorResourceId(type, sensor_id, timestamp_ns)) {
+  if (!mission->deleteSensorResourceId(type, sensor_id, timestamp_ns)) {
     return false;
   }
 
   return deleteResource<DataType>(resource_id, type, keep_resource_file);
 }
 
-template <typename SensorId, typename DataType>
-bool VIMap::getAllCloseOptionalSensorResources(
+template <typename DataType>
+bool VIMap::getAllCloseSensorResources(
     const VIMission& mission, const backend::ResourceType& type,
     const int64_t timestamp_ns, const int64_t tolerance_ns,
-    std::vector<SensorId>* sensor_ids,
+    std::vector<aslam::SensorId>* sensor_ids,
     std::vector<int64_t>* closest_timestamps_ns,
     std::vector<DataType>* resources) const {
   CHECK_NOTNULL(sensor_ids);  // TODO(mbuerki): Shoulnd't this be cleared?
   CHECK_NOTNULL(closest_timestamps_ns);
   CHECK_NOTNULL(resources);
 
-  if (!findAllCloseOptionalSensorResources<SensorId>(
+  if (!findAllCloseSensorResources(
           mission, type, timestamp_ns, tolerance_ns, sensor_ids,
           closest_timestamps_ns)) {
     return false;
@@ -1166,13 +1175,12 @@ bool VIMap::getAllCloseOptionalSensorResources(
   resources->resize(num_resources);
 
   for (size_t idx = 0u; idx < num_resources; ++idx) {
-    const SensorId& sensor_id = (*sensor_ids)[idx];
+    const aslam::SensorId& sensor_id = (*sensor_ids)[idx];
     const int64_t timestamp_ns = (*closest_timestamps_ns)[idx];
     DataType& resource = (*resources)[idx];
-    CHECK(
-        getOptionalSensorResource(
-            mission.id(), type, timestamp_ns, tolerance_ns, sensor_id,
-            timestamp_ns, &resource));
+    CHECK(getSensorResource(
+        mission.id(), type, timestamp_ns, tolerance_ns, sensor_id, timestamp_ns,
+        &resource));
   }
   return true;
 }
@@ -1183,32 +1191,6 @@ const SensorManager& VIMap::getSensorManager() const {
 
 SensorManager& VIMap::getSensorManager() {
   return sensor_manager_;
-}
-
-template <class MeasurementType>
-const MeasurementBuffer<MeasurementType>& VIMap::getOptionalSensorMeasurements(
-    const SensorId& sensor_id, const MissionId& mission_id) const {
-  CHECK(sensor_manager_.hasSensor(sensor_id));
-  CHECK(mission_id.isValid());
-  return common::getChecked(optional_sensor_data_map_, mission_id)
-      .getMeasurements<MeasurementType>(sensor_id);
-}
-
-template <class MeasurementType>
-inline void VIMap::addOptionalSensorMeasurement(
-    const MeasurementType& measurement, const MissionId& mission_id) {
-  CHECK(hasMission(mission_id));
-  const SensorId& sensor_id = measurement.getSensorId();
-  CHECK(sensor_manager_.hasSensor(sensor_id));
-  OptionalSensorDataMap::iterator optional_sensor_data_iterator =
-      optional_sensor_data_map_.find(mission_id);
-  if (optional_sensor_data_iterator == optional_sensor_data_map_.end()) {
-    OptionalSensorData optional_sensor_data;
-    optional_sensor_data.addMeasurement(measurement);
-    optional_sensor_data_map_.emplace(mission_id, optional_sensor_data);
-  } else {
-    optional_sensor_data_iterator->second.addMeasurement(measurement);
-  }
 }
 
 template <typename Edge, vi_map::Edge::EdgeType EdgeType>
@@ -1243,11 +1225,11 @@ size_t VIMap::mergeEdgesOfNeighboringVertices(
       ++num_outgoing_edges_of_type;
     }
   }
-  CHECK_LE(num_outgoing_edges_of_type, 1u)
-      << "A vertex can have at most one outgoing edge of type "
-      << pose_graph::Edge::edgeTypeToString(EdgeType);
   CHECK_LE(num_incoming_edges_of_type, 1u)
       << "A vertex must have at most one incoming edge of type "
+      << pose_graph::Edge::edgeTypeToString(EdgeType);
+  CHECK_LE(num_outgoing_edges_of_type, 1u)
+      << "A vertex can have at most one outgoing edge of type "
       << pose_graph::Edge::edgeTypeToString(EdgeType);
 
   if (edge_between_vertices != nullptr) {
@@ -1263,19 +1245,6 @@ size_t VIMap::mergeEdgesOfNeighboringVertices(
   }
   return num_incoming_edges_of_type;
 }
-
-template <typename SensorId>
-bool VIMap::findAllCloseOptionalSensorResources(
-    const VIMission& mission, const backend::ResourceType& type,
-    const int64_t timestamp_ns, const int64_t tolerance_ns,
-    std::vector<SensorId>* sensor_ids,
-    std::vector<int64_t>* closest_timestamps_ns) const {
-  CHECK_NOTNULL(sensor_ids)->clear();
-  CHECK_NOTNULL(closest_timestamps_ns);
-  return mission.findAllCloseOptionalSensorResources(
-      type, timestamp_ns, tolerance_ns, sensor_ids, closest_timestamps_ns);
-}
-
 }  // namespace vi_map
 
 #endif  // VI_MAP_VI_MAP_INL_H_

@@ -28,7 +28,16 @@ MultiThreadedProgressBar::MultiThreadedProgressBar()
       num_complete_(0u),
       progress_bar_width_(0u),
       progress_bar_width_floating_point_(0.0),
-      percentage_only_(false) {}
+      percentage_only_(false),
+      verbosity_level_(0) {}
+
+MultiThreadedProgressBar::MultiThreadedProgressBar(const size_t verbosity_level)
+    : num_threads_(0u),
+      num_complete_(0u),
+      progress_bar_width_(0u),
+      progress_bar_width_floating_point_(0.0),
+      percentage_only_(false),
+      verbosity_level_(verbosity_level) {}
 
 void MultiThreadedProgressBar::reevaluateParameters() {
   double space_to_divide = static_cast<double>(
@@ -195,7 +204,7 @@ void MultiThreadedProgressBar::update(
 }
 
 void MultiThreadedProgressBar::print(bool force) {
-  if (!FLAGS_show_progress_bar) {
+  if (!FLAGS_show_progress_bar || !VLOG_IS_ON(verbosity_level_)) {
     return;
   }
 

@@ -1,8 +1,7 @@
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-
-#include "map-optimization-legacy/test/6dof-pose-graph-gen.h"
-#include "map-optimization-legacy/test/vi-optimization-test-helpers.h"
+#include <vi-map/6dof-pose-graph-gen.h>
+#include <vi-map/vi-optimization-test-helpers.h>
 
 namespace map_optimization_legacy {
 
@@ -10,7 +9,7 @@ class ViwlsGraph : public ::testing::Test {
  protected:
   ViwlsGraph() {}
   virtual ~ViwlsGraph() {}
-  SixDofPoseGraphGenerator graph_gen_;
+  vi_map::SixDofPoseGraphGenerator graph_gen_;
 };
 
 TEST_F(ViwlsGraph, GeneratedTrajectoryInertialBundleAdj) {
@@ -101,7 +100,7 @@ TEST_F(ViwlsGraph, GeneratedTrajectoryVisualBundleAdj) {
 TEST_F(ViwlsGraph, GeneratedTrajectoryVisualInertialBundleAdj) {
   graph_gen_.constructCamera();
 
-  setImuSigmasZero(&graph_gen_.settings_.imu_sigmas);
+  vi_map::setImuSigmasZero(&graph_gen_.settings_.imu_sigmas);
   graph_gen_.generatePathAndLandmarks();
 
   const int num_of_vertices = 20;
@@ -127,14 +126,14 @@ TEST_F(ViwlsGraph, GeneratedTrajectoryVisualInertialBundleAdj) {
 
   Eigen::VectorXd intrinsics =
       graph_gen_.cameras_
-          ->getCamera(SixDofPoseGraphGenerator::kVisualFrameIndex)
+          ->getCamera(vi_map::SixDofPoseGraphGenerator::kVisualFrameIndex)
           .getParameters();
   intrinsics[0] = 110;
   intrinsics[1] = 97;
   intrinsics[2] = graph_gen_.res_u_ / 2.0 + 7;
   intrinsics[3] = graph_gen_.res_v_ / 2.0 - 4;
   graph_gen_.cameras_
-      ->getCameraMutable(SixDofPoseGraphGenerator::kVisualFrameIndex)
+      ->getCameraMutable(vi_map::SixDofPoseGraphGenerator::kVisualFrameIndex)
       .setParameters(intrinsics);
 
   LOG(INFO) << "Solving...";
@@ -167,7 +166,7 @@ TEST_F(ViwlsGraph, GeneratedTrajectoryVisualInertialBundleAdj) {
 
   EXPECT_NEAR_EIGEN(
       graph_gen_.cameras_
-          ->getCamera(SixDofPoseGraphGenerator::kVisualFrameIndex)
+          ->getCamera(vi_map::SixDofPoseGraphGenerator::kVisualFrameIndex)
           .getParameters(),
       Eigen::Vector4d(
           graph_gen_.fu_, graph_gen_.fv_, graph_gen_.cu_, graph_gen_.cv_),

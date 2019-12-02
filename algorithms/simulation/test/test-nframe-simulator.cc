@@ -3,6 +3,7 @@
 #include <vector>
 
 #include <Eigen/Core>
+#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/feature-descriptor-ref.h>
 #include <aslam/common/memory.h>
 #include <aslam/common/statistics/statistics.h>
@@ -43,7 +44,7 @@ class VisualNFrameSimulatorTest
     }
 
     // Create the camera rig.
-    camera_rig_ = aslam::NCamera::createTestNCamera(num_cameras_);
+    camera_rig_ = aslam::createTestNCamera(num_cameras_);
   }
   test_trajectory_gen::PathAndLandmarkSettings settings_;
   std::shared_ptr<test_trajectory_gen::GenericPathGenerator> path_generator_;

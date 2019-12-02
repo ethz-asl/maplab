@@ -19,6 +19,10 @@ DEFINE_double(
     ba_outlier_rejection_reprojection_error_other_mission_px, 400,
     "Reprojection error threshold in pixels for observations from missions"
     "the landmark is NOT stored in.");
+DEFINE_bool(
+    ba_hide_iterations_console_output, false,
+    "Define whether iterations should have output on verbosity level 0 or "
+    "not.");
 
 namespace map_optimization {
 

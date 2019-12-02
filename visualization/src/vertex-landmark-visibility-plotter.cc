@@ -108,8 +108,8 @@ void VertexLandmarkVisibilityPlotter::publishVertexRaysAndIterate(
   const size_t marker_id = viwls_vertex.getMissionId().hashToSizeT();
   visualization::publishLines(
       map_.getVertex_G_p_I(current_vertex_id_), p_G_fi, segment_colors, kAlpha,
-      kScale, marker_id, visualization::kDefaultMapFrame,
-      visualization::kDefaultNamespace, vertex_rays_topic_);
+      kScale, marker_id, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
+      vertex_rays_topic_);
 
   iterateVertexAlongGraph();
 }

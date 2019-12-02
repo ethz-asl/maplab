@@ -1,6 +1,7 @@
 #ifndef MESSAGE_FLOW_MESSAGE_FLOW_INL_H_
 #define MESSAGE_FLOW_MESSAGE_FLOW_INL_H_
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -50,7 +51,7 @@ void MessageFlow::registerSubscriber(
     // defines the function to which all messages of this queue are delivered
     // to.
     MessageDeliveryQueueId queue_id;
-    common::generateId(&queue_id);
+    aslam::generateId(&queue_id);
 
     MessageDeliveryQueueBasePtr& node_queue =
         subscriber_message_queues_[queue_id];

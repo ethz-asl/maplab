@@ -3,13 +3,11 @@ project(simulation)
 
 link_directories(${CATKIN_DEVEL_PREFIX}/lib)
 
-add_definitions(--std=c++11)
-
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
 set(PROTO_DEFNS proto/path-4d.proto)
-PROTOBUF_CATKIN_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
+PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 #############

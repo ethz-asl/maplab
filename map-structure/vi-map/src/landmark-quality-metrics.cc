@@ -81,8 +81,7 @@ bool isLandmarkWellConstrained(
 
     const pose::Transformation T_G_C =
         map.getVertex_T_G_I(backlink.frame_id.vertex_id) *
-        map.getSensorManager()
-            .getNCameraForMission(vertex.getMissionId())
+        map.getMissionNCamera(vertex.getMissionId())
             .get_T_C_B(backlink.frame_id.frame_index)
             .inverse();
 

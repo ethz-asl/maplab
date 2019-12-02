@@ -8,9 +8,12 @@
 #include <utility>
 #include <vector>
 
-#include <maplab-common/unique-id.h>
+#include <aslam/common/unique-id.h>
+#include <boost/variant.hpp>
 #include <opencv2/core.hpp>
 #include <resources-common/point-cloud.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/point_cloud2_iterator.h>
 #include <voxblox/core/esdf_map.h>
 #include <voxblox/core/occupancy_map.h>
 #include <voxblox/core/tsdf_map.h>
@@ -50,6 +53,8 @@ enum class ResourceType : int {
   kVoxbloxEsdfMap = 19,
   kVoxbloxOccupancyMap = 20,
   kPointCloudXYZI = 21,
+  kObjectInstanceBoundingBoxes = 22,
+  kObjectInstanceMasks = 23,
   kCount
 };
 
@@ -79,7 +84,9 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeNames = {
      /*kVoxbloxTsdfMap*/ "voxblox_tsdf_map",
      /*kVoxbloxEsdfMap*/ "voxblox_esdf_map",
      /*kVoxbloxOccupancyMap*/ "voxblox_occupancy_map",
-     /*kPointCloudXYZI*/ "point_cloud_w_intensity"}};
+     /*kPointCloudXYZI*/ "point_cloud_w_intensity",
+     /*kObjectInstanceBoundingBoxes*/ "object_instance_bounding_boxes",
+     /*kObjectInstanceMasks*/ "object_instance_masks"}};
 
 // NOTE: [ADD_RESOURCE_TYPE] Add suffix.
 const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
@@ -104,7 +111,9 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
      /*kVoxbloxTsdfMap*/ ".tsdf.voxblox",
      /*kVoxbloxEsdfMap*/ ".esdf.voxblox",
      /*kVoxbloxOccupancyMap*/ ".occupancy.voxblox",
-     /*kPointCloudXYZI*/ ".ply"}};
+     /*kPointCloudXYZI*/ ".ply",
+     /*kObjectInstanceBoundingBoxes*/ ".obj_instance_bboxes.proto",
+     /*kObjectInstanceMasks*/ ".obj_instance_mask.ppm"}};
 
 struct ResourceTypeHash {
   template <typename T>
@@ -143,6 +152,47 @@ template <>
 bool isSameResource(
     const resources::PointCloud& point_cloud_A,
     const resources::PointCloud& point_cloud_B);
+
+template <>
+bool isSameResource(
+    const resources::ObjectInstanceBoundingBoxes& bboxes_A,
+    const resources::ObjectInstanceBoundingBoxes& bboxes_B);
+
+typedef boost::variant<
+    sensor_msgs::PointCloud2ConstIterator<int8_t>,
+    sensor_msgs::PointCloud2ConstIterator<uint8_t>,
+    sensor_msgs::PointCloud2ConstIterator<int16_t>,
+    sensor_msgs::PointCloud2ConstIterator<uint16_t>,
+    sensor_msgs::PointCloud2ConstIterator<int32_t>,
+    sensor_msgs::PointCloud2ConstIterator<uint32_t>,
+    sensor_msgs::PointCloud2ConstIterator<float>,
+    sensor_msgs::PointCloud2ConstIterator<double>>
+    PointCloud2ConstIteratorVariant;
+
+class IntensityVisitor : public boost::static_visitor<float> {
+ public:
+  IntensityVisitor() {}
+  explicit IntensityVisitor(const std::size_t index) : index_(index) {}
+
+  template <typename T>
+  float operator()(sensor_msgs::PointCloud2ConstIterator<T>& it) const {
+    return static_cast<float>(*(it + index_));
+  }
+
+  std::size_t getIndex() const {
+    return index_;
+  }
+  std::size_t& getIndex() {
+    return index_;
+  }
+  IntensityVisitor& setIndex(const std::size_t index) {
+    index_ = index;
+    return *this;
+  }
+
+ private:
+  std::size_t index_;
+};
 
 }  // namespace backend
 

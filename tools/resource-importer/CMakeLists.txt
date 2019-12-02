@@ -10,5 +10,8 @@ cs_add_library(${PROJECT_NAME}_lib src/message-conversion.cc
 cs_add_executable(${PROJECT_NAME} role/resource-importer.cc)
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib)
 
+cs_install_scripts(scripts/import_resources_w_camera_info.sh
+                   scripts/import_resources_w_ncamera_yaml.sh)
+
 cs_install()
 cs_export()

@@ -6,13 +6,13 @@
 #include <aslam/cameras/distortion-fisheye.h>
 #include <aslam/common/hash-id.h>
 #include <aslam/common/memory.h>
+#include <aslam/common/unique-id.h>
 #include <aslam/frames/visual-frame.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <posegraph/unique-id.h>
 
 #include "vi-map/landmark.h"
@@ -66,6 +66,7 @@ class ViwlsGraph : public ::testing::Test {
 
   // Edge data:
   pose_graph::EdgeId id_;
+  aslam::SensorId sensor_id_;
   pose_graph::VertexId from_, to_;
   pose::Transformation T_A_B_;
   Eigen::Matrix<double, 6, 6> T_A_B_covariance_;
@@ -107,19 +108,20 @@ void ViwlsGraph::serializeAndDeserializeTrajectoryEdge() {
       trajectory_edge_->id(), trajectory_edge_proto_);
 }
 void ViwlsGraph::constructOdometryEdge() {
-  common::generateId(&id_);
-  common::generateId(&from_);
-  common::generateId(&to_);
+  aslam::generateId(&id_);
+  aslam::generateId(&sensor_id_);
+  aslam::generateId(&from_);
+  aslam::generateId(&to_);
   T_A_B_.setRandom();
   T_A_B_covariance_.setRandom();
   odo_edge_ = aligned_unique<vi_map::TransformationEdge>(
       vi_map::Edge::EdgeType::kOdometry, id_, from_, to_, T_A_B_,
-      T_A_B_covariance_);
+      T_A_B_covariance_, sensor_id_);
 }
 void ViwlsGraph::constructViwlsEdge() {
-  common::generateId(&id_);
-  common::generateId(&from_);
-  common::generateId(&to_);
+  aslam::generateId(&id_);
+  aslam::generateId(&from_);
+  aslam::generateId(&to_);
   imu_data_.resize(Eigen::NoChange, 20);
   imu_data_.setRandom();
   imu_timestamps_.resize(Eigen::NoChange, 20);
@@ -129,9 +131,9 @@ void ViwlsGraph::constructViwlsEdge() {
       id_, from_, to_, imu_timestamps_, imu_data_);
 }
 void ViwlsGraph::constructLoopclosureEdge() {
-  common::generateId(&id_);
-  common::generateId(&from_);
-  common::generateId(&to_);
+  aslam::generateId(&id_);
+  aslam::generateId(&from_);
+  aslam::generateId(&to_);
   T_A_B_.setRandom();
   T_A_B_covariance_.setRandom();
   switch_variable_ = 1.0;
@@ -141,9 +143,9 @@ void ViwlsGraph::constructLoopclosureEdge() {
       T_A_B_covariance_);
 }
 void ViwlsGraph::constructLaserEdge() {
-  common::generateId(&id_);
-  common::generateId(&from_);
-  common::generateId(&to_);
+  aslam::generateId(&id_);
+  aslam::generateId(&from_);
+  aslam::generateId(&to_);
   laser_data_xyzi_.resize(Eigen::NoChange, 20);
   laser_data_xyzi_.setRandom();
   laser_timestamps_ns_.resize(Eigen::NoChange, 20);
@@ -153,9 +155,9 @@ void ViwlsGraph::constructLaserEdge() {
       id_, from_, to_, laser_timestamps_ns_, laser_data_xyzi_);
 }
 void ViwlsGraph::constructTrajectoryEdge() {
-  common::generateId(&id_);
-  common::generateId(&from_);
-  common::generateId(&to_);
+  aslam::generateId(&id_);
+  aslam::generateId(&from_);
+  aslam::generateId(&to_);
   trajectory_G_T_I_pq_.resize(Eigen::NoChange, 20);
   trajectory_G_T_I_pq_.setRandom();
   trajectory_timestamps_ns_.resize(Eigen::NoChange, 20);
@@ -174,7 +176,7 @@ TEST_F(ViwlsGraph, OdometryEdgeSerializationTest) {
   EXPECT_EQ(to_, odo_edge_from_msg_->to());
   EXPECT_EQ(from_, odo_edge_from_msg_->from());
 
-  pose::Transformation tmp_quat = odo_edge_from_msg_->getT_A_B();
+  pose::Transformation tmp_quat = odo_edge_from_msg_->get_T_A_B();
   EXPECT_NEAR_EIGEN(
       T_A_B_.getTransformationMatrix(), tmp_quat.getTransformationMatrix(),
       1e-20);
@@ -203,12 +205,12 @@ TEST_F(ViwlsGraph, LoopclosureEdgeSerializationTest) {
   EXPECT_EQ(to_, loop_edge_from_msg_->to());
   EXPECT_EQ(from_, loop_edge_from_msg_->from());
 
-  pose::Transformation tmp_quat = loop_edge_from_msg_->getT_A_B();
+  pose::Transformation tmp_quat = loop_edge_from_msg_->get_T_A_B();
   EXPECT_NEAR_EIGEN(
       T_A_B_.getTransformationMatrix(), tmp_quat.getTransformationMatrix(),
       1e-20);
   Eigen::Matrix<double, 6, 6> tmp_cov =
-      loop_edge_from_msg_->getT_A_BCovariance();
+      loop_edge_from_msg_->get_T_A_B_Covariance();
   EXPECT_NEAR_EIGEN(T_A_B_covariance_, tmp_cov, 1e-20);
   EXPECT_EQ(loop_edge_from_msg_->getSwitchVariable(), switch_variable_);
 }

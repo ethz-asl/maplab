@@ -126,7 +126,7 @@ bool addLoopClosureEdge(
       FLAGS_lc_edge_covariance_scaler *
       aslam::TransformationCovariance::Identity();
   pose_graph::EdgeId loop_closure_edge_id;
-  common::generateId(&loop_closure_edge_id);
+  aslam::generateId(&loop_closure_edge_id);
   CHECK(loop_closure_edge_id.isValid());
 
   const aslam::Transformation T_Inn_G = T_G_Inn_ransac.inverse();

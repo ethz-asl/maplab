@@ -174,9 +174,7 @@ void computeDepthForStereoCamerasOfMission(
           << "' for stereo camera pair [" << first_camera_id << "/"
           << second_camera_id << "] of mission " << mission_id;
 
-  const vi_map::SensorManager& sensor_manager = vi_map->getSensorManager();
-  const aslam::NCamera& ncamera =
-      sensor_manager.getNCameraForMission(mission_id);
+  const aslam::NCamera& ncamera = vi_map->getMissionNCamera(mission_id);
 
   const size_t first_camera_idx = ncamera.getCameraIndex(first_camera_id);
   const aslam::Camera& first_camera = ncamera.getCamera(first_camera_idx);

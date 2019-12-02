@@ -81,7 +81,7 @@ void SlidingWindowPlotter::plotMissionWithSlidingWindow(
       sliding_window_landmarks_.end());
 
   visualization::publishSpheresAsPointCloud(
-      common_sphere_vector, visualization::kDefaultMapFrame, landmarks_topic_);
+      common_sphere_vector, FLAGS_tf_map_frame, landmarks_topic_);
 
   sliding_window_landmarks_.clear();
 }

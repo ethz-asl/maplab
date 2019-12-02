@@ -4,8 +4,6 @@ project(geometric_vision_algorithms)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-add_definitions(--std=c++11)
-
 cs_add_library(${PROJECT_NAME}
   src/five-point-pose-estimator.cc
   src/linear-triangulation.cc

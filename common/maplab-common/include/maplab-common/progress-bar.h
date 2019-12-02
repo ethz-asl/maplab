@@ -10,7 +10,8 @@ class ProgressBar {
  public:
   /// The number of elements defines the range of the progress bar,
   /// i.e. it corresponds to the number of elements to process.
-  explicit ProgressBar(size_t num_elements);
+  explicit ProgressBar(const size_t num_elements);
+  ProgressBar(const size_t verbosity_level, const size_t num_elements);
   virtual ~ProgressBar() {}
 
   /// Updates the progress bar given the current number of processed elements.
@@ -28,6 +29,7 @@ class ProgressBar {
 
   size_t num_elements_;
   size_t num_elements_processed_;
+  size_t verbosity_level_;
 };
 
 }  // namespace common

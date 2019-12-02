@@ -3,7 +3,7 @@
 VI_MAP=$1
 ROSBAG=$2
 TOPIC=$3
-NCAMERA_FILE=$4
+SENSOR_CALIBRATION_FILE=$4
 VI_MAP_OUT=$5
 
 rosrun resource_importer resource_importer \
@@ -13,4 +13,4 @@ rosrun resource_importer resource_importer \
   --resource_topic $TOPIC \
   --v=1 \
   --alsologtostderr \
-  --camera_calibration_file=$NCAMERA_FILE
+  --sensor_calibration_file=$SENSOR_CALIBRATION_FILE $@

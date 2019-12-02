@@ -20,18 +20,14 @@ void generateMap(vi_map::VIMap* map) {
   generateMap<EdgeType>(kNumberOfAdditionalVertices, map);
 }
 
-// Generates and adds some optional resources for each mission and adds
+// Generates and adds some sensor resources for each mission and adds
 // them to the map. In this process, the resources are serialized to disk.
-void generateOptionalSensorResourceAndAddToMap(vi_map::VIMap* map);
+void generateSensorResourceAndAddToMap(vi_map::VIMap* map);
 
-// Generates and adds some optional resource ids for each mission.
+// Generates and adds some sensor resource ids for each mission.
 // Does not create the resources themselves and hence also does not
 // add any resources to the map itself.
-void generateOptionalSensorResourceIdsAndAddToAllMissions(vi_map::VIMap* map);
-
-// Generates and adds random optional sensor data for each mission based on a
-// deterministic seed.
-void generateOptionalSensorDataAndAddToMap(vi_map::VIMap* map);
+void generateSensorResourceIdsAndAddToAllMissions(vi_map::VIMap* map);
 
 // Checks if the two given maps are equal.
 bool compareVIMap(const vi_map::VIMap& map_a, const vi_map::VIMap& map_b);

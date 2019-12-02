@@ -17,6 +17,30 @@
 
 namespace common {
 
+std::string getUniqueFolderName(const std::string& folder_name) {
+  std::string mutable_folder_name = folder_name;
+  std::string distinct_folder = folder_name;
+  if (folder_name.empty())
+    return distinct_folder;
+
+  // Delete trailing slash.
+  while (mutable_folder_name.size() > 1u && mutable_folder_name.back() == '/') {
+    mutable_folder_name.erase(mutable_folder_name.size() - 1u, 1u);
+  }
+
+  size_t counter = 0u;
+  while (common::fileExists(distinct_folder) ||
+         common::pathExists(distinct_folder)) {
+    distinct_folder = mutable_folder_name + "_" + std::to_string(++counter);
+    if (counter % 100u == 0u) {
+      LOG(WARNING) << "Cannot find unique folder name for path: '"
+                   << folder_name << "', current unique folder name attempt: '"
+                   << distinct_folder << "'";
+    }
+  }
+  return distinct_folder;
+}
+
 std::string generateDateString(const time_t* input_time) {
   tm* timeinfo = localtime(input_time);  // NOLINT
 
@@ -348,6 +372,9 @@ bool createPath(const std::string& path_to_create_input) {
     }
 
     if (!hasOnlyAsciiCharacters(current_directory)) {
+      LOG(ERROR) << "The directory '" << current_directory
+                 << "' contains non-ASCII characters! Cannot create path: '"
+                 << path_to_create_input << "'!";
       return false;
     }
 

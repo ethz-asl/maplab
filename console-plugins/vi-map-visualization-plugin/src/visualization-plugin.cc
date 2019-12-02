@@ -6,11 +6,9 @@
 #include <Eigen/Core>
 #include <aslam/common/time.h>
 #include <console-common/console.h>
-#include <map-manager/map-manager.h>
 #include <plotty/matplotlibcpp.hpp>
-#include <vi-map/vi-map.h>
 #include <visualization/landmark-observer-plotter.h>
-#include <visualization/visualizer.h>
+#include <visualization/resource-visualization.h>
 #include <visualization/viwls-graph-plotter.h>
 
 DECLARE_string(map_mission);
@@ -22,7 +20,7 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
   addCommand(
       {"visualize_raw_images"},
       [this]() -> int {
-        return visualizerCvMatResources(backend::ResourceType::kRawImage);
+        return visualizeCvMatResources(backend::ResourceType::kRawImage);
       },
       "Show mission fly-through of the raw image resources.",
       common::Processing::Sync);
@@ -30,7 +28,7 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
   addCommand(
       {"visualize_undistorted_images"},
       [this]() -> int {
-        return visualizerCvMatResources(
+        return visualizeCvMatResources(
             backend::ResourceType::kUndistortedImage);
       },
       "Show mission fly-through of the undistorted image resources.",
@@ -39,14 +37,14 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
   addCommand(
       {"visualize_raw_color_images"},
       [this]() -> int {
-        return visualizerCvMatResources(backend::ResourceType::kRawColorImage);
+        return visualizeCvMatResources(backend::ResourceType::kRawColorImage);
       },
       "Show mission fly-through of the raw color image resources.",
       common::Processing::Sync);
   addCommand(
       {"visualize_undistorted_color_images"},
       [this]() -> int {
-        return visualizerCvMatResources(
+        return visualizeCvMatResources(
             backend::ResourceType::kUndistortedColorImage);
       },
       "Show mission fly-through of the undistorted color image resources.",
@@ -55,7 +53,7 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
   addCommand(
       {"visualize_raw_depth_maps"},
       [this]() -> int {
-        return visualizerCvMatResources(backend::ResourceType::kRawDepthMap);
+        return visualizeCvMatResources(backend::ResourceType::kRawDepthMap);
       },
       "Show mission fly-through of the raw depth map resources.",
       common::Processing::Sync);
@@ -63,7 +61,7 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
   addCommand(
       {"visualize_optimized_depth_maps"},
       [this]() -> int {
-        return visualizerCvMatResources(
+        return visualizeCvMatResources(
             backend::ResourceType::kOptimizedDepthMap);
       },
       "Show mission fly-through of the optimized depth map resources.",
@@ -72,9 +70,51 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
   addCommand(
       {"visualize_disparity_maps"},
       [this]() -> int {
-        return visualizerCvMatResources(backend::ResourceType::kDisparityMap);
+        return visualizeCvMatResources(backend::ResourceType::kDisparityMap);
       },
       "Show mission fly-through of the disparity image resources.",
+      common::Processing::Sync);
+
+  addCommand(
+      {"visualize_raw_depth_map_pointclouds"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResource(
+            backend::ResourceType::kRawDepthMap);
+      },
+      "Publish all raw depth maps as point clouds.", common::Processing::Sync);
+
+  addCommand(
+      {"visualize_optimized_depth_map_pointclouds"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResource(
+            backend::ResourceType::kOptimizedDepthMap);
+      },
+      "Publish all optimized depth maps as point clouds.",
+      common::Processing::Sync);
+
+  addCommand(
+      {"visualize_xyz_pointclouds"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResource(
+            backend::ResourceType::kPointCloudXYZ);
+      },
+      "Publish all xyz point clouds.", common::Processing::Sync);
+
+  addCommand(
+      {"visualize_xyzi_pointclouds"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResource(
+            backend::ResourceType::kPointCloudXYZI);
+      },
+      "Publish all xyz + intesity point clouds.", common::Processing::Sync);
+
+  addCommand(
+      {"visualize_xyzrgbn_pointclouds"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResource(
+            backend::ResourceType::kPointCloudXYZRGBN);
+      },
+      "Publish all xyz + color + normal point clouds.",
       common::Processing::Sync);
 
   addCommand(
@@ -171,7 +211,7 @@ void VisualizationPlugin::plotVIStatesOfMission(
   plotty::show();
 }
 
-int VisualizationPlugin::visualizerCvMatResources(backend::ResourceType type) {
+int VisualizationPlugin::visualizeCvMatResources(backend::ResourceType type) {
   std::string selected_map_key;
   if (!getSelectedMapKeyIfSet(&selected_map_key)) {
     return common::kStupidUserError;
@@ -179,33 +219,40 @@ int VisualizationPlugin::visualizerCvMatResources(backend::ResourceType type) {
   vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
-  visualizer_.reset(new visualization::Visualizer(map.get()));
   switch (type) {
     case backend::ResourceType::kRawImage:
-      return visualizer_->visualizeCvMatResources(
-          backend::ResourceType::kRawImage);
     case backend::ResourceType::kUndistortedImage:
-      return visualizer_->visualizeCvMatResources(
-          backend::ResourceType::kUndistortedImage);
     case backend::ResourceType::kRawColorImage:
-      return visualizer_->visualizeCvMatResources(
-          backend::ResourceType::kRawColorImage);
     case backend::ResourceType::kUndistortedColorImage:
-      return visualizer_->visualizeCvMatResources(
-          backend::ResourceType::kUndistortedColorImage);
     case backend::ResourceType::kRawDepthMap:
-      return visualizer_->visualizeCvMatResources(
-          backend::ResourceType::kRawDepthMap);
     case backend::ResourceType::kOptimizedDepthMap:
-      return visualizer_->visualizeCvMatResources(
-          backend::ResourceType::kOptimizedDepthMap);
     case backend::ResourceType::kDisparityMap:
-      return visualizer_->visualizeCvMatResources(
-          backend::ResourceType::kDisparityMap);
+      return visualization::visualizeCvMatResources(*map, type);
     default:
-      LOG(FATAL) << "Non-compatible resource type found !";
+      LOG(FATAL)
+          << "'" << backend::ResourceTypeNames[static_cast<int>(type)]
+          << "' is not a cv::Mat resource and cannot be visualized using "
+          << "'visualizeCvMatResources()'!";
   }
   return common::kUnknownError;
+}
+
+int VisualizationPlugin::visualizeReprojectedDepthResource(
+    backend::ResourceType type) {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+  vi_map::VIMapManager map_manager;
+  const vi_map::VIMapManager::MapReadAccess map =
+      map_manager.getMapReadAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids;
+  getAllMissionIds(map, &mission_ids);
+
+  visualization::visualizeReprojectedDepthResource(type, mission_ids, *map);
+
+  return common::kSuccess;
 }
 
 int VisualizationPlugin::visualizeSensorExtrinsics() const {
@@ -215,28 +262,8 @@ int VisualizationPlugin::visualizeSensorExtrinsics() const {
   }
 
   vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapReadAccess map =
+  const vi_map::VIMapManager::MapReadAccess map =
       map_manager.getMapReadAccess(selected_map_key);
-
-  vi_map::MissionIdList mission_ids;
-  if (FLAGS_map_mission.empty()) {
-    map->getAllMissionIds(&mission_ids);
-    if (mission_ids.empty()) {
-      LOG(ERROR)
-          << "There are no missions available in the loaded map. Aborting.";
-      return common::kUnknownError;
-    }
-  } else {
-    vi_map::MissionId mission_id;
-    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
-    if (!mission_id.isValid()) {
-      LOG(ERROR) << "Mission ID invalid. Specify a valid mission id with "
-                    "--map_mission.";
-      return common::kUnknownError;
-    }
-    mission_ids.emplace_back(mission_id);
-  }
-  CHECK(!mission_ids.empty());
 
   visualization::ViwlsGraphRvizPlotter plotter;
   plotter.visualizeSensorExtrinsics(*map);
@@ -254,6 +281,31 @@ int VisualizationPlugin::visualizeLandmarkObserverRays() const {
       map_manager.getMapReadAccess(selected_map_key);
   const visualization::LandmarkObserverPlotter landmark_observer_plotter(*map);
   landmark_observer_plotter.visualizeClickedLandmarks();
+  return common::kSuccess;
+}
+
+int VisualizationPlugin::getAllMissionIds(
+    const vi_map::VIMapManager::MapReadAccess& map,
+    vi_map::MissionIdList* mission_ids) const {
+  if (FLAGS_map_mission.empty()) {
+    map->getAllMissionIds(mission_ids);
+    if (mission_ids->empty()) {
+      LOG(ERROR)
+          << "There are no missions available in the loaded map. Aborting.";
+      return common::kUnknownError;
+    }
+  } else {
+    vi_map::MissionId mission_id;
+    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
+    if (!mission_id.isValid()) {
+      LOG(ERROR) << "Mission ID invalid. Specify a valid mission id with "
+                    "--map_mission.";
+      return common::kUnknownError;
+    }
+    mission_ids->emplace_back(mission_id);
+  }
+  CHECK(!mission_ids->empty());
+
   return common::kSuccess;
 }
 

@@ -1,6 +1,7 @@
 #include "loop-closure-plugin/loop-closure-plugin.h"
 
 #include <console-common/console.h>
+#include <descriptor-projection/train-projection-matrix.h>
 #include <map-manager/map-manager.h>
 #include <posegraph/pose-graph.h>
 #include <posegraph/unique-id.h>
@@ -46,6 +47,26 @@ LoopClosurePlugin::LoopClosurePlugin(
       [this]() -> int { return alignMissionsForEvaluation(); },
       "Align and co-optimize missions without merging landmarks to "
       "perform localization evaluation.",
+      common::Processing::Sync);
+
+  addCommand(
+      {"train_projection_matrix"},
+      [this]() -> int {
+        std::string selected_map_key;
+        if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+          return common::kStupidUserError;
+        }
+        vi_map::VIMapManager map_manager;
+        vi_map::VIMapManager::MapWriteAccess map =
+            map_manager.getMapWriteAccess(selected_map_key);
+
+        descriptor_projection::TrainProjectionMatrix(*map);
+
+        return common::kSuccess;
+      },
+      "Train a new descriptor projection matrix based on the selected map. Use "
+      "--lc_projection_matrix_filename to specify the target file for the "
+      "projecton matrix.",
       common::Processing::Sync);
 
   addCommand(

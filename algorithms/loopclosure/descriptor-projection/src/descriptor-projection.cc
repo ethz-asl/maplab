@@ -117,7 +117,7 @@ void ProjectedImage::serialize(
 
   for (const vi_map::LandmarkId& landmark_id : landmarks) {
     CHECK(landmark_id.isValid());
-    common::proto::Id* proto_id = proto_projected_image->add_landmarks();
+    aslam::proto::Id* proto_id = proto_projected_image->add_landmarks();
     CHECK_NOTNULL(proto_id);
     landmark_id.serialize(proto_id);
   }

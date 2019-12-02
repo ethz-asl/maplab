@@ -8,7 +8,6 @@
 #include <aslam-serialization/visual-frame-serialization.h>
 #include <aslam/common/hash-id.h>
 #include <aslam/common/stl-helpers.h>
-#include <maplab-common/aslam-id-proto.h>
 #include <maplab-common/eigen-proto.h>
 #include <maplab-common/quaternion-math.h>
 
@@ -52,7 +51,7 @@ Vertex::Vertex(
 
   n_frame_.reset(new aslam::VisualNFrame(cameras));
   aslam::NFramesId n_frame_id;
-  common::generateId(&n_frame_id);
+  aslam::generateId(&n_frame_id);
   n_frame_->setId(n_frame_id);
 
   CHECK_EQ(img_points_distorted.cols(), descriptors.cols());
@@ -147,18 +146,20 @@ Vertex::Vertex(
 }
 
 Vertex::Vertex(const aslam::NCamera::Ptr cameras) {
+  aslam::generateId(&id_);
+
   CHECK(cameras != nullptr);
   n_frame_.reset(new aslam::VisualNFrame(cameras));
   observed_landmark_ids_.resize(n_frame_->getNumFrames());
 
   aslam::NFramesId n_frame_id;
-  common::generateId(&n_frame_id);
+  aslam::generateId(&n_frame_id);
   n_frame_->setId(n_frame_id);
 
   for (unsigned int i = 0; i < cameras->numCameras(); ++i) {
     int64_t timestamp = 0u;
     aslam::FrameId frame_id;
-    common::generateId(&frame_id);
+    aslam::generateId(&frame_id);
     aslam::VisualFrame::Ptr frame(new aslam::VisualFrame);
     frame->setId(frame_id);
     frame->setTimestampNanoseconds(timestamp);
@@ -180,6 +181,124 @@ Vertex::Vertex() {
   v_M_.setZero();
   accel_bias_.setZero();
   gyro_bias_.setZero();
+}
+
+Vertex* Vertex::cloneWithoutVisualNFrame() const {
+  Vertex* cloned_vertex = new Vertex();
+
+  // Copy non-vision related members.
+  cloned_vertex->id_ = id_;
+  cloned_vertex->mission_id_ = mission_id_;
+  cloned_vertex->T_M_I_ = T_M_I_;
+  cloned_vertex->v_M_ = v_M_;
+  cloned_vertex->accel_bias_ = accel_bias_;
+  cloned_vertex->gyro_bias_ = gyro_bias_;
+  cloned_vertex->incoming_edges_ = incoming_edges_;
+  cloned_vertex->outgoing_edges_ = outgoing_edges_;
+
+  // Check vertex state.
+  CHECK(cloned_vertex->id_.isValid());
+  CHECK(cloned_vertex->mission_id_.isValid());
+  return cloned_vertex;
+}
+
+Vertex* Vertex::cloneWithVisualNFrame(
+    const aslam::NCamera::Ptr ncamera_for_cloned_vertex) const {
+  CHECK(hasVisualNFrame())
+      << "This clone function is only applicable if this vertex has a "
+      << "VisualNFrame!";
+
+  Vertex* cloned_vertex = new Vertex();
+
+  // Copy non-vision related members.
+  cloned_vertex->id_ = id_;
+  cloned_vertex->mission_id_ = mission_id_;
+  cloned_vertex->T_M_I_ = T_M_I_;
+  cloned_vertex->v_M_ = v_M_;
+  cloned_vertex->accel_bias_ = accel_bias_;
+  cloned_vertex->gyro_bias_ = gyro_bias_;
+  cloned_vertex->incoming_edges_ = incoming_edges_;
+  cloned_vertex->outgoing_edges_ = outgoing_edges_;
+
+  // Copy vision related members.
+  cloned_vertex->observed_landmark_ids_ = observed_landmark_ids_;
+  cloned_vertex->landmarks_ = landmarks_;
+  cloned_vertex->resource_map_ = resource_map_;
+
+  // Verify that the camera of the other vertex and the new one are the same.
+  const aslam::NCamera& this_ncamera = *CHECK_NOTNULL(getNCameras().get());
+  CHECK(ncamera_for_cloned_vertex);
+  CHECK(this_ncamera.isEqual(*ncamera_for_cloned_vertex))
+      << "Cannot copy this vertex and assign a different camera model to the "
+      << "new vertex, because the visual measurements might not be compatible "
+      << "anymore!";
+
+  // Create new VisualNFrame based on existing sensor and the VisualNFrame of
+  // the other vertex.
+  cloned_vertex->n_frame_.reset(
+      new aslam::VisualNFrame(ncamera_for_cloned_vertex));
+  CHECK(
+      ncamera_for_cloned_vertex == cloned_vertex->n_frame_->getNCameraShared());
+  cloned_vertex->n_frame_->setId(getVisualNFrame().getId());
+  for (unsigned int camera_idx = 0u;
+       camera_idx < ncamera_for_cloned_vertex->numCameras(); ++camera_idx) {
+    const aslam::VisualFrame& this_frame = getVisualFrame(camera_idx);
+    aslam::VisualFrame::Ptr cloned_frame(new aslam::VisualFrame);
+    cloned_frame->setId(this_frame.getId());
+    cloned_frame->setTimestampNanoseconds(this_frame.getTimestampNanoseconds());
+    cloned_frame->setCameraGeometry(
+        ncamera_for_cloned_vertex->getCameraShared(camera_idx));
+
+    // Fill in measurements of other visualframe.
+    if (this_frame.hasKeypointMeasurements()) {
+      cloned_frame->setKeypointMeasurements(
+          this_frame.getKeypointMeasurements());
+    }
+    if (this_frame.hasKeypointMeasurementUncertainties()) {
+      cloned_frame->setKeypointMeasurementUncertainties(
+          this_frame.getKeypointMeasurementUncertainties());
+    }
+    if (this_frame.hasKeypointOrientations()) {
+      cloned_frame->setKeypointOrientations(
+          this_frame.getKeypointOrientations());
+    }
+    if (this_frame.hasKeypointScores()) {
+      cloned_frame->setKeypointScores(this_frame.getKeypointScores());
+    }
+    if (this_frame.hasKeypointScales()) {
+      cloned_frame->setKeypointScales(this_frame.getKeypointScales());
+    }
+    if (this_frame.hasDescriptors()) {
+      cloned_frame->setDescriptors(this_frame.getDescriptors());
+    }
+    if (this_frame.hasTrackIds()) {
+      cloned_frame->setTrackIds(this_frame.getTrackIds());
+    }
+    if (this_frame.hasRawImage()) {
+      cloned_frame->setRawImage(this_frame.getRawImage().clone());
+    }
+
+    // Verify landmark vs keypoint state.
+    size_t num_keypoints = cloned_frame->getNumKeypointMeasurements();
+    CHECK_EQ(
+        cloned_vertex->observed_landmark_ids_[camera_idx].size(),
+        num_keypoints);
+
+    cloned_vertex->n_frame_->setFrame(camera_idx, cloned_frame);
+  }
+
+  // Check vertex state.
+  CHECK(cloned_vertex->id_.isValid());
+  CHECK(cloned_vertex->mission_id_.isValid());
+  CHECK_EQ(
+      cloned_vertex->observed_landmark_ids_.size(),
+      ncamera_for_cloned_vertex->getNumCameras());
+  cloned_vertex->checkConsistencyOfVisualObservationContainers();
+  CHECK_EQ(
+      cloned_vertex->resource_map_.size(),
+      cloned_vertex->n_frame_->getNumFrames());
+
+  return cloned_vertex;
 }
 
 const pose_graph::VertexId& Vertex::id() const {
@@ -204,6 +323,7 @@ void Vertex::getOutgoingEdges(pose_graph::EdgeIdSet* edges) const {
   CHECK_NOTNULL(edges);
   *edges = outgoing_edges_;
 }
+
 void Vertex::getIncomingEdges(pose_graph::EdgeIdSet* edges) const {
   CHECK_NOTNULL(edges);
   *edges = incoming_edges_;
@@ -270,7 +390,7 @@ void Vertex::serialize(vi_map::proto::ViwlsVertex* proto) const {
   aslam::proto::VisualNFrame* proto_n_frame = proto->mutable_n_visual_frame();
   CHECK_EQ(static_cast<int>(num_frames), proto_n_frame->frames_size());
   for (unsigned int i = 0u; i < num_frames; ++i) {
-    google::protobuf::RepeatedPtrField<common::proto::Id>* proto_landmark_ids =
+    google::protobuf::RepeatedPtrField<aslam::proto::Id>* proto_landmark_ids =
         proto_n_frame->mutable_frames(i)->mutable_landmark_ids();
     proto_landmark_ids->Reserve(observed_landmark_ids_[i].size());
     for (const LandmarkId& landmark_id : observed_landmark_ids_[i]) {
@@ -294,10 +414,27 @@ void Vertex::serialize(vi_map::proto::ViwlsVertex* proto) const {
       }
     }
   }
+
+  // Serialize Absolute6DoFMeasurements
+  for (const Absolute6DoFMeasurement& measurement :
+       absolute_6dof_measurements_) {
+    vi_map::proto::Absolute6DoFMeasurement* absolute_6dof_proto_ptr =
+        proto->add_absolute_6dof_measurements();
+    measurement.getSensorId().serialize(
+        absolute_6dof_proto_ptr->mutable_sensor_id());
+    absolute_6dof_proto_ptr->set_timestamp_ns(
+        measurement.getTimestampNanoseconds());
+    common::eigen_proto::serialize(
+        measurement.get_T_G_S(), absolute_6dof_proto_ptr->mutable_t_g_s());
+    common::eigen_proto::serialize(
+        measurement.get_T_G_S_covariance(),
+        absolute_6dof_proto_ptr->mutable_t_g_s_covariance());
+  }
 }
 
 void Vertex::deserialize(
     const pose_graph::VertexId& vertex_id,
+
     const vi_map::proto::ViwlsVertex& proto) {
   CHECK(vertex_id.isValid());
   id_ = vertex_id;
@@ -359,6 +496,34 @@ void Vertex::deserialize(
             resource_id);
       }
     }
+  }
+
+  // Deserialize Absolute6DoFMeasurements
+  const size_t num_abs_6dof_measurements =
+      proto.absolute_6dof_measurements_size();
+  absolute_6dof_measurements_.clear();
+  absolute_6dof_measurements_.reserve(num_abs_6dof_measurements);
+  for (size_t i = 0; i < num_abs_6dof_measurements; ++i) {
+    const vi_map::proto::Absolute6DoFMeasurement& absolute_6dof_proto =
+        proto.absolute_6dof_measurements(i);
+
+    aslam::SensorId sensor_id;
+    sensor_id.deserialize(absolute_6dof_proto.sensor_id());
+
+    const int64_t timestamp_ns = absolute_6dof_proto.timestamp_ns();
+
+    aslam::Transformation T_G_S;
+    common::eigen_proto::deserialize(absolute_6dof_proto.t_g_s(), &T_G_S);
+
+    aslam::TransformationCovariance T_G_S_covariance;
+    common::eigen_proto::deserialize(
+        absolute_6dof_proto.t_g_s_covariance(), &T_G_S_covariance);
+
+    CHECK(sensor_id.isValid()) << "Absolute 6DoF measurement deserialized from "
+                               << "proto has an invalid sensor id!";
+
+    absolute_6dof_measurements_.emplace_back(
+        sensor_id, timestamp_ns, T_G_S, T_G_S_covariance);
   }
 }
 
@@ -532,6 +697,13 @@ int Vertex::determineNewObservedLandmarkIdVectorSize(
   }
 }
 
+void Vertex::removeObservedLandmarkIdList(const LandmarkId& landmark_id) {
+  CHECK(landmark_id.isValid());
+  LandmarkId invalid_id;
+  invalid_id.setInvalid();
+  updateIdInObservedLandmarkIdList(landmark_id, invalid_id);
+}
+
 void Vertex::expandVisualObservationContainersIfNecessary() {
   CHECK_EQ(n_frame_->getNumFrames(), observed_landmark_ids_.size());
   CHECK_EQ(n_frame_->getNumFrames(), n_frame_->getNumCameras());
@@ -594,57 +766,19 @@ size_t Vertex::discardUntrackedObservations() {
 
 void Vertex::updateIdInObservedLandmarkIdList(
     const LandmarkId& old_landmark_id, const LandmarkId& new_landmark_id) {
+  CHECK(old_landmark_id.isValid());
+  if (old_landmark_id == new_landmark_id) {
+    return;
+  }
   for (LandmarkIdList& landmark_ids : observed_landmark_ids_) {
     LandmarkIdList::iterator it_to_landmark =
         std::find(landmark_ids.begin(), landmark_ids.end(), old_landmark_id);
     while (it_to_landmark != landmark_ids.end()) {
       *it_to_landmark = new_landmark_id;
       it_to_landmark =
-          std::find(it_to_landmark, landmark_ids.end(), old_landmark_id);
+          std::find(++it_to_landmark, landmark_ids.end(), old_landmark_id);
     }
   }
-}
-
-std::string Vertex::getComparisonString(const Vertex& other) const {
-  if (operator==(other)) {
-    return "There is no difference between the given vertices!\n";
-  }
-
-  std::ostringstream ss;
-  ss << "This enumeration of differences may be incomplete!\n";
-
-  if (numFrames() != other.numFrames()) {
-    ss << "The amount of frames differs.\n";
-  }
-
-  if (observed_landmark_ids_ != other.observed_landmark_ids_) {
-    ss << "The observed landmark ids differ.\n";
-  }
-
-  // Important: Landmark operator == doesn't cover the observations!
-  if (landmarks_ != other.landmarks_) {
-    ss << "The store landmarks differ (amount, position).\n";
-  }
-  if (landmarks_.size() == other.landmarks_.size()) {
-    bool observations_differ = false;
-    for (size_t i = 0u; i < landmarks_.size(); ++i) {
-      if (landmarks_[i].getObservations() !=
-          other.landmarks_[i].getObservations()) {
-        observations_differ = true;
-        break;
-      }
-    }
-    if (observations_differ) {
-      ss << "The store landmark observations differ.\n";
-    }
-  }
-
-  // Epsilon-free comparison intended.
-  if (!(get_T_M_I() == other.get_T_M_I())) {
-    ss << "The poses differ.\n";
-  }
-
-  return ss.str();
 }
 
 void Vertex::checkConsistencyOfVisualObservationContainers() const {
@@ -759,6 +893,21 @@ void Vertex::getAllObservedLandmarkIds(
   *landmark_ids = observed_landmark_ids_;
 }
 
+size_t Vertex::getNumLandmarkObservations(const LandmarkId& landmark_id) const {
+  CHECK(landmark_id.isValid());
+  size_t num_observations = 0u;
+  for (const LandmarkIdList& landmark_ids : observed_landmark_ids_) {
+    LandmarkIdList::const_iterator it_to_landmark =
+        std::find(landmark_ids.cbegin(), landmark_ids.cend(), landmark_id);
+    while (it_to_landmark != landmark_ids.cend()) {
+      ++num_observations;
+      it_to_landmark =
+          std::find(++it_to_landmark, landmark_ids.cend(), landmark_id);
+    }
+  }
+  return num_observations;
+}
+
 void Vertex::forEachKeypoint(
     const std::function<void(const KeypointIdentifier&)>& action) const {
   KeypointIdentifier keypoint_identifier;
@@ -774,10 +923,9 @@ void Vertex::forEachKeypoint(
   }
 }
 
-void Vertex::forEachFrame(
-    const std::function<void(
-        const unsigned int frame_idx, const aslam::VisualFrame& frame)>& action)
-    const {
+void Vertex::forEachFrame(const std::function<void(
+                              const unsigned int frame_idx,
+                              const aslam::VisualFrame& frame)>& action) const {
   const size_t num_frames = numFrames();
   for (size_t frame_i = 0u; frame_i < num_frames; ++frame_i) {
     const aslam::VisualFrame& frame = getVisualFrame(frame_i);
@@ -897,5 +1045,32 @@ const Vertex::FrameResourceMap& Vertex::getFrameResourceMap() const {
 
 void Vertex::setFrameResourceMap(const FrameResourceMap& frame_resource_map) {
   resource_map_ = frame_resource_map;
+}
+
+size_t Vertex::getNumAbsolute6DoFMeasurements() const {
+  return absolute_6dof_measurements_.size();
+}
+
+bool Vertex::hasAbsolute6DoFMeasurements() const {
+  return !absolute_6dof_measurements_.empty();
+}
+
+const std::vector<Absolute6DoFMeasurement>&
+Vertex::getAbsolute6DoFMeasurements() const {
+  return absolute_6dof_measurements_;
+}
+
+std::vector<Absolute6DoFMeasurement>& Vertex::getAbsolute6DoFMeasurements() {
+  return absolute_6dof_measurements_;
+}
+
+void Vertex::addAbsolute6DoFMeasurement(
+    const Absolute6DoFMeasurement& measurement) {
+  CHECK(measurement.getTimestampNanoseconds() == getMinTimestampNanoseconds())
+      << "Before adding the Absolute6DoFMeasurement to a vertex, make sure "
+      << "it corresponds exactly to the vertex time or use IMU "
+      << "integration to adapt it accordingly!";
+  CHECK(measurement.isValid());
+  absolute_6dof_measurements_.push_back(measurement);
 }
 }  // namespace vi_map

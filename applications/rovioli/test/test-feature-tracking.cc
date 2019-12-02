@@ -2,6 +2,7 @@
 #include <condition_variable>
 #include <thread>
 
+#include <aslam/cameras/random-camera-generator.h>
 #include <gtest/gtest.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
@@ -27,7 +28,7 @@ class VioPipelineTest : public ::testing::Test {
 
  protected:
   virtual void SetUp() {
-    ncamera_ = aslam::NCamera::createTestNCamera(kNumCameras);
+    ncamera_ = aslam::createTestNCamera(kNumCameras);
     synchronizer_.reset(new ImuCameraSynchronizer(ncamera_));
     pipeline_.reset(new FeatureTracking(ncamera_, imu_sensor_));
     num_output_frames_ = 0;

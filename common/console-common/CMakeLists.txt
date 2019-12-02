@@ -21,6 +21,6 @@ target_link_libraries(${PROJECT_NAME} readline)
 cs_install()
 cs_export(CFG_EXTRAS create-console-plugin.cmake)
 
-catkin_add_env_hooks(40.console-plugin-common
+catkin_add_env_hooks(50.maplab-console-plugin-common
                      SHELLS sh
                      DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/env-hooks)

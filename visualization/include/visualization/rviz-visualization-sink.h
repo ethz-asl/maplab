@@ -10,6 +10,7 @@
 #include <image_transport/image_transport.h>
 #include <opencv2/core/core.hpp>
 #include <ros/ros.h>
+#include <voxblox/mesh/mesh.h>
 
 namespace visualization {
 
@@ -45,6 +46,13 @@ class RVizVisualizationSink {
   static inline RVizVisualizationSink& getInstance() {
     static RVizVisualizationSink instance;
     return instance;
+  }
+
+  static inline ros::NodeHandle& getNodeHandle() {
+    std::unique_ptr<ros::NodeHandle>& node_handle_ptr =
+        RVizVisualizationSink::getInstance().node_handle_;
+    CHECK(node_handle_ptr);
+    return *node_handle_ptr;
   }
 
  private:

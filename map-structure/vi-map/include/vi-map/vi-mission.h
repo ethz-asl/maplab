@@ -11,26 +11,26 @@
 #include <aslam/cameras/ncamera.h>
 #include <aslam/common/memory.h>
 #include <aslam/common/pose-types.h>
-#include <map-resources/optional-sensor-resources.h>
+#include <aslam/common/unique-id.h>
 #include <map-resources/resource-common.h>
+#include <map-resources/temporal-resource-id-buffer.h>
 #include <maplab-common/pose_types.h>
-#include <sensors/imu.h>
-#include <sensors/sensor.h>
 
 #include "vi-map/mission.h"
-#include "vi-map/optional-sensor-data.h"
 #include "vi-map/unique-id.h"
 #include "vi-map/vertex.h"
 
+// Forward declarations.
+namespace vi_map {
+class VIMap;
+class VIMissionSensorResourcesTest;
+}  // namespace vi_map
+
 namespace vi_map {
 
-// Used to shift vertex timestamps when user-defined mission ordering is used.
-const int64_t kFakeNumNanosecondsBetweenMissions = 864e11;  // 1 day.
-
-class VIMap;
-
 class VIMission : public Mission {
-  friend class MissionResourcesTest;
+  friend class VIMap;
+  friend class VIMissionSensorResourcesTest;
 
  public:
   MAPLAB_POINTER_TYPEDEFS(VIMission);
@@ -48,8 +48,18 @@ class VIMission : public Mission {
   inline bool operator==(const VIMission& lhs) const {
     bool is_same = true;
     is_same &= Mission::operator==(lhs);
-    is_same &= type_to_resource_id_map_ == lhs.type_to_resource_id_map_;
     is_same &= ordering_ == lhs.ordering_;
+
+    is_same &= ncamera_id_ == lhs.ncamera_id_;
+    is_same &= imu_id_ == lhs.imu_id_;
+    is_same &= lidar_id_ == lhs.lidar_id_;
+    is_same &= odometry_6dof_id_ == lhs.odometry_6dof_id_;
+    is_same &= loop_closure_id_ == lhs.loop_closure_id_;
+    is_same &= absolute_6dof_id_ == lhs.absolute_6dof_id_;
+
+    is_same &= type_to_resource_id_map_ == lhs.type_to_resource_id_map_;
+    is_same &= sensor_resources_ == lhs.sensor_resources_;
+
     return is_same;
   }
   inline bool operator!=(const VIMission& lhs) const {
@@ -57,123 +67,147 @@ class VIMission : public Mission {
   }
 
   void setOrdering(int ordering);
-
   int getOrdering() const;
+
+  void setNCameraId(const aslam::SensorId& ncamera_id);
+  void setImuId(const aslam::SensorId& imu_id);
+  void setLidarId(const aslam::SensorId& lidar_id);
+  void setOdometry6DoFSensor(const aslam::SensorId& odometry_6dof_id);
+  void setLoopClosureSensor(const aslam::SensorId& loop_closure_id);
+  void setAbsolute6DoFSensor(const aslam::SensorId& absolute_6dof_id);
+  void setWheelOdometrySensor(const aslam::SensorId& absolute_6dof_id);
+
+  // NOTE: These functions will check-fail if there is no such sensor associated
+  // with the mission. Use the hasNCamera and related functions below to check
+  // first!
+  const aslam::SensorId& getNCameraId() const;
+  const aslam::SensorId& getImuId() const;
+  const aslam::SensorId& getLidarId() const;
+  const aslam::SensorId& getOdometry6DoFSensor() const;
+  const aslam::SensorId& getLoopClosureSensor() const;
+  const aslam::SensorId& getAbsolute6DoFSensor() const;
+  const aslam::SensorId& getWheelOdometrySensor() const;
+
+  bool hasNCamera() const;
+  bool hasImu() const;
+  bool hasLidar() const;
+  bool hasOdometry6DoFSensor() const;
+  bool hasLoopClosureSensor() const;
+  bool hasAbsolute6DoFSensor() const;
+  bool hasWheelOdometrySensor() const;
 
   void serialize(vi_map::proto::Mission* proto) const;
   void deserialize(
       const vi_map::MissionId& mission_id, const vi_map::proto::Mission& proto);
 
-  std::string getComparisonString(const VIMission& other) const;
-
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  // Mission-set-based resources
-  // ===========================
+  // IDs of mission-set-associated resources
+  // =======================================
   // A set of missions can own a single resource of every type. Like all
   // resources, this data is serialized and deserialzed (with cache) upon
   // accessing the data.
-  // NOTE: The functions here are used to manage the resource ids
-  // that are associated with this specific mission and should not be called
-  // directly. They should only be used by the main accessors for this type of
-  // resource in the VIMap.
-
-  void getAllResourceIds(
+  // NOTE: Do not use these functions directly to modify the resource
+  // bookkeeping, use the interface in the VIMap instead.
+  void getAllMissionResourceIds(
       const backend::ResourceType& type,
       backend::ResourceIdSet* resource_ids) const;
 
-  void addResourceId(
+  void addMissionResourceId(
       const backend::ResourceId& resource_id,
       const backend::ResourceType& type);
 
-  void deleteResourceId(
+  void deleteMissionResourceId(
       const backend::ResourceId& resource_id,
       const backend::ResourceType& type);
 
-  // Optional sensor/camera resources
-  // ================================
-  // Timestamped resources that are only associated with a mission and an
-  // optional sensor or camera with extrinsics (stored in the VIMission). The
-  // optional here means that these sensors/cameras are not directly used for
-  // the main visual-inertial pose estimation. The main example is a color or
-  // depth camera that provides timestamped images/depth maps. These resources
-  // need to be timestamped based on a common clock, but not necessarily
-  // synchronized with the vertex timestamp. Like all resources, this data is
-  // serialized and deserialzed (with cache) upon accessing the data.
-  // NOTE: The functions here are used to manage the resource ids
-  // that are associated with this specific mission and should not be called
-  // directly. They should only be used by the main accessors for this type of
-  // resource in the VIMap.
+  // IDs of timestamp/sensor-associated resources
+  // ============================================
+  // Timestamped resources that are only associated with a mission and a sensor.
+  // These resources need to be timestamped based on a common clock, but not
+  // necessarily synchronized with the vertex timestamp. Like all resources,
+  // this data is serialized and deserialzed (with cache) upon accessing the
+  // data.
+  // NOTE: Do not use these functions directly to modify the resource
+  // bookkeeping, use the interface in the VIMap instead.
 
-  template <typename SensorId>
-  bool hasOptionalSensorResourceId(
-      const backend::ResourceType& type, const SensorId& camera_id,
+  bool hasSensorResourceId(
+      const backend::ResourceType& type, const aslam::SensorId& sensor_id,
       const int64_t timestamp_ns) const;
 
-  template <typename SensorId>
-  bool getOptionalSensorResourceId(
-      const backend::ResourceType& type, const SensorId& camera_id,
+  bool getSensorResourceId(
+      const backend::ResourceType& type, const aslam::SensorId& sensor_id,
       const int64_t timestamp_ns, backend::ResourceId* resource_id) const;
 
-  template <typename SensorId>
-  bool getClosestOptionalSensorResourceId(
-      const backend::ResourceType& type, const SensorId& camera_id,
+  bool getClosestSensorResourceId(
+      const backend::ResourceType& type, const aslam::SensorId& sensor_id,
       const int64_t timestamp_ns, const int64_t tolerance_ns,
       backend::StampedResourceId* stamped_resource_id) const;
 
-  template <typename SensorId>
-  bool findAllCloseOptionalSensorResources(
+  bool findAllCloseSensorResources(
       const backend::ResourceType& type, const int64_t timestamp_ns,
-      const int64_t tolerance_ns, std::vector<SensorId>* sensor_ids,
+      const int64_t tolerance_ns, std::vector<aslam::SensorId>* sensor_ids,
       std::vector<int64_t>* closest_timestamps_ns) const;
 
-  template <typename SensorId>
   const std::unordered_map<
       backend::ResourceType,
-      typename std::unordered_map<SensorId, backend::OptionalSensorResources>,
+      typename std::unordered_map<
+          aslam::SensorId, backend::TemporalResourceIdBuffer>,
       backend::ResourceTypeHash>&
-  getAllOptionalSensorResourceIds() const;
+  getAllSensorResourceIds() const;
+  std::unordered_map<
+      backend::ResourceType,
+      typename std::unordered_map<
+          aslam::SensorId, backend::TemporalResourceIdBuffer>,
+      backend::ResourceTypeHash>&
+  getAllSensorResourceIds();
 
-  template <typename SensorId>
-  void addOptionalSensorResourceId(
-      const backend::ResourceType& type, const SensorId& sensor_id,
+  const backend::TemporalResourceIdBuffer*
+  getAllSensorResourceIdsForSensorOfType(
+      const backend::ResourceType& type,
+      const aslam::SensorId& sensor_id) const;
+
+  void addSensorResourceId(
+      const backend::ResourceType& type, const aslam::SensorId& sensor_id,
       const backend::ResourceId& resource_id, const int64_t timestamp_ns);
 
-  // NOTE: When deleting optional camera resources will not clean up the list of
-  // optional cameras.
-  template <typename SensorId>
-  bool deleteOptionalSensorResourceId(
-      const backend::ResourceType& type, const SensorId& camera_id,
+  bool deleteSensorResourceId(
+      const backend::ResourceType& type, const aslam::SensorId& sensor_id,
       const int64_t timestamp_ns);
 
-  template <typename SensorId>
-  const backend::OptionalSensorResources*
-  getAllOptionalSensorResourceIdsForSensorOfType(
-      const backend::ResourceType& type, const SensorId& sensor_id) const;
+  backend::TemporalResourceIdBuffer*
+  getAllSensorResourceIdsForSensorOfTypeMutable(
+      const backend::ResourceType& type, const aslam::SensorId& sensor_id);
 
-  template <typename SensorId>
-  backend::OptionalSensorResources*
-  getAllOptionalSensorResourceIdsForSensorOfTypeMutable(
-      const backend::ResourceType& type, const SensorId& sensor_id);
+  const std::unordered_map<aslam::SensorId, backend::TemporalResourceIdBuffer>*
+  getAllSensorResourceIdsOfType(const backend::ResourceType& type) const;
 
-  template <typename SensorId>
-  const std::unordered_map<SensorId, backend::OptionalSensorResources>*
-  getAllOptionalSensorResourceIdsOfType(
-      const backend::ResourceType& type) const;
+  std::unordered_map<aslam::SensorId, backend::TemporalResourceIdBuffer>*
+  getAllSensorResourceIdsOfTypeMutable(const backend::ResourceType& type);
 
-  template <typename SensorId>
-  std::unordered_map<SensorId, backend::OptionalSensorResources>*
-  getAllOptionalSensorResourceIdsOfTypeMutable(
-      const backend::ResourceType& type);
+  void mergeAllSensorResources(const vi_map::VIMission& other);
 
  private:
   // A value used to order missions.
   int ordering_;
 
+  aslam::SensorId ncamera_id_;
+  aslam::SensorId imu_id_;
+  aslam::SensorId lidar_id_;
+  aslam::SensorId odometry_6dof_id_;
+  aslam::SensorId loop_closure_id_;
+  aslam::SensorId absolute_6dof_id_;
+  aslam::SensorId wheel_odometry_id_;
+
+  // This container stores a resource type to resource id mapping. It is uses to
+  // associate resources with a set of missions.
   backend::ResourceTypeToIdsMap type_to_resource_id_map_;
 
-  backend::ResourceTypeToCameraIdToResourcesMap optional_camera_resources_;
-  backend::ResourceTypeToSensorIdToResourcesMap optional_sensor_resources_;
+  // Sensor resources can be any data type supported by the resource system,
+  // which is associated with a sensor and a timestamp. This member here only
+  // associates the resource id with the mission while the data is stored in the
+  // resource system, i.e. to disk (with caching).
+  backend::ResourceTypeToSensorIdToResourcesMap sensor_resources_;
 };
 
 typedef std::unordered_map<MissionId, VIMission::UniquePtr> VIMissionMap;

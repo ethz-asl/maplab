@@ -4,8 +4,6 @@ project(csv_export)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-add_definitions(--std=c++11)
-
 SET(SRCS src/csv-export.cc)
 cs_add_library(${PROJECT_NAME} ${SRCS})
 

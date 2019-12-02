@@ -2,10 +2,11 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <aslam/cameras/random-camera-generator.h>
+#include <aslam/common/unique-id.h>
 #include <glog/logging.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <vi-map/check-map-consistency.h>
 #include <vi-map/pose-graph.h>
 #include <vi-map/vi-map.h>
@@ -17,7 +18,7 @@ class ViwlsGraph : public ::testing::Test {
   ViwlsGraph() {}
 
   virtual void SetUp() {
-    cameras_ = aslam::NCamera::createTestNCamera(1);
+    ncamera_template_ = aslam::createUniqueTestNCamera(1);
 
     addVertices();
     addStoreLandmarksAndKeypoints();
@@ -31,7 +32,7 @@ class ViwlsGraph : public ::testing::Test {
   vi_map::VIMap vi_map_;
   pose_graph::VertexIdList vertex_ids_;
 
-  aslam::NCamera::Ptr cameras_;
+  aslam::NCamera::UniquePtr ncamera_template_;
 
   static constexpr unsigned int kNumOfVertices = 5;
   static constexpr unsigned int kNumOfStoreLandmarks = 5;
@@ -47,13 +48,35 @@ void ViwlsGraph::addVertices() {
   vi_map::MissionId mission_id;
   generateId(&mission_id);
 
-  vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(cameras_));
+  vi_map::MissionBaseFrameId baseframe_id;
+  generateId(&baseframe_id);
+  vi_map::MissionBaseFrame mission_baseframe;
+  mission_baseframe.setId(baseframe_id);
+  vi_map_.mission_base_frames.emplace(baseframe_id, mission_baseframe);
+
+  vi_map::VIMission::UniquePtr mission(new vi_map::VIMission);
+  mission->setId(mission_id);
+  mission->setBaseFrameId(baseframe_id);
+
+  aslam::Transformation T_B_S_ncamera;
+  T_B_S_ncamera.setIdentity();
+  const aslam::SensorId& cam_sensor_id = ncamera_template_->getId();
+  vi_map_.sensor_manager_.addSensor<aslam::NCamera>(
+      aligned_unique<aslam::NCamera>(*ncamera_template_), cam_sensor_id,
+      T_B_S_ncamera);
+  mission->setNCameraId(cam_sensor_id);
+  vi_map_.missions.emplace(mission_id, std::move(mission));
+  aslam::NCamera::Ptr mission_ncamera =
+      vi_map_.getMissionNCameraPtr(mission_id);
+
+  vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(mission_ncamera));
   pose_graph::VertexId vertex_id;
   generateId(&vertex_id);
 
   vertex->setId(vertex_id);
   vertex->setMissionId(mission_id);
   vertex_ids_.push_back(vertex_id);
+  vi_map_.getMission(mission_id).setRootVertexId(vertex_ids_.front());
 
   aslam::VisualFrame::Ptr frame(new aslam::VisualFrame);
   Eigen::Matrix2Xd img_points_distorted;
@@ -63,45 +86,31 @@ void ViwlsGraph::addVertices() {
   uncertainties.resize(kNumOfKeypointsPerVertex);
   descriptors.resize(kDescriptorBytes, kNumOfKeypointsPerVertex);
   aslam::FrameId frame_id;
-  common::generateId(&frame_id);
+  aslam::generateId(&frame_id);
   frame->setId(frame_id);
   frame->setKeypointMeasurements(img_points_distorted);
   frame->setKeypointMeasurementUncertainties(uncertainties);
   frame->setDescriptors(descriptors);
-  frame->setCameraGeometry(cameras_->getCameraShared(kVisualFrameIndex));
+  frame->setCameraGeometry(mission_ncamera->getCameraShared(kVisualFrameIndex));
   vertex->getVisualNFrame().setFrame(kVisualFrameIndex, frame);
   CHECK_EQ(kNumCameras, vertex->numFrames());
-
-  vi_map::MissionBaseFrameId baseframe_id;
-  generateId(&baseframe_id);
-  vi_map::MissionBaseFrame mission_baseframe;
-  mission_baseframe.setId(baseframe_id);
-  vi_map_.mission_base_frames.emplace(baseframe_id, mission_baseframe);
-
-  vi_map::VIMission::UniquePtr mission(new vi_map::VIMission);
-  mission->setId(mission_id);
-  mission->setRootVertexId(vertex_ids_.front());
-  mission->setBaseFrameId(baseframe_id);
-  vi_map_.missions.emplace(mission_id, std::move(mission));
-
-  vi_map_.sensor_manager_.addNCamera(cameras_, mission_id);
-
   vi_map_.addVertex(std::move(vertex));
 
   for (unsigned int i = 1; i < kNumOfVertices; ++i) {
     pose_graph::VertexId vertex_id;
-    vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(cameras_));
+    vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(mission_ncamera));
     generateId(&vertex_id);
     vertex->setId(vertex_id);
     vertex->setMissionId(mission_id);
     aslam::VisualFrame::Ptr frame(new aslam::VisualFrame);
     aslam::FrameId frame_id;
-    common::generateId(&frame_id);
+    aslam::generateId(&frame_id);
     frame->setId(frame_id);
     frame->setKeypointMeasurements(img_points_distorted);
     frame->setKeypointMeasurementUncertainties(uncertainties);
     frame->setDescriptors(descriptors);
-    frame->setCameraGeometry(cameras_->getCameraShared(kVisualFrameIndex));
+    frame->setCameraGeometry(
+        mission_ncamera->getCameraShared(kVisualFrameIndex));
     vertex->getVisualNFrame().setFrame(kVisualFrameIndex, frame);
     CHECK_EQ(kNumCameras, vertex->numFrames());
 
@@ -114,10 +123,8 @@ void ViwlsGraph::addVertices() {
     Eigen::Matrix<int64_t, 1, Eigen::Dynamic> imu_timestamps;
     Eigen::Matrix<double, 6, Eigen::Dynamic> imu_data;
 
-    vi_map::ViwlsEdge::UniquePtr edge(
-        new vi_map::ViwlsEdge(
-            edge_id, vertex_ids_[i - 1], vertex_ids_[i], imu_timestamps,
-            imu_data));
+    vi_map::ViwlsEdge::UniquePtr edge(new vi_map::ViwlsEdge(
+        edge_id, vertex_ids_[i - 1], vertex_ids_[i], imu_timestamps, imu_data));
     vi_map_.addEdge(std::move(edge));
   }
 }
@@ -128,7 +135,7 @@ void ViwlsGraph::addStoreLandmarksAndKeypoints() {
 
   for (unsigned int i = 0; i < kNumOfStoreLandmarks; ++i) {
     vi_map::LandmarkId landmark_id;
-    common::generateId(&landmark_id);
+    aslam::generateId(&landmark_id);
 
     vi_map::Landmark store_landmark;
     store_landmark.setId(landmark_id);
@@ -164,7 +171,7 @@ TEST_F(ViwlsGraph, AddNewLandmarkTest) {
   CHECK(!vertex_ids_.empty());
 
   vi_map::LandmarkId landmark_id;
-  common::generateId(&landmark_id);
+  aslam::generateId(&landmark_id);
   vi_map::Landmark new_landmark;
   new_landmark.setId(landmark_id);
 
@@ -178,7 +185,7 @@ TEST_F(ViwlsGraph, AssociateKeypointWithExistingLandmarkTest) {
   CHECK(!vertex_ids_.empty());
 
   vi_map::LandmarkId landmark_id;
-  common::generateId(&landmark_id);
+  aslam::generateId(&landmark_id);
   vi_map::Landmark new_landmark;
   new_landmark.setId(landmark_id);
 
@@ -197,7 +204,7 @@ TEST_F(ViwlsGraph, AssociateDuplicateLandmarkTest) {
   CHECK(!vertex_ids_.empty());
 
   vi_map::LandmarkId landmark_id;
-  common::generateId(&landmark_id);
+  aslam::generateId(&landmark_id);
   vi_map::Landmark new_landmark;
   new_landmark.setId(landmark_id);
 
@@ -215,7 +222,7 @@ TEST_F(ViwlsGraph, AssociateLandmarkToAlreadyAssociatedKeypointTest) {
   CHECK(!vertex_ids_.empty());
 
   vi_map::LandmarkId landmark_id;
-  common::generateId(&landmark_id);
+  aslam::generateId(&landmark_id);
   vi_map::Landmark new_landmark;
   new_landmark.setId(landmark_id);
 
@@ -230,7 +237,7 @@ TEST_F(ViwlsGraph, AssociateToNonexistentVertexTest) {
   CHECK(!vertex_ids_.empty());
 
   vi_map::LandmarkId landmark_id;
-  common::generateId(&landmark_id);
+  aslam::generateId(&landmark_id);
   vi_map::Landmark new_landmark;
   new_landmark.setId(landmark_id);
 
@@ -247,7 +254,7 @@ TEST_F(ViwlsGraph, AssociateToWrongKeypointIndexTest) {
   CHECK(!vertex_ids_.empty());
 
   vi_map::LandmarkId landmark_id;
-  common::generateId(&landmark_id);
+  aslam::generateId(&landmark_id);
   vi_map::Landmark new_landmark;
   new_landmark.setId(landmark_id);
 

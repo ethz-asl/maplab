@@ -6,11 +6,12 @@
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-fisheye.h>
 #include <aslam/cameras/ncamera.h>
+#include <aslam/cameras/random-camera-generator.h>
+#include <aslam/common/unique-id.h>
 #include <aslam/frames/visual-frame.h>
 #include <glog/logging.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <vi-map/check-map-consistency.h>
 #include <vi-map/pose-graph.h>
 #include <vi-map/vi-map.h>
@@ -24,14 +25,14 @@ class ViwlsGraph : public ::testing::Test {
  protected:
   ViwlsGraph() {}
   virtual void SetUp() {
-    constructCamera();
+    addSensors();
     addVertices();
     addLandmarksAndKeypoints();
 
     CHECK(!landmark_ids_.empty());
   }
 
-  void constructCamera();
+  void addSensors();
   void addVertices();
   void addVisualFrameToVertex(vi_map::Vertex* vertex_ptr);
   void addLandmarksAndKeypoints();
@@ -41,7 +42,8 @@ class ViwlsGraph : public ::testing::Test {
   vi_map::LandmarkIdList landmark_ids_;
 
   vi_map::MissionId mission_id_;
-  aslam::NCamera::Ptr cameras_;
+  aslam::NCamera::Ptr ncamera_;
+  vi_map::Imu::Ptr imu_;
 
   static constexpr unsigned int kNumOfVertices = 20;
   static constexpr unsigned int kNumOfLandmarksPerStoreLandmark = 5;
@@ -56,8 +58,22 @@ class ViwlsGraph : public ::testing::Test {
 
 const unsigned int ViwlsGraph::kRandomSeed = 5u;
 
-void ViwlsGraph::constructCamera() {
-  cameras_ = aslam::NCamera::createTestNCamera(kNumCameras);
+void ViwlsGraph::addSensors() {
+  vi_map::Imu::UniquePtr imu = aligned_unique<vi_map::Imu>();
+  const aslam::SensorId imu_id = imu->getId();
+  vi_map_.getSensorManager().addSensorAsBase<vi_map::Imu>(std::move(imu));
+
+  aslam::NCamera::UniquePtr ncamera =
+      aslam::createUniqueTestNCamera(kNumCameras);
+  const aslam::SensorId ncamera_id = ncamera->getId();
+  aslam::Transformation T_B_Cn;
+  T_B_Cn.setIdentity();
+  vi_map_.getSensorManager().addSensor<aslam::NCamera>(
+      std::move(ncamera), imu_id, T_B_Cn);
+
+  imu_ = vi_map_.getSensorManager().getSensorPtr<vi_map::Imu>(imu_id);
+  ncamera_ =
+      vi_map_.getSensorManager().getSensorPtr<aslam::NCamera>(ncamera_id);
 }
 
 void ViwlsGraph::addVisualFrameToVertex(vi_map::Vertex* vertex_ptr) {
@@ -71,17 +87,16 @@ void ViwlsGraph::addVisualFrameToVertex(vi_map::Vertex* vertex_ptr) {
   uncertainties.resize(kNumOfKeypointsPerVertex);
   descriptors.resize(kDescriptorBytes, kNumOfKeypointsPerVertex);
   aslam::FrameId frame_id;
-  common::generateId(&frame_id);
+  aslam::generateId(&frame_id);
   frame->setId(frame_id);
   frame->setKeypointMeasurements(img_points_distorted);
   frame->setKeypointMeasurementUncertainties(uncertainties);
   frame->setDescriptors(descriptors);
-  frame->setCameraGeometry(cameras_->getCameraShared(kVisualFrameIndex));
+  frame->setCameraGeometry(ncamera_->getCameraShared(kVisualFrameIndex));
   vertex_ptr->getVisualNFrame().setFrame(kVisualFrameIndex, frame);
 }
 
 void ViwlsGraph::addVertices() {
-  CHECK(cameras_ != nullptr);
   vertex_ids_.clear();
 
   generateId(&mission_id_);
@@ -94,7 +109,7 @@ void ViwlsGraph::addVertices() {
   imu_timestamps.setRandom();
   imu_data.setRandom();
 
-  vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(cameras_));
+  vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(ncamera_));
   pose_graph::VertexId vertex_id;
   generateId(&vertex_id);
 
@@ -114,15 +129,17 @@ void ViwlsGraph::addVertices() {
   mission->setId(mission_id_);
   mission->setRootVertexId(vertex_ids_.front());
   mission->setBaseFrameId(baseframe_id);
+  CHECK(imu_);
+  mission->setImuId(imu_->getId());
+  CHECK(ncamera_);
+  mission->setNCameraId(ncamera_->getId());
   vi_map_.missions.emplace(mission_id_, std::move(mission));
-
-  vi_map_.sensor_manager_.addNCamera(cameras_, mission_id_);
 
   vi_map_.addVertex(std::move(vertex));
 
   for (unsigned int i = 1; i < kNumOfVertices; ++i) {
     pose_graph::VertexId vertex_id;
-    vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(cameras_));
+    vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(ncamera_));
     generateId(&vertex_id);
 
     vertex->setId(vertex_id);
@@ -133,10 +150,8 @@ void ViwlsGraph::addVertices() {
 
     pose_graph::EdgeId edge_id;
     generateId(&edge_id);
-    vi_map::ViwlsEdge::UniquePtr edge(
-        new vi_map::ViwlsEdge(
-            edge_id, vertex_ids_[i - 1], vertex_ids_[i], imu_timestamps,
-            imu_data));
+    vi_map::ViwlsEdge::UniquePtr edge(new vi_map::ViwlsEdge(
+        edge_id, vertex_ids_[i - 1], vertex_ids_[i], imu_timestamps, imu_data));
     vi_map_.addEdge(std::move(edge));
   }
 }
@@ -153,7 +168,7 @@ void ViwlsGraph::addLandmarksAndKeypoints() {
         vertex_ids_[distribution(generator)];
 
     vi_map::LandmarkId landmark_id;
-    common::generateId(&landmark_id);
+    aslam::generateId(&landmark_id);
     landmark_ids_.push_back(landmark_id);
 
     vi_map::Landmark store_landmark;
@@ -219,20 +234,17 @@ TEST_F(ViwlsGraph, NCameraTest) {
   vi_map::MissionId duplicated_mission_id;
   ASSERT_EQ(all_missions.size(), 2u);
 
-  const vi_map::SensorManager& sensor_manager = vi_map_.getSensorManager();
-
   // Check that all camera IDs in the map are unique.
   aslam::CameraIdSet all_camera_ids;
-  aslam::NCameraIdSet all_ncamea_ids;
+  aslam::NCameraIdSet all_ncamera_ids;
   for (const vi_map::MissionId& mission_id : all_missions) {
     if (mission_id != mission_id_) {
       duplicated_mission_id = mission_id;
     }
 
-    const aslam::NCamera& ncamera =
-        sensor_manager.getNCameraForMission(mission_id);
+    const aslam::NCamera& ncamera = vi_map_.getMissionNCamera(mission_id);
     EXPECT_TRUE(ncamera.getId().isValid());
-    EXPECT_TRUE(all_ncamea_ids.emplace(ncamera.getId()).second);
+    EXPECT_TRUE(all_ncamera_ids.emplace(ncamera.getId()).second);
     for (size_t i = 0; i < ncamera.numCameras(); ++i) {
       const aslam::Camera& camera = ncamera.getCamera(i);
       EXPECT_TRUE(camera.getId().isValid());
@@ -242,10 +254,9 @@ TEST_F(ViwlsGraph, NCameraTest) {
   ASSERT_TRUE(duplicated_mission_id.isValid());
 
   // Check other properties of the ncamera systems.
-  const aslam::NCamera& source_ncam =
-      sensor_manager.getNCameraForMission(mission_id_);
+  const aslam::NCamera& source_ncam = vi_map_.getMissionNCamera(mission_id_);
   const aslam::NCamera& duplicated_ncam =
-      sensor_manager.getNCameraForMission(duplicated_mission_id);
+      vi_map_.getMissionNCamera(duplicated_mission_id);
 
   ASSERT_EQ(source_ncam.getNumCameras(), duplicated_ncam.getNumCameras());
   // Check individual camera parameters.

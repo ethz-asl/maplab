@@ -72,7 +72,7 @@ void LocalizationSummaryMap::deserialize(
     // communicate with the loop-closure backend and the map.
     for (int i = 0; i < G_observer_position_.cols(); ++i) {
       pose_graph::VertexId vertex_id;
-      common::generateIdFromInt(hash_seed + i, &vertex_id);
+      aslam::generateIdFromInt(hash_seed + i, &vertex_id);
       CHECK(vertex_id_to_index_.insert(std::make_pair(vertex_id, i)).second)
           << "VertexId collision.";
     }
@@ -92,7 +92,7 @@ void LocalizationSummaryMap::deserialize(
 bool LocalizationSummaryMap::loadFromFolder(const std::string& folder_path) {
   // Generate a random id.
   LocalizationSummaryMapId summary_map_id;
-  common::generateId(&summary_map_id);
+  aslam::generateId(&summary_map_id);
   return loadFromFolder(summary_map_id, folder_path);
 }
 
@@ -169,7 +169,7 @@ void LocalizationSummaryMap::getAllObserverIds(
     pose_graph::VertexIdList* observer_ids) const {
   CHECK_NOTNULL(observer_ids);
   observer_ids->resize(vertex_id_to_index_.size());
-  for (const std::pair<pose_graph::VertexId, int>& value :
+  for (const std::pair<const pose_graph::VertexId, int>& value :
        vertex_id_to_index_) {
     CHECK_LT(value.second, static_cast<int>(observer_ids->size()));
     (*observer_ids)[value.second] = value.first;
@@ -180,7 +180,7 @@ void LocalizationSummaryMap::getAllLandmarkIds(
     vi_map::LandmarkIdList* landmark_ids) const {
   CHECK_NOTNULL(landmark_ids);
   landmark_ids->resize(landmark_id_to_landmark_index_.size());
-  for (const std::pair<vi_map::LandmarkId, int>& value :
+  for (const std::pair<const vi_map::LandmarkId, int>& value :
        landmark_id_to_landmark_index_) {
     CHECK_LT(value.second, static_cast<int>(landmark_ids->size()));
     (*landmark_ids)[value.second] = value.first;
@@ -223,7 +223,7 @@ void LocalizationSummaryMap::initializeLandmarkIds(int num_landmarks) {
   for (int i = 0; i < num_landmarks; ++i) {
     vi_map::LandmarkId landmark_id;
     const int id_seed = hash_seed + i;
-    common::generateIdFromInt(id_seed, &landmark_id);
+    aslam::generateIdFromInt(id_seed, &landmark_id);
     CHECK(
         landmark_id_to_landmark_index_.insert(std::make_pair(landmark_id, i))
             .second)

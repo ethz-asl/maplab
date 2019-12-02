@@ -1,0 +1,104 @@
+sensors:
+
+  - id: a1000000000000000000000000000000
+    sensor_type: IMU
+    description: "ADIS-16448 IMU"
+    topic: /versavis/imu
+    sigmas:
+      gyro_noise_density: 0.005
+      gyro_bias_random_walk_noise_density: 4e-06
+      acc_noise_density: 0.01
+      acc_bias_random_walk_noise_density: 0.0002
+    saturation_accel_max_mps2: 150
+    saturation_gyro_max_radps: 7.5
+    gravity_magnitude_mps2: 9.808083883386614
+
+  - id:                                    a2000000000000000000000000000000
+    sensor_type:                           ODOMETRY_6DOF
+    topic:                                 /odometry/maplab_odom_T_M_I
+    description:                           ROVIOLI in Odometry mode
+
+  - id:                                    a3000000000000000000000000000000
+    sensor_type:                           NCAMERA
+    topic:                                 ""
+    description:                           Blackfly S 1.6MP Color
+    T_G_B_fixed_covariance:
+      rows: 6
+      cols: 6
+      data:
+        - [0.1,0,0,0,0,0]
+        - [0,0.1,0,0,0,0]
+        - [0,0,0.1,0,0,0]
+        - [0,0,0,0.01,0,0]
+        - [0,0,0,0,0.01,0]
+        - [0,0,0,0,0,0.01]
+    cameras:
+      - camera:
+          id:                              a3100000000000000000000000000000
+          sensor_type:                     CAMERA
+          topic:                           /versavis/cam0/image_raw
+          description:                     Blackfly S 1.6MP Color
+          compressed:                      true
+          line-delay-nanoseconds:          0
+          image_height:                    540
+          image_width:                     720
+          type:                            pinhole
+          intrinsics:
+            rows:                          4
+            cols:                          1
+            data:
+              - 318.73739132187774
+              - 318.95604145370993
+              - 351.90895328993213
+              - 255.99257965925597
+          distortion:
+            type:                          equidistant
+            parameters:
+              rows:                        4
+              cols:                        1
+              data:
+                - -0.00414502871415524
+                - 0.012183745929739427
+                - -0.004413439153421488
+                - 0.0002330232286162408
+        T_C_B:
+          rows:                            4
+          cols:                            4
+          data:
+          - [-0.9981031304427652, -0.05775104491130888, -0.021329740082873912, -0.012377912985690924]
+          - [0.05808100117466933, -0.9981963405773562, -0.015187592321409425, 0.02820540934915673]
+          - [-0.020414169169942546, -0.016397636098696055, 0.9996571308341046, -0.02856244545626144]
+          - [0.0, 0.0, 0.0, 1.0]
+extrinsics:
+  - sensor_id:                             a3000000000000000000000000000000
+    base_sensor_id:                        a1000000000000000000000000000000
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1, 0, 0, 0]
+        - [0, 1, 0, 0]
+        - [0, 0, 1, 0]
+        - [0, 0, 0, 1]
+
+  - sensor_id:                             a1000000000000000000000000000000
+    base_sensor_id:                        a1000000000000000000000000000000
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1, 0, 0, 0]
+        - [0, 1, 0, 0]
+        - [0, 0, 1, 0]
+        - [0, 0, 0, 1]
+
+  - sensor_id:                             a2000000000000000000000000000000
+    base_sensor_id:                        a1000000000000000000000000000000
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1, 0, 0, 0]
+        - [0, 1, 0, 0]
+        - [0, 0, 1, 0]
+        - [0, 0, 0, 1]

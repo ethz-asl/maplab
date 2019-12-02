@@ -2,12 +2,22 @@
 
 #include <algorithm>
 
+#include <Eigen/Eigenvalues>
+#include <aslam/common/covariance-helpers.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <glog/logging.h>
+#include <minkindr_conversions/kindr_msg.h>
 #include <tf/LinearMath/Transform.h>
 #include <tf/transform_broadcaster.h>
 
 #include "visualization/color.h"
 #include "visualization/eigen-visualization.h"
+
+DEFINE_string(tf_map_frame, "map", "map tf frame name");
+DEFINE_string(tf_mission_frame, "mission", "mission tf frame name");
+DEFINE_string(tf_imu_frame, "imu", "imu tf frame name");
+DEFINE_string(tf_imu_refined_frame, "imu_refined", "refined imu tf frame name");
+DEFINE_string(vis_default_namespace, "maplab_rviz_namespace", "RVIZ namespace");
 
 namespace visualization {
 
@@ -282,9 +292,7 @@ void publishLines(
 
   double alpha = 1.0;
   if (!line_segments.empty()) {
-    marker.scale.x = line_segments[0].scale;
-    marker.scale.y = line_segments[0].scale;
-    marker.scale.z = line_segments[0].scale;
+    marker.scale.x = line_segments[0].scale;  // y and z are not used.
     alpha = line_segments[0].alpha;
   }
 
@@ -372,7 +380,7 @@ void publish3DPointsAsPointCloud(
   }
   CHECK_GE(alpha, 0.0);
   CHECK_LE(alpha, 1.0);
-  if (alpha == 0.0) {
+  if (alpha < 1e-6) {
     LOG(WARNING) << "Alpha is 0.0. The point cloud will be invisible.";
   }
   CHECK(ros::isInitialized())
@@ -442,7 +450,7 @@ void publish3DPointsAsSpheres(
   CHECK(!topic.empty());
   CHECK_GE(alpha, 0.0);
   CHECK_LE(alpha, 1.0);
-  if (alpha == 0.0) {
+  if (alpha < 1e-6) {
     LOG(WARNING) << "Alpha is 0.0. The spheres will be invisible.";
   }
   const size_t num_points = static_cast<size_t>(points.cols());
@@ -484,10 +492,11 @@ void publishLines(
   const size_t num_lines = points_from.cols();
   CHECK_GE(alpha, 0.0);
   CHECK_LE(alpha, 1.0);
-  if (alpha == 0.0) {
+  CHECK_GE(scale, 0.0);
+  if (alpha < 1e-6) {
     LOG(WARNING) << "Alpha is 0.0. The lines will be invisible.";
   }
-  if (scale == 0.0) {
+  if (scale < 1e-6) {
     LOG(WARNING) << "Scale is 0.0. The lines will be invisible.";
   }
 
@@ -523,7 +532,7 @@ void publishLines(
   }
   CHECK_GE(alpha, 0.0);
   CHECK_LE(alpha, 1.0);
-  if (alpha == 0.0) {
+  if (alpha < 1e-6) {
     LOG(WARNING) << "Alpha is 0.0. The lines will be invisible.";
   }
 
@@ -537,6 +546,75 @@ void publishLines(
   publishLines(
       points_from, points_to, colors, alpha, scale, marker_id, frame,
       name_space, topic);
+}
+
+void publishArrow(
+    const Arrow& arrow, size_t marker_id, const std::string& frame,
+    const std::string& name_space, const std::string& topic) {
+  CHECK(!topic.empty());
+
+  CHECK_GE(arrow.alpha, 0.0);
+  CHECK_LE(arrow.alpha, 1.0);
+  CHECK_GE(arrow.scale, 0.0);
+  if (arrow.alpha < 1e-6) {
+    LOG(WARNING) << "Alpha is 0.0. The arrow will be invisible.";
+  }
+  if (arrow.scale < 1e-6) {
+    LOG(WARNING) << "Scale is 0.0. The arrow will be invisible.";
+  }
+
+  visualization_msgs::Marker marker;
+  marker.id = marker_id;
+  marker.ns = name_space;
+
+  std_msgs::ColorRGBA color = commonColorToRosColor(arrow.color, arrow.alpha);
+  drawArrow(
+      arrow.from, arrow.to, color, arrow.scale * 0.1, arrow.scale * 0.2, 0,
+      &marker);
+
+  marker.header.frame_id = frame;
+  marker.header.stamp = ros::Time();
+
+  RVizVisualizationSink::publish<visualization_msgs::Marker>(topic, marker);
+}
+
+void publishArrows(
+    const ArrowVector& arrows, size_t marker_id, const std::string& frame,
+    const std::string& name_space, const std::string& topic) {
+  CHECK(!topic.empty());
+
+  visualization_msgs::MarkerArray marker_array;
+  marker_array.markers.resize(arrows.size());
+
+  for (uint16_t i = 0; i < arrows.size(); ++i) {
+    const Arrow& arrow = arrows[i];
+    visualization_msgs::Marker& marker = marker_array.markers[i];
+
+    CHECK_GE(arrow.alpha, 0.0);
+    CHECK_LE(arrow.alpha, 1.0);
+    CHECK_GE(arrow.scale, 0.0);
+    if (arrow.alpha < 1e-6) {
+      LOG(WARNING) << "Alpha is 0.0. The arrow will be invisible.";
+    }
+    if (arrow.scale < 1e-6) {
+      LOG(WARNING) << "Scale is 0.0. The arrow will be invisible.";
+    }
+
+    marker.id = marker_id + i;
+    marker.ns = name_space;
+
+    std_msgs::ColorRGBA color = commonColorToRosColor(arrow.color, arrow.alpha);
+    drawArrow(
+        arrow.from, arrow.to, color, (arrow.to - arrow.from).norm() * 0.05,
+        (arrow.to - arrow.from).norm() * 0.1,
+        (arrow.to - arrow.from).norm() * 0.2, &marker);
+
+    marker.header.frame_id = frame;
+    marker.header.stamp = ros::Time();
+  }
+
+  RVizVisualizationSink::publish<visualization_msgs::MarkerArray>(
+      topic, marker_array);
 }
 
 void publishNormals(
@@ -571,8 +649,8 @@ void publishNormals(
     rgba.a = 1.0;
 
     drawArrow(
-        p_G_p0.col(normal_idx), p_G_p1.col(normal_idx), rgba, kArrowDiameter,
-        &marker);
+        p_G_p0.col(normal_idx), p_G_p1.col(normal_idx), rgba,
+        kArrowDiameter * 0.1, kArrowDiameter * 0.2, 0, &marker);
 
     marker.header.frame_id = frame;
     marker.header.stamp = ros::Time::now();
@@ -614,9 +692,7 @@ void publishFilledBoxes(
       marker_wireframe.color =
           commonColorToRosColor(box.wireframe_color, box.wireframe_alpha);
 
-      marker_wireframe.scale.x = box.wireframe_width;
-      marker_wireframe.scale.y = box.wireframe_width;
-      marker_wireframe.scale.z = box.wireframe_width;
+      marker_wireframe.scale.x = box.wireframe_width;  // y and z are not used.
 
       geometry_msgs::Point vertex0;
       geometry_msgs::Point vertex1;
@@ -744,7 +820,8 @@ void publishSpheres(
 
   const double alpha = spheres[0].alpha;
   CHECK_GE(alpha, 0.0);
-  if (alpha == 0.0) {
+  CHECK_LE(alpha, 1.0);
+  if (alpha < 1e-6) {
     LOG(WARNING) << "0 alpha used for publishing a list of spheres. They will "
                     "all be invisible!";
   }
@@ -791,7 +868,7 @@ void publishMesh(
     const std::string& topic) {
   CHECK(!topic.empty());
   CHECK_GE(scale, 0.0);
-  if (scale == 0.0) {
+  if (scale < 1e-6) {
     LOG(WARNING) << "Scale is 0.0. The mesh will be invisible.";
   }
   CHECK(ros::isInitialized())
@@ -844,7 +921,7 @@ void publishMesh(
     const std::string& topic) {
   CHECK(!topic.empty());
   CHECK_GE(scale, 0.0);
-  if (scale == 0.0) {
+  if (scale < 1e-6) {
     LOG(WARNING) << "Scale is 0.0. The mesh will be invisible.";
   }
   CHECK(ros::isInitialized())
@@ -886,7 +963,7 @@ void publishTransformations(
   CHECK(!topic.empty());
   CHECK_GE(alpha, 0.0);
   CHECK_LE(alpha, 1.0);
-  if (alpha == 0.0) {
+  if (alpha < 1e-6) {
     LOG(WARNING) << "Alpha is 0.0. The transformations will be invisible.";
   }
   const size_t num_transformations = Ts.size();
@@ -919,7 +996,8 @@ void publishTransformations(
 
     drawArrow(
         T.getPosition(), T * (kArrowLength * Eigen::Vector3d::UnitZ()),
-        commonColorToRosColor(color, alpha), kArrowDiameter, &marker);
+        commonColorToRosColor(color, alpha), kArrowDiameter * 0.1,
+        kArrowDiameter * 0.2, 0, &marker);
   }
   RVizVisualizationSink::publish<visualization_msgs::MarkerArray>(
       topic, marker_array);
@@ -959,6 +1037,122 @@ void publishTF(
   static tf::TransformBroadcaster tf_br;
   tf_br.sendTransform(
       tf::StampedTransform(tf_transform, ros_time, frame_id, child_frame_id));
+}
+
+void makeRightHandedCoordinateSystem(
+    Eigen::Matrix3d* eigenvectors, Eigen::Vector3d* eigenvalues) {
+  CHECK_NOTNULL(eigenvectors);
+  CHECK_NOTNULL(eigenvalues);
+  // Note that sorting of eigenvalues may end up with left-hand coordinate
+  // system. So here we correctly sort it so that it does end up being
+  // righ-handed and normalised.
+  Eigen::Vector3d c0 = eigenvectors->block<3, 1>(0, 0);
+  c0.normalize();
+  Eigen::Vector3d c1 = eigenvectors->block<3, 1>(0, 1);
+  c1.normalize();
+  Eigen::Vector3d c2 = eigenvectors->block<3, 1>(0, 2);
+  c2.normalize();
+  Eigen::Vector3d cc = c0.cross(c1);
+  if (cc.dot(c2) < 0) {
+    (*eigenvectors) << c1, c0, c2;
+    double e = (*eigenvalues)[0];
+    (*eigenvalues)[0] = (*eigenvalues)[1];
+    (*eigenvalues)[1] = e;
+  } else {
+    (*eigenvectors) << c0, c1, c2;
+  }
+}
+
+void publishPoseCovariances(
+    const std::vector<aslam::Transformation>& T_G_B_vec,
+    const std::vector<aslam::TransformationCovariance>& B_cov_vec,
+    const Color& color, const std::string& frame, const std::string& name_space,
+    const std::string& topic) {
+  CHECK_EQ(T_G_B_vec.size(), B_cov_vec.size());
+  const size_t num_covariances = B_cov_vec.size();
+
+  visualization_msgs::MarkerArray marker_array;
+
+  for (size_t idx = 0u; idx < num_covariances; ++idx) {
+    const aslam::Transformation& T_G_B = T_G_B_vec[idx];
+    const aslam::TransformationCovariance& B_cov = B_cov_vec[idx];
+
+    aslam::TransformationCovariance G_cov = aslam::TransformationCovariance();
+    aslam::common::rotateCovariance(T_G_B, B_cov, &G_cov);
+
+    Eigen::Vector3d eigenvalues(Eigen::Vector3d::Identity());
+    Eigen::Matrix3d eigenvectors(Eigen::Matrix3d::Zero());
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(
+        G_cov.topLeftCorner<3, 3>());
+    // Compute eigenvectors and eigenvalues
+    if (eigensolver.info() == Eigen::Success) {
+      eigenvalues = eigensolver.eigenvalues();
+      eigenvectors = eigensolver.eigenvectors();
+    } else {
+      LOG(WARNING) << "Computing eigen decomposition of covariance matrix "
+                   << "failed. B_cov:\n"
+                   << B_cov << "\nG_cov:\n"
+                   << G_cov;
+      continue;
+    }
+
+    makeRightHandedCoordinateSystem(&eigenvectors, &eigenvalues);
+
+    Eigen::Vector3d scale;
+    scale << 2 * std::sqrt(eigenvalues[0]), 2 * std::sqrt(eigenvalues[1]),
+        2 * std::sqrt(eigenvalues[2]);
+
+    Eigen::Matrix3d R_B_E;
+    R_B_E << eigenvectors(0, 0), eigenvectors(0, 1), eigenvectors(0, 2),
+        eigenvectors(1, 0), eigenvectors(1, 1), eigenvectors(1, 2),
+        eigenvectors(2, 0), eigenvectors(2, 1), eigenvectors(2, 2);
+
+    const bool is_valid_rotation_matrix =
+        aslam::Transformation::Rotation::isValidRotationMatrix(
+            R_B_E, 1e-4 /*threshold*/);
+    const bool scale_has_nans = scale.hasNaN();
+
+    if (!is_valid_rotation_matrix || scale_has_nans) {
+      LOG(WARNING) << "Extracting the eigen basis from the covariance matrix "
+                   << "failed. B_Covariance(position): \n"
+                   << B_cov.topLeftCorner<3, 3>()
+                   << "\nG_Covariance(position): \n"
+                   << G_cov.topLeftCorner<3, 3>() << "\neigen values:\n"
+                   << eigenvalues << "\neigenvectors:\n"
+                   << eigenvectors << "\nReason:\n\tinvalid rotation: "
+                   << !is_valid_rotation_matrix
+                   << "\n\tscale has nans: " << scale_has_nans;
+      continue;
+    }
+
+    aslam::Transformation::Rotation q_B_E =
+        aslam::Transformation::Rotation::fromApproximateRotationMatrix(R_B_E);
+    aslam::Transformation::Position B_t_B_E;
+    B_t_B_E.setZero();
+    const aslam::Transformation T_B_E(q_B_E, B_t_B_E);
+
+    const aslam::Transformation T_G_E = T_G_B * T_B_E;
+
+    // create visualization marker
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = frame;
+    marker.header.stamp = ros::Time();
+    marker.ns = name_space;
+    marker.id = idx;
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.action = visualization_msgs::Marker::ADD;
+    tf::poseKindrToMsg(T_G_E, &marker.pose);
+
+    marker.scale.x = scale.x() * 2;
+    marker.scale.y = scale.y() * 2;
+    marker.scale.z = scale.z() * 2;
+
+    marker.color = commonColorToRosColor(color, 0.3 /*alpha*/);
+
+    marker_array.markers.push_back(marker);
+  }
+  RVizVisualizationSink::publish<visualization_msgs::MarkerArray>(
+      topic, marker_array);
 }
 
 }  // namespace visualization

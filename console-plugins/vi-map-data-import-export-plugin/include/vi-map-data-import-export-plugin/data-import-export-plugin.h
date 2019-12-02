@@ -5,6 +5,9 @@
 
 #include <console-common/console-plugin-base.h>
 #include <console-common/console.h>
+#include <vi-map/vi-map.h>
+#include <map-manager/map-manager.h>
+
 
 namespace data_import_export {
 

@@ -9,7 +9,6 @@
 #include <vi-map/vi-map.h>
 
 #include "pose-graph-manipulation-plugin/edge-manipulation.h"
-#include "pose-graph-manipulation-plugin/reset-wheel-odometry.h"
 
 DEFINE_string(edge_type, "", "Specify the edge type.");
 DEFINE_double(translation_std_dev_meters, -1.0,
@@ -33,13 +32,6 @@ namespace pose_graph_manipulation {
 PoseGraphManipulationPlugin::PoseGraphManipulationPlugin(
     common::Console* console) : common::ConsolePluginBase(console) {
   CHECK_NOTNULL(console);
-
-  addCommand(
-      {"rwot", "reset_vertex_poses_to_wheel_odometry_trajectory"},
-      [this]() -> int { return resetVertexPosesToWheelOdometryTrajectory(); },
-      "Resets the vertex poses by integrating the relative pose information "
-      "stored in the odometry edges of the pose graph.",
-      common::Processing::Sync);
 
   addCommand(
       {"aeu", "assign_edge_uncertainties"},
@@ -72,34 +64,6 @@ PoseGraphManipulationPlugin::PoseGraphManipulationPlugin(
       [this]() -> int { return artificiallyDisturbVertices(); },
       "Artificially disturbs vertices in all missions.",
       common::Processing::Sync);
-}
-
-int PoseGraphManipulationPlugin::resetVertexPosesToWheelOdometryTrajectory()
-const {
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapWriteAccess map =
-      map_manager.getMapWriteAccess(selected_map_key);
-
-  vi_map::MissionIdList mission_ids;
-  if (FLAGS_map_mission.empty()) {
-    map->getAllMissionIds(&mission_ids);
-  } else {
-    // Select mission.
-    vi_map::MissionId mission_id;
-    if (!map->hexStringToMissionIdIfValid(FLAGS_map_mission, &mission_id)) {
-      LOG(ERROR) << "The given mission id \"" << FLAGS_map_mission
-                 << "\" is not valid.";
-      return common::kStupidUserError;
-    }
-    mission_ids.emplace_back(mission_id);
-  }
-
-  return pose_graph_manipulation::resetVertexPosesToWheelOdometryTrajectory(
-      mission_ids, map.get());
 }
 
 int PoseGraphManipulationPlugin::assignEdgeUncertainties() {

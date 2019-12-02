@@ -3,7 +3,6 @@
 #include <map-manager/map-manager.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <vi-map-helpers/test/vi-map-landmark-quality-check.h>
 #include <vi-map/vi-map.h>
 #include <vi-mapping-test-app/vi-mapping-test-app.h>
 
@@ -54,38 +53,6 @@ TEST_F(ViMappingTest, TestLandmarkTriangulationEntireMap) {
   constexpr double kMinPassingLandmarkFraction = 0.99;
   test_app_.testIfLandmarksMatchReference(
       kPrecision, kMinPassingLandmarkFraction);
-}
-
-TEST_F(ViMappingTest, TestLandmarkQualityMetrics) {
-  corruptLandmarks();
-
-  vi_map::VIMap* map = test_app_.getMapMutable();
-  vi_map_helpers::checkLandmarkQualityInView(*map, 8359, 0, 0);
-
-  FLAGS_vi_map_landmark_quality_min_observation_angle_deg = 5;
-  FLAGS_vi_map_landmark_quality_min_observers = 4;
-  FLAGS_vi_map_landmark_quality_max_distance_from_closest_observer = 40;
-  FLAGS_vi_map_landmark_quality_min_distance_from_closest_observer = 0.05;
-
-  vi_map::MissionIdList mission_ids;
-  test_app_.getMapMutable()->getAllMissionIds(&mission_ids);
-  retriangulateLandmarks(mission_ids, map);
-  vi_map_helpers::checkLandmarkQualityInView(*map, 0, 6138, 2221);
-}
-
-TEST_F(ViMappingTest, TestLandmarkEvaluation) {
-  vi_map::VIMap* map = test_app_.getMapMutable();
-  vi_map_helpers::checkLandmarkQualityInView(*map, 8359, 0, 0);
-
-  FLAGS_vi_map_landmark_quality_min_observation_angle_deg = 5;
-  FLAGS_vi_map_landmark_quality_min_observers = 4;
-  FLAGS_vi_map_landmark_quality_max_distance_from_closest_observer = 40;
-  FLAGS_vi_map_landmark_quality_min_distance_from_closest_observer = 0.05;
-
-  vi_map::MissionIdList mission_ids;
-  test_app_.getMapMutable()->getAllMissionIds(&mission_ids);
-  retriangulateLandmarks(mission_ids, map);
-  vi_map_helpers::checkLandmarkQualityInView(*map, 0, 6138, 2221);
 }
 
 }  // namespace landmark_triangulation

@@ -79,8 +79,7 @@ TEST_P(RotationOnlyDetectorTest, testRotationOnlyDetector) {
     aslam::Camera::Ptr camera = std::shared_ptr<aslam::PinholeCamera>(
         new aslam::PinholeCamera(intrinsics, ru, rv));
     CHECK(camera);
-    aslam::CameraId cam_id;
-    cam_id.randomize();
+    aslam::CameraId cam_id = aslam::createRandomId<aslam::CameraId>();
     camera->setId(cam_id);
     camera_vector.push_back(camera);
 
@@ -92,10 +91,7 @@ TEST_P(RotationOnlyDetectorTest, testRotationOnlyDetector) {
   }
 
   // Construct the ID object.
-  aslam::NCameraId n_camera_id;
-
-  // Randomize the ID.
-  n_camera_id.randomize();
+  aslam::NCameraId n_camera_id = aslam::createRandomId<aslam::NCameraId>();
 
   // Generate the ncamera object.
   aslam::NCamera::Ptr n_camera;

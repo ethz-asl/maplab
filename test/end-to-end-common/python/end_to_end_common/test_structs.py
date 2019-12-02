@@ -19,6 +19,7 @@ class TestErrorStruct(object):
         self.orientation_rmse_rad = orientation_rmse_rad
         self.orientation_max_error_rad = -1
         self.orientation_min_error_rad = -1
+        self.axis_position_errors = []
 
     def set_position_errors(self, position_errors):
         self.position_mean_m = position_errors.mean

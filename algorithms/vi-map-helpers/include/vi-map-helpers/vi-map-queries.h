@@ -111,6 +111,12 @@ class VIMapQueries {
       int min_number_common_landmarks,
       pose_graph::VertexIdList* coobserver_vertex_ids) const;
 
+  // Parameter timestamp_difference may be a nullptr
+  bool getClosestVertexIdByTimestamp(
+      const uint64_t timestamp_ns, const uint64_t tolerance_ns,
+      pose_graph::VertexId* vertex_id,
+      uint64_t* timestamp_difference = nullptr);
+
   struct VertexCommonLandmarksCount {
     int in_common;
     pose_graph::VertexId vertex_id;

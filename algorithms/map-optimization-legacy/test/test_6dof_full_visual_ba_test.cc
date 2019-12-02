@@ -1,7 +1,6 @@
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-
-#include "map-optimization-legacy/test/6dof-pose-graph-gen.h"
+#include <vi-map/6dof-pose-graph-gen.h>
 
 namespace map_optimization_legacy {
 
@@ -10,7 +9,7 @@ class ViwlsGraph : public ::testing::Test {
   ViwlsGraph() {}
   virtual ~ViwlsGraph() {}
 
-  SixDofPoseGraphGenerator graph_gen_;
+  vi_map::SixDofPoseGraphGenerator graph_gen_;
 };
 
 TEST_F(ViwlsGraph, GeneratedTrajectoryFullVisualBundleAdj) {

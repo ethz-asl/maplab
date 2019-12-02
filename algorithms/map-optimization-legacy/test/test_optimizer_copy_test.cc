@@ -1,8 +1,9 @@
 #include <Eigen/Core>
+#include <aslam/cameras/random-camera-generator.h>
+#include <aslam/common/unique-id.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <vi-map/mission.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vertex.h>
@@ -16,7 +17,7 @@ class ViwlsGraph : public testing::Test {
   ViwlsGraph() : map_() {}
 
   virtual void SetUp() {
-    cameras_ = aslam::NCamera::createTestNCamera(1);
+    cameras_ = aslam::createTestNCamera(1);
   }
 
   void createMission();
@@ -46,7 +47,7 @@ class ViwlsGraph : public testing::Test {
 void ViwlsGraph::createMission() {
   vi_map::MissionBaseFrame mission_baseframe;
   vi_map::MissionBaseFrameId baseframe_id;
-  common::generateId(&baseframe_id);
+  aslam::generateId(&baseframe_id);
   mission_baseframe.setId(baseframe_id);
 
   mission_baseframe.set_p_G_M(Eigen::Matrix<double, 3, 1>::Zero());
@@ -54,7 +55,7 @@ void ViwlsGraph::createMission() {
 
   vi_map::MissionId mission_id;
   vi_map::VIMission::UniquePtr mission(new vi_map::VIMission);
-  common::generateId(&mission_id);
+  aslam::generateId(&mission_id);
   mission->setId(mission_id);
   mission->setBaseFrameId(baseframe_id);
 
@@ -78,7 +79,7 @@ void ViwlsGraph::createVertex() {
   pose_graph::VertexId vertex_id;
   vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(cameras_));
 
-  common::generateId(&vertex_id);
+  aslam::generateId(&vertex_id);
   vertex->setId(vertex_id);
   vertex->set_p_M_I(position);
   vertex->set_q_M_I(orientation);

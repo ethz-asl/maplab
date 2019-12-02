@@ -10,12 +10,12 @@
 #include <boost/bind.hpp>
 #include <maplab-common/accessors.h>
 #include <maplab-common/file-system-tools.h>
-#include <opencv2/highgui/highgui.hpp>
 #include <vio-common/rostopic-settings.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <image_transport/image_transport.h>
+#include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -47,6 +47,12 @@ DataSourceRosbag::DataSourceRosbag(
       rosbag_path_filename_(rosbag_path_filename),
       ros_topics_(ros_topics) {
   initialize();
+  if (FLAGS_imu_to_camera_time_offset_ns != 0) {
+    LOG(WARNING) << "You are applying a time offset between IMU and camera, be "
+                 << "aware that this will shift the image timestamps, which "
+                 << "means the published pose estimates will now correspond "
+                 << "these shifted timestamps!";
+  }
 }
 
 DataSourceRosbag::~DataSourceRosbag() {
@@ -91,7 +97,6 @@ void DataSourceRosbag::initialize() {
     all_topics.push_back(topic_idx_pair.first);
   }
   all_topics.push_back(ros_topics_.imu_topic);
-  all_topics.push_back(ros_topics_.absolute_pose_topic);
   all_topics.push_back(ros_topics_.gps_wgs_topic);
   all_topics.push_back(ros_topics_.gps_utm_topic);
 
@@ -157,9 +162,8 @@ void DataSourceRosbag::streamingWorker() {
           convertRosImageToMaplabImage(image_message, camera_idx);
 
       // Apply the IMU to camera time shift.
-      if (FLAGS_rovioli_imu_to_camera_time_offset_ns != 0) {
-        image_measurement->timestamp +=
-            FLAGS_rovioli_imu_to_camera_time_offset_ns;
+      if (FLAGS_imu_to_camera_time_offset_ns != 0) {
+        image_measurement->timestamp += FLAGS_imu_to_camera_time_offset_ns;
       }
 
       // Shift timestamps to start at 0.
@@ -182,6 +186,21 @@ void DataSourceRosbag::streamingWorker() {
           shiftByFirstTimestamp(&(imu_measurement->timestamp))) {
         VLOG(3) << "Publish IMU measurement...";
         invokeImuCallbacks(imu_measurement);
+      }
+    }
+
+    // Enqueue odometry messages
+    if (ros_topics_.wheel_odometry_topic_map.find(topic) !=
+        ros_topics_.wheel_odometry_topic_map.end()) {
+      nav_msgs::OdometryConstPtr odometry_msg =
+          message.instantiate<nav_msgs::Odometry>();
+      vio::OdometryMeasurement::Ptr odometry_measurement =
+          convertRosOdometryToOdometry(odometry_msg);
+
+      // Shift timestamps to start at 0.
+      if (!FLAGS_rovioli_zero_initial_timestamps ||
+          shiftByFirstTimestamp(&(odometry_measurement->timestamp))) {
+        invokeOdometryCallbacks(odometry_measurement);
       }
     }
 

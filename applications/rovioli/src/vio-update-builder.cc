@@ -40,13 +40,16 @@ void VioUpdateBuilder::processLocalizationResult(
     const vio::LocalizationResult::ConstPtr& localization_result) {
   CHECK(localization_result);
   std::lock_guard<std::mutex> lock(mutex_last_localization_state_);
-  switch (localization_result->localization_type) {
-    case vio::LocalizationResult::LocalizationMode::kGlobal:
-      last_localization_state_ = vio::LocalizationState::kLocalized;
+  switch (localization_result->localization_mode) {
+    case common::LocalizationMode::kGlobal:
+      last_localization_state_ = common::LocalizationState::kLocalized;
       break;
-    case vio::LocalizationResult::LocalizationMode::kMapTracking:
-      last_localization_state_ = vio::LocalizationState::kMapTracking;
+    case common::LocalizationMode::kMapTracking:
+      last_localization_state_ = common::LocalizationState::kMapTracking;
       break;
+    default:
+      LOG(FATAL) << "Unknown localization mode: "
+                 << static_cast<int>(localization_result->localization_mode);
   }
 }
 
@@ -106,10 +109,16 @@ void VioUpdateBuilder::findMatchAndPublish() {
   const RovioEstimate::ConstPtr& rovio_estimate_after_nframe =
       *it_rovio_estimate_after_nframe;
 
-  // Build VioUpdate.
-  vio::VioUpdate::Ptr vio_update = aligned_shared<vio::VioUpdate>();
+  // Build MapUpdate.
+  vio::MapUpdate::Ptr vio_update = aligned_shared<vio::MapUpdate>();
   vio_update->timestamp_ns = timestamp_nframe_ns;
-  vio_update->keyframe_and_imudata = oldest_unmatched_synced_nframe;
+  vio_update->keyframe = std::make_shared<vio::SynchronizedNFrame>(
+      oldest_unmatched_synced_nframe->nframe,
+      oldest_unmatched_synced_nframe->motion_wrt_last_nframe);
+  vio_update->imu_timestamps = oldest_unmatched_synced_nframe->imu_timestamps;
+  vio_update->imu_measurements =
+      oldest_unmatched_synced_nframe->imu_measurements;
+
   if (found_exact_match) {
     vio_update->vinode = rovio_estimate_before_nframe->vinode;
 
@@ -136,12 +145,13 @@ void VioUpdateBuilder::findMatchAndPublish() {
           &vio_update->T_G_M);
     }
   }
+
   vio_update->vio_state = vio::EstimatorState::kRunning;
-  vio_update->vio_update_type = vio::UpdateType::kNormalUpdate;
+  vio_update->map_update_type = vio::UpdateType::kNormalUpdate;
   {
     std::lock_guard<std::mutex> lock(mutex_last_localization_state_);
     vio_update->localization_state = last_localization_state_;
-    last_localization_state_ = vio::LocalizationState::kUninitialized;
+    last_localization_state_ = common::LocalizationState::kUninitialized;
   }
 
   // Publish VIO update.

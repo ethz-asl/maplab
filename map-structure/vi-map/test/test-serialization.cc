@@ -39,7 +39,7 @@ TEST(Serialization, SerializeMapWithOptionalCameraResources) {
   // This is needed to make sure the new resources are stored to some folder.
   test_map.setMapFolder(map_folder);
 
-  vi_map::test::generateOptionalSensorResourceAndAddToMap(&test_map);
+  vi_map::test::generateSensorResourceAndAddToMap(&test_map);
 
   // Serialize and deserialize.
   network::RawMessageDataList raw_data;

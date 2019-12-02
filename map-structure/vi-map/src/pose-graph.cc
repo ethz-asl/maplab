@@ -1,6 +1,7 @@
 #include "vi-map/pose-graph.h"
 
 #include <aslam/common/memory.h>
+#include <aslam/common/unique-id.h>
 #include <maplab-common/pose_types.h>
 
 #include "vi-map/vertex.h"
@@ -71,7 +72,7 @@ void PoseGraph::mergeNeighboringEdges<ViwlsEdge>(
   }
 
   pose_graph::EdgeId new_edge_id;
-  common::generateId(&new_edge_id);
+  aslam::generateId(&new_edge_id);
   const pose_graph::VertexId new_edge_to_vertex = edge_after_next_vertex.to();
 
   // Delete old edges, create and add the new one.
@@ -91,14 +92,14 @@ void PoseGraph::mergeNeighboringEdges<TransformationEdge>(
   CHECK_EQ(merge_into_vertex_id, edge_between_vertices.from());
   CHECK_EQ(edge_between_vertices.to(), edge_after_next_vertex.from());
 
-  const SensorId sensor_id = edge_between_vertices.getSensorId();
+  const aslam::SensorId& sensor_id = edge_between_vertices.getSensorId();
   CHECK_EQ(sensor_id, edge_after_next_vertex.getSensorId());
 
   const Edge::EdgeType edge_type = edge_between_vertices.getType();
   CHECK(edge_type == edge_after_next_vertex.getType());
 
   const aslam::Transformation T_merge_into_vertex_after_next_vertex =
-      edge_between_vertices.getT_A_B() * edge_after_next_vertex.getT_A_B();
+      edge_between_vertices.get_T_A_B() * edge_after_next_vertex.get_T_A_B();
 
   // Note: this is mathematically not correct, but corresponds to the use-case
   // of having fixed covariances.
@@ -106,7 +107,7 @@ void PoseGraph::mergeNeighboringEdges<TransformationEdge>(
       edge_between_vertices.get_T_A_B_Covariance_p_q();
 
   pose_graph::EdgeId new_edge_id;
-  common::generateId(&new_edge_id);
+  aslam::generateId(&new_edge_id);
 
   const pose_graph::VertexId new_edge_to_vertex = edge_after_next_vertex.to();
 

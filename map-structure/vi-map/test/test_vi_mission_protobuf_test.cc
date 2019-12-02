@@ -2,12 +2,13 @@
 #include <string>
 
 #include <Eigen/Core>
+#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/hash-id.h>
 #include <aslam/common/memory.h>
+#include <aslam/common/unique-id.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <posegraph/unique-id.h>
 
 #include "vi-map/unique-id.h"
@@ -22,8 +23,6 @@ class ViwlsGraph : public ::testing::Test {
   virtual void SetUp() {
     mission_id_.fromHexString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0");
     mission_base_frame_id.fromHexString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1");
-
-    n_camera_ = aslam::NCamera::createSurroundViewTestNCamera();
     back_bone_type_ = vi_map::Mission::BackBone::kOdometry;
   }
 
@@ -35,9 +34,7 @@ class ViwlsGraph : public ::testing::Test {
 
   vi_map::MissionId mission_id_;
   vi_map::MissionBaseFrameId mission_base_frame_id;
-  vi_map::ImuSigmas imu_sigmas_;
   vi_map::Mission::BackBone back_bone_type_;
-  aslam::NCamera::Ptr n_camera_;
 };
 
 void ViwlsGraph::serializeAndDeserialize() {

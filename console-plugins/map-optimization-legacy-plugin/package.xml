@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>map_optimization_legacy_plugin</name>
-  <version>0.0.0</version>
+  <version>2.2.0</version>
   <description>
     Vi map optimization plugin using the algorithms from the 
     map_optimization_legacy package. 

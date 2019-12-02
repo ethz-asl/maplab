@@ -48,10 +48,15 @@ struct MapTraits {
   static void deepCopy(const MapType& source_map, MapType* target_map) {
     CHECK_NOTNULL(target_map)->deepCopy(source_map);
   }
-  static void mergeTwoMaps(
+  static bool mergeTwoMaps(
       const MapType& source_map_merge_from, MapType* map_merge_base) {
-    CHECK_NOTNULL(map_merge_base)
+    return CHECK_NOTNULL(map_merge_base)
         ->mergeAllMissionsFromMap(source_map_merge_from);
+  }
+  static bool mergeSubmapIntoBaseMap(
+      const MapType& source_merge_submap, MapType* source_merge_base_map) {
+    return CHECK_NOTNULL(source_merge_base_map)
+        ->mergeAllSubmapsFromMap(source_merge_submap);
   }
 
   // Save/load.
@@ -103,7 +108,8 @@ struct MapTraits {
 template <typename MapType>
 struct MapInterface {
   virtual void deepCopy(const MapType& other) = 0;
-  virtual void mergeAllMissionsFromMap(const MapType& other) = 0;
+  virtual bool mergeAllMissionsFromMap(const MapType& other) = 0;
+  virtual bool mergeAllSubmapsFromMap(const MapType& other) = 0;
   virtual bool loadFromFolder(const std::string& folder_path) = 0;
   virtual bool saveToFolder(
       const std::string& folder_path, const SaveConfig& config) = 0;

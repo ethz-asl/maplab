@@ -172,7 +172,7 @@ void OptimizationProblem::applyGaugeFixesForInitialVertices(
         new std::vector<MissionClusterGaugeFixes>(
             mission_coobservation_clusters_.size()));
   }
-  LOG(INFO) << message.str();
+  VLOG(2) << message.str();
 
   *problem_books_.cluster_gauge_fixes_initial_vertex = new_cluster_fixes;
 }

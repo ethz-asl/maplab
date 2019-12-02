@@ -17,13 +17,15 @@
 #include "visualization/rviz-visualization-sink.h"
 #include "visualization/viz-primitives.h"
 
+DECLARE_string(tf_map_frame);
+DECLARE_string(tf_mission_frame);
+DECLARE_string(tf_imu_frame);
+DECLARE_string(tf_imu_refined_frame);
+DECLARE_string(vis_default_namespace);
+
 namespace visualization {
 
 static const std::string kViMapTopicHead = "vi_map";
-static const std::string kDefaultMapFrame = "map";
-static const std::string kDefaultMissionFrame = "mission";
-static const std::string kDefaultImuFrame = "imu";
-static const std::string kDefaultNamespace = "aslam_map_manager";
 
 typedef Aligned<std::vector, Eigen::Vector3d> Vector3dList;
 
@@ -57,6 +59,14 @@ void publishLines(
     size_t marker_id, const std::string& frame, const std::string& name_space,
     const std::string& topic);
 
+void publishArrow(
+    const Arrow& arrow, size_t marker_id, const std::string& frame,
+    const std::string& name_space, const std::string& topic);
+
+void publishArrows(
+    const ArrowVector& arrows, size_t marker_id, const std::string& frame,
+    const std::string& name_space, const std::string& topic);
+
 void publishVerticesFromPoseVector(
     const PoseVector& poses, const std::string& frame,
     const std::string& name_space, const std::string& topic);
@@ -68,6 +78,12 @@ void publish3DPointsAsPointCloud(
 void publish3DPointsAsPointCloud(
     const Eigen::Matrix3Xf& points, const Eigen::VectorXf& intensities,
     const std::string& frame, const std::string& topic);
+
+void publishPoseCovariances(
+    const std::vector<aslam::Transformation>& T_G_B_vec,
+    const std::vector<aslam::TransformationCovariance>& B_cov_vec,
+    const Color& color, const std::string& frame, const std::string& name_space,
+    const std::string& topic);
 
 void publishSpheresAsPointCloud(
     const SphereVector& spheres, const std::string& frame,
@@ -83,9 +99,8 @@ void publishSpheres(
     const std::string& name_space, const std::string& topic);
 
 void publishNormals(
-    const Eigen::Matrix3Xd& p_G_p0, const Eigen::Matrix3Xd& bearings,
-    const std::string& frame, const std::string& name_space,
-    const std::string& topic);
+    const Color& color, unsigned int marker_id, const std::string& frame,
+    const std::string& name_space, const std::string& topic);
 
 void publishFilledBoxes(
     const FilledBoxVector& boxes, const std::vector<size_t>& box_marker_ids,

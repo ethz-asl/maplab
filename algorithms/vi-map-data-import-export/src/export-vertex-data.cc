@@ -1,34 +1,38 @@
 #include "vi-map-data-import-export/export-vertex-data.h"
 
+#include <aslam/common/unique-id.h>
 #include <console-common/command-registerer.h>
 #include <glog/logging.h>
 #include <maplab-common/file-logger.h>
 #include <maplab-common/progress-bar.h>
-#include <sensors/sensor.h>
+#include <sensors/sensor-types.h>
 #include <vi-map/vi-map.h>
 
 namespace data_import_export {
 
 char convertSensorTypeToFrameIdentifier(const vi_map::SensorType sensor_type) {
   switch (sensor_type) {
+    case vi_map::SensorType::kNCamera:
+    case vi_map::SensorType::kCamera:
+      return 'C';
+      break;
     case vi_map::SensorType::kImu:
       return 'I';
       break;
-    case vi_map::SensorType::kRelative6DoFPose:
+    case vi_map::SensorType::kLoopClosureSensor:
     case vi_map::SensorType::kGpsUtm:
     case vi_map::SensorType::kGpsWgs:
+    case vi_map::SensorType::kWheelOdometry:
+    case vi_map::SensorType::kAbsolute6DoF:
       return 'B';
-      break;
-    case vi_map::SensorType::kLidar:
-      return 'L';
       break;
     default:
       LOG(FATAL) << "Unknown sensor type: " << static_cast<int>(sensor_type);
       break;
   }
+
   return '\0';
 }
-
 
 int exportPosesVelocitiesAndBiasesToCsv(
     const vi_map::VIMap& map, const vi_map::MissionIdList& mission_ids,
@@ -59,24 +63,26 @@ int exportPosesVelocitiesAndBiasesToCsv(
             << pose_export_file;
 
   const std::string kDelimiter = ", ";
+  const std::string kSensorFrameIdentifier =
+      std::string(1, sensor_frame_identifier);
   csv_file.writeDataWithDelimiterAndNewLine(
       kDelimiter, "# timestamp [ns]", "vertex-id", "mission-id",
-      "p_G_" + std::to_string(sensor_frame_identifier) + "x [m]",
-      "p_G_" + std::to_string(sensor_frame_identifier) + "y [m]",
-      "p_G_" + std::to_string(sensor_frame_identifier) + "z [m]",
-      "q_G_" + std::to_string(sensor_frame_identifier) + "w",
-      "q_G_" + std::to_string(sensor_frame_identifier) + "x",
-      "q_G_" + std::to_string(sensor_frame_identifier) + "y",
-      "q_G_" + std::to_string(sensor_frame_identifier) + "z",
-      "p_M_" + std::to_string(sensor_frame_identifier) + "x [m]",
-      "p_M_" + std::to_string(sensor_frame_identifier) + "y [m]",
-      "p_M_" + std::to_string(sensor_frame_identifier) + "z [m]",
-      "q_M_" + std::to_string(sensor_frame_identifier) + "w",
-      "q_M_" + std::to_string(sensor_frame_identifier) + "x",
-      "q_M_" + std::to_string(sensor_frame_identifier) + "y",
-      "q_M_" + std::to_string(sensor_frame_identifier) + "z", "v_Mx [m/s]",
-      "v_My [m/s]", "v_Mz [m/s]", "bgx [rad/s]", "bgy [rad/s]", "bgz [rad/s]",
-      "bax [m/s^2]", "bay [m/s^2]", "baz [m/s^2]");
+      "p_G_" + kSensorFrameIdentifier + "x [m]",
+      "p_G_" + kSensorFrameIdentifier + "y [m]",
+      "p_G_" + kSensorFrameIdentifier + "z [m]",
+      "q_G_" + kSensorFrameIdentifier + "w",
+      "q_G_" + kSensorFrameIdentifier + "x",
+      "q_G_" + kSensorFrameIdentifier + "y",
+      "q_G_" + kSensorFrameIdentifier + "z",
+      "p_M_" + kSensorFrameIdentifier + "x [m]",
+      "p_M_" + kSensorFrameIdentifier + "y [m]",
+      "p_M_" + kSensorFrameIdentifier + "z [m]",
+      "q_M_" + kSensorFrameIdentifier + "w",
+      "q_M_" + kSensorFrameIdentifier + "x",
+      "q_M_" + kSensorFrameIdentifier + "y",
+      "q_M_" + kSensorFrameIdentifier + "z", "v_Mx [m/s]", "v_My [m/s]",
+      "v_Mz [m/s]", "bgx [rad/s]", "bgy [rad/s]", "bgz [rad/s]", "bax [m/s^2]",
+      "bay [m/s^2]", "baz [m/s^2]");
 
   for (const pose_graph::VertexId& vertex_id : vertex_ids) {
     CHECK(vertex_id.isValid());
@@ -105,26 +111,24 @@ int exportPosesVelocitiesAndBiasesToCsv(
         gyro_bias[0], gyro_bias[1], gyro_bias[2], acc_bias[0], acc_bias[1],
         acc_bias[2]);
   }
+
   return common::kSuccess;
 }
 
 int exportPosesVelocitiesAndBiasesToCsv(
     const vi_map::VIMap& map, const vi_map::MissionIdList& mission_ids,
-    const vi_map::SensorId& reference_sensor_id,
+    const aslam::SensorId& reference_sensor_id,
     const std::string& pose_export_file) {
   CHECK(reference_sensor_id.isValid());
+
   const vi_map::SensorManager& sensor_manager = map.getSensorManager();
   const vi_map::SensorType sensor_type =
-      sensor_manager.getSensor(reference_sensor_id).getSensorType();
-  CHECK(sensor_type != vi_map::SensorType::kInvalidSensor);
+      sensor_manager.getSensorType(reference_sensor_id);
+  CHECK(isValidSensorType(sensor_type));
 
-  aslam::Transformation T_I_S;
-  if (sensor_manager.getSensorSystem().getReferenceSensorId() !=
-          reference_sensor_id &&
-      !sensor_manager.getSensor_T_R_S(reference_sensor_id, &T_I_S)) {
-    LOG(ERROR) << "No sensor extrinsics available for sensor with id "
-               << reference_sensor_id.hexString() << '.';
-  }
+  const aslam::Transformation& T_I_S =
+      sensor_manager.getSensor_T_B_S(reference_sensor_id);
+
   const char sensor_frame_identifier =
       convertSensorTypeToFrameIdentifier(sensor_type);
 

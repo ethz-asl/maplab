@@ -63,6 +63,11 @@ class ResourceMapTest : public ResourceTest {
               template_base.get(), map);
           break;
         }
+        case DataTypes::kObjectInstanceBoundingBoxes: {
+          addResourceTemplateToMap<resources::ObjectInstanceBoundingBoxes>(
+              template_base.get(), map);
+          break;
+        }
         default:
           LOG(FATAL) << "Unknown DataType: "
                      << static_cast<int>(template_base->data_type);
@@ -164,6 +169,18 @@ class ResourceMapTest : public ResourceTest {
               << *template_base;
           break;
         }
+        case DataTypes::kObjectInstanceBoundingBoxes: {
+          resources::ObjectInstanceBoundingBoxes resource;
+          EXPECT_TRUE(getResourceFromMap(template_base.get(), map, &resource))
+              << *template_base;
+
+          ResourceTemplate<resources::ObjectInstanceBoundingBoxes>&
+              resource_template = template_base->getAs<
+                  ResourceTemplate<resources::ObjectInstanceBoundingBoxes>>();
+          EXPECT_TRUE(isSameResource(resource_template.resource(), resource))
+              << *template_base;
+          break;
+        }
         default:
           LOG(FATAL) << "Unknown DataType: "
                      << static_cast<int>(template_base->data_type);
@@ -244,6 +261,17 @@ class ResourceMapTest : public ResourceTest {
               resource_template.id, resource_template.type);
           voxblox::OccupancyMap::Config config;
           voxblox::OccupancyMap resource(config);
+          EXPECT_FALSE(getResourceFromMap(template_base.get(), map, &resource))
+              << *template_base;
+          break;
+        }
+        case DataTypes::kObjectInstanceBoundingBoxes: {
+          const ResourceTemplate<resources::ObjectInstanceBoundingBoxes>&
+              resource_template = template_base->getAs<
+                  ResourceTemplate<resources::ObjectInstanceBoundingBoxes>>();
+          map->deleteResource<std::string>(
+              resource_template.id, resource_template.type);
+          resources::ObjectInstanceBoundingBoxes resource;
           EXPECT_FALSE(getResourceFromMap(template_base.get(), map, &resource))
               << *template_base;
           break;
@@ -387,6 +415,25 @@ class ResourceMapTest : public ResourceTest {
               << old_template;
           break;
         }
+        case DataTypes::kObjectInstanceBoundingBoxes: {
+          const ResourceTemplate<resources::ObjectInstanceBoundingBoxes>&
+              old_template = old_template_base->getAs<
+                  ResourceTemplate<resources::ObjectInstanceBoundingBoxes>>();
+          const ResourceTemplate<resources::ObjectInstanceBoundingBoxes>&
+              new_template = new_template_base->getAs<
+                  ResourceTemplate<resources::ObjectInstanceBoundingBoxes>>();
+
+          map->replaceResource<resources::ObjectInstanceBoundingBoxes>(
+              old_template.id, old_template.type, new_template.resource());
+
+          resources::ObjectInstanceBoundingBoxes resource;
+          EXPECT_TRUE(
+              getResourceFromMap(old_template_base.get(), map, &resource))
+              << old_template;
+          EXPECT_TRUE(isSameResource(new_template.resource(), resource))
+              << old_template;
+          break;
+        }
         default:
           LOG(FATAL) << "Unknown DataType: "
                      << static_cast<int>(old_template_base->data_type);
@@ -507,15 +554,13 @@ TEST_F(ResourceMapTest, TestResourceMapSwitchingResourceFolders) {
   // folder.
   std::string default_resource_folder;
   map.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
 
   // No external folders expected.
   std::vector<std::string> external_folders;
@@ -529,15 +574,13 @@ TEST_F(ResourceMapTest, TestResourceMapSwitchingResourceFolders) {
   // The resource folder in use should be the same as the map folder resource
   // folder.
   map.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
 
   // No external folders expected.
   map.getExternalResourceFolders(&external_folders);
@@ -549,24 +592,21 @@ TEST_F(ResourceMapTest, TestResourceMapSwitchingResourceFolders) {
 
   // Default and the folder that is actually used should be the same.
   map.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderB + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderB + "/resources"));
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderB + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderB + "/resources"));
 
   // Old default folder should have been moved to external folders.
   map.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 1u);
   if (external_folders.size() == 1u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0],
-            test_result_folder_ + kTestMapFolderA + "/resources"));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0],
+        test_result_folder_ + kTestMapFolderA + "/resources"));
   }
 
   // Check if the resources from the old map resource folder are still
@@ -579,24 +619,21 @@ TEST_F(ResourceMapTest, TestResourceMapSwitchingResourceFolders) {
 
   // Default and the folder that is actually used should be the same.
   map.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderB + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderB + "/resources"));
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderB + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderB + "/resources"));
 
   // Old default folder should have been moved to external folders.
   map.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 1u);
   if (external_folders.size() == 1u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0],
-            test_result_folder_ + kTestMapFolderA + "/resources"));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0],
+        test_result_folder_ + kTestMapFolderA + "/resources"));
   }
 
   // Switch to external folder.
@@ -607,26 +644,22 @@ TEST_F(ResourceMapTest, TestResourceMapSwitchingResourceFolders) {
   // folder to the
   // previously set one.
   map.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder, test_result_folder_ + kTestExternalFolderX));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder, test_result_folder_ + kTestExternalFolderX));
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderB + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderB + "/resources"));
 
   // We should now have 2 external resoruce folders.
   map.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 2u);
   if (external_folders.size() == 2u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0],
-            test_result_folder_ + kTestMapFolderA + "/resources"));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[1], test_result_folder_ + kTestExternalFolderX));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0],
+        test_result_folder_ + kTestMapFolderA + "/resources"));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[1], test_result_folder_ + kTestExternalFolderX));
   }
 
   // Check if the resources from map folder A and B are still available.
@@ -645,26 +678,22 @@ TEST_F(ResourceMapTest, TestResourceMapSwitchingResourceFolders) {
   // Should still be the same as before registering the external resource folder
   // again.
   map.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder, test_result_folder_ + kTestExternalFolderX));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder, test_result_folder_ + kTestExternalFolderX));
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderB + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderB + "/resources"));
 
   // We should still have the same 2 external resource folders.
   map.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 2u);
   if (external_folders.size() == 2u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0],
-            test_result_folder_ + kTestMapFolderA + "/resources"));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[1], test_result_folder_ + kTestExternalFolderX));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0],
+        test_result_folder_ + kTestMapFolderA + "/resources"));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[1], test_result_folder_ + kTestExternalFolderX));
   }
 
   // Check if the resources from map folder A, B  and the external folder are
@@ -678,28 +707,24 @@ TEST_F(ResourceMapTest, TestResourceMapSwitchingResourceFolders) {
 
   // Both the default and the folder in use should be the same again.
   map.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderB + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderB + "/resources"));
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderB + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderB + "/resources"));
 
   // Should not change the external resource folders. We should still have 2
   // external resource folders.
   map.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 2u);
   if (external_folders.size() == 2u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0],
-            test_result_folder_ + kTestMapFolderA + "/resources"));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[1], test_result_folder_ + kTestExternalFolderX));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0],
+        test_result_folder_ + kTestMapFolderA + "/resources"));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[1], test_result_folder_ + kTestExternalFolderX));
   }
 
   // Check if the resources from map folder A, B  and the external folder are
@@ -781,22 +806,19 @@ TEST_F(ResourceMapTest, TestResourceMapMigrateResourcesToMapFolder) {
   // Check if map resoure folder is correct.
   std::string default_resource_folder;
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
 
   // Check if we have the correct external resource folders.
   std::vector<std::string> external_folders;
   map.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 2u);
   if (external_folders.size() == 2u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0], test_result_folder_ + kTestExternalFolderX));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[1], test_result_folder_ + kTestExternalFolderY));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0], test_result_folder_ + kTestExternalFolderX));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[1], test_result_folder_ + kTestExternalFolderY));
   }
 
   constexpr bool kMoveResources = true;
@@ -813,15 +835,13 @@ TEST_F(ResourceMapTest, TestResourceMapMigrateResourcesToMapFolder) {
 
   // Check if the map resource folder is set correctly and also in use.
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
   map.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
 }
 
 TEST_F(ResourceMapTest, TestResourceMapMergeMapsAndCleanUp) {
@@ -871,47 +891,39 @@ TEST_F(ResourceMapTest, TestResourceMapMergeMapsAndCleanUp) {
   // Check state of map resource folder for both maps.
   std::string default_resource_folder;
   map_A.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
   map_A.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
   map_B.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderB + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderB + "/resources"));
   map_B.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderB + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderB + "/resources"));
 
   // Check state of external resource folder for both maps.
   std::vector<std::string> external_folders;
   map_A.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 2u);
   if (external_folders.size() == 2u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0], test_result_folder_ + kTestExternalFolderX));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[1], test_result_folder_ + kTestExternalFolderY));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0], test_result_folder_ + kTestExternalFolderX));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[1], test_result_folder_ + kTestExternalFolderY));
   }
   map_B.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 2u);
   if (external_folders.size() == 2u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0], test_result_folder_ + kTestExternalFolderX));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[1], test_result_folder_ + kTestExternalFolderZ));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0], test_result_folder_ + kTestExternalFolderX));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[1], test_result_folder_ + kTestExternalFolderZ));
   }
 
   // Merge maps.
@@ -919,36 +931,29 @@ TEST_F(ResourceMapTest, TestResourceMapMergeMapsAndCleanUp) {
 
   // Default folder should not have changed.
   map_A.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
   map_A.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
 
   // External folder should contain all folders of map B.
   map_A.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 5u);
   if (external_folders.size() == 5u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0], test_result_folder_ + kTestExternalFolderX));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[1], test_result_folder_ + kTestExternalFolderY));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[2],
-            test_result_folder_ + kTestMapFolderB + "/resources/"));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[3], test_result_folder_ + kTestExternalFolderX));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[4], test_result_folder_ + kTestExternalFolderZ));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0], test_result_folder_ + kTestExternalFolderX));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[1], test_result_folder_ + kTestExternalFolderY));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[2],
+        test_result_folder_ + kTestMapFolderB + "/resources/"));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[3], test_result_folder_ + kTestExternalFolderX));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[4], test_result_folder_ + kTestExternalFolderZ));
   }
 
   // Check if resources are still accessible.
@@ -964,33 +969,27 @@ TEST_F(ResourceMapTest, TestResourceMapMergeMapsAndCleanUp) {
 
   // Default folder should not have changed.
   map_A.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
   map_A.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
 
   // External folder X should have been merged.
   map_A.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 4u);
   if (external_folders.size() == 4u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0], test_result_folder_ + kTestExternalFolderX));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[1], test_result_folder_ + kTestExternalFolderY));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[2],
-            test_result_folder_ + kTestMapFolderB + "/resources/"));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[3], test_result_folder_ + kTestExternalFolderZ));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0], test_result_folder_ + kTestExternalFolderX));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[1], test_result_folder_ + kTestExternalFolderY));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[2],
+        test_result_folder_ + kTestMapFolderB + "/resources/"));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[3], test_result_folder_ + kTestExternalFolderZ));
   }
 
   // Check if resources are still accessible.
@@ -1007,15 +1006,13 @@ TEST_F(ResourceMapTest, TestResourceMapMergeMapsAndCleanUp) {
 
   // Default folder should not have changed.
   map_A.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
   map_A.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
 
   // External folders should now be empty.
   map_A.getExternalResourceFolders(&external_folders);
@@ -1036,22 +1033,19 @@ TEST_F(ResourceMapTest, TestResourceMapMergeMapsAndCleanUp) {
   // Default folder should point to the external folder now, but the map
   // resource folder should remain the same.
   map_A.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
   map_A.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder, test_result_folder_ + kTestExternalFolderX));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder, test_result_folder_ + kTestExternalFolderX));
 
   // External folders should now be empty.
   map_A.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 1u);
   if (external_folders.size() == 1u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0], test_result_folder_ + kTestExternalFolderX));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0], test_result_folder_ + kTestExternalFolderX));
   }
 
   // Check if resources are still accessible.
@@ -1088,15 +1082,13 @@ TEST_F(ResourceMapTest, TestResourceMapFullVsRelativePath) {
   // Check default folder and map resource folder.
   std::string default_resource_folder;
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + "/awesome_maps/map_A/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + "/awesome_maps/map_A/resources"));
   map.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + "/awesome_maps/map_A/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + "/awesome_maps/map_A/resources"));
 
   // External folders should now be empty.
   std::vector<std::string> external_folders;
@@ -1128,22 +1120,19 @@ TEST_F(ResourceMapTest, TestResourceMapMigrateResourcesToExternalFolder) {
   // Check if map resoure folder is correct.
   std::string default_resource_folder;
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
 
   // Check if we have the correct external resource folders.
   std::vector<std::string> external_folders;
   map.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 2u);
   if (external_folders.size() == 2u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0], test_result_folder_ + kTestExternalFolderX));
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[1], test_result_folder_ + kTestExternalFolderY));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0], test_result_folder_ + kTestExternalFolderX));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[1], test_result_folder_ + kTestExternalFolderY));
   }
 
   constexpr bool kMoveResources = true;
@@ -1154,9 +1143,8 @@ TEST_F(ResourceMapTest, TestResourceMapMigrateResourcesToExternalFolder) {
   map.getExternalResourceFolders(&external_folders);
   EXPECT_EQ(external_folders.size(), 1u);
   if (external_folders.size() == 1u) {
-    EXPECT_TRUE(
-        common::isSameRealPath(
-            external_folders[0], test_result_folder_ + kTestExternalFolderZ));
+    EXPECT_TRUE(common::isSameRealPath(
+        external_folders[0], test_result_folder_ + kTestExternalFolderZ));
   }
 
   // Check if all resources are still available.
@@ -1167,14 +1155,12 @@ TEST_F(ResourceMapTest, TestResourceMapMigrateResourcesToExternalFolder) {
   // Check if the map resource folder still points to the previous folder, but
   // the external folder is in use.
   map.getMapResourceFolder(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder,
-          test_result_folder_ + kTestMapFolderA + "/resources"));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder,
+      test_result_folder_ + kTestMapFolderA + "/resources"));
   map.getResourceFolderInUse(&default_resource_folder);
-  EXPECT_TRUE(
-      common::isSameRealPath(
-          default_resource_folder, test_result_folder_ + kTestExternalFolderZ));
+  EXPECT_TRUE(common::isSameRealPath(
+      default_resource_folder, test_result_folder_ + kTestExternalFolderZ));
 }
 
 TEST_F(ResourceMapTest, TestMetaDataSerialization) {

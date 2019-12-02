@@ -5,6 +5,7 @@
 #include <aslam/cameras/ncamera.h>
 #include <aslam/common/memory.h>
 #include <aslam/common/pose-types.h>
+#include <aslam/common/unique-id.h>
 #include <maplab-common/accessors.h>
 
 namespace vi_map {
@@ -21,8 +22,7 @@ VIMapGenerator::VIMapGenerator(VIMap& map, int seed)  // NOLINT
   aslam::Camera::Ptr camera(
       new aslam::PinholeCamera(
           mock_intrinsics, kCameraWidth, kCameraHeight, distortion));
-  aslam::CameraId id;
-  id.randomize();
+  aslam::CameraId id = aslam::createRandomId<aslam::CameraId>();
   camera->setId(id);
 
   std::vector<aslam::Camera::Ptr> cameras;
@@ -31,10 +31,9 @@ VIMapGenerator::VIMapGenerator(VIMap& map, int seed)  // NOLINT
   cameras.push_back(camera);
   T_C_B_vector.push_back(aslam::Transformation());
 
-  aslam::NCameraId rig_id;
-  rig_id.randomize();
+  aslam::NCameraId rig_id = aslam::createRandomId<aslam::NCameraId>();
   std::string label("Test camera rig");
-  n_camera_ = aslam::NCamera::Ptr(
+  ncamera_template_ = aslam::NCamera::Ptr(
       new aslam::NCamera(rig_id, T_C_B_vector, cameras, label));
 
   default_edge_T_covariance_p_q_.setZero();
@@ -155,7 +154,7 @@ vi_map::LandmarkId VIMapGenerator::createLandmarkWithoutReferences(
 void VIMapGenerator::setCameraRig(
     const std::shared_ptr<aslam::NCamera>& n_camera) {
   CHECK(n_camera);
-  n_camera_ = n_camera;
+  ncamera_template_ = n_camera;
 }
 
 void VIMapGenerator::setDefaultTransformationCovariancePQ(
@@ -168,12 +167,14 @@ TransformationEdge* VIMapGenerator::generateEdge<TransformationEdge>(
     const EdgeInfo& edge_info) const {
   pose_graph::EdgeId id;
   generateId(&id);
+  aslam::SensorId sensor_id;
+  generateId(&sensor_id);
   pose::Transformation T_A_B =
       common::getChecked(vertices_, edge_info.from).T_G_I.inverse() *
       common::getChecked(vertices_, edge_info.to).T_G_I;
   return new TransformationEdge(
       vi_map::Edge::EdgeType::kOdometry, id, edge_info.from, edge_info.to,
-      T_A_B, default_edge_T_covariance_p_q_);
+      T_A_B, default_edge_T_covariance_p_q_, sensor_id);
 }
 
 template <>
@@ -217,31 +218,38 @@ void VIMapGenerator::generateMap() const {
   CHECK_EQ(0u, map_.numLandmarks());
   CHECK_EQ(0u, map_.numMissions());
 
-  SensorManager& sensor_manager = map_.getSensorManager();
-
+  // SENSORS
   ImuSigmas imu_sigmas;
   imu_sigmas.gyro_noise_density = 0.1;
   imu_sigmas.gyro_bias_random_walk_noise_density = 0.1;
   imu_sigmas.acc_noise_density = 0.1;
   imu_sigmas.acc_bias_random_walk_noise_density = 0.1;
   constexpr char kImuHardwareId[] = "imu0";
-  SensorId imu_sensor_id;
-  common::generateId(&imu_sensor_id);
+  aslam::SensorId imu_sensor_id;
+  aslam::generateId(&imu_sensor_id);
+  CHECK(imu_sensor_id.isValid());
   Imu::UniquePtr imu_sensor = aligned_unique<Imu>(
       imu_sensor_id, static_cast<std::string>(kImuHardwareId));
   imu_sensor->setImuSigmas(imu_sigmas);
-  CHECK(imu_sensor_id.isValid());
-  sensor_manager.addSensor(std::move(imu_sensor));
+  map_.getSensorManager().addSensorAsBase<Imu>(std::move(imu_sensor));
+
+  CHECK(ncamera_template_);
+  aslam::Transformation T_B_S_ncamera;
+  T_B_S_ncamera.setIdentity();
+  const aslam::SensorId ncamera_id = ncamera_template_->getId();
+  map_.getSensorManager().addSensor<aslam::NCamera>(
+      aligned_unique<aslam::NCamera>(*ncamera_template_), imu_sensor_id,
+      T_B_S_ncamera);
+  aslam::NCamera::Ptr mission_ncamera =
+      map_.getSensorManager().getSensorPtr<aslam::NCamera>(ncamera_id);
 
   // MISSIONS
-  CHECK(n_camera_);
   for (const MissionInfoMap::value_type& mission_pair : missions_) {
     map_.addNewMissionWithBaseframe(
         mission_pair.first, mission_pair.second,
-        Eigen::Matrix<double, 6, 6>::Zero(), n_camera_,
-        backBoneType<EdgeType>());
-    sensor_manager.associateExistingSensorWithMission(
-        imu_sensor_id, mission_pair.first);
+        Eigen::Matrix<double, 6, 6>::Zero(), backBoneType<EdgeType>());
+    map_.associateMissionNCamera(ncamera_id, mission_pair.first);
+    map_.associateMissionImu(imu_sensor_id, mission_pair.first);
   }
 
   // VERTICES
@@ -261,15 +269,14 @@ void VIMapGenerator::generateMap() const {
         id, &image_points, &descriptors, &observation_index);
     LandmarkIdList observed_landmark_ids(image_points.cols());
     aslam::FrameId frame_id;
-    common::generateId(&frame_id);
+    aslam::generateId(&frame_id);
     const Eigen::VectorXd keypoint_uncertainties =
         Eigen::VectorXd::Ones(observed_landmark_ids.size());
-    vertex_ptr.reset(
-        new Vertex(
-            id, Eigen::Matrix<double, 6, 1>::Zero(), image_points,
-            keypoint_uncertainties, descriptors, observed_landmark_ids,
-            vertex_pair.second.mission, frame_id, info.timestamp_nanoseconds,
-            n_camera_));
+    vertex_ptr.reset(new Vertex(
+        id, Eigen::Matrix<double, 6, 1>::Zero(), image_points,
+        keypoint_uncertainties, descriptors, observed_landmark_ids,
+        vertex_pair.second.mission, frame_id, info.timestamp_nanoseconds,
+        mission_ncamera));
 
     const MissionBaseFrame& base_frame =
         map_.getMissionBaseFrame(map_.getMission(mission_id).getBaseFrameId());
@@ -351,7 +358,7 @@ Eigen::Matrix2Xd VIMapGenerator::centerMeasurementsOnPrincipalPoint(
     const Eigen::Matrix2Xd& image_points, const size_t frame_index) const {
   const aslam::PinholeCamera* camera =
       dynamic_cast<const aslam::PinholeCamera*>(  // NOLINT
-          &n_camera_->getCamera(frame_index));
+          &ncamera_template_->getCamera(frame_index));
   CHECK(camera != nullptr) << "Only Pinhole camera currently supported!";
   return image_points.colwise() - Eigen::Vector2d(camera->cu(), camera->cv());
 }
@@ -367,10 +374,10 @@ void VIMapGenerator::generateLandmarkObservations(
   VertexInfoMap::const_iterator vertex_info_it = vertices_.find(vertex_id);
   CHECK(vertex_info_it != vertices_.end());
   const VertexInfo& vertex_info = vertex_info_it->second;
-  CHECK_EQ(n_camera_->numCameras(), 1u)
+  CHECK_EQ(ncamera_template_->numCameras(), 1u)
       << "Only one camera currently supported!";
   const pose::Transformation T_C_G(
-      n_camera_->get_T_C_B(0) * vertex_info.T_G_I.inverse());
+      ncamera_template_->get_T_C_B(0) * vertex_info.T_G_I.inverse());
   size_t total = vertex_info.landmarks.size();
   image_points->resize(2, total);
   descriptors->resize(kDescriptorSize, total);
@@ -394,12 +401,11 @@ void VIMapGenerator::projectLandmark(
     const LandmarkInfo& landmark_info, const pose::Transformation& T_C_G,
     Eigen::Matrix2Xd* keypoints, size_t index) const {
   Eigen::Vector2d image_point_vec;
-  CHECK_EQ(n_camera_->numCameras(), 1u)
+  CHECK_EQ(ncamera_template_->numCameras(), 1u)
       << "Only one camera currently supported!";
-  CHECK(
-      n_camera_->getCamera(0)
-          .project3(T_C_G.transform(landmark_info.p_G_fi), &image_point_vec)
-          .isKeypointVisible());
+  CHECK(ncamera_template_->getCamera(0)
+            .project3(T_C_G.transform(landmark_info.p_G_fi), &image_point_vec)
+            .isKeypointVisible());
   keypoints->block<2, 1>(0, index) = image_point_vec;
 }
 

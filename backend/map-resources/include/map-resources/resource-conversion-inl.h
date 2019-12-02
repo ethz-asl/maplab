@@ -8,7 +8,10 @@
 #include <glog/logging.h>
 #include <maplab-common/pose_types.h>
 #include <opencv2/core.hpp>
+#include <pcl/point_types.h>
+#include <pcl_ros/point_cloud.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensors/lidar.h>
 #include <voxblox/core/common.h>
 
 #include "map-resources/resource-typedefs.h"
@@ -21,62 +24,283 @@ namespace backend {
 template <typename PointCloudType>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
-    PointCloudType* point_cloud);
+    PointCloudType* point_cloud) {
+  LOG(FATAL) << "This point cloud either does not support color "
+             << "or it is not implemented!";
+}
+template <>
+void addColorToPointCloud(
+    const resources::RgbaColor& color, const size_t index,
+    resources::PointCloud* point_cloud);
+template <>
+void addColorToPointCloud(
+    const resources::RgbaColor& color, const size_t index,
+    voxblox::Pointcloud* point_cloud);
+template <>
+void addColorToPointCloud(
+    const resources::RgbaColor& color, const size_t index,
+    resources::VoxbloxColorPointCloud* point_cloud);
+template <>
+void addColorToPointCloud(
+    const resources::RgbaColor& color, const size_t index,
+    sensor_msgs::PointCloud2* point_cloud);
+template <>
+void addColorToPointCloud(
+    const resources::RgbaColor& color, const size_t index,
+    pcl::PointCloud<pcl::PointXYZRGB>* point_cloud);
+template <>
+void addColorToPointCloud(
+    const resources::RgbaColor& color, const size_t index,
+    pcl::PointCloud<pcl::PointXYZRGBA>* point_cloud);
+template <>
+void addColorToPointCloud(
+    const resources::RgbaColor& color, const size_t index,
+    pcl::PointCloud<pcl::PointXYZRGBNormal>* point_cloud);
 
 template <typename PointCloudType>
 void addScalarToPointCloud(
-    const float scalar, const size_t index, PointCloudType* point_cloud);
+    const float scalar, const size_t index, PointCloudType* point_cloud) {
+  LOG(FATAL) << "This point cloud either does not support scalars/intensities "
+             << "or it is not implemented!";
+}
 
-template <typename PointCloudType>
+template <>
+void addScalarToPointCloud(
+    const float scalar, const size_t index, resources::PointCloud* point_cloud);
+template <>
+void addScalarToPointCloud(
+    const float /*scalar*/, const size_t /*index*/,
+    resources::VoxbloxColorPointCloud* /*point_cloud*/);
+template <>
+void addScalarToPointCloud(
+    const float scalar, const size_t index,
+    sensor_msgs::PointCloud2* point_cloud);
+template <>
+void addScalarToPointCloud(
+    const float scalar, const size_t index,
+    pcl::PointCloud<pcl::PointXYZI>* point_cloud);
+template <>
+void addScalarToPointCloud(
+    const float scalar, const size_t index,
+    pcl::PointCloud<pcl::PointXYZINormal>* point_cloud);
+template <>
+void addScalarToPointCloud(
+    const float scalar, const size_t index,
+    pcl::PointCloud<pcl::OusterPointType>* point_cloud);
+
+template <>
 void addPointToPointCloud(
     const Eigen::Vector3d& point_C, const size_t index,
-    PointCloudType* point_cloud);
+    voxblox::Pointcloud* point_cloud);
+template <>
+void addPointToPointCloud(
+    const Eigen::Vector3d& point_C, const size_t index,
+    resources::VoxbloxColorPointCloud* point_cloud);
+template <>
+void addPointToPointCloud(
+    const Eigen::Vector3d& point_C, const size_t index,
+    resources::PointCloud* point_cloud);
+template <>
+void addPointToPointCloud(
+    const Eigen::Vector3d& point_C, const size_t index,
+    sensor_msgs::PointCloud2* point_cloud);
+template <typename PointType>
+void addPointToPointCloud(
+    const Eigen::Vector3d& point_C, const size_t index,
+    pcl::PointCloud<PointType>* point_cloud) {
+  CHECK_NOTNULL(point_cloud);
+  CHECK_LT(index, point_cloud->points.size());
+  PointType& point = point_cloud->points[index];
+
+  // NOTE: There are PCL point types that do not have x,y and z, but if someone
+  // ever uses one of those this should not compile anymore, so this should be
+  // safe.
+  point.x = static_cast<float>(point_C(0));
+  point.y = static_cast<float>(point_C(1));
+  point.z = static_cast<float>(point_C(2));
+}
 
 template <typename PointCloudType>
-bool hasColorInformation(const PointCloudType& point_cloud);
+bool hasColorInformation(const PointCloudType& /*point_cloud*/) {
+  return false;
+}
+template <>
+bool hasColorInformation(const resources::VoxbloxColorPointCloud& point_cloud);
+template <>
+bool hasColorInformation(const resources::PointCloud& point_cloud);
+template <>
+bool hasColorInformation(const sensor_msgs::PointCloud2& point_cloud);
+template <>
+bool hasColorInformation(
+    const pcl::PointCloud<pcl::PointXYZRGBNormal>& point_cloud);
+template <>
+bool hasColorInformation(const pcl::PointCloud<pcl::PointXYZRGBA>& point_cloud);
+template <>
+bool hasColorInformation(const pcl::PointCloud<pcl::PointXYZRGB>& point_cloud);
 
 template <typename PointCloudType>
 bool hasNormalsInformation(const PointCloudType& /*point_cloud*/) {
   return false;
 }
-
-template <typename PointCloudType>
-bool hasScalarInformation(const PointCloudType& /*point_cloud*/);
-
 template <>
-bool hasScalarInformation<sensor_msgs::PointCloud2>(
-    const sensor_msgs::PointCloud2& /*point_cloud*/);
-
+bool hasNormalsInformation(
+    const pcl::PointCloud<pcl::PointXYZRGBNormal>& point_cloud);
 template <>
-bool hasScalarInformation<resources::PointCloud>(
-    const resources::PointCloud& /*point_cloud*/);
+bool hasNormalsInformation(
+    const pcl::PointCloud<pcl::PointXYZINormal>& point_cloud);
 
 template <typename PointCloudType>
 bool hasScalarInformation(const PointCloudType& /*point_cloud*/) {
   return false;
 }
+template <>
+bool hasScalarInformation(const sensor_msgs::PointCloud2& point_cloud);
+template <>
+bool hasScalarInformation(const resources::PointCloud& point_cloud);
+template <>
+bool hasScalarInformation(const pcl::PointCloud<pcl::PointXYZI>& point_cloud);
+template <>
+bool hasScalarInformation(
+    const pcl::PointCloud<pcl::PointXYZINormal>& point_cloud);
+template <>
+bool hasScalarInformation(
+    const pcl::PointCloud<pcl::OusterPointType>& point_cloud);
 
-template <typename PointCloudType>
+template <>
+void resizePointCloud(
+    const size_t size, const bool /*has_color*/, const bool /*has_normals*/,
+    const bool /*has_scalar*/, voxblox::Pointcloud* point_cloud);
+template <>
+void resizePointCloud(
+    const size_t size, const bool has_color, const bool /*has_normals*/,
+    const bool /*has_scalar*/, resources::VoxbloxColorPointCloud* point_cloud);
+template <>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool has_normals,
-    const bool has_scalar, PointCloudType* point_cloud);
+    const bool has_scalar, resources::PointCloud* point_cloud);
+template <>
+void resizePointCloud(
+    const size_t num_points, const bool has_color, const bool /*has_normals*/,
+    const bool has_scalar, sensor_msgs::PointCloud2* point_cloud);
+template <typename PointType>
+void resizePointCloud(
+    const size_t num_points, const bool /*has_color*/,
+    const bool /*has_normals*/, const bool /*has_scalar*/,
+    pcl::PointCloud<PointType>* point_cloud) {
+  CHECK_NOTNULL(point_cloud);
+  CHECK_GT(num_points, 0u);
+  point_cloud->points.resize(num_points);
+}
 
-template <typename PointCloudType>
-size_t getPointCloudSize(const PointCloudType& point_cloud);
+template <>
+size_t getPointCloudSize(const voxblox::Pointcloud& point_cloud);
+template <>
+size_t getPointCloudSize(const resources::VoxbloxColorPointCloud& point_cloud);
+template <>
+size_t getPointCloudSize(const resources::PointCloud& point_cloud);
+template <>
+size_t getPointCloudSize(const sensor_msgs::PointCloud2& point_cloud);
+template <typename PointType>
+size_t getPointCloudSize(const pcl::PointCloud<PointType>& point_cloud) {
+  return point_cloud.size();
+}
 
 template <typename PointCloudType>
 void getPointFromPointCloud(
     const PointCloudType& point_cloud, const size_t index,
     Eigen::Vector3d* point_C);
+template <>
+void getPointFromPointCloud(
+    const voxblox::Pointcloud& point_cloud, const size_t index,
+    Eigen::Vector3d* point_C);
+template <>
+void getPointFromPointCloud(
+    const resources::VoxbloxColorPointCloud& point_cloud, const size_t index,
+    Eigen::Vector3d* point_C);
+template <>
+void getPointFromPointCloud(
+    const resources::PointCloud& point_cloud, const size_t index,
+    Eigen::Vector3d* point_C);
+template <>
+void getPointFromPointCloud(
+    const sensor_msgs::PointCloud2& point_cloud, const size_t index,
+    Eigen::Vector3d* point_C);
+template <typename PointType>
+void getPointFromPointCloud(
+    const pcl::PointCloud<PointType>& point_cloud, const size_t index,
+    Eigen::Vector3d* point_C) {
+  CHECK_NOTNULL(point_C);
+  DCHECK_GT(point_cloud.size(), index);
+  const PointType& point = point_cloud.points[index];
+
+  // NOTE: There are PCL point types that do not have x,y and z, but if someone
+  // ever uses one of those this should not compile anymore, so this should be
+  // safe.
+  point_C->x() = point.x;
+  point_C->y() = point.y;
+  point_C->z() = point.z;
+}
 
 template <typename PointCloudType>
 void getColorFromPointCloud(
-    const PointCloudType& point_cloud, const size_t index,
+    const PointCloudType& /*point_cloud*/, const size_t /*index*/,
+    resources::RgbaColor* /*color*/) {
+  LOG(FATAL) << "This point cloud either does not support color or it is not "
+             << "implemented!";
+}
+template <>
+void getColorFromPointCloud(
+    const resources::VoxbloxColorPointCloud& point_cloud, const size_t index,
     resources::RgbaColor* color);
+template <>
+void getColorFromPointCloud(
+    const resources::PointCloud& point_cloud, const size_t index,
+    resources::RgbaColor* color);
+template <>
+void getColorFromPointCloud(
+    const sensor_msgs::PointCloud2& point_cloud, const size_t index,
+    resources::RgbaColor* color);
+template <>
+void getColorFromPointCloud(
+    const pcl::PointCloud<pcl::PointXYZRGB>& point_cloud, const size_t index,
+    resources::RgbaColor* color);
+template <>
+void getColorFromPointCloud(
+    const pcl::PointCloud<pcl::PointXYZRGBA>& point_cloud, const size_t index,
+    resources::RgbaColor* color);
+template <>
+void getColorFromPointCloud(
+    const pcl::PointCloud<pcl::PointXYZRGBNormal>& point_cloud,
+    const size_t index, resources::RgbaColor* color);
 
 template <typename PointCloudType>
 void getScalarFromPointCloud(
-    const PointCloudType& point_cloud, const size_t index, float* scalar);
+    const PointCloudType& /*point_cloud*/, const size_t /*index*/,
+    float* /*scalar*/) {
+  LOG(FATAL) << "This point cloud either does not support scalars/intesities "
+                "or it is not "
+             << "implemented!";
+}
+template <>
+void getScalarFromPointCloud(
+    const resources::PointCloud& point_cloud, const size_t index,
+    float* scalar);
+template <>
+void getScalarFromPointCloud(
+    const sensor_msgs::PointCloud2& point_cloud, const size_t index,
+    float* scalar);
+template <>
+void getScalarFromPointCloud(
+    const pcl::PointCloud<pcl::PointXYZI>& point_cloud, const size_t index,
+    float* scalar);
+template <>
+void getScalarFromPointCloud(
+    const pcl::PointCloud<pcl::PointXYZINormal>& point_cloud,
+    const size_t index, float* scalar);
+template <>
+void getScalarFromPointCloud(
+    const pcl::PointCloud<pcl::OusterPointType>& point_cloud,
+    const size_t index, float* scalar);
 
 template <typename PointCloudType>
 bool convertDepthMapToPointCloud(
@@ -183,33 +407,62 @@ bool convertPointCloudType(
     const InputPointCloud& input_cloud, OutputPointCloud* output_cloud) {
   CHECK_NOTNULL(output_cloud);
 
-  const bool input_has_color = hasColorInformation(input_cloud);
   const bool input_has_normals = hasNormalsInformation(input_cloud);
   const bool input_has_scalars = hasScalarInformation(input_cloud);
+  const bool input_has_color = hasColorInformation(input_cloud);
 
   const size_t num_points = getPointCloudSize(input_cloud);
+
   resizePointCloud(
       num_points, input_has_color, input_has_normals, input_has_scalars,
       output_cloud);
+
+  const bool output_has_scalars = hasScalarInformation(*output_cloud);
+  const bool output_has_color = hasColorInformation(*output_cloud);
 
   for (size_t point_idx = 0u; point_idx < num_points; ++point_idx) {
     Eigen::Vector3d point_C;
     getPointFromPointCloud(input_cloud, point_idx, &point_C);
     addPointToPointCloud(point_C, point_idx, output_cloud);
 
-    if (input_has_color) {
+    if (input_has_color && output_has_color) {
       resources::RgbaColor color;
       getColorFromPointCloud(input_cloud, point_idx, &color);
       addColorToPointCloud(color, point_idx, output_cloud);
     }
 
-    if (input_has_scalars) {
+    if (input_has_scalars && output_has_scalars) {
       float scalar;
       getScalarFromPointCloud(input_cloud, point_idx, &scalar);
       addScalarToPointCloud(scalar, point_idx, output_cloud);
     }
   }
+
+  CHECK_EQ(getPointCloudSize(*output_cloud), num_points);
   return true;
+}
+
+template <typename PointCloudType>
+backend::ResourceType getResourceTypeForPointCloud(
+    const PointCloudType& point_cloud) {
+  CHECK_NE(getPointCloudSize(point_cloud), 0u)
+      << "Cannot determine resource type if point cloud is empty!";
+
+  const bool has_normals = hasNormalsInformation(point_cloud);
+  const bool has_scalars = hasScalarInformation(point_cloud);
+  const bool has_color = hasColorInformation(point_cloud);
+
+  if (has_color && has_normals && !has_scalars) {
+    return backend::ResourceType::kPointCloudXYZRGBN;
+  } else if (!has_color && !has_normals && has_scalars) {
+    return backend::ResourceType::kPointCloudXYZI;
+  } else if (!has_color && !has_normals && !has_scalars) {
+    return backend::ResourceType::kPointCloudXYZ;
+  }
+  LOG(FATAL) << "Currently there is no point cloud type implemented as "
+             << "resource that has this particular configuration of color("
+             << has_color << "), normals(" << has_normals << ") and scalar("
+             << has_scalars << ") data!";
 }
 
 }  // namespace backend

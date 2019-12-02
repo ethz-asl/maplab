@@ -18,7 +18,7 @@ class ViMappingTest : public ::testing::Test {
   virtual void SetUp() {
     FLAGS_lc_use_random_pnp_seed = false;
 
-    test_app_.loadDataset("./test_maps/vi_app_test");
+    test_app_.loadDataset("./test_maps/optimized_vi_app_test");
   }
 
   void createMap() {

@@ -47,7 +47,9 @@ class VIMapBasicPlugin : public common::ConsolePluginBaseWithPlotter {
   int saveAllMaps();
 
   int loadMergeMap();
+  int loadMergeSubMap();
   int loadMergeAllMaps();
+  int loadMergeAllSubMaps();
 
   int listMapsOnFileSystem();
 

@@ -61,6 +61,10 @@ void Edge::serialize(vi_map::proto::Edge* proto) const {
     const vi_map::TrajectoryEdge& derived_edge =
         static_cast<const vi_map::TrajectoryEdge&>(*this);
     derived_edge.serialize(proto->mutable_trajectory());
+  } else if (getType() == pose_graph::Edge::EdgeType::kWheelOdometry) {
+    const vi_map::TransformationEdge& derived_edge =
+        static_cast<const vi_map::TransformationEdge&>(*this);
+    derived_edge.serialize(proto->mutable_wheel_odometry());
   } else {
     LOG(FATAL) << "Unknown edge type.";
   }
@@ -80,6 +84,11 @@ Edge::UniquePtr Edge::deserialize(
   } else if (proto.has_loopclosure()) {
     vi_map::LoopClosureEdge* edge(new vi_map::LoopClosureEdge());
     edge->deserialize(edge_id, proto.loopclosure());
+    return Edge::UniquePtr(edge);
+  } else if (proto.has_wheel_odometry()) {
+    vi_map::TransformationEdge* edge(
+        new vi_map::TransformationEdge(vi_map::Edge::EdgeType::kWheelOdometry));
+    edge->deserialize(edge_id, proto.wheel_odometry());
     return Edge::UniquePtr(edge);
   } else if (proto.has_transformation()) {
     vi_map::TransformationEdge* edge(
@@ -104,7 +113,9 @@ void Edge::copyEdgeInto(Edge** new_edge) const {
   CHECK_NOTNULL(new_edge);
 
   switch (edge_type_) {
+    // TODO(ben): is kOdometry being used at alL?
     case pose_graph::Edge::EdgeType::kOdometry:
+    case pose_graph::Edge::EdgeType::kWheelOdometry:
     case pose_graph::Edge::EdgeType::k6DoFGps: {
       copyEdge<TransformationEdge>(new_edge);
       break;

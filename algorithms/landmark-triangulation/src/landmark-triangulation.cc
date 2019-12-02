@@ -20,7 +20,8 @@ typedef AlignedUnorderedMap<aslam::FrameId, aslam::Transformation>
 namespace {
 
 void interpolateVisualFramePoses(
-    const vi_map::MissionId& mission_id, const vi_map::VIMap& map,
+    const vi_map::MissionId& mission_id,
+    const pose_graph::VertexId& starting_vertex_id, const vi_map::VIMap& map,
     FrameToPoseMap* interpolated_frame_poses) {
   CHECK(map.hasMission(mission_id));
   CHECK_NOTNULL(interpolated_frame_poses)->clear();
@@ -41,11 +42,11 @@ void interpolateVisualFramePoses(
   }
 
   pose_graph::VertexIdList vertex_ids;
-  map.getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
+  map.getAllVertexIdsInMissionAlongGraph(
+      mission_id, starting_vertex_id, &vertex_ids);
 
   // Compute upper bound for number of VisualFrames.
-  const aslam::NCamera& ncamera =
-      map.getSensorManager().getNCameraForMission(mission_id);
+  const aslam::NCamera& ncamera = map.getMissionNCamera(mission_id);
   const unsigned int upper_bound_num_frames =
       vertex_ids.size() * ncamera.numCameras();
 
@@ -109,6 +110,17 @@ void interpolateVisualFramePoses(
   if (total_num_frames == 0u) {
     VLOG(2) << "No frame pose in any of the missions needs interpolation!";
   }
+}
+
+void interpolateVisualFramePoses(
+    const vi_map::MissionId& mission_id, const vi_map::VIMap& map,
+    FrameToPoseMap* interpolated_frame_poses) {
+  CHECK(map.hasMission(mission_id));
+  CHECK_NOTNULL(interpolated_frame_poses)->clear();
+  const vi_map::VIMission& mission = map.getMission(mission_id);
+  const pose_graph::VertexId& starting_vertex_id = mission.getRootVertexId();
+  interpolateVisualFramePoses(
+      mission_id, starting_vertex_id, map, interpolated_frame_poses);
 }
 
 void retriangulateLandmarksOfVertex(
@@ -243,12 +255,14 @@ void retriangulateLandmarksOfVertex(
 
 void retriangulateLandmarksOfMission(
     const vi_map::MissionId& mission_id,
+    const pose_graph::VertexId& starting_vertex_id,
     const FrameToPoseMap& interpolated_frame_poses, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
 
   VLOG(1) << "Getting vertices of mission: " << mission_id;
   pose_graph::VertexIdList relevant_vertex_ids;
-  map->getAllVertexIdsInMissionAlongGraph(mission_id, &relevant_vertex_ids);
+  map->getAllVertexIdsInMissionAlongGraph(
+      mission_id, starting_vertex_id, &relevant_vertex_ids);
 
   const size_t num_vertices = relevant_vertex_ids.size();
   VLOG(1) << "Retriangulating landmarks of " << num_vertices << " vertices.";
@@ -268,9 +282,23 @@ void retriangulateLandmarksOfMission(
       };
 
   static constexpr bool kAlwaysParallelize = false;
-  const size_t num_threads = common::getNumHardwareThreads();
+  constexpr size_t kMaxNumHardwareThreads = 8u;
+  const size_t available_num_threads = common::getNumHardwareThreads();
+  const size_t num_threads = (available_num_threads < kMaxNumHardwareThreads)
+                                 ? available_num_threads
+                                 : kMaxNumHardwareThreads;
   common::ParallelProcess(
       num_vertices, retriangulator, kAlwaysParallelize, num_threads);
+}
+
+void retriangulateLandmarksOfMission(
+    const vi_map::MissionId& mission_id,
+    const FrameToPoseMap& interpolated_frame_poses, vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+  const vi_map::VIMission& mission = map->getMission(mission_id);
+  const pose_graph::VertexId& starting_vertex_id = mission.getRootVertexId();
+  retriangulateLandmarksOfMission(
+      mission_id, starting_vertex_id, interpolated_frame_poses, map);
 }
 }  // namespace
 
@@ -288,6 +316,17 @@ void retriangulateLandmarksOfMission(
   FrameToPoseMap interpolated_frame_poses;
   interpolateVisualFramePoses(mission_id, *map, &interpolated_frame_poses);
   retriangulateLandmarksOfMission(mission_id, interpolated_frame_poses, map);
+}
+
+void retriangulateLandmarksAlongMissionAfterVertex(
+    const vi_map::MissionId& mission_id,
+    const pose_graph::VertexId& starting_vertex, vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+  FrameToPoseMap interpolated_frame_poses;
+  interpolateVisualFramePoses(
+      mission_id, starting_vertex, *map, &interpolated_frame_poses);
+  retriangulateLandmarksOfMission(
+      mission_id, starting_vertex, interpolated_frame_poses, map);
 }
 
 void retriangulateLandmarks(vi_map::VIMap* map) {

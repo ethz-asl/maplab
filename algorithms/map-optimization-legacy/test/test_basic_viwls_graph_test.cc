@@ -7,6 +7,7 @@
 
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-fisheye.h>
+#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/memory.h>
 #include <aslam/frames/visual-frame.h>
 #include <maplab-common/pose_types.h>
@@ -27,7 +28,7 @@ class ViwlsGraph : public ::testing::Test {
   typedef aslam::PinholeCamera CameraType;
 
   virtual void SetUp() {
-    cameras_ = aslam::NCamera::createTestNCamera(kNumCameras);
+    cameras_ = aslam::createTestNCamera(kNumCameras);
   }
 
   aslam::NCamera::Ptr cameras_;

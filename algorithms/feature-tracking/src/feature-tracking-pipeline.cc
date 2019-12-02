@@ -89,7 +89,8 @@ void FeatureTrackingPipeline::assignRawImagesToNFrame(
   // Set the raw images of nframe_kp1.
   for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
     cv::Mat image;
-    CHECK(map->getRawImage(vertex, frame_idx, &image))
+    CHECK(map->getFrameResource(
+        vertex, frame_idx, backend::ResourceType::kRawImage, &image))
         << "Vertex " << vertex_id << " does not have a raw image for frame "
         << frame_idx;
 
@@ -191,7 +192,7 @@ void FeatureTrackingPipeline::extractAndTriangulateTerminatedFeatureTracks(
 
         // Create store landamrk ID and add the landmark to the map.
         vi_map::LandmarkId landmark_id;
-        common::generateId(&landmark_id);
+        aslam::generateId(&landmark_id);
         landmark.setId(landmark_id);
         map->addNewLandmark(
             landmark, first_observation_vertex_id,
@@ -227,8 +228,8 @@ void FeatureTrackingPipeline::extractAndTriangulateTerminatedFeatureTracks(
 void FeatureTrackingPipeline::runTrackingAndTriangulationForMission(
     vi_map::MissionId mission_id, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
-  CHECK(map->hasMission(mission_id)) << "The given mission " << mission_id
-                                     << " is not present in the map.";
+  CHECK(map->hasMission(mission_id))
+      << "The given mission " << mission_id << " is not present in the map.";
   VLOG(1) << "Running tracking and triangulation for mission with ID "
           << mission_id;
   nframe_id_to_vertex_id_map_.clear();

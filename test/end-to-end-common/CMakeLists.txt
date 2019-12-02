@@ -5,6 +5,11 @@ find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
 catkin_python_setup()
+cs_install_scripts(
+    scripts/download_helpers
+    scripts/plot_results
+    scripts/umeyama
+)
 
 cs_install()
 cs_export()

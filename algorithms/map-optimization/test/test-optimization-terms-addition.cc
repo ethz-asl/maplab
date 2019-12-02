@@ -81,9 +81,12 @@ class OptimizationTermAdditionTest : public ::testing::Test {
 
 TEST_F(OptimizationTermAdditionTest, AddVisualTerms) {
   OptimizationProblem optimization_problem(&map, mission_ids_);
-  addVisualTerms(
-      kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
-      kFixExtrinsicsTranslation, kMinLandmarksPerFrame, &optimization_problem);
+  EXPECT_GT(
+      addVisualTerms(
+          kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
+          kFixExtrinsicsTranslation, kMinLandmarksPerFrame,
+          &optimization_problem),
+      0u);
 
   EXPECT_EQ(
       num_vertices_, optimization_problem.getProblemBookkeepingMutable()
@@ -100,9 +103,11 @@ TEST_F(OptimizationTermAdditionTest, AddVisualTerms) {
 
 TEST_F(OptimizationTermAdditionTest, AddInertialTerms) {
   OptimizationProblem optimization_problem(&map, mission_ids_);
-  addInertialTerms(
-      kFixGyroBias, kFixAccelBias, kFixVelocity, kGravityMagnitude,
-      &optimization_problem);
+  EXPECT_GT(
+      addInertialTerms(
+          kFixGyroBias, kFixAccelBias, kFixVelocity, kGravityMagnitude,
+          &optimization_problem),
+      0u);
 
   EXPECT_EQ(
       num_vertices_, optimization_problem.getProblemBookkeepingMutable()
@@ -121,12 +126,17 @@ TEST_F(OptimizationTermAdditionTest, AddInertialTerms) {
 TEST_F(OptimizationTermAdditionTest, AddVisualAndInertialTerms) {
   OptimizationProblem optimization_problem(&map, mission_ids_);
 
-  addVisualTerms(
-      kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
-      kFixExtrinsicsTranslation, kMinLandmarksPerFrame, &optimization_problem);
-  addInertialTerms(
-      kFixGyroBias, kFixAccelBias, kFixVelocity, kGravityMagnitude,
-      &optimization_problem);
+  EXPECT_GT(
+      addVisualTerms(
+          kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
+          kFixExtrinsicsTranslation, kMinLandmarksPerFrame,
+          &optimization_problem),
+      0u);
+  EXPECT_GT(
+      addInertialTerms(
+          kFixGyroBias, kFixAccelBias, kFixVelocity, kGravityMagnitude,
+          &optimization_problem),
+      0u);
 
   EXPECT_EQ(
       num_vertices_, optimization_problem.getProblemBookkeepingMutable()

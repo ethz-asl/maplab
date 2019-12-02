@@ -19,6 +19,7 @@
 #define MAPLAB_COMMON_TESTING_PREDICATES_H_
 #include <cmath>
 #include <string>
+#include <vector>
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -50,6 +51,29 @@ template <typename LeftMat, typename RightMat>
 
   return success ? ::testing::AssertionSuccess() : ::testing::AssertionFailure()
                                                        << message << std::endl;
+}
+
+template <typename T, typename Alloc>
+::testing::AssertionResult VectorsEqual(
+    const std::vector<T, Alloc>& A, const std::vector<T, Alloc>& B,
+    double threshold) {
+  if (A.size() != B.size()) {
+    return ::testing::AssertionFailure() << "Vector size mismatch: " << A.size()
+                                         << " != " << B.size();
+  }
+
+  bool success = true;
+  std::string message;
+  for (size_t i = 0; i < A.size(); ++i) {
+    if (std::abs(A[i] - B[i]) > threshold) {
+      success = false;
+      message += "\n Mismatch at [" + std::to_string(i) + "]: " +
+                 std::to_string(A[i]) + " != " + std::to_string(B[i]);
+    }
+  }
+
+  return success ? ::testing::AssertionSuccess()
+                 : ::testing::AssertionFailure() << message << std::endl;
 }
 }  // namespace common
 

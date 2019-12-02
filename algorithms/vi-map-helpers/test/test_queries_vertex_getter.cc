@@ -6,11 +6,11 @@
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-fisheye.h>
 #include <aslam/cameras/ncamera.h>
+#include <aslam/common/unique-id.h>
 #include <aslam/frames/visual-frame.h>
 #include <glog/logging.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <vi-map/check-map-consistency.h>
 #include <vi-map/pose-graph.h>
 #include <vi-map/test/vi-map-generator.h>

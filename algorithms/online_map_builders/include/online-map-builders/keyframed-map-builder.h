@@ -11,17 +11,15 @@
 #include <vi-map/vi-map.h>
 #include <vio-common/vio-update.h>
 
-#include "online-map-builders/stream-map-builder.h"
+#include "online-map-builders/stream-vio-map-builder.h"
 
 namespace online_map_builders {
 
 class KeyframedMapBuilder {
  public:
   KeyframedMapBuilder(
-      const std::shared_ptr<aslam::NCamera>& camera_rig,
-      vi_map::Imu::UniquePtr imu,
       const map_sparsification::KeyframingHeuristicsOptions& keyframing_options,
-      vi_map::VIMap* map);
+      const vi_map::SensorManager& sensor_manager, vi_map::VIMap* map);
 
   // Applies the given VIO update and performs keyframing on the new map parts.
   void applyUpdateAndKeyframe(const vio::VioUpdate::ConstPtr& update);
@@ -48,7 +46,7 @@ class KeyframedMapBuilder {
   void keyframeAndInitLandmarks(const bool perform_keyframing);
 
   vi_map::VIMap* map_;
-  StreamMapBuilder stream_map_builder_;
+  StreamVioMapBuilder stream_map_builder_;
 
   std::vector<vio::VioUpdate::ConstPtr> new_vio_updates_;
   std::vector<vio::VioUpdate::ConstPtr> held_back_non_kf_updates_;

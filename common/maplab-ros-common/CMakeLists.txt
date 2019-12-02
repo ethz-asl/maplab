@@ -6,5 +6,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 
 include_directories(${catkin_INCLUDE_DIRS})
 
+cs_add_library(${PROJECT_NAME}  src/gflags-interface.cc)
+
 cs_install()
 cs_export()

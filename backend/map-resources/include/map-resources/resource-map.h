@@ -15,8 +15,8 @@
 namespace resource_info {
 namespace proto {
 class ResourceInfoMap;
-}  // proto
-}  // resource_info
+}  // namespace proto
+}  // namespace resource_info
 
 namespace backend {
 
@@ -159,6 +159,7 @@ class ResourceMap {
 
   std::string printResourceStatistics() const;
   void printResourceStatisticsToLog(int verbosity) const;
+  size_t getNumResourcesOfType(const ResourceType& resource_type) const;
 
   // Clean up the resource folder system by removing duplicate entries and
   // merging them. After cleanup it will perform a check on all resources.
@@ -203,6 +204,11 @@ class ResourceMap {
   bool deleteResource(const ResourceId& id, const ResourceType& type);
   template <typename DataType>
   bool deleteResource(
+      const ResourceId& id, const ResourceType& type,
+      const bool keep_resource_file);
+  // Same as above, less efficient, but no need to know the data type.
+  bool deleteResourceNoDataType(const ResourceId& id, const ResourceType& type);
+  bool deleteResourceNoDataType(
       const ResourceId& id, const ResourceType& type,
       const bool keep_resource_file);
 

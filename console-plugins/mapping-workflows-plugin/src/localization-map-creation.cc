@@ -75,7 +75,7 @@ int processVIMapToLocalizationMap(
   solver_options.max_num_iterations = kNumInitialInitOptimizationIterations;
 
   // Initial visual-inertial optimization.
-  bool success = optimizer.optimizeVisualInertial(
+  bool success = optimizer.optimize(
       vi_problem_options, solver_options, {mission_id}, nullptr, map);
   if (!success) {
     LOG(ERROR) << "Optimization failed! Aborting.";
@@ -90,7 +90,8 @@ int processVIMapToLocalizationMap(
 
   // Relax the map.
   map_optimization::VIMapRelaxation relaxation(plotter, kEnableSignalHandler);
-  success = relaxation.relax(solver_options, {mission_id}, map);
+  success = relaxation.findLoopClosuresAndSolveRelaxation(
+      solver_options, {mission_id}, map);
   if (!success) {
     LOG(WARNING) << "Pose-graph relaxation failed, but this might be fine if "
                  << "no loopclosures are present in the dataset.";
@@ -108,7 +109,7 @@ int processVIMapToLocalizationMap(
   constexpr int kMaxNumOptimizationIterations = 25;
   solver_options.max_num_iterations = kMaxNumOptimizationIterations;
 
-  success = optimizer.optimizeVisualInertial(
+  success = optimizer.optimize(
       vi_problem_options, solver_options, {mission_id}, nullptr, map);
   if (!success) {
     LOG(ERROR) << "Optimization failed! Aborting.";

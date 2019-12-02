@@ -4,7 +4,7 @@ project(visualization)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-add_definitions(--std=c++11 -Wno-unknown-pragmas)
+add_definitions(-Wno-unknown-pragmas)
 
 ##########################
 # EXECUTABLE AND LIBRARY #
@@ -17,13 +17,13 @@ cs_add_library(${PROJECT_NAME}
   src/feature-matches-visualization.cc
   src/landmark-observer-plotter.cc
   src/patch-based-visualization.cc
+  src/resource-visualization.cc
   src/rviz-visualization-sink.cc
   src/sequential-plotter.cc
   src/sliding-window-plotter.cc
   src/vertex-landmark-visibility-plotter.cc
   src/viwls-graph-plotter.cc
   src/viz-data-collector.cc
-  src/visualizer.cc
 )
 
 ##########

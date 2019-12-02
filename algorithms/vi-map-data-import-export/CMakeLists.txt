@@ -6,7 +6,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 
 add_definitions(-fPIC -shared)
 
-cs_add_library(${PROJECT_NAME} src/import-export-gps-data.cc 
+cs_add_library(${PROJECT_NAME} src/import-loop-closure-edges.cpp
                                src/export-ncamera-calibration.cc
                                src/export-vertex-data.cc)
 

@@ -16,21 +16,21 @@ class LoopClosureHandlerTest;
 
 namespace map_optimization_legacy {
 class ViwlsGraph;
-class SixDofVIMapGenerator;
 }  // namespace map_optimization_legacy
 
 namespace vi_map {
 class VIMap;
+class SixDofVIMapGenerator;
 
 typedef std::unordered_map<LandmarkId, pose_graph::VertexId>
     LandmarkToVertexMap;
 
 class LandmarkIndex {
   friend VIMap;
-  friend ::LoopClosureHandlerTest;                     // Test.
-  friend class MapConsistencyCheckTest;                // Test.
-  friend class map_optimization_legacy::ViwlsGraph;    // Test.
-  friend class map_optimization_legacy::SixDofVIMapGenerator;  // Test.
+  friend ::LoopClosureHandlerTest;                   // Test.
+  friend class MapConsistencyCheckTest;              // Test.
+  friend class map_optimization_legacy::ViwlsGraph;  // Test.
+  friend class SixDofVIMapGenerator;                 // Test.
 
   LandmarkIndex() {}
 

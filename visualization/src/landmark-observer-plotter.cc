@@ -42,9 +42,9 @@ void LandmarkObserverPlotter::visualizeClickedLandmarks() const {
 void LandmarkObserverPlotter::clickedPointCallback(
     const geometry_msgs::PointStamped::ConstPtr& clicked_point_msg) const {
   const std::string& map_frame = clicked_point_msg->header.frame_id;
-  if (map_frame != kDefaultMapFrame) {
+  if (map_frame != FLAGS_tf_map_frame) {
     LOG(ERROR) << "Clicked point given in frame " << map_frame << " instead of "
-               << kDefaultMapFrame << ".";
+               << FLAGS_tf_map_frame << ".";
     return;
   }
   const Eigen::Vector3d clicked_point_p_G = {clicked_point_msg->point.x,
@@ -93,7 +93,7 @@ void LandmarkObserverPlotter::clickedPointCallback(
   constexpr size_t kMarkerId = 0u;
   publishLines(
       observer_rays_p_G_C, observer_rays_p_G_l, colors, kAlpha, scale,
-      kMarkerId, kDefaultMapFrame, kDefaultNamespace,
+      kMarkerId, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
       kLandmarkObserverRaysTopic);
 }
 

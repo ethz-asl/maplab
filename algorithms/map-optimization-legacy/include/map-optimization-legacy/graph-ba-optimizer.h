@@ -248,7 +248,7 @@ class GraphBaOptimizer {
   Eigen::Matrix<double, 7, Eigen::Dynamic> baseframe_poses_;
 
   // Poses of the optional sensor extrinsics.
-  typedef std::unordered_map<vi_map::SensorId, size_t> SensorExtrinsicsIdxMap;
+  typedef std::unordered_map<aslam::SensorId, size_t> SensorExtrinsicsIdxMap;
   SensorExtrinsicsIdxMap sensor_id_to_extrinsics_col_idx_;
   Eigen::Matrix<double, 7, Eigen::Dynamic> sensor_extrinsics_;
 

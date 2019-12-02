@@ -7,8 +7,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 ###########
 # LIBRARY #
 ###########
-add_definitions(--std=c++11)
-cs_add_library(${PROJECT_NAME} 
+cs_add_library(${PROJECT_NAME}
   src/message-flow.cc
 )
 

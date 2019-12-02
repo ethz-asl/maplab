@@ -52,7 +52,7 @@ ImuCameraSynchronizer::ImuCameraSynchronizer(
   imu_buffer_.reset(
       new vio_common::ImuMeasurementBuffer(kImuBufferLengthNanoseconds));
 
-  check_if_messages_are_incomfing_thread_ = std::thread(
+  check_if_messages_are_incoming_thread_ = std::thread(
       &ImuCameraSynchronizer::checkIfMessagesAreIncomingWorker, this);
   process_thread_ =
       std::thread(&ImuCameraSynchronizer::processDataThreadWorker, this);
@@ -191,16 +191,6 @@ void ImuCameraSynchronizer::processDataThreadWorker() {
         skip_frame = true;
         break;
       }
-
-      if (result == vio_common::ImuMeasurementBuffer::QueryResult::
-                        kTooFewMeasurementsAvailable) {
-        LOG(WARNING) << "NFrame-IMU synchronization: Too few IMU measurements "
-                     << "available between the previous and current nframe. "
-                     << "Dropping this nframe.";
-        // Skip this frame.
-        skip_frame = true;
-        break;
-      }
     }
 
     if (skip_frame) {
@@ -241,8 +231,8 @@ void ImuCameraSynchronizer::shutdown() {
     process_thread_.join();
   }
   cv_shutdown_.notify_all();
-  if (check_if_messages_are_incomfing_thread_.joinable()) {
-    check_if_messages_are_incomfing_thread_.join();
+  if (check_if_messages_are_incoming_thread_.joinable()) {
+    check_if_messages_are_incoming_thread_.join();
   }
 }
 

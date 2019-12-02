@@ -47,7 +47,7 @@ class Edge : public pose_graph::Edge {
       const pose_graph::EdgeId& edge_id, const vi_map::proto::Edge& proto);
 
   // Copies this object into a new edge.
-  // Input: pointer to a shared pointer which should store the copied edge.
+  // Input: pointer to a pointer which should store the copied edge.
   void copyEdgeInto(Edge** new_edge) const;
 
  protected:

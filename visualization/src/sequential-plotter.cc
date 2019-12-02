@@ -222,7 +222,7 @@ void SequentialPlotter::publishMissionsSequentially(
         const size_t kMarkerId = mission_index;
         publishLines(
             vertex_position, landmark_positions, segment_colors, kAlpha, scale,
-            kMarkerId, kDefaultMapFrame, kDefaultNamespace,
+            kMarkerId, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
             ViwlsGraphRvizPlotter::kLoopclosureTopic);
 
         publishVertexPoseAsTFSmoothed(map, viwls_vertex.id());
@@ -257,7 +257,7 @@ void SequentialPlotter::publishMissionsSequentially(
     }
 
     publishSpheresAsPointCloud(
-        landmark_vector, kDefaultMapFrame,
+        landmark_vector, FLAGS_tf_map_frame,
         ViwlsGraphRvizPlotter::kLandmarkTopic);
 
     bool is_marker_array_too_large;
@@ -275,8 +275,8 @@ void SequentialPlotter::publishMissionsSequentially(
         is_marker_array_too_large = true;
       }
       publishLines(
-          edges_vector, edge_marker_id, kDefaultMapFrame, kDefaultNamespace,
-          ViwlsGraphRvizPlotter::kEdgeTopic);
+          edges_vector, edge_marker_id, FLAGS_tf_map_frame,
+          FLAGS_vis_default_namespace, ViwlsGraphRvizPlotter::kEdgeTopic);
       if (!temp_edges_vector.empty()) {
         edges_vector.swap(temp_edges_vector);
         ++edge_marker_id;
@@ -287,7 +287,7 @@ void SequentialPlotter::publishMissionsSequentially(
 
 void SequentialPlotter::publishVertexPoseAsTFSmoothed(
     const vi_map::VIMap& map, const pose_graph::VertexId& vertex_id) const {
-  vi_map::Vertex vertex = map.getVertex(vertex_id);
+  const vi_map::Vertex& vertex = map.getVertex(vertex_id);
   Eigen::Vector3d G_p = map.getVertex_G_p_I(vertex_id);
 
   std::string child_frame =
@@ -299,7 +299,7 @@ void SequentialPlotter::publishVertexPoseAsTFSmoothed(
 
   aslam::Transformation G_camera_pose(vertex.get_q_M_I(), G_p_smoothed);
 
-  publishTF(G_camera_pose, kDefaultMapFrame, child_frame);
+  publishTF(G_camera_pose, FLAGS_tf_map_frame, child_frame);
 }
 
 }  // namespace visualization

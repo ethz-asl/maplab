@@ -9,7 +9,6 @@
 
 #include <aslam/common/unique-id.h>
 #include <maplab-common/file-system-tools.h>
-#include <maplab-common/unique-id.h>
 #include <posegraph/unique-id.h>
 
 namespace vi_map {

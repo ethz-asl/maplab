@@ -22,7 +22,8 @@ class RovioFlow {
  public:
   explicit RovioFlow(
       const aslam::NCamera& camera_calibration,
-      const vi_map::ImuSigmas& imu_sigmas);
+      const vi_map::ImuSigmas& imu_sigmas,
+      const aslam::Transformation& odom_calibration);
   ~RovioFlow();
 
   void attachToMessageFlow(message_flow::MessageFlow* flow);
@@ -40,6 +41,9 @@ class RovioFlow {
   common::BidirectionalMap<size_t, size_t> maplab_to_rovio_cam_indices_mapping_;
 
   std::unique_ptr<RovioLocalizationHandler> localization_handler_;
+
+  // External ROVIO odometry calibration
+  aslam::Transformation odom_calibration_;
 };
 }  // namespace rovioli
 #endif  // ROVIOLI_ROVIO_FLOW_H_

@@ -6,29 +6,48 @@
 #include <vector>
 
 #include <aslam/common/pose-types.h>
+#include <aslam/common/sensor.h>
 #include <maplab-common/macros.h>
+#include <pcl/point_types.h>
+#include <pcl_ros/point_cloud.h>
 #include <resources-common/point-cloud.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <yaml-cpp/yaml.h>
 
 #include "sensors/measurement.h"
-#include "sensors/sensor.h"
+#include "sensors/sensor-types.h"
 
 namespace vi_map {
 class VIMap;
 class MeasurementsTest_TestAccessorsLidar_Test;
-namespace test {
-void generateOptionalSensorDataAndAddToMap(VIMap* map);
-}
 
-class Lidar : public Sensor {
+class Lidar final : public aslam::Sensor {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MAPLAB_POINTER_TYPEDEFS(Lidar);
-  Lidar();
-  Lidar(const SensorId& sensor_id, const std::string& hardware_id);
+  Lidar() = default;
+  explicit Lidar(const aslam::SensorId& sensor_id);
+  Lidar(const aslam::SensorId& sensor_id, const std::string& topic);
 
-  Sensor::UniquePtr clone() const override {
-    return aligned_unique<Lidar>(*this);
+  Sensor::Ptr cloneAsSensor() const {
+    return std::dynamic_pointer_cast<Sensor>(aligned_shared<Lidar>(*this));
+  }
+
+  Lidar* cloneWithNewIds() const {
+    Lidar* cloned_lidar = new Lidar();
+    *cloned_lidar = *this;
+    aslam::SensorId new_id;
+    aslam::generateId(&new_id);
+    cloned_lidar->setId(new_id);
+    return cloned_lidar;
+  }
+
+  uint8_t getSensorType() const override {
+    return SensorType::kLidar;
+  }
+
+  std::string getSensorTypeString() const override {
+    return static_cast<std::string>(kLidarIdentifier);
   }
 
  private:
@@ -36,36 +55,44 @@ class Lidar : public Sensor {
   void saveToYamlNodeImpl(YAML::Node* sensor_node) const override;
 
   bool isValidImpl() const override {
-    RETURN_FALSE_IF_WRONG_SENSOR_TYPE(kLidar);
-    return true;
-  }
-
-  bool isEqualImpl(
-      const Sensor& /*other*/, const double /*precision*/) const override {
-    RETURN_FALSE_IF_WRONG_SENSOR_TYPE(kLidar);
     return true;
   }
 
   void setRandomImpl() override {}
+
+  bool isEqualImpl(
+      const Sensor& /*other*/, const bool /*verbose*/) const override {
+    return true;
+  }
 };
 
-class LidarMeasurement final : public Measurement {
+template <typename PointCloudType>
+class LidarMeasurement : public Measurement {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  MAPLAB_POINTER_TYPEDEFS(LidarMeasurement<PointCloudType>);
 
   LidarMeasurement() = default;
   LidarMeasurement(
-      const SensorId& sensor_id, const int64_t timestamp_nanoseconds)
+      const aslam::SensorId& sensor_id, const int64_t timestamp_nanoseconds,
+      const PointCloudType& point_cloud)
+      : Measurement(sensor_id, timestamp_nanoseconds),
+        point_cloud_(point_cloud) {
+    CHECK(isValid());
+  }
+  LidarMeasurement(
+      const aslam::SensorId& sensor_id, const int64_t timestamp_nanoseconds)
       : Measurement(sensor_id, timestamp_nanoseconds) {
     CHECK(isValid());
   }
+
   ~LidarMeasurement() = default;
 
-  const resources::PointCloud& getPointCloud() const {
+  const PointCloudType& getPointCloud() const {
     return point_cloud_;
   }
 
-  resources::PointCloud* getPointCloudMutable() {
+  PointCloudType* getPointCloudMutable() {
     return &point_cloud_;
   }
 
@@ -74,25 +101,61 @@ class LidarMeasurement final : public Measurement {
            point_cloud_ == other.getPointCloud();
   }
 
-  static constexpr double kMinDistanceMeters = 0.0;
-  static constexpr double kMaxDistanceMeters = 1e3;
-  static constexpr double kMinIntensity = 0.0;
-  static constexpr double kMaxIntensity = 255.0;
-
  private:
-  explicit LidarMeasurement(const vi_map::SensorId& sensor_id)
-      : vi_map::Measurement(sensor_id) {}
+  explicit LidarMeasurement(const aslam::SensorId& sensor_id)
+      : Measurement(sensor_id) {}
   bool isValidImpl() const override;
 
   void setRandomImpl() override;
 
-  resources::PointCloud point_cloud_;
+  PointCloudType point_cloud_;
 };
-
-DEFINE_MEAUREMENT_CONTAINERS(LidarMeasurement);
 
 }  // namespace vi_map
 
-DEFINE_MEASUREMENT_HASH(LidarMeasurement)
+// Adds a new Ouster LIDAR point type to PCL.
+namespace pcl {
+struct OusterPointType {
+  PCL_ADD_POINT4D
+  int time_offset_us;
+  uint16_t reflectivity;
+  uint16_t signal;
+  uint8_t ring;
+  float intensity;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+} EIGEN_ALIGN16;
+}  // namespace pcl
+
+// clang-format off
+POINT_CLOUD_REGISTER_POINT_STRUCT(
+    pcl::OusterPointType,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    (int, time_offset_us, time_offset_us)
+    (uint16_t, reflectivity, reflectivity)
+    (uint16_t, signal, intensity)
+    (uint8_t, ring, ring))
+// clang-format on
+
+namespace vi_map {
+
+typedef LidarMeasurement<resources::PointCloud> MaplabLidarMeasurement;
+typedef LidarMeasurement<pcl::PointCloud<pcl::PointXYZI>> PclLidarMeasurement;
+typedef LidarMeasurement<pcl::PointCloud<pcl::OusterPointType>>
+    OusterLidarMeasurement;
+typedef LidarMeasurement<sensor_msgs::PointCloud2> RosLidarMeasurement;
+
+DEFINE_MEAUREMENT_CONTAINERS(MaplabLidarMeasurement);
+DEFINE_MEAUREMENT_CONTAINERS(PclLidarMeasurement);
+DEFINE_MEAUREMENT_CONTAINERS(RosLidarMeasurement);
+DEFINE_MEAUREMENT_CONTAINERS(OusterLidarMeasurement);
+
+}  // namespace vi_map
+
+DEFINE_MEASUREMENT_HASH(MaplabLidarMeasurement)
+DEFINE_MEASUREMENT_HASH(PclLidarMeasurement)
+DEFINE_MEASUREMENT_HASH(RosLidarMeasurement)
+DEFINE_MEASUREMENT_HASH(OusterLidarMeasurement)
 
 #endif  // SENSORS_LIDAR_H_

@@ -34,20 +34,6 @@ void VIMapRelaxation::visualizePosegraph(const vi_map::VIMap& map) const {
   plotter_->visualizeMap(map);
 }
 
-int VIMapRelaxation::numLoopclosureEdges(const vi_map::VIMap& map) const {
-  pose_graph::EdgeIdList edges;
-  map.getAllEdgeIds(&edges);
-
-  int num_lc_edges = 0;
-  for (const pose_graph::EdgeId edge_id : edges) {
-    if (map.getEdgeType(edge_id) == pose_graph::Edge::EdgeType::kLoopClosure) {
-      ++num_lc_edges;
-    }
-  }
-
-  return num_lc_edges;
-}
-
 void VIMapRelaxation::detectLoopclosures(
     vi_map::MissionIdSet mission_ids, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
@@ -74,17 +60,18 @@ void VIMapRelaxation::detectLoopclosures(
   }
 }
 
-bool VIMapRelaxation::relax(
+bool VIMapRelaxation::findLoopClosuresAndSolveRelaxation(
     const vi_map::MissionIdList& mission_id_list, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
 
   ceres::Solver::Options solver_options =
       map_optimization::initSolverOptionsFromFlags();
 
-  return relax(solver_options, mission_id_list, map);
+  return findLoopClosuresAndSolveRelaxation(
+      solver_options, mission_id_list, map);
 }
 
-bool VIMapRelaxation::relax(
+bool VIMapRelaxation::findLoopClosuresAndSolveRelaxation(
     const ceres::Solver::Options& solver_options,
     const vi_map::MissionIdList& mission_id_list, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
@@ -99,7 +86,16 @@ bool VIMapRelaxation::relax(
     LOG(WARNING) << "No loop closure edges found, relaxation cannot proceed.";
     return false;
   }
-  LOG(INFO) << num_lc_edges << " loopclosure edges found.";
+  LOG(INFO) << num_lc_edges
+            << " loopclosure edges found and TEMPORARILY added to the map.";
+
+  return solveRelaxation(solver_options, mission_ids, map);
+}
+
+bool VIMapRelaxation::solveRelaxation(
+    const ceres::Solver::Options& solver_options,
+    const vi_map::MissionIdSet& mission_ids, vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
 
   map_optimization::ViProblemOptions options =
       map_optimization::ViProblemOptions::initFromGFlags();
@@ -114,14 +110,17 @@ bool VIMapRelaxation::relax(
   options.fix_extrinsics_translation = true;
   options.fix_landmark_positions = true;
 
-  map_optimization::OptimizationProblem* optimization_problem =
-      map_optimization::constructViProblem(mission_ids, options, map);
-  CHECK_NOTNULL(optimization_problem);
+  options.add_loop_closure_edges = true;
 
-  augmentViProblemWithLoopclosureEdges(optimization_problem);
+  map_optimization::OptimizationProblem::UniquePtr optimization_problem(
+      map_optimization::constructOptimizationProblem(
+          mission_ids, options, map));
+  CHECK(optimization_problem);
 
   std::vector<std::shared_ptr<ceres::IterationCallback>> callbacks;
-  map_optimization::appendSignalHandlerCallback(&callbacks);
+  if (FLAGS_ba_enable_signal_handler) {
+    map_optimization::appendSignalHandlerCallback(&callbacks);
+  }
 
   if (plotter_) {
     constexpr int kVisualizeEveryN = 1;
@@ -134,12 +133,10 @@ bool VIMapRelaxation::relax(
   map_optimization::addCallbacksToSolverOptions(
       callbacks, &solver_options_with_callbacks);
 
-  map_optimization::solve(solver_options_with_callbacks, optimization_problem);
+  map_optimization::solve(
+      solver_options_with_callbacks, optimization_problem.get());
 
   visualizePosegraph(*map);
-
-  optimization_problem->getOptimizationStateBufferMutable()
-      ->copyAllStatesBackToMap(map);
 
   const size_t number_of_loop_closure_edges_removed =
       map->removeLoopClosureEdges();

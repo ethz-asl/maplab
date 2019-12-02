@@ -96,7 +96,7 @@ class ViMappingTest : public ::testing::Test {
 
     // Make sure the difference between kept and removed landmarks is
     // reasonably large.
-    EXPECT_GT(avg_observers_kept, avg_observers_removed + 10);
+    EXPECT_GE(avg_observers_kept, avg_observers_removed + 10);
   }
 
  private:

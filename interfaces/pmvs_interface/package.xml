@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>pmvs_interface</name>
-  <version>0.0.0</version>
+  <version>2.2.0</version>
   <description>This package contains methods to:
                  * export the maplab mapping data to a SFM file format
                    that can be parsed by PMVS.
@@ -28,5 +28,5 @@
   <depend>posegraph</depend>
   <depend>vi_map</depend>
   <depend>visualization</depend>
-  <depend>voxblox_interface</depend>
+  <depend>depth_integration</depend>
 </package>

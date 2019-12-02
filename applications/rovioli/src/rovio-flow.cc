@@ -9,11 +9,11 @@
 #include <aslam/cameras/ncamera.h>
 #include <aslam/common/pose-types.h>
 #include <aslam/common/time.h>
+#include <aslam/common/unique-id.h>
 #include <gflags/gflags.h>
 #include <maplab-common/fixed-size-queue.h>
 #include <maplab-common/geometry.h>
 #include <maplab-common/string-tools.h>
-#include <maplab-common/unique-id.h>
 #include <message-flow/message-flow.h>
 #include <vio-common/pose-lookup-buffer.h>
 #include <vio-common/vio-types.h>
@@ -39,7 +39,8 @@ DEFINE_bool(
 namespace rovioli {
 RovioFlow::RovioFlow(
     const aslam::NCamera& camera_calibration,
-    const vi_map::ImuSigmas& imu_sigmas) {
+    const vi_map::ImuSigmas& imu_sigmas,
+    const aslam::Transformation& odom_calibration) {
   // Multi-camera support in ROVIO is still experimental. Therefore, only a
   // single camera will be used for motion tracking per default.
   const size_t num_cameras = camera_calibration.getNumCameras();
@@ -82,7 +83,7 @@ RovioFlow::RovioFlow(
   CHECK_EQ(static_cast<int>(active_T_C_Bs.size()), rovio_camera_index);
 
   aslam::NCameraId id;
-  common::generateId<aslam::NCameraId>(&id);
+  aslam::generateId<aslam::NCameraId>(&id);
   aslam::NCamera motion_tracking_ncamera(
       id, active_T_C_Bs, active_cameras, "Cameras active for motion tracking.");
 
@@ -94,6 +95,9 @@ RovioFlow::RovioFlow(
   localization_handler_.reset(new RovioLocalizationHandler(
       rovio_interface_.get(), &time_translation_, camera_calibration,
       maplab_to_rovio_cam_indices_mapping_));
+
+  // Store external ROVIO odometry calibration
+  odom_calibration_ = odom_calibration;
 }
 
 RovioFlow::~RovioFlow() {}
@@ -128,6 +132,29 @@ void RovioFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
         localization_handler_->T_M_I_buffer_mutable()->bufferImuMeasurement(
             *imu);
       });
+
+  // Input Odometry.
+  flow->registerSubscriber<message_flow_topics::ODOMETRY_MEASUREMENTS>(
+      kSubscriberNodeName, rovio_subscriber_options,
+      [this](const vio::OdometryMeasurement::ConstPtr& odometry) {
+        const Eigen::Vector3d& t_I_O = odom_calibration_.getPosition();
+        const Eigen::Matrix3d& R_I_O = odom_calibration_.getRotationMatrix();
+
+        Eigen::Vector3d velocity_linear_I =
+            R_I_O * odometry->velocity_linear_O -
+            (R_I_O * odometry->velocity_angular_O).cross(t_I_O);
+
+        const double rovio_timestamp_sec =
+            time_translation_.convertMaplabToRovioTimestamp(
+                odometry->timestamp);
+        const bool measurement_accepted =
+            this->rovio_interface_->processVelocityUpdate(
+                velocity_linear_I, rovio_timestamp_sec);
+        LOG_IF(
+            WARNING, !measurement_accepted && rovio_interface_->isInitialized())
+            << "ROVIO rejected Odometry measurement. Latency is too large.";
+      });
+
   // Input camera.
   flow->registerSubscriber<message_flow_topics::IMAGE_MEASUREMENTS>(
       kSubscriberNodeName, rovio_subscriber_options,
@@ -139,6 +166,7 @@ void RovioFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
           // Skip this image, as the camera was marked as inactive.
           return;
         }
+
         const double rovio_timestamp_sec =
             time_translation_.convertMaplabToRovioTimestamp(image->timestamp);
         const bool measurement_accepted =
@@ -146,7 +174,10 @@ void RovioFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
                 *rovio_cam_index, image->image, rovio_timestamp_sec);
         LOG_IF(
             WARNING, !measurement_accepted && rovio_interface_->isInitialized())
-            << "ROVIO rejected image measurement. Latency is too large.";
+            << "ROVIO rejected image measurement of camera " << maplab_cam_idx
+            << " (rovio cam idx: " << *rovio_cam_index << ") at time "
+            << aslam::time::timeNanosecondsToString(image->timestamp)
+            << ". Latency is too large.";
       });
   // Input localization updates.
   flow->registerSubscriber<message_flow_topics::LOCALIZATION_RESULT>(
@@ -199,6 +230,8 @@ void RovioFlow::processAndPublishRovioUpdate(const rovio::RovioState& state) {
   rovio_estimate->vinode.set_v_M_I(v_M);
   rovio_estimate->vinode.setAccBias(state.getAcb());
   rovio_estimate->vinode.setGyroBias(state.getGyb());
+  rovio_estimate->vinode.setCovariancesFromRovioMatrix(
+      state.getImuCovariance());
 
   // Camera extrinsics.
   for (size_t rovio_cam_idx = 0u; rovio_cam_idx < state.numCameras();
@@ -220,7 +253,7 @@ void RovioFlow::processAndPublishRovioUpdate(const rovio::RovioState& state) {
   // Optional localizations.
   rovio_estimate->has_T_G_M =
       extractLocalizationFromRovioState(state, &rovio_estimate->T_G_M);
-  localization_handler_->T_M_I_buffer_mutable()->bufferRovioEstimate(
+  localization_handler_->T_M_I_buffer_mutable()->bufferOdometryEstimate(
       rovio_estimate->vinode);
   if (rovio_estimate->has_T_G_M) {
     localization_handler_->buffer_T_G_M(rovio_estimate->T_G_M);

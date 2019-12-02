@@ -2,6 +2,7 @@
 #include <thread>
 #include <unordered_set>
 
+#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/memory.h>
 #include <gtest/gtest.h>
 #include <map-manager/map-manager.h>
@@ -66,12 +67,11 @@ TEST_F(MapManagerVIMapTest, ThreadSafeMapAccess) {
       const size_t num_missions_begin = map->numMissions();
 
       vi_map::MissionId mission_id;
-      common::generateId(&mission_id);
-      constexpr size_t kNumCameras = 1u;
+      aslam::generateId(&mission_id);
+
       map->addNewMissionWithBaseframe(
           mission_id, pose::Transformation(),
           Eigen::Matrix<double, 6, 6>::Identity(),
-          aslam::NCamera::createTestNCamera(kNumCameras),
           vi_map::Mission::BackBone::kViwls);
       EXPECT_EQ(num_missions_begin + 1, map->numMissions());
 
@@ -149,9 +149,6 @@ TEST_F(MapManagerVIMapTest, CopyMapWithData) {
   EXPECT_EQ(
       original_map->getSensorManager().getNumSensors(),
       copied_map.getSensorManager().getNumSensors());
-  EXPECT_EQ(
-      original_map->getSensorManager().getNumNCameraSensors(),
-      copied_map.getSensorManager().getNumNCameraSensors());
 }
 
 MAPLAB_UNITTEST_ENTRYPOINT

@@ -14,8 +14,6 @@ PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 #############
 # LIBRARIES #
 #############
-add_definitions(-std=c++11)
-
 cs_add_library(${PROJECT_NAME} ${PROTO_SRCS} ${PROTO_HDRS}
   src/camera-serialization.cc
   src/visual-frame-serialization.cc

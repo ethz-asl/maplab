@@ -1,6 +1,6 @@
 package resource_info.proto;
 
-import "maplab-common/id.proto";
+import "aslam/common/id.proto";
 
 message ResourceInfo {
   required int32 folder_idx = 1;
@@ -8,6 +8,6 @@ message ResourceInfo {
 
 message ResourceInfoMap {
   repeated uint32 resource_type = 1;
-  repeated common.proto.Id resource_id = 2;
+  repeated aslam.proto.Id resource_id = 2;
   repeated ResourceInfo resource_info = 3;
 }
