@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+
+<launch>
+  <arg name="robot_name" default=""/>
+  <arg name="rovioli_sensor_calibration_file" default=""/>
+  <arg name="rovioli_imu_to_camera_time_offset_ns" default="0"/>
+  <arg name="rovioli_image_topic_suffix" default=""/>
+  <arg name="rovioli_camera_mask_file" default=""/>
+  <arg name="rovioli_apply_clahe" default="false"/>
+
+  <arg name="rovioli_selected_ncamera_sensor_id" default=""/>
+  <arg name="rovioli_imu_sensor_id" default=""/>
+
+  <arg name="rovioli_localization_map_folder" default=""/>
+  <arg name="rovioli_world_frame" default="map"/>
+  <arg name="rovioli_verbosity" default="0"/>
+
+  <!-- ================================== ROVIOLI ================================================== -->
+
+  <group ns="$(arg robot_name)/rovioli">
+     <include file="$(find rovioli)/launch/rovioli.launch">
+          <!-- SENSORS AND CALIBRATION -->
+          <arg name="sensor_calibration_file" default="$(arg rovioli_sensor_calibration_file)"/>
+          <arg name="external_imu_parameters_rovio" default=""/>
+          <arg name="imu_to_camera_time_offset_ns" default="$(arg rovioli_imu_to_camera_time_offset_ns)"/>
+          <arg name="rovioli_image_apply_clahe_histogram_equalization" 
+            default="$(arg rovioli_apply_clahe)"/>
+
+          <arg name="rovio_image_mask_path" default="$(arg rovioli_camera_mask_file)"/>
+
+          <!-- only needed if there are multiple ncameras/lidars/imus/odometries in the calibration file. -->
+          <arg name="selected_ncamera_sensor_id" default="$(arg rovioli_selected_ncamera_sensor_id)"/>
+          <arg name="selected_imu_sensor_id" default="$(arg rovioli_imu_sensor_id)"/>
+
+          <!-- DATA SOURCE -->
+          <arg name="datasource_type" default="rostopic"/>
+          <arg name="datasource_rosbag" default=""/>
+
+          <!-- MAP BUILDING (DISABLED) -->
+          <arg name="rovioli_run_map_builder" default="false"/>
+          <arg name="save_map_folder" default=""/>
+          <arg name="overwrite_existing_map" default="false"/>
+          <arg name="optimize_map_to_localization_map" default="false"/>
+          <arg name="map_builder_save_image_as_resources" default="false"/>
+
+          <!-- VISUAL LOCALIZATION (DISABLED) -->
+          <arg name="vio_localization_map_folder" default="$(arg rovioli_localization_map_folder)"/>
+
+          <!-- DEBUGGING AND LOGGING -->
+          <arg name="alsologtostderr" default="true"/>
+          <arg name="colorlogtostderr" default="true"/>
+          <arg name="v" default="$(arg rovioli_verbosity)"/>
+          <arg name="publish_debug_markers" default="true"/>
+
+          <!-- TF -->
+          <arg name="tf_map_frame" default="$(arg rovioli_world_frame)"/>
+          <arg name="tf_mission_frame" default="rovioli_$(arg robot_name)_odom"/>
+          <arg name="tf_imu_frame" default="rovioli_$(arg robot_name)_imu"/>
+
+          <arg name="rovioli_enable_health_checking" default="true"/>
+          <arg name="rovio_enable_frame_visualization" default="true"/>
+          <arg name="vio_camera_topic_suffix" default="$(arg rovioli_image_topic_suffix)" />
+    </include>
+  </group>
+</launch>

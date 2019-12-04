@@ -17,6 +17,7 @@
   <arg name="maplab_save_map_every_n_sec" default="0"/>
   <arg name="maplab_keyframe_when_saving" default="false"/>
 
+  <arg name="maplab_apply_clahe" default="false"/>
   <arg name="maplab_attach_images" default="false"/>
   <arg name="maplab_attach_point_clouds" default="false"/>
   <arg name="maplab_attach_point_cloud_maps" default="false"/>
@@ -42,10 +43,12 @@
       <!-- DATA SOURCE -->
       <arg name="datasource_type" default="rostopic"/>
       <arg name="datasource_rosbag" default=""/>
-      <arg name="imu_to_camera_time_offset_ns" default="$(arg maplab_imu_to_camera_time_offset_ns)"/>
+      <arg name="imu_to_camera_time_offset_ns" 
+        default="$(arg maplab_imu_to_camera_time_offset_ns)"/>
 
       <!-- DATA PREPROCESSING -->
-      <arg name="image_apply_clahe_histogram_equalization" default="false"/>
+      <arg name="image_apply_clahe_histogram_equalization" 
+        default="$(arg maplab_apply_clahe"/>
 
       <!-- LOCALIZATION BASED ON VISION -->
       <arg name="enable_visual_localization" default="false"/>
