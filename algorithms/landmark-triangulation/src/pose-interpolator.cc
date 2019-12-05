@@ -21,7 +21,7 @@ void PoseInterpolator::buildListOfAllRequiredIMUMeasurements(
   CHECK_GE(end_index, 0);
 
   // First add all imu measurements from this vertex to the buffer.
-  typedef std::pair<int64_t, IMUMeasurement> buffer_value_type;
+  typedef std::pair<const int64_t, IMUMeasurement> buffer_value_type;
   using common::TemporalBuffer;
   typedef TemporalBuffer<
       IMUMeasurement, Eigen::aligned_allocator<buffer_value_type>>
