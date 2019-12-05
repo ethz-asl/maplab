@@ -47,7 +47,7 @@ DataSourceRosbag::DataSourceRosbag(
       rosbag_path_filename_(rosbag_path_filename),
       ros_topics_(ros_topics),
       last_imu_timestamp_ns_(aslam::time::getInvalidTime()) {
-  const uint32_t num_cameras = ros_topics_.camera_topic_cam_index_map.size();
+  const uint8_t num_cameras = ros_topics_.camera_topic_cam_index_map.size();
   if (num_cameras > 0u) {
     last_image_timestamp_ns_.resize(num_cameras, aslam::time::getInvalidTime());
   }
