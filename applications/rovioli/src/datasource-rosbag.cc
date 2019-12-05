@@ -185,13 +185,12 @@ void DataSourceRosbag::streamingWorker() {
                        << image_measurement->timestamp
                        << "ns vs last timestamp: "
                        << last_image_timestamp_ns_[camera_idx] << "ns.";
-          return;
         } else {
           last_image_timestamp_ns_[camera_idx] = image_measurement->timestamp;
-        }
 
-        VLOG(3) << "Publish Image measurement...";
-        invokeImageCallbacks(image_measurement);
+          VLOG(3) << "Publish Image measurement...";
+          invokeImageCallbacks(image_measurement);
+        }
       }
     }
 
@@ -213,13 +212,12 @@ void DataSourceRosbag::streamingWorker() {
                        << imu_measurement->timestamp
                        << "ns vs last timestamp: " << last_imu_timestamp_ns_
                        << "ns.";
-          return;
         } else {
           last_imu_timestamp_ns_ = imu_measurement->timestamp;
-        }
 
-        VLOG(3) << "Publish IMU measurement...";
-        invokeImuCallbacks(imu_measurement);
+          VLOG(3) << "Publish IMU measurement...";
+          invokeImuCallbacks(imu_measurement);
+        }
       }
     }
 
