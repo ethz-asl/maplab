@@ -250,7 +250,9 @@ size_t selectKeyframesBasedOnHeuristics(
     ++num_frames_since_last_keyframe;
   }
 
-  // The last vertex is always a keyframe
+
+  // Ensure the last vertex is added as a keyframe if it hasn't been selected
+  // by any heuristics yet.
   if (last_keyframe_id != current_vertex_id) {
     insert_keyframe(current_vertex_id);
   }
