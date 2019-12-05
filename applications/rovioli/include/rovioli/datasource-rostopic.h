@@ -57,6 +57,9 @@ class DataSourceRostopic : public DataSource {
   std::vector<image_transport::Subscriber> sub_images_;
   ros::Subscriber sub_imu_;
   std::vector<ros::Subscriber> sub_odometry_;
+
+  int64_t last_imu_timestamp_ns_;
+  std::vector<int64_t> last_image_timestamp_ns_;
 };
 
 }  // namespace rovioli

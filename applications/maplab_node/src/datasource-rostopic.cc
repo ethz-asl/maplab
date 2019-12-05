@@ -8,8 +8,8 @@
 #include <maplab-common/accessors.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensors/lidar.h>
-#include <vio-common/rostopic-settings.h>
 #include <vi-map/sensor-utils.h>
+#include <vio-common/rostopic-settings.h>
 
 #include "maplab-node/ros-helpers.h"
 
@@ -23,7 +23,13 @@ DataSourceRostopic::DataSourceRostopic(
     : DataSource(sensor_manager),
       shutdown_requested_(false),
       ros_topics_(ros_topics),
-      image_transport_(node_handle_) {} 
+      image_transport_(node_handle_),
+      last_imu_timestamp_ns_(aslam::time::getInvalidTime()) {
+  const uint32_t num_cameras = ros_topics_.camera_topic_cam_index_map.size();
+  if (num_cameras > 0u) {
+    last_image_timestamp_ns_.resize(num_cameras, aslam::time::getInvalidTime());
+  }
+}
 
 DataSourceRostopic::~DataSourceRostopic() {}
 
@@ -47,12 +53,12 @@ void DataSourceRostopic::registerSubscribers(
                                        << " is subscribed to an empty topic!";
 
     boost::function<void(const sensor_msgs::ImageConstPtr&)> image_callback =
-      boost::bind(
-        &DataSourceRostopic::imageCallback, this, _1, topic_camidx.second);
+        boost::bind(
+            &DataSourceRostopic::imageCallback, this, _1, topic_camidx.second);
 
     constexpr size_t kRosSubscriberQueueSizeImage = 20u;
     image_transport::Subscriber image_sub = image_transport_.subscribe(
-      topic_camidx.first, kRosSubscriberQueueSizeImage, image_callback);
+        topic_camidx.first, kRosSubscriberQueueSizeImage, image_callback);
     sub_images_.push_back(image_sub);
     VLOG(1) << "[MaplabNode-DataSource] Camera " << topic_camidx.second
             << " is subscribed to topic: '" << topic_camidx.first << "'";
@@ -213,7 +219,7 @@ void DataSourceRostopic::imageCallback(
   }
 
   vio::ImageMeasurement::Ptr image_measurement =
-      convertRosImageToMaplabImage(image_message, camera_idx);  
+      convertRosImageToMaplabImage(image_message, camera_idx);
   CHECK(image_measurement);
 
   // Apply the IMU to camera time shift.
@@ -224,6 +230,20 @@ void DataSourceRostopic::imageCallback(
   // Shift timestamps to start at 0.
   if (!FLAGS_zero_initial_timestamps ||
       shiftByFirstTimestamp(&(image_measurement->timestamp))) {
+    // Check for strictly increasing image timestamps.
+    CHECK_LT(camera_idx, last_image_timestamp_ns_.size());
+    if (aslam::time::isValidTime(last_image_timestamp_ns_[camera_idx]) &&
+        last_image_timestamp_ns_[camera_idx] >= image_measurement->timestamp) {
+      LOG(WARNING) << "[MaplabNode-DataSource] Image message (cam "
+                   << camera_idx << ") is not strictly "
+                   << "increasing! Current timestamp: "
+                   << image_measurement->timestamp << "ns vs last timestamp: "
+                   << last_image_timestamp_ns_[camera_idx] << "ns.";
+      return;
+    } else {
+      last_image_timestamp_ns_[camera_idx] = image_measurement->timestamp;
+    }
+
     invokeImageCallbacks(image_measurement);
   }
 }
@@ -240,6 +260,19 @@ void DataSourceRostopic::imuMeasurementCallback(
   // Shift timestamps to start at 0.
   if (!FLAGS_zero_initial_timestamps ||
       shiftByFirstTimestamp(&(imu_measurement->timestamp))) {
+    // Check for strictly increasing imu timestamps.
+    if (aslam::time::isValidTime(last_imu_timestamp_ns_) &&
+        last_imu_timestamp_ns_ >= imu_measurement->timestamp) {
+      LOG(WARNING) << "[MaplabNode-DataSource] IMU message is not strictly "
+                   << "increasing! Current timestamp: "
+                   << imu_measurement->timestamp
+                   << "ns vs last timestamp: " << last_imu_timestamp_ns_
+                   << "ns.";
+      return;
+    } else {
+      last_imu_timestamp_ns_ = imu_measurement->timestamp;
+    }
+
     invokeImuCallbacks(imu_measurement);
   }
 }
