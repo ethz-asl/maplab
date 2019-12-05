@@ -37,9 +37,6 @@ int keyframeMapBasedOnHeuristics(
     return common::CommandStatus::kUnknownError;
   }
 
-  if (keyframe_ids.back() != last_vertex_id) {
-    keyframe_ids.emplace_back(last_vertex_id);
-  }
 
   // Optionally, visualize the selected keyframes.
   if (plotter != nullptr) {

@@ -92,7 +92,7 @@ void PoseGraph::mergeNeighboringEdges<TransformationEdge>(
   CHECK_EQ(merge_into_vertex_id, edge_between_vertices.from());
   CHECK_EQ(edge_between_vertices.to(), edge_after_next_vertex.from());
 
-  const aslam::SensorId& sensor_id = edge_between_vertices.getSensorId();
+  const aslam::SensorId sensor_id = edge_between_vertices.getSensorId();
   CHECK_EQ(sensor_id, edge_after_next_vertex.getSensorId());
 
   const Edge::EdgeType edge_type = edge_between_vertices.getType();
