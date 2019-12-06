@@ -177,9 +177,10 @@ class Synchronizer {
   int64_t previous_nframe_timestamp_ns_;
   // Threshold used to throttle the consecutively published NFrames.
   const int64_t min_nframe_timestamp_diff_ns_;
-  // allow for slight variations in frame rate; relevant when camera frame rate
-  // and throttling rate nearly identical.
-  const float nframe_timestamp_diff_tolerance_;
+  // Tolerance factor between 0.0 and 1.0 to allow for slight variations in
+  // frame rate; relevant when camera frame rate and throttling rate nearly
+  // identical.
+  const float min_nframe_timestamp_diff_tolerance_factor_;
 
   // Number of received odometry measurements.
   int64_t odometry_measurement_counter_;
