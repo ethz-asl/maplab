@@ -2,7 +2,11 @@
 
 <launch>
 	<!-- SENSORS -->
-	<arg name="server_node_config_file" default="$(find maplab_server_node)/share/darpa-smb-pittsburgh.yaml"/>
+	<arg name="maplab_server_node_config_file" default="$(find maplab_server_node)/share/darpa-smb-pittsburgh.yaml"/>
+	<arg name="maplab_server_backup_interval_s" default="300"/>
+	<arg name="maplab_server_merged_map_folder" default="/tmp/merged_map"/>
+	<arg name="maplab_server_map_update_topic" default="map_update_notification"/>
+
 	<arg name="overwrite" default="true"/>
 
 	<arg name="alsologtostderr" default="true"/>
@@ -17,7 +21,11 @@
 
 
 	<node name="maplab_server_node" pkg="maplab_server_node" type="maplab_server_node" output="screen" clear_params="true">
-		<param name="server_node_config_file" value="$(arg server_node_config_file)"/>
+		<param name="maplab_server_node_config_file" value="$(arg maplab_server_node_config_file)"/>
+		<param name="maplab_server_backup_interval_s" value="$(arg maplab_server_backup_interval_s)"/>
+		<param name="maplab_server_merged_map_folder" value="$(arg maplab_server_merged_map_folder)"/>
+		<param name="maplab_server_map_update_topic" value="$(arg maplab_server_map_update_topic)"/>
+
 		<param name="overwrite" value="$(arg overwrite)"/>
 
 		<!-- DEBUGGING AND LOGGING -->
@@ -26,8 +34,6 @@
 		<param name="v" value="$(arg v)"/>
 		<param name="vis_default_namespace" value="$(arg vis_default_namespace)"/>
 		<param name="show_progress_bar" value="false"/>
-
-
 
 		<!-- TF -->
     <param name="tf_map_frame" value="$(arg tf_map_frame)"/>
