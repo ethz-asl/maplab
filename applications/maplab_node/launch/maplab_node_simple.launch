@@ -16,6 +16,7 @@
 
   <arg name="maplab_save_map_every_n_sec" default="0"/>
   <arg name="maplab_keyframe_when_saving" default="false"/>
+  <arg name="maplab_remove_bad_landmarks" default="false"/>
 
   <arg name="maplab_apply_clahe" default="false"/>
   <arg name="maplab_attach_images" default="false"/>
@@ -70,6 +71,8 @@
   		<arg name="map_run_keyframing_when_saving" default="$(arg maplab_keyframe_when_saving)"/>
   		<arg name="map_save_every_n_sec" default="$(arg maplab_save_map_every_n_sec)"/>
   		<arg name="map_split_map_into_submaps_when_saving_periodically" default="true"/>
+  		<arg name="map_remove_bad_landmarks" default="$(arg maplab_remove_bad_landmarks)"/>
+      
 
   		<!-- ATTACHING RESOURCES TO MAP -->
   		<arg name="map_builder_save_image_as_resources" default="$(arg maplab_attach_images)"/>
