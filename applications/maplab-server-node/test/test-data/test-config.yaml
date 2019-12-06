@@ -1,19 +1,8 @@
-server_config:
-  map_folder:            "/tmp/maplab_server_node/combined_map"
-  resource_folder:       "/tmp/maplab_server_node/combined_map_resources"
-  map_backup_interval_s: 300
+submap_commands:
+  - "lc"
+  - "optvi"
 
-  submap_commands:
-    - "lc"
-    - "optvi"
-
-  global_map_commands:
-    - "lc"
-    - "optvi"
-    - "elq --vi_map_landmark_quality_min_observers=2"
-
-connection_config:
-  - name:                local_maplab_node
-    topic:               "/maplab_node/map_update_notification"
-    ip:                  "localhost"
-    user:                "user"
+global_map_commands:
+  - "lc"
+  - "optvi"
+  - "elq --vi_map_landmark_quality_min_observers=2"

@@ -59,7 +59,6 @@ class MaplabServerNode final {
 
   bool loadAndProcessSubmap(
       const std::string& robot_name, const std::string& submap_path);
-  bool loadAndProcessSubmap(const std::string& submap_path);
 
   // Save the map to disk.
   bool saveMap(const std::string& path);

@@ -16,7 +16,7 @@
 DECLARE_bool(ros_free);
 
 DEFINE_int32(
-    submap_loading_thread_pool_size, 4,
+    maplab_server_submap_loading_thread_pool_size, 4,
     "Number of threads used to load and pre-process incoming submaps. These "
     "threads are different from the one thread that is merging and optimizing "
     "the global map.");
@@ -24,7 +24,8 @@ DEFINE_int32(
 namespace maplab {
 MaplabServerNode::MaplabServerNode(const MaplabServerNodeConfig& config)
     : config_(config),
-      submap_loading_thread_pool_(FLAGS_submap_loading_thread_pool_size),
+      submap_loading_thread_pool_(
+          FLAGS_maplab_server_submap_loading_thread_pool_size),
       base_console_("base_console", 0 /*argc*/, nullptr /*argv*/),
       plotter_(nullptr),
       is_running_(false),
@@ -228,8 +229,8 @@ void MaplabServerNode::start() {
           aslam::time::nanoSecondsSinceEpoch());
 
       if ((time_now_s - time_of_last_map_backup_s) >
-              config_.map_backup_interval_s &&
-          config_.map_backup_interval_s > 0) {
+              FLAGS_maplab_server_backup_interval_s &&
+          FLAGS_maplab_server_backup_interval_s > 0) {
         LOG(INFO) << "[MaplabServerNode] MapMerging - saving map as backup.";
         {
           std::lock_guard<std::mutex> merge_command_lock(
@@ -312,7 +313,7 @@ void MaplabServerNode::start() {
          << "==\n";
       ss << " - Active submap threads: "
          << submap_loading_thread_pool_.numActiveThreads() << "/"
-         << FLAGS_submap_loading_thread_pool_size << "\n";
+         << FLAGS_maplab_server_submap_loading_thread_pool_size << "\n";
       {
         std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
         for (const std::pair<const size_t, std::string>& comm :
@@ -390,14 +391,10 @@ bool MaplabServerNode::saveMap(const std::string& path) {
   }
 }
 
-bool MaplabServerNode::loadAndProcessSubmap(const std::string& submap_path) {
-  CHECK(!submap_path.empty());
-  return loadAndProcessSubmap("" /*robot_name*/, submap_path);
-}
-
 bool MaplabServerNode::loadAndProcessSubmap(
     const std::string& robot_name, const std::string& submap_path) {
   CHECK(!submap_path.empty());
+  CHECK(!robot_name.empty());
 
   std::lock_guard<std::mutex> lock(mutex_);
 
@@ -417,7 +414,7 @@ bool MaplabServerNode::loadAndProcessSubmap(
 
   SubmapProcess& submap_process = submap_processing_queue_.back();
   submap_process.path = submap_path;
-  submap_process.robot_name = robot_name.empty() ? "unknown_robot" : robot_name;
+  submap_process.robot_name = robot_name;
   submap_process.map_hash = std::hash<std::string>{}(submap_path);
   submap_process.map_key =
       submap_process.robot_name + "_" + std::to_string(submap_process.map_hash);
@@ -516,11 +513,12 @@ bool MaplabServerNode::loadAndProcessSubmap(
 
 bool MaplabServerNode::saveMap() {
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(INFO) << "[MaplabServerNode] Saving map to '" << config_.map_folder
-            << "'.";
+  LOG(INFO) << "[MaplabServerNode] Saving map to '"
+            << FLAGS_maplab_server_merged_map_folder << "'.";
   if (map_manager_.hasMap(kMergedMapKey)) {
     return map_manager_.saveMapToFolder(
-        kMergedMapKey, config_.map_folder, vi_map::parseSaveConfigFromGFlags());
+        kMergedMapKey, FLAGS_maplab_server_merged_map_folder,
+        vi_map::parseSaveConfigFromGFlags());
   } else {
     return false;
   }
