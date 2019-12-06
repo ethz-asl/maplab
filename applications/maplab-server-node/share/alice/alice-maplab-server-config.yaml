@@ -1,0 +1,8 @@
+submap_commands:
+  - "optvi --ba_num_iterations=20 --ba_enable_signal_handler=false"
+
+global_map_commands:
+  - "aam --lc_mission_baseframe_min_inlier_ratio=0.05 --lc_min_inlier_ratio=0.05 --lc_min_inlier_count=5 --lc_ransac_pixel_sigma=3"
+  - "lc"
+  - "optvi --ba_num_iterations 1 --ba_enable_signal_handler=false"
+  - "elq --vi_map_landmark_quality_min_observers=2"
