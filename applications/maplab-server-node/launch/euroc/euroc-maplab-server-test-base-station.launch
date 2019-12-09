@@ -26,8 +26,10 @@ Requires:
 	</group>
 
 	<node name="transfolder_receiver" pkg="transfolder" type="receiver_node" output="screen" args="-alsologtostderr">
-		<remap from="/file_transfer_status" to="/transfolder/file_transfer_status" />
-		<remap from="/file_transfer" to="/transfolder/file_transfer" />
+		<param name="file_transfer_completion_topic_name" value="/transfolder_receiver/folder_received" />
+		<param name="file_transfer_topic_name" value="/transfolder/file_transfer" />
+		<param name="transfer_status_service_name" value="/transfolder/file_transfer_status" />
+
 		<param name="root_directory" value="/tmp/maplab_server_submaps/"/>
 	</node>
 

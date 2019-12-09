@@ -39,8 +39,9 @@ Requires:
 		</include>
 
 		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg euroc_robot_name)_sender" output="screen" args="-alsologtostderr">
-			<remap from="/send_folder" to="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
-			<remap from="/transfolder_$(arg euroc_robot_name)_sender/file_transfer" to="/transfolder/file_transfer" />
+			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer" />
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status" />
 
 			<param name="root_directory" value="$(arg euroc_root_map_directory)"/>
 			<param name="robot_name" value="$(arg euroc_robot_name)"/>
@@ -70,8 +71,9 @@ Requires:
 		</include>
 
 		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg euroc_robot_name)_sender" output="screen" args="-alsologtostderr">
-			<remap from="/send_folder" to="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
-			<remap from="/transfolder_$(arg euroc_robot_name)_sender/file_transfer" to="/transfolder/file_transfer" />
+			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer" />
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status" />
 
 			<param name="root_directory" value="$(arg euroc_root_map_directory)"/>
 			<param name="robot_name" value="$(arg euroc_robot_name)"/>
@@ -101,8 +103,9 @@ Requires:
 		</include>
 
 		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg euroc_robot_name)_sender" output="screen" args="-alsologtostderr">
-			<remap from="/send_folder" to="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
-			<remap from="/transfolder_$(arg euroc_robot_name)_sender/file_transfer" to="/transfolder/file_transfer" />
+			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer" />
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status" />
 
 			<param name="root_directory" value="$(arg euroc_root_map_directory)"/>
 			<param name="robot_name" value="$(arg euroc_robot_name)"/>
@@ -132,8 +135,9 @@ Requires:
 		</include>
 
 		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg euroc_robot_name)_sender" output="screen" args="-alsologtostderr">
-			<remap from="/send_folder" to="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
-			<remap from="/transfolder_$(arg euroc_robot_name)_sender/file_transfer" to="/transfolder/file_transfer" />
+			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer" />
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status" />
 
 			<param name="root_directory" value="$(arg euroc_root_map_directory)"/>
 			<param name="robot_name" value="$(arg euroc_robot_name)"/>
@@ -163,8 +167,9 @@ Requires:
 		</include>
 
 		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg euroc_robot_name)_sender" output="screen" args="-alsologtostderr">
-			<remap from="/send_folder" to="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
-			<remap from="/transfolder_$(arg euroc_robot_name)_sender/file_transfer" to="/transfolder/file_transfer" />
+			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer" />
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status" />
 
 			<param name="root_directory" value="$(arg euroc_root_map_directory)"/>
 			<param name="robot_name" value="$(arg euroc_robot_name)"/>
