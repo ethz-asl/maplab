@@ -13,7 +13,8 @@ namespace common {
 
 template <
     typename ValueType,
-    typename AllocatorType = std::allocator<std::pair<int64_t, ValueType> > >
+    typename AllocatorType =
+        std::allocator<std::pair<const int64_t, ValueType> > >
 class TemporalBuffer {
  public:
   typedef std::map<int64_t, ValueType, std::less<int64_t>, AllocatorType>

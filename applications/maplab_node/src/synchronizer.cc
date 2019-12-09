@@ -12,6 +12,12 @@ DEFINE_double(
     vio_nframe_sync_max_output_frequency_hz, 10.0,
     "Maximum output frequency of the synchronized NFrame structures "
     "from the synchronizer.");
+DEFINE_double(
+    vio_nframe_sync_max_output_frequency_tolerance_factor_, 0.95,
+    "Tolerance on the minimum timestamp differance required by throttler above "
+    "which an nframe is released. This is helpful when the desired throttling "
+    "frequency is close to the actual frame rate and the latter has slight "
+    "variations.");
 DEFINE_int32(
     vio_nframe_sync_max_queue_size, 50,
     "Maximum queue size of the synchronization pipeline trying to match images "
@@ -23,7 +29,6 @@ DEFINE_int64(
     odometry_buffer_max_forward_propagation_ns, aslam::time::milliseconds(500),
     "Determines the maximum duration the odometry buffer can "
     "forward-propagate using the IMU.");
-
 DEFINE_bool(
     enable_synchronizer_statistics, true,
     "If enable, the synchronizer will keep data about the latency and other "
@@ -58,7 +63,8 @@ Synchronizer::Synchronizer(const vi_map::SensorManager& sensor_manager)
       time_last_loop_closure_message_received_or_checked_ns_(
           aslam::time::getInvalidTime()),
       time_last_pointcloud_map_message_received_or_checked_ns_(
-          aslam::time::getInvalidTime()) {
+          aslam::time::getInvalidTime()),
+      min_nframe_timestamp_diff_tolerance_factor_(FLAGS_vio_nframe_sync_max_output_frequency_tolerance_factor_) {
   CHECK_GT(FLAGS_vio_nframe_sync_max_output_frequency_hz, 0.);
 
   if (FLAGS_enable_synchronizer_statistics) {
@@ -350,7 +356,8 @@ void Synchronizer::releaseNFrameData(
     // the following nodes are running (e.g. tracker).
     if (aslam::time::isValidTime(previous_nframe_timestamp_ns_)) {
       if (current_frame_timestamp_ns - previous_nframe_timestamp_ns_ <
-          min_nframe_timestamp_diff_ns_) {
+          min_nframe_timestamp_diff_ns_ *
+              min_nframe_timestamp_diff_tolerance_factor_) {
         ++frame_skip_counter_;
         continue;
       }
