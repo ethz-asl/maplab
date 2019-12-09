@@ -93,7 +93,7 @@ void GenericPathGenerator::generatePath() {
 
   // Downsampling of the generated trajectory by the sampling time.
   path.sample<5, 2>(
-      path_data_, settings_.sampling_time_second, &timestamps_seconds_);
+      &path_data_, settings_.sampling_time_second, &timestamps_seconds_);
   // This is randomized.
   this->motionVectorToImuData(settings_.imu_noise_bias_seed);
   is_path_generated_ = true;

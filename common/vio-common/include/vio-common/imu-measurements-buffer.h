@@ -107,7 +107,7 @@ class ImuMeasurementBuffer {
       Eigen::Matrix<int64_t, 1, Eigen::Dynamic>* imu_timestamps,
       Eigen::Matrix<double, 6, Eigen::Dynamic>* imu_measurements) const;
 
-  typedef std::pair<int64_t, vio::ImuMeasurement> BufferElement;
+  typedef std::pair<const int64_t, vio::ImuMeasurement> BufferElement;
   typedef Eigen::aligned_allocator<BufferElement> BufferAllocator;
   typedef common::TemporalBuffer<vio::ImuMeasurement, BufferAllocator> Buffer;
 

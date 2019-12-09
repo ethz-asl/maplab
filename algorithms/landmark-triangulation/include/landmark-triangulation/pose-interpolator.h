@@ -72,7 +72,8 @@ class PoseInterpolator {
       std::vector<int64_t>* vertex_timestamps_nanoseconds) const;
 
  private:
-  typedef std::pair<int64_t, StateLinearizationPoint> state_buffer_value_type;
+  typedef std::pair<const int64_t, StateLinearizationPoint>
+      state_buffer_value_type;
   typedef common::TemporalBuffer<
       StateLinearizationPoint,
       Eigen::aligned_allocator<state_buffer_value_type>>
