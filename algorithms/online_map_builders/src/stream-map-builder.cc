@@ -72,12 +72,34 @@ StreamMapBuilder::StreamMapBuilder(
 }
 
 void StreamMapBuilder::updateMapDependentData() {
+  // Update status of wheel odometry edge attachement
+  if (!map_->hasVertex(Btm1_vertex_id_)) {
+    // If the last vertex that we processed isn't anymore in the map we have to
+    // reset everything and initialize again
+    Btm1_vertex_id_.setInvalid();
+    T_Ow_Btm1_.setIdentity();
+    found_wheel_odometry_origin_ = false;
+
+    // If there is no root vertex this will initialize to an invalid id which
+    // is fine since then the whole stream map builder will go through the
+    // default initialization procedure and initialize this again to the
+    // actual root vertex
+    vertex_processing_wheel_odometry_id_ = getRootVertexId();
+    last_vertex_done_wheel_odometry_id_.setInvalid();
+  } else {
+    vertex_processing_wheel_odometry_id_ = Btm1_vertex_id_;
+    last_vertex_done_wheel_odometry_id_ = Btm1_vertex_id_;
+  }
+
+  // Update first and last vertex information
   pose_graph::VertexIdList vertex_ids;
   map_->getAllVertexIdsInMissionAlongGraph(mission_id_, &vertex_ids);
+
   if (vertex_ids.empty()) {
     // Nothing to do.
     return;
   }
+
   const vi_map::Vertex& first_vertex = map_->getVertex(vertex_ids.front());
   const vi_map::Vertex& last_vertex = map_->getVertex(vertex_ids.back());
   newest_vertex_timestamp_ns_.store(last_vertex.getMinTimestampNanoseconds());
@@ -853,12 +875,9 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
     // vertex in which case we also skip.
     if (found_wheel_odometry_origin_ &&
         vertex_processing_wheel_odometry_id_ != getRootVertexId()) {
-      pose_graph::VertexId Btm1_vertex_id;
-      CHECK(constMap()->getPreviousVertex(
-          vertex_processing_wheel_odometry_id_,
-          pose_graph::Edge::EdgeType::kViwls, &Btm1_vertex_id));
       addWheelOdometryEdge(
-          Btm1_vertex_id, vertex_processing_wheel_odometry_id_, T_Btm1_Bt);
+          Btm1_vertex_id_, vertex_processing_wheel_odometry_id_, T_Btm1_Bt);
+      Btm1_vertex_id_ = vertex_processing_wheel_odometry_id_;
       last_vertex_done_wheel_odometry_id_ =
           vertex_processing_wheel_odometry_id_;
 
@@ -869,6 +888,7 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
           << "currently processing root vertex. Skipping adding edge since no "
           << "relative transform can be calculated.";
       found_wheel_odometry_origin_ = true;
+      Btm1_vertex_id_ = vertex_processing_wheel_odometry_id_;
       last_vertex_done_wheel_odometry_id_ =
           vertex_processing_wheel_odometry_id_;
     }

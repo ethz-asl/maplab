@@ -159,8 +159,10 @@ class StreamMapBuilder {
   // be added).
   pose_graph::VertexId last_vertex_done_wheel_odometry_id_;
 
-  // Transform between wheel odometry origin to previously processed vertex
+  // Transform between wheel odometry origin and the last vertex for which
+  // we added wheel odometry
   aslam::Transformation T_Ow_Btm1_;
+  pose_graph::VertexId Btm1_vertex_id_;
   bool found_wheel_odometry_origin_;
 
   common::TemporalBuffer<vi_map::Absolute6DoFMeasurement::Ptr>
