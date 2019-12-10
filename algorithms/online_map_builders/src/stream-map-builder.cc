@@ -848,12 +848,11 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
     T_Ow_Btm1_ = T_Ow_S_before * T_S_before_Bt;
 
     // We always have to skip the first time since with this we find the wheel
-    // odometry origin and can't yet calculate a relative transform.
-    if (found_wheel_odometry_origin_) {
-      // This should never happend since we always skip the first vertex for
-      // which we calculate a transform.
-      CHECK(vertex_processing_wheel_odometry_id_ != getRootVertexId());
-
+    // odometry origin and can't yet calculate a relative transform. When
+    // submapping it can happen that we are initialized but processing the root
+    // vertex in which case we also skip.
+    if (found_wheel_odometry_origin_ &&
+        vertex_processing_wheel_odometry_id_ != getRootVertexId()) {
       pose_graph::VertexId Btm1_vertex_id;
       CHECK(constMap()->getPreviousVertex(
           vertex_processing_wheel_odometry_id_,
@@ -866,8 +865,9 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
       counter++;
     } else {
       VLOG(2)
-          << "[StreamMapBuilder] Initialized wheel odometry origin. Skipping "
-          << "adding edge since no relative transform can be calculated.";
+          << "[StreamMapBuilder] Initialized wheel odometry origin or "
+          << "currently processing root vertex. Skipping adding edge since no "
+          << "relative transform can be calculated.";
       found_wheel_odometry_origin_ = true;
       last_vertex_done_wheel_odometry_id_ =
           vertex_processing_wheel_odometry_id_;
