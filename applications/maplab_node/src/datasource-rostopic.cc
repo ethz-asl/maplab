@@ -24,7 +24,8 @@ DataSourceRostopic::DataSourceRostopic(
       shutdown_requested_(false),
       ros_topics_(ros_topics),
       image_transport_(node_handle_),
-      last_imu_timestamp_ns_(aslam::time::getInvalidTime()) {
+      last_imu_timestamp_ns_(aslam::time::getInvalidTime()),
+      last_wheel_odometry_timestamp_ns_(aslam::time::getInvalidTime()) {
   const uint8_t num_cameras = ros_topics_.camera_topic_cam_index_map.size();
   if (num_cameras > 0u) {
     last_image_timestamp_ns_.resize(num_cameras, aslam::time::getInvalidTime());
@@ -434,6 +435,21 @@ void DataSourceRostopic::wheelOdometryConstraintCallback(
   if (!FLAGS_zero_initial_timestamps ||
       (shiftByFirstTimestamp(
           wheel_odometry_measurement->getTimestampNanosecondsMutable()))) {
+    // Check for strictly increasing wheel odometry timestamps.
+    if (aslam::time::isValidTime(last_wheel_odometry_timestamp_ns_) &&
+        last_wheel_odometry_timestamp_ns_ >=
+            wheel_odometry_measurement->getTimestampNanoseconds()) {
+      LOG(WARNING) << "[MaplabNode-DataSource] Wheel odometry message is "
+                   << "not strictly increasing! Current timestamp: "
+                   << wheel_odometry_measurement->getTimestampNanoseconds()
+                   << "ns vs last timestamp: "
+                   << last_wheel_odometry_timestamp_ns_ << "ns.";
+      return;
+    } else {
+      last_wheel_odometry_timestamp_ns_ =
+          wheel_odometry_measurement->getTimestampNanoseconds();
+    }
+
     invokeWheelOdometryConstraintCallbacks(wheel_odometry_measurement);
   }
 }

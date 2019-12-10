@@ -60,6 +60,7 @@ class DataSourceRostopic : public DataSource {
 
   int64_t last_imu_timestamp_ns_;
   std::vector<int64_t> last_image_timestamp_ns_;
+  int64_t last_odometry_timestamp_ns_;
 };
 
 }  // namespace rovioli
