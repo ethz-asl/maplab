@@ -50,7 +50,14 @@ DataSourceRosbag::DataSourceRosbag(
       shutdown_requested_(false),
       all_data_streamed_(false),
       rosbag_path_filename_(rosbag_path_filename),
-      ros_topics_(ros_topics) {
+      ros_topics_(ros_topics),
+      last_imu_timestamp_ns_(aslam::time::getInvalidTime()),
+      last_wheel_odometry_timestamp_ns_(aslam::time::getInvalidTime()) {
+  const uint8_t num_cameras = ros_topics_.camera_topic_cam_index_map.size();
+  if (num_cameras > 0u) {
+    last_image_timestamp_ns_.resize(num_cameras, aslam::time::getInvalidTime());
+  }
+
   initialize();
 }
 
@@ -217,8 +224,23 @@ void DataSourceRosbag::streamingWorker() {
       // Shift timestamps to start at 0.
       if (!FLAGS_zero_initial_timestamps ||
           shiftByFirstTimestamp(&(image_measurement->timestamp))) {
-        VLOG(3) << "Publish Image measurement...";
-        invokeImageCallbacks(image_measurement);
+        // Check for strictly increasing image timestamps.
+        CHECK_LT(camera_idx, last_image_timestamp_ns_.size());
+        if (aslam::time::isValidTime(last_image_timestamp_ns_[camera_idx]) &&
+            last_image_timestamp_ns_[camera_idx] >=
+                image_measurement->timestamp) {
+          LOG(WARNING) << "[MaplabNode-DataSource] Image message (cam "
+                       << camera_idx << ") is not strictly "
+                       << "increasing! Current timestamp: "
+                       << image_measurement->timestamp
+                       << "ns vs last timestamp: "
+                       << last_image_timestamp_ns_[camera_idx] << "ns.";
+        } else {
+          last_image_timestamp_ns_[camera_idx] = image_measurement->timestamp;
+
+          VLOG(3) << "Publish Image measurement...";
+          invokeImageCallbacks(image_measurement);
+        }
       }
     }
 
@@ -235,8 +257,20 @@ void DataSourceRosbag::streamingWorker() {
       // Shift timestamps to start at 0.
       if (!FLAGS_zero_initial_timestamps ||
           shiftByFirstTimestamp(&(imu_measurement->timestamp))) {
-        VLOG(3) << "Publish IMU measurement...";
-        invokeImuCallbacks(imu_measurement);
+        // Check for strictly increasing imu timestamps.
+        if (aslam::time::isValidTime(last_imu_timestamp_ns_) &&
+            last_imu_timestamp_ns_ >= imu_measurement->timestamp) {
+          LOG(WARNING) << "[MaplabNode-DataSource] IMU message is not strictly "
+                       << "increasing! Current timestamp: "
+                       << imu_measurement->timestamp
+                       << "ns vs last timestamp: " << last_imu_timestamp_ns_
+                       << "ns.";
+        } else {
+          last_imu_timestamp_ns_ = imu_measurement->timestamp;
+
+          VLOG(3) << "Publish IMU measurement...";
+          invokeImuCallbacks(imu_measurement);
+        }
       }
     }
 
@@ -317,14 +351,25 @@ void DataSourceRosbag::streamingWorker() {
       vi_map::WheelOdometryMeasurement::Ptr wheel_odometry_measurement =
           convertRosOdometryToMaplabWheelOdometry(
               wheel_odometry_msg, sensor_id);
-      if (!wheel_odometry_measurement) {
-        LOG(ERROR) << "Received INVALID wheel odometry constraint!";
-        return;
-      } else {
-        // Shift timestamps to start at 0.
-        if (!FLAGS_zero_initial_timestamps ||
-            shiftByFirstTimestamp(
-                wheel_odometry_measurement->getTimestampNanosecondsMutable())) {
+      CHECK(wheel_odometry_measurement);
+
+      // Shift timestamps to start at 0.
+      if (!FLAGS_zero_initial_timestamps ||
+          shiftByFirstTimestamp(
+              wheel_odometry_measurement->getTimestampNanosecondsMutable())) {
+        // Check for strictly increasing wheel odometry timestamps.
+        if (aslam::time::isValidTime(last_wheel_odometry_timestamp_ns_) &&
+            last_wheel_odometry_timestamp_ns_ >=
+                wheel_odometry_measurement->getTimestampNanoseconds()) {
+          LOG(WARNING) << "[MaplabNode-DataSource] Wheel odometry message is "
+                       << "not strictly increasing! Current timestamp: "
+                       << wheel_odometry_measurement->getTimestampNanoseconds()
+                       << "ns vs last timestamp: "
+                       << last_wheel_odometry_timestamp_ns_ << "ns.";
+        } else {
+          last_wheel_odometry_timestamp_ns_ =
+              wheel_odometry_measurement->getTimestampNanoseconds();
+
           VLOG(3) << "Publish wheel odometry constraint...";
           invokeWheelOdometryConstraintCallbacks(wheel_odometry_measurement);
         }

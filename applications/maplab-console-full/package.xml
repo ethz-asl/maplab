@@ -21,6 +21,7 @@
   <exec_depend>maplab_console</exec_depend>
   <exec_depend>mapping_workflows_plugin</exec_depend>
   <exec_depend>pose_graph_manipulation_plugin</exec_depend>
+  <exec_depend>rosbag_plugin</exec_depend>
   <exec_depend>statistics_plugin</exec_depend>
   <exec_depend>vi_map_basic_plugin</exec_depend>
   <exec_depend>vi_map_data_import_export_plugin</exec_depend>
