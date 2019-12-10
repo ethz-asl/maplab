@@ -132,11 +132,13 @@ enum class UpdateType { kInvalid, kNormalUpdate, kZeroVelocityUpdate };
 struct OdometryMeasurement {
   MAPLAB_POINTER_TYPEDEFS(OdometryMeasurement);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  OdometryMeasurement() = default;
+
   int64_t timestamp;
   // Velocities in odometry sensor frame.
   Eigen::Vector3d velocity_linear_O;
   Eigen::Vector3d velocity_angular_O;
+
+  OdometryMeasurement() : timestamp(aslam::time::getInvalidTime()) {}
 };
 
 /// A data structure containing a VisualNFrame

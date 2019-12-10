@@ -45,7 +45,13 @@ DataSourceRosbag::DataSourceRosbag(
     : shutdown_requested_(false),
       all_data_streamed_(false),
       rosbag_path_filename_(rosbag_path_filename),
-      ros_topics_(ros_topics) {
+      ros_topics_(ros_topics),
+      last_imu_timestamp_ns_(aslam::time::getInvalidTime()),
+      last_odometry_timestamp_ns_(aslam::time::getInvalidTime()) {
+  const uint8_t num_cameras = ros_topics_.camera_topic_cam_index_map.size();
+  if (num_cameras > 0u) {
+    last_image_timestamp_ns_.resize(num_cameras, aslam::time::getInvalidTime());
+  }
   initialize();
   if (FLAGS_imu_to_camera_time_offset_ns != 0) {
     LOG(WARNING) << "You are applying a time offset between IMU and camera, be "
@@ -169,8 +175,23 @@ void DataSourceRosbag::streamingWorker() {
       // Shift timestamps to start at 0.
       if (!FLAGS_rovioli_zero_initial_timestamps ||
           shiftByFirstTimestamp(&(image_measurement->timestamp))) {
-        VLOG(3) << "Publish Image measurement...";
-        invokeImageCallbacks(image_measurement);
+        // Check for strictly increasing image timestamps.
+        CHECK_LT(camera_idx, last_image_timestamp_ns_.size());
+        if (aslam::time::isValidTime(last_image_timestamp_ns_[camera_idx]) &&
+            last_image_timestamp_ns_[camera_idx] >=
+                image_measurement->timestamp) {
+          LOG(WARNING) << "[ROVIOLI-DataSource] Image message (cam "
+                       << camera_idx << ") is not strictly "
+                       << "increasing! Current timestamp: "
+                       << image_measurement->timestamp
+                       << "ns vs last timestamp: "
+                       << last_image_timestamp_ns_[camera_idx] << "ns.";
+        } else {
+          last_image_timestamp_ns_[camera_idx] = image_measurement->timestamp;
+
+          VLOG(3) << "Publish Image measurement...";
+          invokeImageCallbacks(image_measurement);
+        }
       }
     }
 
@@ -184,8 +205,20 @@ void DataSourceRosbag::streamingWorker() {
       // Shift timestamps to start at 0.
       if (!FLAGS_rovioli_zero_initial_timestamps ||
           shiftByFirstTimestamp(&(imu_measurement->timestamp))) {
-        VLOG(3) << "Publish IMU measurement...";
-        invokeImuCallbacks(imu_measurement);
+        // Check for strictly increasing imu timestamps.
+        if (aslam::time::isValidTime(last_imu_timestamp_ns_) &&
+            last_imu_timestamp_ns_ >= imu_measurement->timestamp) {
+          LOG(WARNING) << "[ROVIOLI-DataSource] IMU message is not strictly "
+                       << "increasing! Current timestamp: "
+                       << imu_measurement->timestamp
+                       << "ns vs last timestamp: " << last_imu_timestamp_ns_
+                       << "ns.";
+        } else {
+          last_imu_timestamp_ns_ = imu_measurement->timestamp;
+
+          VLOG(3) << "Publish IMU measurement...";
+          invokeImuCallbacks(imu_measurement);
+        }
       }
     }
 
@@ -200,7 +233,20 @@ void DataSourceRosbag::streamingWorker() {
       // Shift timestamps to start at 0.
       if (!FLAGS_rovioli_zero_initial_timestamps ||
           shiftByFirstTimestamp(&(odometry_measurement->timestamp))) {
-        invokeOdometryCallbacks(odometry_measurement);
+        // Check for strictly increasing wheel odometry timestamps.
+        if (aslam::time::isValidTime(last_odometry_timestamp_ns_) &&
+            last_odometry_timestamp_ns_ >= odometry_measurement->timestamp) {
+          LOG(WARNING) << "[MaplabNode-DataSource] Wheel odometry message is "
+                       << "not strictly increasing! Current timestamp: "
+                       << odometry_measurement->timestamp
+                       << "ns vs last timestamp: "
+                       << last_odometry_timestamp_ns_ << "ns.";
+        } else {
+          last_odometry_timestamp_ns_ = odometry_measurement->timestamp;
+
+          VLOG(3) << "Publish odometry measurement...";
+          invokeOdometryCallbacks(odometry_measurement);
+        }
       }
     }
 

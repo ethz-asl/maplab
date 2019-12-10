@@ -111,6 +111,10 @@ class DataSourceRostopic : public DataSource {
   ros::Subscriber sub_absolute_6dof_;
   ros::Subscriber sub_wheel_odometry_;
   ros::Subscriber sub_pointcloud_map_;
+
+  int64_t last_imu_timestamp_ns_;
+  std::vector<int64_t> last_image_timestamp_ns_;
+  int64_t last_wheel_odometry_timestamp_ns_;
 };
 
 }  // namespace maplab
