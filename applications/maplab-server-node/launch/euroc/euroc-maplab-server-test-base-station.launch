@@ -36,7 +36,8 @@ Requires:
 	<!-- ARTIFACT MANAGER NODE -->
 	<group if="true">
 		<include file="$(find artifact_manager_node)/launch/artifact_manager.launch">
-			<arg name="artifact_store_file" default="$(find maplab_server_node)/share/euroc/dummy-artifact-store-euroc.txt" />
+			<arg name="initial_artifact_store_folder" default="$(find maplab_server_node)/share/euroc/euroc-artifact-store" />
+			<arg name="backup_artifact_store_folder" default="/tmp/backup-artifacts" />
 			<arg name="artifact_vis_world_frame_name" default="map" />
 			<arg name="artifact_refinement_sensor_frame" default="NCAMERA" />
 			<arg name="artifact_refinement_check_interval_s" default="10" />
