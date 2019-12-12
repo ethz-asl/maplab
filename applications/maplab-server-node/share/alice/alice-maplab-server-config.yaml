@@ -6,3 +6,4 @@ global_map_commands:
   - "lc"
   - "optvi --ba_num_iterations 1 --ba_enable_signal_handler=false"
   - "elq --vi_map_landmark_quality_min_observers=2"
+  - "visualize_xyzi_pointclouds --vis_pointcloud_accumulated_before_publishing --vis_pointcloud_color_random"
