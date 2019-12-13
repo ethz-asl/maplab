@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
+	<node pkg="tf" type="static_transform_publisher" name="tf_lidar_cam" args="0.0 0.0 0.0 0.3885998, 0.9213596, -0.0043408, 0.0082352 /os1_lidar /maplab__imu"/>
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 
 	<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">

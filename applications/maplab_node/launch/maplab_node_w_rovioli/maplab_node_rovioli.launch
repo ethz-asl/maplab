@@ -53,7 +53,7 @@
           <!-- MAP BUILDING (DISABLED) -->
           <arg name="rovioli_run_map_builder" default="false"/>
           <arg name="save_map_folder" default=""/>
-          <arg name="overwrite_existing_map" default="false"/>
+          <arg name="overwrite_existing_map" default="true"/>
           <arg name="optimize_map_to_localization_map" default="false"/>
           <arg name="map_builder_save_image_as_resources" default="false"/>
 
@@ -72,7 +72,7 @@
           <arg name="tf_imu_frame" default="rovioli_$(arg robot_name)_imu"/>
 
           <arg name="rovioli_enable_health_checking" default="true"/>
-          <arg name="rovio_enable_frame_visualization" default="true"/>
+          <arg name="rovio_enable_frame_visualization" default="false"/>
           <arg name="vio_camera_topic_suffix" default="$(arg maplab_image_topic_suffix)" />
     </include>
   </group>
@@ -116,7 +116,7 @@
       <!-- MAP BUILDING -->
       <arg name="map_output_folder" default="$(arg maplab_map_folder)"/>
       <arg name="map_save_on_shutdown" default="true"/>
-  		<arg name="map_overwrite_enabled" default="false"/>
+  		<arg name="map_overwrite_enabled" default="true"/>
   		<arg name="map_compute_localization_map" default="false"/>
   		<arg name="map_initialize_and_triangulate_landmarks_when_saving" default="true"/>
   		<arg name="map_run_keyframing_when_saving" default="$(arg maplab_keyframe_when_saving)"/>
