@@ -7,10 +7,4 @@
 		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli_lidarstick.launch">
 		</include>
 	</group>
-
-	<node type="sender_node" pkg="transfolder" name="transfolder__sender" output="screen" args="-alsologtostderr">
-    <param name="root_directory" value="/tmp/"/>
-    <param name="robot_name" value="lidarstick"/>
-  </node>
-
 </launch>

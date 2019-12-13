@@ -2,10 +2,11 @@
 
 <launch>
 	<node pkg="tf" type="static_transform_publisher" name="tf_lidar_cam" args="0.0 0.0 0.0 0.3885998, 0.9213596, -0.0043408, 0.0082352 /maplab__imu /os1_sensor 10"/>
+	<node name="lidar_throttler" type="throttle" pkg="topic_tools" args="messages /os1_node/points 0.2 /os1_node/points_throttled" />
 
 	<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
 		<arg name="robot_name" default=""/>
-		<arg name="maplab_sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/lidarstick-150-deg-cams-sensors.yaml"/>
+		<arg name="maplab_sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/lidarstick-150-deg-cams-sensors_labdemo.yaml"/>
 		<arg name="maplab_imu_to_camera_time_offset_ns" default="19779092"/>
 
 		<arg name="maplab_image_topic_suffix" default="/image_raw"/>
@@ -14,14 +15,14 @@
 
 	  <arg name="maplab_verbosity" default="0"/>
 
-	  <arg name="maplab_save_map_every_n_sec" default="10"/>
-		<arg name="maplab_keyframe_when_saving" default="false"/>
+	  <arg name="maplab_save_map_every_n_sec" default="30"/>
+		<arg name="maplab_keyframe_when_saving" default="true"/>
 
 	  <arg name="maplab_attach_images" default="false"/>
 	  <arg name="maplab_attach_point_clouds" default="false"/>
 		<arg name="maplab_point_cloud_to_depth_map_conversion_camera_id" default=""/>
 		<arg name="maplab_point_cloud_to_depth_map_conversion_include_intensity_image" default="true"/>
-	  <arg name="maplab_attach_point_cloud_maps" default="false"/>
+	  <arg name="maplab_attach_point_cloud_maps" default="true"/>
 
 	  <arg name="maplab_map_folder" default="/tmp/lidarstick"/>
 	</include>

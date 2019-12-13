@@ -4,7 +4,6 @@ server_config:
   map_backup_interval_s: 120
 
   submap_commands:
-    - "kfh"
     - "optvi --ba_num_iterations=10 --ba_enable_signal_handler=false --ba_hide_iterations_console_output=true"
     - "elq"
 
@@ -13,9 +12,10 @@ server_config:
     - "lc"
     - "optvi --ba_num_iterations 1 --ba_enable_signal_handler=false --ba_hide_iterations_console_output=true"
     - "elq --vi_map_landmark_quality_min_observers=2"
+    - "visualize_xyzi_pointclouds --vis_pointcloud_accumulated_before_publishing --vis_pointcloud_color_random"
 
 connection_config:
   - name:                lidarstick
     topic:               "/maplab_node/map_update_notification"
-    ip:                  "moria"
-    user:                "andrei"
+    ip:                  "lidarstick"
+    user:                "lidarstick"
