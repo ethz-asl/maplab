@@ -18,7 +18,7 @@
 
 		<!-- TRANSFOLDER NODES -->
     <group if="true">
-	    <arg name="robot_name" value="roswitha"/>
+	    <arg name="robot_name" value="lidarstick"/>
 	    <node name="transfolder_receiver" pkg="transfolder" type="receiver_node" output="screen" args="-alsologtostderr">
 	      <remap from="/maplab_server/folder_ready" to="/transfolder/folder_arrival_notification" />
 	      <remap from="/maplab_server/file_transfer_status" to="/transfolder/file_transfer_status" />

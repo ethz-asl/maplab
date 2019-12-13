@@ -17,5 +17,5 @@ server_config:
 connection_config:
   - name:                lidarstick
     topic:               "/maplab_node/map_update_notification"
-    ip:                  "192.168.5.34"
+    ip:                  "moria"
     user:                "andrei"
