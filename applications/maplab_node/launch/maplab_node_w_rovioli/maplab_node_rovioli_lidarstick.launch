@@ -1,8 +1,6 @@
 <?xml version="1.0"?>
 
 <launch>
-	<node pkg="rosbag" type="play" name="rosbag" args="/path/togonzen.bag -q -d 2 -s 3 -r 2.0"/>
-
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 
 	<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">

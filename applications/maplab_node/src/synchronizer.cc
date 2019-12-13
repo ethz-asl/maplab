@@ -30,7 +30,7 @@ DEFINE_int64(
     "Determines the maximum duration the odometry buffer can "
     "forward-propagate using the IMU.");
 DEFINE_bool(
-    enable_synchronizer_statistics, true,
+    enable_synchronizer_statistics, false,
     "If enable, the synchronizer will keep data about the latency and other "
     "key properties of the data it synchronizes.");
 

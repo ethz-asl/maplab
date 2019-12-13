@@ -124,7 +124,7 @@ void MaplabServerRosNode::submapLoadingCallback(
 
     std::stringstream command_ss;
     command_ss << "rsync -r " << robot_config.user << "@" << robot_config.ip
-               << ":" << remote_map_path << " " << local_map_path
+               << ":" << remote_map_path << "/ " << local_map_path
                << " --progress";
     const std::string command_string = command_ss.str();
     const char* command = command_string.c_str();

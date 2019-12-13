@@ -1,0 +1,31 @@
+
+<?xml version="1.0"?>
+
+<launch>
+
+
+	<!-- =============================== MAPLAB SERVER ========================================= -->
+	<group ns="maplab_server">
+		<include file="$(find maplab_server_node)/launch/maplab-server-node.launch">
+			<arg name="server_node_config_file" default="$(find maplab_server_node)/share/lidarstick/lidarstick-maplab-server-config.yaml"/>
+
+			<arg name="v" default="0"/>
+
+			<arg name="tf_map_frame" default="map"/>
+			<arg name="tf_mission_frame" default="maplab_server_odom"/>
+			<arg name="tf_imu_frame" default="maplab_server_imu"/>
+		</include>
+
+		<!-- TRANSFOLDER NODES -->
+    <group if="true">
+	    <arg name="robot_name" value="roswitha"/>
+	    <node name="transfolder_receiver" pkg="transfolder" type="receiver_node" output="screen" args="-alsologtostderr">
+	      <remap from="/maplab_server/folder_ready" to="/transfolder/folder_arrival_notification" />
+	      <remap from="/maplab_server/file_transfer_status" to="/transfolder/file_transfer_status" />
+	      <remap from="/maplab_server/file_transfer" to="/transfolder/file_transfer" />
+
+	      <param name="root_directory" value="/tmp/maplab_server_node"/>
+	    </node>
+    </group>
+	</group>
+</launch>
