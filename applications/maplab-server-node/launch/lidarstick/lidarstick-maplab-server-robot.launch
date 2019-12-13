@@ -5,9 +5,6 @@
 	<!-- ================================== Roswitha ================================================== -->
 	<group if="true">
 		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli_lidarstick.launch">
-		  <arg name="maplab_save_map_every_n_sec" default="10"/>
-      <arg name="maplab_keyframe_when_saving" default="false"/>
-		  <arg name="maplab_map_folder" default="/tmp/lidarstick/"/>
 		</include>
 	</group>
 
