@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>6dof_vi_map_generator</name>
+  <name>vi_map_generator_6dof</name>
   <version>0.0.0</version>
   <description>Generates 6DoF vi-maps for testing.</description>
   <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>

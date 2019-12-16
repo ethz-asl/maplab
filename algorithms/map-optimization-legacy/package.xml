@@ -12,7 +12,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>catkin_simple</buildtool_depend>
 
-  <depend>6dof_vi_map_generator</depend>
+  <depend>vi_map_generator_6dof</depend>
   <depend>aslam_cv_cameras</depend>
   <depend>aslam_cv_common</depend>
   <depend>aslam_cv_frames</depend>
