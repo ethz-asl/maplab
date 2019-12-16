@@ -584,11 +584,15 @@ void publishArrows(
   CHECK(!topic.empty());
 
   visualization_msgs::MarkerArray marker_array;
-  marker_array.markers.resize(arrows.size());
-
   for (uint16_t i = 0; i < arrows.size(); ++i) {
     const Arrow& arrow = arrows[i];
-    visualization_msgs::Marker& marker = marker_array.markers[i];
+    visualization_msgs::Marker marker;
+
+    // Can't draw 0 length transformation edges so we skip them
+    double norm = (arrow.to - arrow.from).norm();
+    if (norm < 1e-6) {
+      continue;
+    }
 
     CHECK_GE(arrow.alpha, 0.0);
     CHECK_LE(arrow.alpha, 1.0);
@@ -605,12 +609,12 @@ void publishArrows(
 
     std_msgs::ColorRGBA color = commonColorToRosColor(arrow.color, arrow.alpha);
     drawArrow(
-        arrow.from, arrow.to, color, (arrow.to - arrow.from).norm() * 0.05,
-        (arrow.to - arrow.from).norm() * 0.1,
-        (arrow.to - arrow.from).norm() * 0.2, &marker);
+        arrow.from, arrow.to, color, norm * 0.05, norm * 0.1, norm * 0.2,
+        &marker);
 
     marker.header.frame_id = frame;
     marker.header.stamp = ros::Time();
+    marker_array.markers.emplace_back(marker);
   }
 
   RVizVisualizationSink::publish<visualization_msgs::MarkerArray>(
