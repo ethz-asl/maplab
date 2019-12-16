@@ -72,10 +72,11 @@ StreamMapBuilder::StreamMapBuilder(
 }
 
 void StreamMapBuilder::updateMapDependentData() {
-  // Update status of wheel odometry edge attachement
+  // Update status of wheel odometry edge attachement we either:
+  //   - reset to the initial condition OR
+  //   - if by luck the last vertex we attached a relative wheel odometry
+  //     message to is still in the submap we continue from there
   if (!map_->hasVertex(Btm1_vertex_id_)) {
-    // If the last vertex that we processed isn't anymore in the map we have to
-    // reset everything and initialize again
     Btm1_vertex_id_.setInvalid();
     T_Ow_Btm1_.setIdentity();
     found_wheel_odometry_origin_ = false;
@@ -85,10 +86,10 @@ void StreamMapBuilder::updateMapDependentData() {
     // default initialization procedure and initialize this again to the
     // actual root vertex
     vertex_processing_wheel_odometry_id_ = getRootVertexId();
-    last_vertex_done_wheel_odometry_id_.setInvalid();
+    done_current_vertex_wheel_odometry_ = false;
   } else {
     vertex_processing_wheel_odometry_id_ = Btm1_vertex_id_;
-    last_vertex_done_wheel_odometry_id_ = Btm1_vertex_id_;
+    done_current_vertex_wheel_odometry_ = true;
   }
 
   // Update first and last vertex information
@@ -139,6 +140,7 @@ void StreamMapBuilder::apply(
         nframe_to_insert->getMinTimestampNanoseconds());
     addRootViwlsVertex(nframe_to_insert, update.vinode);
     vertex_processing_wheel_odometry_id_ = getRootVertexId();
+    done_current_vertex_wheel_odometry_ = false;
   } else {
     CHECK(mission_id_.isValid());
     newest_vertex_timestamp_ns_.store(
@@ -777,15 +779,9 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
     return;
   }
 
-  // Check if we need to process the current vertex
-  bool process_current_vertex =
-      !last_vertex_done_wheel_odometry_id_.isValid() ||
-      vertex_processing_wheel_odometry_id_ !=
-          last_vertex_done_wheel_odometry_id_;
-
-  // If current vertex should not be processed, look for a next one and
-  // otherwise return and wait for next update
-  if (!process_current_vertex) {
+  // If current vertex should not be processed, look for a next one. If a next
+  // vertex doesn't exist return and wait for next update
+  if (done_current_vertex_wheel_odometry_) {
     if (map_->getNextVertex(
             vertex_processing_wheel_odometry_id_,
             map_->getGraphTraversalEdgeType(mission_id_),
@@ -793,6 +789,8 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
       VLOG(2) << "[StreamMapBuilder] Current vertex "
               << vertex_processing_wheel_odometry_id_ << " already "
               << "processed and will be skipped - moving to next vertex.";
+      // We got a new vertex, try to process it
+      done_current_vertex_wheel_odometry_ = false;
     } else {
       VLOG(2) << "[StreamMapBuilder] Current vertex "
               << vertex_processing_wheel_odometry_id_ << " already "
@@ -824,8 +822,7 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
           << "wheel odometry edge. This can occur if root vertex is being "
           << "processed and no wheel odometry measurements arrived before. "
           << "This should not occur if any later frame is being processed.";
-      last_vertex_done_wheel_odometry_id_ =
-          vertex_processing_wheel_odometry_id_;
+      done_current_vertex_wheel_odometry_ = true;
       return;
     }
     const bool value_after_exists =
@@ -878,8 +875,7 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
       addWheelOdometryEdge(
           Btm1_vertex_id_, vertex_processing_wheel_odometry_id_, T_Btm1_Bt);
       Btm1_vertex_id_ = vertex_processing_wheel_odometry_id_;
-      last_vertex_done_wheel_odometry_id_ =
-          vertex_processing_wheel_odometry_id_;
+      done_current_vertex_wheel_odometry_ = true;
 
       counter++;
     } else {
@@ -889,8 +885,7 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
           << "relative transform can be calculated.";
       found_wheel_odometry_origin_ = true;
       Btm1_vertex_id_ = vertex_processing_wheel_odometry_id_;
-      last_vertex_done_wheel_odometry_id_ =
-          vertex_processing_wheel_odometry_id_;
+      done_current_vertex_wheel_odometry_ = true;
     }
 
     std::unordered_set<pose_graph::EdgeId> outgoing_edges;
@@ -905,6 +900,8 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
     } else {
       VLOG(3) << "[StreamMapBuilder] Found another vertex:"
               << vertex_processing_wheel_odometry_id_;
+      // We got a new vertex, try to process it
+      done_current_vertex_wheel_odometry_ = false;
     }
   }
   VLOG(2) << "[StreamMapBuilder] Added " << counter << " wheel odometry edges.";
