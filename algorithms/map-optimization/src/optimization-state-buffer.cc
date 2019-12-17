@@ -118,9 +118,9 @@ void OptimizationStateBuffer::copyAllCameraCalibrationsBackToMap(
       aslam::Transformation T_C_I(
           camera_q_CI__C_p_CI_.col(index).tail<3>(), q_C_I_JPL.inverse());
 
-      const size_t camera_idx_in_ncamera =
+      const int camera_idx_in_ncamera =
           ncamera->getCameraIndex(camid_ncamids.first);
-      CHECK_GE(camera_idx_in_ncamera, 0u);
+      CHECK_GE(camera_idx_in_ncamera, 0);
       ncamera->set_T_C_B(static_cast<size_t>(camera_idx_in_ncamera), T_C_I);
     }
   }
