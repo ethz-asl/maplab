@@ -16,7 +16,7 @@
   <depend>localization_evaluator</depend>
   <depend>loop_closure_handler</depend>
   <depend>map_manager</depend>
-  <depend>map_optimization_legacy_plugin</depend>
+  <depend>map_optimization</depend>
   <depend>maplab_test_data</depend>
   <depend>vi_map</depend>
   <depend>vi_mapping_test_app</depend>

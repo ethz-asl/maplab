@@ -31,7 +31,6 @@
 	<depend>landmark_manipulation_plugin</depend>
 	<depend>loop_closure_plugin</depend>
 	<depend>map_anchoring_plugin</depend>
-	<depend>map_optimization_legacy_plugin</depend>
 	<depend>map_optimization_plugin</depend>
 	<depend>map_sparsification_plugin</depend>
 	<depend>mapping_workflows_plugin</depend>

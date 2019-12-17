@@ -17,7 +17,7 @@
   <depend>libnabo</depend>
   <depend>loop_closure_handler</depend>
   <depend>map_anchoring</depend>
-  <depend>map_optimization_legacy</depend>
+  <depend>map_optimization</depend>
   <depend>maplab_common</depend>
   <depend>posegraph</depend>
   <depend>vi_map</depend>
