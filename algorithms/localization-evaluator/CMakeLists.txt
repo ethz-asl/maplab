@@ -8,8 +8,8 @@ cs_add_library(${PROJECT_NAME}
   src/localization-evaluator.cc
   src/mission-aligner.cc)
   
-catkin_add_gtest(test_localization_evaluator
-  test/test_localization_evaluator.cc)
+#catkin_add_gtest(test_localization_evaluator
+#  test/test_localization_evaluator.cc)
 target_link_libraries(test_localization_evaluator ${PROJECT_NAME})
 maplab_import_test_maps(test_localization_evaluator)
 
