@@ -4,8 +4,9 @@
   <version>2.2.0</version>
   <description>
     Metapackage to build the
-      (i)  maplab console and its core plugins, and
-      (ii) rovioli, the localization and mapping frontend.
+      (i)    maplab console and its core plugins, and
+      (ii)   rovioli, the odometry, localization and mapping frontend.
+      (iii)  maplab node, the localization and mapping frontend.
   </description>
   <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
   <license>Apache 2.0</license>
