@@ -53,6 +53,7 @@ def test_maplab_node_end_to_end():
 
     # Run estimator VIO only mode.
     estimator_vio_csv_path = "maplab_node_estimated_poses_vio.csv"
+    vio_output_map_path = "vio_output_map"
 
     if RUN_ESTIMATOR_VIO:
         end_to_end_common.bash_utils.run(
@@ -66,8 +67,9 @@ def test_maplab_node_end_to_end():
             "_export_estimated_poses_to_csv:=\"%s\" "
             "_map_save_on_shutdown:=true "
             "_map_overwrite_enabled:=true "
-            "_map_output_folder:=\"\" " %
-            (sensor_config_file, rosbag_local_path, estimator_vio_csv_path))
+            "_map_output_folder:=\"%s\" " %
+            (sensor_config_file, rosbag_local_path, estimator_vio_csv_path,
+            vio_output_map_path))
 
     # Compare estimator csv - ground truth data.
     estimator_data_vio_unaligned_G_I = load_dataset(estimator_vio_csv_path,
@@ -85,6 +87,30 @@ def test_maplab_node_end_to_end():
         ground_truth_data_unaligned_W_M,
         estimate_scale=False,
         max_errors_list=[vio_max_allowed_errors])
+
+    # Check map consistency and test basic maplab console commands on the map
+    with open("maplab_commands.in", "w") as stdin:
+        stdin.write("load --map_folder=\"%s\"\n"
+            "check_map_consistency\n"
+            "itl\n"
+            "rtl\n"
+            "kfh\n"
+            "check_map_consistency\n"
+            "optvi --ba_num_iterations=3\n"
+            "check_map_consistency\n"
+            "elq\n"
+            "lc\n"
+            "check_map_consistency\n"
+            "optvi --ba_num_iterations=3\n"
+            "check_map_consistency\n"
+            "save --map_folder \"%s_optvi\"\n"
+            "exit\n" % (vio_output_map_path, vio_output_map_path))
+
+    with open("maplab_commands.in", "r") as stdin:
+        end_to_end_common.bash_utils.run(
+            "rosrun maplab_console maplab_console "
+            "__ns:=maplab_console "
+            "_alsologtostderr:=true ", stdin=stdin)
 
     # Run estimator VIL mode.
     estimator_vil_csv_path = "maplab_node_estimated_poses_vil.csv"
