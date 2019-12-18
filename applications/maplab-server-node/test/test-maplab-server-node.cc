@@ -111,37 +111,37 @@ TEST_F(MaplabServerNodeTest, DISABLED_TestMaplabServerRosNodeLocal) {
 
   diagnostic_msgs::KeyValuePtr key_value_msg(new diagnostic_msgs::KeyValue());
 
-  key_value_msg->key.data = kRobotName;
+  key_value_msg->key.data() = kRobotName;
 
-  key_value_msg->value.data = kSubmap0;
+  key_value_msg->value.data() = kSubmap0;
   maplab_server_ros_node.submapLoadingCallback(key_value_msg);
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  key_value_msg->value.data = kSubmap1;
+  key_value_msg->value.data() = kSubmap1;
   maplab_server_ros_node.submapLoadingCallback(key_value_msg);
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  key_value_msg->value.data = kSubmap2;
+  key_value_msg->value.data() = kSubmap2;
   maplab_server_ros_node.submapLoadingCallback(key_value_msg);
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  key_value_msg->value.data = kSubmap3;
+  key_value_msg->value.data() = kSubmap3;
   maplab_server_ros_node.submapLoadingCallback(key_value_msg);
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  key_value_msg->value.data = kSubmap4;
+  key_value_msg->value.data() = kSubmap4;
   maplab_server_ros_node.submapLoadingCallback(key_value_msg);
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  key_value_msg->value.data = kSubmap5;
+  key_value_msg->value.data() = kSubmap5;
   maplab_server_ros_node.submapLoadingCallback(key_value_msg);
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  key_value_msg->value.data = kSubmap6;
+  key_value_msg->value.data() = kSubmap6;
   maplab_server_ros_node.submapLoadingCallback(key_value_msg);
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  key_value_msg->value.data = kSubmap7;
+  key_value_msg->value.data() = kSubmap7;
   maplab_server_ros_node.submapLoadingCallback(key_value_msg);
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
