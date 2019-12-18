@@ -30,7 +30,7 @@ DEFINE_int64(
     "Determines the maximum duration the odometry buffer can "
     "forward-propagate using the IMU.");
 DEFINE_bool(
-    enable_synchronizer_statistics, true,
+    enable_synchronizer_statistics, false,
     "If enable, the synchronizer will keep data about the latency and other "
     "key properties of the data it synchronizes.");
 
@@ -64,7 +64,8 @@ Synchronizer::Synchronizer(const vi_map::SensorManager& sensor_manager)
           aslam::time::getInvalidTime()),
       time_last_pointcloud_map_message_received_or_checked_ns_(
           aslam::time::getInvalidTime()),
-      min_nframe_timestamp_diff_tolerance_factor_(FLAGS_vio_nframe_sync_max_output_frequency_tolerance_factor_) {
+      min_nframe_timestamp_diff_tolerance_factor_(
+          FLAGS_vio_nframe_sync_max_output_frequency_tolerance_factor_) {
   CHECK_GT(FLAGS_vio_nframe_sync_max_output_frequency_hz, 0.);
 
   if (FLAGS_enable_synchronizer_statistics) {
@@ -217,8 +218,7 @@ void Synchronizer::processAbsolute6DoFMeasurement(
 }
 
 void Synchronizer::processLoopClosureMeasurement(
-    const vi_map::LoopClosureMeasurement::ConstPtr&
-        loop_closure_measurement) {
+    const vi_map::LoopClosureMeasurement::ConstPtr& loop_closure_measurement) {
   CHECK(loop_closure_measurement);
   time_last_loop_closure_message_received_or_checked_ns_.store(
       aslam::time::nanoSecondsSinceEpoch());
@@ -497,8 +497,8 @@ void Synchronizer::releaseLoopClosureData(
     }
   }
 
-  for (const vi_map::LoopClosureMeasurement::ConstPtr
-           loop_closure_measurement : loop_closure_measurements) {
+  for (const vi_map::LoopClosureMeasurement::ConstPtr loop_closure_measurement :
+       loop_closure_measurements) {
     CHECK(loop_closure_measurement);
     std::lock_guard<std::mutex> callback_lock(loop_closure_callback_mutex_);
     for (const std::function<void(

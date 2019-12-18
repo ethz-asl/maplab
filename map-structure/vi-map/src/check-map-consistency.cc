@@ -721,11 +721,30 @@ bool checkPosegraphConsistency(
         return false;
       }
 
-      const Edge::EdgeType edge_type = edge.getType();
+      // Check that the vertex this outgoing edge points to has the edge as an
+      // incoming edge
+      pose_graph::EdgeIdSet vertex_to_incoming_edge_ids;
+      vi_map.getVertex(vertex_id_to)
+          .getIncomingEdges(&vertex_to_incoming_edge_ids);
+      bool has_incoming_edge = false;
+      for (const pose_graph::EdgeId& vertex_to_incoming_edge_id :
+           vertex_to_incoming_edge_ids) {
+        if (vertex_to_incoming_edge_id == outgoing_edge_id) {
+          has_incoming_edge = true;
+          break;
+        }
+      }
+      if (!has_incoming_edge) {
+        LOG(ERROR)
+            << "The vertex " << current_vertex_id << " has an outgoing edge "
+            << outgoing_edge_id << " to vertex " << vertex_id_to
+            << " but the vertex doesn't have a corresponding incoming edge id.";
+        return false;
+      }
 
       // If this is a traversal edge, check that it does not cross mission
       // boundaries.
-      if (edge_type == traversal_edge_type) {
+      if (edge.getType() == traversal_edge_type) {
         if (vi_map.getMissionIdForVertex(vertex_id_to) != mission_id) {
           LOG(ERROR)
               << "Outgoing edge " << outgoing_edge_id.hexString()

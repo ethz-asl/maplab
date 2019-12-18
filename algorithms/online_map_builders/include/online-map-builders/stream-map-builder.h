@@ -154,13 +154,18 @@ class StreamMapBuilder {
       wheel_odometry_measurement_temporal_buffer_;
   // Id of the current vertex being processed by the wheel odometry logic.
   pose_graph::VertexId vertex_processing_wheel_odometry_id_;
-  // Id of the last vertex that was deemed processed by the wheel odometry
-  // logic (either an edge was added or it was determined that no edge can ever
-  // be added).
-  pose_graph::VertexId last_vertex_done_wheel_odometry_id_;
+  // Flag for the current vertex being processed to determine if we are done
+  // with it (either an edge was added or it was determined that no edge can
+  // ever be added).
+  bool done_current_vertex_wheel_odometry_;
 
-  // Transform between wheel odometry origin to previously processed vertex
+  // Transform between wheel odometry origin and the last vertex for which
+  // we added wheel odometry
   aslam::Transformation T_Ow_Btm1_;
+  // Id of last vertex we added a wheel odometry edge to
+  pose_graph::VertexId Btm1_vertex_id_;
+  // Convinience bool flag to check if we have initialized the relative wheel
+  // odometry calculation
   bool found_wheel_odometry_origin_;
 
   common::TemporalBuffer<vi_map::Absolute6DoFMeasurement::Ptr>
