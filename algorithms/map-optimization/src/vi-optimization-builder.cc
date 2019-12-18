@@ -28,7 +28,7 @@ DEFINE_bool(
     "Whether or not to fix the extrinsics of the wheel odometry sensor.");
 DEFINE_bool(
     ba_fix_vertices, false,
-    "Whether or not to vertices' poses in optimization.");
+    "Whether or not to fix vertice poses in optimization.");
 DEFINE_bool(
     ba_fix_landmark_positions, false,
     "Whether or not to fix the positions of the landmarks.");

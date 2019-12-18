@@ -9,7 +9,7 @@
   <buildtool_depend>catkin_simple</buildtool_depend>
   <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>6dof_vi_map_generator</depend>
+  <depend>vi_map_generator_6dof</depend>
   <depend>aslam_cv_triangulation</depend>
   <depend>eigen_catkin</depend>
   <depend>eigen_checks</depend>

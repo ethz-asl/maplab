@@ -288,18 +288,16 @@ bool MapBuilderFlow::saveMapAndOptionallyOptimize(
   last_vertex_of_previous_map_saving_ =
       map_with_mutex_->vi_map.getLastVertexIdOfMission(id_of_first_mission);
 
-  {
-    if (FLAGS_map_run_keyframing_when_saving) {
-      using map_sparsification::KeyframingHeuristicsOptions;
-      KeyframingHeuristicsOptions options =
-          KeyframingHeuristicsOptions::initializeFromGFlags();
-      VLOG(1) << "[MaplabNode-MapBuilder] Keyframing map.";
-      if (map_sparsification_plugin::keyframeMapBasedOnHeuristics(
-              options, id_of_first_mission, plotter.get(),
-              &map_with_mutex_->vi_map) != common::kSuccess) {
-        LOG(ERROR) << "[MaplabNode-MapBuilder] Keyframing of mission "
-                   << id_of_first_mission << " failed.";
-      }
+  if (FLAGS_map_run_keyframing_when_saving) {
+    using map_sparsification::KeyframingHeuristicsOptions;
+    KeyframingHeuristicsOptions options =
+        KeyframingHeuristicsOptions::initializeFromGFlags();
+    VLOG(1) << "[MaplabNode-MapBuilder] Keyframing map.";
+    if (map_sparsification_plugin::keyframeMapBasedOnHeuristics(
+            options, id_of_first_mission, plotter.get(),
+            &map_with_mutex_->vi_map) != common::kSuccess) {
+      LOG(ERROR) << "[MaplabNode-MapBuilder] Keyframing of mission "
+                 << id_of_first_mission << " failed.";
     }
   }
 

@@ -64,10 +64,6 @@ class MetaData;
 }  // namespace proto
 }  // namespace metadata
 
-namespace map_optimization_legacy {
-class ViwlsGraph;
-}  // namespace map_optimization_legacy
-
 namespace vi_map {
 class SixDofVIMapGenerator;
 
@@ -88,7 +84,6 @@ class VIMap : public backend::ResourceMap,
               public backend::MapInterface<vi_map::VIMap> {
   friend ::LoopClosureHandlerTest;                   // Test.
   friend class MapConsistencyCheckTest;              // Test.
-  friend class map_optimization_legacy::ViwlsGraph;  // Test.
   friend class SixDofVIMapGenerator;                 // Test.
   friend bool checkMapConsistency(const VIMap&);
   friend class VIMapStats;

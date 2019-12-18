@@ -14,10 +14,6 @@
 
 class LoopClosureHandlerTest;
 
-namespace map_optimization_legacy {
-class ViwlsGraph;
-}  // namespace map_optimization_legacy
-
 namespace vi_map {
 class VIMap;
 class SixDofVIMapGenerator;
@@ -29,7 +25,6 @@ class LandmarkIndex {
   friend VIMap;
   friend ::LoopClosureHandlerTest;                   // Test.
   friend class MapConsistencyCheckTest;              // Test.
-  friend class map_optimization_legacy::ViwlsGraph;  // Test.
   friend class SixDofVIMapGenerator;                 // Test.
 
   LandmarkIndex() {}

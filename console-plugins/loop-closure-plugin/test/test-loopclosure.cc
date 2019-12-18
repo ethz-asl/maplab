@@ -4,7 +4,8 @@
 #include <landmark-triangulation/landmark-triangulation.h>
 #include <loopclosure-common/flags.h>
 #include <loopclosure-common/types.h>
-#include <map-optimization-legacy-plugin/vi-map-optimizer-legacy.h>
+#include <map-optimization/solver-options.h>
+#include <map-optimization/vi-map-optimizer.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
 #include <matching-based-loopclosure/detector-settings.h>
@@ -42,15 +43,26 @@ class LoopClosureAppTest : public ::testing::Test {
 
 bool LoopClosureAppTest::optimize(ceres::Solver::Summary* summary) {
   CHECK_NOTNULL(summary);
-  map_optimization_legacy::BaOptimizationOptions options;
-  options.num_iterations = 20;
-  options.include_loop_closure_edges = true;
-  options.include_visual = true;
-  options.include_inertial = true;
-
-  map_optimization_legacy_plugin::VIMapOptimizer optimizer;
   vi_map::VIMap* map = CHECK_NOTNULL(test_app_.getMapMutable());
-  return optimizer.optimize(options, map, summary) == common::kSuccess;
+
+  ceres::Solver::Options solver_options =
+      map_optimization::initSolverOptionsFromFlags();
+  map_optimization::ViProblemOptions vi_problem_options =
+      map_optimization::ViProblemOptions::initFromGFlags();
+
+  solver_options.max_num_iterations = 20;
+  vi_problem_options.add_loop_closure_edges = true;
+
+  // Initial visual-inertial optimization.
+  constexpr bool kEnableSignalHandler = true;
+  map_optimization::VIMapOptimizer optimizer(nullptr, kEnableSignalHandler);
+
+  // Optimize all missions in the map
+  vi_map::MissionIdSet all_mission_ids;
+  map->getAllMissionIds(&all_mission_ids);
+  const bool success = optimizer.optimize(
+      vi_problem_options, solver_options, all_mission_ids, nullptr, map);
+  return success;
 }
 
 TEST_F(LoopClosureAppTest, TestIsDatasetConsistent) {

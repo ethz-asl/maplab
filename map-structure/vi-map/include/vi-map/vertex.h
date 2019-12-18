@@ -26,14 +26,9 @@
 #include "vi-map/unique-id.h"
 #include "vi-map/vi_map.pb.h"
 
-namespace map_optimization_legacy {
-class ViwlsGraph;  // Used for testing.
-}
-
 namespace vi_map {
 
 class Vertex : public pose_graph::Vertex {
-  friend class map_optimization_legacy::ViwlsGraph;  // Test.
   friend class MapConsistencyCheckTest;              // Test.
   friend class VertexResourcesTest;                  // Test.
   FRIEND_TEST(MapConsistencyCheckTest, mapInconsistentMissingBackLink);
