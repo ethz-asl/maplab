@@ -258,6 +258,8 @@ void OptimizationStateBuffer::importCameraCalibrationsOfMissions(
       ++col_idx;
     }
   }
+
+  VLOG(1) << "Added " << ncameras.size() << " ncameras.";
 }
 
 void OptimizationStateBuffer::importOtherSensorExtrinsicsOfMissions(
@@ -278,8 +280,6 @@ void OptimizationStateBuffer::importOtherSensorExtrinsicsOfMissions(
       other_sensor_ids.emplace_back(mission.getWheelOdometrySensor());
     }
   }
-  LOG(INFO) << "Added " << other_sensor_ids.size() << " sensors.";
-
   other_sensor_q_SB__S_p_SB_.resize(Eigen::NoChange, other_sensor_ids.size());
 
   size_t col_idx = 0u;
@@ -299,6 +299,8 @@ void OptimizationStateBuffer::importOtherSensorExtrinsicsOfMissions(
     other_sensor_id_to_sensor_idx_.emplace(sensor_id, col_idx);
     ++col_idx;
   }
+
+  VLOG(1) << "Added " << other_sensor_ids.size() << " other sensors.";
 }
 
 }  // namespace map_optimization
