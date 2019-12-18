@@ -16,7 +16,6 @@ namespace localization_evaluator {
 class ViMappingTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    VLOG(0) << "Setup.";
     FLAGS_lc_use_random_pnp_seed = false;
 
     test_app_.loadDataset("./test_maps/optimized_vi_app_test");
@@ -153,18 +152,15 @@ class ViMappingTest : public ::testing::Test {
 };
 
 TEST_F(ViMappingTest, LocalizationEvaluatorWorks) {
-  VLOG(0) << "Create map.";
   createMap();
   // Make sure the positions are initially not aligned so that there is
   // something to align and evaluate.
   ASSERT_FALSE(areVertexPositionsClose(1e-1));
 
-  VLOG(0) << "Align missions.";
   const vi_map::MissionId query_mission_id = alignMissionsForEvaluation();
   // After alignment, the poses should be aligned with certain tolerance.
   ASSERT_TRUE(areVertexPositionsClose(1e-1));
 
-  VLOG(0) << "Evaluate localization";
   // Once the alignment is done, verify if we can localize one mission
   // with respect to the other.
   evaluateLocalization(query_mission_id);
