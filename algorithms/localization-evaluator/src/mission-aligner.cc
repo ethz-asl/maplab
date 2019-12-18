@@ -2,7 +2,8 @@
 
 #include <loop-closure-handler/loop-detector-node.h>
 #include <map-anchoring/map-anchoring.h>
-#include <map-optimization-legacy/graph-ba-optimizer.h>
+#include <map-optimization/solver-options.h>
+#include <map-optimization/vi-map-optimizer.h>
 #include <maplab-common/progress-bar.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vi-map.h>
@@ -108,54 +109,27 @@ void alignAndCooptimizeMissionsWithoutLandmarkMerge(
   VLOG(1) << "Anchor succeeded.";
 
   VLOG(1) << "Optimizing missions.";
-  map_optimization_legacy::BaOptimizationOptions options;
-  options.fix_ncamera_intrinsics = true;
-  options.fix_landmark_positions = false;
-  options.fix_accel_bias = false;
-  options.fix_gyro_bias = false;
-  options.include_wheel_odometry = false;
-  options.include_gps = false;
-  options.position_only_gps = false;
-  options.add_pose_prior_for_fixed_vertices = false;
-  options.fix_landmark_positions_of_fixed_vertices =
-      optimize_only_query_mission;
-  options.num_iterations = 5;
+  ceres::Solver::Options solver_options =
+      map_optimization::initSolverOptionsFromFlags();
+  map_optimization::ViProblemOptions vi_problem_options =
+      map_optimization::ViProblemOptions::initFromGFlags();
 
-  // We don't want to fix any baseframes.
-  vi_map::MissionBaseFrameIdSet fixed_baseframes;
-  pose_graph::VertexIdSet fixed_vertices;
+  solver_options.max_num_iterations = 5;
   if (optimize_only_query_mission) {
-    // Fix all vertices of map missions. The landmarks they contain will be
-    // fixed as well.
-    pose_graph::VertexIdList all_vertices;
-    map->getAllVertexIds(&all_vertices);
-    for (const pose_graph::VertexId& vertex_id : all_vertices) {
-      if (map->getVertex(vertex_id).getMissionId() != query_mission_id) {
-        fixed_vertices.insert(vertex_id);
-      }
-    }
-  } else {
-    // Fix root vertex of one of the missions, just to keep the problem in
-    // place.
-    const vi_map::MissionId& any_map_mission_id = *map_missions_ids.begin();
-    const pose_graph::VertexId root_vertex_id =
-        map->getMission(any_map_mission_id).getRootVertexId();
-    fixed_vertices.insert(root_vertex_id);
+    vi_problem_options.fix_vertices = true;
+    vi_problem_options.fix_landmark_positions = true;
   }
 
-  map_optimization_legacy::GraphBaOptimizer optimizer(map);
-  optimizer.enableCeresSignalHandlerCallback(true);
-  ceres::Solver::Summary summary;
+  // Initial visual-inertial optimization.
+  constexpr bool kEnableSignalHandler = true;
+  map_optimization::VIMapOptimizer optimizer(nullptr, kEnableSignalHandler);
 
-  std::function<void(const vi_map::VIMap&)> callback =
-      [](const vi_map::VIMap& /*map_arg*/) {
-        // Do nothing.
-      };  // NOLINT
-
-  pose_graph::VertexIdSet velocity_prior_for_vertices;
-  optimizer.visualInertialBaOptimizationWithCallback(
-      fixed_baseframes, fixed_vertices, velocity_prior_for_vertices, options,
-      callback, &summary);
+  // Optimize all missions in the map
+  vi_map::MissionIdSet all_mission_ids;
+  map->getAllMissionIds(&all_mission_ids);
+  const bool success = optimizer.optimize(
+      vi_problem_options, solver_options, all_mission_ids, nullptr, map);
+  CHECK(success) << "Optimization failed!";
 
   for (const vi_map::VertexKeyPointToStructureMatch& revert_item :
        landmark_merge_revert_vector) {

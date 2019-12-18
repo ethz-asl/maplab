@@ -118,9 +118,9 @@ void OptimizationStateBuffer::copyAllCameraCalibrationsBackToMap(
       aslam::Transformation T_C_I(
           camera_q_CI__C_p_CI_.col(index).tail<3>(), q_C_I_JPL.inverse());
 
-      const size_t camera_idx_in_ncamera =
+      const int camera_idx_in_ncamera =
           ncamera->getCameraIndex(camid_ncamids.first);
-      CHECK_GE(camera_idx_in_ncamera, 0u);
+      CHECK_GE(camera_idx_in_ncamera, 0);
       ncamera->set_T_C_B(static_cast<size_t>(camera_idx_in_ncamera), T_C_I);
     }
   }
@@ -258,6 +258,8 @@ void OptimizationStateBuffer::importCameraCalibrationsOfMissions(
       ++col_idx;
     }
   }
+
+  VLOG(1) << "Added " << ncameras.size() << " ncameras.";
 }
 
 void OptimizationStateBuffer::importOtherSensorExtrinsicsOfMissions(
@@ -278,8 +280,6 @@ void OptimizationStateBuffer::importOtherSensorExtrinsicsOfMissions(
       other_sensor_ids.emplace_back(mission.getWheelOdometrySensor());
     }
   }
-  LOG(INFO) << "Added " << other_sensor_ids.size() << " sensors.";
-
   other_sensor_q_SB__S_p_SB_.resize(Eigen::NoChange, other_sensor_ids.size());
 
   size_t col_idx = 0u;
@@ -299,6 +299,8 @@ void OptimizationStateBuffer::importOtherSensorExtrinsicsOfMissions(
     other_sensor_id_to_sensor_idx_.emplace(sensor_id, col_idx);
     ++col_idx;
   }
+
+  VLOG(1) << "Added " << other_sensor_ids.size() << " other sensors.";
 }
 
 }  // namespace map_optimization

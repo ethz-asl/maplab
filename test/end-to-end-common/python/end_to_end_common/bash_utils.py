@@ -14,8 +14,8 @@ def run(cmd, dry_run=False, stdin=None):
     proc = subprocess.Popen(args, stdin=stdin)
     exit_code = proc.wait()
     if exit_code != 0:
-        raise Exception("Cmd '%s' returned nozero exit code : %d" %
-                        (cmd, exit_code))
+        raise Exception(
+            "Cmd '%s' returned nozero exit code : %d" % (cmd, exit_code))
 
 
 def create_path(path):

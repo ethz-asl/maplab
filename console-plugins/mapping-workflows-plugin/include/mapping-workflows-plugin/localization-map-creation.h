@@ -2,7 +2,6 @@
 #define MAPPING_WORKFLOWS_PLUGIN_LOCALIZATION_MAP_CREATION_H_
 #include <glog/logging.h>
 #include <loop-closure-plugin/vi-map-merger.h>
-#include <map-optimization-legacy/ba-optimization-options.h>
 #include <map-sparsification-plugin/keyframe-pruning.h>
 #include <vi-map/vi-map.h>
 

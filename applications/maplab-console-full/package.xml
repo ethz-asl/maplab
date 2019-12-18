@@ -15,7 +15,6 @@
   <exec_depend>landmark_manipulation_plugin</exec_depend>
   <exec_depend>loop_closure_plugin</exec_depend>
   <exec_depend>map_anchoring_plugin</exec_depend>
-  <exec_depend>map_optimization_legacy_plugin</exec_depend>
   <exec_depend>map_optimization_plugin</exec_depend>
   <exec_depend>map_sparsification_plugin</exec_depend>
   <exec_depend>maplab_console</exec_depend>
