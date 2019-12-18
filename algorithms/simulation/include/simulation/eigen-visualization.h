@@ -167,6 +167,9 @@ void drawArrow(
       visualization_msgs::Marker::_pose_type::_position_type();
   marker.pose.orientation =
       visualization_msgs::Marker::_pose_type::_orientation_type();
+  // Initialize to valid unit quaternion to supress rviz warnings (the actual
+  // arrow is still calculated only using the points defined below).
+  marker.pose.orientation.w = 1.0;
 
   marker.points.resize(2);
   marker.points[0] = eigenToPoint(p1);
