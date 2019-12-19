@@ -25,7 +25,7 @@ class MaplabServerNodeTest : public ::testing::Test {
 
  public:
   const std::string kBasePath = "./test_maps/submap_test/";
-  const std::string kRobotName = "euroc_ml1";
+  const std::string kRobotName = "euroc_mh1";
   const std::string kSubmap0 = kBasePath + "euroc_v1_01_submap_0";
   const std::string kSubmap1 = kBasePath + "euroc_v1_01_submap_1";
   const std::string kSubmap2 = kBasePath + "euroc_v1_01_submap_2";
