@@ -15,7 +15,7 @@
   <arg name="maplab_verbosity" default="0"/>
 
   <arg name="maplab_save_map_every_n_sec" default="0"/>
-  <arg name="maplab_remove_bad_landmarks" default="true"/>
+  <arg name="maplab_remove_bad_landmarks" default="false"/>
   <arg name="maplab_keyframe_when_saving" default="false"/>
 
   <arg name="maplab_apply_clahe" default="false"/>

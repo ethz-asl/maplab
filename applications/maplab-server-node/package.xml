@@ -28,17 +28,17 @@
 	<depend>visualization</depend>
 
 	<!-- Make sure all the plugins are available to the server to support all commands -->
-	<!-- <depend>dense_reconstruction_plugin</depend> -->
+	<depend>dense_reconstruction_plugin</depend>
 	<depend>landmark_manipulation_plugin</depend>
 	<depend>loop_closure_plugin</depend>
 	<depend>map_anchoring_plugin</depend>
 	<depend>map_optimization_plugin</depend>
-	<!-- <depend>map_sparsification_plugin</depend> -->
+	<depend>map_sparsification_plugin</depend>
 	<depend>mapping_workflows_plugin</depend>
 	<depend>pose_graph_manipulation_plugin</depend>
-	<!-- <depend>statistics_plugin</depend> -->
+	<depend>statistics_plugin</depend>
 	<depend>vi_map_basic_plugin</depend>
-	<!-- <depend>vi_map_data_import_export_plugin</depend> -->
-	<!-- <depend>vi_map_summarization_plugin</depend> -->
+	<depend>vi_map_data_import_export_plugin</depend>
+	<depend>vi_map_summarization_plugin</depend>
 	<depend>vi_map_visualization_plugin</depend>
 </package>
