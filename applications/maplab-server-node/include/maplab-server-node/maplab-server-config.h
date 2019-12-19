@@ -7,10 +7,6 @@
 #include <aslam/common/yaml-file-serialization.h>
 #include <aslam/common/yaml-serialization.h>
 
-DECLARE_string(maplab_server_merged_map_folder);
-DECLARE_string(maplab_server_resource_folder);
-DECLARE_int32(maplab_server_backup_interval_s);
-
 namespace maplab {
 
 class MaplabServerNodeConfig : public aslam::YamlFileSerializable {

@@ -21,6 +21,19 @@ DEFINE_int32(
     "threads are different from the one thread that is merging and optimizing "
     "the global map.");
 
+DEFINE_string(
+    maplab_server_merged_map_folder, "",
+    "Where the finished/intermediate maps should be stored. Not optional.");
+
+DEFINE_string(
+    maplab_server_resource_folder, "",
+    "Where the resources of the merged map should be stored, if empty, the "
+    "standard map resource folder is used.");
+
+DEFINE_int32(
+    maplab_server_backup_interval_s, 300,
+    "Create a backup of the current map every n seconds. 0 = no backups.");
+
 namespace maplab {
 MaplabServerNode::MaplabServerNode(const MaplabServerNodeConfig& config)
     : config_(config),
