@@ -22,10 +22,10 @@ class ViMappingTest : public ::testing::Test {
     vi_map::MissionIdSet mission_id_set;
     vi_map.getAllMissionIds(&mission_id_set);
 
-    aslam::TransformationCovariance fixed_localization_covariance;
+    aslam::TransformationCovariance T_G_B_fixed_localization_covariance;
 
     // clang-format off
-    fixed_localization_covariance <<  0.10, 0.00, 0.00, 0.00, 0.00, 0.00,
+    T_G_B_fixed_localization_covariance <<  0.10, 0.00, 0.00, 0.00, 0.00, 0.00,
                                       0.00, 0.10, 0.00, 0.00, 0.00, 0.00,
                                       0.00, 0.00, 0.10, 0.00, 0.00, 0.00,
                                       0.00, 0.00, 0.00, 0.01, 0.00, 0.00,
@@ -36,7 +36,8 @@ class ViMappingTest : public ::testing::Test {
     CHECK_GT(mission_id_set.size(), 0);
     for (const vi_map::MissionId& mid : mission_id_set) {
       aslam::NCamera::Ptr ncam = vi_map.getMissionNCameraPtr(mid);
-      ncam->setFixedLocalizationCovariance(fixed_localization_covariance);
+      ncam->set_T_G_B_fixed_localization_covariance(
+          T_G_B_fixed_localization_covariance);
     }
 
     vi_map::LandmarkIdList landmark_ids;
