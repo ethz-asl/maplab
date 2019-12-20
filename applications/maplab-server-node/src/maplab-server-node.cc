@@ -506,7 +506,7 @@ bool MaplabServerNode::loadAndProcessSubmap(
               std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
               submap_commands_.erase(submap_process.map_hash);
             }
-            return false;
+            return true;
           }
         }
         {
@@ -518,6 +518,7 @@ bool MaplabServerNode::loadAndProcessSubmap(
         VLOG(3) << "[MaplabServerNode] SubmapProcessing - finished processing "
                    "submap with key '"
                 << submap_process.map_key << "'.";
+        return true;
       });
 
   LOG(INFO) << "[MaplabServerNode] SubmapProcessing - thread launched.";
@@ -526,6 +527,12 @@ bool MaplabServerNode::loadAndProcessSubmap(
 
 bool MaplabServerNode::saveMap() {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (!FLAGS_maplab_server_merged_map_folder.empty()) {
+    LOG(ERROR) << "[MaplabServerNode] Cannot save map because "
+                  "--maplab_server_merged_map_folder is empty!";
+    return false;
+  }
+
   LOG(INFO) << "[MaplabServerNode] Saving map to '"
             << FLAGS_maplab_server_merged_map_folder << "'.";
   if (map_manager_.hasMap(kMergedMapKey)) {
