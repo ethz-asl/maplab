@@ -110,7 +110,7 @@ void findOutlierLandmarks(
 
 ceres::TerminationType solveStep(
     const OutlierRejectionSolverOptions& rejection_options,
-    const ceres::Solver::Options& solver_options,
+    const ceres::Solver::Options& solver_options, int num_iters,
     OptimizationProblem* optimization_problem,
     OutlierRejectionCallback* callback) {
   CHECK_NOTNULL(optimization_problem);
@@ -128,8 +128,7 @@ ceres::TerminationType solveStep(
 
   // Disable the default Ceres output.
   local_options.minimizer_progress_to_stdout = false;
-  local_options.max_num_iterations =
-      rejection_options.reject_outliers_every_n_iters;
+  local_options.max_num_iterations = num_iters;
   local_options.update_state_every_iteration = true;
 
   ceres::Solver::Summary summary;
@@ -210,20 +209,19 @@ ceres::TerminationType solveWithOutlierRejection(
     return ceres::TerminationType::FAILURE;
   }
 
-  // Integer ceil division.
-  const int num_outer_iters =
-      (solver_options.max_num_iterations +
-       rejection_options.reject_outliers_every_n_iters - 1) /
-      rejection_options.reject_outliers_every_n_iters;
-
   OutlierRejectionCallback callback(solver_options.initial_trust_region_radius);
 
   ceres::TerminationType termination_type =
       ceres::TerminationType::NO_CONVERGENCE;
-  for (int i = 0; i < num_outer_iters; ++i) {
+  int num_iters_remaining = solver_options.max_num_iterations;
+  while (num_iters_remaining > 0) {
+    const int step_iters = std::min(
+        num_iters_remaining, rejection_options.reject_outliers_every_n_iters);
+
     timing::Timer timer_solve("BA: Solve");
     termination_type = solveStep(
-        rejection_options, solver_options, optimization_problem, &callback);
+        rejection_options, solver_options, step_iters, optimization_problem,
+        &callback);
     timer_solve.Stop();
 
     timing::Timer timer_copy("BA: CopyDataToMap");
@@ -238,6 +236,8 @@ ceres::TerminationType solveWithOutlierRejection(
     if (termination_type != ceres::TerminationType::NO_CONVERGENCE) {
       break;
     }
+
+    num_iters_remaining -= step_iters;
   }
 
   return termination_type;
