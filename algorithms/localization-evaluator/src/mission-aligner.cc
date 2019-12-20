@@ -114,7 +114,7 @@ void alignAndCooptimizeMissionsWithoutLandmarkMerge(
   map_optimization::ViProblemOptions vi_problem_options =
       map_optimization::ViProblemOptions::initFromGFlags();
 
-  solver_options.max_num_iterations = 5;
+  solver_options.max_num_iterations = 10;
   if (optimize_only_query_mission) {
     vi_problem_options.fix_vertices = true;
     vi_problem_options.fix_landmark_positions = true;
