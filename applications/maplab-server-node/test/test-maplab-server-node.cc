@@ -25,6 +25,7 @@ class MaplabServerNodeTest : public ::testing::Test {
 
  public:
   const std::string kBasePath = "./test_maps/submap_test/";
+  const std::string kRobotName = "euroc_mh1";
   const std::string kSubmap0 = kBasePath + "euroc_v1_01_submap_0";
   const std::string kSubmap1 = kBasePath + "euroc_v1_01_submap_1";
   const std::string kSubmap2 = kBasePath + "euroc_v1_01_submap_2";
@@ -36,144 +37,120 @@ class MaplabServerNodeTest : public ::testing::Test {
 };
 
 TEST_F(MaplabServerNodeTest, TestLoadingConfig) {
-  MaplabServerRosNodeConfig config;
+  MaplabServerNodeConfig config;
 
   const std::string path = "./test-data/test-config.yaml";
   ASSERT_TRUE(common::fileExists(path));
 
   EXPECT_TRUE(config.deserializeFromFile(path));
 
-  EXPECT_EQ(
-      config.server_config.map_folder, "/tmp/maplab_server_node/combined_map");
-  EXPECT_EQ(
-      config.server_config.resource_folder,
-      "/tmp/maplab_server_node/combined_map_resources");
-  EXPECT_EQ(config.server_config.map_backup_interval_s, 300);
+  ASSERT_EQ(config.submap_commands.size(), 2u);
+  config.submap_commands[0] = "lc";
+  config.submap_commands[1] = "optvi";
 
-  ASSERT_EQ(config.server_config.submap_commands.size(), 2u);
-  config.server_config.submap_commands[0] = "lc";
-  config.server_config.submap_commands[1] = "optvi";
-
-  ASSERT_EQ(config.server_config.global_map_commands.size(), 3u);
-  config.server_config.global_map_commands[0] = "lc";
-  config.server_config.global_map_commands[1] = "optvi";
-  config.server_config.global_map_commands[2] =
+  ASSERT_EQ(config.global_map_commands.size(), 3u);
+  config.global_map_commands[0] = "lc";
+  config.global_map_commands[1] = "optvi";
+  config.global_map_commands[2] =
       "elq --vi_map_landmark_quality_min_observers=2";
-
-  ASSERT_EQ(config.connection_config.size(), 1u);
-
-  const RobotConnectionConfig& robot_connection = config.connection_config[0];
-  ASSERT_EQ(robot_connection.name, "local_maplab_node");
-  ASSERT_EQ(robot_connection.topic, "/maplab_node/map_update_notification");
-  ASSERT_EQ(robot_connection.ip, "localhost");
-  ASSERT_EQ(robot_connection.user, "user");
 }
 
 TEST_F(MaplabServerNodeTest, TestMaplabServerNode) {
-  MaplabServerRosNodeConfig config;
+  MaplabServerNodeConfig config;
   ASSERT_TRUE(config.deserializeFromFile("./test-data/test-config.yaml"));
 
-  MaplabServerNode maplab_server_node(config.server_config);
+  MaplabServerNode maplab_server_node(config);
 
   maplab_server_node.start();
 
-  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kSubmap0));
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap0));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   maplab_server_node.visualizeMap();
 
-  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kSubmap1));
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap1));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   maplab_server_node.visualizeMap();
 
-  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kSubmap2));
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap2));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   maplab_server_node.visualizeMap();
 
-  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kSubmap3));
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap3));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   maplab_server_node.visualizeMap();
 
-  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kSubmap4));
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap4));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   maplab_server_node.visualizeMap();
 
-  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kSubmap5));
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap5));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   maplab_server_node.visualizeMap();
 
-  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kSubmap6));
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap6));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   maplab_server_node.visualizeMap();
 
-  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kSubmap7));
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap7));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   maplab_server_node.visualizeMap();
+
+  const std::string merged_map_path = kBasePath + "/merged_map_1";
+  EXPECT_TRUE(maplab_server_node.saveMap(merged_map_path));
 
   maplab_server_node.shutdown();
-  maplab_server_node.visualizeMap();
-
-  EXPECT_TRUE(maplab_server_node.saveMap());
 }
 
 TEST_F(MaplabServerNodeTest, DISABLED_TestMaplabServerRosNodeLocal) {
-  MaplabServerRosNodeConfig config;
+  MaplabServerNodeConfig config;
   ASSERT_TRUE(config.deserializeFromFile("./test-data/test-config.yaml"));
 
   MaplabServerRosNode maplab_server_ros_node(config);
 
   maplab_server_ros_node.start();
 
-  ASSERT_EQ(config.connection_config.size(), 1u);
-  RobotConnectionConfig robot_connection_config = config.connection_config[0];
-  ASSERT_EQ(robot_connection_config.ip, "localhost");
+  diagnostic_msgs::KeyValuePtr key_value_msg(new diagnostic_msgs::KeyValue());
 
-  std_msgs::StringPtr string_msgs(new std_msgs::String());
+  key_value_msg->key = kRobotName;
 
-  string_msgs->data = kSubmap0;
-  maplab_server_ros_node.submapLoadingCallback(
-      string_msgs, robot_connection_config);
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  key_value_msg->value = kSubmap0;
+  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  string_msgs->data = kSubmap1;
-  maplab_server_ros_node.submapLoadingCallback(
-      string_msgs, robot_connection_config);
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  key_value_msg->value = kSubmap1;
+  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  string_msgs->data = kSubmap2;
-  maplab_server_ros_node.submapLoadingCallback(
-      string_msgs, robot_connection_config);
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  key_value_msg->value = kSubmap2;
+  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  string_msgs->data = kSubmap3;
-  maplab_server_ros_node.submapLoadingCallback(
-      string_msgs, robot_connection_config);
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  key_value_msg->value = kSubmap3;
+  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  string_msgs->data = kSubmap4;
-  maplab_server_ros_node.submapLoadingCallback(
-      string_msgs, robot_connection_config);
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  key_value_msg->value = kSubmap4;
+  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  string_msgs->data = kSubmap5;
-  maplab_server_ros_node.submapLoadingCallback(
-      string_msgs, robot_connection_config);
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  key_value_msg->value = kSubmap5;
+  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  string_msgs->data = kSubmap6;
-  maplab_server_ros_node.submapLoadingCallback(
-      string_msgs, robot_connection_config);
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  key_value_msg->value = kSubmap6;
+  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  string_msgs->data = kSubmap7;
-  maplab_server_ros_node.submapLoadingCallback(
-      string_msgs, robot_connection_config);
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  key_value_msg->value = kSubmap7;
+  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
   maplab_server_ros_node.visualizeMap();
 
-  maplab_server_ros_node.shutdown();
+  const std::string merged_map_path = kBasePath + "/merged_map_2";
+  EXPECT_TRUE(maplab_server_ros_node.saveMap(merged_map_path));
 
-  EXPECT_TRUE(maplab_server_ros_node.saveMap());
+  maplab_server_ros_node.shutdown();
 }
 
 }  // namespace maplab

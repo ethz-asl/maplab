@@ -22,43 +22,44 @@
 #include "maplab-server-node/maplab-server-node.h"
 
 DEFINE_string(
-    server_node_config_file, "",
+    maplab_server_node_config_file, "",
     "Path the the config YAML file for the maplab server node.");
 
 DEFINE_int32(
-    map_update_notification_subscriber_queue_size, 100,
-    "Size of ROS subscriber.");
+    maplab_server_map_update_topic_queue_size, 100, "Size of ROS subscriber.");
+
+DEFINE_string(
+    maplab_server_map_update_topic, "map_update_notification",
+    "Topic on which the map update notification message is received, it "
+    "contains the robot name and the map folder of the new map update.");
 
 namespace maplab {
 
-MaplabServerRosNode::MaplabServerRosNode(
-    const MaplabServerRosNodeConfig& config)
-    : config_(config), maplab_spinner_(common::getNumHardwareThreads()) {
+MaplabServerRosNode::MaplabServerRosNode(const MaplabServerNodeConfig& config)
+    : maplab_spinner_(common::getNumHardwareThreads()) {
   LOG(INFO) << "[MaplabServerRosNode] Initializing MaplabServerNode...";
-  maplab_server_node_.reset(new MaplabServerNode(config_.server_config));
+  maplab_server_node_.reset(new MaplabServerNode(config));
 }
 
 MaplabServerRosNode::MaplabServerRosNode(
     const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
-    : config_(),
-      nh_(nh),
+    : nh_(nh),
       nh_private_(nh_private),
       maplab_spinner_(common::getNumHardwareThreads()) {
-  CHECK(config_.deserializeFromFile(FLAGS_server_node_config_file))
+  MaplabServerNodeConfig config;
+  CHECK(config.deserializeFromFile(FLAGS_maplab_server_node_config_file))
       << "[MaplabServerRosNode] Failed to parse config from '"
-      << FLAGS_server_node_config_file << "'";
+      << FLAGS_maplab_server_node_config_file << "'";
 
   // === MAPLAB SERVER NODE ===
   LOG(INFO) << "[MaplabServerRosNode] Initializing MaplabServerNode...";
-  maplab_server_node_.reset(new MaplabServerNode(config_.server_config));
+  maplab_server_node_.reset(new MaplabServerNode(config));
 
-  // Set up map saving service.
   boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
       save_map_callback =
           boost::bind(&MaplabServerRosNode::saveMapCallback, this, _1, _2);
   save_map_srv_ = nh_.advertiseService("save_map", save_map_callback);
 
-  // Set up map saving service.
   boost::function<bool(
       maplab_msgs::BatchMapLookup::Request&,
       maplab_msgs::BatchMapLookup::Response&)>
@@ -66,19 +67,12 @@ MaplabServerRosNode::MaplabServerRosNode(
           boost::bind(&MaplabServerRosNode::mapLookupCallback, this, _1, _2);
   map_lookup_srv_ = nh_.advertiseService("map_lookup", map_lookup_callback);
 
-  // Set up notification subscribers to transfer maps to the server machine and
-  // merge them.
-  for (const RobotConnectionConfig& robot_config : config_.connection_config) {
-    boost::function<void(const std_msgs::StringConstPtr&)>
-        submap_loading_callback = boost::bind(
-            &MaplabServerRosNode::submapLoadingCallback, this, _1,
-            robot_config);
-
-    ros::Subscriber submap_loading_sub = nh_.subscribe(
-        robot_config.topic, FLAGS_map_update_notification_subscriber_queue_size,
-        submap_loading_callback);
-    map_update_notification_subs_.push_back(submap_loading_sub);
-  }
+  boost::function<void(const diagnostic_msgs::KeyValueConstPtr&)>
+      submap_loading_callback =
+          boost::bind(&MaplabServerRosNode::submapLoadingCallback, this, _1);
+  map_update_notification_sub_ = nh_.subscribe(
+      FLAGS_maplab_server_map_update_topic,
+      FLAGS_maplab_server_map_update_topic_queue_size, submap_loading_callback);
 }
 
 bool MaplabServerRosNode::start() {
@@ -91,57 +85,20 @@ bool MaplabServerRosNode::start() {
 }
 
 void MaplabServerRosNode::submapLoadingCallback(
-    const std_msgs::StringConstPtr& msg,
-    const RobotConnectionConfig& robot_config) {
+    const diagnostic_msgs::KeyValueConstPtr& msg) {
   CHECK(msg);
+  const std::string robot_name = msg->key;
+  std::string map_path = msg->value;
+  common::simplifyPath(&map_path);
 
-  std::string remote_map_path = msg->data;
-  common::simplifyPath(&remote_map_path);
-
-  if (robot_config.ip == "localhost") {
-    CHECK(common::pathExists(remote_map_path))
-        << "[MaplabServerRosNode] Path to submap '" << remote_map_path
-        << "' does not exist despite the ip indicating the map is on the "
-        << "localhost!";
-
-    maplab_server_node_->loadAndProcessSubmap(
-        robot_config.name, remote_map_path);
-  } else {
-    std::string map_folder_name, tmp;
-    common::splitPathByLastOccurenceOf(
-        remote_map_path, "/", false /*left first*/, &tmp, &map_folder_name);
-
-    if (map_folder_name.empty()) {
-      LOG(WARNING) << "[MaplabServerRosNode] Could not extract map folder from "
-                   << "remote path '"
-                   << "', using unique time-date string instead!";
-      map_folder_name = "remote_submap_received_at_" +
-                        common::generateDateStringFromCurrentTime();
-    }
-
-    const std::string local_map_path =
-        "/tmp/maplab_server_node/" + map_folder_name;
-
-    std::stringstream command_ss;
-    command_ss << "rsync -r " << robot_config.user << "@" << robot_config.ip
-               << ":" << remote_map_path << " " << local_map_path
-               << " --progress";
-    const std::string command_string = command_ss.str();
-    const char* command = command_string.c_str();
-
-    LOG(INFO) << "[MaplabServerRosNode] transfering remote map with command: '"
-              << command_string << "'...";
-    const int result = system(command);
-    if (result == 0) {
-      LOG(INFO) << "[MaplabServerRosNode] transfer complete.";
-    } else {
-      LOG(ERROR) << "[MaplabServerRosNode] transfer failed!.";
-    }
-    CHECK(common::pathExists(local_map_path));
-
-    maplab_server_node_->loadAndProcessSubmap(
-        robot_config.name, local_map_path);
+  if (!common::pathExists(map_path)) {
+    LOG(ERROR) << "[MaplabServerRosNode] Received map notification for robot '"
+               << robot_name << "' and local map folder '" << map_path
+               << "', but the folder does not exist!";
+    return;
   }
+
+  maplab_server_node_->loadAndProcessSubmap(robot_name, map_path);
 }
 
 bool MaplabServerRosNode::saveMap(const std::string& map_folder) {

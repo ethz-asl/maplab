@@ -46,12 +46,12 @@ class Odometry6DoF final : public aslam::Sensor {
   }
 
   inline bool has_T_St_Stp1_fixed_covariance() {
-    return has_fixed_covariance_;
+    return has_T_St_Stp1_fixed_covariance_;
   }
 
   inline bool get_T_St_Stp1_fixed_covariance(
       aslam::TransformationCovariance* T_St_Stp1_fixed_covariance) const {
-    if (has_fixed_covariance_) {
+    if (has_T_St_Stp1_fixed_covariance_) {
       *T_St_Stp1_fixed_covariance = T_St_Stp1_fixed_covariance_;
       return true;
     }
@@ -61,7 +61,7 @@ class Odometry6DoF final : public aslam::Sensor {
   inline void set_T_St_Stp1_fixed_covariance(
       const aslam::TransformationCovariance& T_St_Stp1_fixed_covariance) {
     T_St_Stp1_fixed_covariance_ = T_St_Stp1_fixed_covariance;
-    has_fixed_covariance_ = true;
+    has_T_St_Stp1_fixed_covariance_ = true;
   }
 
  private:
@@ -79,9 +79,8 @@ class Odometry6DoF final : public aslam::Sensor {
     return true;
   }
 
-  bool has_fixed_covariance_;
-
   aslam::TransformationCovariance T_St_Stp1_fixed_covariance_;
+  bool has_T_St_Stp1_fixed_covariance_;
 };
 
 // Stores 6DoF Odometry measurements, i.e. a transformation from the odometry
@@ -113,13 +112,23 @@ class Odometry6DoFMeasurement : public Measurement {
     T_O_S_ = T_O_S;
   }
 
-  const aslam::TransformationCovariance& get_T_O_S_covariance() const {
-    return T_O_S_covariance_;
+  inline bool has_T_O_S_covariance() {
+    return has_T_O_S_covariance_;
   }
 
-  void set_T_O_S_covariance(
-      const aslam::TransformationCovariance& measurement_covariance) {
-    T_O_S_covariance_ = measurement_covariance;
+  inline bool get_T_O_S_covariance(
+      aslam::TransformationCovariance* T_O_S_covariance) const {
+    if (has_T_O_S_covariance_) {
+      *T_O_S_covariance = T_O_S_covariance_;
+      return true;
+    }
+    return false;
+  }
+
+  inline void set_T_O_S_covariance(
+      const aslam::TransformationCovariance& T_O_S_covariance) {
+    T_O_S_covariance_ = T_O_S_covariance;
+    has_T_O_S_covariance_ = true;
   }
 
  private:
@@ -134,6 +143,7 @@ class Odometry6DoFMeasurement : public Measurement {
 
   aslam::Transformation T_O_S_;
   aslam::TransformationCovariance T_O_S_covariance_;
+  bool has_T_O_S_covariance_;
 };
 
 DEFINE_MEAUREMENT_CONTAINERS(Odometry6DoFMeasurement)
