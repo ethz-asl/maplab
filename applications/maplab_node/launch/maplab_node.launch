@@ -10,10 +10,11 @@
   <arg name="maplab_image_topic_suffix" default="/image_raw"/>
 
   <!-- MAPLAB_NODE_CONFIG -->
+  <arg name="maplab_rosparams_file" default="$(find maplab_node)/share/maplab_rosparams.yaml"/>
   <arg name="maplab_save_map_every_n_sec" default="0"/>
   <arg name="maplab_keyframe_when_saving" default="false"/>
   <arg name="maplab_use_clahe" default="true"/>
-  <arg name="maplab_map_directory" default="/tmp/maplab_node/$(arg maplab_robot_name)/submaps"/>
+  <arg name="maplab_map_directory" default="/tmp/maplab_node/$(arg maplab_robot_name)"/>
 
   <!-- DENSE MAP -->
   <arg name="maplab_attach_point_cloud_maps" default="false"/>
@@ -27,25 +28,28 @@
   <arg name="maplab_transfolder_enabled" default="false"/>
 
 
-  <node name="world_reference_detector_april_tags" pkg="world_reference_detector"
-        type="world_reference_detector" output="screen" required="true"
-        args="--alsologtostderr --v=3"
-        if="$(eval arg('maplab_reference_detector') == 'april'">
-
-       <param name="sensor_calibration_file" value="$(arg maplab_sensor_calibration_file)"/>
-       <param name="is_running" value="true" />
-  </node>
-
-  <node name="lidar_throttler" type="throttle" pkg="topic_tools"
-        args="messages $(arg maplab_lidar_topic) $(arg maplab_throttle_frequency_pointcloud_map) $(arg maplab_lidar_topic)_throttled"
-        if="$(arg maplab_attach_point_cloud_maps)"/>
-
   <group ns="$(arg maplab_robot_name)">
+
+    <!-- WORLD REFERENCE DETECTOR ARPIL TAGS -->
+    <node name="world_reference_detector_april_tags" pkg="world_reference_detector"
+          type="world_reference_detector" output="screen" required="true"
+          args="--alsologtostderr --v=3"
+          if="$(eval maplab_reference_detector == 'april')">
+
+         <param name="sensor_calibration_file" value="$(arg maplab_sensor_calibration_file)"/>
+         <param name="is_running" value="true" />
+    </node>
+
+    <!-- LIDAR SUBMAP THROTTLER -->
+    <node name="lidar_throttler" type="throttle" pkg="topic_tools"
+          args="messages $(arg maplab_lidar_topic) $(arg maplab_throttle_frequency_pointcloud_map) $(arg maplab_lidar_topic)_throttled"
+          if="$(arg maplab_attach_point_cloud_maps)"/>
+
     <!-- MAPLAB -->
     <node name="maplab_node" pkg="maplab_node" type="maplab_node" output="screen" clear_params="true">
 
       <!-- GENERAL PARAMS -->
-      <rosparam command="load" file="$(find maplab_node)/share/maplab_rosparams.yaml" />
+      <rosparam command="load" file="$(arg maplab_rosparams_file)"/>
 
       <!-- ROBOT SPECIFIC PARAMS -->
       <!-- SENSORS -->
@@ -53,11 +57,14 @@
       <param name="imu_to_camera_time_offset_ns" value="$(arg maplab_imu_to_camera_time_offset_ns)"/>
       <param name="vio_camera_topic_suffix" value="$(arg maplab_image_topic_suffix)"/>
 
+      <!-- DENSE MAP -->
+      <param name="map_builder_save_point_cloud_maps_as_resources" value="$(arg maplab_attach_point_cloud_maps)"/>
+
       <!-- MAPLAB_NODE_CONFIG -->
       <param name="map_save_every_n_sec" value="$(arg maplab_save_map_every_n_sec)"/>
       <param name="map_run_keyframing_when_saving" value="$(arg maplab_keyframe_when_saving)"/>
       <param name="image_apply_clahe_histogram_equalization" value="$(arg maplab_use_clahe)"/>
-      <param name="map_output_folder" value="$(arg maplab_map_directory)"/>
+      <param name="map_output_folder" value="$(arg maplab_map_directory)/submaps/"/>
     </node>
 
     <!-- MAP TRANSFER -->
@@ -74,7 +81,7 @@
       <param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status" />
       <param name="sender_queue_handling_period_s" value="0.5" />
 
-      <param name="root_directory" value="$(arg root_map_directory)" />
+      <param name="root_directory" value="$(arg maplab_map_directory)" />
       <param name="robot_name" value="$(arg maplab_robot_name)"/>
     </node>
   </group>
