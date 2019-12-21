@@ -37,8 +37,8 @@ static std::unordered_set<backend::ResourceType, backend::ResourceTypeHash>
 
 // Calls the integration function for all depth frame resources from the
 // selected missions using the integration function. For depth maps you can use
-// the 'use_distorted_camera' parameter to determine if it should be reprojected
-// with or without the distortion of the camera.
+// the 'use_undistorted_camera_for_depth_maps' parameter to determine if it
+// should be reprojected with or without the distortion of the camera.
 void integrateAllFrameDepthResourcesOfType(
     const vi_map::MissionIdList& mission_ids,
     const backend::ResourceType& input_resource_type,
@@ -47,10 +47,8 @@ void integrateAllFrameDepthResourcesOfType(
 
 // Calls the integration function for all optional depth resources from the
 // selected missions using the integration function. For depth maps you can use
-// the 'use_distorted_camera' parameter to determine if it should be reprojected
-// with or without the distortion of the camera. Depending on whether this
-// function is called with  or aslam::CameraId, it will either
-// integrate all optional depth resources associated to a Sensor or a Camera.
+// the 'use_undistorted_camera_for_depth_maps' parameter to determine if it
+// should be reprojected with or without the distortion of the camera.
 void integrateAllOptionalSensorDepthResourcesOfType(
     const vi_map::MissionIdList& mission_ids,
     const backend::ResourceType& input_resource_type,

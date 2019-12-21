@@ -83,7 +83,10 @@ typename DerivedSensor::Ptr SensorManager::getSensorPtr(
 
   aslam::Sensor::Ptr sensor = common::getChecked(sensors_, sensor_id);
   CHECK_NOTNULL(sensor.get());
-  return std::dynamic_pointer_cast<DerivedSensor>(sensor);
+  typename DerivedSensor::Ptr derived_sensor =
+      std::dynamic_pointer_cast<DerivedSensor>(sensor);
+  CHECK(derived_sensor);
+  return derived_sensor;
 }
 
 }  // namespace vi_map

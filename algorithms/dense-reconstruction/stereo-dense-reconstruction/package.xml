@@ -22,6 +22,7 @@
   <depend>glog_catkin</depend>
   <depend>map_resources</depend>
   <depend>maplab_common</depend>
+  <depend>maplab_test_data</depend>
   <depend>opencv3_catkin</depend>
   <depend>posegraph</depend>
   <depend>resources_common</depend>

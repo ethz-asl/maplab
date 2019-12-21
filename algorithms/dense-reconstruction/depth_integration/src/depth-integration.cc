@@ -128,6 +128,7 @@ void integrateDepthMap(
     const pose::Transformation& T_G_C, const cv::Mat& depth_map,
     const aslam::Camera& camera, IntegrationFunction integration_function) {
   CHECK(integration_function);
+  CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
 
   Pointcloud point_cloud;
   backend::convertDepthMapToPointCloud(depth_map, camera, &point_cloud);
@@ -148,6 +149,7 @@ void integrateDepthMap(
     const cv::Mat& image, const aslam::Camera& camera,
     IntegrationFunction integration_function) {
   CHECK(integration_function);
+  CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
 
   Pointcloud point_cloud;
   Colors colors;
@@ -256,6 +258,11 @@ void integrateAllFrameDepthResourcesOfType(
               VLOG(3) << "Nothing to integrate.";
               continue;
             }
+            CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
+            CHECK(!depth_map.empty())
+                << "Depth map at vertex " << vertex_id << " frame " << frame_idx
+                << " is invalid/empty!";
+
             // Check if there is a dedicated image for this depth map. If not,
             // use the normal grayscale image.
             cv::Mat image;
@@ -529,6 +536,10 @@ void integrateAllOptionalSensorDepthResourcesOfType(
               LOG(FATAL) << "Cannot retrieve depth map resource at "
                          << "timestamp " << timestamp_ns << "ns!";
             }
+            CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
+            CHECK(!depth_map.empty())
+                << "Depth map at time " << timestamp_ns << " of sensor "
+                << sensor_id << " is invalid/empty!";
 
             // Check if there is a dedicated grayscale or color image for this
             // depth map.
