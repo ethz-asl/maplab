@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include <diagnostic_msgs/KeyValue.h>
 #include <maplab_msgs/BatchMapLookup.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
@@ -20,14 +21,12 @@ class MaplabServerRosNode {
       const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
 
   // Only for test purposes.
-  explicit MaplabServerRosNode(const MaplabServerRosNodeConfig& config);
+  explicit MaplabServerRosNode(const MaplabServerNodeConfig& config);
 
   // Start the app.
   bool start();
 
-  void submapLoadingCallback(
-      const std_msgs::StringConstPtr& msg,
-      const RobotConnectionConfig& robot_config);
+  void submapLoadingCallback(const diagnostic_msgs::KeyValueConstPtr& msg);
 
   // Save current map.
   bool saveMap(const std::string& map_folder);
@@ -47,8 +46,6 @@ class MaplabServerRosNode {
   void visualizeMap();
 
  private:
-  MaplabServerRosNodeConfig config_;
-
   // ROS stuff.
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
@@ -62,7 +59,7 @@ class MaplabServerRosNode {
   // One node to rule them all.
   std::unique_ptr<MaplabServerNode> maplab_server_node_;
 
-  std::vector<ros::Subscriber> map_update_notification_subs_;
+  ros::Subscriber map_update_notification_sub_;
 };
 
 }  // namespace maplab

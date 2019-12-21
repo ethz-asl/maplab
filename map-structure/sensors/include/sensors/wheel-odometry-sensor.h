@@ -20,6 +20,7 @@ class WheelOdometry final : public aslam::Sensor {
   MAPLAB_POINTER_TYPEDEFS(WheelOdometry);
 
   WheelOdometry();
+
   explicit WheelOdometry(
       const aslam::SensorId& sensor_id, const std::string& topic);
 
@@ -47,7 +48,7 @@ class WheelOdometry final : public aslam::Sensor {
 
   inline bool get_T_St_stp1_fixed_covariance(
       aslam::TransformationCovariance* T_St_stp1_fixed_covariance) const {
-    if (has_fixed_T_St_Stp1_fixed_covariance_) {
+    if (has_T_St_Stp1_fixed_covariance_) {
       *T_St_stp1_fixed_covariance = T_St_Stp1_fixed_covariance_;
       return true;
     }
@@ -57,11 +58,11 @@ class WheelOdometry final : public aslam::Sensor {
   inline void set_T_St_stp1_fixed_covariance(
       const aslam::TransformationCovariance& T_St_stp1_fixed_covariance) {
     T_St_Stp1_fixed_covariance_ = T_St_stp1_fixed_covariance;
-    has_fixed_T_St_Stp1_fixed_covariance_ = true;
+    has_T_St_Stp1_fixed_covariance_ = true;
   }
 
   inline bool hasFixedT_St_Stp1_covariance() {
-    return has_fixed_T_St_Stp1_fixed_covariance_;
+    return has_T_St_Stp1_fixed_covariance_;
   }
 
  private:
@@ -79,8 +80,6 @@ class WheelOdometry final : public aslam::Sensor {
     return true;
   }
 
-  bool has_fixed_T_St_Stp1_fixed_covariance_;
-
   // Can be set as a property of the sensor and be used as a fall-back in case
   // the measurements do not come with individual covariances.
   //
@@ -89,6 +88,7 @@ class WheelOdometry final : public aslam::Sensor {
   // wheel odometry edge, independently of how many measurements occured in
   // between.
   aslam::TransformationCovariance T_St_Stp1_fixed_covariance_;
+  bool has_T_St_Stp1_fixed_covariance_;
 };
 
 class WheelOdometryMeasurement : public Measurement {
@@ -96,7 +96,7 @@ class WheelOdometryMeasurement : public Measurement {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MAPLAB_POINTER_TYPEDEFS(WheelOdometryMeasurement);
 
-  WheelOdometryMeasurement() {
+  WheelOdometryMeasurement() : has_T_St_Stp1_fixed_covariance_(false) {
     setTimestampNanoseconds(aslam::time::getInvalidTime());
     T_S0_St_.setIdentity();
     T_St_Stp1_fixed_covariance_.setZero();
@@ -118,13 +118,23 @@ class WheelOdometryMeasurement : public Measurement {
     T_S0_St_ = T_S0_St;
   }
 
-  const aslam::TransformationCovariance& get_T_St_Stp1_covariance() const {
-    return T_St_Stp1_fixed_covariance_;
+  inline bool get_T_St_stp1_fixed_covariance(
+      aslam::TransformationCovariance* T_St_stp1_fixed_covariance) const {
+    if (has_T_St_Stp1_fixed_covariance_) {
+      *T_St_stp1_fixed_covariance = T_St_Stp1_fixed_covariance_;
+      return true;
+    }
+    return false;
   }
 
-  void set_T_St_Stp1_covariance(
-      const aslam::TransformationCovariance& measurement_covariance) {
-    T_St_Stp1_fixed_covariance_ = measurement_covariance;
+  inline void set_T_St_stp1_fixed_covariance(
+      const aslam::TransformationCovariance& T_St_stp1_fixed_covariance) {
+    T_St_Stp1_fixed_covariance_ = T_St_stp1_fixed_covariance;
+    has_T_St_Stp1_fixed_covariance_ = true;
+  }
+
+  inline bool hasFixedT_St_Stp1_covariance() {
+    return has_T_St_Stp1_fixed_covariance_;
   }
 
  private:
@@ -155,6 +165,7 @@ class WheelOdometryMeasurement : public Measurement {
   // between two subsequent measurements. Currently only the sensor covariance
   // is used.
   aslam::TransformationCovariance T_St_Stp1_fixed_covariance_;
+  bool has_T_St_Stp1_fixed_covariance_;
 };
 
 DEFINE_MEAUREMENT_CONTAINERS(WheelOdometryMeasurement)

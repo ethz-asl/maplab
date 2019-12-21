@@ -266,7 +266,7 @@ void MaplabNode::enableVisualLocalization(
   aslam::NCamera::Ptr ncamera = vi_map::getSelectedNCamera(*sensor_manager_);
   CHECK(ncamera) << "[MaplabNode] NCamera required for visual localization";
 
-  CHECK(ncamera->hasFixedLocalizationCovariance())
+  CHECK(ncamera->has_T_G_B_fixed_localization_covariance())
       << "[MaplabNode] Currently, a fixed 6DoF covariance estimate is needed "
       << "for visual localization fusion. Please provide it as "
       << "T_G_B_fixed_covariance in the NCamera config file.";
