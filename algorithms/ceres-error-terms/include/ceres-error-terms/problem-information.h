@@ -20,7 +20,6 @@ struct ProblemInformation {
     residual_blocks.clear();
     parameterizations.clear();
     constant_parameter_blocks.clear();
-    parameter_block_group_id.clear();
   }
 
   void addResidualBlock(
@@ -111,24 +110,6 @@ struct ProblemInformation {
     parameter_bounds.emplace(parameter_block, bound_info);
   }
 
-  void setParameterBlockGroupId(double* parameter_block, int parameter_id) {
-    CHECK_NOTNULL(parameter_block);
-    CHECK_GE(parameter_id, 0);
-    const bool inserted =
-        parameter_block_group_id.emplace(parameter_block, parameter_id).second;
-    VLOG_IF(50, !inserted) << "Group id of parameter block " << parameter_block
-                           << " was already set.";
-  }
-
-  /// Returns false if no groupid is associated with the parameter block.
-  bool getParameterBlockGroupId(const double* parameter_block, int* group_id) {
-    CHECK_NOTNULL(parameter_block);
-    CHECK_NOTNULL(group_id);
-    *group_id = common::getValueOrDefault(
-        parameter_block_group_id, parameter_block, kDefaultParameterBlockId);
-    return (*group_id != kDefaultParameterBlockId);
-  }
-
   void deactivateCostFunction(ceres::CostFunction* cost_function) {
     CHECK_NOTNULL(cost_function);
     ResidualInformation& residual_info =
@@ -156,42 +137,12 @@ struct ProblemInformation {
                              std::shared_ptr<ceres::LocalParameterization> >
       ParameterizationsMap;
   ParameterizationsMap parameterizations;
-
-  // A group type associated with each parameter block. This is required by
-  // special solvers that treat certain parameter groups differently. -1 is
-  // the default group.
-  static constexpr int kDefaultParameterBlockId = -1;
-  std::unordered_map<const double*, int> parameter_block_group_id;
 };
 
 ceres::Problem::Options getDefaultProblemOptions();
 
 void buildCeresProblemFromProblemInformation(
     ProblemInformation* problem_information, ceres::Problem* problem);
-
-// Build an optimization problem that orders the parameter using their group
-// ids. Parameters with an associated group id will be placed last.
-// ordered_group_start_index is the index where the ordered group starts.
-// Parameter vector: [kDefaultGroupId,
-//                    params(groupid_order[0]),  <-- ordered_group_start_index
-//                    ...,                           (parameter index NOT block
-// index!)
-//                    params(groupid_order[n])]
-//
-// Example:                   | Output:
-// -----------------------------------------------------------------------
-//  block   params   groupid  |   groupid_ordering = {2, 1}
-//    0    (x0, x1)    -1     |    -->
-//    1    (x2, x3)     0     |   state: [x0,x1,x2,x3,x6,x4,x5],
-//    2    (x4, x5)     1     |                       ^
-//    3       (x6)      2     |           ordered_group_start_index = 4
-//
-// The ordered_group_start_index is set to -1 if all parameters are nuisance
-// variables.
-void buildOrderedCeresProblemFromProblemInformation(
-    ProblemInformation* problem_information,
-    const std::vector<int>& groupid_ordering, int* ordered_group_start_index,
-    ceres::Problem* problem);
 
 }  // namespace ceres_error_terms
 
