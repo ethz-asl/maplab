@@ -538,7 +538,6 @@ int addRelativePoseTermsForEdges(
             new ceres_error_terms::SixDoFBlockPoseErrorTermWithExtrinsics(
                 T_A_B, T_A_B_covariance)));
 
-
     problem->getProblemBookkeepingMutable()->keyframes_in_problem.emplace(
         vertex_from.id());
     problem->getProblemBookkeepingMutable()->keyframes_in_problem.emplace(

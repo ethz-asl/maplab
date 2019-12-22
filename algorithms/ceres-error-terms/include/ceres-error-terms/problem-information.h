@@ -20,7 +20,6 @@ struct ProblemInformation {
     residual_blocks.clear();
     parameterizations.clear();
     constant_parameter_blocks.clear();
-    constant_parameter_blocks.clear();
     parameter_block_group_id.clear();
   }
 
