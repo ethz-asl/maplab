@@ -63,56 +63,59 @@ void findOutlierLandmarks(
   vi_map::LandmarkIdList landmark_ids(
       landmark_ids_set.begin(), landmark_ids_set.end());
 
-  std::function<void(const std::vector<size_t>&)> process_landmark = [&](
-      const std::vector<size_t>& batch) {
-    for (size_t item : batch) {
-      const vi_map::LandmarkId& landmark_id = landmark_ids[item];
-      const vi_map::Landmark& landmark = map.getLandmark(landmark_id);
+  std::function<void(const std::vector<size_t>&)> process_landmark =
+      [&](const std::vector<size_t>& batch) {
+        for (size_t item : batch) {
+          const vi_map::LandmarkId& landmark_id = landmark_ids[item];
+          const vi_map::Landmark& landmark = map.getLandmark(landmark_id);
 
-      const vi_map::MissionId& landmark_store_mission_id =
-          map.getLandmarkStoreVertex(landmark_id).getMissionId();
+          const vi_map::MissionId& landmark_store_mission_id =
+              map.getLandmarkStoreVertex(landmark_id).getMissionId();
 
-      // Iterate over all the observations
-      const vi_map::KeypointIdentifierList& keypoint_ids =
-          landmark.getObservations();
-      for (const vi_map::KeypointIdentifier& keypoint_id : keypoint_ids) {
-        const vi_map::Vertex& observer_vertex =
-            map.getVertex(keypoint_id.frame_id.vertex_id);
+          // Iterate over all the observations
+          const vi_map::KeypointIdentifierList& keypoint_ids =
+              landmark.getObservations();
+          for (const vi_map::KeypointIdentifier& keypoint_id : keypoint_ids) {
+            const vi_map::Vertex& observer_vertex =
+                map.getVertex(keypoint_id.frame_id.vertex_id);
 
-        const int frame_idx = keypoint_id.frame_id.frame_index;
-        CHECK(observer_vertex.isVisualFrameSet(frame_idx));
-        CHECK(observer_vertex.isVisualFrameValid(frame_idx));
+            const int frame_idx = keypoint_id.frame_id.frame_index;
+            CHECK(observer_vertex.isVisualFrameSet(frame_idx));
+            CHECK(observer_vertex.isVisualFrameValid(frame_idx));
 
-        CHECK_LT(
-            keypoint_id.keypoint_index,
-            observer_vertex.getVisualFrame(frame_idx)
-                .getNumKeypointMeasurements());
+            CHECK_LT(
+                keypoint_id.keypoint_index,
+                observer_vertex.getVisualFrame(frame_idx)
+                    .getNumKeypointMeasurements());
 
-        const Eigen::Vector3d p_C_fi =
-            map.getLandmark_p_C_fi(landmark_id, observer_vertex, frame_idx);
+            const Eigen::Vector3d p_C_fi =
+                map.getLandmark_p_C_fi(landmark_id, observer_vertex, frame_idx);
 
-        if (p_C_fi[2] <= 0.0) {
-          outlier_landmarks->emplace_back(landmark_id);
-          break;
-        }
+            if (p_C_fi[2] <= 0.0) {
+              outlier_landmarks->emplace_back(landmark_id);
+              break;
+            }
 
-        if (use_reprojection_error) {
-          const double reprojection_error_sq = computeSquaredReprojectionError(
-              observer_vertex, frame_idx, keypoint_id.keypoint_index, p_C_fi);
-          if (observer_vertex.getMissionId() == landmark_store_mission_id &&
-              reprojection_error_sq > same_mission_reproj_error_px_sq) {
-            // The landmarks is in the same mission so we use the same
-            // mission reprojection error threshold.
-            outlier_landmarks->emplace_back(landmark_id);
-          } else if (reprojection_error_sq > other_mission_reproj_error_px_sq) {
-            // The observation is coming from a different mission than the
-            // one where the landmark is stored.
-            outlier_landmarks->emplace_back(landmark_id);
+            if (use_reprojection_error) {
+              const double reprojection_error_sq =
+                  computeSquaredReprojectionError(
+                      observer_vertex, frame_idx, keypoint_id.keypoint_index,
+                      p_C_fi);
+              if (observer_vertex.getMissionId() == landmark_store_mission_id &&
+                  reprojection_error_sq > same_mission_reproj_error_px_sq) {
+                // The landmarks is in the same mission so we use the same
+                // mission reprojection error threshold.
+                outlier_landmarks->emplace_back(landmark_id);
+              } else if (
+                  reprojection_error_sq > other_mission_reproj_error_px_sq) {
+                // The observation is coming from a different mission than the
+                // one where the landmark is stored.
+                outlier_landmarks->emplace_back(landmark_id);
+              }
+            }
           }
         }
-      }
-    }
-  };
+      };
 
   constexpr bool kAlwaysParallelize = true;
   const size_t num_threads = common::getNumHardwareThreads();
@@ -121,7 +124,6 @@ void findOutlierLandmarks(
 }
 
 ceres::TerminationType solveStep(
-    const OutlierRejectionSolverOptions& rejection_options,
     const ceres::Solver::Options& solver_options, int num_iters,
     OptimizationProblem* optimization_problem,
     OutlierRejectionCallback* callback) {
@@ -231,9 +233,8 @@ ceres::TerminationType solveWithOutlierRejection(
         num_iters_remaining, rejection_options.reject_outliers_every_n_iters);
 
     timing::Timer timer_solve("BA: Solve");
-    termination_type = solveStep(
-        rejection_options, solver_options, step_iters, optimization_problem,
-        &callback);
+    termination_type =
+        solveStep(solver_options, step_iters, optimization_problem, &callback);
     timer_solve.Stop();
 
     timing::Timer timer_copy("BA: CopyDataToMap");
