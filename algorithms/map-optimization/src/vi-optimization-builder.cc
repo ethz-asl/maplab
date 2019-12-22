@@ -244,8 +244,8 @@ OptimizationProblem* constructOptimizationProblem(
     // Determine observability of scale, global position and global orientation.
     const bool scale_is_observable =
         cluster_has_inertial ||
-        (cluster_has_visual && (cluster_num_absolute_6dof_used > 1u) ||
-         cluster_has_wheel_odometry);
+        (cluster_has_visual &&
+         (cluster_num_absolute_6dof_used > 1u || cluster_has_wheel_odometry));
 
     const bool global_position_is_observable =
         cluster_num_absolute_6dof_used > 0u;
