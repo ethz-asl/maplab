@@ -22,5 +22,5 @@
   <depend>vi_map_helpers</depend>
   <depend>visualization</depend>
 
-  <test_depend>map_manager<test_depend>
+  <test_depend>map_manager</test_depend>
 </package>

@@ -20,6 +20,6 @@
   <depend>maplab_test_data</depend>
   <depend>vi_map</depend>
 
-  <test_depend>map_manager<test_depend>
+  <test_depend>map_manager</test_depend>
   <test_depend>vi_map_generator_6dof</test_depend>
 </package>
