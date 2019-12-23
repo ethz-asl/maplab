@@ -15,10 +15,8 @@ DEFINE_double(translation_std_dev_meters, -1.0,
               "Translation standard deviation in meters.");
 DEFINE_double(orientation_std_dev_degrees, -1.0,
               "Orientation standard deviation in meters.");
-DEFINE_double(
-    lc_switch_variable_variance, 1e-8,
-    "The variance for the switch variable of the loop-closure "
-    "edges.");
+DECLARE_double(lc_switch_variable_variance);
+
 DEFINE_double(
     lc_switch_variable_value, 1.0,
     "The value for the switch variable of the loop-closure "
