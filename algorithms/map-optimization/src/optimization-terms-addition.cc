@@ -52,7 +52,7 @@ void addVisualTermForKeypoint(
   // The keypoint must have a valid association with a landmark.
   CHECK(landmark_id.isValid());
 
-  vi_map::Vertex& landmark_store_vertex =
+  const vi_map::Vertex& landmark_store_vertex =
       map->getLandmarkStoreVertex(landmark_id);
   vi_map::Landmark& landmark = map->getLandmark(landmark_id);
 
