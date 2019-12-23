@@ -84,9 +84,9 @@ typedef std::pair<MissionId, pose_graph::VertexIdList> MissionVertexIdPair;
 
 class VIMap : public backend::ResourceMap,
               public backend::MapInterface<vi_map::VIMap> {
-  friend ::LoopClosureHandlerTest;                   // Test.
-  friend class MapConsistencyCheckTest;              // Test.
-  friend class SixDofVIMapGenerator;                 // Test.
+  friend ::LoopClosureHandlerTest;       // Test.
+  friend class MapConsistencyCheckTest;  // Test.
+  friend class SixDofVIMapGenerator;     // Test.
   friend bool checkMapConsistency(const VIMap&);
   friend class VIMapStats;
 
@@ -238,11 +238,12 @@ class VIMap : public backend::ResourceMap,
   inline size_t numSemanticLandmarksInIndex() const;
   size_t numSemanticLandmarks() const;
   inline bool hasSemanticLandmark(const vi_map::SemanticLandmarkId& id) const;
-  
+
   inline vi_map::Landmark& getLandmark(const vi_map::LandmarkId& id);
   inline const vi_map::Landmark& getLandmark(
       const vi_map::LandmarkId& id) const;
-  inline vi_map::SemanticLandmark& getSemanticLandmark(const vi_map::SemanticLandmarkId& id);
+  inline vi_map::SemanticLandmark& getSemanticLandmark(
+      const vi_map::SemanticLandmarkId& id);
   inline const vi_map::SemanticLandmark& getSemanticLandmark(
       const vi_map::SemanticLandmarkId& id) const;
 
@@ -272,7 +273,8 @@ class VIMap : public backend::ResourceMap,
       const vi_map::SemanticLandmarkId& id) const;
   /// Retrieve the vertex that given landmark is stored in.
   inline vi_map::Vertex& getLandmarkStoreVertex(const vi_map::LandmarkId& id);
-  inline vi_map::Vertex& getSemanticLandmarkStoreVertex(const vi_map::SemanticLandmarkId& id);
+  inline vi_map::Vertex& getSemanticLandmarkStoreVertex(
+      const vi_map::SemanticLandmarkId& id);
 
   /// Retrieve the id of the vertex that given landmark is stored in.
   pose_graph::VertexId getLandmarkStoreVertexId(
@@ -282,8 +284,10 @@ class VIMap : public backend::ResourceMap,
 
   inline void getAllLandmarkIds(LandmarkIdSet* landmark_ids) const;
   inline void getAllLandmarkIds(LandmarkIdList* landmark_ids) const;
-  inline void getAllSemanticLandmarkIds(SemanticLandmarkIdSet* landmark_ids) const;
-  inline void getAllSemanticLandmarkIds(SemanticLandmarkIdList* landmark_ids) const;
+  inline void getAllSemanticLandmarkIds(
+      SemanticLandmarkIdSet* landmark_ids) const;
+  inline void getAllSemanticLandmarkIds(
+      SemanticLandmarkIdList* landmark_ids) const;
 
   /// Executes the provided function on every landmark in the map.
   /// Landmarks should not be deleted using this method.
@@ -342,6 +346,11 @@ class VIMap : public backend::ResourceMap,
       const vi_map::SemanticLandmarkId& semantic_landmark_id,
       vi_map::VisualFrameIdentifierSet* observer_frames) const;
 
+  /// Get all Semantic Object Identifiers for a given semantic landmark
+  inline void getSemanticObjectIdentifiersForSemanticLandmark(
+      const vi_map::SemanticLandmarkId& semantic_landmark_id,
+      vi_map::SemanticObjectIdentifierList* observer_ids) const;
+
   /// Get the number of missions that contain frames that observe a given
   /// landmark.
   inline unsigned int numLandmarkObserverMissions(
@@ -351,13 +360,12 @@ class VIMap : public backend::ResourceMap,
 
   // TODO(dymczykm) This method is very specialized and should be moved out of
   // the vi-map.
-  // TODO(jkuo): I dont know what is funtion does and if we need it for 
+  // TODO(jkuo): I dont know what is funtion does and if we need it for
   // semantic landmarks
   /// Return the number of missions that we expect to see this landmark
   /// given that they also see co-observed landmarks from other frames.
   unsigned int numExpectedLandmarkObserverMissions(
       const vi_map::LandmarkId& landmark_id) const;
-
 
   /// Add a new landmark to the map by providing the vertex, frame and keypoint
   /// information of the first observation.
@@ -376,8 +384,7 @@ class VIMap : public backend::ResourceMap,
       unsigned int frame_index, unsigned int measurement_index);
   void addNewSemanticLandmark(
       const SemanticLandmarkId& predefined_semantic_landmark_id,
-      const SemanticObjectIdentifier& first_observation,
-      int class_id);
+      const SemanticObjectIdentifier& first_observation, int class_id);
 
   /// Add a new observation to an existing landmark by providing information
   /// about the vertex, frame and keypoint index of the observation.
@@ -387,14 +394,20 @@ class VIMap : public backend::ResourceMap,
       const pose_graph::VertexId& keypoint_vertex_id, unsigned int frame_index,
       unsigned int keypoint_index, const LandmarkId& landmark_id);
 
-  /// Add a new observation to an existing semantic landmark by providing information
-  /// about the vertex, frame and measurement index of the observation.
+  /// Add a new observation to an existing semantic landmark by providing
+  /// information about the vertex, frame and measurement index of the
+  /// observation.
   void associateMeasurementWithExistingSemanticLandmark(
       const SemanticObjectIdentifier& object_id,
       const SemanticLandmarkId& semantic_landmark_id);
   void associateMeasurementWithExistingSemanticLandmark(
-      const pose_graph::VertexId& measurement_vertex_id, unsigned int frame_index,
-      unsigned int measurement_index, const SemanticLandmarkId& semantic_landmark_id);
+      const pose_graph::VertexId& measurement_vertex_id,
+      unsigned int frame_index, unsigned int measurement_index,
+      const SemanticLandmarkId& semantic_landmark_id);
+
+  /// Updates the class id of the semantic landmarks in the map with their
+  /// observations.
+  void updateAllSemanticLandmarksClassId();
 
   inline const vi_map::MissionId& getMissionIdForVertex(
       const pose_graph::VertexId& id) const;
@@ -415,7 +428,8 @@ class VIMap : public backend::ResourceMap,
       const vi_map::SemanticLandmarkId& id) const;
   /// Get the mission of the vertex that this landmark is stored in.
   inline vi_map::VIMission& getMissionForLandmark(const vi_map::LandmarkId& id);
-  inline vi_map::VIMission& getMissionForSemanticLandmark(const vi_map::SemanticLandmarkId& id);
+  inline vi_map::VIMission& getMissionForSemanticLandmark(
+      const vi_map::SemanticLandmarkId& id);
 
   /// Get the baseframe of the mission that a given vertex belongs to.
   inline vi_map::MissionBaseFrame& getMissionBaseFrameForVertex(
@@ -451,8 +465,7 @@ class VIMap : public backend::ResourceMap,
       const vi_map::Vertex& observer_vertex) const;
   inline Eigen::Vector3d getSemanticLandmark_p_C_fi(
       const SemanticLandmarkId& semantic_landmark_id,
-      const Vertex& observer_vertex,
-      unsigned int frame_idx) const;
+      const Vertex& observer_vertex, unsigned int frame_idx) const;
 
   inline Eigen::Vector3d getVertex_G_p_I(
       const pose_graph::VertexId& vertex_id) const;
@@ -469,7 +482,8 @@ class VIMap : public backend::ResourceMap,
   inline void getLandmarkDescriptors(
       const LandmarkId& id, DescriptorsType* result) const;
   inline void getSemanticLandmarkDescriptors(
-      const SemanticLandmarkId& id, SemanticObjectDescriptorsType* result) const;
+      const SemanticLandmarkId& id,
+      SemanticObjectDescriptorsType* result) const;
 
   /// Return a mapping from mission id to number of landmarks stored in vertices
   /// from this mission.
@@ -606,7 +620,8 @@ class VIMap : public backend::ResourceMap,
   void moveLandmarkToOtherVertex(
       const LandmarkId& landmark_id, const pose_graph::VertexId& vertex_id_to);
   void moveSemanticLandmarkToOtherVertex(
-      const SemanticLandmarkId& landmark_id, const pose_graph::VertexId& vertex_id_to);
+      const SemanticLandmarkId& landmark_id,
+      const pose_graph::VertexId& vertex_id_to);
 
   /// Move all landmarks stored in the "from" vertex to the "to" vertex
   /// and updating all the references to it.
@@ -637,9 +652,9 @@ class VIMap : public backend::ResourceMap,
       std::vector<size_t>* num_unknown_semantic_landmarks_per_camera,
       std::vector<size_t>* total_num_semantic_landmarks_per_camera,
       size_t* num_landmarks, size_t* num_semantic_landmarks,
-      size_t* num_vertices,
-      size_t* num_observations, size_t* num_semantic_observations,
-      double* duration_s, int64_t* start_time, int64_t* end_time) const;
+      size_t* num_vertices, size_t* num_observations,
+      size_t* num_semantic_observations, double* duration_s,
+      int64_t* start_time, int64_t* end_time) const;
 
   std::string printMapStatistics(
       const vi_map::MissionId& mission,

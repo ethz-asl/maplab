@@ -83,6 +83,15 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
       common::Processing::Sync);
 
   addCommand(
+      {"export_trajectory_to_csv_in_rpg_format", "ettc_rpg"},
+      [this]() -> int {
+        return exportPosesVelocitiesAndBiasesToCsvInRPGFormat();
+      },
+      "Export timestamped posesto a CSV file in RPG trajectory evaluation "
+      "format, specified with --pose_export_file.",
+      common::Processing::Sync);
+
+  addCommand(
       {"export_ncamera_calibration", "encc"},
       [this]() -> int { return exportNCameraCalibration(); },
       "Exports the ncamera calibration to the folder specified with "
@@ -201,6 +210,89 @@ int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv() const {
 
   data_import_export::exportPosesVelocitiesAndBiasesToCsv(
       *map, mission_ids, reference_sensor_id, filepath);
+  return common::kSuccess;
+}
+
+int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsvInRPGFormat()
+    const {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager.getMapReadAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids;
+  if (FLAGS_map_mission.empty()) {
+    map->getAllMissionIds(&mission_ids);
+    if (mission_ids.empty()) {
+      LOG(ERROR)
+          << "There are no missions available in the loaded map. Aborting.";
+      return common::kUnknownError;
+    }
+    // sort the mission ids by time
+    std::map<int64_t, vi_map::MissionId> time_to_mission_id_map;
+    for (const vi_map::MissionId& mission_id : mission_ids) {
+      pose_graph::VertexIdList vertex_ids;
+      map->getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
+      if (!vertex_ids.empty()) {
+        const vi_map::Vertex& first_vertex = map->getVertex(vertex_ids.front());
+        const int64_t start_time_ns = first_vertex.getMinTimestampNanoseconds();
+        time_to_mission_id_map[start_time_ns] = mission_id;
+      }
+    }
+    // rewrite mission id list in increasing time order
+    mission_ids.clear();
+    for (const auto& pair : time_to_mission_id_map) {
+      // LOG(INFO)<<"time to mission_id: "<<pair.first<<" "<<pair.second;
+      mission_ids.push_back(pair.second);
+    }
+  } else {
+    vi_map::MissionId mission_id;
+    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
+    if (!mission_id.isValid()) {
+      LOG(ERROR) << "Mission ID invalid. Specify a valid mission id with "
+                    "--map_mission.";
+      return common::kUnknownError;
+    }
+    mission_ids.emplace_back(mission_id);
+  }
+  CHECK(!mission_ids.empty());
+
+  const std::string kFilename = "vertex_poses_rpg_format.csv";
+  const std::string filepath =
+      FLAGS_pose_export_file.empty()
+          ? common::concatenateFolderAndFileName(map->getMapFolder(), kFilename)
+          : FLAGS_pose_export_file;
+  CHECK(!filepath.empty());
+
+  const vi_map::SensorType sensor_type =
+      vi_map::stringToSensorType(FLAGS_pose_export_reference_sensor_type);
+  if (sensor_type == vi_map::SensorType::kInvalidSensor) {
+    return common::kStupidUserError;
+  }
+
+  const vi_map::SensorManager& sensor_manager = map->getSensorManager();
+  vi_map::SensorIdSet sensor_ids;
+  sensor_manager.getAllSensorIdsOfType(sensor_type, &sensor_ids);
+  if (sensor_ids.empty()) {
+    LOG(ERROR) << "No sensor of type "
+               << vi_map::sensorTypeToString(sensor_type) << " available.";
+    return common::kStupidUserError;
+  }
+  if (sensor_ids.size() > 1u) {
+    LOG(ERROR) << "More than one sensor of type "
+               << vi_map::sensorTypeToString(sensor_type)
+               << " available. Don't know "
+               << "how to choose.";
+    return common::kStupidUserError;
+  }
+  CHECK_EQ(sensor_ids.size(), 1u);
+
+  data_import_export::exportPosesVelocitiesAndBiasesToCsvInRPGFormat(
+      *map, mission_ids, *sensor_ids.begin(), filepath);
   return common::kSuccess;
 }
 

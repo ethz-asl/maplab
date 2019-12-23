@@ -1,6 +1,7 @@
 #ifndef VI_MAP_SEMANTIC_LANDMARK_H_
 #define VI_MAP_SEMANTIC_LANDMARK_H_
 
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -15,11 +16,11 @@
 
 namespace vi_map {
 
-// todo(jkuo): can refactor a landmark base class for landmark and emantic landmark
-// common parts like pose, covariance, id ,and their related access functions
+// todo(jkuo): can refactor a landmark base class for landmark and emantic
+// landmark common parts like pose, covariance, id ,and their related access
+// functions
 class SemanticLandmark {
  public:
-  
   MAPLAB_POINTER_TYPEDEFS(SemanticLandmark);
 
   enum class Quality {
@@ -45,6 +46,7 @@ class SemanticLandmark {
       observations_ = lhs.observations_;
       quality_ = lhs.quality_;
       B_position_ = lhs.B_position_;
+      class_count_map_ = lhs.class_count_map_;
       // check covariance because it does not necessarily exist
       // Clone covariance if set.
       if (lhs.B_covariance_ != nullptr) {
@@ -105,6 +107,10 @@ class SemanticLandmark {
     return class_id_;
   }
 
+  inline const std::unordered_map<int, size_t>& getClassIdCount() const {
+    return class_count_map_;
+  }
+
   void addObservation(
       const pose_graph::VertexId& vertex_id, unsigned int frame_idx,
       unsigned int measurement_index);
@@ -119,7 +125,7 @@ class SemanticLandmark {
 
   void removeAllObservationsAccordingToPredicate(
       const std::function<bool(const SemanticObjectIdentifier&)>&  // NOLINT
-      predicate);
+          predicate);
 
   void removeAllObservationsOfVertex(const pose_graph::VertexId& vertex_id);
 
@@ -152,6 +158,12 @@ class SemanticLandmark {
   void forEachObservation(
       const std::function<void(const SemanticObjectIdentifier&, const size_t)>&
           action) const;
+  // we update the class id using the information of the map, so we dont need to
+  // store the actual information in the SemanticObjectIdentifier. Otherwise,
+  // we will need some kind of synchronization between the map and the
+  // identifier
+  void updateClassIdFromCount(const int class_id);
+  void clearClassIdCount();
 
   void serialize(vi_map::proto::SemanticLandmark* proto) const;
   void deserialize(const vi_map::proto::SemanticLandmark& proto);
@@ -180,7 +192,10 @@ class SemanticLandmark {
   SemanticLandmarkId id_;
   SemanticObjectIdentifierList observations_;
   Quality quality_;
-  int class_id_; // -1 is used for unknown
+  int class_id_;  // -1 is used for unknown, stores the class id with max count
+  // stores the count of class ids observations because we currently allow
+  // different class id of observations
+  std::unordered_map<int, size_t> class_count_map_;
 
   // Position and covariance w.r.t. landmark baseframe. The covariance is
   // optional to reduce the memory usage.

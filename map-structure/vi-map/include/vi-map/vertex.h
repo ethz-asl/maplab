@@ -240,6 +240,9 @@ class Vertex : public pose_graph::Vertex {
   void setObservedSemanticLandmarkId(
       unsigned int frame_idx, int measurement_idx,
       const SemanticLandmarkId& id);
+  void setObservedSemanticLandmarkIds(
+      unsigned int frame_idx, const std::vector<int>& measurement_idicies,
+      const SemanticLandmarkIdList& ids);
   size_t observedSemanticLandmarkIdsSize(unsigned int frame_idx) const;
   int numValidObservedSemanticLandmarkIds(unsigned int frame_idx) const;
   int numValidObservedSemanticLandmarkIdsInAllFrames() const;

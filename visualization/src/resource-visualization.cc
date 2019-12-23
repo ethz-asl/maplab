@@ -16,6 +16,8 @@
 #include <maplab-common/progress-bar.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <unordered_map>
 #include <vi-map/vertex.h>
 #include <vi-map/vi-map.h>
 #include <visualization/common-rviz-visualization.h>
@@ -67,6 +69,10 @@ DEFINE_bool(
 DEFINE_bool(
     vis_pointcloud_color_random, false,
     "If enabled, every point cloud receives a random color.");
+
+DEFINE_double(
+    vis_bounding_box_confidence_threshold, 0.9,
+    "Only show bounding boxes above this threshold.");
 
 namespace visualization {
 
@@ -152,6 +158,105 @@ bool visualizeCvMatResources(
     }
     destroyAllWindows(cv_window_names);
     ++mission_num;
+  }
+  return true;
+}
+
+bool visualizeBoundingBoxResources(
+    const vi_map::VIMap& map, backend::ResourceType type) {
+  CHECK_GT(FLAGS_vis_resource_visualization_frequency, 0.0);
+  VLOG(1) << "INFO: Visualization will run at "
+          << FLAGS_vis_resource_visualization_frequency
+          << " Hz. Hold any key to speed up.";
+  CHECK_GT(FLAGS_vis_bounding_box_confidence_threshold, 0.0);
+  VLOG(1) << "INFO: Only bounding boxes with confidence above "
+          << FLAGS_vis_resource_visualization_frequency << " will be displayed";
+
+  cv::RNG rng(12345);  // for color generation
+
+  typedef std::unordered_map<aslam::CameraId, backend::OptionalSensorResources>
+      SensorsToResourceMap;
+
+  vi_map::MissionIdList mission_ids;
+  map.getAllMissionIds(&mission_ids);
+  if (mission_ids.empty()) {
+    VLOG(1) << "No missions found!";
+    return true;
+  }
+  int mission_num = 0;
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    VLOG(1) << "## Mission " << (mission_num) << " of " << mission_ids.size()
+            << " ##";
+    const vi_map::VIMission& mission = map.getMission(mission_id);
+
+    const aslam::NCamera& ncamera =
+        map.getSensorManager().getNCameraForMission(mission_id);
+    std::vector<std::string> cv_window_names;
+    std::unordered_set<std::string> cv_active_window_names;
+    getOpenCvWindowsForNCamera(ncamera, &cv_window_names);
+
+    const SensorsToResourceMap* camera_id_to_res_id_map;
+    camera_id_to_res_id_map =
+        mission.getAllOptionalSensorResourceIdsOfType<aslam::CameraId>(type);
+
+    // Loop over all cameras that have resources of this type
+    for (const typename SensorsToResourceMap::value_type& camera_to_res_ids :
+         *camera_id_to_res_id_map) {
+      const backend::OptionalSensorResources& resources_with_timestamps =
+          camera_to_res_ids.second;
+      const aslam::CameraId& camera_id = camera_to_res_ids.first;
+      // Loop over all timestamp/resource_id pairs
+      common::ProgressBar progress_bar(resources_with_timestamps.size());
+      for (const std::pair<int64_t, backend::ResourceId>& stamped_resource_id :
+           resources_with_timestamps) {
+        const int64_t timestamp_ns = stamped_resource_id.first;
+
+        cv::Mat image;
+        if (!map.getOptionalSensorResource(
+                mission, backend::ResourceType::kRawColorImage, camera_id,
+                timestamp_ns, &image)) {
+          LOG(ERROR) << "Failed to Load raw color image for"
+                        "visualizeBoundingBoxResources()";
+          break;
+        }
+        // bounding boxes should have the same time as the images they
+        // corresponds to
+        resources::ObjectInstanceBoundingBoxes boxes;
+        if (!map.getOptionalSensorResource(
+                mission, type, camera_id, timestamp_ns, &boxes)) {
+          LOG(ERROR) << "Failed to Load bounding boxes for"
+                        "visualizeBoundingBoxResources()";
+          break;
+        }
+        // draw bounding boxes onto image, only one camera for now
+        for (auto it = boxes.begin(); it != boxes.end(); it++) {
+          if (it->confidence > FLAGS_vis_bounding_box_confidence_threshold) {
+            cv::Scalar color = cv::Scalar(
+                rng.uniform(0, 256), rng.uniform(0, 256), rng.uniform(0, 256));
+            rectangle(
+                image, it->bounding_box.tl(), it->bounding_box.br(), color, 2);
+            // adds text
+            cv::putText(
+                image,
+                it->class_name +
+                    " inst: " + std::to_string(it->instance_number) +
+                    "score: " + std::to_string(it->confidence),
+                cv::Point(
+                    it->bounding_box.x, it->bounding_box.y - 4),  // Coordinates
+                cv::FONT_HERSHEY_COMPLEX_SMALL,                   // Font
+                0.5,     // Scale. 2.0 = 2x bigger
+                color,   // BGR Color
+                1,       // Line Thickness (Optional)
+                CV_AA);  // Anti-alias (Optional)
+          }
+        }
+        cv::imshow(cv_window_names.at(0u), image);  // only for first camera
+        progress_bar.increment();
+        cv::waitKey(1000.0 / FLAGS_vis_resource_visualization_frequency);
+      }
+    }
+    ++mission_num;
+    destroyAllWindows(cv_window_names);
   }
   return true;
 }

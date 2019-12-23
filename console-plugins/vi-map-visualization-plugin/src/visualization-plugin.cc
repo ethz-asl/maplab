@@ -124,6 +124,17 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
       common::Processing::Sync);
 
   addCommand(
+      {"visualize_bounding_boxes"},
+      [this]() -> int {
+        return visualizeOptionalResources(
+            backend::ResourceType::kObjectInstanceBoundingBoxes);
+      },
+      "Show mission fly-through of the bounding box resources on their "
+      "corresponding images. Assumes they are attached as optional resources. "
+      "It only supports one camera for now",
+      common::Processing::Sync);
+
+  addCommand(
       {"plot_vi_states_of_mission"},
       [this]() -> int {
         std::string selected_map_key;
@@ -233,6 +244,27 @@ int VisualizationPlugin::visualizeCvMatResources(backend::ResourceType type) {
           << "'" << backend::ResourceTypeNames[static_cast<int>(type)]
           << "' is not a cv::Mat resource and cannot be visualized using "
           << "'visualizeCvMatResources()'!";
+  }
+  return common::kUnknownError;
+}
+
+int VisualizationPlugin::visualizeOptionalResources(
+    backend::ResourceType type) {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);  // maybe only need read
+  switch (type) {
+    case backend::ResourceType::kObjectInstanceBoundingBoxes:
+      return visualization::visualizeBoundingBoxResources(*map, type);
+    default:
+      LOG(FATAL)
+          << "'" << backend::ResourceTypeNames[static_cast<int>(type)]
+          << "' is not currently supported and cannot be visualized using "
+          << "'visualizeOptionalResources()'!";
   }
   return common::kUnknownError;
 }

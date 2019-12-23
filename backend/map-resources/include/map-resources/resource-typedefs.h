@@ -23,6 +23,7 @@ struct ObjectInstanceBoundingBox {
         instance_number(0),
         confidence(0.f),
         class_name("") {}
+  // bounding_box (x,y,dx,dy) x and y are corners of top left corner
   cv::Rect bounding_box;
   // Number that describes the object class this object belongs to.
   int class_number;

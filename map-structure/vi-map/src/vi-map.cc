@@ -1368,8 +1368,7 @@ void VIMap::addNewSemanticLandmark(
 
 void VIMap::addNewSemanticLandmark(
     const SemanticLandmarkId& predefined_landmark_id,
-    const SemanticObjectIdentifier& first_observation,
-    int class_id) {
+    const SemanticObjectIdentifier& first_observation, int class_id) {
   CHECK(!hasSemanticLandmark(predefined_landmark_id));
   vi_map::SemanticLandmark landmark;
   landmark.setId(predefined_landmark_id);
@@ -1448,6 +1447,34 @@ void VIMap::associateMeasurementWithExistingSemanticLandmark(
   associateMeasurementWithExistingSemanticLandmark(
       object_id.frame_id.vertex_id, object_id.frame_id.frame_index,
       object_id.measurement_index, landmark_id);
+}
+
+void VIMap::updateAllSemanticLandmarksClassId() {
+  SemanticLandmarkIdList semantic_landmark_ids;
+  getAllSemanticLandmarkIds(&semantic_landmark_ids);
+  for (const SemanticLandmarkId& id : semantic_landmark_ids) {
+    SemanticLandmark& semantic_landmark = getSemanticLandmark(id);
+    semantic_landmark.clearClassIdCount();
+    SemanticObjectIdentifierList object_ids;
+    getSemanticObjectIdentifiersForSemanticLandmark(id, &object_ids);
+    for (const SemanticObjectIdentifier& object_id : object_ids) {
+      const pose_graph::VertexId vertex_id = object_id.frame_id.vertex_id;
+      const size_t frame_index = object_id.frame_id.frame_index;
+      const size_t measurement_index = object_id.measurement_index;
+      const vi_map::Vertex& v = getVertex(vertex_id);
+      const aslam::VisualFrame& vf = v.getVisualFrame(frame_index);
+      const int class_id = vf.getSemanticObjectClassId(measurement_index);
+      semantic_landmark.updateClassIdFromCount(class_id);
+    }
+    // for debugging
+    // LOG(INFO)<<"landmark Object id: "<<semantic_landmark.id().hexString();
+    // LOG(INFO)<<"landmark class id: "<<semantic_landmark.getClassId();
+    // const std::unordered_map<int, size_t>& class_count_map =
+    // semantic_landmark.getClassIdCount(); LOG(INFO)<<"map size: "<<
+    // class_count_map.size(); for (const auto &pair : class_count_map) {
+    //   LOG(INFO)<<"class id: "<< pair.first <<" count: "<<pair.second;
+    // }
+  }
 }
 
 void VIMap::getAllVertex_p_G_I(

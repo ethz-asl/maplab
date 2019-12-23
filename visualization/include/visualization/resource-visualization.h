@@ -55,6 +55,9 @@ bool visualizeCvMatResources(
     const vi_map::VIMap& map, backend::ResourceType type);
 typedef std::unordered_map<aslam::CameraId, aslam::Camera::Ptr> CameraCache;
 
+bool visualizeBoundingBoxResources(
+    const vi_map::VIMap& map, backend::ResourceType type);
+
 void visualizeReprojectedDepthResource(
     const backend::ResourceType type, const vi_map::MissionIdList& mission_ids,
     const vi_map::VIMap& map);

@@ -459,6 +459,115 @@ void VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfVertex(
   });
 }
 
+size_t
+VIMapManipulation::initializeSemanticLandmarksFromUnusedFeatureTracksOfMission(
+    const vi_map::MissionId& mission_id) {
+  CHECK(mission_id.isValid());
+  pose_graph::VertexIdList all_vertices_in_missions;
+  map_.getAllVertexIdsInMissionAlongGraph(
+      mission_id, &all_vertices_in_missions);
+
+  TrackIndexToSemanticLandmarkIdMap track_id_to_semantic_landmark_id;
+  track_id_to_semantic_landmark_id.reserve(
+      1000u * all_vertices_in_missions.size());
+  const size_t num_landmarks_initial = map_.numSemanticLandmarks();
+  initializeSemanticLandmarksFromUnusedFeatureTracksOfOrderedVertices(
+      all_vertices_in_missions, &track_id_to_semantic_landmark_id);
+
+  const size_t num_new_semantic_landmarks =
+      map_.numSemanticLandmarks() - num_landmarks_initial;
+  // Updates the class ids of the semantic landmarks
+  map_.updateAllSemanticLandmarksClassId();
+  return num_new_semantic_landmarks;
+}
+
+void VIMapManipulation::
+    initializeSemanticLandmarksFromUnusedFeatureTracksOfOrderedVertices(
+        const pose_graph::VertexIdList& ordered_vertex_ids,
+        TrackIndexToSemanticLandmarkIdMap* trackid_semanticlandmarkid_map) {
+  for (const pose_graph::VertexId& vertex_id : ordered_vertex_ids) {
+    initializeSemanticLandmarksFromUnusedFeatureTracksOfVertex(
+        vertex_id, trackid_semanticlandmarkid_map);
+  }
+}
+
+void VIMapManipulation::
+    initializeSemanticLandmarksFromUnusedFeatureTracksOfVertex(
+        const pose_graph::VertexId& vertex_id,
+        TrackIndexToSemanticLandmarkIdMap* trackid_semanticlandmarkid_map) {
+  CHECK_NOTNULL(trackid_semanticlandmarkid_map);
+  const vi_map::Vertex& vertex = map_.getVertex(vertex_id);
+
+  vertex.forEachFrame([this, &vertex, &trackid_semanticlandmarkid_map](
+                          const size_t frame_index,
+                          const aslam::VisualFrame& frame) {
+    const size_t num_measurements = frame.getNumSemanticObjectMeasurements();
+    if (!frame.hasSemanticObjectTrackIds()) {
+      VLOG(3)
+          << "Frame has no semantic tracking information. Skipping frame...";
+      return;
+    }
+    const Eigen::VectorXi& semantic_track_ids =
+        frame.getSemanticObjectTrackIds();
+    const Eigen::VectorXi& semantic_class_ids =
+        frame.getSemanticObjectClassIds();
+
+    CHECK_EQ(static_cast<int>(num_measurements), semantic_track_ids.rows());
+    CHECK_EQ(static_cast<int>(num_measurements), semantic_class_ids.rows());
+
+    vi_map::SemanticLandmarkIdList semantic_landmark_ids;
+    vertex.getFrameObservedSemanticLandmarkIds(
+        frame_index, &semantic_landmark_ids);
+    // Go over all tracks of this frame and add a new landmark if it wasn't
+    // observed before, otherwise add an observation backlink.
+    for (size_t measurement_i = 0u; measurement_i < num_measurements;
+         ++measurement_i) {
+      const int track_id = semantic_track_ids(measurement_i);
+      const int class_id = semantic_class_ids(measurement_i);
+      // Skip non-tracked semantic landmark observation.
+      // it is possible that semantic landmarks have not been created yet
+      if (track_id < 0) {
+        continue;
+      }
+      if (semantic_landmark_ids.size() > 0u) {
+        if (semantic_landmark_ids[measurement_i].isValid()) {
+          continue;
+        }
+      }
+
+      // Check whether this track has already a global semantic landmark id
+      // associated.
+      const vi_map::SemanticLandmarkId* semantic_landmark_id_ptr =
+          common::getValuePtr(*trackid_semanticlandmarkid_map, track_id);
+      if (semantic_landmark_id_ptr != nullptr &&
+          map_.hasSemanticLandmark(*semantic_landmark_id_ptr)) {
+        // check if the measurement and the existing semantic landmark have the
+        // same class CHECK_EQ(
+        //   class_id,
+        //   map_.getSemanticLandmark(*semantic_landmark_id_ptr)
+        //   .getClassId())
+        //   <<"Trying to associate semantic measurement with a semantic
+        //   landmark of different class";
+        map_.associateMeasurementWithExistingSemanticLandmark(
+            vertex.id(), frame_index, measurement_i, *semantic_landmark_id_ptr);
+      } else {
+        // Assign a new global landmark id to this track if it hasn't
+        // been seen before and add a new landmark to the map.
+        vi_map::SemanticLandmarkId semantic_landmark_id =
+            common::createRandomId<vi_map::SemanticLandmarkId>();
+        // operator[] intended as this is either overwriting an old outdated
+        // entry or creating a new one.
+        (*trackid_semanticlandmarkid_map)[track_id] = semantic_landmark_id;
+        vi_map::SemanticObjectIdentifier object_id;
+        object_id.frame_id.frame_index = frame_index;
+        object_id.frame_id.vertex_id = vertex.id();
+        object_id.measurement_index = measurement_i;
+        map_.addNewSemanticLandmark(semantic_landmark_id, object_id, class_id);
+      }
+    }
+  });
+}
+
 size_t VIMapManipulation::mergeLandmarksBasedOnTrackIds(
     const vi_map::MissionId& mission_id) {
   CHECK(map_.hasMission(mission_id));

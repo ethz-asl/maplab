@@ -29,11 +29,13 @@ void SemanticLandmark::addObservation(
   observations_.push_back(backlink);
 }
 
-void SemanticLandmark::addObservation(const SemanticObjectIdentifier& new_observation) {
+void SemanticLandmark::addObservation(
+    const SemanticObjectIdentifier& new_observation) {
   observations_.push_back(new_observation);
 }
 
-void SemanticLandmark::addObservations(const SemanticObjectIdentifierList& new_observations) {
+void SemanticLandmark::addObservations(
+    const SemanticObjectIdentifierList& new_observations) {
   observations_.insert(
       observations_.end(), new_observations.begin(), new_observations.end());
 }
@@ -52,9 +54,10 @@ bool SemanticLandmark::hasObservation(
 }
 
 void SemanticLandmark::removeAllObservationsAccordingToPredicate(
-    const std::function<bool(const SemanticObjectIdentifier&)>& // NOLINT
+    const std::function<bool(const SemanticObjectIdentifier&)>&  // NOLINT
         predicate) {
-  SemanticObjectIdentifierList::iterator observation_iterator = observations_.begin();
+  SemanticObjectIdentifierList::iterator observation_iterator =
+      observations_.begin();
   while (observation_iterator != observations_.end()) {
     if (predicate(*observation_iterator)) {
       observation_iterator = observations_.erase(observation_iterator);
@@ -64,8 +67,9 @@ void SemanticLandmark::removeAllObservationsAccordingToPredicate(
   }
 }
 
-void SemanticLandmark::removeObservation(const SemanticObjectIdentifier& observation) {
-  std::function<bool(const SemanticObjectIdentifier& observation)> // NOLINT
+void SemanticLandmark::removeObservation(
+    const SemanticObjectIdentifier& observation) {
+  std::function<bool(const SemanticObjectIdentifier& observation)>  // NOLINT
       predicate = [&](const SemanticObjectIdentifier& inspected_observation) {
         return inspected_observation == observation;
       };
@@ -74,9 +78,8 @@ void SemanticLandmark::removeObservation(const SemanticObjectIdentifier& observa
 
 void SemanticLandmark::removeAllObservationsOfVertex(
     const pose_graph::VertexId& vertex_id) {
-  std::function<bool(const SemanticObjectIdentifier& observation)> // NOLINT
-      predicate =
-      [&](const SemanticObjectIdentifier& observation) {
+  std::function<bool(const SemanticObjectIdentifier& observation)>  // NOLINT
+      predicate = [&](const SemanticObjectIdentifier& observation) {
         return observation.frame_id.vertex_id == vertex_id;
       };
   removeAllObservationsAccordingToPredicate(predicate);
@@ -84,9 +87,8 @@ void SemanticLandmark::removeAllObservationsOfVertex(
 
 void SemanticLandmark::removeAllObservationsOfVertexAndFrame(
     const pose_graph::VertexId& vertex_id, unsigned int frame_idx) {
-  std::function<bool(const SemanticObjectIdentifier& observation)> // NOLINT
-      predicate =
-      [&](const SemanticObjectIdentifier& observation) {
+  std::function<bool(const SemanticObjectIdentifier& observation)>  // NOLINT
+      predicate = [&](const SemanticObjectIdentifier& observation) {
         return (observation.frame_id.vertex_id == vertex_id) &&
                (observation.frame_id.frame_index == frame_idx);
       };
@@ -101,7 +103,8 @@ unsigned int SemanticLandmark::numberOfObserverVertices() const {
   return vertices.size();
 }
 
-bool SemanticLandmark::hasObservation(const SemanticObjectIdentifier& id) const {
+bool SemanticLandmark::hasObservation(
+    const SemanticObjectIdentifier& id) const {
   return std::find(observations_.begin(), observations_.end(), id) !=
          observations_.end();
 }
@@ -126,13 +129,12 @@ void SemanticLandmark::forEachObservation(
 }
 
 void SemanticLandmark::forEachObservation(
-    const std::function<void(const SemanticObjectIdentifier&, const size_t)>& action)
-    const {
+    const std::function<void(const SemanticObjectIdentifier&, const size_t)>&
+        action) const {
   for (size_t i = 0u; i < observations_.size(); ++i) {
     action(observations_[i], i);
   }
 }
-
 
 void SemanticLandmark::serialize(vi_map::proto::SemanticLandmark* proto) const {
   CHECK_NOTNULL(proto);
@@ -188,9 +190,37 @@ void SemanticLandmark::serialize(vi_map::proto::SemanticLandmark* proto) const {
 
 void SemanticLandmark::clearObservations() {
   observations_.clear();
+  clearClassIdCount();
 }
 
-void SemanticLandmark::deserialize(const vi_map::proto::SemanticLandmark& proto) {
+oid SemanticLandmark::clearClassIdCount() {
+  class_count_map_.clear();
+}
+
+void SemanticLandmark::updateClassIdFromCount(const int class_id) {
+  CHECK_GE(class_id, 0);
+  auto search = class_count_map_.find(class_id);
+  if (search != class_count_map_.end()) {
+    search->second++;
+  } else {
+    class_count_map_[class_id] = 1u;
+  }
+
+  // set the class id of the landmark to the id with most observations
+  size_t largest_count = 0;
+  int largest_count_id = -1;
+  for (const auto& pair : class_count_map_) {
+    if (pair.second > largest_count) {
+      largest_count_id = pair.first;
+      largest_count = pair.second;
+    }
+  }
+
+  class_id_ = largest_count_id;
+}
+
+void SemanticLandmark::deserialize(
+    const vi_map::proto::SemanticLandmark& proto) {
   id_.deserialize(proto.id());
   class_id_ = proto.class_id();
   CHECK_EQ(proto.vertex_ids_size(), proto.measurement_indices_size());
@@ -202,7 +232,8 @@ void SemanticLandmark::deserialize(const vi_map::proto::SemanticLandmark& proto)
     backlink.measurement_index = proto.measurement_indices(i);
 
     CHECK_GT(proto.frame_indices_size(), 0)
-        << "Couldn't deserialize the frame indices for the measurements. Possibly "
+        << "Couldn't deserialize the frame indices for the measurements. "
+           "Possibly "
         << "your map format is outdated.";
     backlink.frame_id.frame_index = proto.frame_indices(i);
     observations_[i] = backlink;

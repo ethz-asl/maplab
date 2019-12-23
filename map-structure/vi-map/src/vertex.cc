@@ -932,6 +932,16 @@ void Vertex::addObservedSemanticLandmarkId(
   observed_semantic_landmark_ids_[frame_idx].push_back(id);
 }
 
+void Vertex::setObservedSemanticLandmarkIds(
+    unsigned int frame_idx, const std::vector<int>& measurement_idicies,
+    const SemanticLandmarkIdList& ids) {
+  CHECK_EQ(measurement_idicies.size(), ids.size());
+  observed_semantic_landmark_ids_[frame_idx].resize(ids.size());
+  for (size_t i = 0; i < ids.size(); i++) {
+    observed_semantic_landmark_ids_[frame_idx][measurement_idicies[i]] = ids[i];
+  }
+}
+
 size_t Vertex::observedSemanticLandmarkIdsSize(unsigned int frame_idx) const {
   CHECK(isFrameIndexValid(frame_idx));
   return observed_semantic_landmark_ids_[frame_idx].size();

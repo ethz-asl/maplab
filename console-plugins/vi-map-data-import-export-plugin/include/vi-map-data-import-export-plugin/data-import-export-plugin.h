@@ -5,9 +5,8 @@
 
 #include <console-common/console-plugin-base.h>
 #include <console-common/console.h>
-#include <vi-map/vi-map.h>
 #include <map-manager/map-manager.h>
-
+#include <vi-map/vi-map.h>
 
 namespace data_import_export {
 
@@ -22,6 +21,7 @@ class DataImportExportPlugin : public common::ConsolePluginBase {
  private:
   int exportMissionInfo() const;
   int exportPosesVelocitiesAndBiasesToCsv() const;
+  int exportPosesVelocitiesAndBiasesToCsvInRPGFormat() const;
   int exportNCameraCalibration() const;
   int importGpsDataFromRosbag() const;
   int exportGpsUtmToCsv() const;
