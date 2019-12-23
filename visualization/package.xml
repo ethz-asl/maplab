@@ -24,12 +24,9 @@
   <depend>map_resources</depend>
   <depend>maplab_common</depend>
   <depend>minkindr_conversions</depend>
-  <depend>minkindr</depend>
-  <depend>nav_msgs</depend>
   <depend>opencv3_catkin</depend>
   <depend>pcl_ros</depend>
   <depend>posegraph</depend>
-  <depend>rosbag</depend>
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>

@@ -8,7 +8,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>catkin_simple</buildtool_depend>
-  
+
   <depend>aslam_cv_cameras</depend>
   <depend>aslam_cv_common</depend>
   <depend>aslam_cv_frames</depend>
@@ -18,5 +18,6 @@
   <depend>glog_catkin</depend>
   <depend>maplab_common</depend>
   <depend>opengv</depend>
-  <depend>simulation</depend>
+
+  <test_depend>simulation</test_depend>
 </package>

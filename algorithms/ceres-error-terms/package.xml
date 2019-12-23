@@ -17,7 +17,6 @@
   <depend>glog_catkin</depend>
   <depend>imu_integrator_rk4</depend>
   <depend>maplab_common</depend>
-  <depend>minkindr</depend>
-  <depend>posegraph</depend>
-  <depend>simulation</depend>
+
+  <test_depend>minkindr</test_depend>
 </package>

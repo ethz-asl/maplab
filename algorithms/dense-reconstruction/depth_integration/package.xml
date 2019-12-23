@@ -16,6 +16,9 @@
   <depend>map_resources</depend>
   <depend>maplab_common</depend>
   <depend>maplab_test_data</depend>
+  <depend>posegraph</depend>
   <depend>vi_map</depend>
   <depend>voxblox</depend>
+
+  <test_depend>map_manager<test_depend>
 </package>

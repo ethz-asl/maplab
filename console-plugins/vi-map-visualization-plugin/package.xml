@@ -12,7 +12,6 @@
   <depend>console_common</depend>
   <depend>eigen_catkin</depend>
   <depend>map_manager</depend>
-  <depend>minkindr</depend>
   <depend>plotty</depend>
   <depend>vi_map</depend>
   <depend>visualization</depend>

@@ -17,8 +17,6 @@
   <depend>glog_catkin</depend>
   <depend>map_manager</depend>
   <depend>maplab_common</depend>
-  <depend>rosbag</depend>
-  <depend>roscpp</depend>
   <depend>vi_map</depend>
   <depend>vi_map_data_import_export</depend>
 </package>

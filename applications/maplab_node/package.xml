@@ -15,6 +15,9 @@
 	<buildtool_depend>catkin_simple</buildtool_depend>
 	<buildtool_depend>catkin</buildtool_depend>
 
+	<depend>aslam_cv_cameras</depend>
+	<depend>aslam_cv_common</depend>
+	<depend>aslam_cv_frames</depend>
 	<depend>aslam_cv_pipeline</depend>
 	<depend>cv_bridge</depend>
 	<depend>end_to_end_common</depend>
@@ -35,7 +38,8 @@
 	<depend>online_map_builders</depend>
 	<depend>sensors</depend>
 	<depend>vi_map</depend>
-	<depend>vi_mapping_test_app</depend>
 	<depend>vio_common</depend>
 	<depend>visualization</depend>
+
+	<test_depend>vi_mapping_test_app</test_depend>
 </package>
