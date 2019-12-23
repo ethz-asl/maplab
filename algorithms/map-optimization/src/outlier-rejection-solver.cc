@@ -88,7 +88,7 @@ void findOutlierLandmarks(
                 observer_vertex.getVisualFrame(frame_idx)
                     .getNumKeypointMeasurements());
 
-            const Eigen::Vector3d p_C_fi =
+            const Eigen::Vector3d& p_C_fi =
                 map.getLandmark_p_C_fi(landmark_id, observer_vertex, frame_idx);
 
             if (p_C_fi[2] <= 0.0) {
