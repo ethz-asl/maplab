@@ -32,8 +32,7 @@
   <depend>rovio</depend>
   <depend>sensors</depend>
   <depend>vi_map</depend>
+  <depend>vi_mapping_test_app</depend>
   <depend>vio_common</depend>
   <depend>visualization</depend>
-
-  <test_depend>vi_mapping_test_app</test_depend>
 </package>

@@ -18,6 +18,5 @@
   <depend>glog_catkin</depend>
   <depend>maplab_common</depend>
   <depend>opengv</depend>
-
-  <test_depend>simulation</test_depend>
+  <depend>simulation</depend>
 </package>

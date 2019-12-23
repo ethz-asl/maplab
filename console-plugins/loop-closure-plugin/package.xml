@@ -20,6 +20,5 @@
   <depend>maplab_common</depend>
   <depend>maplab_test_data</depend>
   <depend>vi_map</depend>
-  
-  <test_depend>vi_mapping_test_app</test_depend>
+  <depend>vi_mapping_test_app</depend>
 </package>

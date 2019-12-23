@@ -19,11 +19,10 @@
   <depend>eigen_catkin</depend>
   <depend>gflags_catkin</depend>
   <depend>glog_catkin</depend>
+  <depend>map_manager</depend>
   <depend>map_resources</depend>
   <depend>maplab_common</depend>
   <depend>opencv3_catkin</depend>
   <depend>resources_common</depend>
   <depend>vi_map</depend>
-
-  <test_depend>map_manager</test_depend>
 </package>

@@ -16,6 +16,5 @@
   <depend>map_optimization</depend>
   <depend>maplab_common</depend>
   <depend>vi_map</depend>
-
-  <test_depend>vi_mapping_test_app</test_depend>
+  <depend>vi_mapping_test_app</depend>
 </package>
