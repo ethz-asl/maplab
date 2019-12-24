@@ -13,8 +13,8 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>aslam_cv_cameras</depend>
-	<depend>aslam_cv_common</depend>
-	<depend>aslam_cv_frames</depend>
+  <depend>aslam_cv_common</depend>
+  <depend>aslam_cv_frames</depend>
   <depend>aslam_cv_pipeline</depend>
   <depend>cv_bridge</depend>
   <depend>end_to_end_common</depend>
