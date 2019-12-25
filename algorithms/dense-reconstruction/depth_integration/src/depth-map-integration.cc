@@ -19,6 +19,8 @@
 #include <vi-map/vertex.h>
 #include <vi-map/vi-map.h>
 
+#include "depth-integration/depth-integration.h"
+
 namespace depth_integration {
 
 void integrateAllDepthMapResourcesOfType(
@@ -47,7 +49,10 @@ void integrateAllFrameDepthMapResourcesOfType(
       << "This depth type is not supported! type: "
       << backend::ResourceTypeNames[static_cast<int>(input_resource_type)];
 
-  common::SigintBreaker sigintbreaker;
+  std::unique_ptr<common::SigintBreaker> sigint_breaker;
+  if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+    sigint_breaker.reset(new common::SigintBreaker);
+  }
 
   // Start integration.
   for (const vi_map::MissionId& mission_id : mission_ids) {
@@ -81,8 +86,12 @@ void integrateAllFrameDepthMapResourcesOfType(
       }
       ++vertex_counter;
 
-      if (sigintbreaker.isBreakRequested()) {
-        return;
+      if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+        CHECK(sigint_breaker);
+        if (sigint_breaker->isBreakRequested()) {
+          LOG(WARNING) << "Depth integration has been aborted by the user!";
+          return;
+        }
       }
 
       const vi_map::Vertex& vertex = vi_map.getVertex(vertex_id);
@@ -155,7 +164,10 @@ void integrateAllOptionalSensorDepthMapResourcesOfType(
 
   const vi_map::SensorManager& sensor_manager = vi_map.getSensorManager();
 
-  common::SigintBreaker sigintbreaker;
+  std::unique_ptr<common::SigintBreaker> sigint_breaker;
+  if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+    sigint_breaker.reset(new common::SigintBreaker);
+  }
 
   // Start integration.
   for (const vi_map::MissionId& mission_id : mission_ids) {
@@ -262,8 +274,12 @@ void integrateAllOptionalSensorDepthMapResourcesOfType(
            resource_buffer) {
         progress_bar.increment();
 
-        if (sigintbreaker.isBreakRequested()) {
-          return;
+        if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+          CHECK(sigint_breaker);
+          if (sigint_breaker->isBreakRequested()) {
+            LOG(WARNING) << "Depth integration has been aborted by the user!";
+            return;
+          }
         }
 
         const aslam::Transformation& T_M_B = poses_M_B[idx];

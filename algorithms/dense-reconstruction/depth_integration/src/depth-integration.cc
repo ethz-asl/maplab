@@ -25,6 +25,12 @@ DEFINE_bool(
     "If enabled, the depth integrator is using only depth resources that are "
     "closest in time to a vertex.");
 
+DEFINE_bool(
+    dense_depth_integrator_enable_sigint_breaker, true,
+    "If enabled, the depth integrator can be interrupted with Ctrl-C. Should "
+    "be disabled if depth integration is used in a headless console mode, such "
+    "as as part of the maplab server.");
+
 namespace depth_integration {
 
 void integrateAllLandmarks(
@@ -174,7 +180,11 @@ void integrateAllFrameDepthResourcesOfType(
       << "This depth type is not supported! type: "
       << backend::ResourceTypeNames[static_cast<int>(input_resource_type)];
 
-  common::SigintBreaker sigint_breaker;
+  std::unique_ptr<common::SigintBreaker> sigint_breaker;
+  if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+    sigint_breaker.reset(new common::SigintBreaker);
+  }
+
   // Start integration.
   for (const vi_map::MissionId& mission_id : mission_ids) {
     const vi_map::VIMission& mission = vi_map.getMission(mission_id);
@@ -225,9 +235,12 @@ void integrateAllFrameDepthResourcesOfType(
       }
       ++vertex_counter;
 
-      if (sigint_breaker.isBreakRequested()) {
-        LOG(WARNING) << "Depth integration has been aborted by the user!";
-        return;
+      if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+        CHECK(sigint_breaker);
+        if (sigint_breaker->isBreakRequested()) {
+          LOG(WARNING) << "Depth integration has been aborted by the user!";
+          return;
+        }
       }
 
       const vi_map::Vertex& vertex = vi_map.getVertex(vertex_id);
@@ -351,7 +364,10 @@ void integrateAllOptionalSensorDepthResourcesOfType(
 
   const vi_map::SensorManager& sensor_manager = vi_map.getSensorManager();
 
-  common::SigintBreaker sigint_breaker;
+  std::unique_ptr<common::SigintBreaker> sigint_breaker;
+  if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+    sigint_breaker.reset(new common::SigintBreaker);
+  }
 
   // Start integration.
   for (const vi_map::MissionId& mission_id : mission_ids) {
@@ -499,9 +515,12 @@ void integrateAllOptionalSensorDepthResourcesOfType(
                stamped_resource_id : *resource_buffer_ptr) {
         progress_bar.increment();
 
-        if (sigint_breaker.isBreakRequested()) {
-          LOG(WARNING) << "Depth integration has been aborted by the user!";
-          return;
+        if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+          CHECK(sigint_breaker);
+          if (sigint_breaker->isBreakRequested()) {
+            LOG(WARNING) << "Depth integration has been aborted by the user!";
+            return;
+          }
         }
 
         const aslam::Transformation& T_M_B = poses_M_B[idx];

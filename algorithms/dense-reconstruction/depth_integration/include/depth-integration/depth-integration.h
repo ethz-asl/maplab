@@ -7,6 +7,8 @@
 #include <vi-map/vi-map.h>
 #include <voxblox/core/common.h>
 
+DECLARE_bool(dense_depth_integrator_enable_sigint_breaker);
+
 namespace depth_integration {
 
 // NOTE: This interface is currently still depending on voxblox, but only for
