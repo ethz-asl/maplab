@@ -9,6 +9,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>catkin_simple</buildtool_depend>
 
+  <depend>aslam_cv_common</depend>
   <depend>descriptor_projection</depend>
   <depend>eigen_catkin</depend>
   <depend>gflags_catkin</depend>

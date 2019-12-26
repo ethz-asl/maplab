@@ -12,6 +12,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>catkin_simple</buildtool_depend>
 
+  <depend>aslam_cv_common</depend>
   <depend>ceres_catkin</depend>
   <depend>console_common</depend>
   <depend>gflags_catkin</depend>

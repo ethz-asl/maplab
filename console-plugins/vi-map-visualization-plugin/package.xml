@@ -9,6 +9,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>catkin_simple</buildtool_depend>
 
+  <depend>aslam_cv_common</depend>
   <depend>console_common</depend>
   <depend>eigen_catkin</depend>
   <depend>map_manager</depend>
