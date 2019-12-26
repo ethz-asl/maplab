@@ -25,8 +25,5 @@
   <depend>glog_catkin</depend>
   <depend>landmark_triangulation</depend>
   <depend>maplab_common</depend>
-  <depend>posegraph</depend>
   <depend>vi_map</depend>
-  <depend>visualization</depend>
-  <depend>depth_integration</depend>
 </package>
