@@ -6,8 +6,9 @@
 #include <maplab-common/file-logger.h>
 #include <maplab-common/progress-bar.h>
 #include <metis.h>
-#include <vi-map-helpers/vi-map-queries.h>
 #include <vi-map/vi-map.h>
+
+#include "vi-map-helpers/vi-map-queries.h"
 
 namespace vi_map_helpers {
 

@@ -18,6 +18,4 @@
   <depend>imu_integrator_rk4</depend>
   <depend>maplab_common</depend>
   <depend>minkindr</depend>
-  <depend>posegraph</depend>
-  <depend>simulation</depend>
 </package>

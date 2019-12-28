@@ -18,6 +18,5 @@
   <depend>protobuf_catkin</depend>
   <depend>vi_map</depend>
   <depend>vi_map_helpers</depend>
-  <depend>vi_mapping_test_app</depend>
   <depend>visualization</depend>
 </package>

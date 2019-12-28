@@ -10,7 +10,6 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-
   <exec_depend>dense_reconstruction_plugin</exec_depend>
   <exec_depend>landmark_manipulation_plugin</exec_depend>
   <exec_depend>loop_closure_plugin</exec_depend>
