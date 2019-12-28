@@ -35,10 +35,10 @@ DECLARE_string(map_mission_list);
 DECLARE_bool(overwrite);
 
 DEFINE_bool(
-    dense_use_distorted_camera, false,
+    dense_depth_map_reprojection_use_undistorted_camera, false,
     "If enabled, the depth map reprojection assumes that the map has "
-    "been created using the distorted image. Therefore, the distorted "
-    "camera model is used for reprojection.");
+    "been created using the undistorted camera model. Therefore, the no "
+    "distortion is used during reprojection.");
 
 DEFINE_string(
     dense_result_mesh_output_file, "",
@@ -385,8 +385,9 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         timing::TimerImpl tsdf_timer("dense_reconstruction: TSDF");
 
         depth_integration::integrateAllDepthResourcesOfType(
-            mission_ids, input_resource_type, !FLAGS_dense_use_distorted_camera,
-            *map, integration_function);
+            mission_ids, input_resource_type,
+            FLAGS_dense_depth_map_reprojection_use_undistorted_camera, *map,
+            integration_function);
         const double tsdf_integration_time_s = tsdf_timer.Stop();
 
         constexpr double kBytesToMegaBytes = 1e-6;
@@ -572,8 +573,9 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         LOG(INFO) << "\n" << tsdf_integrator_config.print();
 
         depth_integration::integrateAllDepthResourcesOfType(
-            mission_ids, input_resource_type, !FLAGS_dense_use_distorted_camera,
-            *map, integration_function);
+            mission_ids, input_resource_type,
+            FLAGS_dense_depth_map_reprojection_use_undistorted_camera, *map,
+            integration_function);
 
         // Update esdf and visualizations
         esdf_server.updateEsdf();

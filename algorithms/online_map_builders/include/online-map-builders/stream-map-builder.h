@@ -1,6 +1,7 @@
 #ifndef ONLINE_MAP_BUILDERS_STREAM_MAP_BUILDER_H_
 #define ONLINE_MAP_BUILDERS_STREAM_MAP_BUILDER_H_
 
+#include <algorithm>
 #include <memory>
 #include <unordered_map>
 #include <utility>
@@ -9,6 +10,8 @@
 #include <Eigen/Dense>
 #include <landmark-triangulation/pose-interpolator.h>
 #include <map-resources/resource-conversion.h>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <posegraph/unique-id.h>
 #include <sensors/absolute-6dof-pose.h>
 #include <sensors/imu.h>
@@ -22,7 +25,10 @@
 
 DECLARE_bool(map_builder_save_point_clouds_as_resources);
 DECLARE_bool(map_builder_save_point_cloud_maps_as_resources);
+DECLARE_bool(
+    map_builder_save_point_clouds_as_range_image_including_intensity_image);
 DECLARE_bool(map_builder_save_image_as_resources);
+DECLARE_bool(map_builder_visualize_lidar_depth_maps_in_ocv_window);
 
 namespace aslam {
 class NCamera;
@@ -174,6 +180,13 @@ class StreamMapBuilder {
   aslam::Transformation T_M0_G_;
   bool is_first_baseframe_estimate_processed_;
 
+  // Store lidar depth camera for lidar point cloud projection.
+  aslam::SensorId lidar_depth_camera_id_;
+  aslam::Camera::Ptr lidar_depth_camera_sensor_;
+  // Save transformation between lidar sensor frame and lidar camera sensor
+  // frame.
+  aslam::Transformation T_C_lidar_S_lidar_;
+
   static constexpr size_t kKeepNMostRecentImages = 10u;
 };
 
@@ -199,12 +212,70 @@ void StreamMapBuilder::attachLidarMeasurement(
   backend::convertPointCloudType<PointCloudType, resources::PointCloud>(
       lidar_measurement.getPointCloud(), &point_cloud);
 
-  backend::ResourceType point_cloud_type =
-      backend::getResourceTypeForPointCloud(point_cloud);
   vi_map::VIMission& mission = map_->getMission(mission_id_);
-  map_->addSensorResource(
-      point_cloud_type, lidar_sensor_id,
-      lidar_measurement.getTimestampNanoseconds(), point_cloud, &mission);
+
+  if (lidar_depth_camera_id_.isValid()) {
+    CHECK(lidar_depth_camera_sensor_);
+
+    // Transform into camera frame.
+    point_cloud.applyTransformation(T_C_lidar_S_lidar_);
+
+    cv::Mat range_image, image;
+    cv::Mat* image_ptr =
+        (FLAGS_map_builder_save_point_clouds_as_range_image_including_intensity_image)  // NOLINT
+            ? &image
+            : nullptr;
+
+    backend::convertPointCloudToDepthMap(
+        point_cloud, *lidar_depth_camera_sensor_, true /*use_openni_format*/,
+        true /*create_range_image*/, &range_image, image_ptr);
+
+    if (FLAGS_map_builder_visualize_lidar_depth_maps_in_ocv_window) {
+      cv::namedWindow("depth");
+      cv::namedWindow("intensity");
+      double min;
+      double max;
+      cv::minMaxIdx(range_image, &min, &max, 0, 0, range_image > 1e-6);
+      max = std::min(10000., max);
+
+      cv::Mat scaled_range_image;
+      float scale = 255 / (max - min);
+      range_image.convertTo(scaled_range_image, CV_8UC1, scale, -min * scale);
+      cv::Mat color_image;
+      cv::applyColorMap(scaled_range_image, color_image, cv::COLORMAP_JET);
+      color_image.setTo(cv::Scalar(0u, 0u, 0u), range_image < 1e-6);
+      cv::imshow("depth", color_image);
+      if (image_ptr != nullptr) {
+        image.setTo(cv::Scalar(0u), range_image < 1e-6);
+        cv::imshow("intensity", image);
+      }
+      cv::waitKey(1);
+    }
+
+    CHECK_EQ(CV_MAT_TYPE(range_image.type()), CV_16UC1);
+    map_->addSensorResource(
+        backend::ResourceType::kRawDepthMap, lidar_depth_camera_id_,
+        lidar_measurement.getTimestampNanoseconds(), range_image, &mission);
+
+    if (!image.empty()) {
+      if (image.type() == CV_8UC1) {
+        map_->addSensorResource(
+            backend::ResourceType::kImageForDepthMap, lidar_depth_camera_id_,
+            lidar_measurement.getTimestampNanoseconds(), image, &mission);
+      } else if (image.type() == CV_8UC3) {
+        map_->addSensorResource(
+            backend::ResourceType::kColorImageForDepthMap,
+            lidar_depth_camera_id_, lidar_measurement.getTimestampNanoseconds(),
+            image, &mission);
+      }
+    }
+  } else {
+    backend::ResourceType point_cloud_type =
+        backend::getResourceTypeForPointCloud(point_cloud);
+    map_->addSensorResource(
+        point_cloud_type, lidar_sensor_id,
+        lidar_measurement.getTimestampNanoseconds(), point_cloud, &mission);
+  }
 }
 
 template <typename PointCloudType>

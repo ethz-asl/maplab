@@ -16,11 +16,38 @@ namespace backend {
 
 // Converts depth map and corresponding image to a point cloud.
 // The depth map is assumed to follow the OpenNI format.
-// The image can either be a 8bit grayscale or 8bit BGR image.
+// The intensity image can either be a 8bit grayscale or 8bit BGR image.
 template <typename PointCloudType>
 bool convertDepthMapToPointCloud(
     const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
-    PointCloudType* point_cloud);
+    PointCloudType* point_cloud_C);
+
+/// Converts a point cloud to a depth map + optionally an intensity image.
+/// @param[in]    point_cloud_C         Point cloud in camera coordinate frame,
+///                                     which is x-right, z-front, y-down
+/// @param[in]    camera                Camera model of the desired depth map
+/// @param[in]    use_openni_format     If enabled, the depth map will be in the
+///                                     OpenNI format ()[mm], uint16_t),
+///                                     otherwise in floating point format [m].
+/// @param[in]    create_range_image    If enabled, the depth map will not
+///                                     contain the Z coordinate of the 3D point
+///                                     but the actual ray length from the
+///                                     camera center to the 3D point.
+///                                     NOTE This is required for cameras of
+///                                     type Camera3DLidar!
+/// @param[out]   depth_map             OpenCV depth map, will be set to either
+///                                     CV_32FC1 (depth in m) or CV_U16C1 (depth
+///                                     in mm)
+/// @param[out]   image                 OpenCV intensity image, will be set to
+///                                     CV_8UC1 or CV_8UC3, depending on the
+///                                     availablility of intensity vs color.It
+///                                     will be unallocated if no intensity or
+///                                     color is available.
+template <typename PointCloudType>
+bool convertPointCloudToDepthMap(
+    const PointCloudType& point_cloud_C, const aslam::Camera& camera,
+    const bool use_openni_format, const bool create_range_image,
+    cv::Mat* depth_map, cv::Mat* image);
 
 template <typename InputPointCloud, typename OutputPointCloud>
 bool convertPointCloudType(
@@ -60,6 +87,18 @@ template <typename PointCloudType>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
     PointCloudType* point_cloud);
+
+template <typename PointCloudType>
+void getPointFromPointCloud(
+    const PointCloudType& point_cloud, const size_t index,
+    Eigen::Vector3d* point_C);
+template <typename PointCloudType>
+void getScalarFromPointCloud(
+    const PointCloudType& point_cloud, const size_t index, float* scalar);
+template <typename PointCloudType>
+void getColorFromPointCloud(
+    const PointCloudType& point_cloud, const size_t index,
+    resources::RgbaColor* color);
 
 template <typename PointCloudType>
 size_t getPointCloudSize(const PointCloudType& point_cloud);

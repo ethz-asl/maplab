@@ -11,7 +11,7 @@
 --dense_result_mesh_output_file=output_mesh.ply
 --dense_depth_resource_output_type=17
 --dense_depth_resource_input_type=17
---dense_use_distorted_camera=false
+--dense_depth_map_reprojection_use_undistorted_camera=true
 --dense_image_export_path=tmp_image_export
 
 # Stereo options

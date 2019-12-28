@@ -22,6 +22,7 @@
   <depend>map_manager</depend>
   <depend>map_resources</depend>
   <depend>maplab_common</depend>
+  <depend>maplab_test_data</depend>
   <depend>opencv3_catkin</depend>
   <depend>resources_common</depend>
   <depend>vi_map</depend>

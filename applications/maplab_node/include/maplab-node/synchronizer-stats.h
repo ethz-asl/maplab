@@ -109,7 +109,7 @@ struct SynchronizerStatistics {
 
     // Print min-shifted latency statistics.
     ss << "Message Timing/Sync Metrics:\n";
-    ss << "============================";
+    ss << "============================\n";
     ss << "(mean latencies shifted by min latency of ";
     int64_t min_latency_ns;
     std::string min_latency_sensor;
