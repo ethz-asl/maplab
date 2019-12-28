@@ -140,8 +140,7 @@ void integrateAllFrameDepthMapResourcesOfType(
             // Integrate with or without intensity information.
             integration_function(
                 T_G_C, depth_map, image, n_camera.getCamera(frame_idx));
-            continue;
-          }
+          } break;
           default:
             LOG(FATAL) << "This depth type is not supported! type: "
                        << backend::ResourceTypeNames[static_cast<int>(
@@ -334,8 +333,7 @@ void integrateAllOptionalSensorDepthMapResourcesOfType(
 
             // Integrate with or without intensity information.
             integration_function(T_G_S, depth_map, image, camera);
-            continue;
-          }
+          } break;
           default:
             LOG(FATAL) << "This depth type is not supported! type: "
                        << backend::ResourceTypeNames[static_cast<int>(

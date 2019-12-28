@@ -40,6 +40,11 @@ DEFINE_bool(
     "Store the point cloud (sub-)maps associated with an external source to "
     "the map resource folder.");
 
+DEFINE_bool(
+    map_builder_visualize_lidar_depth_maps_in_ocv_window, false,
+    "If enabled, opencv windows with the result of the lidar scan to lidar "
+    "depth map conversion will be opened.");
+
 namespace online_map_builders {
 
 const vi_map::VIMap* StreamMapBuilder::constMap() const {

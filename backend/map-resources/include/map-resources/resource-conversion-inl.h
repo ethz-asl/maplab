@@ -422,8 +422,7 @@ bool convertPointCloudToDepthMap(
     const PointCloudType& point_cloud_C, const aslam::Camera& camera,
     const bool use_openni_format, const bool create_range_image,
     cv::Mat* depth_map, cv::Mat* image) {
-  CHECK(!(
-      camera.getType() == aslam::Camera::Type::kLidar3D && !create_range_image))
+  CHECK(camera.getType() != aslam::Camera::Type::kLidar3D || create_range_image)
       << "When projecting point clouds using the Camera3DLidar camera models, "
       << "only range images (vs depth maps) are a maningful representation, "
       << "since the points are not projected onto an image plange, but a "

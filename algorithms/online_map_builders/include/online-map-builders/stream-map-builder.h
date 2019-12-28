@@ -28,6 +28,7 @@ DECLARE_bool(map_builder_save_point_cloud_maps_as_resources);
 DECLARE_bool(
     map_builder_save_point_clouds_as_range_image_including_intensity_image);
 DECLARE_bool(map_builder_save_image_as_resources);
+DECLARE_bool(map_builder_visualize_lidar_depth_maps_in_ocv_window);
 
 namespace aslam {
 class NCamera;
@@ -229,7 +230,7 @@ void StreamMapBuilder::attachLidarMeasurement(
         point_cloud, *lidar_depth_camera_sensor_, true /*use_openni_format*/,
         true /*create_range_image*/, &range_image, image_ptr);
 
-    if (false) {
+    if (FLAGS_map_builder_visualize_lidar_depth_maps_in_ocv_window) {
       cv::namedWindow("depth");
       cv::namedWindow("intensity");
       double min;
@@ -268,7 +269,6 @@ void StreamMapBuilder::attachLidarMeasurement(
             image, &mission);
       }
     }
-
   } else {
     backend::ResourceType point_cloud_type =
         backend::getResourceTypeForPointCloud(point_cloud);
