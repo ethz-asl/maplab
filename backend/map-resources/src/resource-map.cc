@@ -616,7 +616,8 @@ std::string ResourceMap::printCacheStatistics() const {
 
 std::string ResourceMap::printResourceStatistics() const {
   aslam::ScopedReadLock lock(&resource_mutex_);
-  const std::string separator = "--------------+---------------------------";
+  const std::string separator =
+      "--------------+----------------------------------";
   const std::string column_separator = "  |  ";
   const std::string title = " # resources  |  type";
 
@@ -626,8 +627,8 @@ std::string ResourceMap::printResourceStatistics() const {
   ss << separator << std::endl << title << std::endl << separator << std::endl;
   for (size_t type_idx = 0u; type_idx < kNumResourceTypes; ++type_idx) {
     ss << std::setfill(' ') << std::setw(12)
-       << resource_info_map_.at(type_idx).size() << column_separator
-       << ResourceTypeNames[type_idx] << std::endl;
+       << resource_info_map_.at(type_idx).size() << column_separator << type_idx
+       << " - " << ResourceTypeNames[type_idx] << std::endl;
   }
   ss << separator << std::endl;
   return ss.str();

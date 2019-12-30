@@ -25,6 +25,12 @@ DEFINE_bool(
     "If enabled, the depth integrator is using only depth resources that are "
     "closest in time to a vertex.");
 
+DEFINE_bool(
+    dense_depth_integrator_enable_sigint_breaker, true,
+    "If enabled, the depth integrator can be interrupted with Ctrl-C. Should "
+    "be disabled if depth integration is used in a headless console mode, such "
+    "as as part of the maplab server.");
+
 namespace depth_integration {
 
 void integrateAllLandmarks(
@@ -128,6 +134,7 @@ void integrateDepthMap(
     const pose::Transformation& T_G_C, const cv::Mat& depth_map,
     const aslam::Camera& camera, IntegrationFunction integration_function) {
   CHECK(integration_function);
+  CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
 
   Pointcloud point_cloud;
   backend::convertDepthMapToPointCloud(depth_map, camera, &point_cloud);
@@ -148,6 +155,7 @@ void integrateDepthMap(
     const cv::Mat& image, const aslam::Camera& camera,
     IntegrationFunction integration_function) {
   CHECK(integration_function);
+  CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
 
   Pointcloud point_cloud;
   Colors colors;
@@ -172,7 +180,11 @@ void integrateAllFrameDepthResourcesOfType(
       << "This depth type is not supported! type: "
       << backend::ResourceTypeNames[static_cast<int>(input_resource_type)];
 
-  common::SigintBreaker sigint_breaker;
+  std::unique_ptr<common::SigintBreaker> sigint_breaker;
+  if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+    sigint_breaker.reset(new common::SigintBreaker);
+  }
+
   // Start integration.
   for (const vi_map::MissionId& mission_id : mission_ids) {
     const vi_map::VIMission& mission = vi_map.getMission(mission_id);
@@ -223,9 +235,12 @@ void integrateAllFrameDepthResourcesOfType(
       }
       ++vertex_counter;
 
-      if (sigint_breaker.isBreakRequested()) {
-        LOG(WARNING) << "Depth integration has been aborted by the user!";
-        return;
+      if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+        CHECK(sigint_breaker);
+        if (sigint_breaker->isBreakRequested()) {
+          LOG(WARNING) << "Depth integration has been aborted by the user!";
+          return;
+        }
       }
 
       const vi_map::Vertex& vertex = vi_map.getVertex(vertex_id);
@@ -256,6 +271,11 @@ void integrateAllFrameDepthResourcesOfType(
               VLOG(3) << "Nothing to integrate.";
               continue;
             }
+            CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
+            CHECK(!depth_map.empty())
+                << "Depth map at vertex " << vertex_id << " frame " << frame_idx
+                << " is invalid/empty!";
+
             // Check if there is a dedicated image for this depth map. If not,
             // use the normal grayscale image.
             cv::Mat image;
@@ -344,7 +364,10 @@ void integrateAllOptionalSensorDepthResourcesOfType(
 
   const vi_map::SensorManager& sensor_manager = vi_map.getSensorManager();
 
-  common::SigintBreaker sigint_breaker;
+  std::unique_ptr<common::SigintBreaker> sigint_breaker;
+  if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+    sigint_breaker.reset(new common::SigintBreaker);
+  }
 
   // Start integration.
   for (const vi_map::MissionId& mission_id : mission_ids) {
@@ -492,9 +515,12 @@ void integrateAllOptionalSensorDepthResourcesOfType(
                stamped_resource_id : *resource_buffer_ptr) {
         progress_bar.increment();
 
-        if (sigint_breaker.isBreakRequested()) {
-          LOG(WARNING) << "Depth integration has been aborted by the user!";
-          return;
+        if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+          CHECK(sigint_breaker);
+          if (sigint_breaker->isBreakRequested()) {
+            LOG(WARNING) << "Depth integration has been aborted by the user!";
+            return;
+          }
         }
 
         const aslam::Transformation& T_M_B = poses_M_B[idx];
@@ -529,6 +555,10 @@ void integrateAllOptionalSensorDepthResourcesOfType(
               LOG(FATAL) << "Cannot retrieve depth map resource at "
                          << "timestamp " << timestamp_ns << "ns!";
             }
+            CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
+            CHECK(!depth_map.empty())
+                << "Depth map at time " << timestamp_ns << " of sensor "
+                << sensor_id << " is invalid/empty!";
 
             // Check if there is a dedicated grayscale or color image for this
             // depth map.

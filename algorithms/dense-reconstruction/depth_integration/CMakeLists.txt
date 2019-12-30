@@ -4,7 +4,9 @@ project(depth_integration)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-cs_add_library(${PROJECT_NAME} src/depth-integration.cc)
+cs_add_library(${PROJECT_NAME}
+        src/depth-integration.cc
+        src/depth-map-integration.cc)
 
 SET(PROJECT_TEST_DATA "map_resources_test_data")
 add_custom_target(${PROJECT_TEST_DATA})

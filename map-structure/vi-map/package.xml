@@ -22,7 +22,6 @@
   <depend>map_resources</depend>
   <depend>maplab_common</depend>
   <depend>maplab_test_data</depend>
-  <depend>minkindr</depend>
   <depend>posegraph</depend>
   <depend>protobuf_catkin</depend>
   <depend>sensors</depend>
