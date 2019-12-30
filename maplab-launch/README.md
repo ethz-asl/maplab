@@ -1,6 +1,6 @@
 ## maplab_launch
 
-This package contains the robot/sensor specific launch files for:
+This package contains the robot/sensor specific launch files and calibrations for:
  - maplab_node
  - rovioli
  - maplab_server_node
@@ -8,7 +8,6 @@ This package contains the robot/sensor specific launch files for:
 The intended folder layout is as follows:
 
 ```bash
-The intended folder structure is as follows:
  - config:
    - {robot-A}:
       - calib:
