@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <!-- CALIBRATION -->
+  <arg name="maplab_sensor_calibration_file" default=""/>
+  <arg name="maplab_imu_to_camera_time_offset_ns" default="0"/>
+  <arg name="maplab_image_topic_suffix" default="/image_raw"/>
+
+  <!-- MAPLAB_NODE_CONFIG -->
+  <arg name="maplab_rosparams_file" default="$(find maplab_node)/share/maplab_rosparams.yaml"/>
+  <arg name="maplab_save_map_every_n_sec" default="0"/>
+  <arg name="maplab_keyframe_when_saving" default="false"/>
+  <arg name="maplab_use_clahe" default="true"/>
+  <arg name="maplab_map_directory" default="/tmp/maplab_node/"/>
+
+  <!-- MAPLAB -->
+  <node name="maplab_node" pkg="maplab_node" type="maplab_node" output="screen" clear_params="true">
+
+    <!-- GENERAL PARAMS -->
+    <rosparam command="load" file="$(arg maplab_rosparams_file)"/>
+
+    <!-- ROBOT SPECIFIC PARAMS -->
+    <!-- SENSORS -->
+    <param name="sensor_calibration_file" value="$(arg maplab_sensor_calibration_file)"/>
+    <param name="imu_to_camera_time_offset_ns" value="$(arg maplab_imu_to_camera_time_offset_ns)"/>
+    <param name="vio_camera_topic_suffix" value="$(arg maplab_image_topic_suffix)"/>
+
+    <!-- MAPLAB_NODE_CONFIG -->
+    <param name="map_save_every_n_sec" value="$(arg maplab_save_map_every_n_sec)"/>
+    <param name="map_run_keyframing_when_saving" value="$(arg maplab_keyframe_when_saving)"/>
+    <param name="image_apply_clahe_histogram_equalization" value="$(arg maplab_use_clahe)"/>
+    <param name="map_output_folder" value="$(arg maplab_map_directory)/submaps/"/>
+  </node>
+</launch>
