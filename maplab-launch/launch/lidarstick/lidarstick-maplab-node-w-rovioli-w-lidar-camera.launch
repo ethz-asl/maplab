@@ -14,9 +14,10 @@
 
 			<!-- ROBOT SPECIFIC PARAMS -->
 			<!-- SENSORS -->
-			<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors.yaml"/>
+			<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors-w-lidar-camera.yaml"/>
 			<param name="imu_to_camera_time_offset_ns" value="19779092"/>
 			<param name="vio_camera_topic_suffix" value="image_raw"/>
+			<param name="selected_ncamera_sensor_id" value="8af1bac2a7c5fad79f09e49e3b96d87c"/>
 
 			<!-- ROVIOLI CONFIG -->
 			<param name="rovioli_run_map_builder" value="false"/>
@@ -41,7 +42,7 @@
 
 		<!-- ROBOT SPECIFIC PARAMS -->
 		<!-- SENSORS -->
-		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors.yaml"/>
+		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors-w-lidar-camera.yaml"/>
 		<param name="imu_to_camera_time_offset_ns" value="19779092"/>
 		<param name="vio_camera_topic_suffix" value="image_raw"/>
 		<param name="selected_ncamera_sensor_id" value="8af1bac2a7c5fad79f09e49e3b96d87c"/>
@@ -53,9 +54,9 @@
 		<param name="map_builder_save_point_cloud_maps_as_resources" value="true"/>
 
 		<!-- MAPLAB_NODE_CONFIG -->
-		<param name="map_save_every_n_sec" value="30"/>
+		<param name="map_save_every_n_sec" value="0"/>
 		<param name="map_run_keyframing_when_saving" value="false"/>
 		<param name="image_apply_clahe_histogram_equalization" value="true"/>
-		<param name="map_output_folder" value="/tmp/lidarstick_with_depthmaps/submaps/"/>
+		<param name="map_output_folder" value="/tmp/lidarstick_with_depthmaps"/>
 	</node>
 </launch>

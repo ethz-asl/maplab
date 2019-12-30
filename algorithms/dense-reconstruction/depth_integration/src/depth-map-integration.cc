@@ -317,13 +317,13 @@ void integrateAllOptionalSensorDepthMapResourcesOfType(
             cv::Mat image;
             if (vi_map.getSensorResource(
                     mission, backend::ResourceType::kImageForDepthMap,
-                    sensor_id, timestamp_ns, &depth_map)) {
+                    sensor_id, timestamp_ns, &image)) {
               VLOG(3) << "Found depth map with intensity information "
                          "from the dedicated grayscale image.";
             } else if (vi_map.getSensorResource(
                            mission,
                            backend::ResourceType::kColorImageForDepthMap,
-                           sensor_id, timestamp_ns, &depth_map)) {
+                           sensor_id, timestamp_ns, &image)) {
               VLOG(3) << "Found depth map with RGB information "
                       << "from the dedicated color image.";
             } else {
