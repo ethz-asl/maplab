@@ -7,7 +7,6 @@
 #include <aslam/cameras/distortion-fisheye.h>
 #include <aslam/cameras/ncamera.h>
 #include <aslam/common/unique-id.h>
-#include <aslam/frames/visual-frame.h>
 #include <glog/logging.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>

@@ -9,6 +9,7 @@
 #include <maplab-common/file-system-tools.h>
 
 #include "vi-map/sensor-manager.h"
+#include "vi-map/sensor-utils.h"
 #include "vi-map/vertex.h"
 #include "vi-map/vi-map-serialization.h"
 
@@ -893,44 +894,113 @@ void VIMap::addNewMissionWithBaseframe(
 void VIMap::associateMissionSensors(
     const aslam::SensorIdSet& sensor_ids, const vi_map::MissionId& id) {
   VIMission& mission = getMission(id);
+
+  // Cannot use unordered_map with the enum as key, as it is not supported prior
+  // to cpp14, hence it will not compile on xenial and older.
+  std::unordered_map<uint8_t, std::set<aslam::SensorId>> sensors_of_type;
   for (const aslam::SensorId& sensor_id : sensor_ids) {
-    SensorType sensor_type = sensor_manager_.getSensorType(sensor_id);
-    if (sensor_type == SensorType::kNCamera) {
-      CHECK(!mission.hasNCamera())
-          << "Can not handle more than one NCamera per mission";
+    const SensorType sensor_type = sensor_manager_.getSensorType(sensor_id);
+    std::set<aslam::SensorId>& sensor_ids =
+        sensors_of_type[static_cast<uint8_t>(sensor_type)];
+    sensor_ids.insert(sensor_id);
+  }
+
+  auto retrieve_unique_sensor_id_of_type =
+      [](const std::string& id_flag, const std::string& flag_name,
+         const std::string& sensor_name,
+         const std::set<aslam::SensorId>& ids_of_type) -> aslam::SensorId {
+    aslam::SensorId sensor_id;
+    if (ids_of_type.size() > 1u) {
+      CHECK(
+          !id_flag.empty() && sensor_id.fromHexString(id_flag) &&
+          (ids_of_type.count(sensor_id) > 0u))
+          << "If more than one " << sensor_name
+          << " is provided in the sensor manager, "
+          << "use --" << flag_name << " to select which one to use.";
+    } else {
+      sensor_id = *(ids_of_type.begin());
+    }
+    CHECK(sensor_id.isValid());
+    return sensor_id;
+  };
+
+  for (const auto& sensor_of_type : sensors_of_type) {
+    CHECK(!sensor_of_type.second.empty());
+    if (static_cast<SensorType>(sensor_of_type.first) == SensorType::kNCamera) {
+      CHECK(!mission.hasNCamera()) << "There shouldn't be a NCamera sensor "
+                                   << "associated yet with this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_ncamera_sensor_id, "selected_ncamera_sensor_id",
+          "NCamera", sensor_of_type.second);
       mission.setNCameraId(sensor_id);
-    } else if (sensor_type == SensorType::kImu) {
-      CHECK(!mission.hasImu())
-          << "Can not handle more than one Imu per mission";
+    } else if (
+        static_cast<SensorType>(sensor_of_type.first) == SensorType::kImu) {
+      CHECK(!mission.hasImu()) << "There shouldn't be a IMU sensor associated "
+                               << "yet with this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_imu_sensor_id, "selected_imu_sensor_id", "IMU",
+          sensor_of_type.second);
       mission.setImuId(sensor_id);
-    } else if (sensor_type == SensorType::kLidar) {
-      CHECK(!mission.hasLidar())
-          << "Can not handle more than one Lidar per mission";
+    } else if (
+        static_cast<SensorType>(sensor_of_type.first) == SensorType::kLidar) {
+      CHECK(!mission.hasLidar()) << "There shouldn't be a Lidar sensor "
+                                 << "associated yet with this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_lidar_sensor_id, "selected_lidar_sensor_id", "Lidar",
+          sensor_of_type.second);
       mission.setLidarId(sensor_id);
-    } else if (sensor_type == SensorType::kOdometry6DoF) {
+    } else if (
+        static_cast<SensorType>(sensor_of_type.first) ==
+        SensorType::kOdometry6DoF) {
       CHECK(!mission.hasOdometry6DoFSensor())
-          << "Can not handle more than one Odometry 6DOF sensor per mission";
+          << "There shouldn't be a Odometry6DoF sensor associated yet with "
+          << "this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_odometry_6dof_sensor_id,
+          "selected_odometry_6dof_sensor_id", "Odometry6DoF",
+          sensor_of_type.second);
       mission.setOdometry6DoFSensor(sensor_id);
-    } else if (sensor_type == SensorType::kLoopClosureSensor) {
+    } else if (
+        static_cast<SensorType>(sensor_of_type.first) ==
+        SensorType::kLoopClosureSensor) {
       CHECK(!mission.hasLoopClosureSensor())
           << "Can not handle more than one "
              "loop closure 6DOF sensor per mission";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_loop_closure_sensor_id,
+          "selected_loop_closure_sensor_id", "LoopClosureSensor",
+          sensor_of_type.second);
       mission.setLoopClosureSensor(sensor_id);
-    } else if (sensor_type == SensorType::kWheelOdometry) {
+    } else if (
+        static_cast<SensorType>(sensor_of_type.first) ==
+        SensorType::kWheelOdometry) {
       CHECK(!mission.hasWheelOdometrySensor())
           << "Can not handle more than one wheel odometry sensor per mission";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_wheel_odometry_sensor_id,
+          "selected_wheel_odometry_sensor_id", "WheelOdometrySensor",
+          sensor_of_type.second);
       mission.setWheelOdometrySensor(sensor_id);
-    } else if (sensor_type == SensorType::kAbsolute6DoF) {
+    } else if (
+        static_cast<SensorType>(sensor_of_type.first) ==
+        SensorType::kAbsolute6DoF) {
       CHECK(!mission.hasAbsolute6DoFSensor())
-          << "Can not handle more than one absolute 6DOF sensor per mission";
+          << "There shouldn't be an Absolute6DoF sensor associated yet with "
+          << "this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_absolute_6dof_sensor_id,
+          "selected_absolute_6dof_sensor_id", "Absolute6DoF",
+          sensor_of_type.second);
       mission.setAbsolute6DoFSensor(sensor_id);
-    } else if (sensor_type == SensorType::kPointCloudMapSensor) {
-      // TODO(mfehr): this sensor does not need to be associated with the VIMap,
-      // as it is stored as a sensor resource anyways. This is a bit shitty ATM.
+    } else if (
+        static_cast<SensorType>(sensor_of_type.first) ==
+        SensorType::kPointCloudMapSensor) {
+      // NOTE: this sensor type does not need to be associated with the VIMap,
+      // as it is only used to store sensor resources anyways.
     } else {
       LOG(FATAL)
           << "Trying to associate an unknown sensor type with the VIMap! Type: "
-          << sensor_type;
+          << sensor_of_type.first;
     }
   }
 }
@@ -956,6 +1026,12 @@ void VIMap::getAllAssociatedMissionSensorIds(
   }
   if (mission.hasLoopClosureSensor()) {
     sensor_ids->insert(mission.getLoopClosureSensor());
+  }
+  if (mission.hasAbsolute6DoFSensor()) {
+    sensor_ids->insert(mission.getAbsolute6DoFSensor());
+  }
+  if (mission.hasWheelOdometrySensor()) {
+    sensor_ids->insert(mission.getWheelOdometrySensor());
   }
 }
 
