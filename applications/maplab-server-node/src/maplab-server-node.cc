@@ -527,7 +527,7 @@ bool MaplabServerNode::loadAndProcessSubmap(
 
 bool MaplabServerNode::saveMap() {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (!FLAGS_maplab_server_merged_map_folder.empty()) {
+  if (FLAGS_maplab_server_merged_map_folder.empty()) {
     LOG(ERROR) << "[MaplabServerNode] Cannot save map because "
                   "--maplab_server_merged_map_folder is empty!";
     return false;

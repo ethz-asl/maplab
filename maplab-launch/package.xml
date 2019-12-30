@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package format="2">
+  <name>maplab_launch</name>
+  <version>0.0.0</version>
+  <description>
+    Package for the launch files, calibrations and configurations.
+  </description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+</package>
