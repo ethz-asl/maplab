@@ -66,6 +66,7 @@ void findOutlierLandmarks(
   std::mutex outlier_landmarks_mutex;
   std::function<void(const std::vector<size_t>&)> process_landmark =
       [&](const std::vector<size_t>& batch) {
+        vi_map::LandmarkIdList local_outlier_landmarks;
         for (size_t item : batch) {
           const vi_map::LandmarkId& landmark_id = landmark_ids[item];
           const vi_map::Landmark& landmark = map.getLandmark(landmark_id);
@@ -93,8 +94,7 @@ void findOutlierLandmarks(
                 map.getLandmark_p_C_fi(landmark_id, observer_vertex, frame_idx);
 
             if (p_C_fi[2] <= 0.0) {
-              std::lock_guard<std::mutex> lock(outlier_landmarks_mutex);
-              outlier_landmarks->emplace_back(landmark_id);
+              local_outlier_landmarks.emplace_back(landmark_id);
               break;
             }
 
@@ -107,17 +107,24 @@ void findOutlierLandmarks(
                   reprojection_error_sq > same_mission_reproj_error_px_sq) {
                 // The landmarks is in the same mission so we use the same
                 // mission reprojection error threshold.
-                std::lock_guard<std::mutex> lock(outlier_landmarks_mutex);
-                outlier_landmarks->emplace_back(landmark_id);
+                local_outlier_landmarks.emplace_back(landmark_id);
+                break;
               } else if (
                   reprojection_error_sq > other_mission_reproj_error_px_sq) {
                 // The observation is coming from a different mission than the
                 // one where the landmark is stored.
-                std::lock_guard<std::mutex> lock(outlier_landmarks_mutex);
-                outlier_landmarks->emplace_back(landmark_id);
+                local_outlier_landmarks.emplace_back(landmark_id);
+                break;
               }
             }
           }
+        }
+
+        {
+          std::lock_guard<std::mutex> lock(outlier_landmarks_mutex);
+          outlier_landmarks->insert(
+              outlier_landmarks->end(), local_outlier_landmarks.begin(),
+              local_outlier_landmarks.end());
         }
       };
 
