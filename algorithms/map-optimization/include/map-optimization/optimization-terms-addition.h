@@ -23,7 +23,7 @@ int addVisualTermsForVertices(
         camera_parameterization,
     const pose_graph::VertexIdList& vertices, OptimizationProblem* problem);
 
-bool addVisualTermForKeypoint(
+void addVisualTermForKeypoint(
     const int keypoint_idx, const int frame_idx,
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
