@@ -22,7 +22,6 @@ inline ceres::Solver::Options initSolverOptionsFromFlags() {
   options.gradient_tolerance = 1e-10;
   options.parameter_tolerance = 1e-8;
   options.num_threads = common::getNumHardwareThreads();
-  options.num_linear_solver_threads = common::getNumHardwareThreads();
   options.jacobi_scaling = FLAGS_ba_use_jacobi_scaling;
   options.initial_trust_region_radius = 1e5;
   options.max_trust_region_radius = 1e20;
