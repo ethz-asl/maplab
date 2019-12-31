@@ -47,10 +47,13 @@ def absolute_pose_test_publisher():
     global pub
     global sub
 
-    pub = rospy.Publisher(
-        'test_absolute_6dof', PoseWithCovarianceStamped, queue_size=10)
-    sub = rospy.Subscriber(
-        'odometry_subscriber', OdometryWithImuBiases, callback, queue_size=10)
+    pub = rospy.Publisher('test_absolute_6dof',
+                          PoseWithCovarianceStamped,
+                          queue_size=10)
+    sub = rospy.Subscriber('odometry_subscriber',
+                           OdometryWithImuBiases,
+                           callback,
+                           queue_size=10)
     rospy.init_node('test_absolute_6dof', anonymous=True)
     rospy.spin()
 
