@@ -75,7 +75,10 @@ void ResourceMap::mergeFromMap(const ResourceMap& source_map) {
 
       CHECK(resource_info_map_[resource_type]
                 .emplace(resource_info_map_value.first, resource_info)
-                .second);
+                .second)
+          << "ResourceId collision: Failed to add resource "
+          << resource_info_map_value.first
+          << " to merged map, since it already exists!";
     }
     CHECK_EQ(
         resource_info_map_[resource_type].size(),
