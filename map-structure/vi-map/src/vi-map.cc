@@ -2735,7 +2735,7 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
         << "Could not find a matching mission id in the other map that "
         << "could be merged as a submap! Adding as new mission without "
         << "attaching to existing missions!";
-    return mergeAllMissionsFromMap(submap);
+    return mergeAllMissionsFromMapWithoutResources(submap);
   }
   vi_map::VIMission& base_mission = getMission(submap_and_base_mission_id);
   const vi_map::VIMission& submap_mission =
