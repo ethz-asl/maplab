@@ -72,9 +72,10 @@ def test_maplab_node_end_to_end():
              vio_output_map_path))
 
     # Compare estimator csv - ground truth data.
-    estimator_data_vio_unaligned_G_I = load_dataset(
-        estimator_vio_csv_path, input_format="rovioli")
-    assert estimator_data_vio_unaligned_G_I.shape[0] > 0, """Estimator failed to run properly.
+    estimator_data_vio_unaligned_G_I = load_dataset(estimator_vio_csv_path,
+                                                    input_format="rovioli")
+    assert estimator_data_vio_unaligned_G_I.shape[
+        0] > 0, """Estimator failed to run properly.
         Make sure that the sensor.yaml file matches the rosbag contents."""
 
     ground_truth_data_unaligned_W_M = load_dataset(
@@ -155,16 +156,18 @@ def test_maplab_node_end_to_end():
         VIO_MAX_ORIENTATION_RMSE_RAD, VIO_MAX_ORIENTATION_RMSE_RAD)
 
     # Get localizations for VIL case.
-    vil_localizations = np.genfromtxt(
-        estimator_vil_csv_path, delimiter=",", skip_header=1)
-    assert vil_localizations.shape[0] > 0, """Estimator failed to run properly in localization mode.
+    vil_localizations = np.genfromtxt(estimator_vil_csv_path,
+                                      delimiter=",",
+                                      skip_header=1)
+    assert vil_localizations.shape[
+        0] > 0, """Estimator failed to run properly in localization mode.
         Make sure that the sensor.yaml file matches the rosbag contents."""
 
     vil_localizations = vil_localizations[:, [0, 15]]
     vil_localizations = vil_localizations[vil_localizations[:, 1] == 1, :]
 
-    estimator_data_vil_unaligned_G_I = load_dataset(
-        estimator_vil_csv_path, input_format="rovioli")
+    estimator_data_vil_unaligned_G_I = load_dataset(estimator_vil_csv_path,
+                                                    input_format="rovioli")
     vil_errors = end_to_end_test.calculate_errors_of_datasets(
         "maplab_node_VIL",
         estimator_data_vil_unaligned_G_I,
