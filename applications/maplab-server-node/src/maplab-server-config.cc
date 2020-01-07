@@ -1,18 +1,5 @@
 #include "maplab-server-node/maplab-server-config.h"
 
-DEFINE_string(
-    maplab_server_merged_map_folder, "",
-    "Where the finished/intermediate maps should be stored. Not optional.");
-
-DEFINE_string(
-    maplab_server_resource_folder, "",
-    "Where the resources of the merged map should be stored, if empty, the "
-    "standard map resource folder is used.");
-
-DEFINE_int32(
-    maplab_server_backup_interval_s, 300,
-    "Create a backup of the current map every n seconds. 0 = no backups.");
-
 namespace maplab {
 
 bool MaplabServerNodeConfig::deserialize(const YAML::Node& config_node) {

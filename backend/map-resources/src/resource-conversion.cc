@@ -72,6 +72,7 @@ bool convertDepthMapToPointCloud(
     const cv::Mat& depth_map, const aslam::Camera& camera,
     resources::PointCloud* point_cloud) {
   CHECK_NOTNULL(point_cloud);
+  CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
 
   cv::Mat image(1, 1, CV_8UC1);
   return convertDepthMapToPointCloud(depth_map, image, camera, point_cloud);
@@ -81,6 +82,7 @@ bool convertDepthMapToPointCloud(
     const cv::Mat& depth_map, const aslam::Camera& camera,
     voxblox::Pointcloud* point_cloud) {
   CHECK_NOTNULL(point_cloud)->clear();
+  CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
 
   cv::Mat image(1, 1, CV_8UC1);
   return convertDepthMapToPointCloud(depth_map, image, camera, point_cloud);
@@ -99,6 +101,8 @@ bool convertDepthMapWithImageToPointCloud(
     voxblox::Pointcloud* points_C, voxblox::Colors* colors) {
   CHECK_NOTNULL(points_C)->clear();
   CHECK_NOTNULL(colors);
+  CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
+
   resources::VoxbloxColorPointCloud voxblox_point_cloud;
   voxblox_point_cloud.points_C = points_C;
   voxblox_point_cloud.colors = colors;

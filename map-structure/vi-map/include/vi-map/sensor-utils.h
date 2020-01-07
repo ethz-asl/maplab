@@ -14,7 +14,19 @@
 #include <sensors/pointcloud-map-sensor.h>
 #include <sensors/sensor-types.h>
 #include <sensors/wheel-odometry-sensor.h>
-#include <vi-map/sensor-manager.h>
+
+#include "vi-map/sensor-manager.h"
+
+DECLARE_string(selected_ncamera_sensor_id);
+DECLARE_string(selected_imu_sensor_id);
+DECLARE_string(selected_lidar_sensor_id);
+DECLARE_string(selected_odometry_6dof_sensor_id);
+DECLARE_string(selected_loop_closure_sensor_id);
+DECLARE_string(selected_absolute_6dof_sensor_id);
+DECLARE_string(selected_wheel_odometry_sensor_id);
+DECLARE_string(selected_gps_utm_sensor_id);
+DECLARE_string(selected_gps_wgs_sensor_id);
+DECLARE_string(selected_point_cloud_map_sensor_id);
 
 namespace vi_map {
 

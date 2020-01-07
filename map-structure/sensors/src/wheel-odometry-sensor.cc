@@ -10,11 +10,11 @@ constexpr char kYamlFieldNameT_St_Stp1_fixed_covariance[] =
     "T_St_Stp1_fixed_covariance";
 
 WheelOdometry::WheelOdometry()
-    : Sensor(), has_fixed_T_St_Stp1_fixed_covariance_(false) {}
+    : Sensor(), has_T_St_Stp1_fixed_covariance_(false) {}
 
 WheelOdometry::WheelOdometry(
     const aslam::SensorId& sensor_id, const std::string& topic)
-    : Sensor(sensor_id, topic), has_fixed_T_St_Stp1_fixed_covariance_(false) {}
+    : Sensor(sensor_id, topic), has_T_St_Stp1_fixed_covariance_(false) {}
 
 bool WheelOdometry::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
   if (sensor_node[kYamlFieldNameT_St_Stp1_fixed_covariance]) {
@@ -24,15 +24,15 @@ bool WheelOdometry::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
         static_cast<std::string>(kYamlFieldNameT_St_Stp1_fixed_covariance),
         &input_matrix));
     T_St_Stp1_fixed_covariance_ = input_matrix;
-    has_fixed_T_St_Stp1_fixed_covariance_ = true;
+    has_T_St_Stp1_fixed_covariance_ = true;
   } else {
-    has_fixed_T_St_Stp1_fixed_covariance_ = false;
+    has_T_St_Stp1_fixed_covariance_ = false;
   }
   return true;
 }
 
 void WheelOdometry::saveToYamlNodeImpl(YAML::Node* sensor_node) const {
-  if (has_fixed_T_St_Stp1_fixed_covariance_) {
+  if (has_T_St_Stp1_fixed_covariance_) {
     (*sensor_node)[static_cast<std::string>(
         kYamlFieldNameT_St_Stp1_fixed_covariance)] =
         YAML::convert<aslam::TransformationCovariance>::encode(

@@ -96,7 +96,7 @@ bool VisualLocalizer::localizeNFrame(
   localization_result->localization_mode = current_localization_mode_;
   // todo(nscheidt): compute a localization covariance rather than use a fixed
   // value from a config
-  CHECK(nframe->getNCamera().getFixedLocalizationCovariance(
+  CHECK(nframe->getNCamera().get_T_G_B_fixed_localization_covariance(
       &localization_result->T_G_B_covariance))
       << "Currently, a fixed covariance value is required for visual "
       << "localization. Please provide it as T_G_B_fixed_covariance in the "

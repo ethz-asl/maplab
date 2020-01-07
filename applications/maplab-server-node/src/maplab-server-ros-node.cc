@@ -55,13 +55,11 @@ MaplabServerRosNode::MaplabServerRosNode(
   LOG(INFO) << "[MaplabServerRosNode] Initializing MaplabServerNode...";
   maplab_server_node_.reset(new MaplabServerNode(config));
 
-  // Set up map saving service.
   boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
       save_map_callback =
           boost::bind(&MaplabServerRosNode::saveMapCallback, this, _1, _2);
   save_map_srv_ = nh_.advertiseService("save_map", save_map_callback);
 
-  // Set up map saving service.
   boost::function<bool(
       maplab_msgs::BatchMapLookup::Request&,
       maplab_msgs::BatchMapLookup::Response&)>

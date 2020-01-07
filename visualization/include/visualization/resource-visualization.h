@@ -41,7 +41,7 @@ DECLARE_bool(vis_pointcloud_accumulated_before_publishing);
 
 DECLARE_bool(vis_pointcloud_publish_in_sensor_frame_with_tf);
 
-DECLARE_bool(vis_pointcloud_use_distorted_camera_to_reproject_depth_maps);
+DECLARE_bool(vis_pointcloud_reproject_depth_maps_with_undistorted_camera);
 
 DECLARE_double(vis_pointcloud_publishing_real_time_factor);
 

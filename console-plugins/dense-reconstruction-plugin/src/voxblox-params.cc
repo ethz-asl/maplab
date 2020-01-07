@@ -22,11 +22,6 @@ DEFINE_string(
     "Path to where the ESDF/TSDF map is exported to. If empty, no "
     "map will be exported.");
 
-DEFINE_bool(
-    dense_tsdf_icp_refine_roll_and_pitch, false,
-    "If enabled, ICP will refine roll and pitch as well when integrating point "
-    "clouds into the TSDF or ESDF maps.");
-
 DEFINE_string(
     dense_tsdf_integrator_type, "fast",
     "Voxblox TSDF integrator type [simple, merged, fast]");
@@ -65,15 +60,20 @@ DEFINE_bool(
     "weight equal to the ray base weight.");
 
 DEFINE_bool(
-    dense_tsdf_icp_enabled, true,
+    dense_tsdf_icp_enabled, false,
     "If enabled, ICP is used to align the point clouds to the TSDF grid, "
     "before integrating them.");
 
 DEFINE_bool(
-    dense_tsdf_icp_accumulate_transformations, true,
+    dense_tsdf_icp_accumulate_transformations, false,
     "If enabled, the ICP corrections are accumulated, such that subsequent "
     "alignments start from the pose obtained from the VIMap which is then "
     "corrected based on the previous ICP alignment.");
+
+DEFINE_bool(
+    dense_tsdf_icp_refine_roll_and_pitch, false,
+    "If enabled, ICP will refine roll and pitch as well when integrating point "
+    "clouds into the TSDF or ESDF maps.");
 
 DEFINE_double(
     dense_tsdf_voxel_size_m, 0.10, "Voxel size of the TSDF grid [m].");

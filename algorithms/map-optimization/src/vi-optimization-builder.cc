@@ -28,7 +28,7 @@ DEFINE_bool(
     "Whether or not to fix the extrinsics of the wheel odometry sensor.");
 DEFINE_bool(
     ba_fix_vertices, false,
-    "Whether or not to vertices' poses in optimization.");
+    "Whether or not to fix vertex poses in optimization.");
 DEFINE_bool(
     ba_fix_landmark_positions, false,
     "Whether or not to fix the positions of the landmarks.");
@@ -243,9 +243,8 @@ OptimizationProblem* constructOptimizationProblem(
 
     // Determine observability of scale, global position and global orientation.
     const bool scale_is_observable =
-        cluster_has_inertial ||
-        (cluster_has_visual && (cluster_num_absolute_6dof_used > 1u) ||
-         cluster_has_wheel_odometry);
+        cluster_has_inertial || cluster_has_wheel_odometry ||
+        (cluster_has_visual && cluster_num_absolute_6dof_used > 1u);
 
     const bool global_position_is_observable =
         cluster_num_absolute_6dof_used > 0u;
@@ -266,7 +265,7 @@ OptimizationProblem* constructOptimizationProblem(
        << ((cluster_has_inertial) ? "on" : "off");
     ss << "\n\tVisual constraints:\t\t"
        << ((cluster_has_visual) ? "on" : "off");
-    ss << "\n\tWheel odometry constraints:\t\t"
+    ss << "\n\tWheel odometry constraints:\t"
        << ((cluster_has_wheel_odometry) ? "on" : "off");
     ss << "\n\tAbsolute 6DoF constraints:\t"
        << ((cluster_num_absolute_6dof_used > 0) ? "on" : "off");

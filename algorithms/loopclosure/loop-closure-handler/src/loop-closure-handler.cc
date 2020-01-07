@@ -18,7 +18,10 @@ DEFINE_int32(
 DEFINE_bool(
     lc_nonlinear_refinement_p3p, false,
     "If nonlinear refinement on all ransac inliers should be run.");
-DECLARE_double(lc_switch_variable_variance);
+DEFINE_double(
+    lc_switch_variable_variance, 1e-8,
+    "The variance for the switch variable of the loop-closure "
+    "edges.");
 
 DEFINE_double(
     lc_edge_covariance_scaler, 1e-7,

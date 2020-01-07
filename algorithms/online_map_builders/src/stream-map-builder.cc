@@ -22,10 +22,28 @@ DEFINE_bool(
     "Store the point clouds associated with a lidar sensor to the map resource "
     "folder.");
 
+DEFINE_string(
+    map_builder_save_point_clouds_as_range_image_camera_id, "",
+    "Camera id of the depth camera used to convert lidar point clouds to range "
+    "images "
+    "maps.");
+
+DEFINE_bool(
+    map_builder_save_point_clouds_as_range_image_including_intensity_image,
+    true,
+    "If enabled, the color or intensity information in the point cloud is used "
+    "to create a corresponding intensity/color for each point cloud in "
+    "addition to the range image.");
+
 DEFINE_bool(
     map_builder_save_point_cloud_maps_as_resources, true,
     "Store the point cloud (sub-)maps associated with an external source to "
     "the map resource folder.");
+
+DEFINE_bool(
+    map_builder_visualize_lidar_depth_maps_in_ocv_window, false,
+    "If enabled, opencv windows with the result of the lidar scan to lidar "
+    "depth map conversion will be opened.");
 
 namespace online_map_builders {
 
@@ -67,17 +85,95 @@ StreamMapBuilder::StreamMapBuilder(
   sensor_manager.getAllSensorIds(&sensor_ids);
   map_->associateMissionSensors(sensor_ids, mission_id_);
 
+  // Retrieve depth camera id from flags to later convert lidar point clouds to
+  // depth maps.
+  if (FLAGS_map_builder_save_point_clouds_as_resources &&
+      !FLAGS_map_builder_save_point_clouds_as_range_image_camera_id.empty()) {
+    lidar_depth_camera_id_.fromHexString(
+        FLAGS_map_builder_save_point_clouds_as_range_image_camera_id);
+    if (!lidar_depth_camera_id_.isValid()) {
+      LOG(ERROR)
+          << "[StreamMapBuilder] The depth camera id ("
+          << FLAGS_map_builder_save_point_clouds_as_range_image_camera_id
+          << ") provided to project the lidar point clouds into depth maps is "
+          << "not valid! Point clouds will not be projected into depth maps.";
+    } else if (!map_->getSensorManager().hasSensor(lidar_depth_camera_id_)) {
+      LOG(ERROR)
+          << "[StreamMapBuilder] The depth camera id ("
+          << lidar_depth_camera_id_
+          << ") provided to project the lidar point clouds into depth maps is "
+          << "not in the sensor manager! Point clouds will not be projected "
+             "into depth maps.";
+    } else {
+      VLOG(1) << "[StreamMapBuilder] Using depth camera "
+              << lidar_depth_camera_id_
+              << " to project lidar scans into depth maps.";
+
+      aslam::NCamera::Ptr lidar_depth_camera_sensor_ncamera_ptr =
+          map_->getSensorManager().getSensorPtr<aslam::NCamera>(
+              lidar_depth_camera_id_);
+      CHECK(lidar_depth_camera_sensor_ncamera_ptr);
+      CHECK_EQ(lidar_depth_camera_sensor_ncamera_ptr->numCameras(), 1u);
+      lidar_depth_camera_sensor_ =
+          lidar_depth_camera_sensor_ncamera_ptr->getCameraShared(0u);
+      CHECK(lidar_depth_camera_sensor_);
+      const aslam::Transformation& T_C_lidar_Cn_lidar =
+          lidar_depth_camera_sensor_ncamera_ptr->get_T_C_B(0u);
+
+      const aslam::Transformation& T_B_Cn_lidar =
+          map_->getSensorManager().getSensor_T_B_S(lidar_depth_camera_id_);
+      CHECK(map_->getMission(mission_id_).hasLidar())
+          << "[StreamMapBuilder] Mission " << mission_id_
+          << " does not have a lidar sensor and therefore cannot attach lidar "
+          << "measurements!";
+      const aslam::SensorId& lidar_sensor_id =
+          map_->getMission(mission_id_).getLidarId();
+      CHECK(map_->getSensorManager().hasSensor(lidar_sensor_id))
+          << "[StreamMapBuilder] Mission " << mission_id_
+          << " has a lidar id associated (" << lidar_sensor_id
+          << ") but this lidar does not exist in the sensor manager!";
+
+      const aslam::Transformation& T_B_S_lidar =
+          map_->getSensorManager().getSensor_T_B_S(lidar_sensor_id);
+      T_C_lidar_S_lidar_ =
+          T_C_lidar_Cn_lidar * T_B_Cn_lidar.inverse() * T_B_S_lidar;
+    }
+  }
+
   // Initialize wheel odometry origin frame tracking
   T_Ow_Btm1_.setIdentity();
 }
 
 void StreamMapBuilder::updateMapDependentData() {
+  // Update status of wheel odometry edge attachement we either:
+  //   - reset to the initial condition OR
+  //   - if by luck the last vertex we attached a relative wheel odometry
+  //     message to is still in the submap we continue from there
+  if (!map_->hasVertex(Btm1_vertex_id_)) {
+    Btm1_vertex_id_.setInvalid();
+    T_Ow_Btm1_.setIdentity();
+    found_wheel_odometry_origin_ = false;
+
+    // If there is no root vertex this will initialize to an invalid id which
+    // is fine since then the whole stream map builder will go through the
+    // default initialization procedure and initialize this again to the
+    // actual root vertex
+    vertex_processing_wheel_odometry_id_ = getRootVertexId();
+    done_current_vertex_wheel_odometry_ = false;
+  } else {
+    vertex_processing_wheel_odometry_id_ = Btm1_vertex_id_;
+    done_current_vertex_wheel_odometry_ = true;
+  }
+
+  // Update first and last vertex information
   pose_graph::VertexIdList vertex_ids;
   map_->getAllVertexIdsInMissionAlongGraph(mission_id_, &vertex_ids);
+
   if (vertex_ids.empty()) {
     // Nothing to do.
     return;
   }
+
   const vi_map::Vertex& first_vertex = map_->getVertex(vertex_ids.front());
   const vi_map::Vertex& last_vertex = map_->getVertex(vertex_ids.back());
   newest_vertex_timestamp_ns_.store(last_vertex.getMinTimestampNanoseconds());
@@ -117,6 +213,7 @@ void StreamMapBuilder::apply(
         nframe_to_insert->getMinTimestampNanoseconds());
     addRootViwlsVertex(nframe_to_insert, update.vinode);
     vertex_processing_wheel_odometry_id_ = getRootVertexId();
+    done_current_vertex_wheel_odometry_ = false;
   } else {
     CHECK(mission_id_.isValid());
     newest_vertex_timestamp_ns_.store(
@@ -755,15 +852,9 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
     return;
   }
 
-  // Check if we need to process the current vertex
-  bool process_current_vertex =
-      !last_vertex_done_wheel_odometry_id_.isValid() ||
-      vertex_processing_wheel_odometry_id_ !=
-          last_vertex_done_wheel_odometry_id_;
-
-  // If current vertex should not be processed, look for a next one and
-  // otherwise return and wait for next update
-  if (!process_current_vertex) {
+  // If current vertex should not be processed, look for a next one. If a next
+  // vertex doesn't exist return and wait for next update
+  if (done_current_vertex_wheel_odometry_) {
     if (map_->getNextVertex(
             vertex_processing_wheel_odometry_id_,
             map_->getGraphTraversalEdgeType(mission_id_),
@@ -771,6 +862,8 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
       VLOG(2) << "[StreamMapBuilder] Current vertex "
               << vertex_processing_wheel_odometry_id_ << " already "
               << "processed and will be skipped - moving to next vertex.";
+      // We got a new vertex, try to process it
+      done_current_vertex_wheel_odometry_ = false;
     } else {
       VLOG(2) << "[StreamMapBuilder] Current vertex "
               << vertex_processing_wheel_odometry_id_ << " already "
@@ -802,8 +895,7 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
           << "wheel odometry edge. This can occur if root vertex is being "
           << "processed and no wheel odometry measurements arrived before. "
           << "This should not occur if any later frame is being processed.";
-      last_vertex_done_wheel_odometry_id_ =
-          vertex_processing_wheel_odometry_id_;
+      done_current_vertex_wheel_odometry_ = true;
       return;
     }
     const bool value_after_exists =
@@ -848,29 +940,25 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
     T_Ow_Btm1_ = T_Ow_S_before * T_S_before_Bt;
 
     // We always have to skip the first time since with this we find the wheel
-    // odometry origin and can't yet calculate a relative transform.
-    if (found_wheel_odometry_origin_) {
-      // This should never happend since we always skip the first vertex for
-      // which we calculate a transform.
-      CHECK(vertex_processing_wheel_odometry_id_ != getRootVertexId());
-
-      pose_graph::VertexId Btm1_vertex_id;
-      CHECK(constMap()->getPreviousVertex(
-          vertex_processing_wheel_odometry_id_,
-          pose_graph::Edge::EdgeType::kViwls, &Btm1_vertex_id));
+    // odometry origin and can't yet calculate a relative transform. When
+    // submapping it can happen that we are initialized but processing the root
+    // vertex in which case we also skip.
+    if (found_wheel_odometry_origin_ &&
+        vertex_processing_wheel_odometry_id_ != getRootVertexId()) {
       addWheelOdometryEdge(
-          Btm1_vertex_id, vertex_processing_wheel_odometry_id_, T_Btm1_Bt);
-      last_vertex_done_wheel_odometry_id_ =
-          vertex_processing_wheel_odometry_id_;
+          Btm1_vertex_id_, vertex_processing_wheel_odometry_id_, T_Btm1_Bt);
+      Btm1_vertex_id_ = vertex_processing_wheel_odometry_id_;
+      done_current_vertex_wheel_odometry_ = true;
 
       counter++;
     } else {
       VLOG(2)
-          << "[StreamMapBuilder] Initialized wheel odometry origin. Skipping "
-          << "adding edge since no relative transform can be calculated.";
+          << "[StreamMapBuilder] Initialized wheel odometry origin or "
+          << "currently processing root vertex. Skipping adding edge since no "
+          << "relative transform can be calculated.";
       found_wheel_odometry_origin_ = true;
-      last_vertex_done_wheel_odometry_id_ =
-          vertex_processing_wheel_odometry_id_;
+      Btm1_vertex_id_ = vertex_processing_wheel_odometry_id_;
+      done_current_vertex_wheel_odometry_ = true;
     }
 
     std::unordered_set<pose_graph::EdgeId> outgoing_edges;
@@ -885,6 +973,8 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
     } else {
       VLOG(3) << "[StreamMapBuilder] Found another vertex:"
               << vertex_processing_wheel_odometry_id_;
+      // We got a new vertex, try to process it
+      done_current_vertex_wheel_odometry_ = false;
     }
   }
   VLOG(2) << "[StreamMapBuilder] Added " << counter << " wheel odometry edges.";

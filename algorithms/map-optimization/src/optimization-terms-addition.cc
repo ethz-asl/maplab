@@ -16,7 +16,7 @@
 
 namespace map_optimization {
 
-bool addVisualTermForKeypoint(
+void addVisualTermForKeypoint(
     const int keypoint_idx, const int frame_idx,
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
@@ -52,7 +52,7 @@ bool addVisualTermForKeypoint(
   // The keypoint must have a valid association with a landmark.
   CHECK(landmark_id.isValid());
 
-  vi_map::Vertex& landmark_store_vertex =
+  const vi_map::Vertex& landmark_store_vertex =
       map->getLandmarkStoreVertex(landmark_id);
   vi_map::Landmark& landmark = map->getLandmark(landmark_id);
 
@@ -196,7 +196,6 @@ bool addVisualTermForKeypoint(
 
   problem->getProblemBookkeepingMutable()->landmarks_in_problem.emplace(
       landmark_id, visual_term_cost.get());
-  return true;
 }
 
 int addVisualTermsForVertices(
@@ -269,13 +268,12 @@ int addVisualTermsForVertices(
           continue;
         }
 
-        if (addVisualTermForKeypoint(
-                keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
-                fix_extrinsics_rotation, fix_extrinsics_translation,
-                pose_parameterization, baseframe_parameterization,
-                camera_parameterization, &vertex, problem)) {
-          num_visual_constraints++;
-        }
+        addVisualTermForKeypoint(
+            keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
+            fix_extrinsics_rotation, fix_extrinsics_translation,
+            pose_parameterization, baseframe_parameterization,
+            camera_parameterization, &vertex, problem);
+        num_visual_constraints++;
       }
     }
   }
@@ -537,7 +535,6 @@ int addRelativePoseTermsForEdges(
             ceres_error_terms::poseblocks::kPositionBlockSize>(
             new ceres_error_terms::SixDoFBlockPoseErrorTermWithExtrinsics(
                 T_A_B, T_A_B_covariance)));
-
 
     problem->getProblemBookkeepingMutable()->keyframes_in_problem.emplace(
         vertex_from.id());
