@@ -152,6 +152,13 @@ void ViwlsGraphRvizPlotter::publishEdges(
   color_blue.blue = 200;
   publishEdges(
       map, missions, pose_graph::Edge::EdgeType::kWheelOdometry, color_blue);
+
+  visualization::Color color_red;
+  color_red.red = 255;
+  color_red.green = 0;
+  color_red.blue = 0;
+  publishEdges(
+      map, missions, pose_graph::Edge::EdgeType::kOdometry, color_red);
 }
 
 void ViwlsGraphRvizPlotter::publishEdges(

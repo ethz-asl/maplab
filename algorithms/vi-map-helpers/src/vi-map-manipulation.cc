@@ -657,4 +657,82 @@ void VIMapManipulation::dropMapDataBeforeVertex(
   map_.getMission(mission_id).setRootVertexId(new_root_vertex);
 }
 
+uint32_t VIMapManipulation::addOdometryEdgesBetweenVertices(
+    const uint32_t min_number_of_common_landmarks) {
+  uint32_t num_edges_added = 0u;
+
+  vi_map::MissionIdList mission_ids;
+  map_.getAllMissionIds(&mission_ids);
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    const vi_map::VIMission& mission = map_.getMission(mission_id);
+
+    if (!mission.hasOdometry6DoFSensor()) {
+      LOG(ERROR) << "Cannot add odometry edges in between the vertices of "
+                 << "mission " << mission_id
+                 << " because it does not have an odometry sensor!";
+      continue;
+    }
+
+    const aslam::SensorId& sensor_id = mission.getOdometry6DoFSensor();
+
+    const vi_map::Odometry6DoF& odometry_sensor =
+        map_.getSensorManager().getSensor<vi_map::Odometry6DoF>(sensor_id);
+
+    const aslam::Transformation& T_B_S =
+        map_.getSensorManager().getSensor_T_B_S(sensor_id);
+
+    aslam::TransformationCovariance odometry_covariance;
+    if (!odometry_sensor.get_T_St_Stp1_fixed_covariance(&odometry_covariance)) {
+      LOG(ERROR) << "Cannot add odometry edges in between vertices if the "
+                    "provided odometry sensor ("
+                 << sensor_id << ") does not have a valid covariance!";
+      return num_edges_added;
+    }
+
+    pose_graph::VertexIdList all_vertices_in_mission;
+    map_.getAllVertexIdsInMissionAlongGraph(
+        mission_id, &all_vertices_in_mission);
+
+    vi_map_helpers::VIMapQueries vi_map_queries(map_);
+
+    const bool add_vertices_based_on_common_landmarks =
+        min_number_of_common_landmarks > 0u;
+
+    for (uint32_t vertex_idx = 1u; vertex_idx < all_vertices_in_mission.size();
+         ++vertex_idx) {
+      const pose_graph::VertexId& current_vertex_id =
+          all_vertices_in_mission[vertex_idx - 1];
+      const pose_graph::VertexId& next_vertex_id =
+          all_vertices_in_mission[vertex_idx];
+      const vi_map::Vertex& current_vertex = map_.getVertex(current_vertex_id);
+      const vi_map::Vertex& next_vertex = map_.getVertex(next_vertex_id);
+
+      if (add_vertices_based_on_common_landmarks) {
+        vi_map::LandmarkIdSet common_landmarks;
+        const int num_common_landmarks =
+            vi_map_queries.getNumberOfCommonLandmarks(
+                current_vertex_id, next_vertex_id, &common_landmarks);
+        if (num_common_landmarks >
+            static_cast<int>(min_number_of_common_landmarks)) {
+          continue;
+        }
+      }
+      const aslam::Transformation& T_M_B_current = current_vertex.get_T_M_I();
+      const aslam::Transformation& T_M_B_next = next_vertex.get_T_M_I();
+      const aslam::Transformation T_B_current_B_next =
+          T_B_S.inverse() * T_M_B_current.inverse() * T_M_B_next * T_B_S;
+
+      const pose_graph::EdgeId edge_id =
+          aslam::createRandomId<pose_graph::EdgeId>();
+
+      map_.addEdge(aligned_unique<vi_map::TransformationEdge>(
+          pose_graph::Edge::EdgeType::kOdometry, edge_id, current_vertex_id,
+          next_vertex_id, T_B_current_B_next, odometry_covariance, sensor_id));
+
+      ++num_edges_added;
+    }
+  }
+  return num_edges_added;
+}
+
 }  // namespace vi_map_helpers

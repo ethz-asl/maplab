@@ -582,6 +582,7 @@ std::string VIMap::printMapStatistics(
   size_t num_imu_edges = 0u;
   size_t num_loop_closure_edges = 0u;
   size_t num_wheel_odometry_edges = 0u;
+  size_t num_odometry_edges = 0u;
   size_t num_absolute_6dof_constraints = 0u;
   pose_graph::EdgeIdList edge_ids;
   getAllEdgeIdsInMissionAlongGraph(mission_id, &edge_ids);
@@ -590,6 +591,9 @@ std::string VIMap::printMapStatistics(
     switch (getEdgeType(edge_id)) {
       case pose_graph::Edge::EdgeType::kWheelOdometry:
         ++num_wheel_odometry_edges;
+        break;
+      case pose_graph::Edge::EdgeType::kOdometry:
+        ++num_odometry_edges;
         break;
       case pose_graph::Edge::EdgeType::kLoopClosure:
         ++num_loop_closure_edges;
@@ -663,7 +667,8 @@ std::string VIMap::printMapStatistics(
     stats_text << std::endl;
     print_aligned("Odometry-6DoF Sensor: ", odometry_6dof_id.hexString(), 1);
 
-    // TODO(mfehr): ADD ALL Odometry.6DoF-P. Sensor SPECIFIC STUFF
+    print_aligned(
+        " - Odometry-6DoF Edges: ", std::to_string(num_odometry_edges), 1);
   }
 
   // Print Lidar sensor/constraint info if present

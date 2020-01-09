@@ -104,6 +104,12 @@ class VIMapManipulation {
       const pose_graph::VertexId& new_root_vertex,
       const bool delete_resources_from_file_system);
 
+  // Adds TransformationEdges of type kOdometry between vertices
+  // that have fewer common landmarks than 'min_number_of_common_landmarks'. If
+  // the threshold is set to 0, we add odometry edges between all vertices.
+  uint32_t addOdometryEdgesBetweenVertices(
+      const uint32_t min_number_of_common_landmarks = 0u);
+
  private:
   vi_map::VIMap& map_;
   VIMapGeometry geometry_;

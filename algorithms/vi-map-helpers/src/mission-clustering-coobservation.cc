@@ -165,4 +165,18 @@ bool hasWheelOdometryConstraintsInAllMissionsInCluster(
   return true;
 }
 
+bool has6DoFOdometryConstraintsInAllMissionsInCluster(
+    const vi_map::VIMap& vi_map, const vi_map::MissionIdSet& mission_ids) {
+  CHECK(!mission_ids.empty());
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    pose_graph::EdgeIdList edge_ids;
+    vi_map.getAllEdgeIdsInMissionAlongGraph(
+        mission_id, pose_graph::Edge::EdgeType::kOdometry, &edge_ids);
+    if (edge_ids.empty()) {
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace vi_map_helpers

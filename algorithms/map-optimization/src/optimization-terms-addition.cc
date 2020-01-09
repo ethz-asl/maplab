@@ -466,6 +466,29 @@ int addWheelOdometryTerms(
   return num_residuals_added;
 }
 
+int add6DoFOdometryTerms(
+    const bool fix_extrinsics, OptimizationProblem* problem) {
+  CHECK_NOTNULL(problem);
+
+  vi_map::VIMap* map = CHECK_NOTNULL(problem->getMapMutable());
+  const OptimizationProblem::LocalParameterizations& parameterizations =
+      problem->getLocalParameterizations();
+
+  size_t num_residuals_added = 0u;
+  const vi_map::MissionIdSet& missions_to_optimize = problem->getMissionIds();
+  for (const vi_map::MissionId& mission_id : missions_to_optimize) {
+    pose_graph::EdgeIdList edges;
+    map->getAllEdgeIdsInMissionAlongGraph(
+        mission_id, pose_graph::Edge::EdgeType::kOdometry, &edges);
+    num_residuals_added += addRelativePoseTermsForEdges(
+        pose_graph::Edge::EdgeType::kWheelOdometry, edges, fix_extrinsics,
+        parameterizations.pose_parameterization,
+        parameterizations.quaternion_parameterization, problem);
+  }
+
+  return num_residuals_added;
+}
+
 int addRelativePoseTermsForEdges(
     const vi_map::Edge::EdgeType edge_type,
     const pose_graph::EdgeIdList& provided_edges, const bool fix_extrinsics,
