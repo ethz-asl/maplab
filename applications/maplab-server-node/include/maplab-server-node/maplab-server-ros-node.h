@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <diagnostic_msgs/KeyValue.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <maplab_msgs/BatchMapLookup.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
@@ -43,6 +44,11 @@ class MaplabServerRosNode {
       maplab_msgs::BatchMapLookup::Request& requests,     // NOLINT
       maplab_msgs::BatchMapLookup::Response& responses);  // NOLINT
 
+  bool publishPoseCorrection(
+      const int64_t timestamp_ns, const std::string& robot_name,
+      const aslam::Transformation T_G_B,
+      const aslam::Transformation& T_B_old_B_new) const;
+
   void visualizeMap();
 
  private:
@@ -60,6 +66,9 @@ class MaplabServerRosNode {
   std::unique_ptr<MaplabServerNode> maplab_server_node_;
 
   ros::Subscriber map_update_notification_sub_;
+
+  ros::Publisher T_B_old_B_new_pub_;
+  ros::Publisher T_G_B_pub_;
 };
 
 }  // namespace maplab

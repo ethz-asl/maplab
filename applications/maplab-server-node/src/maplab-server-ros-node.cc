@@ -7,16 +7,16 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <minkindr_conversions/kindr_msg.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
+#include <std_srvs/Empty.h>
 
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
 #include <maplab_msgs/MapLookupRequest.h>
 #include <maplab_msgs/MapLookupResponse.h>
-
-#include <std_srvs/Empty.h>
 
 #include "maplab-server-node/maplab-server-config.h"
 #include "maplab-server-node/maplab-server-node.h"
@@ -73,6 +73,18 @@ MaplabServerRosNode::MaplabServerRosNode(
   map_update_notification_sub_ = nh_.subscribe(
       FLAGS_maplab_server_map_update_topic,
       FLAGS_maplab_server_map_update_topic_queue_size, submap_loading_callback);
+
+  T_B_old_B_new_pub_ =
+      nh_.advertise<geometry_msgs::TransformStamped>("T_B_old_B_new", 1);
+  T_G_B_pub_ = nh_.advertise<geometry_msgs::TransformStamped>("T_G_B", 1);
+
+  maplab_server_node_->registerPoseCorrectionPublisherCallback(
+      [this](
+          const int64_t timestamp_ns, const std::string& robot_name,
+          const aslam::Transformation& T_G_B,
+          const aslam::Transformation& T_B_old_B_new) {
+        publishPoseCorrection(timestamp_ns, robot_name, T_G_B, T_B_old_B_new);
+      });
 }
 
 bool MaplabServerRosNode::start() {
@@ -127,6 +139,29 @@ bool MaplabServerRosNode::saveMapCallback(
     std_srvs::Empty::Response& /*response*/) {  // NOLINT
   LOG(INFO) << "[MaplabServerRosNode] Received save map service call...";
   return saveMap();
+}
+
+bool MaplabServerRosNode::publishPoseCorrection(
+    const int64_t timestamp_ns, const std::string& robot_name,
+    const aslam::Transformation T_G_B,
+    const aslam::Transformation& T_B_old_B_new) const {
+  ros::Time timestamp_ros;
+  timestamp_ros.fromNSec(timestamp_ns);
+
+  geometry_msgs::TransformStamped T_B_old_B_new_msg;
+  T_B_old_B_new_msg.child_frame_id = robot_name;
+  T_B_old_B_new_msg.header.stamp = timestamp_ros;
+  T_B_old_B_new_msg.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_B_old_B_new, &T_B_old_B_new_msg.transform);
+  T_B_old_B_new_pub_.publish(T_B_old_B_new_msg);
+
+  geometry_msgs::TransformStamped T_G_B_msgs;
+  T_G_B_msgs.child_frame_id = robot_name;
+  T_G_B_msgs.header.stamp = timestamp_ros;
+  T_G_B_msgs.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_G_B, &T_G_B_msgs.transform);
+  T_G_B_pub_.publish(T_G_B_msgs);
+  return true;
 }
 
 // Look up the current global frame position of a point in sensor frame.
