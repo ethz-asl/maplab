@@ -46,8 +46,10 @@ class MaplabServerRosNode {
 
   bool publishPoseCorrection(
       const int64_t timestamp_ns, const std::string& robot_name,
-      const aslam::Transformation T_G_B,
-      const aslam::Transformation& T_B_old_B_new) const;
+      const aslam::Transformation& T_G_curr_B_curr,
+      const aslam::Transformation& T_G_curr_M_curr,
+      const aslam::Transformation& T_G_in_B_in,
+      const aslam::Transformation& T_G_in_M_in) const;
 
   void visualizeMap();
 
@@ -67,8 +69,13 @@ class MaplabServerRosNode {
 
   ros::Subscriber map_update_notification_sub_;
 
-  ros::Publisher T_B_old_B_new_pub_;
-  ros::Publisher T_G_B_pub_;
+  ros::Publisher T_G_curr_M_curr_pub_;
+  ros::Publisher T_G_curr_B_curr_pub_;
+
+  ros::Publisher T_G_in_B_in_pub_;
+  ros::Publisher T_G_in_M_in_pub_;
+
+  ros::Publisher T_G_curr_M_in_pub_;
 };
 
 }  // namespace maplab

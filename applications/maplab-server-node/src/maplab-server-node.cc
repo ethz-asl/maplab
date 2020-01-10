@@ -440,7 +440,8 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
 void MaplabServerNode::registerPoseCorrectionPublisherCallback(
     std::function<void(
         const int64_t, const std::string&, const aslam::Transformation&,
-        const aslam::Transformation)>
+        const aslam::Transformation&, const aslam::Transformation&,
+        const aslam::Transformation&)>
         callback) {
   CHECK(callback);
   pose_correction_publisher_callback_ = callback;
@@ -500,36 +501,38 @@ void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
       RobotMissionInformation& robot_info =
           robot_to_mission_id_map_[robot_name];
 
+      // Get the latest vertex of the robot mission.
       const pose_graph::VertexId last_vertex_id =
           map->getLastVertexIdOfMission(mission_id);
       const vi_map::Vertex& last_vertex = map->getVertex(last_vertex_id);
       const aslam::Transformation& T_G_M_latest =
           map->getMissionBaseFrameForMission(mission_id).get_T_G_M();
       const aslam::Transformation& T_M_B_latest = last_vertex.get_T_M_I();
-      robot_info.current_last_vertex_timestamp_ns =
+      const int64_t current_last_vertex_timestamp_ns =
           last_vertex.getMinTimestampNanoseconds();
-      robot_info.T_G_B_current_last_vertex = T_G_M_latest * T_M_B_latest;
 
       if (pose_correction_publisher_callback_) {
         const auto it_T_M_B = robot_info.T_M_B_submaps_input.find(
-            robot_info.current_last_vertex_timestamp_ns);
+            current_last_vertex_timestamp_ns);
         const auto it_T_G_M = robot_info.T_G_M_submaps_input.find(
-            robot_info.current_last_vertex_timestamp_ns);
+            current_last_vertex_timestamp_ns);
         if (it_T_M_B != robot_info.T_M_B_submaps_input.end() &&
             it_T_G_M != robot_info.T_G_M_submaps_input.end()) {
-          const aslam::Transformation& T_G_B_old =
+          const aslam::Transformation T_G_curr_B_curr =
+              T_G_M_latest * T_M_B_latest;
+          const aslam::Transformation T_G_curr_M_curr = T_G_M_latest;
+
+          const aslam::Transformation& T_G_in_B_in =
               it_T_G_M->second * it_T_M_B->second;
-          const aslam::Transformation T_B_old_B_new =
-              T_G_B_old.inverse() * robot_info.T_G_B_current_last_vertex;
+          const aslam::Transformation& T_G_in_M_in = it_T_G_M->second;
 
           pose_correction_publisher_callback_(
-              robot_info.current_last_vertex_timestamp_ns, robot_name,
-              robot_info.T_G_B_current_last_vertex, T_B_old_B_new);
+              current_last_vertex_timestamp_ns, robot_name, T_G_curr_B_curr,
+              T_G_curr_M_curr, T_G_in_B_in, T_G_in_M_in);
         } else {
           LOG(ERROR) << "[MaplabServerNode] MapMerging - Could not "
                      << "find corresponding original pose for the "
-                     << "latest vertex ("
-                     << robot_info.current_last_vertex_timestamp_ns
+                     << "latest vertex (" << current_last_vertex_timestamp_ns
                      << ") of robot " << robot_name << "!";
 
           {

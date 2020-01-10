@@ -74,16 +74,29 @@ MaplabServerRosNode::MaplabServerRosNode(
       FLAGS_maplab_server_map_update_topic,
       FLAGS_maplab_server_map_update_topic_queue_size, submap_loading_callback);
 
-  T_B_old_B_new_pub_ =
-      nh_.advertise<geometry_msgs::TransformStamped>("T_B_old_B_new", 1);
-  T_G_B_pub_ = nh_.advertise<geometry_msgs::TransformStamped>("T_G_B", 1);
+  T_G_curr_B_curr_pub_ =
+      nh_.advertise<geometry_msgs::TransformStamped>("T_G_curr_B_curr", 1);
+  T_G_curr_M_curr_pub_ =
+      nh_.advertise<geometry_msgs::TransformStamped>("T_G_curr_M_curr", 1);
+
+  T_G_in_B_in_pub_ =
+      nh_.advertise<geometry_msgs::TransformStamped>("T_G_in_B_in", 1);
+  T_G_in_M_in_pub_ =
+      nh_.advertise<geometry_msgs::TransformStamped>("T_G_in_M_in", 1);
+
+  T_G_curr_M_in_pub_ =
+      nh_.advertise<geometry_msgs::TransformStamped>("T_G_curr_M_in", 1);
 
   maplab_server_node_->registerPoseCorrectionPublisherCallback(
       [this](
           const int64_t timestamp_ns, const std::string& robot_name,
-          const aslam::Transformation& T_G_B,
-          const aslam::Transformation& T_B_old_B_new) {
-        publishPoseCorrection(timestamp_ns, robot_name, T_G_B, T_B_old_B_new);
+          const aslam::Transformation& T_G_curr_B_curr,
+          const aslam::Transformation& T_G_curr_M_curr,
+          const aslam::Transformation& T_G_in_B_in,
+          const aslam::Transformation& T_G_in_M_in) {
+        publishPoseCorrection(
+            timestamp_ns, robot_name, T_G_curr_B_curr, T_G_curr_M_curr,
+            T_G_in_B_in, T_G_in_M_in);
       });
 }
 
@@ -143,24 +156,50 @@ bool MaplabServerRosNode::saveMapCallback(
 
 bool MaplabServerRosNode::publishPoseCorrection(
     const int64_t timestamp_ns, const std::string& robot_name,
-    const aslam::Transformation T_G_B,
-    const aslam::Transformation& T_B_old_B_new) const {
+    const aslam::Transformation& T_G_curr_B_curr,
+    const aslam::Transformation& T_G_curr_M_curr,
+    const aslam::Transformation& T_G_in_B_in,
+    const aslam::Transformation& T_G_in_M_in) const {
   ros::Time timestamp_ros;
   timestamp_ros.fromNSec(timestamp_ns);
 
-  geometry_msgs::TransformStamped T_B_old_B_new_msg;
-  T_B_old_B_new_msg.child_frame_id = robot_name;
-  T_B_old_B_new_msg.header.stamp = timestamp_ros;
-  T_B_old_B_new_msg.header.frame_id = FLAGS_tf_map_frame;
-  tf::transformKindrToMsg(T_B_old_B_new, &T_B_old_B_new_msg.transform);
-  T_B_old_B_new_pub_.publish(T_B_old_B_new_msg);
+  geometry_msgs::TransformStamped T_G_curr_B_curr_msg;
+  T_G_curr_B_curr_msg.child_frame_id = robot_name + "_base_curr";
+  T_G_curr_B_curr_msg.header.stamp = timestamp_ros;
+  T_G_curr_B_curr_msg.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_G_curr_B_curr, &T_G_curr_B_curr_msg.transform);
+  T_G_curr_B_curr_pub_.publish(T_G_curr_B_curr_msg);
 
-  geometry_msgs::TransformStamped T_G_B_msgs;
-  T_G_B_msgs.child_frame_id = robot_name;
-  T_G_B_msgs.header.stamp = timestamp_ros;
-  T_G_B_msgs.header.frame_id = FLAGS_tf_map_frame;
-  tf::transformKindrToMsg(T_G_B, &T_G_B_msgs.transform);
-  T_G_B_pub_.publish(T_G_B_msgs);
+  geometry_msgs::TransformStamped T_G_curr_M_curr_msgs;
+  T_G_curr_M_curr_msgs.child_frame_id = robot_name + "_mission_curr";
+  T_G_curr_M_curr_msgs.header.stamp = timestamp_ros;
+  T_G_curr_M_curr_msgs.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_G_curr_M_curr, &T_G_curr_M_curr_msgs.transform);
+  T_G_curr_M_curr_pub_.publish(T_G_curr_M_curr_msgs);
+
+  geometry_msgs::TransformStamped T_G_in_B_in_msgs;
+  T_G_in_B_in_msgs.child_frame_id = robot_name + "_base_in";
+  T_G_in_B_in_msgs.header.stamp = timestamp_ros;
+  T_G_in_B_in_msgs.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_G_in_B_in, &T_G_in_B_in_msgs.transform);
+  T_G_in_B_in_pub_.publish(T_G_in_B_in_msgs);
+
+  geometry_msgs::TransformStamped T_G_in_M_in_msgs;
+  T_G_in_M_in_msgs.child_frame_id = robot_name + "_mission_in";
+  T_G_in_M_in_msgs.header.stamp = timestamp_ros;
+  T_G_in_M_in_msgs.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_G_in_M_in, &T_G_in_M_in_msgs.transform);
+  T_G_in_M_in_pub_.publish(T_G_in_M_in_msgs);
+
+  const aslam::Transformation& T_G_curr_M_in =
+      T_G_curr_B_curr * T_G_in_B_in.inverse() * T_G_in_M_in;
+
+  geometry_msgs::TransformStamped T_G_curr_M_in_msgs;
+  T_G_curr_M_in_msgs.child_frame_id = robot_name + "_mission_in_correction";
+  T_G_curr_M_in_msgs.header.stamp = timestamp_ros;
+  T_G_curr_M_in_msgs.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_G_curr_M_in, &T_G_curr_M_in_msgs.transform);
+  T_G_curr_M_in_pub_.publish(T_G_curr_M_in_msgs);
   return true;
 }
 

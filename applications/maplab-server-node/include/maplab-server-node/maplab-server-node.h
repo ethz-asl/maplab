@@ -81,7 +81,8 @@ class MaplabServerNode final {
   void registerPoseCorrectionPublisherCallback(
       std::function<void(
           const int64_t, const std::string&, const aslam::Transformation&,
-          const aslam::Transformation)>
+          const aslam::Transformation&, const aslam::Transformation&,
+          const aslam::Transformation&)>
           callback);
 
  private:
@@ -137,6 +138,7 @@ class MaplabServerNode final {
 
   std::function<void(
       const int64_t, const std::string&, const aslam::Transformation&,
+      const aslam::Transformation&, const aslam::Transformation&,
       const aslam::Transformation&)>
       pose_correction_publisher_callback_;
 
@@ -152,8 +154,7 @@ class MaplabServerNode final {
     // initially.
     std::map<int64_t, aslam::Transformation> T_M_B_submaps_input;
     std::map<int64_t, aslam::Transformation> T_G_M_submaps_input;
-    aslam::Transformation T_G_B_current_last_vertex;
-    int64_t current_last_vertex_timestamp_ns;
+  
   };
 
   mutable std::mutex robot_to_mission_id_map_mutex_;
