@@ -481,7 +481,7 @@ int add6DoFOdometryTerms(
     map->getAllEdgeIdsInMissionAlongGraph(
         mission_id, pose_graph::Edge::EdgeType::kOdometry, &edges);
     num_residuals_added += addRelativePoseTermsForEdges(
-        pose_graph::Edge::EdgeType::kWheelOdometry, edges, fix_extrinsics,
+        pose_graph::Edge::EdgeType::kOdometry, edges, fix_extrinsics,
         parameterizations.pose_parameterization,
         parameterizations.quaternion_parameterization, problem);
   }
@@ -508,15 +508,12 @@ int addRelativePoseTermsForEdges(
 
   ceres_error_terms::ResidualType residual_type;
 
-  if (edge_type == pose_graph::Edge::EdgeType::kWheelOdometry) {
-    // TODO(ben): clean up pose_graph edge types and residual types. E.g. rename
-    // residual type kOdometry to something less ambiguous.
+  if (edge_type == pose_graph::Edge::EdgeType::kWheelOdometry ||
+      edge_type == pose_graph::Edge::EdgeType::kOdometry) {
     residual_type = ceres_error_terms::ResidualType::kOdometry;
   } else {
-    LOG(FATAL) << "The given edge_type is not of type "
-               << pose_graph::Edge::edgeTypeToString(
-                      pose_graph::Edge::EdgeType::kWheelOdometry)
-               << ".";
+    LOG(FATAL)
+        << "The given edge_type is not of a supported TransformationEdge type.";
   }
   VLOG(1) << "Adding " << pose_graph::Edge::edgeTypeToString(edge_type)
           << " term residual blocks...";

@@ -798,7 +798,6 @@ void MaplabServerNode::extractLatestUnoptimizedPoseFromSubmap(
       std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
 
       if (!submap_process.robot_name.empty()) {
-        std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
         RobotMissionInformation& robot_info =
             robot_to_mission_id_map_[submap_process.robot_name];
         if (robot_info.current_mission_id.isValid() &&

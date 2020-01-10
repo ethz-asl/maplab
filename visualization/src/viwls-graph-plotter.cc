@@ -8,9 +8,9 @@
 #include <sensors/sensor-types.h>
 #include <tf/tf.h>
 #include <tf/transform_broadcaster.h>
-#include <visualization_msgs/MarkerArray.h>
 #include <vi-map/vertex.h>
 #include <vi-map/viwls-edge.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <algorithm>
 #include <functional>
@@ -157,8 +157,7 @@ void ViwlsGraphRvizPlotter::publishEdges(
   color_red.red = 255;
   color_red.green = 0;
   color_red.blue = 0;
-  publishEdges(
-      map, missions, pose_graph::Edge::EdgeType::kOdometry, color_red);
+  publishEdges(map, missions, pose_graph::Edge::EdgeType::kOdometry, color_red);
 }
 
 void ViwlsGraphRvizPlotter::publishEdges(
@@ -197,6 +196,7 @@ void ViwlsGraphRvizPlotter::publishEdges(
   visualization::LineSegmentVector line_segments;
   visualization::LineSegmentVector lc_transformation_line_segments;
   visualization::ArrowVector wheel_odom_transformation_arrows;
+  visualization::ArrowVector odom_6dof_transformation_arrows;
 
   visualization::Palette palette =
       GetPalette(visualization::Palette::PaletteTypes::kFalseColor1);
@@ -277,7 +277,7 @@ void ViwlsGraphRvizPlotter::publishEdges(
       line_segment.scale = FLAGS_vis_scale * 0.02;
       const vi_map::TransformationEdge& edge =
           edge_ptr->getAs<vi_map::TransformationEdge>();
-      // Visualize wheel odom transformation as a line connecting the 'to'
+      // Visualize wheel odom transformation as an arrow connecting the 'to'
       // vertex with the position relative to the 'from' enforced by the odom
       // edge.
       aslam::Transformation T_B_S = map.getSensorManager().getSensor_T_B_S(
@@ -300,6 +300,35 @@ void ViwlsGraphRvizPlotter::publishEdges(
       wheel_odom_arrow.from = T_G_S_from.getPosition();
       wheel_odom_arrow.to = T_G_measurement.getPosition();
       wheel_odom_transformation_arrows.push_back(wheel_odom_arrow);
+    } else if (
+        edge_ptr->getType() == pose_graph::Edge::EdgeType::kOdometry &&
+        map.getMission(vertex_from.getMissionId()).hasOdometry6DoFSensor()) {
+      line_segment.scale = FLAGS_vis_scale * 0.02;
+      const vi_map::TransformationEdge& edge =
+          edge_ptr->getAs<vi_map::TransformationEdge>();
+      // Visualize 6DoF odom transformation as an arrow connecting the 'to'
+      // vertex with the position relative to the 'from' enforced by the odom
+      // edge.
+      aslam::Transformation T_B_S = map.getSensorManager().getSensor_T_B_S(
+          mission_from.getOdometry6DoFSensor());
+      visualization::Arrow odom_6dof_arrow;
+      // assuming I == B
+      const aslam::Transformation T_G_S_from =
+          map.getVertex_T_G_I(edge_ptr->from()) * T_B_S;
+      const aslam::Transformation T_G_S_to =
+          map.getVertex_T_G_I(edge_ptr->to()) * T_B_S;
+      odom_6dof_arrow.from = T_G_S_from.getPosition();
+      const aslam::Transformation T_G_measurement =
+          T_G_S_from * edge.get_T_A_B();
+
+      odom_6dof_arrow.color.red = local_color.red;
+      odom_6dof_arrow.color.green = local_color.green;
+      odom_6dof_arrow.color.blue = local_color.blue;
+      odom_6dof_arrow.scale = 0.1;
+      odom_6dof_arrow.alpha = 1.0;
+      odom_6dof_arrow.from = T_G_S_from.getPosition();
+      odom_6dof_arrow.to = T_G_measurement.getPosition();
+      odom_6dof_transformation_arrows.push_back(odom_6dof_arrow);
     } else {
       if (FLAGS_vis_color_by_mission) {
         const bool is_T_G_M_known =
@@ -335,6 +364,11 @@ void ViwlsGraphRvizPlotter::publishEdges(
     visualization::publishArrows(
         wheel_odom_transformation_arrows, marker_id, FLAGS_tf_map_frame,
         FLAGS_vis_default_namespace, kEdgeTopic + "/wheel_odometry_arrows");
+  }
+  if (!odom_6dof_transformation_arrows.empty()) {
+    visualization::publishArrows(
+        odom_6dof_transformation_arrows, marker_id, FLAGS_tf_map_frame,
+        FLAGS_vis_default_namespace, kEdgeTopic + "/6dof_odometry_arrows");
   }
 
   if (!lc_edges_T_G_B.empty() && FLAGS_vis_lc_edge_covariances) {
