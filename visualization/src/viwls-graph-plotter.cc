@@ -454,8 +454,8 @@ void ViwlsGraphRvizPlotter::publishAbsolute6DoFConstraints(
       absolute_constraints_S_cov_vec.push_back(
           abs_6dof_measurement.get_T_G_S_covariance());
 
-      CHECK_LT(idx, lines_start_G.cols());
-      CHECK_LT(idx, lines_end_G.cols());
+      CHECK_LT(static_cast<int>(idx), lines_start_G.cols());
+      CHECK_LT(static_cast<int>(idx), lines_end_G.cols());
       CHECK_LT(idx, line_colors.size());
       lines_start_G.col(idx) = T_G_B_actual.getPosition();
       lines_end_G.col(idx) = T_G_B_meas.getPosition();

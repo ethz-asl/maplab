@@ -164,38 +164,38 @@ bool MaplabServerRosNode::publishPoseCorrection(
   timestamp_ros.fromNSec(timestamp_ns);
 
   geometry_msgs::TransformStamped T_G_curr_B_curr_msg;
-  T_G_curr_B_curr_msg.child_frame_id = robot_name + "_base_curr";
+  T_G_curr_B_curr_msg.child_frame_id = robot_name;
   T_G_curr_B_curr_msg.header.stamp = timestamp_ros;
   T_G_curr_B_curr_msg.header.frame_id = FLAGS_tf_map_frame;
   tf::transformKindrToMsg(T_G_curr_B_curr, &T_G_curr_B_curr_msg.transform);
   T_G_curr_B_curr_pub_.publish(T_G_curr_B_curr_msg);
 
   geometry_msgs::TransformStamped T_G_curr_M_curr_msgs;
-  T_G_curr_M_curr_msgs.child_frame_id = robot_name + "_mission_curr";
+  T_G_curr_M_curr_msgs.child_frame_id = robot_name;
   T_G_curr_M_curr_msgs.header.stamp = timestamp_ros;
   T_G_curr_M_curr_msgs.header.frame_id = FLAGS_tf_map_frame;
   tf::transformKindrToMsg(T_G_curr_M_curr, &T_G_curr_M_curr_msgs.transform);
   T_G_curr_M_curr_pub_.publish(T_G_curr_M_curr_msgs);
 
   geometry_msgs::TransformStamped T_G_in_B_in_msgs;
-  T_G_in_B_in_msgs.child_frame_id = robot_name + "_base_in";
+  T_G_in_B_in_msgs.child_frame_id = robot_name;
   T_G_in_B_in_msgs.header.stamp = timestamp_ros;
   T_G_in_B_in_msgs.header.frame_id = FLAGS_tf_map_frame;
   tf::transformKindrToMsg(T_G_in_B_in, &T_G_in_B_in_msgs.transform);
   T_G_in_B_in_pub_.publish(T_G_in_B_in_msgs);
 
   geometry_msgs::TransformStamped T_G_in_M_in_msgs;
-  T_G_in_M_in_msgs.child_frame_id = robot_name + "_mission_in";
+  T_G_in_M_in_msgs.child_frame_id = robot_name;
   T_G_in_M_in_msgs.header.stamp = timestamp_ros;
   T_G_in_M_in_msgs.header.frame_id = FLAGS_tf_map_frame;
   tf::transformKindrToMsg(T_G_in_M_in, &T_G_in_M_in_msgs.transform);
   T_G_in_M_in_pub_.publish(T_G_in_M_in_msgs);
 
-  const aslam::Transformation& T_G_curr_M_in =
-      T_G_curr_B_curr * T_G_in_B_in.inverse() * T_G_in_M_in;
+  const aslam::Transformation T_B_in_M_in = T_G_in_B_in.inverse() * T_G_in_M_in;
+  const aslam::Transformation T_G_curr_M_in = T_G_curr_B_curr * T_B_in_M_in;
 
   geometry_msgs::TransformStamped T_G_curr_M_in_msgs;
-  T_G_curr_M_in_msgs.child_frame_id = robot_name + "_mission_in_correction";
+  T_G_curr_M_in_msgs.child_frame_id = robot_name;
   T_G_curr_M_in_msgs.header.stamp = timestamp_ros;
   T_G_curr_M_in_msgs.header.frame_id = FLAGS_tf_map_frame;
   tf::transformKindrToMsg(T_G_curr_M_in, &T_G_curr_M_in_msgs.transform);
