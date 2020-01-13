@@ -1,5 +1,5 @@
 [submodule "tools/maplab_test_data"]
-	path = tools/maplab_test_data
+	path = tools/maplab-test-data
 	url = https://github.com/ethz-asl/maplab_test_data.git
 [submodule "aslam_cv2"]
 	path = aslam_cv2
