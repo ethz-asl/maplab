@@ -245,8 +245,15 @@ void integrateAllOptionalSensorDepthMapResourcesOfType(
       Eigen::Matrix<int64_t, 1, Eigen::Dynamic> resource_timestamps(
           num_resources);
       size_t idx = 0u;
+
+      const int64_t timestamp_shift_ns =
+          FLAGS_dense_depth_integrator_timeshift_resource_to_imu_ns;
+
       for (const std::pair<int64_t, backend::ResourceId>& stamped_resource_id :
            resource_buffer) {
+        const int64_t timestamp_resource_ns =
+            stamped_resource_id.first + timestamp_shift_ns;
+
         // If the resource timestamp does not lie within the min and max
         // timestamp of the vertices, we cannot interpolate the position. To
         // keep this efficient, we simply replace timestamps outside the range
@@ -254,7 +261,7 @@ void integrateAllOptionalSensorDepthMapResourcesOfType(
         // later, that's fine.
         resource_timestamps[idx] = std::max(
             min_timestamp_ns,
-            std::min(max_timestamp_ns, stamped_resource_id.first));
+            std::min(max_timestamp_ns, timestamp_resource_ns));
 
         ++idx;
       }
