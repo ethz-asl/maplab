@@ -4,11 +4,16 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <landmark-triangulation/pose-interpolator.h>
+#include <map-optimization/outlier-rejection-solver.h>
+#include <map-optimization/solver-options.h>
+#include <map-optimization/vi-map-optimizer.h>
+#include <map-optimization/vi-optimization-builder.h>
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
 #include <signal.h>
 #include <vi-map-basic-plugin/vi-map-basic-plugin.h>
+#include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 
 #include <atomic>
 #include <memory>
@@ -34,6 +39,12 @@ DEFINE_string(
 DEFINE_int32(
     maplab_server_backup_interval_s, 300,
     "Create a backup of the current map every n seconds. 0 = no backups.");
+
+DEFINE_bool(
+    maplab_server_enable_default_submap_processing, true,
+    "If enabled, the submap processing commands are ignored and a default set "
+    "of commands is executed on the submaps. These commands are landmark "
+    "quality evaluation and optimization.");
 
 namespace maplab {
 MaplabServerNode::MaplabServerNode(const MaplabServerNodeConfig& config)
@@ -644,9 +655,9 @@ bool MaplabServerNode::appendAvailableSubmaps() {
 
       found_new_submaps = true;
     } else {
-      VLOG(3) << "[MaplabServerNode] MapMerging - merge submap into "
-                 "merged map with key '"
-              << kMergedMapKey << "'";
+      LOG(INFO) << "[MaplabServerNode] MapMerging - merge submap '"
+                << submap_process.map_key << "' into "
+                << "merged map with key '" << kMergedMapKey << "'";
 
       // TODO(mfehr): make this more robust: if merging fails, either
       // try again later or load as new mission so we don't loose the
@@ -831,36 +842,73 @@ void MaplabServerNode::extractLatestUnoptimizedPoseFromSubmap(
 
 void MaplabServerNode::runSubmapProcessingCommands(
     const SubmapProcess& submap_process) {
-  // Copy console to process the global map.
-  const std::string console_name =
-      "submap_processing_console_" + submap_process.map_key;
-  MapLabConsole console(base_console_, console_name, false /*disable plotter*/);
+  if (FLAGS_maplab_server_enable_default_submap_processing) {
+    // We only want to get these once, such that if the gflags get modified
+    // later the optimization settings for the submaps remain the same.
+    static map_optimization::ViProblemOptions options =
+        map_optimization::ViProblemOptions::initFromGFlags();
+    static map_optimization::OutlierRejectionSolverOptions
+        outlier_rejection_options =
+            map_optimization::OutlierRejectionSolverOptions::initFromFlags();
 
-  // Select submap.
-  console.setSelectedMapKey(submap_process.map_key);
+    vi_map::VIMapManager map_manager;
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager.getMapWriteAccess(submap_process.map_key);
+    vi_map::MissionIdList missions_to_optimize_list;
+    map->getAllMissionIds(&missions_to_optimize_list);
 
-  for (const std::string& command : config_.submap_commands) {
+    // ELQ
     {
       std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-      submap_commands_[submap_process.map_hash] = command;
+      submap_commands_[submap_process.map_hash] = "elq";
     }
-    VLOG(3) << "[MaplabServerNode] SubmapProcessing console command: "
-            << command;
-    if (console.RunCommand(command) != common::kSuccess) {
-      LOG(ERROR) << "[MaplabServerNode] SubmapProcessing - failed to run "
-                    "command: '"
-                 << command << "' on submap '" << submap_process.map_key
-                 << "'.";
-    } else {
-      VLOG(3) << "[MaplabServerNode] SubmapProcessing console command "
-                 "successful.";
-    }
+    vi_map_helpers::evaluateLandmarkQuality(
+        missions_to_optimize_list, map.get());
 
-    if (shut_down_requested_.load()) {
-      LOG(WARNING) << "[MaplabServerNode] SubmapProcessing - shutdown was "
-                      "requested, aborting processing of submap with key '"
-                   << submap_process.map_key << "'...";
-      break;
+    // OPTVI
+    {
+      std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
+      submap_commands_[submap_process.map_hash] = "optvi";
+    }
+    const vi_map::MissionIdSet missions_to_optimize(
+        missions_to_optimize_list.begin(), missions_to_optimize_list.end());
+    map_optimization::VIMapOptimizer optimizer(
+        nullptr /*no plotter*/, false /*signal handler enabled*/);
+    optimizer.optimize(
+        options, missions_to_optimize, &outlier_rejection_options, map.get());
+  } else {
+    // Copy console to process the global map.
+    const std::string console_name =
+        "submap_processing_console_" + submap_process.map_key;
+    MapLabConsole console(
+        base_console_, console_name, false /*disable plotter*/);
+
+    // Select submap.
+    console.setSelectedMapKey(submap_process.map_key);
+
+    for (const std::string& command : config_.submap_commands) {
+      {
+        std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
+        submap_commands_[submap_process.map_hash] = command;
+      }
+      VLOG(3) << "[MaplabServerNode] SubmapProcessing console command: "
+              << command;
+      if (console.RunCommand(command) != common::kSuccess) {
+        LOG(ERROR) << "[MaplabServerNode] SubmapProcessing - failed to run "
+                      "command: '"
+                   << command << "' on submap '" << submap_process.map_key
+                   << "'.";
+      } else {
+        VLOG(3) << "[MaplabServerNode] SubmapProcessing console command "
+                   "successful.";
+      }
+
+      if (shut_down_requested_.load()) {
+        LOG(WARNING) << "[MaplabServerNode] SubmapProcessing - shutdown was "
+                        "requested, aborting processing of submap with key '"
+                     << submap_process.map_key << "'...";
+        break;
+      }
     }
   }
   {
