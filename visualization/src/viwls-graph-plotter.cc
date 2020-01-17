@@ -275,6 +275,7 @@ void ViwlsGraphRvizPlotter::publishEdges(
         edge_ptr->getType() == pose_graph::Edge::EdgeType::kWheelOdometry &&
         map.getMission(vertex_from.getMissionId()).hasWheelOdometrySensor()) {
       line_segment.scale = FLAGS_vis_scale * 0.02;
+      line_segment.color = local_color;
       const vi_map::TransformationEdge& edge =
           edge_ptr->getAs<vi_map::TransformationEdge>();
       // Visualize wheel odom transformation as an arrow connecting the 'to'
@@ -304,6 +305,7 @@ void ViwlsGraphRvizPlotter::publishEdges(
         edge_ptr->getType() == pose_graph::Edge::EdgeType::kOdometry &&
         map.getMission(vertex_from.getMissionId()).hasOdometry6DoFSensor()) {
       line_segment.scale = FLAGS_vis_scale * 0.02;
+      line_segment.color = local_color;
       const vi_map::TransformationEdge& edge =
           edge_ptr->getAs<vi_map::TransformationEdge>();
       // Visualize 6DoF odom transformation as an arrow connecting the 'to'

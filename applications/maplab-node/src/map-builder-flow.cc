@@ -405,6 +405,13 @@ bool MapBuilderFlow::saveMapAndOptionallyOptimize(
         id_of_first_mission, last_vertex_of_previous_map_saving_,
         false /* delete resources from file system */);
 
+    // Even though dropping all the map data up until the current vertex removes
+    // all resources up to the vertex, there might still be some resources that
+    // are ahead of the current map. So we delete them all to be sure we catch
+    // those as well.
+    map_with_mutex_->vi_map.deleteAllSensorResources(
+        id_of_first_mission, false);
+
     stream_map_builder_.updateMapDependentData();
   }
   return true;

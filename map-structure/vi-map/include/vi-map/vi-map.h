@@ -720,8 +720,10 @@ class VIMap : public backend::ResourceMap,
       VIMission* mission);
 
   void deleteAllSensorResourcesBeforeTime(
-      const vi_map::MissionId& mission_id, int64_t timestamp_ns,
-      const bool delete_from_file_system);
+          const vi_map::MissionId& mission_id, int64_t timestamp_ns,
+          const bool delete_from_file_system);
+  void deleteAllSensorResources(
+          const vi_map::MissionId& mission_id, const bool delete_from_file_system);
 
   // Map interface (for map manager)
   // ===============================
