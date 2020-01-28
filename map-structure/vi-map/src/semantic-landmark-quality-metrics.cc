@@ -30,7 +30,8 @@ DEFINE_double(
     "well constrained [m].");
 
 namespace vi_map {
-SemanticLandmarkWellConstrainedSettings::SemanticLandmarkWellConstrainedSettings()
+SemanticLandmarkWellConstrainedSettings::
+    SemanticLandmarkWellConstrainedSettings()
     : max_distance_to_closest_observer(
           FLAGS_vi_map_semantic_landmark_quality_max_distance_from_closest_observer),
       min_distance_to_closest_observer(
@@ -50,7 +51,8 @@ bool isSemanticLandmarkWellConstrained(
     bool re_evaluate_quality) {
   vi_map::SemanticLandmark::Quality quality = landmark.getQuality();
   // Localization landmarks are always good.
-  if (quality == vi_map::SemanticLandmark::Quality::kLocalizationSummaryLandmark) {
+  if (quality ==
+      vi_map::SemanticLandmark::Quality::kLocalizationSummaryLandmark) {
     return true;
   }
   if (re_evaluate_quality) {
@@ -64,7 +66,8 @@ bool isSemanticLandmarkWellConstrained(
   // Use default settings.
   SemanticLandmarkWellConstrainedSettings settings;
 
-  const vi_map::SemanticObjectIdentifierList& backlinks = landmark.getObservations();
+  const vi_map::SemanticObjectIdentifierList& backlinks =
+      landmark.getObservations();
   if (backlinks.size() < settings.min_observers) {
     statistics::StatsCollector stats("Semantic Landmark has too few backlinks");
     stats.IncrementOne();
@@ -81,8 +84,7 @@ bool isSemanticLandmarkWellConstrained(
 
     const pose::Transformation T_G_C =
         map.getVertex_T_G_I(backlink.frame_id.vertex_id) *
-        map.getSensorManager()
-            .getNCameraForMission(vertex.getMissionId())
+        map.getMissionNCamera(vertex.getMissionId())
             .get_T_C_B(backlink.frame_id.frame_index)
             .inverse();
 

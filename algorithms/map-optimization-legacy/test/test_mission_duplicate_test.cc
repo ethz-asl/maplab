@@ -53,12 +53,13 @@ class ViwlsGraph : public ::testing::Test {
       kNumOfStoreLandmarks * kNumOfLandmarksPerStoreLandmark;
   static constexpr int kDescriptorBytes = 48;
 
-  static constexpr unsigned int kNumOfSemanticLandmarksPerStoreSemanticLandmark = 5;
+  static constexpr unsigned int
+      kNumOfSemanticLandmarksPerStoreSemanticLandmark = 5;
   static constexpr unsigned int kNumOfStoreSemanticLandmarks = 10;
   static constexpr unsigned int kNumOfMeasurementsPerVertex =
-      kNumOfStoreSemanticLandmarks * kNumOfSemanticLandmarksPerStoreSemanticLandmark;
+      kNumOfStoreSemanticLandmarks *
+      kNumOfSemanticLandmarksPerStoreSemanticLandmark;
   static constexpr int kSemanticDescriptorSize = 4096;
-  
 
   static constexpr int kNumCameras = 1;
   static constexpr int kVisualFrameIndex = 0;
@@ -82,7 +83,7 @@ void ViwlsGraph::addVisualFrameToVertex(vi_map::Vertex* vertex_ptr) {
   img_points_distorted.resize(Eigen::NoChange, kNumOfKeypointsPerVertex);
   uncertainties.resize(kNumOfKeypointsPerVertex);
   descriptors.resize(kDescriptorBytes, kNumOfKeypointsPerVertex);
-  
+
   // semantic landmarks
   Eigen::Matrix4Xd img_object_distorted;
   Eigen::VectorXd object_uncertainties;
@@ -91,8 +92,9 @@ void ViwlsGraph::addVisualFrameToVertex(vi_map::Vertex* vertex_ptr) {
   img_object_distorted.resize(Eigen::NoChange, kNumOfMeasurementsPerVertex);
   object_uncertainties.resize(kNumOfMeasurementsPerVertex);
   object_class_ids.resize(kNumOfMeasurementsPerVertex);
-  object_descriptors.resize(kSemanticDescriptorSize, kNumOfMeasurementsPerVertex);
-  
+  object_descriptors.resize(
+      kSemanticDescriptorSize, kNumOfMeasurementsPerVertex);
+
   aslam::FrameId frame_id;
   common::generateId(&frame_id);
   frame->setId(frame_id);
@@ -100,7 +102,7 @@ void ViwlsGraph::addVisualFrameToVertex(vi_map::Vertex* vertex_ptr) {
   frame->setKeypointMeasurements(img_points_distorted);
   frame->setKeypointMeasurementUncertainties(uncertainties);
   frame->setDescriptors(descriptors);
-  
+
   frame->setSemanticObjectMeasurements(img_object_distorted);
   frame->setSemanticObjectMeasurementUncertainties(object_uncertainties);
   frame->setSemanticObjectDescriptors(object_descriptors);
@@ -163,10 +165,8 @@ void ViwlsGraph::addVertices() {
 
     pose_graph::EdgeId edge_id;
     generateId(&edge_id);
-    vi_map::ViwlsEdge::UniquePtr edge(
-        new vi_map::ViwlsEdge(
-            edge_id, vertex_ids_[i - 1], vertex_ids_[i], imu_timestamps,
-            imu_data));
+    vi_map::ViwlsEdge::UniquePtr edge(new vi_map::ViwlsEdge(
+        edge_id, vertex_ids_[i - 1], vertex_ids_[i], imu_timestamps, imu_data));
     vi_map_.addEdge(std::move(edge));
   }
 }
@@ -261,7 +261,8 @@ void ViwlsGraph::addSemanticLandmarksAndMeasurements() {
     vi_map_.semantic_landmark_index.addSemanticLandmarkAndVertexReference(
         landmark_id, vertex_id_storing_landmark);
 
-    for (unsigned int j = 0; j < kNumOfSemanticLandmarksPerStoreSemanticLandmark; ++j) {
+    for (unsigned int j = 0;
+         j < kNumOfSemanticLandmarksPerStoreSemanticLandmark; ++j) {
       for (unsigned int k = 0; k < kNumOfVertices; ++k) {
         vi_map_.getVertex(vertex_ids_[k])
             .addObservedSemanticLandmarkId(kVisualFrameIndex, landmark_id);
@@ -331,8 +332,7 @@ TEST_F(ViwlsGraph, NCameraTest) {
       duplicated_mission_id = mission_id;
     }
 
-    const aslam::NCamera& ncamera =
-        sensor_manager.getNCameraForMission(mission_id);
+    const aslam::NCamera& ncamera = vi_map_.getMissionNCamera(mission_id);
     EXPECT_TRUE(ncamera.getId().isValid());
     EXPECT_TRUE(all_ncamea_ids.emplace(ncamera.getId()).second);
     for (size_t i = 0; i < ncamera.numCameras(); ++i) {
@@ -344,10 +344,9 @@ TEST_F(ViwlsGraph, NCameraTest) {
   ASSERT_TRUE(duplicated_mission_id.isValid());
 
   // Check other properties of the ncamera systems.
-  const aslam::NCamera& source_ncam =
-      sensor_manager.getNCameraForMission(mission_id_);
+  const aslam::NCamera& source_ncam = vi_map_.getMissionNCamera(mission_id_);
   const aslam::NCamera& duplicated_ncam =
-      sensor_manager.getNCameraForMission(duplicated_mission_id);
+      vi_map_.getMissionNCamera(duplicated_mission_id);
 
   ASSERT_EQ(source_ncam.getNumCameras(), duplicated_ncam.getNumCameras());
   // Check individual camera parameters.

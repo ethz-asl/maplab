@@ -40,79 +40,18 @@ Vertex::Vertex(
     const std::vector<LandmarkId>& observed_landmark_ids,
     const vi_map::MissionId& mission_id, const aslam::FrameId& frame_id,
     int64_t frame_timestamp, const aslam::NCamera::Ptr cameras)
-    : id_(vertex_id), mission_id_(mission_id) {
-  CHECK(cameras != nullptr);
-  CHECK_EQ(1u, cameras->numCameras())
-      << "This constructor supports "
-      << "only a single camera in NCamera object";
-  // Our assumptions in this ctor: only a single camera passed in NCamera.
-  static constexpr unsigned int kNumOfFrames = 1;
-  static constexpr unsigned int kFirstFrameIndex = 0;
-
-  n_frame_.reset(new aslam::VisualNFrame(cameras));
-  aslam::NFramesId n_frame_id;
-  aslam::generateId(&n_frame_id);
-  n_frame_->setId(n_frame_id);
-
-  CHECK_EQ(img_points_distorted.cols(), descriptors.cols());
-  CHECK_EQ(img_points_distorted.cols(), uncertainties.size());
-  CHECK_EQ(
-      observed_landmark_ids.size(),
-      static_cast<unsigned int>(descriptors.cols()));
-
-  // Fill a single visual frame.
-  aslam::VisualFrame::Ptr frame(new aslam::VisualFrame);
-  CHECK(n_frame_ != nullptr);
-
-  CHECK(frame_id.isValid());
-  frame->setId(frame_id);
-  frame->setTimestampNanoseconds(frame_timestamp);
-
-  if (img_points_distorted.cols() != 0) {
-    frame->setKeypointMeasurements(img_points_distorted);
-    frame->setKeypointMeasurementUncertainties(uncertainties);
-    frame->setDescriptors(descriptors);
-
-    if (descriptor_scales.rows() != 0) {
-      CHECK_EQ(descriptor_scales.rows(), descriptors.cols());
-      frame->setKeypointScales(descriptor_scales);
-      CHECK(frame->hasKeypointScales());
-    }
-  }
-
-  frame->setCameraGeometry(cameras->getCameraShared(kFirstFrameIndex));
-
-  n_frame_->setFrame(kFirstFrameIndex, frame);
-
-  observed_landmark_ids_.resize(kNumOfFrames);
-  if (observed_landmark_ids.size() > 0u) {
-    observed_landmark_ids_[kFirstFrameIndex] = observed_landmark_ids;
-    CHECK_EQ(
-        observed_landmark_ids_[kFirstFrameIndex].size(),
-        frame->getNumKeypointMeasurements());
-  }
-
-  checkConsistencyOfVisualObservationContainers();
-
-  accel_bias_ = imu_ba_bw.head<3>();
-  gyro_bias_ = imu_ba_bw.tail<3>();
-  v_M_.setZero();
-
-  resource_map_.resize(kNumOfFrames);
-}
-
-Vertex : Vertex(
-             vertex_id, imu_ba_bw, img_points_distorted, uncertainties,
-             descriptors, /* descriptor scales = */ Eigen::VectorXd(0, 1),
-             observed_landmark_ids,
-             /*semantic_object_measurements = */ Eigen::Matrix4Xi(4, 0),
-             /*semantic_object_uncertainties = */ Eigen::VectorXd(0, 1),
-             /*semantic_object_class_ids = */ Eigen::VectorXi(0, 1),
-             /*semantic_object_descriptors = */
-             Eigen::MatrixXf(1, 0),  // we set a row size here so we don't
-                                     // divide by 0 in serialization
-             /*observed_semantic_landmark_ids = */ SemanticLandmarkIdList(),
-             mission_id, frame_id, frame_timestamp, cameras) {}
+    : Vertex(
+          vertex_id, imu_ba_bw, img_points_distorted, uncertainties,
+          descriptors, /* descriptor scales = */ Eigen::VectorXd(0, 1),
+          observed_landmark_ids,
+          /*semantic_object_measurements = */ Eigen::Matrix4Xd(4, 0),
+          /*semantic_object_uncertainties = */ Eigen::VectorXd(0, 1),
+          /*semantic_object_class_ids = */ Eigen::VectorXi(0, 1),
+          /*semantic_object_descriptors = */
+          Eigen::MatrixXf(1, 0),  // we set a row size here so we don't divide
+                                  // by 0 in serialization
+          /*observed_semantic_landmark_ids = */ SemanticLandmarkIdList(),
+          mission_id, frame_id, frame_timestamp, cameras) {}
 
 Vertex::Vertex(
     const pose_graph::VertexId& vertex_id,
@@ -164,7 +103,7 @@ Vertex::Vertex(
 
   n_frame_.reset(new aslam::VisualNFrame(cameras));
   aslam::NFramesId n_frame_id;
-  common::generateId(&n_frame_id);
+  aslam::generateId(&n_frame_id);
   n_frame_->setId(n_frame_id);
 
   CHECK_EQ(img_points_distorted.cols(), descriptors.cols());
@@ -566,7 +505,7 @@ void Vertex::serialize(vi_map::proto::ViwlsVertex* proto) const {
       landmark_id.serialize(proto_landmark_ids->Add());
     }
     // semantic landmarks
-    google::protobuf::RepeatedPtrField<common::proto::Id>*
+    google::protobuf::RepeatedPtrField<aslam::proto::Id>*
         proto_semantic_landmark_ids =
             proto_n_frame->mutable_frames(i)->mutable_semantic_landmark_ids();
     proto_semantic_landmark_ids->Reserve(
@@ -1076,64 +1015,6 @@ void Vertex::updateIdInObservedSemanticLandmarkIdList(
   }
 }
 
-std::string Vertex::getComparisonString(const Vertex& other) const {
-  if (operator==(other)) {
-    return "There is no difference between the given vertices!\n";
-  }
-
-  std::ostringstream ss;
-  ss << "This enumeration of differences may be incomplete!\n";
-
-  if (numFrames() != other.numFrames()) {
-    ss << "The amount of frames differs.\n";
-  }
-
-  if (observed_landmark_ids_ != other.observed_landmark_ids_) {
-    ss << "The observed landmark ids differ.\n";
-  }
-
-  // Important: Landmark operator == doesn't cover the observations!
-  if (landmarks_ != other.landmarks_) {
-    ss << "The store landmarks differ (amount, position).\n";
-  }
-  if (landmarks_.size() == other.landmarks_.size()) {
-    bool observations_differ = false;
-    for (size_t i = 0u; i < landmarks_.size(); ++i) {
-      if (landmarks_[i].getObservations() !=
-          other.landmarks_[i].getObservations()) {
-        observations_differ = true;
-        break;
-      }
-    }
-    if (observations_differ) {
-      ss << "The store landmark observations differ.\n";
-    }
-  }
-
-  if (semantic_landmarks_ != other.semantic_landmarks_) {
-    ss << "The store semantic landmarks differ (amount, position).\n";
-  }
-  if (semantic_landmarks_.size() == other.semantic_landmarks_.size()) {
-    bool observations_differ = false;
-    for (size_t i = 0u; i < semantic_landmarks_.size(); ++i) {
-      if (semantic_landmarks_[i].getObservations() !=
-          other.semantic_landmarks_[i].getObservations()) {
-        observations_differ = true;
-        break;
-      }
-    }
-    if (observations_differ) {
-      ss << "The store semantic landmark observations differ.\n";
-    }
-  }
-
-  // Epsilon-free comparison intended.
-  if (!(get_T_M_I() == other.get_T_M_I())) {
-    ss << "The poses differ.\n";
-  }
-
-  return ss.str();
-}
 // TODO(jkuo): not sure if it is backward compatible if add semantic related
 // checks
 // need to check how the size are initialized

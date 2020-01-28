@@ -694,7 +694,7 @@ Eigen::Vector3d VIMap::getSemanticLandmark_p_C_fi(
   CHECK(hasVertex(observer_vertex.id()));
 
   const aslam::NCamera& ncamera =
-      sensor_manager_.getNCameraForMission(observer_vertex.getMissionId());
+      getMissionNCamera(observer_vertex.getMissionId());
   const pose::Transformation& C_T_I = ncamera.get_T_C_B(frame_idx);
   const Eigen::Vector3d& M_p_I = observer_vertex.get_p_M_I();
   const Eigen::Quaterniond& M_q_I = observer_vertex.get_q_M_I();

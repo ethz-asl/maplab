@@ -190,7 +190,7 @@ bool visualizeBoundingBoxResources(
     const vi_map::VIMission& mission = map.getMission(mission_id);
 
     const aslam::NCamera& ncamera =
-        map.getSensorManager().getNCameraForMission(mission_id);
+        map.getSensorManager().getMissionNCamera(mission_id);
     std::vector<std::string> cv_window_names;
     std::unordered_set<std::string> cv_active_window_names;
     getOpenCvWindowsForNCamera(ncamera, &cv_window_names);

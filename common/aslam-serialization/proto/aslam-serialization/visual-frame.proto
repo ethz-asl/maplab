@@ -20,7 +20,7 @@ message VisualFrame {
   optional uint32 semantic_object_descriptor_size = 14;
   repeated int32 semantic_object_class_ids = 15;
   repeated int32 semantic_object_track_ids = 16;
-  repeated common.proto.Id semantic_landmark_ids = 17;
+  repeated aslam.proto.Id semantic_landmark_ids = 17;
 }
 
 message VisualNFrame {

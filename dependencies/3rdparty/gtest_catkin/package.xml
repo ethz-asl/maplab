@@ -1,0 +1,11 @@
+<package format="2">
+  <name>gtest_catkin</name>
+  <version>1.7.0</version>
+  <description>gtest_catkin</description>
+  <maintainer email="ftschopp@ethz.ch">Florian Tschopp</maintainer>
+
+  <license>See package</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+</package>

@@ -119,10 +119,10 @@ message Landmark {
 }
 
 message SemanticLandmark {
-  optional common.proto.Id id = 1;
+  optional aslam.proto.Id id = 1;
   repeated double position = 2;
   repeated double covariance = 3;
-  repeated common.proto.Id vertex_ids = 4;
+  repeated aslam.proto.Id vertex_ids = 4;
   repeated uint32 measurement_indices = 5;
   repeated uint32 frame_indices = 6;
   enum Quality {
@@ -140,16 +140,6 @@ message LandmarkStore {
 
 message SemanticLandmarkStore {
   repeated SemanticLandmark semantic_landmarks = 1;
-}
-
-message OptionalSensorData {
-  repeated measurements.proto.GpsUtmMeasurement gps_utm_measurements = 1;
-  repeated measurements.proto.GpsWgsMeasurement gps_wgs_measurements = 2;
-}
-
-message OptionalSensorDataMissionPair {
-  optional common.proto.Id mission_id = 1;
-  optional OptionalSensorData optional_sensor_data = 2;
 }
 
 message Mission {
@@ -222,9 +212,6 @@ message VIMap {
   repeated aslam.proto.Id landmark_index_ids = 9;
   repeated LandmarkToVertexReference landmark_index = 10;
 
-  repeated OptionalSensorDataMissionPair optional_sensor_data_mission_id_pair =
-      11;
-
-  repeated common.proto.Id semantic_landmark_index_ids = 12;
-  repeated LandmarkToVertexReference semantic_landmark_index = 13;
+  repeated aslam.proto.Id semantic_landmark_index_ids = 11;
+  repeated LandmarkToVertexReference semantic_landmark_index = 12;
 }

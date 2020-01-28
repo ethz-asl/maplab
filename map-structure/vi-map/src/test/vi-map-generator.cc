@@ -29,7 +29,7 @@ VIMapGenerator::VIMapGenerator(
   aslam::Distortion::UniquePtr distortion(
       new aslam::FisheyeDistortion(distortion_parameters));
   aslam::Camera::Ptr camera(new aslam::PinholeCamera(
-      mock_intrinsics, kCameraWidth, kCameraHeight, distortion));
+      camera_intrinsics, kCameraWidth, kCameraHeight, distortion));
   aslam::CameraId id = aslam::createRandomId<aslam::CameraId>();
   camera->setId(id);
 
@@ -604,9 +604,9 @@ void VIMapGenerator::projectSemanticLandmark(
     const pose::Transformation& T_C_G, Eigen::Matrix4Xd* measurements,
     size_t index) const {
   Eigen::Vector2d image_point_vec;
-  CHECK_EQ(n_camera_->numCameras(), 1u)
+  CHECK_EQ(ncamera_template_->numCameras(), 1u)
       << "Only one camera currently supported!";
-  CHECK(n_camera_->getCamera(0)
+  CHECK(ncamera_template_->getCamera(0)
             .project3(T_C_G.transform(landmark_info.p_G_fi), &image_point_vec)
             .isKeypointVisible());
   measurements->block<2, 1>(0, index) = image_point_vec;

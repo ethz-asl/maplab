@@ -145,7 +145,7 @@ void SemanticLandmark::serialize(vi_map::proto::SemanticLandmark* proto) const {
 
   {
     const size_t num_observations = observations_.size();
-    google::protobuf::RepeatedPtrField<common::proto::Id>* vertex_ids_proto =
+    google::protobuf::RepeatedPtrField<aslam::proto::Id>* vertex_ids_proto =
         proto->mutable_vertex_ids();
     google::protobuf::RepeatedField<google::protobuf::uint32>*
         frame_indices_proto = proto->mutable_frame_indices();
@@ -193,7 +193,7 @@ void SemanticLandmark::clearObservations() {
   clearClassIdCount();
 }
 
-oid SemanticLandmark::clearClassIdCount() {
+void SemanticLandmark::clearClassIdCount() {
   class_count_map_.clear();
 }
 
