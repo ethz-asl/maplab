@@ -1394,10 +1394,6 @@ void VIMap::addNewSemanticLandmark(
   CHECK(!hasSemanticLandmark(landmark.id()))
       << "Semantic Landmark " << landmark.id() << " already exists in map.";
   CHECK(hasVertex(measurement_and_store_vertex_id));
-  CHECK_EQ(0u, landmark.numberOfObserverVertices())
-      << "The new semnatic landmark shouldn't contain any backlinks as this "
-         "may cause "
-         "inconsistencies.";
 
   getVertex(measurement_and_store_vertex_id)
       .getSemanticLandmarks()
@@ -1512,14 +1508,14 @@ void VIMap::updateAllSemanticLandmarksClassId() {
       const int class_id = vf.getSemanticObjectClassId(measurement_index);
       semantic_landmark.updateClassIdFromCount(class_id);
     }
-    // for debugging
-    // LOG(INFO)<<"landmark Object id: "<<semantic_landmark.id().hexString();
-    // LOG(INFO)<<"landmark class id: "<<semantic_landmark.getClassId();
-    // const std::unordered_map<int, size_t>& class_count_map =
-    // semantic_landmark.getClassIdCount(); LOG(INFO)<<"map size: "<<
-    // class_count_map.size(); for (const auto &pair : class_count_map) {
-    //   LOG(INFO)<<"class id: "<< pair.first <<" count: "<<pair.second;
-    // }
+    VLOG(100) << "landmark Object id: " << semantic_landmark.id().hexString();
+    VLOG(100) << "landmark class id: " << semantic_landmark.getClassId();
+    const std::unordered_map<int, size_t>& class_count_map =
+        semantic_landmark.getClassIdCount();
+    VLOG(100) << "map size: " << class_count_map.size();
+    for (const auto& pair : class_count_map) {
+      VLOG(100) << "class id: " << pair.first << " count: " << pair.second;
+    }
   }
 }
 
@@ -2695,7 +2691,7 @@ void VIMap::removeMission(
       }
     }
 
-    // Delete all landmarks.
+    // Delete all visual landmarks.
     vi_map::LandmarkIdList landmark_ids;
     vertex->getStoredLandmarkIdList(&landmark_ids);
     for (const vi_map::LandmarkId& landmark_id : landmark_ids) {
