@@ -391,7 +391,7 @@ void VIMapGenerator::generateMap() const {
         image_object_measurements, object_uncertainties, object_class_ids,
         object_descriptors, observed_semantic_landmark_ids,
         vertex_pair.second.mission, frame_id, info.timestamp_nanoseconds,
-        n_camera_));
+        mission_ncamera));
 
     const MissionBaseFrame& base_frame =
         map_.getMissionBaseFrame(map_.getMission(mission_id).getBaseFrameId());
@@ -572,10 +572,11 @@ void VIMapGenerator::generateSemanticLandmarkObservations(
   VertexInfoMap::const_iterator vertex_info_it = vertices_.find(vertex_id);
   CHECK(vertex_info_it != vertices_.end());
   const VertexInfo& vertex_info = vertex_info_it->second;
-  CHECK_EQ(n_camera_->numCameras(), 1u)
+
+  CHECK_EQ(ncamera_template_->numCameras(), 1u)
       << "Only one camera currently supported!";
   const pose::Transformation T_C_G(
-      n_camera_->get_T_C_B(0) * vertex_info.T_G_I.inverse());
+      ncamera_template_->get_T_C_B(0) * vertex_info.T_G_I.inverse());
   size_t total = vertex_info.semantic_landmarks.size();
   measurements->resize(4, total);
   class_ids->resize(total);

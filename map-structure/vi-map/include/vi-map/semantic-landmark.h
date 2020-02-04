@@ -32,8 +32,8 @@ class SemanticLandmark {
 
   SemanticLandmark()
       : quality_(Quality::kUnknown),
-        B_position_(Eigen::Vector3d::Zero()),
-        class_id_(-1) {}
+        class_id_(-1),
+        B_position_(Eigen::Vector3d::Zero()) {}
 
   SemanticLandmark(const SemanticLandmark& lhs) {
     *this = lhs;

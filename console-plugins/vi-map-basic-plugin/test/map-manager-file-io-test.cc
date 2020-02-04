@@ -447,8 +447,6 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerialization) {
       *first_vi_map_, &landmark_index_proto);
   vi_map::serialization::serializeSemanticLandmarkIndex(
       *first_vi_map_, &landmark_index_proto);
-  vi_map::serialization::serializeOptionalSensorData(
-      *first_vi_map_, &optional_sensor_data_proto);
 
   vi_map::serialization::deserializeSensorManagerFromArray(
       sensor_manager_raw_data, second_vi_map_.get());
@@ -461,8 +459,6 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerialization) {
       landmark_index_proto, second_vi_map_.get());
   vi_map::serialization::deserializeSemanticLandmarkIndex(
       landmark_index_proto, second_vi_map_.get());
-  vi_map::serialization::deserializeOptionalSensorData(
-      optional_sensor_data_proto, second_vi_map_.get());
   EXPECT_TRUE(vi_map::test::compareVIMap(*first_vi_map_, *second_vi_map_));
 }
 
@@ -484,8 +480,6 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerializationManyVertices) {
       *first_vi_map_, &landmark_index_proto);
   vi_map::serialization::serializeSemanticLandmarkIndex(
       *first_vi_map_, &landmark_index_proto);
-  vi_map::serialization::serializeOptionalSensorData(
-      *first_vi_map_, &optional_sensor_data_proto);
 
   vi_map::serialization::deserializeSensorManagerFromArray(
       sensor_manager_raw_data, second_vi_map_.get());
@@ -498,8 +492,6 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerializationManyVertices) {
       landmark_index_proto, second_vi_map_.get());
   vi_map::serialization::deserializeSemanticLandmarkIndex(
       landmark_index_proto, second_vi_map_.get());
-  vi_map::serialization::deserializeOptionalSensorData(
-      optional_sensor_data_proto, second_vi_map_.get());
   EXPECT_TRUE(vi_map::test::compareVIMap(*first_vi_map_, *second_vi_map_));
 }
 

@@ -158,17 +158,6 @@ bool VIMap::mergeAllMissionsFromMapWithoutResources(
     semantic_landmark_index.addSemanticLandmarkAndVertexReference(
         landmark_id, original_landmark_store_vertex_id);
   }
-
-  for (const OptionalSensorDataMap::value_type& other_optional_sensor_data :
-       other.optional_sensor_data_map_) {
-    const MissionId& mission_id = other_optional_sensor_data.first;
-    CHECK(hasMission(mission_id));
-    CHECK(optional_sensor_data_map_
-              .emplace(
-                  std::piecewise_construct, std::forward_as_tuple(mission_id),
-                  std::forward_as_tuple(other_optional_sensor_data.second))
-              .second);
-  }
   CHECK(checkMapConsistency(*this));
   return true;
 }
@@ -627,56 +616,6 @@ std::string VIMap::printMapStatistics(
             stats_text << value << std::endl;
           };
 
-  std::string name = semantics.getNameOfMission(mission_id);
-  std::vector<size_t> num_good_landmarks_per_camera;
-  std::vector<size_t> num_bad_landmarks_per_camera;
-  std::vector<size_t> num_unknown_landmarks_per_camera;
-  std::vector<size_t> total_num_landmarks_per_camera;
-  std::vector<size_t> num_good_semantic_landmarks_per_camera;
-  std::vector<size_t> num_bad_semantic_landmarks_per_camera;
-  std::vector<size_t> num_unknown_semantic_landmarks_per_camera;
-  std::vector<size_t> total_num_semantic_landmarks_per_camera;
-  size_t num_vertices = 0u;
-  size_t num_landmarks = 0u;
-  size_t num_observations = 0u;
-  size_t num_semantic_landmarks = 0u;
-  size_t num_semantic_observations = 0u;
-  double duration_s = 0.0;
-  int64_t start_time_ns = 0u;
-  int64_t end_time_ns = 0u;
-  getStatisticsOfMission(
-      mission_id, &num_good_landmarks_per_camera, &num_bad_landmarks_per_camera,
-      &num_unknown_landmarks_per_camera, &total_num_landmarks_per_camera,
-      &num_good_semantic_landmarks_per_camera,
-      &num_bad_semantic_landmarks_per_camera,
-      &num_unknown_semantic_landmarks_per_camera,
-      &total_num_semantic_landmarks_per_camera, &num_landmarks,
-      &num_semantic_landmarks, &num_vertices, &num_observations,
-      &num_semantic_observations, &duration_s, &start_time_ns, &end_time_ns);
-
-  size_t num_wheel_odometry_edges = 0u;
-  size_t num_imu_edges = 0u;
-  size_t num_loop_closure_edges = 0u;
-
-  pose_graph::EdgeIdList edge_ids;
-  getAllEdgeIdsInMissionAlongGraph(mission_id, &edge_ids);
-  for (const pose_graph::EdgeId& edge_id : edge_ids) {
-    CHECK(edge_id.isValid());
-    switch (getEdgeType(edge_id)) {
-      case pose_graph::Edge::EdgeType::kOdometry:
-        ++num_wheel_odometry_edges;
-        break;
-      case pose_graph::Edge::EdgeType::kLoopClosure:
-        ++num_loop_closure_edges;
-        break;
-      case pose_graph::Edge::EdgeType::kViwls:
-        ++num_imu_edges;
-        break;
-      default:
-        break;
-    }
-  }
-
   const vi_map::VIMission& mission = getMission(mission_id);
 
   // Determine primary backbone type.
@@ -713,22 +652,37 @@ std::string VIMap::printMapStatistics(
     std::vector<size_t> num_bad_landmarks_per_camera;
     std::vector<size_t> num_unknown_landmarks_per_camera;
     std::vector<size_t> total_num_landmarks_per_camera;
+    std::vector<size_t> num_good_semantic_landmarks_per_camera;
+    std::vector<size_t> num_bad_semantic_landmarks_per_camera;
+    std::vector<size_t> num_unknown_semantic_landmarks_per_camera;
+    std::vector<size_t> total_num_semantic_landmarks_per_camera;
     size_t num_landmarks = 0u;
+    size_t num_semantic_landmarks = 0u;
     size_t num_vertices = 0u;
     size_t num_observations = 0u;
+    size_t num_semantic_observations = 0u;
     double duration_s = 0.0;
     int64_t start_time_ns = 0u;
     int64_t end_time_ns = 0u;
     getStatisticsOfMission(
         mission_id, &num_good_landmarks_per_camera,
         &num_bad_landmarks_per_camera, &num_unknown_landmarks_per_camera,
-        &total_num_landmarks_per_camera, &num_landmarks, &num_vertices,
-        &num_observations, &duration_s, &start_time_ns, &end_time_ns);
+        &total_num_landmarks_per_camera,
+        &num_good_semantic_landmarks_per_camera,
+        &num_bad_semantic_landmarks_per_camera,
+        &num_unknown_semantic_landmarks_per_camera,
+        &total_num_semantic_landmarks_per_camera, &num_landmarks,
+        &num_semantic_landmarks, &num_vertices, &num_observations,
+        &num_semantic_observations, &duration_s, &start_time_ns, &end_time_ns);
 
     CHECK_EQ(num_good_landmarks_per_camera.size(), num_cameras);
     CHECK_EQ(num_bad_landmarks_per_camera.size(), num_cameras);
     CHECK_EQ(num_unknown_landmarks_per_camera.size(), num_cameras);
     CHECK_EQ(total_num_landmarks_per_camera.size(), num_cameras);
+    CHECK_EQ(num_good_semantic_landmarks_per_camera.size(), num_cameras);
+    CHECK_EQ(num_bad_semantic_landmarks_per_camera.size(), num_cameras);
+    CHECK_EQ(num_unknown_semantic_landmarks_per_camera.size(), num_cameras);
+    CHECK_EQ(total_num_semantic_landmarks_per_camera.size(), num_cameras);
 
     stats_text << std::endl;
     print_aligned("NCamera Sensor: ", ncamera_id.hexString(), 1);
@@ -744,6 +698,29 @@ std::string VIMap::printMapStatistics(
               " b:" + std::to_string(num_bad_landmarks_per_camera[camera_idx]) +
               " u:" +
               std::to_string(num_unknown_landmarks_per_camera[camera_idx]) +
+              ")",
+          1);
+    }
+
+    print_aligned(
+        " - Semantic Landmarks: ", std::to_string(num_semantic_landmarks), 1);
+    print_aligned(
+        " - Semantic Observations:", std::to_string(num_semantic_observations),
+        1);
+    print_aligned(" - Semantic Landmarks by first observer backlink:", "", 1);
+    for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
+      print_aligned(
+          "   - Camera " + std::to_string(camera_idx) + ":",
+          std::to_string(total_num_semantic_landmarks_per_camera[camera_idx]) +
+              " (g:" +
+              std::to_string(
+                  num_good_semantic_landmarks_per_camera[camera_idx]) +
+              " b:" +
+              std::to_string(
+                  num_bad_semantic_landmarks_per_camera[camera_idx]) +
+              " u:" +
+              std::to_string(
+                  num_unknown_semantic_landmarks_per_camera[camera_idx]) +
               ")",
           1);
     }
@@ -811,35 +788,6 @@ std::string VIMap::printMapStatistics(
         " - Wheel odometry Edges: ", std::to_string(num_wheel_odometry_edges),
         1);
   }
-  print_aligned("Observations:", std::to_string(num_observations), 1);
-  print_aligned(
-      "Semantic Landmarks:", std::to_string(num_semantic_landmarks), 1);
-  print_aligned("Semantic Landmarks by first observer backlink:", "", 1);
-  for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
-    print_aligned(
-        "Camera " + std::to_string(camera_idx) + ":",
-        std::to_string(total_num_semantic_landmarks_per_camera[camera_idx]) +
-            " (g:" +
-            std::to_string(num_good_semantic_landmarks_per_camera[camera_idx]) +
-            " b:" +
-            std::to_string(num_bad_semantic_landmarks_per_camera[camera_idx]) +
-            " u:" +
-            std::to_string(
-                num_unknown_semantic_landmarks_per_camera[camera_idx]) +
-            ")",
-        1);
-  }
-  print_aligned("Observations:", std::to_string(num_observations), 1);
-  print_aligned(
-      "Semantic Observations:", std::to_string(num_semantic_observations), 1);
-  print_aligned("Num edges by type: ", "", 1);
-  print_aligned("IMU: ", std::to_string(num_imu_edges), 1);
-  print_aligned(
-      "Wheel-odometry: ", std::to_string(num_wheel_odometry_edges), 1);
-  print_aligned("Loop-closure: ", std::to_string(num_loop_closure_edges), 1);
-  double distance = 0;
-  getDistanceTravelledPerMission(mission_id, &distance);
-  print_aligned("Distance travelled [m]:", std::to_string(distance), 1);
 
   // Print absolute 6dof sensor/constraint info if present.
   if (mission.hasAbsolute6DoFSensor()) {
@@ -1093,6 +1041,32 @@ void VIMap::getDistanceTravelledPerMission(
   } while (getNextVertex(
       current_vertex_id, getGraphTraversalEdgeType(mission_id),
       &next_vertex_id));
+}
+
+void VIMap::addNewMissionWithBaseframe(
+    const vi_map::MissionId& mission_id, const pose::Transformation& T_G_M,
+    const Eigen::Matrix<double, 6, 6>& T_G_M_covariance,
+    const aslam::NCamera::Ptr& ncamera, Mission::BackBone backbone_type) {
+  CHECK(mission_id.isValid());
+  CHECK(ncamera);
+  addNewMissionWithBaseframe(
+      mission_id, T_G_M, T_G_M_covariance, backbone_type);
+  const aslam::NCameraId& ncamera_id = ncamera->getId();
+  if (sensor_manager_.hasNCamera(ncamera_id)) {
+    sensor_manager_.associateExistingNCameraWithMission(ncamera_id, mission_id);
+  } else {
+    sensor_manager_.addNCamera(ncamera, mission_id);
+  }
+}
+
+void VIMap::addNewMissionWithBaseframe(
+    vi_map::VIMission::UniquePtr mission, const aslam::NCamera::Ptr& ncamera,
+    const vi_map::MissionBaseFrame& mission_base_frame) {
+  CHECK(ncamera);
+  const MissionId& mission_id = mission->id();
+  CHECK(mission_id.isValid());
+  sensor_manager_.addNCamera(ncamera, mission_id);
+  addNewMissionWithBaseframe(std::move(mission), mission_base_frame);
 }
 
 void VIMap::addNewMissionWithBaseframe(
@@ -2233,7 +2207,7 @@ const vi_map::MissionId VIMap::duplicateMission(
             if (it != source_to_dest_semantic_landmark_id_map.end()) {
               new_landmark_id = it->second;
             } else {
-              common::generateId(&new_landmark_id);
+              aslam::generateId(&new_landmark_id);
               source_to_dest_semantic_landmark_id_map.emplace(
                   current_landmark_id, new_landmark_id);
             }
@@ -2253,7 +2227,7 @@ const vi_map::MissionId VIMap::duplicateMission(
     aslam::generateId(&n_frame_id);
     n_frame->setId(n_frame_id);
 
-    CHECK_EQ(duplicated_ncamera->getNumCameras(), num_frames);
+    CHECK_EQ(new_ncamera->getNumCameras(), num_frames);
     for (size_t frame_idx = 0u; frame_idx < num_frames; ++frame_idx) {
       if (source_vertex.isVisualFrameSet(frame_idx)) {
         const aslam::VisualFrame& source_frame =

@@ -125,26 +125,6 @@ void serializeSemanticLandmarkIndex(
       static_cast<int>(num_landmarks), proto->semantic_landmark_index_size());
 }
 
-void serializeOptionalSensorData(const VIMap& map, proto::VIMap* proto) {
-  CHECK_NOTNULL(proto);
-  MissionIdList mission_ids;
-  map.getAllMissionIds(&mission_ids);
-  for (const MissionId& mission_id : mission_ids) {
-    CHECK(mission_id.isValid());
-    if (map.hasOptionalSensorData(mission_id)) {
-      const OptionalSensorData& optional_sensor_data =
-          map.getOptionalSensorData(mission_id);
-      vi_map::proto::OptionalSensorDataMissionPair*
-          proto_optional_sensor_data_mission_pair =
-              CHECK_NOTNULL(proto->add_optional_sensor_data_mission_id_pair());
-      mission_id.serialize(
-          proto_optional_sensor_data_mission_pair->mutable_mission_id());
-      optional_sensor_data.serialize(proto_optional_sensor_data_mission_pair
-                                         ->mutable_optional_sensor_data());
-    }
-  }
-}
-
 void deserializeVertices(
     const vi_map::proto::VIMap& proto, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
@@ -294,19 +274,6 @@ void deserializeSemanticLandmarkIndex(
   }
 }
 
-void deserializeOptionalSensorData(const proto::VIMap& proto, VIMap* map) {
-  CHECK_NOTNULL(map);
-  for (const proto::OptionalSensorDataMissionPair&
-           proto_mission_id_with_sensor_data :
-       proto.optional_sensor_data_mission_id_pair()) {
-    MissionId mission_id;
-    mission_id.deserialize(proto_mission_id_with_sensor_data.mission_id());
-    CHECK(mission_id.isValid());
-    map->emplaceOptionalSensorData(
-        mission_id, proto_mission_id_with_sensor_data.optional_sensor_data());
-  }
-}
-
 namespace {
 
 VIMapMetadata createMetadataForVIMap(const vi_map::VIMap& map) {
@@ -342,10 +309,6 @@ VIMapMetadata createMetadataForVIMap(const vi_map::VIMap& map) {
   metadata.emplace(
       VIMapFileType::kSemanticLandmarkIndex,
       internal::kFileNameSemanticLandmarkIndex);
-  metadata.emplace(
-      VIMapFileType::kOptionalSensorData,
-      internal::kFileNameOptionalSensorData);
-
   return metadata;
 }
 
