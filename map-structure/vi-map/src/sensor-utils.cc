@@ -202,8 +202,8 @@ LoopClosureSensor::Ptr getSelectedLoopClosureSensor(
       SensorType::kLoopClosureSensor, &all_loop_closure_ids);
 
   if (all_loop_closure_ids.empty()) {
-    LOG(WARNING) << "No LoopClosure sensors found in sensor manager! Returning "
-                    "dummy sensor; this is probably not desired.";
+    LOG(WARNING) << "No LoopClosure sensors found in sensor manager!";
+
     return LoopClosureSensor::Ptr();
   }
 
@@ -240,8 +240,7 @@ WheelOdometry::Ptr getSelectedWheelOdometrySensor(
       SensorType::kWheelOdometry, &all_wheel_odometry_ids);
 
   if (all_wheel_odometry_ids.empty()) {
-    LOG(WARNING) << "No WheelOdometry sensors found in sensor manager! "
-                    "Returning dummy sensor; this is probably not desired.";
+    LOG(WARNING) << "No WheelOdometry sensors found in sensor manager!";
     return WheelOdometry::Ptr();
   }
 

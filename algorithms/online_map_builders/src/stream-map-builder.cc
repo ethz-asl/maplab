@@ -22,10 +22,28 @@ DEFINE_bool(
     "Store the point clouds associated with a lidar sensor to the map resource "
     "folder.");
 
+DEFINE_string(
+    map_builder_save_point_clouds_as_range_image_camera_id, "",
+    "Camera id of the depth camera used to convert lidar point clouds to range "
+    "images "
+    "maps.");
+
+DEFINE_bool(
+    map_builder_save_point_clouds_as_range_image_including_intensity_image,
+    true,
+    "If enabled, the color or intensity information in the point cloud is used "
+    "to create a corresponding intensity/color for each point cloud in "
+    "addition to the range image.");
+
 DEFINE_bool(
     map_builder_save_point_cloud_maps_as_resources, true,
     "Store the point cloud (sub-)maps associated with an external source to "
     "the map resource folder.");
+
+DEFINE_bool(
+    map_builder_visualize_lidar_depth_maps_in_ocv_window, false,
+    "If enabled, opencv windows with the result of the lidar scan to lidar "
+    "depth map conversion will be opened.");
 
 namespace online_map_builders {
 
@@ -66,6 +84,61 @@ StreamMapBuilder::StreamMapBuilder(
   aslam::SensorIdSet sensor_ids;
   sensor_manager.getAllSensorIds(&sensor_ids);
   map_->associateMissionSensors(sensor_ids, mission_id_);
+
+  // Retrieve depth camera id from flags to later convert lidar point clouds to
+  // depth maps.
+  if (FLAGS_map_builder_save_point_clouds_as_resources &&
+      !FLAGS_map_builder_save_point_clouds_as_range_image_camera_id.empty()) {
+    lidar_depth_camera_id_.fromHexString(
+        FLAGS_map_builder_save_point_clouds_as_range_image_camera_id);
+    if (!lidar_depth_camera_id_.isValid()) {
+      LOG(ERROR)
+          << "[StreamMapBuilder] The depth camera id ("
+          << FLAGS_map_builder_save_point_clouds_as_range_image_camera_id
+          << ") provided to project the lidar point clouds into depth maps is "
+          << "not valid! Point clouds will not be projected into depth maps.";
+    } else if (!map_->getSensorManager().hasSensor(lidar_depth_camera_id_)) {
+      LOG(ERROR)
+          << "[StreamMapBuilder] The depth camera id ("
+          << lidar_depth_camera_id_
+          << ") provided to project the lidar point clouds into depth maps is "
+          << "not in the sensor manager! Point clouds will not be projected "
+             "into depth maps.";
+    } else {
+      VLOG(1) << "[StreamMapBuilder] Using depth camera "
+              << lidar_depth_camera_id_
+              << " to project lidar scans into depth maps.";
+
+      aslam::NCamera::Ptr lidar_depth_camera_sensor_ncamera_ptr =
+          map_->getSensorManager().getSensorPtr<aslam::NCamera>(
+              lidar_depth_camera_id_);
+      CHECK(lidar_depth_camera_sensor_ncamera_ptr);
+      CHECK_EQ(lidar_depth_camera_sensor_ncamera_ptr->numCameras(), 1u);
+      lidar_depth_camera_sensor_ =
+          lidar_depth_camera_sensor_ncamera_ptr->getCameraShared(0u);
+      CHECK(lidar_depth_camera_sensor_);
+      const aslam::Transformation& T_C_lidar_Cn_lidar =
+          lidar_depth_camera_sensor_ncamera_ptr->get_T_C_B(0u);
+
+      const aslam::Transformation& T_B_Cn_lidar =
+          map_->getSensorManager().getSensor_T_B_S(lidar_depth_camera_id_);
+      CHECK(map_->getMission(mission_id_).hasLidar())
+          << "[StreamMapBuilder] Mission " << mission_id_
+          << " does not have a lidar sensor and therefore cannot attach lidar "
+          << "measurements!";
+      const aslam::SensorId& lidar_sensor_id =
+          map_->getMission(mission_id_).getLidarId();
+      CHECK(map_->getSensorManager().hasSensor(lidar_sensor_id))
+          << "[StreamMapBuilder] Mission " << mission_id_
+          << " has a lidar id associated (" << lidar_sensor_id
+          << ") but this lidar does not exist in the sensor manager!";
+
+      const aslam::Transformation& T_B_S_lidar =
+          map_->getSensorManager().getSensor_T_B_S(lidar_sensor_id);
+      T_C_lidar_S_lidar_ =
+          T_C_lidar_Cn_lidar * T_B_Cn_lidar.inverse() * T_B_S_lidar;
+    }
+  }
 
   // Initialize wheel odometry origin frame tracking
   T_Ow_Btm1_.setIdentity();

@@ -9,6 +9,8 @@
 #include <Eigen/Core>
 #include <aslam/common/pose-types.h>
 #include <maplab-common/file-system-tools.h>
+#include <maplab-common/parallel-process.h>
+#include <maplab-common/threading-helpers.h>
 
 #include "resources-common/tinyply/tinyply.h"
 
@@ -27,13 +29,23 @@ struct PointCloud {
   // Apply transformation T_A_B to pointcloud, assuming the pointcloud is
   // currently expressed in the B frame.
   inline void applyTransformation(const aslam::Transformation& T_A_B) {
-    for (size_t idx = 0u; idx < xyz.size(); idx += 3u) {
-      const Eigen::Vector3d point(xyz[idx], xyz[idx + 1u], xyz[idx + 2u]);
-      const Eigen::Vector3f& transformed_point = (T_A_B * point).cast<float>();
-      xyz[idx] = transformed_point.x();
-      xyz[idx + 1u] = transformed_point.y();
-      xyz[idx + 2u] = transformed_point.z();
-    }
+    std::function<void(const std::vector<size_t>&)> transform_points_function =
+        [this, &T_A_B](const std::vector<size_t>& batch) {
+          for (size_t point_idx : batch) {
+            const size_t idx = point_idx * 3;
+            const Eigen::Vector3d point(xyz[idx], xyz[idx + 1u], xyz[idx + 2u]);
+            const Eigen::Vector3f& transformed_point =
+                (T_A_B * point).cast<float>();
+            xyz[idx] = transformed_point.x();
+            xyz[idx + 1u] = transformed_point.y();
+            xyz[idx + 2u] = transformed_point.z();
+          }
+        };
+
+    const size_t num_threads = common::getNumHardwareThreads();
+    static constexpr bool kAlwaysParallelize = false;
+    common::ParallelProcess(
+        size(), transform_points_function, kAlwaysParallelize, num_threads);
   }
 
   inline void resize(
@@ -75,11 +87,18 @@ struct PointCloud {
     return (scalars.size() == xyz.size() / 3u) && !scalars.empty();
   }
 
-  inline bool checkConsistency() const {
+  inline bool checkConsistency(const bool verbose = false) const {
     bool consistent = true;
     consistent &= (normals.size() == xyz.size()) || normals.empty();
     consistent &= (colors.size() == xyz.size()) || colors.empty();
     consistent &= (scalars.size() == xyz.size() / 3u) || scalars.empty();
+
+    LOG_IF(ERROR, verbose && !consistent)
+        << "\nInconsistent point cloud:"
+        << "\n - Point vector size:  " << xyz.size()
+        << "\n - Normal vector size: " << normals.size()
+        << "\n - Color vector size:  " << colors.size()
+        << "\n - Scalar vector size: " << scalars.size();
     return consistent;
   }
 
@@ -98,7 +117,61 @@ struct PointCloud {
     colors.insert(colors.end(), other.colors.begin(), other.colors.end());
     scalars.insert(scalars.end(), other.scalars.begin(), other.scalars.end());
 
-    CHECK(checkConsistency()) << "Point cloud is not consistent!";
+    CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
+  }
+
+  inline void removeInvalidPoints() {
+    auto it_xyz = xyz.begin();
+    auto it_normals = normals.begin();
+    auto it_colors = colors.begin();
+    auto it_scalars = scalars.begin();
+
+    size_t removed_points = 0u;
+    const size_t initial_number_of_points = xyz.size() / 3u;
+
+    while (it_xyz != xyz.end()) {
+      const float x = *it_xyz;
+      const float y = *(it_xyz + 1);
+      const float z = *(it_xyz + 2);
+
+      if (((x * x + y * y + z * z) < 1e-10) || !std::isfinite(x) ||
+          !std::isfinite(y) || !std::isfinite(z)) {
+        ++removed_points;
+
+        it_xyz = xyz.erase(it_xyz, it_xyz + 3);
+
+        if (!normals.empty()) {
+          it_normals = normals.erase(it_normals, it_normals + 3);
+        }
+
+        if (!colors.empty()) {
+          it_colors = colors.erase(it_colors, it_colors + 3);
+        }
+
+        if (!scalars.empty()) {
+          it_scalars = scalars.erase(it_scalars);
+        }
+      } else {
+        it_xyz += 3;
+
+        if (!normals.empty()) {
+          it_normals += 3;
+        }
+
+        if (!colors.empty()) {
+          it_colors += 3;
+        }
+
+        if (!scalars.empty()) {
+          ++it_scalars;
+        }
+      }
+    }
+    LOG_IF(WARNING, removed_points > 0)
+        << "Removed " << removed_points << "/" << initial_number_of_points
+        << " invalid points from point cloud!";
+
+    CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
   }
 
   bool operator==(const PointCloud& other) const {

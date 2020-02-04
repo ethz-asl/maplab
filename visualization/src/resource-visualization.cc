@@ -37,10 +37,11 @@ DEFINE_bool(
     "This flag is not compatible with "
     "--vis_pointcloud_accumulated_before_publishing.");
 DEFINE_bool(
-    vis_pointcloud_use_distorted_camera_to_reproject_depth_maps, false,
-    "If enabled, the distorted depth camera is used to reproject the depth "
-    "maps to point cloud. This assumes that the depth map has been created "
-    "using a distorted camera.");
+    vis_pointcloud_reproject_depth_maps_with_undistorted_camera, false,
+    "If enabled, the undistorted depth camera is used to reproject the depth "
+    "maps to point cloud. The intended use case is if a depth map is created "
+    "from an image that has been undistorted, hence the undistorted camera "
+    "should be used to reproject it.");
 
 DEFINE_string(
     vis_pointcloud_export_accumulated_pc_to_ply_path, "",
@@ -59,12 +60,6 @@ DEFINE_int32(
 DEFINE_double(
     vis_resource_visualization_frequency, 8,
     "Frequency of the image resources visualization in Hz.");
-
-DEFINE_bool(
-    vis_pointcloud_use_distorted_camera, false,
-    "If enabled, the depth map reprojection assumes that the map has "
-    "been created using the distorted image. Therefore, the distorted "
-    "camera model is used for reprojection.");
 
 DEFINE_bool(
     vis_pointcloud_color_random, false,
@@ -429,7 +424,8 @@ void visualizeReprojectedDepthResource(
 
   depth_integration::integrateAllDepthResourcesOfType(
       mission_ids, input_resource_type,
-      !FLAGS_vis_pointcloud_use_distorted_camera, vi_map, integration_function);
+      FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
+      integration_function);
 
   // If we are done and we did not accumulate the point cloud there is nothing
   // left to do.

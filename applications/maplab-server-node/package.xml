@@ -20,11 +20,7 @@
 	<depend>maplab_msgs</depend>
 	<depend>maplab_ros_common</depend>
 	<depend>maplab_test_data</depend>
-	<depend>minkindr_conversions</depend>
-	<depend>sensors</depend>
 	<depend>vi_map</depend>
-	<depend>vi_mapping_test_app</depend>
-	<depend>vio_common</depend>
 	<depend>visualization</depend>
 
 	<!-- Make sure all the plugins are available to the server to support all commands -->
