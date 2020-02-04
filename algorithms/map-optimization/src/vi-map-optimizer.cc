@@ -61,7 +61,7 @@ bool VIMapOptimizer::optimize(
           missions_to_optimize, options, map));
   CHECK(optimization_problem);
 
-  augmentViProblemWithLoopclosureEdges(optimization_problem.get());
+  augmentOptimizationProblemWithLoopclosureEdges(optimization_problem.get());
 
   std::vector<std::shared_ptr<ceres::IterationCallback>> callbacks;
   if (plotter_) {

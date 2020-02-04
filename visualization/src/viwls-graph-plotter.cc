@@ -805,7 +805,7 @@ void ViwlsGraphRvizPlotter::publishSemanticLandmarks(
   appendSemanticLandmarksToSphereVector(map, missions, &spheres);
 
   visualization::publishSpheresAsPointCloud(
-      spheres, visualization::kDefaultMapFrame, kSemanticLandmarkTopic);
+      spheres, FLAGS_tf_map_frame, kSemanticLandmarkTopic);
 }
 
 void ViwlsGraphRvizPlotter::publishSemanticLandmarks(
@@ -824,11 +824,10 @@ void ViwlsGraphRvizPlotter::publishSemanticLandmarks(
   const double kAlpha = 1.;
   if (!topic.empty()) {
     visualization::publish3DPointsAsPointCloud(
-        p_G_landmarks, color, kAlpha, visualization::kDefaultMapFrame, topic);
+        p_G_landmarks, color, kAlpha, FLAGS_tf_map_frame, topic);
   } else {
     visualization::publish3DPointsAsPointCloud(
-        p_G_landmarks, color, kAlpha, visualization::kDefaultMapFrame,
-        kLandmarkTopic);
+        p_G_landmarks, color, kAlpha, FLAGS_tf_map_frame, kLandmarkTopic);
   }
 }
 

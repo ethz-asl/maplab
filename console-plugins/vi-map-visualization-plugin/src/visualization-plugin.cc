@@ -126,7 +126,7 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
   addCommand(
       {"visualize_bounding_boxes"},
       [this]() -> int {
-        return visualizeOptionalResources(
+        return visualizeBoundingBoxResources(
             backend::ResourceType::kObjectInstanceBoundingBoxes);
       },
       "Show mission fly-through of the bounding box resources on their "
@@ -248,7 +248,7 @@ int VisualizationPlugin::visualizeCvMatResources(backend::ResourceType type) {
   return common::kUnknownError;
 }
 
-int VisualizationPlugin::visualizeOptionalResources(
+int VisualizationPlugin::visualizeBoundingBoxResources(
     backend::ResourceType type) {
   std::string selected_map_key;
   if (!getSelectedMapKeyIfSet(&selected_map_key)) {
@@ -264,7 +264,7 @@ int VisualizationPlugin::visualizeOptionalResources(
       LOG(FATAL)
           << "'" << backend::ResourceTypeNames[static_cast<int>(type)]
           << "' is not currently supported and cannot be visualized using "
-          << "'visualizeOptionalResources()'!";
+          << "'visualizeBoundingBoxResources()'!";
   }
   return common::kUnknownError;
 }

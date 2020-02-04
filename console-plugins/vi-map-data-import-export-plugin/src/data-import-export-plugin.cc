@@ -268,31 +268,39 @@ int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsvInRPGFormat()
           : FLAGS_pose_export_file;
   CHECK(!filepath.empty());
 
-  const vi_map::SensorType sensor_type =
-      vi_map::stringToSensorType(FLAGS_pose_export_reference_sensor_type);
-  if (sensor_type == vi_map::SensorType::kInvalidSensor) {
-    return common::kStupidUserError;
+  aslam::SensorId reference_sensor_id;
+  if (FLAGS_pose_export_reference_sensor_id.empty()) {
+    // Pick first valid IMU from mission
+    for (const vi_map::MissionId& mission_id : mission_ids) {
+      const vi_map::VIMission& mission = map->getMission(mission_id);
+      if (mission.hasImu()) {
+        reference_sensor_id = mission.getImuId();
+        break;
+      }
+    }
+
+    if (!reference_sensor_id.isValid()) {
+      LOG(ERROR)
+          << "Could not find a mission with a valid IMU, reference sensor id"
+          << "must be specified manually.";
+      return common::kStupidUserError;
+    }
+  } else {
+    reference_sensor_id.fromHexString(FLAGS_pose_export_reference_sensor_id);
+
+    if (!reference_sensor_id.isValid()) {
+      LOG(ERROR) << "Invalid sensor id.";
+      return common::kStupidUserError;
+    }
   }
 
-  const vi_map::SensorManager& sensor_manager = map->getSensorManager();
-  vi_map::SensorIdSet sensor_ids;
-  sensor_manager.getAllSensorIdsOfType(sensor_type, &sensor_ids);
-  if (sensor_ids.empty()) {
-    LOG(ERROR) << "No sensor of type "
-               << vi_map::sensorTypeToString(sensor_type) << " available.";
+  if (!map->getSensorManager().hasSensor(reference_sensor_id)) {
+    LOG(ERROR) << "Sensor does not exist";
     return common::kStupidUserError;
   }
-  if (sensor_ids.size() > 1u) {
-    LOG(ERROR) << "More than one sensor of type "
-               << vi_map::sensorTypeToString(sensor_type)
-               << " available. Don't know "
-               << "how to choose.";
-    return common::kStupidUserError;
-  }
-  CHECK_EQ(sensor_ids.size(), 1u);
 
   data_import_export::exportPosesVelocitiesAndBiasesToCsvInRPGFormat(
-      *map, mission_ids, *sensor_ids.begin(), filepath);
+      *map, mission_ids, reference_sensor_id, filepath);
   return common::kSuccess;
 }
 

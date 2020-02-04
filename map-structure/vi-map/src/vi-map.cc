@@ -1045,32 +1045,6 @@ void VIMap::getDistanceTravelledPerMission(
 }
 
 void VIMap::addNewMissionWithBaseframe(
-    const vi_map::MissionId& mission_id, const pose::Transformation& T_G_M,
-    const Eigen::Matrix<double, 6, 6>& T_G_M_covariance,
-    const aslam::NCamera::Ptr& ncamera, Mission::BackBone backbone_type) {
-  CHECK(mission_id.isValid());
-  CHECK(ncamera);
-  addNewMissionWithBaseframe(
-      mission_id, T_G_M, T_G_M_covariance, backbone_type);
-  const aslam::NCameraId& ncamera_id = ncamera->getId();
-  if (sensor_manager_.hasNCamera(ncamera_id)) {
-    sensor_manager_.associateExistingNCameraWithMission(ncamera_id, mission_id);
-  } else {
-    sensor_manager_.addNCamera(ncamera, mission_id);
-  }
-}
-
-void VIMap::addNewMissionWithBaseframe(
-    vi_map::VIMission::UniquePtr mission, const aslam::NCamera::Ptr& ncamera,
-    const vi_map::MissionBaseFrame& mission_base_frame) {
-  CHECK(ncamera);
-  const MissionId& mission_id = mission->id();
-  CHECK(mission_id.isValid());
-  sensor_manager_.addNCamera(ncamera, mission_id);
-  addNewMissionWithBaseframe(std::move(mission), mission_base_frame);
-}
-
-void VIMap::addNewMissionWithBaseframe(
     vi_map::VIMission::UniquePtr mission,
     const vi_map::MissionBaseFrame& mission_base_frame) {
   const MissionId& mission_id = mission->id();
@@ -2299,43 +2273,11 @@ const vi_map::MissionId VIMap::duplicateMission(
     aslam::generateId(&n_frame_id);
     n_frame->setId(n_frame_id);
 
-    CHECK_EQ(new_ncamera->getNumCameras(), num_frames);
     for (size_t frame_idx = 0u; frame_idx < num_frames; ++frame_idx) {
-      if (source_vertex.isVisualFrameSet(frame_idx)) {
-        const aslam::VisualFrame& source_frame =
-            source_vertex.getVisualFrame(frame_idx);
-        aslam::FrameId frame_id = source_frame.getId();
-        common::generateId(&frame_id);
-        aslam::VisualFrame::Ptr visual_frame(new aslam::VisualFrame);
-        visual_frame->setId(frame_id);
-        visual_frame->setTimestampNanoseconds(
-            source_frame.getTimestampNanoseconds());
-        visual_frame->setCameraGeometry(
-            duplicated_ncamera->getCameraShared(frame_idx));
-
-        visual_frame->setKeypointMeasurements(
-            source_frame.getKeypointMeasurements());
-        visual_frame->setKeypointMeasurementUncertainties(
-            source_frame.getKeypointMeasurementUncertainties());
-        visual_frame->setDescriptors(source_frame.getDescriptors());
-        if (source_frame.hasTrackIds()) {
-          visual_frame->setTrackIds(source_frame.getTrackIds());
-        }
-
-        visual_frame->setSemanticObjectMeasurements(
-            source_frame.getSemanticObjectMeasurements());
-        visual_frame->setSemanticObjectMeasurementUncertainties(
-            source_frame.getSemanticObjectMeasurementUncertainties());
-        visual_frame->setSemanticObjectClassIds(
-            source_frame.getSemanticObjectClassIds());
-        visual_frame->setSemanticObjectDescriptors(
-            source_frame.getSemanticObjectDescriptors());
-        if (source_frame.hasSemanticObjectTrackIds()) {
-          visual_frame->setSemanticObjectTrackIds(
-              source_frame.getSemanticObjectTrackIds());
-        }
-
-        n_frame->setFrame(frame_idx, visual_frame);
+      if (n_frame->isFrameSet(frame_idx)) {
+        aslam::FrameId frame_id;
+        aslam::generateId(&frame_id);
+        n_frame->getFrameShared(frame_idx)->setId(frame_id);
       }
     }
 

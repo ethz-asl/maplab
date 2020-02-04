@@ -1,10 +1,10 @@
-#include "rovioli/data-publisher-flow.h"
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <maplab-common/conversions.h>
 #include <maplab-common/file-logger.h>
 #include <maplab_msgs/OdometryWithImuBiases.h>
 #include <minkindr_conversions/kindr_msg.h>
+#include "rovioli/data-publisher-flow.h"
 #include "rovioli/ros-helpers.h"
 
 DEFINE_double(
@@ -31,7 +31,6 @@ DEFINE_bool(
     "active for the visualization.");
 
 DECLARE_bool(rovioli_run_map_builder);
-
 
 namespace rovioli {
 namespace {
@@ -177,9 +176,11 @@ void DataPublisherFlow::visualizeMap(const vi_map::VIMap& vi_map) const {
   static constexpr bool kPublishEdges = true;
   static constexpr bool kPublishLandmarks = true;
   static constexpr bool kPublishAbsolute6DofConstraints = true;
+  static constexpr bool kPublishSemanticLandmarks = true;
   plotter_->visualizeMap(
       vi_map, kPublishBaseframes, kPublishVertices, kPublishEdges,
-      kPublishLandmarks, kPublishAbsolute6DofConstraints);
+      kPublishLandmarks, kPublishAbsolute6DofConstraints,
+      kPublishSemanticLandmarks);
 }
 
 void DataPublisherFlow::publishVinsState(
@@ -188,16 +189,16 @@ void DataPublisherFlow::publishVinsState(
   ros::Time timestamp_ros = createRosTimestamp(timestamp_ns);
 
   // Check whether publishing is needed.
-  const bool maplab_odom_should_publish 
-    = pub_maplab_odom_T_M_I_.getNumSubscribers() > 0;
-  const bool pose_T_M_I_should_publish 
-    = pub_pose_T_M_I_.getNumSubscribers() > 0;
-  const bool velocity_I_should_publish
-    = pub_velocity_I_.getNumSubscribers() > 0;
-  const bool imu_acc_bias_should_publish
-    = pub_imu_acc_bias_.getNumSubscribers() > 0;
-  const bool imu_gyro_bias_should_publish
-    = pub_imu_gyro_bias_.getNumSubscribers() > 0;
+  const bool maplab_odom_should_publish =
+      pub_maplab_odom_T_M_I_.getNumSubscribers() > 0;
+  const bool pose_T_M_I_should_publish =
+      pub_pose_T_M_I_.getNumSubscribers() > 0;
+  const bool velocity_I_should_publish =
+      pub_velocity_I_.getNumSubscribers() > 0;
+  const bool imu_acc_bias_should_publish =
+      pub_imu_acc_bias_.getNumSubscribers() > 0;
+  const bool imu_gyro_bias_should_publish =
+      pub_imu_gyro_bias_.getNumSubscribers() > 0;
 
   // Publish pose in mission frame.
   maplab_msgs::OdometryWithImuBiases maplab_odom_T_M_I;
@@ -208,7 +209,7 @@ void DataPublisherFlow::publishVinsState(
         T_M_I, timestamp_ros, FLAGS_tf_mission_frame, &T_M_I_message);
     if (pose_T_M_I_should_publish) {
       pub_pose_T_M_I_.publish(T_M_I_message);
-    }  
+    }
     maplab_odom_T_M_I.header = T_M_I_message.header;
     maplab_odom_T_M_I.child_frame_id = FLAGS_tf_imu_frame;
     maplab_odom_T_M_I.pose.pose = T_M_I_message.pose;
@@ -266,8 +267,8 @@ void DataPublisherFlow::publishVinsState(
   }
 
   // Publish IMU bias.
-  if (imu_acc_bias_should_publish || maplab_odom_should_publish 
-       || imu_gyro_bias_should_publish) {
+  if (imu_acc_bias_should_publish || maplab_odom_should_publish ||
+      imu_gyro_bias_should_publish) {
     geometry_msgs::Vector3Stamped bias_msg;
     bias_msg.header.stamp = timestamp_ros;
     Eigen::Matrix<double, 6, 1> imu_bias_acc_gyro = vinode.getImuBias();

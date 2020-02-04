@@ -60,9 +60,6 @@ void serializeToProtoAndCallFunction(
         case VIMapFileType::kSemanticLandmarkIndex:
           serializeSemanticLandmarkIndex(map, &proto);
           break;
-        case VIMapFileType::kOptionalSensorData:
-          serializeOptionalSensorData(map, &proto);
-          break;
       }
 
       CHECK(function(entry.second, proto));
@@ -126,11 +123,6 @@ void deserializeFromProtoFromFunction(
       case VIMapFileType::kSemanticLandmarkIndex: {
         std::unique_lock<std::mutex> lock(map_mutex);
         deserializeSemanticLandmarkIndex(proto, map);
-        break;
-      }
-      case VIMapFileType::kOptionalSensorData: {
-        std::unique_lock<std::mutex> lock(map_mutex);
-        deserializeOptionalSensorData(proto, map);
         break;
       }
     }

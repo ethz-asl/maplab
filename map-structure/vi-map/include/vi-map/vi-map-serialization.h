@@ -68,7 +68,6 @@ void serializeLandmarkIndex(
     const vi_map::VIMap& map, vi_map::proto::VIMap* proto);
 void serializeSemanticLandmarkIndex(
     const vi_map::VIMap& map, vi_map::proto::VIMap* proto);
-void serializeOptionalSensorData(const VIMap& map, vi_map::proto::VIMap* proto);
 
 void serializeSensorManagerToArray(
     const vi_map::VIMap& map, network::RawMessageData* raw_data);
@@ -81,8 +80,6 @@ void deserializeMissionsAndBaseframes(
 void deserializeLandmarkIndex(
     const vi_map::proto::VIMap& proto, vi_map::VIMap* map);
 void deserializeSemanticLandmarkIndex(
-    const vi_map::proto::VIMap& proto, vi_map::VIMap* map);
-void deserializeOptionalSensorData(
     const vi_map::proto::VIMap& proto, vi_map::VIMap* map);
 
 void deserializeSensorManagerFromArray(

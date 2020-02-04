@@ -159,6 +159,7 @@ bool visualizeCvMatResources(
 
 bool visualizeBoundingBoxResources(
     const vi_map::VIMap& map, backend::ResourceType type) {
+  CHECK(type == backend::ResourceType::kObjectInstanceBoundingBoxes);
   CHECK_GT(FLAGS_vis_resource_visualization_frequency, 0.0);
   VLOG(1) << "INFO: Visualization will run at "
           << FLAGS_vis_resource_visualization_frequency
@@ -169,70 +170,61 @@ bool visualizeBoundingBoxResources(
 
   cv::RNG rng(12345);  // for color generation
 
-  typedef std::unordered_map<aslam::CameraId, backend::OptionalSensorResources>
-      SensorsToResourceMap;
+  pose_graph::VertexIdList vertex_ids;
+  map.getAllVertexIds(&vertex_ids);
+  common::ProgressBar progress_bar(vertex_ids.size());
+  vi_map::MissionVertexIdList mission_to_vertex_ids;
+  map.getVertexIdsByMission(&mission_to_vertex_ids);
 
-  vi_map::MissionIdList mission_ids;
-  map.getAllMissionIds(&mission_ids);
-  if (mission_ids.empty()) {
+  if (mission_to_vertex_ids.empty()) {
     VLOG(1) << "No missions found!";
     return true;
   }
+
   int mission_num = 0;
-  for (const vi_map::MissionId& mission_id : mission_ids) {
-    VLOG(1) << "## Mission " << (mission_num) << " of " << mission_ids.size()
-            << " ##";
-    const vi_map::VIMission& mission = map.getMission(mission_id);
+  for (const vi_map::MissionVertexIdPair& mission_vertex_id_pair :
+       mission_to_vertex_ids) {
+    VLOG(1) << "## Mission " << (mission_num + 1) << " of "
+            << mission_to_vertex_ids.size() << " ##";
 
     const aslam::NCamera& ncamera =
-        map.getSensorManager().getMissionNCamera(mission_id);
+        map.getMissionNCamera(mission_vertex_id_pair.first);
     std::vector<std::string> cv_window_names;
     std::unordered_set<std::string> cv_active_window_names;
     getOpenCvWindowsForNCamera(ncamera, &cv_window_names);
 
-    const SensorsToResourceMap* camera_id_to_res_id_map;
-    camera_id_to_res_id_map =
-        mission.getAllOptionalSensorResourceIdsOfType<aslam::CameraId>(type);
-
-    // Loop over all cameras that have resources of this type
-    for (const typename SensorsToResourceMap::value_type& camera_to_res_ids :
-         *camera_id_to_res_id_map) {
-      const backend::OptionalSensorResources& resources_with_timestamps =
-          camera_to_res_ids.second;
-      const aslam::CameraId& camera_id = camera_to_res_ids.first;
-      // Loop over all timestamp/resource_id pairs
-      common::ProgressBar progress_bar(resources_with_timestamps.size());
-      for (const std::pair<int64_t, backend::ResourceId>& stamped_resource_id :
-           resources_with_timestamps) {
-        const int64_t timestamp_ns = stamped_resource_id.first;
-
-        cv::Mat image;
-        if (!map.getOptionalSensorResource(
-                mission, backend::ResourceType::kRawColorImage, camera_id,
-                timestamp_ns, &image)) {
+    for (const pose_graph::VertexId& vertex_id :
+         mission_vertex_id_pair.second) {
+      const vi_map::Vertex& vertex = map.getVertex(vertex_id);
+      const aslam::VisualNFrame& n_frame = vertex.getVisualNFrame();
+      for (uint idx = 0u; idx < n_frame.getNumFrames(); ++idx) {
+        cv::Mat image_resource;
+        resources::ObjectInstanceBoundingBoxes boxes;
+        if (!map.getFrameResource(
+                vertex, idx, backend::ResourceType::kRawColorImage,
+                &image_resource)) {
           LOG(ERROR) << "Failed to Load raw color image for"
                         "visualizeBoundingBoxResources()";
           break;
         }
-        // bounding boxes should have the same time as the images they
-        // corresponds to
-        resources::ObjectInstanceBoundingBoxes boxes;
-        if (!map.getOptionalSensorResource(
-                mission, type, camera_id, timestamp_ns, &boxes)) {
+        cv_active_window_names.insert(cv_window_names.at(idx));
+        if (!map.getFrameResource(
+                vertex, idx,
+                backend::ResourceType::kObjectInstanceBoundingBoxes, &boxes)) {
           LOG(ERROR) << "Failed to Load bounding boxes for"
                         "visualizeBoundingBoxResources()";
           break;
         }
-        // draw bounding boxes onto image, only one camera for now
-        for (auto it = boxes.begin(); it != boxes.end(); it++) {
+        for (auto it = boxes.begin(); it != boxes.end(); ++it) {
           if (it->confidence > FLAGS_vis_bounding_box_confidence_threshold) {
             cv::Scalar color = cv::Scalar(
                 rng.uniform(0, 256), rng.uniform(0, 256), rng.uniform(0, 256));
             rectangle(
-                image, it->bounding_box.tl(), it->bounding_box.br(), color, 2);
+                image_resource, it->bounding_box.tl(), it->bounding_box.br(),
+                color, 2);
             // adds text
             cv::putText(
-                image,
+                image_resource,
                 it->class_name +
                     " inst: " + std::to_string(it->instance_number) +
                     "score: " + std::to_string(it->confidence),
@@ -245,13 +237,13 @@ bool visualizeBoundingBoxResources(
                 CV_AA);  // Anti-alias (Optional)
           }
         }
-        cv::imshow(cv_window_names.at(0u), image);  // only for first camera
-        progress_bar.increment();
-        cv::waitKey(1000.0 / FLAGS_vis_resource_visualization_frequency);
+        cv::imshow(cv_window_names.at(idx), image_resource);
       }
+      cv::waitKey(1000.0 / FLAGS_vis_resource_visualization_frequency);
+      progress_bar.increment();
     }
-    ++mission_num;
     destroyAllWindows(cv_window_names);
+    ++mission_num;
   }
   return true;
 }

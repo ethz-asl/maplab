@@ -202,22 +202,17 @@ int exportPosesVelocitiesAndBiasesToCsv(
 
 int exportPosesVelocitiesAndBiasesToCsvInRPGFormat(
     const vi_map::VIMap& map, const vi_map::MissionIdList& mission_ids,
-    const vi_map::SensorId& reference_sensor_id,
+    const aslam::SensorId& reference_sensor_id,
     const std::string& pose_export_file) {
   CHECK(reference_sensor_id.isValid());
   const vi_map::SensorManager& sensor_manager = map.getSensorManager();
   const vi_map::SensorType sensor_type =
-      sensor_manager.getSensor(reference_sensor_id).getSensorType();
-  CHECK(sensor_type != vi_map::SensorType::kInvalidSensor);
+      sensor_manager.getSensorType(reference_sensor_id);
+  CHECK(isValidSensorType(sensor_type));
 
-  aslam::Transformation T_I_S;
-  if (sensor_manager.hasSensorSystem() &&
-      sensor_manager.getSensorSystem().getReferenceSensorId() !=
-          reference_sensor_id &&
-      !sensor_manager.getSensor_T_R_S(reference_sensor_id, &T_I_S)) {
-    LOG(ERROR) << "No sensor extrinsics available for sensor with id "
-               << reference_sensor_id.hexString() << '.';
-  }
+  const aslam::Transformation& T_I_S =
+      sensor_manager.getSensor_T_B_S(reference_sensor_id);
+
   const char sensor_frame_identifier =
       convertSensorTypeToFrameIdentifier(sensor_type);
 

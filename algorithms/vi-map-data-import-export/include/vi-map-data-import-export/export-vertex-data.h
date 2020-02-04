@@ -16,7 +16,7 @@ int exportPosesVelocitiesAndBiasesToCsv(
 
 int exportPosesVelocitiesAndBiasesToCsvInRPGFormat(
     const vi_map::VIMap& map, const vi_map::MissionIdList& mission_ids,
-    const vi_map::SensorId& reference_sensor_id,
+    const aslam::SensorId& reference_sensor_id,
     const std::string& pose_export_file);
 
 }  // namespace data_import_export

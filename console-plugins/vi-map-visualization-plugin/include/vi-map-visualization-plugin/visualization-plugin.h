@@ -28,7 +28,7 @@ class VisualizationPlugin : public common::ConsolePluginBase {
   void plotVIStatesOfMission(
       const vi_map::VIMap& map, const vi_map::MissionId& mission_id) const;
   int visualizeCvMatResources(backend::ResourceType type);
-  int visualizeOptionalResources(backend::ResourceType type);
+  int visualizeBoundingBoxResources(backend::ResourceType type);
   int visualizeSensorExtrinsics() const;
   int visualizeLandmarkObserverRays() const;
   int visualizeReprojectedDepthResource(backend::ResourceType type);

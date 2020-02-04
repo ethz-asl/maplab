@@ -554,7 +554,7 @@ void VIMapManipulation::
         // Assign a new global landmark id to this track if it hasn't
         // been seen before and add a new landmark to the map.
         vi_map::SemanticLandmarkId semantic_landmark_id =
-            common::createRandomId<vi_map::SemanticLandmarkId>();
+            aslam::createRandomId<vi_map::SemanticLandmarkId>();
         // operator[] intended as this is either overwriting an old outdated
         // entry or creating a new one.
         (*trackid_semanticlandmarkid_map)[track_id] = semantic_landmark_id;
