@@ -10,7 +10,7 @@
 #include <vi-map/vi-map.h>
 
 DEFINE_double(
-    vi_map_semantic_landmark_quality_min_observation_angle_deg, 5,
+    vi_map_semantic_landmark_quality_min_observation_angle_deg, 20,
     "Minimum angle disparity of observers for a semantic landmark to be "
     "well constrained.");
 
