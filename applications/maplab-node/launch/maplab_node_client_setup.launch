@@ -8,6 +8,7 @@
   <arg name="maplab_sensor_calibration_file" default=""/>
   <arg name="maplab_imu_to_camera_time_offset_ns" default="0"/>
   <arg name="maplab_image_topic_suffix" default="/image_raw"/>
+  <arg name="maplab_set_imu_bias_to_zero" default="false"/>
 
   <!-- MAPLAB_NODE_CONFIG -->
   <arg name="maplab_rosparams_file" default="$(find maplab_node)/share/maplab_rosparams.yaml"/>
@@ -56,6 +57,7 @@
       <!-- SENSORS -->
       <param name="sensor_calibration_file" value="$(arg maplab_sensor_calibration_file)"/>
       <param name="imu_to_camera_time_offset_ns" value="$(arg maplab_imu_to_camera_time_offset_ns)"/>
+      <param name="set_imu_bias_to_zero" value="$(arg maplab_set_imu_bias_to_zero)"/>
       <param name="vio_camera_topic_suffix" value="$(arg maplab_image_topic_suffix)"/>
 
       <!-- DENSE MAP -->
