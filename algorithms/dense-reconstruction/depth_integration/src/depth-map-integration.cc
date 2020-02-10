@@ -344,4 +344,154 @@ void integrateAllOptionalSensorDepthMapResourcesOfType(
   }
 }
 
+void integrateAllOptionalSensorPointCloudResourcesOfType(
+    const vi_map::MissionIdList& mission_ids,
+    const backend::ResourceType& input_resource_type,
+    const vi_map::VIMap& vi_map,
+    PointCloudIntegrationFunction integration_function) {
+  CHECK(integration_function);
+  CHECK_GT(kSupportedDepthMapInputTypes.count(input_resource_type), 0u)
+      << "This depth type is not supported! Type: "
+      << backend::ResourceTypeNames[static_cast<int>(input_resource_type)];
+
+  const vi_map::SensorManager& sensor_manager = vi_map.getSensorManager();
+
+  std::unique_ptr<common::SigintBreaker> sigint_breaker;
+  if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+    sigint_breaker.reset(new common::SigintBreaker);
+  }
+
+  // Start integration.
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    VLOG(1) << "Integrating mission " << mission_id;
+    const vi_map::VIMission& mission = vi_map.getMission(mission_id);
+
+    const aslam::Transformation& T_G_M =
+        vi_map.getMissionBaseFrameForMission(mission_id).get_T_G_M();
+
+    // Check if there is IMU data to interpolate the optional sensor poses.
+    landmark_triangulation::VertexToTimeStampMap vertex_to_time_map;
+    int64_t min_timestamp_ns;
+    int64_t max_timestamp_ns;
+    const landmark_triangulation::PoseInterpolator pose_interpolator;
+    pose_interpolator.getVertexToTimeStampMap(
+        vi_map, mission_id, &vertex_to_time_map, &min_timestamp_ns,
+        &max_timestamp_ns);
+    if (vertex_to_time_map.empty()) {
+      VLOG(2) << "Couldn't find any IMU data to interpolate exact optional "
+              << "sensor position in mission " << mission_id;
+      continue;
+    }
+
+    LOG(INFO) << "All resources within this time range will be integrated: ["
+              << min_timestamp_ns << "ns," << max_timestamp_ns << "ns]";
+
+    // Retrieve sensor id to resource id mapping.
+    typedef std::unordered_map<
+        aslam::SensorId, backend::TemporalResourceIdBuffer>
+        SensorsToResourceMap;
+    const SensorsToResourceMap* sensor_id_to_res_id_map;
+    sensor_id_to_res_id_map =
+        mission.getAllSensorResourceIdsOfType(input_resource_type);
+
+    if (sensor_id_to_res_id_map == nullptr) {
+      continue;
+    }
+    VLOG(1) << "Found " << sensor_id_to_res_id_map->size()
+            << " sensors that have resources of this depth type.";
+
+    // Integrate them one sensor at a time.
+    for (const typename SensorsToResourceMap::value_type& sensor_to_res_ids :
+         *sensor_id_to_res_id_map) {
+      const backend::TemporalResourceIdBuffer& resource_buffer =
+          sensor_to_res_ids.second;
+
+      const aslam::SensorId& sensor_id = sensor_to_res_ids.first;
+
+      // Get transformation between reference (e.g. IMU) and sensor.
+      const aslam::Transformation T_B_S = sensor_manager.getSensor_T_B_S(sensor_id);
+
+      const size_t num_resources = resource_buffer.size();
+      VLOG(1) << "Sensor " << sensor_id.shortHex() << " has " << num_resources
+              << " such resources.";
+
+      // Collect all timestamps that need to be interpolated.
+      Eigen::Matrix<int64_t, 1, Eigen::Dynamic> resource_timestamps(
+          num_resources);
+      size_t idx = 0u;
+      for (const std::pair<int64_t, backend::ResourceId>& stamped_resource_id :
+           resource_buffer) {
+        // If the resource timestamp does not lie within the min and max
+        // timestamp of the vertices, we cannot interpolate the position. To
+        // keep this efficient, we simply replace timestamps outside the range
+        // with the min or max. Since their transformation will not be used
+        // later, that's fine.
+        resource_timestamps[idx] = std::max(
+            min_timestamp_ns,
+            std::min(max_timestamp_ns, stamped_resource_id.first));
+
+        ++idx;
+      }
+
+      // Interpolate poses for every resource.
+      aslam::TransformationVector poses_M_B;
+      pose_interpolator.getPosesAtTime(
+          vi_map, mission_id, resource_timestamps, &poses_M_B);
+      CHECK_EQ(static_cast<int>(poses_M_B.size()), resource_timestamps.size());
+      CHECK_EQ(poses_M_B.size(), resource_buffer.size());
+
+      // Retrieve and integrate all resources.
+      idx = 0u;
+      common::ProgressBar progress_bar(resource_buffer.size());
+      for (const std::pair<int64_t, backend::ResourceId>& stamped_resource_id :
+           resource_buffer) {
+        progress_bar.increment();
+
+        if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
+          CHECK(sigint_breaker);
+          if (sigint_breaker->isBreakRequested()) {
+            LOG(WARNING) << "Depth integration has been aborted by the user!";
+            return;
+          }
+        }
+
+        const aslam::Transformation& T_M_B = poses_M_B[idx];
+        const aslam::Transformation T_G_S = T_G_M * T_M_B * T_B_S;
+        ++idx;
+
+        const int64_t timestamp_ns = stamped_resource_id.first;
+
+        // If the resource timestamp does not lie within the min and max
+        // timestamp of the vertices, we cannot interpolate the position.
+        if (timestamp_ns < min_timestamp_ns ||
+            timestamp_ns > max_timestamp_ns) {
+          LOG(WARNING) << "The optional depth resource at " << timestamp_ns
+                       << "ns is outside of the time range of the pose graph, "
+                       << "skipping.";
+          continue;
+        }
+
+        switch (input_resource_type) {
+          case backend::ResourceType::kPointCloudXYZI: {
+              resources::PointCloud point_cloud;
+              if (!vi_map.getSensorResource(
+                      mission, input_resource_type, sensor_id, timestamp_ns,
+                      &point_cloud)) {
+                LOG(FATAL) << "Cannot retrieve depth map resource at "
+                           << "timestamp " << timestamp_ns << "ns!";
+              }
+
+              // Integrate with or without intensity information.
+              integration_function(T_G_S, point_cloud, timestamp_ns, sensor_id, mission_id);
+          } break;
+          default:
+            LOG(FATAL) << "This depth type is not supported! type: "
+                       << backend::ResourceTypeNames[static_cast<int>(
+                              input_resource_type)];
+        }
+      }
+    }
+  }
+}
+
 }  // namespace depth_integration

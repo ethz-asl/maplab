@@ -19,7 +19,7 @@ DEFINE_bool(
     lc_nonlinear_refinement_p3p, false,
     "If nonlinear refinement on all ransac inliers should be run.");
 DEFINE_double(
-    lc_switch_variable_variance, 1e-8,
+    lc_switch_variable_variance_n, 1e-8,
     "The variance for the switch variable of the loop-closure "
     "edges.");
 
@@ -153,11 +153,11 @@ bool addLoopClosureEdge(
   }
 
   const double kSwitchVariable = 1.0;
-  CHECK_GT(FLAGS_lc_switch_variable_variance, 0.0);
+  CHECK_GT(FLAGS_lc_switch_variable_variance_n, 0.0);
   vi_map::Edge::UniquePtr loop_closure_edge(
       new vi_map::LoopClosureEdge(
           loop_closure_edge_id, vertex_id_from_structure_matches,
-          query_vertex_id, kSwitchVariable, FLAGS_lc_switch_variable_variance,
+          query_vertex_id, kSwitchVariable, FLAGS_lc_switch_variable_variance_n,
           T_Inn_Iquery_lc, T_Inn_Iquery_covariance));
 
   VLOG(10) << "Added loop-closure edge between vertex "
