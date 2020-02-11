@@ -211,6 +211,8 @@ void DataPublisherFlow::publishOdometryState(
 
     visualization::publishTF(
         T_M_B, FLAGS_tf_mission_frame, base_sensor_tf_frame_id, timestamp_ros);
+
+    visualization::publishSensorTFs(sensor_manager_);
   } else {
     LOG(ERROR) << "There is more than one base sensor, cannot publish base to "
                   "tf tree!";

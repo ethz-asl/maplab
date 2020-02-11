@@ -1097,7 +1097,7 @@ void publishSensorTFs(const vi_map::SensorManager& sensor_manager) {
   sensor_manager.getAllSensorIds(&all_sensor_ids);
 
   const uint32_t num_sensor_types =
-      static_cast<int>(vi_map::SensorType::kLidar);
+      static_cast<int>(vi_map::SensorType::kInvalid);
   std::vector<uint32_t> sensor_number_map(num_sensor_types, 0u);
 
   std::unordered_map<aslam::SensorId, uint32_t> sensor_to_number_map;
@@ -1126,19 +1126,31 @@ void publishSensorTFs(const vi_map::SensorManager& sensor_manager) {
         sensor_manager.getSensor_T_B_S(sensor_id);
     uint32_t sensor_number;
     if (sensor_to_number_map.count(sensor_id) == 0) {
-      sensor_number = sensor_number_map[static_cast<int>(base_sensor_type)]++;
+      sensor_number = sensor_number_map[static_cast<int>(sensor_type)]++;
       sensor_to_number_map[sensor_id] = sensor_number;
     } else {
       sensor_number = sensor_to_number_map[sensor_id];
     }
     const std::string sensor_tf_frame_id =
         convertSensorTypeToTfFrameId(sensor_type) + "_" +
-        std::to_string(sensor_number_map[static_cast<int>(sensor_type)]);
+        std::to_string(sensor_number);
 
-    visualization::publishTF(
-        T_B_S, base_sensor_tf_frame_id, sensor_tf_frame_id);
+    if (sensor_id != base_sensor_id) {
+      visualization::publishTF(
+          T_B_S, base_sensor_tf_frame_id, sensor_tf_frame_id);
+    }
 
-    sensor_number_map[static_cast<int>(sensor_type)]++;
+    if (sensor_type == vi_map::SensorType::kNCamera) {
+      const auto& ncamera = sensor_manager.getSensor<aslam::NCamera>(sensor_id);
+      for (size_t camera_index = 0; camera_index < ncamera.getNumCameras(); ++camera_index) {
+        const aslam::Transformation& T_C_B = ncamera.get_T_C_B(camera_index);
+        const std::string camera_tf_frame_id =
+            FLAGS_tf_camera_frame + "_" + std::to_string(sensor_number)
+            + "." + std::to_string(camera_index);
+        visualization::publishTF(
+            T_C_B.inverse(), sensor_tf_frame_id, camera_tf_frame_id);
+      }
+    }
   }
 }
 
