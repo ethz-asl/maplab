@@ -520,7 +520,7 @@ void StreamMapBuilder::notifyBuffers() {
 }
 
 void StreamMapBuilder::notifyAbsolute6DoFConstraintBuffer() {
-  if (map_->numVertices() < 1u || absolute_6dof_measurment_buffer_.empty()) {
+  if (map_->numVertices() < 2u || absolute_6dof_measurment_buffer_.empty()) {
     return;
   }
 
