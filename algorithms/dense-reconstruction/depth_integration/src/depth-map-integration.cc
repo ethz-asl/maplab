@@ -480,9 +480,9 @@ void integrateAllOptionalSensorPointCloudResourcesOfType(
                 LOG(FATAL) << "Cannot retrieve depth map resource at "
                            << "timestamp " << timestamp_ns << "ns!";
               }
-
-              // Integrate with or without intensity information.
-              integration_function(T_G_S, point_cloud, timestamp_ns, sensor_id, mission_id);
+              else {
+                integration_function(T_G_S, point_cloud, timestamp_ns, sensor_id, mission_id);
+              }
           } break;
           default:
             LOG(FATAL) << "This depth type is not supported! type: "

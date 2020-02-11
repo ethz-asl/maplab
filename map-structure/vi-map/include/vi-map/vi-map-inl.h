@@ -1121,6 +1121,18 @@ bool VIMap::getClosestSensorResource(
 }
 
 template <typename DataType>
+void VIMap::replaceSensorResource(
+    const backend::ResourceType& type, const aslam::SensorId& sensor_id,
+    const int64_t timestamp_ns, const DataType& resource, VIMission* mission) {
+  CHECK_NOTNULL(mission);
+
+  CHECK(mission->hasSensorResourceId(type, sensor_id, timestamp_ns));
+  backend::ResourceId resource_id;
+  mission->getSensorResourceId(type, sensor_id, timestamp_ns, &resource_id);
+  replaceResource(resource_id, type, resource);
+}
+
+template <typename DataType>
 void VIMap::addSensorResource(
     const backend::ResourceType& type, const aslam::SensorId& sensor_id,
     const int64_t timestamp_ns, const DataType& resource, VIMission* mission) {

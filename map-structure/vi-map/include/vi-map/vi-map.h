@@ -714,6 +714,11 @@ class VIMap : public backend::ResourceMap,
       const int64_t timestamp_ns, const DataType& resource, VIMission* mission);
 
   template <typename DataType>
+  void replaceSensorResource(
+	const backend::ResourceType& type, const aslam::SensorId& sensor_id,
+	const int64_t timestamp_ns, const DataType& resource, VIMission* mission);
+
+  template <typename DataType>
   bool deleteSensorResource(
       const backend::ResourceType& type, const aslam::SensorId& sensor_id,
       const int64_t timestamp_ns, const bool keep_resource_file,
