@@ -19,7 +19,7 @@
   <arg name="maplab_map_add_odometry_edges_if_less_than_n_common_landmarks" default="20"/>
 
   <!-- DENSE MAP -->
-  <arg name="maplab_attach_point_cloud_maps" default="false"/>
+  <arg name="maplab_attach_point_cloud_maps" default="true"/>
   <arg name="maplab_lidar_topic" default=""/>
   <arg name="maplab_throttle_frequency_pointcloud_map" default="0.1"/>
 
