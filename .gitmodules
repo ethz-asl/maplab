@@ -106,3 +106,6 @@
 [submodule "dependencies/internal/libpointmatcher"]
 	path = dependencies/internal/libpointmatcher
 	url = git@github.com:ethz-asl/libpointmatcher.git
+[submodule "dependencies/internal/pointmatcher-ros"]
+	path = dependencies/internal/pointmatcher-ros
+	url = https://github.com/ANYbotics/pointmatcher-ros.git
