@@ -27,7 +27,7 @@
   <arg name="maplab_reference_detector" default="none"/>
 
   <!-- TRANSFOLDER -->
-  <arg name="maplab_transfolder_enabled" default="false"/>
+  <arg name="maplab_transfolder_enabled" default="true"/>
 
 
   <group ns="$(arg maplab_robot_name)">
