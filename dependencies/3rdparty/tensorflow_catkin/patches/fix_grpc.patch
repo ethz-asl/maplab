@@ -1,0 +1,50 @@
+diff --git a/tensorflow/workspace.bzl b/tensorflow/workspace.bzl
+index 779b6a3..76a09ab 100644
+--- a/tensorflow/workspace.bzl
++++ b/tensorflow/workspace.bzl
+@@ -331,11 +331,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
+   tf_http_archive(
+       name = "protobuf_archive",
+       urls = [
+-          "https://mirror.bazel.build/github.com/google/protobuf/archive/v3.6.0.tar.gz",
+-          "https://github.com/google/protobuf/archive/v3.6.0.tar.gz",
++          "https://mirror.bazel.build/github.com/google/protobuf/archive/v3.6.1.tar.gz",
++          "https://github.com/google/protobuf/archive/v3.6.1.tar.gz",
+       ],
+-      sha256 = "50a5753995b3142627ac55cfd496cebc418a2e575ca0236e29033c67bd5665f4",
+-      strip_prefix = "protobuf-3.6.0",
++      sha256 = "3d4e589d81b2006ca603c1ab712c9715a76227293032d05b26fca603f90b3f5b",
++      strip_prefix = "protobuf-3.6.1",
+   )
+ 
+   # We need to import the protobuf library under the names com_google_protobuf
+@@ -344,21 +344,21 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
+   tf_http_archive(
+       name = "com_google_protobuf",
+       urls = [
+-          "https://mirror.bazel.build/github.com/google/protobuf/archive/v3.6.0.tar.gz",
+-          "https://github.com/google/protobuf/archive/v3.6.0.tar.gz",
++          "https://mirror.bazel.build/github.com/google/protobuf/archive/v3.6.1.tar.gz",
++          "https://github.com/google/protobuf/archive/v3.6.1.tar.gz",
+       ],
+-      sha256 = "50a5753995b3142627ac55cfd496cebc418a2e575ca0236e29033c67bd5665f4",
+-      strip_prefix = "protobuf-3.6.0",
++      sha256 = "3d4e589d81b2006ca603c1ab712c9715a76227293032d05b26fca603f90b3f5b",
++      strip_prefix = "protobuf-3.6.1",
+   )
+ 
+   tf_http_archive(
+       name = "com_google_protobuf_cc",
+       urls = [
+-          "https://mirror.bazel.build/github.com/google/protobuf/archive/v3.6.0.tar.gz",
+-          "https://github.com/google/protobuf/archive/v3.6.0.tar.gz",
++          "https://mirror.bazel.build/github.com/google/protobuf/archive/v3.6.1.tar.gz",
++          "https://github.com/google/protobuf/archive/v3.6.1.tar.gz",
+       ],
+-      sha256 = "50a5753995b3142627ac55cfd496cebc418a2e575ca0236e29033c67bd5665f4",
+-      strip_prefix = "protobuf-3.6.0",
++      sha256 = "3d4e589d81b2006ca603c1ab712c9715a76227293032d05b26fca603f90b3f5b",
++      strip_prefix = "protobuf-3.6.1",
+   )
+ 
+   tf_http_archive(

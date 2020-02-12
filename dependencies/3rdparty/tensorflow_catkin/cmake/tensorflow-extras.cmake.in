@@ -1,0 +1,4 @@
+# This overrides the dependency tracker with the tensorflow library file.
+file(GLOB TensorflowLibraries @CATKIN_DEVEL_PREFIX@/lib/libtensorflow*)
+set(@PROJECT_NAME@_LIBRARIES ${TensorflowLibraries})
+set(CMAKE_CXX_STANDARD 14)
