@@ -103,3 +103,6 @@
 [submodule "dependencies/3rdparty/tensorflow_private"]
 	path = dependencies/3rdparty/tensorflow_private
 	url = git@github.com:ethz-asl/tensorflow_private.git
+[submodule "dependencies/internal/libpointmatcher"]
+	path = dependencies/internal/libpointmatcher
+	url = git@github.com:ethz-asl/libpointmatcher.git
