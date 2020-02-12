@@ -96,7 +96,7 @@
 	url = git@github.com:ethz-asl/arl_apriltags2_ros.git
 [submodule "dependencies/3rdparty/tensorflow_catkin"]
 	path = dependencies/3rdparty/tensorflow_catkin
-	url = git@github.com:ethz-asl/tensorflow_catkin.git
+	url = https://github.com/ethz-asl/tensorflow_catkin
 	branch = devel/lidar_loop_closure
 [submodule "dependencies/internal/maplab_tools"]
 	path = dependencies/internal/maplab_tools
