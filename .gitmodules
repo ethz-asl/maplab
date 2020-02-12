@@ -100,10 +100,6 @@
 [submodule "dependencies/internal/maplab_msgs"]
 	path = dependencies/internal/maplab_msgs
 	url = git@github.com:ethz-asl/maplab_msgs.git
-[submodule "dependencies/3rdparty/tensorflow_catkin"]
-	path = dependencies/3rdparty/tensorflow_catkin
-	url = https://github.com/lschaupp/tensorflow_catkin
-	branch = devel/lidar_loop_closure
 [submodule "dependencies/3rdparty/tensorflow_private"]
 	path = dependencies/3rdparty/tensorflow_private
 	url = git@github.com:ethz-asl/tensorflow_private.git
