@@ -146,7 +146,6 @@ bool VIMap::mergeAllMissionsFromMapWithoutResources(
         landmark_id, original_landmark_store_vertex_id);
   }
 
-<<<<<<< HEAD
   // Add semantic landmarks into copy of map.
   const SemanticLandmarkIndex& original_semantic_landmark_index =
       other.semantic_landmark_index;
@@ -162,8 +161,6 @@ bool VIMap::mergeAllMissionsFromMapWithoutResources(
         landmark_id, original_landmark_store_vertex_id);
   }
   CHECK(checkMapConsistency(*this));
-=======
->>>>>>> develop
   return true;
 }
 
