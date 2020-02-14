@@ -19,7 +19,7 @@ DEFINE_bool(
     lc_nonlinear_refinement_p3p, false,
     "If nonlinear refinement on all ransac inliers should be run.");
 DEFINE_double(
-    lc_switch_variable_variance_n, 1e-8,
+    lc_switch_variable_variance, 1e-8,
     "The variance for the switch variable of the loop-closure "
     "edges.");
 
@@ -651,3 +651,4 @@ LoopClosureHandler::getVertexIdWithMostOverlappingLandmarks(
 }
 
 }  // namespace loop_closure_handler
+
