@@ -135,6 +135,29 @@ const aslam::SensorId& SensorManager::getBaseSensorId(
   return common::getChecked(base_sensor_id_map_, sensor_id);
 }
 
+bool SensorManager::getBaseSensorIdIfUnique(aslam::SensorId* sensor_id) const {
+  CHECK_NOTNULL(sensor_id);
+
+  if (base_sensor_id_map_.empty()) {
+    return false;
+  }
+
+  bool is_unique = true;
+  aslam::SensorId unique_base_id;
+  for (auto sensor_id_to_base_id : base_sensor_id_map_) {
+    if (!unique_base_id.isValid()) {
+      unique_base_id = sensor_id_to_base_id.second;
+    } else {
+      if (unique_base_id != sensor_id_to_base_id.second) {
+        return false;
+      }
+    }
+  }
+  CHECK(unique_base_id.isValid());
+  *sensor_id = unique_base_id;
+  return true;
+}
+
 void SensorManager::setSensor_T_B_S(
     const aslam::SensorId& sensor_id, const aslam::Transformation& T_B_S) {
   CHECK(sensor_id.isValid());

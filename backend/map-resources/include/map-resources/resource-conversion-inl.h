@@ -696,6 +696,7 @@ backend::ResourceType getResourceTypeForPointCloud(
              << "resource that has this particular configuration of color("
              << has_color << "), normals(" << has_normals << ") and scalar("
              << has_scalars << ") data!";
+  return backend::ResourceType::kCount;
 }
 
 }  // namespace backend

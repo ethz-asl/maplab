@@ -38,6 +38,10 @@ struct ViProblemOptions {
   bool fix_wheel_extrinsics;
   bool fix_vertices;
 
+  // 6DoF odometry constraints.
+  bool add_6dof_odometry_constraints;
+  bool fix_6dof_odometry_extrinsics;
+
   // Absolute pose constraints
   bool add_absolute_pose_constraints;
   bool fix_absolute_pose_sensor_extrinsics;

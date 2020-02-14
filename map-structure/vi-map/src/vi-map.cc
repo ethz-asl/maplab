@@ -456,7 +456,9 @@ void VIMap::printNumSensorResourcesOfMission(
   assert(
       static_cast<int>(backend::ResourceType::kCount) ==
       static_cast<int>(backend::ResourceTypeNames.size()));
-  print_aligned_function("Sensor Resources:", "", 1);
+
+  bool section_is_initialized = false;
+
   for (int resource_idx = 0;
        resource_idx < static_cast<int>(backend::ResourceType::kCount);
        ++resource_idx) {
@@ -475,6 +477,11 @@ void VIMap::printNumSensorResourcesOfMission(
         CHECK(sensor_id.isValid());
         const size_t num_measurements =
             sensor_id_resource_ids_pair.second.size();
+
+        if (!section_is_initialized) {
+          print_aligned_function("Sensor Resources:", "", 1);
+          section_is_initialized = true;
+        }
 
         print_aligned_function(
             " - " + kResourceName + " (Sensor " + sensor_id.shortHex() +
@@ -582,6 +589,7 @@ std::string VIMap::printMapStatistics(
   size_t num_imu_edges = 0u;
   size_t num_loop_closure_edges = 0u;
   size_t num_wheel_odometry_edges = 0u;
+  size_t num_odometry_edges = 0u;
   size_t num_absolute_6dof_constraints = 0u;
   pose_graph::EdgeIdList edge_ids;
   getAllEdgeIdsInMissionAlongGraph(mission_id, &edge_ids);
@@ -590,6 +598,9 @@ std::string VIMap::printMapStatistics(
     switch (getEdgeType(edge_id)) {
       case pose_graph::Edge::EdgeType::kWheelOdometry:
         ++num_wheel_odometry_edges;
+        break;
+      case pose_graph::Edge::EdgeType::kOdometry:
+        ++num_odometry_edges;
         break;
       case pose_graph::Edge::EdgeType::kLoopClosure:
         ++num_loop_closure_edges;
@@ -663,7 +674,8 @@ std::string VIMap::printMapStatistics(
     stats_text << std::endl;
     print_aligned("Odometry-6DoF Sensor: ", odometry_6dof_id.hexString(), 1);
 
-    // TODO(mfehr): ADD ALL Odometry.6DoF-P. Sensor SPECIFIC STUFF
+    print_aligned(
+        " - Odometry-6DoF Edges: ", std::to_string(num_odometry_edges), 1);
   }
 
   // Print Lidar sensor/constraint info if present
@@ -2639,9 +2651,12 @@ void VIMap::deleteAllSensorResourcesBeforeTime(
   for (backend::ResourceTypeToSensorIdToResourcesMap::value_type&
            resource_type_to_sensor_to_resource_map :
        resource_types_to_sensor_to_resource_map) {
-    for (std::pair<const aslam::SensorId, backend::TemporalResourceIdBuffer>&
-             sensor_to_resource_map :
-         resource_type_to_sensor_to_resource_map.second) {
+    auto it = resource_type_to_sensor_to_resource_map.second.begin();
+
+    while (it != resource_type_to_sensor_to_resource_map.second.end()) {
+      std::pair<const aslam::SensorId, backend::TemporalResourceIdBuffer>&
+          sensor_to_resource_map = *it;
+
       backend::TemporalResourceIdBuffer& resource_map =
           sensor_to_resource_map.second;
       std::vector<backend::ResourceId> resource_ids;
@@ -2652,8 +2667,44 @@ void VIMap::deleteAllSensorResourcesBeforeTime(
             resource_id, resource_type_to_sensor_to_resource_map.first,
             !delete_from_file_system);
       }
+
+      resource_map.removeItemsBefore(timestamp_ns + 1);
+
+      if (resource_map.empty()) {
+        it = resource_type_to_sensor_to_resource_map.second.erase(it);
+      } else {
+        ++it;
+      }
     }
   }
+}
+
+void VIMap::deleteAllSensorResources(
+    const vi_map::MissionId& mission_id, const bool delete_from_file_system) {
+  vi_map::VIMission& mission = getMission(mission_id);
+
+  // Remove all sensor resource before that vertex.
+  backend::ResourceTypeToSensorIdToResourcesMap&
+      resource_types_to_sensor_to_resource_map =
+          mission.getAllSensorResourceIds();
+  for (backend::ResourceTypeToSensorIdToResourcesMap::value_type&
+           resource_type_to_sensor_to_resource_map :
+       resource_types_to_sensor_to_resource_map) {
+    for (std::pair<const aslam::SensorId, backend::TemporalResourceIdBuffer>&
+             sensor_to_resource_map :
+         resource_type_to_sensor_to_resource_map.second) {
+      backend::TemporalResourceIdBuffer& resource_map =
+          sensor_to_resource_map.second;
+      for (auto entry : resource_map) {
+        deleteResourceNoDataType(
+            entry.second, resource_type_to_sensor_to_resource_map.first,
+            !delete_from_file_system);
+      }
+
+      resource_map.clear();
+    }
+  }
+  resource_types_to_sensor_to_resource_map.clear();
 }
 
 std::string VIMap::getSubFolderName() {
@@ -2735,7 +2786,7 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
         << "Could not find a matching mission id in the other map that "
         << "could be merged as a submap! Adding as new mission without "
         << "attaching to existing missions!";
-    return mergeAllMissionsFromMap(submap);
+    return mergeAllMissionsFromMapWithoutResources(submap);
   }
   vi_map::VIMission& base_mission = getMission(submap_and_base_mission_id);
   const vi_map::VIMission& submap_mission =

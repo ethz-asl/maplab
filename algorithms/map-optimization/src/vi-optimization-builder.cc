@@ -54,6 +54,15 @@ DEFINE_int32(
     "problem.");
 
 DEFINE_bool(
+    ba_include_6dof_odometry, false,
+    "Whether or not to include 6DoF odometry constraints (T_St_Stp1) for an "
+    "odometry sensor frame S.");
+
+DEFINE_bool(
+    ba_fix_6dof_odometry_extrinsics, true,
+    "Whether or not to fix the extrinsics of the 6DoF odometry sensor.");
+
+DEFINE_bool(
     ba_include_absolute_pose_constraints, false,
     "Whether or not to include absolute 6DoF pose constraints (T_G_B), e.g. "
     "GPS or AprilTag detections.");
@@ -108,6 +117,10 @@ ViProblemOptions ViProblemOptions::initFromGFlags() {
   options.add_wheel_odometry_constraints = FLAGS_ba_include_wheel_odometry;
   options.fix_wheel_extrinsics = FLAGS_ba_fix_wheel_odometry_extrinsics;
 
+  // 6DoF odometry constraints.
+  options.add_6dof_odometry_constraints = FLAGS_ba_include_6dof_odometry;
+  options.fix_6dof_odometry_extrinsics = FLAGS_ba_fix_6dof_odometry_extrinsics;
+
   // Absolute 6DoF pose constraints
   options.add_absolute_pose_constraints =
       FLAGS_ba_include_absolute_pose_constraints;
@@ -161,6 +174,17 @@ OptimizationProblem* constructOptimizationProblem(
     if (num_wheel_odometry_constraints_added == 0u) {
       LOG(WARNING)
           << "WARNING: Wheel odometry constraints enabled, but none "
+          << "were found, adapting DoF settings of optimization problem...";
+    }
+  }
+
+  size_t num_6dof_odometry_constraints_added = 0u;
+  if (options.add_6dof_odometry_constraints) {
+    num_6dof_odometry_constraints_added =
+        add6DoFOdometryTerms(options.fix_6dof_odometry_extrinsics, problem);
+    if (num_6dof_odometry_constraints_added == 0u) {
+      LOG(WARNING)
+          << "WARNING: 6DoF odometry constraints enabled, but none "
           << "were found, adapting DoF settings of optimization problem...";
     }
   }
@@ -229,6 +253,11 @@ OptimizationProblem* constructOptimizationProblem(
         vi_map_helpers::hasWheelOdometryConstraintsInAllMissionsInCluster(
             *map, mission_cluster) &&
         (num_wheel_odometry_constraints_added > 0u);
+    const bool cluster_has_6dof_odometry =
+        vi_map_helpers::has6DoFOdometryConstraintsInAllMissionsInCluster(
+            *map, mission_cluster) &&
+        (num_6dof_odometry_constraints_added > 0u);
+
     // Note that if there are lc edges they always are within the cluster,
     // because otherwise the other mission would have been part of the cluster.
     const bool cluster_has_lc_edges =
@@ -237,13 +266,14 @@ OptimizationProblem* constructOptimizationProblem(
 
     CHECK(
         cluster_has_inertial || cluster_has_visual ||
-        cluster_has_wheel_odometry)
+        cluster_has_wheel_odometry || cluster_has_6dof_odometry)
         << "Either inertial, visual or wheel odometry constraints need to be "
            "available to form a stable graph.";
 
     // Determine observability of scale, global position and global orientation.
     const bool scale_is_observable =
         cluster_has_inertial || cluster_has_wheel_odometry ||
+        cluster_has_6dof_odometry ||
         (cluster_has_visual && cluster_num_absolute_6dof_used > 1u);
 
     const bool global_position_is_observable =
@@ -267,6 +297,8 @@ OptimizationProblem* constructOptimizationProblem(
        << ((cluster_has_visual) ? "on" : "off");
     ss << "\n\tWheel odometry constraints:\t"
        << ((cluster_has_wheel_odometry) ? "on" : "off");
+    ss << "\n\t6DoF odometry constraints:\t"
+       << ((cluster_has_6dof_odometry) ? "on" : "off");
     ss << "\n\tAbsolute 6DoF constraints:\t"
        << ((cluster_num_absolute_6dof_used > 0) ? "on" : "off");
     ss << "\n\tLoop closure edge constraints:\t"

@@ -46,7 +46,7 @@ class WheelOdometry final : public aslam::Sensor {
     return static_cast<std::string>(kWheelOdometryIdentifier);
   }
 
-  inline bool get_T_St_stp1_fixed_covariance(
+  inline bool get_T_St_Stp1_fixed_covariance(
       aslam::TransformationCovariance* T_St_stp1_fixed_covariance) const {
     if (has_T_St_Stp1_fixed_covariance_) {
       *T_St_stp1_fixed_covariance = T_St_Stp1_fixed_covariance_;
@@ -118,7 +118,7 @@ class WheelOdometryMeasurement : public Measurement {
     T_S0_St_ = T_S0_St;
   }
 
-  inline bool get_T_St_stp1_fixed_covariance(
+  inline bool get_T_St_Stp1_fixed_covariance(
       aslam::TransformationCovariance* T_St_stp1_fixed_covariance) const {
     if (has_T_St_Stp1_fixed_covariance_) {
       *T_St_stp1_fixed_covariance = T_St_Stp1_fixed_covariance_;

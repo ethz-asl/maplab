@@ -533,9 +533,12 @@ void integrateAllOptionalSensorDepthResourcesOfType(
         // timestamp of the vertices, we cannot interpolate the position.
         if (timestamp_ns < min_timestamp_ns ||
             timestamp_ns > max_timestamp_ns) {
-          LOG(WARNING) << "The optional depth resource at " << timestamp_ns
-                       << "ns is outside of the time range of the pose graph, "
-                       << "skipping.";
+          if (VLOG_IS_ON(3)) {
+            LOG(WARNING)
+                << "The optional depth resource at " << timestamp_ns
+                << "ns is outside of the time range of the pose graph, "
+                << "skipping.";
+          }
           continue;
         }
 

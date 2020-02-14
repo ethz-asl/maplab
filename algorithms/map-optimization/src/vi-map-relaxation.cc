@@ -14,6 +14,12 @@
 #include <maplab-common/file-logger.h>
 #include <maplab-common/progress-bar.h>
 
+DEFINE_bool(
+    lc_relax_merge_landmarks, false,
+    "If enabled, the loop closure part of the pose graph relaxation algorithm "
+    "will also merge the landmarks in addition to adding temporary loop "
+    "closure edges.");
+
 namespace visualization {
 class ViwlsGraphRvizPlotter;
 }  // namespace visualization
@@ -44,7 +50,7 @@ void VIMapRelaxation::detectLoopclosures(
     loop_detector.addMissionToDatabase(mission_id, *map);
   }
 
-  constexpr bool kMergeLandmarks = false;
+  const bool kMergeLandmarks = FLAGS_lc_relax_merge_landmarks;
   constexpr bool kAddLoopclosureEdges = true;
 
   int num_vertex_candidate_links;
@@ -83,7 +89,7 @@ bool VIMapRelaxation::findLoopClosuresAndSolveRelaxation(
 
   const int num_lc_edges = numLoopclosureEdges(*map);
   if (num_lc_edges == 0) {
-    LOG(WARNING) << "No loop closure edges found, relaxation cannot proceed.";
+    LOG(INFO) << "No loop closure edges found, relaxation cannot proceed.";
     return false;
   }
   LOG(INFO) << num_lc_edges

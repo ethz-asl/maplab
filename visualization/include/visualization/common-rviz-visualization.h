@@ -11,6 +11,7 @@
 #include <maplab-common/macros.h>
 #include <pcl_ros/point_cloud.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <vi-map/sensor-manager.h>
 #include <visualization_msgs/Marker.h>
 
 #include "visualization/color.h"
@@ -19,7 +20,17 @@
 
 DECLARE_string(tf_map_frame);
 DECLARE_string(tf_mission_frame);
+DECLARE_string(tf_abs_6dof_sensor_frame);
+DECLARE_string(tf_odometry_6dof_sensor_frame);
+DECLARE_string(tf_wheel_odometry_sensor_frame);
+DECLARE_string(tf_lc_sensor_frame);
+DECLARE_string(tf_lidar_sensor_frame);
+DECLARE_string(tf_pointcloud_map_frame);
+DECLARE_string(tf_gps_wgs_sensor_frame);
+DECLARE_string(tf_gps_utm_sensor_frame);
 DECLARE_string(tf_imu_frame);
+DECLARE_string(tf_camera_frame);
+DECLARE_string(tf_ncamera_frame);
 DECLARE_string(tf_imu_refined_frame);
 DECLARE_string(vis_default_namespace);
 
@@ -36,6 +47,11 @@ void publishCoordinateFrame(
 void publishTF(
     const aslam::Transformation& T_fi_fj, const std::string& frame,
     const std::string& child_frame);
+
+const std::string convertSensorTypeToTfFrameId(
+    const vi_map::SensorType sensor_type);
+
+void publishSensorTFs(const vi_map::SensorManager& sensor_manager);
 
 void publishTF(
     const aslam::Transformation& T_fi_fj, const std::string& frame,

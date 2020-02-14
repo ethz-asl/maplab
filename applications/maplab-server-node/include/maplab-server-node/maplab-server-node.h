@@ -78,7 +78,28 @@ class MaplabServerNode final {
 
   void visualizeMap();
 
+  void registerPoseCorrectionPublisherCallback(
+      std::function<void(
+          const int64_t, const std::string&, const aslam::Transformation&,
+          const aslam::Transformation&, const aslam::Transformation&,
+          const aslam::Transformation&)>
+          callback);
+
  private:
+  // Status thread functions:
+  void printServerStatus();
+
+  // Submap processing functions:
+  void extractLatestUnoptimizedPoseFromSubmap(
+      const SubmapProcess& submap_process);
+  void runSubmapProcessingCommands(const SubmapProcess& submap_process);
+
+  // Map merging function:
+  bool appendAvailableSubmaps();
+  void saveMapEveryInterval();
+  void runOneIterationOfMapMergingCommands();
+  void publishMostRecentVertexPoseAndCorrection();
+
   const std::string kMergedMapKey = "merged_map";
   const int kSecondsToSleepBetweenAttempts = 1;
   const int kSecondsToSleepBetweenStatus = 1;
@@ -111,8 +132,35 @@ class MaplabServerNode final {
   std::mutex current_merge_command_mutex_;
   std::string current_merge_command_;
 
+  double time_of_last_map_backup_s_;
+
+  std::atomic<double> duration_last_merging_loop_s_;
+
+  std::function<void(
+      const int64_t, const std::string&, const aslam::Transformation&,
+      const aslam::Transformation&, const aslam::Transformation&,
+      const aslam::Transformation&)>
+      pose_correction_publisher_callback_;
+
+  struct RobotMissionInformation {
+    vi_map::MissionId current_mission_id;
+    std::vector<vi_map::MissionId> past_mission_ids;
+
+    // These keep track of the end/start poses of submaps as they came in
+    // and the most recent submap end pose in the optimized map. This is used to
+    // compute the correction T_B_old_B_new that is published by the server.
+    // This correction can then be used to coorect any poses that
+    // were expressed in the odometry frame that was used to build the map
+    // initially.
+    std::map<int64_t, aslam::Transformation> T_M_B_submaps_input;
+    std::map<int64_t, aslam::Transformation> T_G_M_submaps_input;
+  
+  };
+
   mutable std::mutex robot_to_mission_id_map_mutex_;
-  std::unordered_map<std::string, vi_map::MissionId> robot_to_mission_id_map_;
+  std::unordered_map<std::string, RobotMissionInformation>
+      robot_to_mission_id_map_;
+  std::unordered_map<vi_map::MissionId, std::string> mission_id_to_robot_map_;
 };
 
 }  // namespace maplab

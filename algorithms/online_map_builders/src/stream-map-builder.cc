@@ -427,11 +427,18 @@ void StreamMapBuilder::addWheelOdometryEdge(
   // TODO(ben): use the correct covariance from config file
   const pose_graph::EdgeId edge_id =
       aslam::createRandomId<pose_graph::EdgeId>();
-  const aslam::SensorId& sensor_id =
-      getSelectedWheelOdometrySensor(constMap()->getSensorManager())->getId();
+  const vi_map::WheelOdometry::Ptr odometry_sensor =
+      getSelectedWheelOdometrySensor(constMap()->getSensorManager());
+  if (!odometry_sensor) {
+    LOG(ERROR) << "Cannot attach wheel odometry edges if there is no selected "
+                  "wheel odometry sensor!";
+    return;
+  }
+
+  const aslam::SensorId& sensor_id = odometry_sensor->getId();
   aslam::TransformationCovariance wheel_odometry_covariance;
-  CHECK(getSelectedWheelOdometrySensor(constMap()->getSensorManager())
-            ->get_T_St_stp1_fixed_covariance(&wheel_odometry_covariance))
+  CHECK(odometry_sensor->get_T_St_Stp1_fixed_covariance(
+      &wheel_odometry_covariance))
       << "No transformation covariance for wheel odometry sensor provided, "
       << "please set a fixed covariance in the wheel odometry sensor config "
          "file.";
