@@ -892,11 +892,9 @@ void MaplabServerNode::runSubmapProcessingCommands(
         options, missions_to_optimize, &outlier_rejection_options, map.get());
 
     if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
-      {
-        std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-        submap_commands_[submap_process.map_hash] =
-            "remove_abs_constraint_outlier";
-      }
+      std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
+      submap_commands_[submap_process.map_hash] =
+          "remove_abs_constraint_outlier";
       map_anchoring::removeOutliersInAbsolutePoseConstraints(map.get());
     }
 
