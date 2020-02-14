@@ -39,6 +39,7 @@ void VIMap::deepCopy(const VIMap& other) {
   clear();
   CHECK(mergeAllMissionsFromMapWithoutResources(other));
   ResourceMap::deepCopy(other);
+  CHECK(checkMapConsistency(other));
 }
 
 bool VIMap::mergeAllMissionsFromMapWithoutResources(
@@ -145,6 +146,7 @@ bool VIMap::mergeAllMissionsFromMapWithoutResources(
         landmark_id, original_landmark_store_vertex_id);
   }
 
+<<<<<<< HEAD
   // Add semantic landmarks into copy of map.
   const SemanticLandmarkIndex& original_semantic_landmark_index =
       other.semantic_landmark_index;
@@ -160,6 +162,8 @@ bool VIMap::mergeAllMissionsFromMapWithoutResources(
         landmark_id, original_landmark_store_vertex_id);
   }
   CHECK(checkMapConsistency(*this));
+=======
+>>>>>>> develop
   return true;
 }
 
@@ -171,6 +175,8 @@ bool VIMap::mergeAllMissionsFromMap(const vi_map::VIMap& other) {
 
   VLOG(1) << "Copying metadata and resource infos.";
   ResourceMap::mergeFromMap(other);
+
+  CHECK(checkMapConsistency(*this));
   return true;
 }
 
