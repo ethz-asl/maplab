@@ -22,6 +22,8 @@ struct ProbeResult {
   bool wasSuccessful() const;
 };
 
+void removeOutliersInAbsolutePoseConstraints(vi_map::VIMap* map);
+
 void setMissionBaseframeKnownState(
     const vi_map::MissionId& mission_id, const bool baseframe_known_state,
     vi_map::VIMap* map);
