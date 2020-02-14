@@ -15,6 +15,7 @@ DECLARE_bool(csv_export_landmarks);
 DECLARE_bool(csv_export_observations);
 
 DEFINE_string(csv_export_path, "", "Path to save the map in CSV format into.");
+DEFINE_string(csv_export_format, "asl", "Export format for trajectory to csv.");
 DEFINE_string(
     mission_info_export_path, "", "Export path of the mission info yaml.");
 DEFINE_string(
@@ -77,16 +78,12 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
 
   addCommand(
       {"export_trajectory_to_csv", "ettc"},
-      [this]() -> int { return exportPosesVelocitiesAndBiasesToCsv("asl"); },
+      [this]() -> int {
+        return exportPosesVelocitiesAndBiasesToCsv(FLAGS_csv_export_format);
+      },
       "Export poses, velocities and biases to a CSV file specified with "
-      "--pose_export_file.",
-      common::Processing::Sync);
-
-  addCommand(
-      {"export_trajectory_to_csv_in_rpg_format", "ettc_rpg"},
-      [this]() -> int { return exportPosesVelocitiesAndBiasesToCsv("rpg"); },
-      "Export timestamped posesto a CSV file in RPG trajectory evaluation "
-      "format, specified with --pose_export_file.",
+      "--pose_export_file in fomrat specified by --csv-export-format ('asl' or "
+      "'rpg').",
       common::Processing::Sync);
 
   addCommand(
