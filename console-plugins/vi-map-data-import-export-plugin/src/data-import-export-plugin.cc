@@ -77,9 +77,16 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
 
   addCommand(
       {"export_trajectory_to_csv", "ettc"},
-      [this]() -> int { return exportPosesVelocitiesAndBiasesToCsv(); },
+      [this]() -> int { return exportPosesVelocitiesAndBiasesToCsv("asl"); },
       "Export poses, velocities and biases to a CSV file specified with "
       "--pose_export_file.",
+      common::Processing::Sync);
+
+  addCommand(
+      {"export_trajectory_to_csv_in_rpg_format", "ettc_rpg"},
+      [this]() -> int { return exportPosesVelocitiesAndBiasesToCsv("rpg"); },
+      "Export timestamped posesto a CSV file in RPG trajectory evaluation "
+      "format, specified with --pose_export_file.",
       common::Processing::Sync);
 
   addCommand(
@@ -131,7 +138,8 @@ int DataImportExportPlugin::exportMissionInfo() const {
   return common::kSuccess;
 }
 
-int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv() const {
+int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv(
+    const std::string& format /* = "asl" */) const {
   std::string selected_map_key;
   if (!getSelectedMapKeyIfSet(&selected_map_key)) {
     return common::kStupidUserError;
@@ -198,9 +206,8 @@ int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv() const {
     LOG(ERROR) << "Sensor does not exist";
     return common::kStupidUserError;
   }
-
   data_import_export::exportPosesVelocitiesAndBiasesToCsv(
-      *map, mission_ids, reference_sensor_id, filepath);
+      *map, mission_ids, reference_sensor_id, filepath, format);
   return common::kSuccess;
 }
 

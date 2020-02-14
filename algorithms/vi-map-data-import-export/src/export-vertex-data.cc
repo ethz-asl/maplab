@@ -37,7 +37,8 @@ char convertSensorTypeToFrameIdentifier(const vi_map::SensorType sensor_type) {
 int exportPosesVelocitiesAndBiasesToCsv(
     const vi_map::VIMap& map, const vi_map::MissionIdList& mission_ids,
     const aslam::Transformation& T_I_S, const char sensor_frame_identifier,
-    const std::string& pose_export_file) {
+    const std::string& pose_export_file,
+    const std::string& format /* = "asl" */) {
   pose_graph::VertexIdList vertex_ids;
   for (const vi_map::MissionId& mission_id : mission_ids) {
     CHECK(mission_id.isValid());
@@ -59,30 +60,46 @@ int exportPosesVelocitiesAndBiasesToCsv(
     LOG(ERROR) << "Failed to open logger to file: '" << pose_export_file << "'";
     return common::kUnknownError;
   }
-  LOG(INFO) << "Exporting poses, velocities and biases to: "
-            << pose_export_file;
-
-  const std::string kDelimiter = ", ";
-  const std::string kSensorFrameIdentifier =
-      std::string(1, sensor_frame_identifier);
-  csv_file.writeDataWithDelimiterAndNewLine(
-      kDelimiter, "# timestamp [ns]", "vertex-id", "mission-id",
-      "p_G_" + kSensorFrameIdentifier + "x [m]",
-      "p_G_" + kSensorFrameIdentifier + "y [m]",
-      "p_G_" + kSensorFrameIdentifier + "z [m]",
-      "q_G_" + kSensorFrameIdentifier + "w",
-      "q_G_" + kSensorFrameIdentifier + "x",
-      "q_G_" + kSensorFrameIdentifier + "y",
-      "q_G_" + kSensorFrameIdentifier + "z",
-      "p_M_" + kSensorFrameIdentifier + "x [m]",
-      "p_M_" + kSensorFrameIdentifier + "y [m]",
-      "p_M_" + kSensorFrameIdentifier + "z [m]",
-      "q_M_" + kSensorFrameIdentifier + "w",
-      "q_M_" + kSensorFrameIdentifier + "x",
-      "q_M_" + kSensorFrameIdentifier + "y",
-      "q_M_" + kSensorFrameIdentifier + "z", "v_Mx [m/s]", "v_My [m/s]",
-      "v_Mz [m/s]", "bgx [rad/s]", "bgy [rad/s]", "bgz [rad/s]", "bax [m/s^2]",
-      "bay [m/s^2]", "baz [m/s^2]");
+  LOG(INFO) << "Exporting poses, velocities and biases in " << format
+            << " format to: " << pose_export_file;
+  std::string kDelimiter;
+  if (format == "asl") {
+    kDelimiter = ", ";
+    const std::string kSensorFrameIdentifier =
+        std::string(1, sensor_frame_identifier);
+    csv_file.writeDataWithDelimiterAndNewLine(
+        kDelimiter, "# timestamp [ns]", "vertex-id", "mission-id",
+        "p_G_" + kSensorFrameIdentifier + "x [m]",
+        "p_G_" + kSensorFrameIdentifier + "y [m]",
+        "p_G_" + kSensorFrameIdentifier + "z [m]",
+        "q_G_" + kSensorFrameIdentifier + "w",
+        "q_G_" + kSensorFrameIdentifier + "x",
+        "q_G_" + kSensorFrameIdentifier + "y",
+        "q_G_" + kSensorFrameIdentifier + "z",
+        "p_M_" + kSensorFrameIdentifier + "x [m]",
+        "p_M_" + kSensorFrameIdentifier + "y [m]",
+        "p_M_" + kSensorFrameIdentifier + "z [m]",
+        "q_M_" + kSensorFrameIdentifier + "w",
+        "q_M_" + kSensorFrameIdentifier + "x",
+        "q_M_" + kSensorFrameIdentifier + "y",
+        "q_M_" + kSensorFrameIdentifier + "z", "v_Mx [m/s]", "v_My [m/s]",
+        "v_Mz [m/s]", "bgx [rad/s]", "bgy [rad/s]", "bgz [rad/s]",
+        "bax [m/s^2]", "bay [m/s^2]", "baz [m/s^2]");
+  } else if (format == "rpg") {
+    kDelimiter = " ";
+    csv_file.writeDataWithDelimiterAndNewLine(
+        kDelimiter, "# timestamp [ns]",
+        "p_G_" + std::to_string(sensor_frame_identifier) + "x [m]",
+        "p_G_" + std::to_string(sensor_frame_identifier) + "y [m]",
+        "p_G_" + std::to_string(sensor_frame_identifier) + "z [m]",
+        "q_G_" + std::to_string(sensor_frame_identifier) + "x",
+        "q_G_" + std::to_string(sensor_frame_identifier) + "y",
+        "q_G_" + std::to_string(sensor_frame_identifier) + "z",
+        "q_G_" + std::to_string(sensor_frame_identifier) + "w");
+  } else {
+    LOG(ERROR) << "Invalid format " << format;
+    return common::kStupidUserError;
+  }
 
   for (const pose_graph::VertexId& vertex_id : vertex_ids) {
     CHECK(vertex_id.isValid());
@@ -102,14 +119,22 @@ int exportPosesVelocitiesAndBiasesToCsv(
     const Eigen::Vector3d& v_M = vertex.get_v_M();
     const Eigen::Vector3d& gyro_bias = vertex.getGyroBias();
     const Eigen::Vector3d& acc_bias = vertex.getAccelBias();
-
-    csv_file.writeDataWithDelimiterAndNewLine(
-        kDelimiter, timestamp_nanoseconds, vertex_id.hexString(),
-        mission_id.hexString(), p_G_S[0], p_G_S[1], p_G_S[2], q_G_S.w(),
-        q_G_S.x(), q_G_S.y(), q_G_S.z(), p_M_S[0], p_M_S[1], p_M_S[2],
-        q_M_S.w(), q_M_S.x(), q_M_S.y(), q_M_S.z(), v_M[0], v_M[1], v_M[2],
-        gyro_bias[0], gyro_bias[1], gyro_bias[2], acc_bias[0], acc_bias[1],
-        acc_bias[2]);
+    if (format == "asl") {
+      csv_file.writeDataWithDelimiterAndNewLine(
+          kDelimiter, timestamp_nanoseconds, vertex_id.hexString(),
+          mission_id.hexString(), p_G_S[0], p_G_S[1], p_G_S[2], q_G_S.w(),
+          q_G_S.x(), q_G_S.y(), q_G_S.z(), p_M_S[0], p_M_S[1], p_M_S[2],
+          q_M_S.w(), q_M_S.x(), q_M_S.y(), q_M_S.z(), v_M[0], v_M[1], v_M[2],
+          gyro_bias[0], gyro_bias[1], gyro_bias[2], acc_bias[0], acc_bias[1],
+          acc_bias[2]);
+    } else if (format == "rpg") {
+      csv_file.writeDataWithDelimiterAndNewLine(
+          kDelimiter, timestamp_nanoseconds, p_G_S[0], p_G_S[1], p_G_S[2],
+          q_G_S.x(), q_G_S.y(), q_G_S.z(), q_G_S.w());
+    } else {
+      LOG(ERROR) << "Invalid format " << format;
+      return common::kStupidUserError;
+    }
   }
 
   return common::kSuccess;
@@ -118,7 +143,8 @@ int exportPosesVelocitiesAndBiasesToCsv(
 int exportPosesVelocitiesAndBiasesToCsv(
     const vi_map::VIMap& map, const vi_map::MissionIdList& mission_ids,
     const aslam::SensorId& reference_sensor_id,
-    const std::string& pose_export_file) {
+    const std::string& pose_export_file,
+    const std::string& format /* = "asl" */) {
   CHECK(reference_sensor_id.isValid());
 
   const vi_map::SensorManager& sensor_manager = map.getSensorManager();
@@ -133,7 +159,8 @@ int exportPosesVelocitiesAndBiasesToCsv(
       convertSensorTypeToFrameIdentifier(sensor_type);
 
   return exportPosesVelocitiesAndBiasesToCsv(
-      map, mission_ids, T_I_S, sensor_frame_identifier, pose_export_file);
+      map, mission_ids, T_I_S, sensor_frame_identifier, pose_export_file,
+      format);
 }
 
 }  // namespace data_import_export
