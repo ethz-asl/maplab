@@ -363,7 +363,7 @@ void removeOutliersInAbsolute6DoFConstraints(vi_map::VIMap* map) {
 
     const uint32_t num_abs_constraints = T_G_M_vector.size();
     ss << "\t- " << mission_id << " has " << num_abs_constraints
-       << "absolute pose constraints\n";
+       << " absolute pose constraints\n";
 
     // Check flags.
     CHECK_GE(FLAGS_abs_constraints_baseframe_min_number_of_constraints, 3);
