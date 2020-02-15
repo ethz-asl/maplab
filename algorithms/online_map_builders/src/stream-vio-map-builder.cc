@@ -265,7 +265,7 @@ bool StreamVioMapBuilder::checkConsistency() const {
     is_consistent = vi_map::checkMapConsistency(*CHECK_NOTNULL(constMap()));
   }
 
-  return is_consistent
+  return is_consistent;
 }
 
 }  // namespace online_map_builders

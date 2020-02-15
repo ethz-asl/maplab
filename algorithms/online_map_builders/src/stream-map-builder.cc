@@ -454,7 +454,7 @@ bool StreamMapBuilder::checkConsistency() const {
     is_consistent = vi_map::checkMapConsistency(*CHECK_NOTNULL(constMap()));
   }
 
-  return is_consistent
+  return is_consistent;
 }
 
 void StreamMapBuilder::bufferAbsolute6DoFConstraint(
