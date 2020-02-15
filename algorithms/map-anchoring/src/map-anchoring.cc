@@ -9,19 +9,19 @@ DEFINE_bool(
     "Add missions that got anchored to the loop detector database too.");
 
 DEFINE_double(
-    abs_constraints_baseframe_min_number_of_constraints, 5,
+    abs_constraints_baseframe_min_number_of_constraints, 3,
     "Minimum number of constraints to allow for baseframe alignment or "
     "consistency checking.");
 
 DEFINE_double(
-    abs_constraints_baseframe_min_inlier_ratio, 0.2,
+    abs_constraints_baseframe_min_inlier_ratio, 0.5,
     "Minimum inlier ratio for successful mission to absolute reference "
     "alignment.");
 DEFINE_double(
-    abs_constraints_baseframe_ransac_max_orientation_error_rad, 0.174,
+    abs_constraints_baseframe_ransac_max_orientation_error_rad, 0.0872,
     "Maximum orientation error for inliers for mission baseframe RANSAC.");
 DEFINE_double(
-    abs_constraints_baseframe_ransac_max_position_error_m, 2.0,
+    abs_constraints_baseframe_ransac_max_position_error_m, 0.5,
     "Maximum position error for inliers for mission baseframe RANSAC.");
 DEFINE_int32(
     abs_constraints_baseframe_ransac_num_interations, 2000,
