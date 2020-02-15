@@ -4,6 +4,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <landmark-triangulation/pose-interpolator.h>
+#include <map-anchoring/map-anchoring.h>
 #include <map-optimization/outlier-rejection-solver.h>
 #include <map-optimization/solver-options.h>
 #include <map-optimization/vi-map-optimizer.h>
@@ -14,12 +15,14 @@
 #include <signal.h>
 #include <vi-map-basic-plugin/vi-map-basic-plugin.h>
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
+#include <vi-map/landmark-quality-metrics.h>
 
 #include <atomic>
 #include <memory>
 #include <string>
 
 DECLARE_bool(ros_free);
+DECLARE_uint64(vi_map_landmark_quality_min_observers);
 
 DEFINE_int32(
     maplab_server_submap_loading_thread_pool_size, 4,
@@ -45,6 +48,11 @@ DEFINE_bool(
     "If enabled, the submap processing commands are ignored and a default set "
     "of commands is executed on the submaps. These commands are landmark "
     "quality evaluation and optimization.");
+
+DEFINE_bool(
+    maplab_server_remove_outliers_in_absolute_pose_constraints, true,
+    "If enabled, the submap processing will after optimization run "
+    "RANSAC LSQ on the absolute pose constraints to remove outliers.");
 
 namespace maplab {
 MaplabServerNode::MaplabServerNode(const MaplabServerNodeConfig& config)
@@ -641,18 +649,6 @@ bool MaplabServerNode::appendAvailableSubmaps() {
                  "used to initalize merged map with key '"
               << kMergedMapKey << "'.";
       map_manager_.renameMap(submap_process.map_key, kMergedMapKey);
-
-      // Set baseframe of this first mission to known.
-      vi_map::VIMapManager::MapWriteAccess map =
-          map_manager_.getMapWriteAccess(kMergedMapKey);
-      CHECK_EQ(map->numMissions(), 1u);
-      const vi_map::MissionId mission_id = map->getIdOfFirstMission();
-      CHECK(mission_id.isValid());
-      const vi_map::MissionBaseFrameId& mission_baseframe_id =
-          map->getMission(mission_id).getBaseFrameId();
-      CHECK(mission_baseframe_id.isValid());
-      map->getMissionBaseFrame(mission_baseframe_id).set_is_T_G_M_known(true);
-
       found_new_submaps = true;
     } else {
       LOG(INFO) << "[MaplabServerNode] MapMerging - merge submap '"
@@ -862,6 +858,12 @@ void MaplabServerNode::runSubmapProcessingCommands(
       std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
       submap_commands_[submap_process.map_hash] = "elq";
     }
+    if (FLAGS_vi_map_landmark_quality_min_observers > 2) {
+      LOG(WARNING) << "[[MaplabServerNode] Minimum required landmark observers "
+                   << "is set to "
+                   << FLAGS_vi_map_landmark_quality_min_observers
+                   << ",  this might be too stricht if keyframing is enabled.";
+    }
     vi_map_helpers::evaluateLandmarkQuality(
         missions_to_optimize_list, map.get());
 
@@ -876,6 +878,14 @@ void MaplabServerNode::runSubmapProcessingCommands(
         nullptr /*no plotter*/, false /*signal handler enabled*/);
     optimizer.optimize(
         options, missions_to_optimize, &outlier_rejection_options, map.get());
+
+    if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
+      std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
+      submap_commands_[submap_process.map_hash] =
+          "remove_abs_constraint_outlier";
+      map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
+    }
+
   } else {
     // Copy console to process the global map.
     const std::string console_name =

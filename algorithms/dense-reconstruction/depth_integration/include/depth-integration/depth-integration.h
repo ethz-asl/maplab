@@ -9,6 +9,8 @@
 
 DECLARE_bool(dense_depth_integrator_enable_sigint_breaker);
 
+DECLARE_bool(dense_depth_integrator_visualize_only_with_known_baseframe);
+
 namespace depth_integration {
 
 // NOTE: This interface is currently still depending on voxblox, but only for

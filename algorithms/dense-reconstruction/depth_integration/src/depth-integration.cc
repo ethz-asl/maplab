@@ -26,6 +26,11 @@ DEFINE_bool(
     "closest in time to a vertex.");
 
 DEFINE_bool(
+    dense_depth_integrator_visualize_only_with_known_baseframe, false,
+    "If enabled, the depth integrator is only integrating missions that have a "
+    "known baseframe.");
+
+DEFINE_bool(
     dense_depth_integrator_enable_sigint_breaker, true,
     "If enabled, the depth integrator can be interrupted with Ctrl-C. Should "
     "be disabled if depth integration is used in a headless console mode, such "
@@ -188,6 +193,15 @@ void integrateAllFrameDepthResourcesOfType(
   // Start integration.
   for (const vi_map::MissionId& mission_id : mission_ids) {
     const vi_map::VIMission& mission = vi_map.getMission(mission_id);
+
+    // If this flags is set, we skip this mission if its baseframe is not known.
+    if (FLAGS_dense_depth_integrator_visualize_only_with_known_baseframe) {
+      const vi_map::MissionBaseFrameId& mission_baseframe_id =
+          mission.getBaseFrameId();
+      if (!vi_map.getMissionBaseFrame(mission_baseframe_id).is_T_G_M_known()) {
+        continue;
+      }
+    }
 
     if (!mission.hasNCamera()) {
       VLOG(1) << "Mission " << mission_id
@@ -373,6 +387,15 @@ void integrateAllOptionalSensorDepthResourcesOfType(
   for (const vi_map::MissionId& mission_id : mission_ids) {
     VLOG(1) << "Integrating mission " << mission_id;
     const vi_map::VIMission& mission = vi_map.getMission(mission_id);
+
+    // If this flags is set, we skip this mission if its baseframe is not known.
+    if (FLAGS_dense_depth_integrator_visualize_only_with_known_baseframe) {
+      const vi_map::MissionBaseFrameId& mission_baseframe_id =
+          mission.getBaseFrameId();
+      if (!vi_map.getMissionBaseFrame(mission_baseframe_id).is_T_G_M_known()) {
+        continue;
+      }
+    }
 
     const aslam::Transformation& T_G_M =
         vi_map.getMissionBaseFrameForMission(mission_id).get_T_G_M();

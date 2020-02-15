@@ -58,6 +58,15 @@ void integrateAllFrameDepthMapResourcesOfType(
   for (const vi_map::MissionId& mission_id : mission_ids) {
     const vi_map::VIMission& mission = vi_map.getMission(mission_id);
 
+    // If this flags is set, we skip this mission if its baseframe is not known.
+    if (FLAGS_dense_depth_integrator_visualize_only_with_known_baseframe) {
+      const vi_map::MissionBaseFrameId& mission_baseframe_id =
+          mission.getBaseFrameId();
+      if (!vi_map.getMissionBaseFrame(mission_baseframe_id).is_T_G_M_known()) {
+        continue;
+      }
+    }
+
     if (!mission.hasNCamera()) {
       VLOG(1) << "Mission " << mission_id
               << " has no NCamera, hence no such resources!";
