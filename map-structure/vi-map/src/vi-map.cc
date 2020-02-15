@@ -13,6 +13,10 @@
 #include "vi-map/vertex.h"
 #include "vi-map/vi-map-serialization.h"
 
+DEFINE_bool(
+    disable_consistency_check, false,
+    "If enabled, no consistency checks are run.");
+
 namespace vi_map {
 
 VIMap::VIMap(const std::string& map_folder)
@@ -144,8 +148,9 @@ bool VIMap::mergeAllMissionsFromMapWithoutResources(
     landmark_index.addLandmarkAndVertexReference(
         landmark_id, original_landmark_store_vertex_id);
   }
-
-  CHECK(checkMapConsistency(*this));
+  if (!FLAGS_disable_consistency_check) {
+    CHECK(checkMapConsistency(*this));
+  }
   return true;
 }
 
@@ -1905,7 +1910,9 @@ const vi_map::MissionId VIMap::duplicateMission(
     landmark_index.addLandmarkAndVertexReference(
         new_landmark_id, new_store_vertex_id);
   }
-  CHECK(checkMapConsistency(*this));
+  if (!FLAGS_disable_consistency_check) {
+    CHECK(checkMapConsistency(*this));
+  }
 
   if (!selected_missions_.empty()) {
     VLOG(1) << "Adding to VIMap selected missions set.";

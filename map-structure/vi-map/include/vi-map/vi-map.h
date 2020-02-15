@@ -49,6 +49,8 @@
 #include "vi-map/vi_map.pb.h"
 #include "vi-map/viwls-edge.h"
 
+DECLARE_bool(disable_consistency_check);
+
 class LoopClosureHandlerTest;
 
 namespace vi_map {

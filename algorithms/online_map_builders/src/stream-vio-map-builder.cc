@@ -260,7 +260,12 @@ void StreamVioMapBuilder::addImuEdge(
 }
 
 bool StreamVioMapBuilder::checkConsistency() const {
-  return vi_map::checkMapConsistency(*CHECK_NOTNULL(constMap()));
+  bool is_consistent = false;
+  if (!FLAGS_disable_consistency_check) {
+    is_consistent = vi_map::checkMapConsistency(*CHECK_NOTNULL(constMap()));
+  }
+
+  return is_consistent
 }
 
 }  // namespace online_map_builders

@@ -482,8 +482,9 @@ void MaplabServerNode::runOneIterationOfMapMergingCommands() {
     }
     VLOG(1) << "[MaplabServerNode] Running: " << command;
     if (console.RunCommand(command) != common::kSuccess) {
-      LOG(ERROR) << "[MaplabServerNode] MapMerging - failed to run "
-                 << "command: '" << command << "'.";
+      LOG(WARNING)
+          << "[MaplabServerNode] MapMerging - Command did not succeed: '"
+          << command << "'.";
     } else {
       VLOG(3) << "[MaplabServerNode] MapMerging console command successful.";
     }
