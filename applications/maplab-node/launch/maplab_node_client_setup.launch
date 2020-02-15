@@ -29,6 +29,8 @@
   <!-- TRANSFOLDER -->
   <arg name="maplab_transfolder_enabled" default="true"/>
 
+  <!-- THREADING -->
+  <arg name="maplab_num_hardware_threads" default="0"/>
 
   <group ns="$(arg maplab_robot_name)">
 
@@ -69,6 +71,9 @@
       <param name="image_apply_clahe_histogram_equalization" value="$(arg maplab_use_clahe)"/>
       <param name="map_output_folder" value="$(arg maplab_map_directory)/submaps/"/>
       <param name="map_add_odometry_edges_if_less_than_n_common_landmarks" value="$(arg maplab_map_add_odometry_edges_if_less_than_n_common_landmarks)"/>
+
+      <!-- THREADING -->
+      <param name="num_hardware_threads" value="$(arg maplab_num_hardware_threads)"/>
     </node>
 
     <!-- MAP TRANSFER -->
