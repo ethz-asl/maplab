@@ -649,18 +649,6 @@ bool MaplabServerNode::appendAvailableSubmaps() {
                  "used to initalize merged map with key '"
               << kMergedMapKey << "'.";
       map_manager_.renameMap(submap_process.map_key, kMergedMapKey);
-
-      // Set baseframe of this first mission to known.
-      vi_map::VIMapManager::MapWriteAccess map =
-          map_manager_.getMapWriteAccess(kMergedMapKey);
-      CHECK_EQ(map->numMissions(), 1u);
-      const vi_map::MissionId mission_id = map->getIdOfFirstMission();
-      CHECK(mission_id.isValid());
-      const vi_map::MissionBaseFrameId& mission_baseframe_id =
-          map->getMission(mission_id).getBaseFrameId();
-      CHECK(mission_baseframe_id.isValid());
-      map->getMissionBaseFrame(mission_baseframe_id).set_is_T_G_M_known(true);
-
       found_new_submaps = true;
     } else {
       LOG(INFO) << "[MaplabServerNode] MapMerging - merge submap '"
@@ -895,7 +883,7 @@ void MaplabServerNode::runSubmapProcessingCommands(
       std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
       submap_commands_[submap_process.map_hash] =
           "remove_abs_constraint_outlier";
-      map_anchoring::removeOutliersInAbsolutePoseConstraints(map.get());
+      map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
     }
 
   } else {

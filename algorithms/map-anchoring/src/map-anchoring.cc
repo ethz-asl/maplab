@@ -29,6 +29,24 @@ DEFINE_int32(
 
 namespace map_anchoring {
 
+void setMissionBaseframeToKnownIfHasAbs6DoFConstraints(vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    const bool has_absolute_6dof_constraints =
+        map->getNumAbsolute6DoFMeasurementsInMission(mission_id) > 0u;
+
+    if (has_absolute_6dof_constraints) {
+      const vi_map::MissionBaseFrameId& mission_baseframe_id =
+          map->getMission(mission_id).getBaseFrameId();
+      map->getMissionBaseFrame(mission_baseframe_id).set_is_T_G_M_known(true);
+    }
+  }
+}
+
 void setMissionBaseframeKnownState(
     const vi_map::MissionId& mission_id, const bool baseframe_known_state,
     vi_map::VIMap* map) {
@@ -291,7 +309,7 @@ void probeMissionAnchoring(
       &inlier_constraints);
 }
 
-void removeOutliersInAbsolutePoseConstraints(vi_map::VIMap* map) {
+void removeOutliersInAbsolute6DoFConstraints(vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
 
   LOG(INFO) << "Removing outliers from absolute pose constraints";

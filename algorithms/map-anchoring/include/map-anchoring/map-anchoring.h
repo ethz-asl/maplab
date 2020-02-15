@@ -22,7 +22,10 @@ struct ProbeResult {
   bool wasSuccessful() const;
 };
 
-void removeOutliersInAbsolutePoseConstraints(vi_map::VIMap* map);
+void setMissionBaseframeToKnownIfHasAbs6DoFConstraints(
+    vi_map::VIMap* map);
+
+void removeOutliersInAbsolute6DoFConstraints(vi_map::VIMap* map);
 
 void setMissionBaseframeKnownState(
     const vi_map::MissionId& mission_id, const bool baseframe_known_state,
