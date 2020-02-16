@@ -352,6 +352,7 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
         robot_to_mission_id_map_.at(robot_name);
 
     submap_mission_id = robot_info.current_mission_id;
+
     if (!submap_mission_id.isValid()) {
       LOG(ERROR)
           << "[MaplabServerNode] Received map lookup with valid robot name ("
@@ -372,6 +373,15 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
   {
     vi_map::VIMapManager::MapReadAccess map =
         map_manager_.getMapReadAccess(kMergedMapKey);
+
+    if (!map->hasMission(submap_mission_id)) {
+      LOG(ERROR)
+          << "[MaplabServerNode] Received map lookup with valid robot name ("
+          << robot_name
+          << "), but a mission id is associated with it that is not part of "
+          << "the map (yet)!";
+      return MapLookupStatus::kNoSuchMission;
+    }
 
     const vi_map::VIMission& mission = map->getMission(submap_mission_id);
 
