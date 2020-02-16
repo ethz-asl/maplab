@@ -87,6 +87,15 @@ MaplabServerRosNode::MaplabServerRosNode(
   T_G_curr_M_in_pub_ =
       nh_.advertise<geometry_msgs::TransformStamped>("T_G_curr_M_in", 1);
 
+  status_pub_ = nh_.advertise<std_msgs::String>("status", 1);
+
+  maplab_server_node_->registerStatusCallback(
+      [this](const std::string status_string) {
+        std_msgs::String msg;
+        msg.data = status_string;
+        status_pub_.publish(msg);
+      });
+
   maplab_server_node_->registerPoseCorrectionPublisherCallback(
       [this](
           const int64_t timestamp_ns, const std::string& robot_name,

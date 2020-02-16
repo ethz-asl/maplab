@@ -76,6 +76,8 @@ class MaplabServerRosNode {
   ros::Publisher T_G_in_M_in_pub_;
 
   ros::Publisher T_G_curr_M_in_pub_;
+
+  ros::Publisher status_pub_;
 };
 
 }  // namespace maplab

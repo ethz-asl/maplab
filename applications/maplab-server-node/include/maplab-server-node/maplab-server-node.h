@@ -85,9 +85,11 @@ class MaplabServerNode final {
           const aslam::Transformation&)>
           callback);
 
+  void registerStatusCallback(std::function<void(const std::string&)> callback);
+
  private:
   // Status thread functions:
-  void printServerStatus();
+  void printAndPublishServerStatus();
 
   // Submap processing functions:
   void extractLatestUnoptimizedPoseFromSubmap(
@@ -110,6 +112,7 @@ class MaplabServerNode final {
 
   std::thread submap_merging_thread_;
   std::thread status_thread_;
+  std::function<void(const std::string&)> status_publisher_callback_;
 
   aslam::ThreadPool submap_loading_thread_pool_;
 
@@ -154,7 +157,6 @@ class MaplabServerNode final {
     // initially.
     std::map<int64_t, aslam::Transformation> T_M_B_submaps_input;
     std::map<int64_t, aslam::Transformation> T_G_M_submaps_input;
-  
   };
 
   mutable std::mutex robot_to_mission_id_map_mutex_;

@@ -151,7 +151,7 @@ void MaplabServerNode::start() {
   status_thread_ = std::thread([this]() {
     // Loop until shutdown is requested.
     while (!shut_down_requested_.load()) {
-      printServerStatus();
+      printAndPublishServerStatus();
       std::this_thread::sleep_for(
           std::chrono::seconds(kSecondsToSleepBetweenStatus));
     }
@@ -689,7 +689,7 @@ bool MaplabServerNode::appendAvailableSubmaps() {
   return found_new_submaps;
 }
 
-void MaplabServerNode::printServerStatus() {
+void MaplabServerNode::printAndPublishServerStatus() {
   std::stringstream ss;
 
   ss << "\n=============================================================="
@@ -790,7 +790,12 @@ void MaplabServerNode::printServerStatus() {
   ss << "\n=============================================================="
         "=="
      << "==\n";
-  LOG(INFO) << ss.str();
+  const std::string status_string = ss.str();
+  LOG(INFO) << status_string;
+
+  if (status_publisher_callback_) {
+    status_publisher_callback_(status_string);
+  }
 }
 
 void MaplabServerNode::extractLatestUnoptimizedPoseFromSubmap(
@@ -936,6 +941,12 @@ void MaplabServerNode::runSubmapProcessingCommands(
     std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
     submap_commands_.erase(submap_process.map_hash);
   }
+}
+
+void MaplabServerNode::registerStatusCallback(
+    std::function<void(const std::string&)> callback) {
+  CHECK(callback);
+  status_publisher_callback_ = callback;
 }
 
 }  // namespace maplab
