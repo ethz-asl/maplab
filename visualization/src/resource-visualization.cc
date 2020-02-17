@@ -362,6 +362,8 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
     voxblox::Colors* accumulated_colors) {
   CHECK_NOTNULL(accumulated_point_cloud_G);
   CHECK_NOTNULL(accumulated_colors);
+  CHECK(mission_id.isValid());
+  CHECK(vi_map.hasMission(mission_id));
 
   uint32_t point_cloud_counter = 0u;
 
@@ -434,6 +436,13 @@ void visualizeReprojectedDepthResourcePerRobot(
       if (!mission_id.isValid()) {
         LOG(ERROR) << "Cannot visualize one mission of robot '" << robot_name
                    << "' since the provided mission id is invalid!'";
+        continue;
+      }
+
+      if (!vi_map.hasMission(mission_id)) {
+        LOG(ERROR) << "Cannot visualize one mission of robot '" << robot_name
+                   << "' since the provided mission id ('" << mission_id
+                   << "') is not in the map!'";
         continue;
       }
       createAndAppendAccumulatedPointCloudMessageForMission(

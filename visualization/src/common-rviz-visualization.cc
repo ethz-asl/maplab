@@ -1092,7 +1092,8 @@ const std::string convertSensorTypeToTfFrameId(
   }
 }
 
-void publishSensorTFs(const vi_map::SensorManager& sensor_manager) {
+void publishSensorTFs(const vi_map::SensorManager& sensor_manager,
+                      const ros::Time& ros_time) {
   aslam::SensorIdSet all_sensor_ids;
   sensor_manager.getAllSensorIds(&all_sensor_ids);
 
@@ -1137,7 +1138,7 @@ void publishSensorTFs(const vi_map::SensorManager& sensor_manager) {
 
     if (sensor_id != base_sensor_id) {
       visualization::publishTF(
-          T_B_S, base_sensor_tf_frame_id, sensor_tf_frame_id);
+          T_B_S, base_sensor_tf_frame_id, sensor_tf_frame_id, ros_time);
     }
 
     if (sensor_type == vi_map::SensorType::kNCamera) {
@@ -1148,7 +1149,7 @@ void publishSensorTFs(const vi_map::SensorManager& sensor_manager) {
             FLAGS_tf_camera_frame + "_" + std::to_string(sensor_number)
             + "." + std::to_string(camera_index);
         visualization::publishTF(
-            T_C_B.inverse(), sensor_tf_frame_id, camera_tf_frame_id);
+            T_C_B.inverse(), sensor_tf_frame_id, camera_tf_frame_id, ros_time);
       }
     }
   }
