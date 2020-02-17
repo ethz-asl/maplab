@@ -7,6 +7,7 @@
 #include <map-manager/map-manager.h>
 #include <maplab-console/maplab-console.h>
 #include <vi-map/vi-map.h>
+#include <visualization/resource-visualization.h>
 #include <visualization/viwls-graph-plotter.h>
 
 #include <atomic>
@@ -100,6 +101,7 @@ class MaplabServerNode final {
   bool appendAvailableSubmaps();
   void saveMapEveryInterval();
   void runOneIterationOfMapMergingCommands();
+  void publishDenseMap();
   void publishMostRecentVertexPoseAndCorrection();
 
   const std::string kMergedMapKey = "merged_map";

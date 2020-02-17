@@ -54,6 +54,13 @@ DEFINE_bool(
     "If enabled, the submap processing will after optimization run "
     "RANSAC LSQ on the absolute pose constraints to remove outliers.");
 
+DEFINE_int32(
+    maplab_server_dense_map_resource_type, 21,
+    "Type of resources that are used to compose the dense map, options are ["
+    "kRawDepthMap = 8, kOptimizedDepthMap = 9, kPointCloudXYZ = 16, "
+    "kPointCloudXYZRGBN = 17, kVoxbloxOccupancyMap = 20, kPointCloudXYZI = "
+    "21]");
+
 namespace maplab {
 MaplabServerNode::MaplabServerNode(const MaplabServerNodeConfig& config)
     : config_(config),
@@ -130,6 +137,8 @@ void MaplabServerNode::start() {
                 << "commands on map with key '" << kMergedMapKey << "'";
 
         runOneIterationOfMapMergingCommands();
+
+        publishDenseMap();
 
         publishMostRecentVertexPoseAndCorrection();
 
@@ -947,6 +956,26 @@ void MaplabServerNode::registerStatusCallback(
     std::function<void(const std::string&)> callback) {
   CHECK(callback);
   status_publisher_callback_ = callback;
+}
+
+void MaplabServerNode::publishDenseMap() {
+  if (!map_manager_.hasMap(kMergedMapKey)) {
+    return;
+  }
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager_.getMapReadAccess(kMergedMapKey);
+  std::unordered_map<std::string, vi_map::MissionIdList>
+      robot_to_mission_id_map;
+  {
+    std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+    for (const auto& kv : mission_id_to_robot_map_) {
+      robot_to_mission_id_map[kv.second].push_back(kv.first);
+    }
+  }
+  visualization::visualizeReprojectedDepthResourcePerRobot(
+      static_cast<backend::ResourceType>(
+          FLAGS_maplab_server_dense_map_resource_type),
+      robot_to_mission_id_map, *map);
 }
 
 }  // namespace maplab
