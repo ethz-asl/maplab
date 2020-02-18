@@ -102,8 +102,25 @@ void MaplabServerNode::start() {
     while (!shut_down_requested_.load()) {
       timing::TimerImpl map_merging_timer("map-merging");
 
+      // Delete blacklisted submap mission, if no missions remain in the merged
+      // map, it will return false and therefore reset the
+      // 'received_first_submap' variable.
+      received_first_submap &= deleteBlacklistedMissions();
+
       std::vector<std::string> all_map_keys;
       map_manager_.getAllMapKeys(&all_map_keys);
+
+      // List all loaded maps.
+      if (VLOG_IS_ON(1) && !all_map_keys.empty()) {
+        std::stringstream ss;
+        ss << "[MaplabServerNode] MapMerging - Loaded maps ("
+           << all_map_keys.size() << " total):";
+        std::sort(all_map_keys.begin(), all_map_keys.end());
+        for (const std::string& key : all_map_keys) {
+          ss << "\n  " << key;
+        }
+        VLOG(1) << ss.str();
+      }
 
       if (!received_first_submap && all_map_keys.empty()) {
         VLOG(1) << "[MaplabServerNode] MapMerging - waiting for first "
@@ -117,18 +134,6 @@ void MaplabServerNode::start() {
       }
 
       merging_thread_busy_ = true;
-
-      // List all loaded maps.
-      if (VLOG_IS_ON(1)) {
-        std::stringstream ss;
-        ss << "[MaplabServerNode] MapMerging - Loaded maps ("
-           << all_map_keys.size() << " total):";
-        std::sort(all_map_keys.begin(), all_map_keys.end());
-        for (const std::string& key : all_map_keys) {
-          ss << "\n  " << key;
-        }
-        VLOG(1) << ss.str();
-      }
 
       received_first_submap |= appendAvailableSubmaps();
 
@@ -207,6 +212,29 @@ bool MaplabServerNode::saveMap(const std::string& path) {
   }
 }
 
+bool MaplabServerNode::isSubmapBlacklisted(const std::string& map_key) {
+  CHECK(map_manager_.hasMap(map_key));
+
+  vi_map::MissionId submap_mission_id;
+  {
+    vi_map::VIMapManager::MapReadAccess submap =
+        map_manager_.getMapReadAccess(map_key);
+    CHECK_EQ(submap->numMissions(), 1u);
+    submap_mission_id = submap->getIdOfFirstMission();
+  }
+
+  bool mission_is_blacklisted = false;
+  {
+    std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
+    mission_is_blacklisted =
+        blacklisted_missions_.count(submap_mission_id) > 0u;
+  }
+  if (mission_is_blacklisted) {
+    return true;
+  }
+  return false;
+}
+
 bool MaplabServerNode::loadAndProcessSubmap(
     const std::string& robot_name, const std::string& submap_path) {
   CHECK(!submap_path.empty());
@@ -280,6 +308,15 @@ bool MaplabServerNode::loadAndProcessSubmap(
         VLOG(3) << "[MaplabServerNode] SubmapProcessing - finished loading "
                    "submap with key '"
                 << submap_process.map_key << "', starts processing...";
+
+        if (isSubmapBlacklisted(submap_process.map_key)) {
+          LOG(WARNING) << "[MaplabServerNode] SubmapProcessing - received a "
+                          "blacklisted submap, skip processing...";
+          // We skip the processing part, the merging thread will then discard
+          // the submap.
+          submap_process.is_processed = true;
+          return true;
+        }
 
         extractLatestUnoptimizedPoseFromSubmap(submap_process);
 
@@ -360,7 +397,7 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
     const RobotMissionInformation& robot_info =
         robot_to_mission_id_map_.at(robot_name);
 
-    submap_mission_id = robot_info.current_mission_id;
+    submap_mission_id = robot_info.mission_ids.front();
 
     if (!submap_mission_id.isValid()) {
       LOG(ERROR)
@@ -635,6 +672,23 @@ bool MaplabServerNode::appendAvailableSubmaps() {
       break;
     }
 
+    // Check if submap is blacklisted and delete it.
+    CHECK(!submap_process.map_key.empty());
+    CHECK(map_manager_.hasMap(submap_process.map_key));
+    if (isSubmapBlacklisted(const std::string& map_key)) {
+      LOG(WARNING) << "[MaplabServerNode] MapMerging - Received a new submap "
+                   << "of deleted mission " << submap_mission_id
+                   << ", will discard it.";
+
+      // Delete map from manager.
+      map_manager_.deleteMap(submap_process.map_key);
+
+      // Unlock and delete the submap process struct.
+      submap_process.mutex.unlock();
+      submap_processing_queue_.pop_front();
+      continue;
+    }
+
     // Check if submap has finished processing as well.
     if (!submap_process.is_processed) {
       // Give up and try again later.
@@ -645,23 +699,12 @@ bool MaplabServerNode::appendAvailableSubmaps() {
     VLOG(3) << "[MaplabServerNode] MapMerging - submap with key '"
             << submap_process.map_key << "' is ready to be merged.";
 
-    CHECK(!submap_process.map_key.empty());
-    CHECK(map_manager_.hasMap(submap_process.map_key));
-
     // If we don't have a merged map yet, simply rename the submap into
     // the merged map.
     {
       std::lock_guard<std::mutex> merge_command_lock(
           current_merge_command_mutex_);
       current_merge_command_ = "merging submap";
-    }
-
-    vi_map::MissionId submap_mission_id;
-    {
-      vi_map::VIMapManager::MapWriteAccess submap =
-          map_manager_.getMapWriteAccess(submap_process.map_key);
-      CHECK_EQ(submap->numMissions(), 1u);
-      submap_mission_id = submap->getIdOfFirstMission();
     }
 
     if (!map_manager_.hasMap(kMergedMapKey)) {
@@ -783,16 +826,9 @@ void MaplabServerNode::printAndPublishServerStatus() {
     for (const std::pair<const std::string, RobotMissionInformation>& pair :
          robot_to_mission_id_map_) {
       const RobotMissionInformation& robot_info = pair.second;
-      ss << "\n - " << pair.first
-         << "\t\t mission id: " << robot_info.current_mission_id;
-      if (!robot_info.past_mission_ids.empty()) {
-        ss << " - past missions: (";
-      }
-      for (const vi_map::MissionId& mission_id : robot_info.past_mission_ids) {
-        ss << mission_id << " ";
-      }
-      if (!robot_info.past_mission_ids.empty()) {
-        ss << ")";
+      ss << "\n - " << pair.first;
+      for (const vi_map::MissionId& mission_id : robot_info.mission_ids) {
+        ss << "\n\t - " << mission_id;
       }
     }
   }
@@ -835,11 +871,13 @@ void MaplabServerNode::extractLatestUnoptimizedPoseFromSubmap(
       if (!submap_process.robot_name.empty()) {
         RobotMissionInformation& robot_info =
             robot_to_mission_id_map_[submap_process.robot_name];
-        if (robot_info.current_mission_id.isValid() &&
-            robot_info.current_mission_id != submap_mission_id) {
-          robot_info.past_mission_ids.push_back(robot_info.current_mission_id);
+
+        if (robot_info.mission_ids.empty()) {
+          robot_info.mission_ids.push_front(submap_mission_id);
+        } else if (robot_info.mission_ids.front() != submap_mission_id) {
+          robot_info.mission_ids.push_front(submap_mission_id);
         }
-        robot_info.current_mission_id = submap_mission_id;
+
         mission_id_to_robot_map_[submap_mission_id] = submap_process.robot_name;
 
         robot_info.T_G_M_submaps_input[last_vertex_timestamp_ns] = T_G_M_submap;
@@ -976,6 +1014,232 @@ void MaplabServerNode::publishDenseMap() {
       static_cast<backend::ResourceType>(
           FLAGS_maplab_server_dense_map_resource_type),
       robot_to_mission_id_map, *map);
+}
+
+bool MaplabServerNode::deleteMission(
+    const std::string& partial_mission_id_string, std::string* status_message) {
+  CHECK_NOTNULL(status_message);
+
+  std::stringstream ss;
+
+  const uint32_t kMinMissionIdHashLength = 4u;
+  const uint32_t partial_mission_id_string_size =
+      partial_mission_id_string.size();
+
+  if (partial_mission_id_string_size < kMinMissionIdHashLength) {
+    ss << "Mission id hash is too short (length "
+       << std::to_string(partial_mission_id_string_size)
+       << " is smaller than 4)";
+    *status_message = ss.str();
+    LOG(ERROR) << "[MaplabServerNode] " << *status_message;
+    return false;
+  }
+
+  // Retrieve full mission id.
+  uint32_t num_matching_missions = 0u;
+  vi_map::MissionId mission_to_delete;
+  std::string robot_name_of_mission;
+  {
+    std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+    for (const auto& kv : mission_id_to_robot_map_) {
+      const std::string mission_id_string = kv.first.hexString();
+      if (mission_id_string.substr(0, partial_mission_id_string_size) ==
+          partial_mission_id_string) {
+        mission_to_delete = kv.first;
+        robot_name_of_mission = kv.second;
+        ++num_matching_missions;
+      }
+    }
+  }
+
+  if (num_matching_missions == 0u) {
+    ss << "No mission matches the provided (partial) mission id hashid hash "
+       << "('" << partial_mission_id_string << "')";
+    *status_message = ss.str();
+    LOG(ERROR) << "[MaplabServerNode] " << *status_message;
+    return false;
+  }
+
+  if (num_matching_missions > 1u) {
+    ss << "Multiple missions are matching the provided (partial) mission id "
+       << "hashid hash ('" << partial_mission_id_string_size
+       << "'). Try providing the full hash.";
+    *status_message = ss.str();
+    LOG(ERROR) << "[MaplabServerNode] " << *status_message;
+    return false;
+  }
+  CHECK_EQ(num_matching_missions, 1u);
+  CHECK(mission_to_delete.isValid());
+
+  // Blacklist the mission, this will delete it at the end of the merging
+  // iteration and prevent subsequent submap updates of this mission from
+  // being merged.
+  {
+    std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
+    blacklisted_missions_[mission_to_delete] = robot_name_of_mission;
+
+    ss << "Will delete and blacklist mission " << mission_to_delete.hexString();
+    *status_message = ss.str();
+    LOG(INFO) << "[MaplabServerNode] " << *status_message;
+    return true;
+  }
+}
+
+bool MaplabServerNode::deleteAllRobotMissions(
+    const std::string& robot_name, std::string* status_message) {
+  CHECK_NOTNULL(status_message);
+
+  std::stringstream ss;
+
+  if (robot_name.empty()) {
+    ss << "Robot name is empty, cannot find associated missions to delete "
+       << "them!";
+    *status_message = ss.str();
+    LOG(ERROR) << "[MaplabServerNode] " << *status_message;
+    return false;
+  }
+
+  // Retrieve all missions associated with this robot.
+  uint32_t num_matching_missions = 0u;
+  std::unordered_set<vi_map::MissionId> missions_to_delete;
+  {
+    std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+    for (const auto& kv : mission_id_to_robot_map_) {
+      if (kv.second == robot_name) {
+        CHECK(kv.first.isValid());
+        missions_to_delete.insert(kv.first);
+        ++num_matching_missions;
+      }
+    }
+  }
+
+  if (num_matching_missions == 0u) {
+    ss << "No mission matches the provided robot name "
+       << "('" << robot_name << "')";
+    *status_message = ss.str();
+    LOG(ERROR) << "[MaplabServerNode] " << *status_message;
+    return false;
+  }
+
+  // Blacklist the mission, this will delete it at the end of the merging
+  // iteration and prevent subsequent submap updates of this mission from
+  // being merged.
+  {
+    std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
+    ss << "Will delete and blacklist all missions of robot " << robot_name
+       << ": ";
+    for (const vi_map::MissionId& mission_to_delete : missions_to_delete) {
+      *status_message += mission_to_delete.hexString() + " ";
+      blacklisted_missions_[mission_to_delete] = robot_name;
+    }
+    *status_message = ss.str();
+    LOG(INFO) << "[MaplabServerNode] " << *status_message;
+    return true;
+  }
+}
+
+bool MaplabServerNode::deleteBlacklistedMissions() {
+  if (!map_manager_.hasMap(kMergedMapKey)) {
+    return false;
+  }
+  uint32_t num_missions_in_merged_map_after_deletion;
+  {
+    vi_map::VIMapManager::MapWriteAccess merged_map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+
+    // Make copy of blacklisted missions to avoid repeatedly locking a
+    // potentially changing blacklist.
+    std::unordered_map<vi_map::MissionId, std::string>
+        blacklisted_missions_copy;
+    {
+      std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
+      blacklisted_missions_copy = blacklisted_missions_;
+    }
+
+    if (blacklisted_missions_copy.empty()) {
+      // Nothing todo here.
+      return true;
+    }
+
+    // Actually delete the mission from the merge map, if present.
+
+    vi_map::MissionIdList mission_ids;
+    merged_map->getAllMissionIds(&mission_ids);
+
+    for (const vi_map::MissionId& mission_id : mission_ids) {
+      CHECK(mission_id.isValid());
+      const bool mission_is_blacklisted =
+          blacklisted_missions_copy.count(mission_id) > 0u;
+      if (!mission_is_blacklisted) {
+        continue;
+      }
+
+      LOG(INFO) << "[MaplabServerNode] Deleting blacklisted mission "
+                << mission_id << " from the merged map.";
+      merged_map->removeMission(mission_id, true /*remove baseframe*/);
+    }
+
+    // Cleanup bookkeeping (robot to mission, mission to robot)
+    {
+      std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+
+      for (const auto& blacklisted_mission_id_and_robot_name :
+           blacklisted_missions_copy) {
+        const vi_map::MissionId& blacklisted_mission_id =
+            blacklisted_mission_id_and_robot_name.first;
+        // CHeck mission to robot map.
+        if (mission_id_to_robot_map_.count(blacklisted_mission_id) > 0u) {
+          // Copy intended, to avoid invaliding the refrence when deleting the
+          // element.
+          const std::string robot_name =
+              mission_id_to_robot_map_[blacklisted_mission_id];
+          mission_id_to_robot_map_.erase(blacklisted_mission_id);
+        }
+
+        // Check robot to robot mission info.
+        RobotMissionInformation& robot_mission_info =
+            robot_to_mission_id_map_[robot_name];
+        auto it = std::find(
+            robot_mission_info.mission_ids.begin(),
+            robot_mission_info.mission_ids.end(), blacklisted_mission_id);
+        const bool has_mission = it != robot_mission_info.mission_ids.end();
+        if (has_mission) {
+          robot_mission_info.mission_ids.erase(it);
+        }
+
+        // If this was the only/last mission of that robot, remove the entry and
+        // also publish an empty point cloud to the dense map topic.
+        if (robot_mission_info.mission_ids.empty()) {
+          robot_to_mission_id_map_.erase(robot_name);
+
+          std::unordered_map<std::string, vi_map::MissionIdList>
+              empty_robot_mission_id_list;
+          empty_robot_mission_id_list[robot_name] = vi_map::MissionIdList();
+          visualization::visualizeReprojectedDepthResourcePerRobot(
+              static_cast<backend::ResourceType>(
+                  FLAGS_maplab_server_dense_map_resource_type),
+              empty_robot_mission_id_list, *merged_map);
+        }
+      }
+
+    }  // Limits the scope of the lock on the robot to mission id bookkeeping
+
+    num_missions_in_merged_map_after_deletion = merged_map->numMissions();
+
+  }  // Limits the scope of the lock on the merged map, such that it can
+     // be deleted down below.
+
+  // If we deleted all of the missions, we need to reset the state of the merged
+  // map.
+  if (num_missions_in_merged_map_after_deletion == 0u) {
+    LOG(INFO) << "[MaplabServerNode] Merged map is empty after deleting "
+              << "mission, delete merged map as well.";
+    map_manager_.deleteMap(kMergedMapKey);
+
+    // Return false to reset the 'received_first_submap' variable.
+    return false;
+  }
+  return true;
 }
 
 }  // namespace maplab

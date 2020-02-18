@@ -67,6 +67,22 @@ MaplabServerRosNode::MaplabServerRosNode(
           boost::bind(&MaplabServerRosNode::mapLookupCallback, this, _1, _2);
   map_lookup_srv_ = nh_.advertiseService("map_lookup", map_lookup_callback);
 
+  boost::function<bool(
+      maplab_msgs::DeleteMission::Request&,
+      maplab_msgs::DeleteMission::Response&)>
+      delete_mission_callback = boost::bind(
+          &MaplabServerRosNode::deleteMissionCallback, this, _1, _2);
+  delete_mission_srv_ =
+      nh_.advertiseService("delete_mission", delete_mission_callback);
+
+  boost::function<bool(
+      maplab_msgs::DeleteAllRobotMissions::Request&,
+      maplab_msgs::DeleteAllRobotMissions::Response&)>
+      delete_all_robot_missions_callback = boost::bind(
+          &MaplabServerRosNode::deleteAllRobotMissionsCallback, this, _1, _2);
+  delete_all_robot_missions_srv_ = nh_.advertiseService(
+      "delete_all_robot_missions", delete_all_robot_missions_callback);
+
   boost::function<void(const diagnostic_msgs::KeyValueConstPtr&)>
       submap_loading_callback =
           boost::bind(&MaplabServerRosNode::submapLoadingCallback, this, _1);
@@ -242,6 +258,30 @@ bool MaplabServerRosNode::mapLookupCallback(
 
     responses.map_lookups.emplace_back(std::move(response));
   }
+
+  return true;
+}
+
+bool MaplabServerRosNode::deleteMissionCallback(
+    maplab_msgs::DeleteMission::Request& request,      // NOLINT
+    maplab_msgs::DeleteMission::Response& response) {  // NOLINT
+  const std::string& partial_mission_id_string =
+      request.mission_id_to_delete.data;
+
+  response.success.data = maplab_server_node_->deleteMission(
+      partial_mission_id_string, &response.message.data);
+
+  return true;
+}
+
+bool MaplabServerRosNode::deleteAllRobotMissionsCallback(
+    maplab_msgs::DeleteAllRobotMissions::Request& request,      // NOLINT
+    maplab_msgs::DeleteAllRobotMissions::Response& response) {  // NOLINT
+
+  const std::string& robot_name = request.robot_name.data;
+
+  response.success.data = maplab_server_node_->deleteAllRobotMissions(
+      robot_name, &response.message.data);
 
   return true;
 }
