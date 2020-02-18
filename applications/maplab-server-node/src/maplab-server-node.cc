@@ -312,6 +312,12 @@ bool MaplabServerNode::loadAndProcessSubmap(
         if (isSubmapBlacklisted(submap_process.map_key)) {
           LOG(WARNING) << "[MaplabServerNode] SubmapProcessing - received a "
                           "blacklisted submap, skip processing...";
+
+          {
+            std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
+            submap_commands_[submap_process.map_hash] = "blacklisted";
+          }
+
           // We skip the processing part, the merging thread will then discard
           // the submap.
           submap_process.is_processed = true;
@@ -672,6 +678,13 @@ bool MaplabServerNode::appendAvailableSubmaps() {
       break;
     }
 
+    // Check if submap has finished processing as well.
+    if (!submap_process.is_processed) {
+      // Give up and try again later.
+      submap_process.mutex.unlock();
+      break;
+    }
+
     // Check if submap is blacklisted and delete it.
     CHECK(!submap_process.map_key.empty());
     CHECK(map_manager_.hasMap(submap_process.map_key));
@@ -691,17 +704,16 @@ bool MaplabServerNode::appendAvailableSubmaps() {
       // Delete map from manager.
       map_manager_.deleteMap(submap_process.map_key);
 
+      // Erase submap processing status.
+      {
+        std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
+        submap_commands_.erase(submap_process.map_hash);
+      }
+
       // Unlock and delete the submap process struct.
       submap_process.mutex.unlock();
       submap_processing_queue_.pop_front();
       continue;
-    }
-
-    // Check if submap has finished processing as well.
-    if (!submap_process.is_processed) {
-      // Give up and try again later.
-      submap_process.mutex.unlock();
-      break;
     }
 
     VLOG(3) << "[MaplabServerNode] MapMerging - submap with key '"
