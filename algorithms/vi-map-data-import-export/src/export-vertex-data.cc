@@ -90,7 +90,7 @@ int exportPosesVelocitiesAndBiasesToCsv(
     const std::string kSensorFrameIdentifier =
         std::string(1, sensor_frame_identifier);
     csv_file.writeDataWithDelimiterAndNewLine(
-        kDelimiter, "# timestamp [ns]", "p_G_" + kSensorFrameIdentifier + "x",
+        kDelimiter, "timestamp_ns", "p_G_" + kSensorFrameIdentifier + "x",
         "p_G_" + kSensorFrameIdentifier + "y",
         "p_G_" + kSensorFrameIdentifier + "z",
         "q_G_" + kSensorFrameIdentifier + "x",
