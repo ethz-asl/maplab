@@ -675,7 +675,15 @@ bool MaplabServerNode::appendAvailableSubmaps() {
     // Check if submap is blacklisted and delete it.
     CHECK(!submap_process.map_key.empty());
     CHECK(map_manager_.hasMap(submap_process.map_key));
-    if (isSubmapBlacklisted(const std::string& map_key)) {
+    if (isSubmapBlacklisted(submap_process.map_key)) {
+      vi_map::MissionId submap_mission_id;
+      {
+        vi_map::VIMapManager::MapReadAccess submap =
+            map_manager_.getMapReadAccess(submap_process.map_key);
+        CHECK_EQ(submap->numMissions(), 1u);
+        submap_mission_id = submap->getIdOfFirstMission();
+      }
+
       LOG(WARNING) << "[MaplabServerNode] MapMerging - Received a new submap "
                    << "of deleted mission " << submap_mission_id
                    << ", will discard it.";
@@ -1187,6 +1195,9 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
            blacklisted_missions_copy) {
         const vi_map::MissionId& blacklisted_mission_id =
             blacklisted_mission_id_and_robot_name.first;
+        const std::string& robot_name =
+            blacklisted_mission_id_and_robot_name.second;
+
         // CHeck mission to robot map.
         if (mission_id_to_robot_map_.count(blacklisted_mission_id) > 0u) {
           // Copy intended, to avoid invaliding the refrence when deleting the
