@@ -4,6 +4,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <typeinfo>
 
 #include <Eigen/Core>
 #include <aslam/cameras/ncamera.h>
@@ -35,6 +36,7 @@ DEFINE_string(
 DEFINE_bool(
     rovioli_enable_health_checking, false,
     "Perform health checking on the estimator output and reset if necessary.");
+DEFINE_double(resize_factor, 1.0, "Factor to resize image.");
 
 namespace rovioli {
 RovioFlow::RovioFlow(
@@ -84,6 +86,16 @@ RovioFlow::RovioFlow(
 
   aslam::NCameraId id;
   aslam::generateId<aslam::NCameraId>(&id);
+
+  // If the image needs to be resized the intrinsics of the camera can just be
+  // multiplied with the resize factor. Distortion parameters are agnostic to
+  // the image size. Safe floating point comparison for inequality
+  if (fabs(FLAGS_resize_factor - 1.0) > 1e-6) {
+    for (auto camera : active_cameras) {
+      camera->setParameters(camera->getParameters() * FLAGS_resize_factor);
+     }
+  }
+
   aslam::NCamera motion_tracking_ncamera(
       id, active_T_C_Bs, active_cameras, "Cameras active for motion tracking.");
 
@@ -167,11 +179,24 @@ void RovioFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
           return;
         }
 
+        cv::Mat resized_image;
+        // Only resize if necessary, otherwise use reference to old image. Safe
+        // floating point comparison for inequality
+        if (fabs(FLAGS_resize_factor - 1.0) > 1e-6) {
+          int newcols = round(image->image.cols * FLAGS_resize_factor);
+          int newrows = round(image->image.rows * FLAGS_resize_factor);
+
+          resized_image = cv::Mat(newcols, newrows, image->image.type());
+          cv::resize(image->image, resized_image, cv::Size(newcols, newrows));
+        } else {
+          resized_image = image->image;
+        }
+
         const double rovio_timestamp_sec =
             time_translation_.convertMaplabToRovioTimestamp(image->timestamp);
         const bool measurement_accepted =
             this->rovio_interface_->processImageUpdate(
-                *rovio_cam_index, image->image, rovio_timestamp_sec);
+                *rovio_cam_index, resized_image, rovio_timestamp_sec);
         LOG_IF(
             WARNING, !measurement_accepted && rovio_interface_->isInitialized())
             << "ROVIO rejected image measurement of camera " << maplab_cam_idx

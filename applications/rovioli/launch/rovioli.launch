@@ -7,6 +7,7 @@
 	<arg name="imu_to_camera_time_offset_ns" default="0"/>
 	<arg name="vio_nframe_sync_tolerance_ns" default="500000"/>
 	<arg name="vio_nframe_sync_max_output_frequency_hz" default="10"/>
+	<arg name="resize_factor" default="1.0"/>
 
 	<!-- DATA SOURCE -->
 	<arg name="datasource_type" default="rostopic"/>
@@ -60,6 +61,7 @@
 		<param name="vio_nframe_sync_tolerance_ns" value="$(arg vio_nframe_sync_tolerance_ns)"/>
 		<param name="vio_nframe_sync_max_output_frequency_hz" value="$(arg vio_nframe_sync_max_output_frequency_hz)"/>
 		<param name="rovioli_image_apply_clahe_histogram_equalization" value="$(arg rovioli_image_apply_clahe_histogram_equalization)"/>
+		<param name="resize_factor" value="$(arg resize_factor)"/>
 
 
 		<!-- DATA SOURCE -->
