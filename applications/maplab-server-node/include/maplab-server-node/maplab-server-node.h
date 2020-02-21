@@ -1,19 +1,21 @@
 #ifndef MAPLAB_SERVER_NODE_MAPLAB_SERVER_NODE_H_
 #define MAPLAB_SERVER_NODE_MAPLAB_SERVER_NODE_H_
 
+#include <atomic>
+#include <deque>
+#include <list>
+#include <map>
+#include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <aslam/common/thread-pool.h>
 #include <map-manager/map-manager.h>
 #include <maplab-console/maplab-console.h>
 #include <vi-map/vi-map.h>
+#include <visualization/resource-visualization.h>
 #include <visualization/viwls-graph-plotter.h>
-
-#include <atomic>
-#include <deque>
-#include <map>
-#include <memory>
-#include <string>
 
 #include "maplab-server-node/maplab-server-config.h"
 
@@ -100,6 +102,7 @@ class MaplabServerNode final {
   bool appendAvailableSubmaps();
   void saveMapEveryInterval();
   void runOneIterationOfMapMergingCommands();
+  void publishDenseMap();
   void publishMostRecentVertexPoseAndCorrection();
 
   const std::string kMergedMapKey = "merged_map";
