@@ -69,12 +69,12 @@ DEFINE_bool(
     "with a lc edge.");
 
 DEFINE_double(
-    maplab_stationary_submaps_max_translation_m, 0.03,
+    maplab_stationary_submaps_max_translation_m, 0.10,
     "Maximum translation [m] between first vertex and every other vertex in a "
     "submap to consider it stationary.");
 
 DEFINE_double(
-    maplab_stationary_submaps_max_rotation_rad, 0.1,
+    maplab_stationary_submaps_max_rotation_rad, 0.15,
     "Maximum angle [rad] between first vertex and every other vertex in a "
     "submap to consider it stationary.");
 
@@ -901,9 +901,13 @@ void MaplabServerNode::runSubmapProcessingCommands(
       submap_commands_[submap_process.map_hash] =
           "add_lc_edge_for_stationary_submaps";
       vi_map_helpers::VIMapManipulation manipulation(map.get());
-      manipulation.constrainStationarySubmapWithLoopClosureEdge(
-          FLAGS_maplab_stationary_submaps_max_translation_m,
-          FLAGS_maplab_stationary_submaps_max_rotation_rad);
+      if (manipulation.constrainStationarySubmapWithLoopClosureEdge(
+              FLAGS_maplab_stationary_submaps_max_translation_m,
+              FLAGS_maplab_stationary_submaps_max_rotation_rad)) {
+        LOG(WARNING) << "[MaplabServerNode] Submap '" << submap_process.map_key
+                     << "'is stationary, adding additional constraint between "
+                     << "first and last vertex!";
+      }
     }
 
     // ELQ
@@ -912,7 +916,7 @@ void MaplabServerNode::runSubmapProcessingCommands(
       submap_commands_[submap_process.map_hash] = "elq";
     }
     if (FLAGS_vi_map_landmark_quality_min_observers > 2) {
-      LOG(WARNING) << "[[MaplabServerNode] Minimum required landmark observers "
+      LOG(WARNING) << "[MaplabServerNode] Minimum required landmark observers "
                    << "is set to "
                    << FLAGS_vi_map_landmark_quality_min_observers
                    << ",  this might be too stricht if keyframing is enabled.";
