@@ -15,6 +15,7 @@
 #include <signal.h>
 #include <vi-map-basic-plugin/vi-map-basic-plugin.h>
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
+#include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/landmark-quality-metrics.h>
 
 #include <atomic>
@@ -60,6 +61,22 @@ DEFINE_int32(
     "kRawDepthMap = 8, kOptimizedDepthMap = 9, kPointCloudXYZ = 16, "
     "kPointCloudXYZRGBN = 17, kVoxbloxOccupancyMap = 20, kPointCloudXYZI = "
     "21]");
+
+DEFINE_bool(
+    maplab_server_stationary_submaps_fix_with_lc_edge, false,
+    "If enabled, a simple check will be performed to determine if a submap is "
+    "stationary and if it is, the first and last vertex will be constrained "
+    "with a lc edge.");
+
+DEFINE_double(
+    maplab_stationary_submaps_max_translation_m, 0.03,
+    "Maximum translation [m] between first vertex and every other vertex in a "
+    "submap to consider it stationary.");
+
+DEFINE_double(
+    maplab_stationary_submaps_max_rotation_rad, 0.1,
+    "Maximum angle [rad] between first vertex and every other vertex in a "
+    "submap to consider it stationary.");
 
 namespace maplab {
 MaplabServerNode::MaplabServerNode(const MaplabServerNodeConfig& config)
@@ -878,6 +895,17 @@ void MaplabServerNode::runSubmapProcessingCommands(
     vi_map::MissionIdList missions_to_optimize_list;
     map->getAllMissionIds(&missions_to_optimize_list);
 
+    // Stationary submap fixing.
+    if (FLAGS_maplab_server_stationary_submaps_fix_with_lc_edge) {
+      std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
+      submap_commands_[submap_process.map_hash] =
+          "add_lc_edge_for_stationary_submaps";
+      vi_map_helpers::VIMapManipulation manipulation(map.get());
+      manipulation.constrainStationarySubmapWithLoopClosureEdge(
+          FLAGS_maplab_stationary_submaps_max_translation_m,
+          FLAGS_maplab_stationary_submaps_max_rotation_rad);
+    }
+
     // ELQ
     {
       std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
@@ -910,7 +938,6 @@ void MaplabServerNode::runSubmapProcessingCommands(
           "remove_abs_constraint_outlier";
       map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
     }
-
   } else {
     // Copy console to process the global map.
     const std::string console_name =
