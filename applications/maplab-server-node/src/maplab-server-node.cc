@@ -15,6 +15,7 @@
 #include <signal.h>
 #include <vi-map-basic-plugin/vi-map-basic-plugin.h>
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
+#include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/landmark-quality-metrics.h>
 
 #include <atomic>
@@ -60,6 +61,22 @@ DEFINE_int32(
     "kRawDepthMap = 8, kOptimizedDepthMap = 9, kPointCloudXYZ = 16, "
     "kPointCloudXYZRGBN = 17, kVoxbloxOccupancyMap = 20, kPointCloudXYZI = "
     "21]");
+
+DEFINE_bool(
+    maplab_server_stationary_submaps_fix_with_lc_edge, false,
+    "If enabled, a simple check will be performed to determine if a submap is "
+    "stationary and if it is, the first and last vertex will be constrained "
+    "with a lc edge.");
+
+DEFINE_double(
+    maplab_stationary_submaps_max_translation_m, 0.10,
+    "Maximum translation [m] between first vertex and every other vertex in a "
+    "submap to consider it stationary.");
+
+DEFINE_double(
+    maplab_stationary_submaps_max_rotation_rad, 0.15,
+    "Maximum angle [rad] between first vertex and every other vertex in a "
+    "submap to consider it stationary.");
 
 namespace maplab {
 MaplabServerNode::MaplabServerNode(const MaplabServerNodeConfig& config)
@@ -544,13 +561,16 @@ void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
       const pose_graph::VertexId last_vertex_id =
           map->getLastVertexIdOfMission(mission_id);
       const vi_map::Vertex& last_vertex = map->getVertex(last_vertex_id);
+      const vi_map::MissionBaseFrame& mission_base_frame =
+          map->getMissionBaseFrameForMission(mission_id);
+      const bool baseframe_is_known = mission_base_frame.is_T_G_M_known();
       const aslam::Transformation& T_G_M_latest =
-          map->getMissionBaseFrameForMission(mission_id).get_T_G_M();
+          mission_base_frame.get_T_G_M();
       const aslam::Transformation& T_M_B_latest = last_vertex.get_T_M_I();
       const int64_t current_last_vertex_timestamp_ns =
           last_vertex.getMinTimestampNanoseconds();
 
-      if (pose_correction_publisher_callback_) {
+      if (pose_correction_publisher_callback_ && baseframe_is_known) {
         const auto it_T_M_B = robot_info.T_M_B_submaps_input.find(
             current_last_vertex_timestamp_ns);
         const auto it_T_G_M = robot_info.T_G_M_submaps_input.find(
@@ -878,13 +898,28 @@ void MaplabServerNode::runSubmapProcessingCommands(
     vi_map::MissionIdList missions_to_optimize_list;
     map->getAllMissionIds(&missions_to_optimize_list);
 
+    // Stationary submap fixing.
+    if (FLAGS_maplab_server_stationary_submaps_fix_with_lc_edge) {
+      std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
+      submap_commands_[submap_process.map_hash] =
+          "add_lc_edge_for_stationary_submaps";
+      vi_map_helpers::VIMapManipulation manipulation(map.get());
+      if (manipulation.constrainStationarySubmapWithLoopClosureEdge(
+              FLAGS_maplab_stationary_submaps_max_translation_m,
+              FLAGS_maplab_stationary_submaps_max_rotation_rad)) {
+        LOG(WARNING) << "[MaplabServerNode] Submap '" << submap_process.map_key
+                     << "'is stationary, adding additional constraint between "
+                     << "first and last vertex!";
+      }
+    }
+
     // ELQ
     {
       std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
       submap_commands_[submap_process.map_hash] = "elq";
     }
     if (FLAGS_vi_map_landmark_quality_min_observers > 2) {
-      LOG(WARNING) << "[[MaplabServerNode] Minimum required landmark observers "
+      LOG(WARNING) << "[MaplabServerNode] Minimum required landmark observers "
                    << "is set to "
                    << FLAGS_vi_map_landmark_quality_min_observers
                    << ",  this might be too stricht if keyframing is enabled.";
@@ -910,7 +945,6 @@ void MaplabServerNode::runSubmapProcessingCommands(
           "remove_abs_constraint_outlier";
       map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
     }
-
   } else {
     // Copy console to process the global map.
     const std::string console_name =
