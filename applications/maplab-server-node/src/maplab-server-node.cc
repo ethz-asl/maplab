@@ -561,13 +561,16 @@ void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
       const pose_graph::VertexId last_vertex_id =
           map->getLastVertexIdOfMission(mission_id);
       const vi_map::Vertex& last_vertex = map->getVertex(last_vertex_id);
+      const vi_map::MissionBaseFrame& mission_base_frame =
+          map->getMissionBaseFrameForMission(mission_id);
+      const bool baseframe_is_known = mission_base_frame.is_T_G_M_known();
       const aslam::Transformation& T_G_M_latest =
-          map->getMissionBaseFrameForMission(mission_id).get_T_G_M();
+          mission_base_frame.get_T_G_M();
       const aslam::Transformation& T_M_B_latest = last_vertex.get_T_M_I();
       const int64_t current_last_vertex_timestamp_ns =
           last_vertex.getMinTimestampNanoseconds();
 
-      if (pose_correction_publisher_callback_) {
+      if (pose_correction_publisher_callback_ && baseframe_is_known) {
         const auto it_T_M_B = robot_info.T_M_B_submaps_input.find(
             current_last_vertex_timestamp_ns);
         const auto it_T_G_M = robot_info.T_G_M_submaps_input.find(
