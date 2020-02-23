@@ -537,6 +537,14 @@ void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
                    << robot_name << "!";
         continue;
       }
+
+      if (map->getNumAbsolute6DoFMeasurementsInMission(mission_id) <= 0) {
+        LOG(ERROR) << "[MaplabServerNode] Mission is not yet anchored. "
+          << "Optimized pose will not be published now for robot " 
+          << robot_name << "!";
+        continue;
+      }
+
       RobotMissionInformation& robot_info =
           robot_to_mission_id_map_[robot_name];
 
