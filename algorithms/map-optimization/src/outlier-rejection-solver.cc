@@ -159,6 +159,8 @@ ceres::TerminationType solveStep(
   ceres::Solver::Summary summary;
   ceres::Solve(local_options, &problem, &summary);
 
+  LOG(INFO) << summary.FullReport();
+
   return summary.termination_type;
 }
 
