@@ -80,6 +80,12 @@ DEFINE_bool(
 DECLARE_bool(map_split_map_into_submaps_when_saving_periodically);
 DECLARE_int32(map_save_every_n_sec);
 
+DEFINE_bool(
+   add_unique_ts_prefix_for_save_map_folder, false,
+   "Adds an unique timestamp to the store location of the map folder");
+
+
+
 namespace maplab {
 
 MaplabRosNode::MaplabRosNode(
@@ -108,6 +114,11 @@ MaplabRosNode::MaplabRosNode(
     LOG(INFO) << "[MaplabROSNode] No output map folder was provided, map "
               << "building disable.";
   } else {
+
+    if(FLAGS_add_unique_ts_prefix_for_save_map_folder) {
+       map_output_folder_ += "/" 
+         + std::to_string(aslam::time::nanoSecondsSinceEpoch());
+    }
     LOG(INFO) << "[MaplabROSNode] Set output map folder to: '"
               << map_output_folder_ << "', map building enabled.";
   }
