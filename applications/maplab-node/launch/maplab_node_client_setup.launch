@@ -70,9 +70,9 @@
       <param name="map_save_every_n_sec" value="$(arg maplab_save_map_every_n_sec)"/>
       <param name="map_run_keyframing_when_saving" value="$(arg maplab_keyframe_when_saving)"/>
       <param name="image_apply_clahe_histogram_equalization" value="$(arg maplab_use_clahe)"/>
-      <param name="map_output_folder" value="$(arg maplab_map_directory)/submaps/"/>
+      <param name="map_output_folder" value="$(arg maplab_map_directory)"/>
       <param name="map_add_odometry_edges_if_less_than_n_common_landmarks" value="$(arg maplab_map_add_odometry_edges_if_less_than_n_common_landmarks)"/>
-      <param name="add_unique_ts_prefix_for_save_map_folder" value="$(arg maplab_use_unique_ts_prefix)"/>
+      <param name="add_unique_timestamp_prefix_for_save_map_folder" value="$(arg maplab_use_unique_ts_prefix)"/>
 
       <!-- THREADING -->
       <param name="num_hardware_threads" value="$(arg maplab_num_hardware_threads)"/>
