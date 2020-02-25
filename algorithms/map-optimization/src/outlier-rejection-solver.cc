@@ -159,6 +159,8 @@ ceres::TerminationType solveStep(
   ceres::Solver::Summary summary;
   ceres::Solve(local_options, &problem, &summary);
 
+  LOG(INFO) << summary.FullReport();
+
   return summary.termination_type;
 }
 
@@ -239,14 +241,16 @@ ceres::TerminationType solveWithOutlierRejection(
   ceres::TerminationType termination_type =
       ceres::TerminationType::NO_CONVERGENCE;
   int num_iters_remaining = solver_options.max_num_iterations;
-  while (num_iters_remaining > 0) {
+  timing::TimerImpl timer_full_ba("BA: Full", true);
+  double max_solver_time_s = solver_options.max_solver_time_in_seconds;
+  while (num_iters_remaining > 0 && max_solver_time_s > 0) {
+    timer_full_ba.Start();
     const int step_iters = std::min(
         num_iters_remaining, rejection_options.reject_outliers_every_n_iters);
 
     timing::Timer timer_solve("BA: Solve");
     termination_type =
         solveStep(solver_options, step_iters, optimization_problem, &callback);
-    timer_solve.Stop();
 
     timing::Timer timer_copy("BA: CopyDataToMap");
     optimization_problem->getOptimizationStateBufferMutable()
@@ -261,6 +265,7 @@ ceres::TerminationType solveWithOutlierRejection(
       break;
     }
 
+    max_solver_time_s -= timer_full_ba.Stop();
     num_iters_remaining -= step_iters;
   }
 

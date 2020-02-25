@@ -1,6 +1,8 @@
 #include "map-optimization/solver-options.h"
 
 DEFINE_int32(ba_num_iterations, 30, "Max. number of iterations.");
+DEFINE_int32(ba_max_time_seconds, 1e6, 
+    "Maximum amount of time for which the solver should run.");
 DEFINE_bool(
     ba_enable_signal_handler, true,
     "If enabled, the optimization will register a signal handler that allows "
