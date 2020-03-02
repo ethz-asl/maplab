@@ -36,6 +36,11 @@ DEFINE_bool(
     "be disabled if depth integration is used in a headless console mode, such "
     "as as part of the maplab server.");
 
+DEFINE_int64(
+    dense_depth_integrator_timeshift_resource_to_imu_ns, 0,
+    "Timeshift that is applied to the resource timestamp. The shift is applied "
+    "as follows: t_resource_new = t_resource + shift.");
+
 namespace depth_integration {
 
 void integrateAllLandmarks(
@@ -378,6 +383,9 @@ void integrateAllOptionalSensorDepthResourcesOfType(
 
   const vi_map::SensorManager& sensor_manager = vi_map.getSensorManager();
 
+  const int64_t timestamp_shift_ns =
+      FLAGS_dense_depth_integrator_timeshift_resource_to_imu_ns;
+
   std::unique_ptr<common::SigintBreaker> sigint_breaker;
   if (FLAGS_dense_depth_integrator_enable_sigint_breaker) {
     sigint_breaker.reset(new common::SigintBreaker);
@@ -513,6 +521,9 @@ void integrateAllOptionalSensorDepthResourcesOfType(
       size_t idx = 0u;
       for (const std::pair<const int64_t, backend::ResourceId>&
                stamped_resource_id : *resource_buffer_ptr) {
+        const int64_t timestamp_resource_ns =
+            stamped_resource_id.first + timestamp_shift_ns;
+
         // If the resource timestamp does not lie within the min and max
         // timestamp of the vertices, we cannot interpolate the position. To
         // keep this efficient, we simply replace timestamps outside the range
@@ -520,7 +531,7 @@ void integrateAllOptionalSensorDepthResourcesOfType(
         // later, that's fine.
         resource_timestamps[idx] = std::max(
             min_timestamp_ns,
-            std::min(max_timestamp_ns, stamped_resource_id.first));
+            std::min(max_timestamp_ns, timestamp_resource_ns));
 
         ++idx;
       }

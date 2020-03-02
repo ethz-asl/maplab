@@ -106,7 +106,7 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
         return visualizeReprojectedDepthResource(
             backend::ResourceType::kPointCloudXYZI);
       },
-      "Publish all xyz + intesity point clouds.", common::Processing::Sync);
+      "Publish all xyz + intensity point clouds.", common::Processing::Sync);
 
   addCommand(
       {"visualize_xyzrgbn_pointclouds"},
