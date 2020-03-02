@@ -1173,13 +1173,13 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
         blacklisted_missions_copy;
     {
       std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
+      if (blacklisted_missions_.empty()) {
+        // Nothing todo here.
+        return true;
+      }
       blacklisted_missions_copy = blacklisted_missions_;
     }
 
-    if (blacklisted_missions_copy.empty()) {
-      // Nothing todo here.
-      return true;
-    }
 
     // Actually delete the mission from the merge map, if present.
 
@@ -1222,13 +1222,11 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
         // Check robot to robot mission info.
         RobotMissionInformation& robot_mission_info =
             robot_to_mission_id_map_[robot_name];
-        auto it = std::find(
+        auto it = std::remove(
             robot_mission_info.mission_ids.begin(),
             robot_mission_info.mission_ids.end(), blacklisted_mission_id);
-        const bool has_mission = it != robot_mission_info.mission_ids.end();
-        if (has_mission) {
-          robot_mission_info.mission_ids.erase(it);
-        }
+        robot_mission_info.mission_ids.erase(it,
+            robot_mission_info.mission_ids.end());
 
         // If this was the only/last mission of that robot, remove the entry and
         // also publish an empty point cloud to the dense map topic.
