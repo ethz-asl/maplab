@@ -8,6 +8,7 @@
 #include <voxblox/core/common.h>
 
 DECLARE_bool(dense_depth_integrator_enable_sigint_breaker);
+DECLARE_int64(dense_depth_integrator_timeshift_resource_to_imu_ns);
 
 DECLARE_bool(dense_depth_integrator_visualize_only_with_known_baseframe);
 
