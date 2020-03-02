@@ -1199,7 +1199,7 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
       merged_map->removeMission(mission_id, true /*remove baseframe*/);
     }
 
-    // Cleanup bookkeeping (robot to mission, mission to robot)
+    // Cleanup bookeeping (robot to mission, mission to robot).
     {
       std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
 
@@ -1210,7 +1210,7 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
         const std::string& robot_name =
             blacklisted_mission_id_and_robot_name.second;
 
-        // CHeck mission to robot map.
+        // Check mission to robot map.
         if (mission_id_to_robot_map_.count(blacklisted_mission_id) > 0u) {
           // Copy intended, to avoid invaliding the refrence when deleting the
           // element.
