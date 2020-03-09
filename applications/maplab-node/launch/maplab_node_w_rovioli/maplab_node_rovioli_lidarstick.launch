@@ -14,7 +14,7 @@
 
 	  <arg name="maplab_verbosity" default="0"/>
 
-	  <arg name="maplab_save_map_every_n_sec" default="30"/>
+	  <arg name="maplab_save_map_every_n_sec" default="0"/>
 		<arg name="maplab_keyframe_when_saving" default="true"/>
 
 	  <arg name="maplab_attach_images" default="false"/>
