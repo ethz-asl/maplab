@@ -148,7 +148,7 @@ bool VIMap::mergeAllMissionsFromMapWithoutResources(
     CHECK(hasVertex(original_landmark_store_vertex_id));
     landmark_index.addLandmarkAndVertexReference(
         landmark_id, original_landmark_store_vertex_id);
-  }     
+  }
   return true;
 }
 
@@ -163,7 +163,7 @@ bool VIMap::mergeAllMissionsFromMap(const vi_map::VIMap& other) {
 
   if (!FLAGS_disable_consistency_check) {
     CHECK(checkMapConsistency(*this));
-  }  
+  }
   return true;
 }
 
@@ -917,9 +917,7 @@ void VIMap::associateMissionSensors(
   // Cannot use unordered_map with the enum as key, as it is not supported prior
   // to cpp14, hence it will not compile on xenial and older.
   std::unordered_map<uint8_t, std::set<aslam::SensorId>> sensors_of_type;
-  for (const aslam::SensorId& sensor_i
-       
-       d : sensor_ids) {
+  for (const aslam::SensorId& sensor_id : sensor_ids) {
     const SensorType sensor_type = sensor_manager_.getSensorType(sensor_id);
     std::set<aslam::SensorId>& sensor_ids =
         sensors_of_type[static_cast<uint8_t>(sensor_type)];
