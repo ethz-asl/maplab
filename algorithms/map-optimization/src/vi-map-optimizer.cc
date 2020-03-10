@@ -59,7 +59,7 @@ bool VIMapOptimizer::optimize(
   map_optimization::OptimizationProblem::UniquePtr optimization_problem(
       map_optimization::constructOptimizationProblem(
           missions_to_optimize, options, map));
-  CHECK(optimization_problem);
+  CHECK(optimization_problem != nullptr);
 
   std::vector<std::shared_ptr<ceres::IterationCallback>> callbacks;
   if (plotter_) {
