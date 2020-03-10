@@ -9,13 +9,6 @@
  
 ## Description
 
-## News
-
- * **May 2018:** maplab was presented at [ICRA](https://icra2018.org/) in Brisbane. ([paper](https://arxiv.org/abs/1711.10250))
- * **March 2018:** Check out our release candidate with improved localization and lots of new features! [PR](https://github.com/ethz-asl/maplab/pull/55)
- 
-## Description
-
 This repository contains **maplab**,  an  open,  research-oriented visual-inertial  mapping  framework, written  in  C++,  for  creating, processing  and  manipulating  multi-session  maps.
 On  the  one  hand, maplab  can  be  considered  as  a  ready-to-use  visual-inertial mapping  and  localization  system.
 On  the  other  hand,  maplab provides  the  research  community  with  a  collection  of  multi-session mapping tools that include map merging, visual-inertial batch optimization, and loop closure.
