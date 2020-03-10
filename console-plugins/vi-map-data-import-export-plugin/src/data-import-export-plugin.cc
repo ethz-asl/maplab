@@ -15,6 +15,7 @@ DECLARE_bool(csv_export_landmarks);
 DECLARE_bool(csv_export_observations);
 
 DEFINE_string(csv_export_path, "", "Path to save the map in CSV format into.");
+DEFINE_string(csv_export_format, "asl", "Export format for trajectory to csv.");
 DEFINE_string(
     mission_info_export_path, "", "Export path of the mission info yaml.");
 DEFINE_string(
@@ -77,9 +78,12 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
 
   addCommand(
       {"export_trajectory_to_csv", "ettc"},
-      [this]() -> int { return exportPosesVelocitiesAndBiasesToCsv(); },
+      [this]() -> int {
+        return exportPosesVelocitiesAndBiasesToCsv(FLAGS_csv_export_format);
+      },
       "Export poses, velocities and biases to a CSV file specified with "
-      "--pose_export_file.",
+      "--pose_export_file in fomrat specified by --csv-export-format ('asl' or "
+      "'rpg').",
       common::Processing::Sync);
 
   addCommand(
@@ -131,7 +135,8 @@ int DataImportExportPlugin::exportMissionInfo() const {
   return common::kSuccess;
 }
 
-int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv() const {
+int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv(
+    const std::string& format /* = "asl" */) const {
   std::string selected_map_key;
   if (!getSelectedMapKeyIfSet(&selected_map_key)) {
     return common::kStupidUserError;
@@ -198,9 +203,8 @@ int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv() const {
     LOG(ERROR) << "Sensor does not exist";
     return common::kStupidUserError;
   }
-
   data_import_export::exportPosesVelocitiesAndBiasesToCsv(
-      *map, mission_ids, reference_sensor_id, filepath);
+      *map, mission_ids, reference_sensor_id, filepath, format);
   return common::kSuccess;
 }
 

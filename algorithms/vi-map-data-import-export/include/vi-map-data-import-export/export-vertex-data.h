@@ -12,8 +12,8 @@ namespace data_import_export {
 int exportPosesVelocitiesAndBiasesToCsv(
     const vi_map::VIMap& map, const vi_map::MissionIdList& mission_ids,
     const aslam::SensorId& reference_sensor_id,
-    const std::string& pose_export_file);
-
+    const std::string& pose_export_file,
+    const std::string& format = std::string("asl"));
 }  // namespace data_import_export
 
 #endif  // VI_MAP_DATA_IMPORT_EXPORT_EXPORT_VERTEX_DATA_H_
