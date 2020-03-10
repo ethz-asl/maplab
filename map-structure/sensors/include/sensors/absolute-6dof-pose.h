@@ -96,10 +96,15 @@ class Absolute6DoFMeasurement : public Measurement {
   Absolute6DoFMeasurement() {
     T_G_S_.setIdentity();
     T_G_S_covariance_.setZero();
+    has_T_M_B_cached_ = false;
   }
 
   explicit Absolute6DoFMeasurement(const aslam::SensorId& sensor_id)
-      : Measurement(sensor_id) {}
+      : Measurement(sensor_id) {
+    T_G_S_.setIdentity();
+    T_G_S_covariance_.setZero();
+    has_T_M_B_cached_ = false;
+  }
 
   explicit Absolute6DoFMeasurement(
       const aslam::SensorId& sensor_id, const int64_t timestamp_nanoseconds,
@@ -107,7 +112,9 @@ class Absolute6DoFMeasurement : public Measurement {
       const aslam::TransformationCovariance& covariance)
       : Measurement(sensor_id, timestamp_nanoseconds),
         T_G_S_(T_G_S),
-        T_G_S_covariance_(covariance) {}
+        T_G_S_covariance_(covariance) {
+    has_T_M_B_cached_ = false;
+  }
 
   inline const aslam::Transformation& get_T_G_S() const {
     return T_G_S_;
