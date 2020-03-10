@@ -21,7 +21,7 @@ class DataImportExportPlugin : public common::ConsolePluginBase {
  private:
   int exportMissionInfo() const;
   int exportPosesVelocitiesAndBiasesToCsv(
-      const std::string& format = std::string("asl")) const;
+      const std::string& format = "asl") const;
   int exportNCameraCalibration() const;
   int importGpsDataFromRosbag() const;
   int exportGpsUtmToCsv() const;
