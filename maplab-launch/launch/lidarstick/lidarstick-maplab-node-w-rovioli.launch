@@ -1,7 +1,8 @@
 <?xml version="1.0"?>
 
 <launch>
-	<node pkg="rosbag" type="play" name="rosbag" args="/home/mfehr/experimental_ws/maplab/lidarstick_gonzen/gonzen_run_9_2019-02-15-14-08-27.bag -q -d 2 -s 3 -r 2.0"/>
+  <arg name="bag" />
+  <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag) -q -d 2 -s 3 -r 1.0"/>
 
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 
@@ -34,7 +35,7 @@
 				if="true"/>
 
 	<!-- MAPLAB -->
-	<node name="maplab_node" pkg="maplab_node" type="maplab_node" output="screen" clear_params="true">
+	<node name="maplab_node" pkg="maplab_node" type="maplab_node" output="screen" clear_params="true" required="true">
 
 		<!-- GENERAL PARAMS -->
 		<rosparam command="load" file="$(find maplab_launch)/config/lidarstick/ros/lidarstick-maplab-node-rosparam.yaml"/>
@@ -46,12 +47,12 @@
 		<param name="vio_camera_topic_suffix" value="image_raw"/>
 
 		<!-- DENSE MAP -->
-		<param name="map_builder_save_point_cloud_maps_as_resources" value="true"/>
+		<param name="map_builder_save_point_cloud_maps_as_resources" value="false"/>
 
 		<!-- MAPLAB_NODE_CONFIG -->
-		<param name="map_save_every_n_sec" value="30"/>
+		<param name="map_save_every_n_sec" value="0"/>
 		<param name="map_run_keyframing_when_saving" value="false"/>
 		<param name="image_apply_clahe_histogram_equalization" value="true"/>
-		<param name="map_output_folder" value="/tmp/lidarstick/submaps/"/>
+    <param name="map_output_folder" value="$(env HOME)/maps/maplab_node"/>
 	</node>
 </launch>
