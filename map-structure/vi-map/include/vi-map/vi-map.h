@@ -809,6 +809,9 @@ class VIMap : public backend::ResourceMap,
   bool hasSensorResource(
       const VIMission& mission, const backend::ResourceType& type,
       const aslam::SensorId& sensor_id, const int64_t timestamp_ns) const;
+  bool hasSensorResource(
+      const MissionIdList& involved_mission_ids,
+      const backend::ResourceType& type) const;
 
   template <typename DataType>
   bool getSensorResource(

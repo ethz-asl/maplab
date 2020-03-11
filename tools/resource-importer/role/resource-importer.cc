@@ -147,16 +147,36 @@ int main(int argc, char* argv[]) {
     }
 
     if (sensor_manager.getNumSensors() != 2u) {
-      LOG(FATAL) << "The sensor calibration file should only contain the "
-                    "resource sensor and its base sensor (=2)!";
+      LOG(WARNING)
+          << "The sensor calibration file has more than 2 sensors (resource "
+             "and its base sensor). Make sure that the correct one is chosen.";
     }
 
     aslam::SensorIdSet all_sensor_ids;
     sensor_manager.getAllSensorIds(&all_sensor_ids);
-    CHECK_EQ(all_sensor_ids.size(), 2u);
+    CHECK_GT(all_sensor_ids.size(), 0u);
     for (const aslam::SensorId& any_sensor_id : all_sensor_ids) {
-      if (!sensor_manager.isBaseSensor(any_sensor_id)) {
+      if (!sensor_manager.isBaseSensor(any_sensor_id) &&
+          sensor_manager.getSensor<aslam::Sensor>(any_sensor_id).getTopic() ==
+              FLAGS_resource_topic) {
         sensor_id = any_sensor_id;
+        VLOG(1) << "Found sensor with topic "
+                << sensor_manager.getSensor<aslam::Sensor>(any_sensor_id)
+                       .getTopic();
+      }
+      if (sensor_manager.getSensorType(any_sensor_id) ==
+          aslam::SensorType::kNCamera) {
+        const aslam::NCamera n_camera =
+            sensor_manager.getSensor<aslam::NCamera>(any_sensor_id);
+        for (size_t idx = 0; idx < n_camera.getNumCameras(); ++idx) {
+          if (n_camera.getCamera(idx).getTopic() == FLAGS_resource_topic ||
+              n_camera.getCamera(idx).getTopic() + "/image_raw" ==
+                  FLAGS_resource_topic) {
+            sensor_id = n_camera.getCamera(idx).getId();
+            VLOG(1) << "Found sensor with topic "
+                    << n_camera.getCamera(idx).getTopic();
+          }
+        }
       }
     }
     CHECK(sensor_id.isValid());
