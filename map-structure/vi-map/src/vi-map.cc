@@ -2685,6 +2685,17 @@ bool VIMap::hasSensorResource(
   return mission.hasSensorResourceId(type, sensor_id, timestamp_ns);
 }
 
+bool VIMap::hasSensorResource(
+    const MissionIdList& involved_mission_ids,
+    const backend::ResourceType& type) const {
+  for (const MissionId& mission_id : involved_mission_ids) {
+    if (getMission(mission_id).hasSensorResource(type)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool VIMap::findAllCloseSensorResources(
     const VIMission& mission, const backend::ResourceType& type,
     const int64_t timestamp_ns, const int64_t tolerance_ns,
