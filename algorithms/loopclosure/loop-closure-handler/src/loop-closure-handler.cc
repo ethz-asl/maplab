@@ -47,7 +47,6 @@ bool addLoopClosureEdge(
   CHECK(query_vertex_id.isValid());
   CHECK_NOTNULL(map)->hasVertex(vertex_id_from_structure_matches);
   CHECK(vertex_id_from_structure_matches != query_vertex_id);
-    VLOG(1) << "==============================   ADD LC EDGE";
 
   Eigen::Matrix2Xd measurements;
   std::vector<int> measurement_camera_indices;
@@ -500,8 +499,6 @@ bool LoopClosureHandler::handleLoopClosure(
             lc_edge_target_vertex_id, *T_G_I_ransac, map_);
       }
     }
-  }else {
-    VLOG(1) << "==============================   LC EDGE FALSE";
   }
 
   VLOG(5) << "\transac success. Ransac pts: " << G_landmark_positions.cols()

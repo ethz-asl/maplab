@@ -1087,7 +1087,6 @@ void LoopDetectorNode::detectLoopClosuresAndMergeLandmarks(
   int num_vertex_candidate_links;
   double summary_landmark_match_inlier_ratio;
 
-  VLOG(1) << std::boolalpha << kMergeLandmarks << " vs. " << kAddLoopclosureEdges;
   pose::Transformation T_G_M2;
   vi_map::LoopClosureConstraintVector inlier_constraints;
   detectLoopClosuresMissionToDatabase(
