@@ -34,6 +34,9 @@ DEFINE_bool(
     "loop-closure.");
 DEFINE_bool(lc_use_random_pnp_seed, true, "Use random seed for pnp RANSAC.");
 
+DEFINE_bool(lc_insert_lc_edge_instead_of_merging, false,
+   "Insert an LC edge in the pose graph instead of merging landmarks.");
+
 DEFINE_double(
     lc_mission_baseframe_min_inlier_ratio, 0.2,
     "Minimum inlier ratio for successful mission to database alignment.");
@@ -1079,8 +1082,8 @@ void LoopDetectorNode::detectLoopClosuresAndMergeLandmarks(
     const MissionId& mission, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
 
-  constexpr bool kMergeLandmarks = true;
-  constexpr bool kAddLoopclosureEdges = false;
+  const bool kAddLoopclosureEdges = FLAGS_lc_insert_lc_edge_instead_of_merging;
+  const bool kMergeLandmarks = !kAddLoopclosureEdges;
   int num_vertex_candidate_links;
   double summary_landmark_match_inlier_ratio;
 
