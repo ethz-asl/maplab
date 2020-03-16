@@ -52,3 +52,6 @@ CMakeLists.txt.user
 
 # Maplab temporary files.
 *.vi_command_history
+
+# Documentation
+docs/_build
