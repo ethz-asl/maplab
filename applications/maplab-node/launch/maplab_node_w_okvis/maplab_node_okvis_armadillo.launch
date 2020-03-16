@@ -69,7 +69,7 @@
 		<arg name="map_split_map_into_submaps_when_saving_periodically" default="false"/>
 
 		<!-- ATTACHING RESOURCES TO MAP -->
-		<arg name="map_builder_save_image_as_resources" default="false"/>
+		<arg name="map_builder_save_tracking_image_as_resources" default="false"/>
 		<arg name="map_builder_save_point_clouds_as_resources" default="false"/>
 		<arg name="map_builder_save_point_cloud_maps_as_resources" default="false"/>
 

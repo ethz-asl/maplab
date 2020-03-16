@@ -13,9 +13,14 @@
 #include <vio-common/vio-types.h>
 
 DEFINE_bool(
-    map_builder_save_image_as_resources, false,
-    "Store the images associated with the visual frames to the map resource "
-    "folder.");
+    map_builder_save_tracking_image_as_resources, false,
+    "Store the tracking images (greyscaled, ev. histogram equalized) "
+    "associated with the visual frames to the map resource folder.");
+
+DEFINE_bool(
+    map_builder_save_color_image_as_resources, false,
+    "Store the color images (if any) associated with the visual frames to the "
+    "map resource folder.");
 
 DEFINE_bool(
     map_builder_save_point_clouds_as_resources, false,
@@ -303,7 +308,7 @@ pose_graph::VertexId StreamMapBuilder::addViwlsVertex(
   map_->addVertex(vi_map::Vertex::UniquePtr(map_vertex));
 
   // Optionally dump the image to disk.
-  if (FLAGS_map_builder_save_image_as_resources) {
+  if (FLAGS_map_builder_save_tracking_image_as_resources) {
     CHECK(map_->hasMapFolder())
         << "Cannot store resources to a map that has no associated map folder, "
         << "please set the map folder in the VIMap constructor or by using "
@@ -315,6 +320,26 @@ pose_graph::VertexId StreamMapBuilder::addViwlsVertex(
         map_->storeFrameResource(
             nframe->getFrame(frame_idx).getRawImage(), frame_idx,
             backend::ResourceType::kRawImage, map_vertex);
+      }
+    }
+  }
+
+  if (FLAGS_map_builder_save_color_image_as_resources) {
+    CHECK(map_->hasMapFolder())
+        << "Cannot store resources to a map that has no associated map folder, "
+        << "please set the map folder in the VIMap constructor or by using "
+        << "map.setMapFolder()!";
+    map_->useMapResourceFolder();
+    for (size_t frame_idx = 0u; frame_idx < nframe->getNumFrames();
+         ++frame_idx) {
+      if (nframe->isFrameSet(frame_idx) &&
+          nframe->getFrame(frame_idx).hasColorImage()) {
+        VLOG(1) << "Save color image to frame " << frame_idx << " resource.";
+        map_->storeFrameResource(
+            nframe->getFrame(frame_idx).getColorImage(), frame_idx,
+            backend::ResourceType::kRawColorImage, map_vertex);
+      } else {
+        LOG(WARNING) << "Color image not added because its not available.";
       }
     }
   }

@@ -168,7 +168,8 @@ class SynchronizerFlow {
         [this](const vio::ImageMeasurement::ConstPtr& image) {
           CHECK(image);
           this->synchronizer_.processCameraImage(
-              image->camera_index, image->image, image->timestamp);
+              image->camera_index, image->image, image->timestamp,
+              image->encoding);
         });
     synchronizer_.registerSynchronizedNFrameCallback(
         message_flow_

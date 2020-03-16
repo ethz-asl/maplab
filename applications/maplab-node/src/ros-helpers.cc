@@ -36,6 +36,8 @@ DEFINE_double(
     "Shift applied to the scaled values when converting 16bit images to 8bit "
     "images.");
 
+DECLARE_bool(map_builder_save_color_image_as_resources);
+
 namespace maplab {
 
 vio::ImuMeasurement::Ptr convertRosImuToMaplabImu(
@@ -84,14 +86,23 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
           image_measurement->image, CV_8U,
           FLAGS_image_16_bit_to_8_bit_scale_factor,
           FLAGS_image_16_bit_to_8_bit_shift);
+      image_measurement->encoding = sensor_msgs::image_encodings::MONO8;
     } else {
       if (image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC1) {
         // NOTE: we assume all 8UC1 type images are monochrome images.
         cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::TYPE_8UC1);
+        image_measurement->encoding = sensor_msgs::image_encodings::MONO8;
       } else {
-        cv_ptr = cv_bridge::toCvShare(
+        if (FLAGS_map_builder_save_color_image_as_resources) {
+          cv_ptr = cv_bridge::toCvShare(
+            image_message, "passthrough");
+          image_measurement->encoding = image_message->encoding;
+        } else {
+          cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::MONO8);
+          image_measurement->encoding = sensor_msgs::image_encodings::MONO8;
+        }
       }
       CHECK(cv_ptr);
 

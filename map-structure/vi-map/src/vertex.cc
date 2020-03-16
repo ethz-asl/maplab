@@ -385,6 +385,10 @@ Vertex* Vertex::cloneWithVisualNFrame(
     if (this_frame.hasRawImage()) {
       cloned_frame->setRawImage(this_frame.getRawImage().clone());
     }
+    if (this_frame.hasColorImage()) {
+      cloned_frame->setColorImage(this_frame.getColorImage().clone());
+    }
+
 
     // Verify landmark vs keypoint state.
     size_t num_keypoints = cloned_frame->getNumKeypointMeasurements();

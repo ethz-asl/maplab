@@ -120,7 +120,8 @@ void Synchronizer::initializeNCameraSynchronization(
 }
 
 void Synchronizer::processCameraImage(
-    const size_t camera_index, const cv::Mat& image, const int64_t timestamp) {
+    const size_t camera_index, const cv::Mat& image, const int64_t timestamp,
+    const std::string& encoding) {
   CHECK(visual_pipeline_) << "[MaplabNode-Synchronizer] The visual pipeline, "
                              "which turns individual images "
                           << "into NFrames, has not been initialized yet!";
@@ -155,7 +156,7 @@ void Synchronizer::processCameraImage(
 
   if (!visual_pipeline_->processImageBlockingIfFull(
           camera_index, image, timestamp,
-          FLAGS_vio_nframe_sync_max_queue_size)) {
+          FLAGS_vio_nframe_sync_max_queue_size, encoding)) {
     LOG(ERROR)
         << "[MaplabNode-Synchronizer] Failed to process an image of camera "
         << camera_index << " into an NFrame at time " << timestamp << "ns!";

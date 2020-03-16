@@ -48,6 +48,8 @@
 
 		<!-- DENSE MAP -->
 		<param name="map_builder_save_point_cloud_maps_as_resources" value="false"/>
+    <param name="map_builder_save_tracking_image_as_resources" value="false"/>
+    <param name="map_builder_save_color_image_as_resources" value="true"/>
 
 		<!-- MAPLAB_NODE_CONFIG -->
 		<param name="map_save_every_n_sec" value="0"/>

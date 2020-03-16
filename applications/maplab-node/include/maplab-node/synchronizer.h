@@ -41,7 +41,8 @@ class Synchronizer {
       const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& timestamps_nanoseconds,
       const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_measurements);
   void processCameraImage(
-      const size_t camera_index, const cv::Mat& image, const int64_t timestamp);
+      const size_t camera_index, const cv::Mat& image, const int64_t timestamp,
+      const std::string& encoding);
   void processLidarMeasurement(
       const vi_map::RosLidarMeasurement::ConstPtr& lidar_measurement);
   void processOdometryMeasurement(const vio::ViNodeState& odometry);
