@@ -1179,8 +1179,7 @@ bool VIMap::getAllCloseSensorResources(
     const int64_t timestamp_ns = (*closest_timestamps_ns)[idx];
     DataType& resource = (*resources)[idx];
     CHECK(getSensorResource(
-        mission.id(), type, timestamp_ns, tolerance_ns, sensor_id, timestamp_ns,
-        &resource));
+        mission, type, sensor_id, timestamp_ns, &resource));
   }
   return true;
 }
