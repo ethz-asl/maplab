@@ -54,4 +54,6 @@ CMakeLists.txt.user
 *.vi_command_history
 
 # Documentation
-docs/_build
+docs/_*
+docs/api
+docs/doxyoutput
