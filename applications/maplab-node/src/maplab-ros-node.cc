@@ -150,6 +150,11 @@ MaplabRosNode::MaplabRosNode(
   } else {
     LOG(INFO) << "[MaplabROSNode] No lidar localization map provided.";
   }
+
+  boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
+      save_map_callback =
+          boost::bind(&MaplabRosNode::saveMapCallback, this, _1, _2);
+  save_map_srv_ = nh_.advertiseService("save_map", save_map_callback);
 }
 
 bool MaplabRosNode::run() {

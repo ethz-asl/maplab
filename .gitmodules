@@ -1,5 +1,5 @@
 [submodule "tools/maplab_test_data"]
-	path = tools/maplab_test_data
+	path = tools/maplab-test-data
 	url = https://github.com/ethz-asl/maplab_test_data.git
 [submodule "aslam_cv2"]
 	path = aslam_cv2
@@ -91,9 +91,6 @@
 [submodule "dependencies/internal/linter"]
 	path = dependencies/internal/linter
 	url = git@github.com:ethz-asl/linter.git
-[submodule "dependencies/3rdparty/arl_apriltags2_ros"]
-	path = dependencies/3rdparty/arl_apriltags2_ros
-	url = git@github.com:ethz-asl/arl_apriltags2_ros.git
 [submodule "dependencies/internal/maplab_tools"]
 	path = dependencies/internal/maplab_tools
 	url = git@github.com:ethz-asl/maplab_tools.git
