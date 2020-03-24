@@ -56,11 +56,37 @@ void applyHistogramEqualization(
     const cv::Mat& input_image, cv::Mat* output_image) {
   CHECK_NOTNULL(output_image);
   CHECK(!input_image.empty());
+  if (input_image.channels() == 1u) {
+    static cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(
+        FLAGS_image_clahe_clip_limit,
+        cv::Size(FLAGS_image_clahe_grid_size, FLAGS_image_clahe_grid_size));
+    clahe->apply(input_image, *output_image);
+  } else if (input_image.channels() == 3u) {
+    cv::Mat lab_image;
+    cv::cvtColor(input_image, lab_image, CV_BGR2Lab);
 
-  static cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(
-      FLAGS_image_clahe_clip_limit,
-      cv::Size(FLAGS_image_clahe_grid_size, FLAGS_image_clahe_grid_size));
-  clahe->apply(input_image, *output_image);
+    // Extract the L channel
+    std::vector<cv::Mat> lab_planes(3);
+    cv::split(
+        lab_image, lab_planes);  // now we have the L image in lab_planes[0]
+
+    // apply the CLAHE algorithm to the L channel
+    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(
+        FLAGS_image_clahe_clip_limit,
+        cv::Size(FLAGS_image_clahe_grid_size, FLAGS_image_clahe_grid_size));
+    cv::Mat dst;
+    clahe->apply(lab_planes[0], dst);
+
+    // Merge the the color planes back into an Lab image
+    dst.copyTo(lab_planes[0]);
+    cv::merge(lab_planes, lab_image);
+
+    // convert back to RGB
+    cv::cvtColor(lab_image, *output_image, CV_Lab2BGR);
+  } else {
+    LOG(FATAL) << "Number of image channels unrecongized: "
+               << input_image.channels();
+  }
 }
 
 vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
@@ -95,12 +121,11 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
         image_measurement->encoding = sensor_msgs::image_encodings::MONO8;
       } else {
         if (FLAGS_map_builder_save_color_image_as_resources) {
-          cv_ptr = cv_bridge::toCvShare(
-            image_message, "passthrough");
+          cv_ptr = cv_bridge::toCvShare(image_message);
           image_measurement->encoding = image_message->encoding;
         } else {
           cv_ptr = cv_bridge::toCvShare(
-            image_message, sensor_msgs::image_encodings::MONO8);
+              image_message, sensor_msgs::image_encodings::MONO8);
           image_measurement->encoding = sensor_msgs::image_encodings::MONO8;
         }
       }

@@ -163,7 +163,7 @@ void Synchronizer::processCameraImage(
     shutdown();
   }
 
-  // Put all visual frames that are ready into the buffer.
+  // Put all visual nframes that are ready into the buffer.
   {
     std::lock_guard<std::mutex> lock(nframe_buffer_mutex_);
     aslam::VisualNFrame::Ptr next_nframe = visual_pipeline_->getNext();

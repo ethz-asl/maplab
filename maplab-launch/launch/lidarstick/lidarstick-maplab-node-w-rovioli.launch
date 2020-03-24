@@ -29,10 +29,12 @@
 		</node>
 	</group>
 
-	<!-- LIDAR SUBMAP THROTTLER -->
+  <!-- LIDAR SUBMAP THROTTLER -->
+  <!--
 	<node name="lidar_throttler" type="throttle" pkg="topic_tools"
 				args="messages /os1_node/points 0.2 /os1_node/points_throttled"
-				if="true"/>
+    if="true"/>
+  -->
 
 	<!-- MAPLAB -->
 	<node name="maplab_node" pkg="maplab_node" type="maplab_node" output="screen" clear_params="true" required="true">
