@@ -334,12 +334,13 @@ pose_graph::VertexId StreamMapBuilder::addViwlsVertex(
          ++frame_idx) {
       if (nframe->isFrameSet(frame_idx) &&
           nframe->getFrame(frame_idx).hasColorImage()) {
-        VLOG(1) << "Save color image to frame " << frame_idx << " resource.";
+        VLOG(4) << "Save color image to frame " << frame_idx << " resource.";
         map_->storeFrameResource(
             nframe->getFrame(frame_idx).getColorImage(), frame_idx,
             backend::ResourceType::kRawColorImage, map_vertex);
       } else {
-        LOG(WARNING) << "Color image not added because its not available.";
+        VLOG(4) << "Color image of frame " << frame_idx
+                << " not added because its not available (mono camera?).";
       }
     }
   }
