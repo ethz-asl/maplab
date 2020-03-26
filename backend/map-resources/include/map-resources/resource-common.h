@@ -194,6 +194,14 @@ class IntensityVisitor : public boost::static_visitor<float> {
   std::size_t index_;
 };
 
+// Converts a CSV string with resource type numbers into a vector of
+// ResourceTypes. If the string is empty it returns true and an empty vector. If
+// one of the CSV entries is not a valid ResourceType, it returns false and an
+// empty vector.
+bool csvStringToResourceTypeList(
+    const std::string& csv_resource_types,
+    std::vector<ResourceType>* resource_type_list);
+
 }  // namespace backend
 
 #endif  // MAP_RESOURCES_RESOURCE_COMMON_H_
