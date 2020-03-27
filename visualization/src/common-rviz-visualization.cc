@@ -68,9 +68,7 @@ void createEmptySphereListMarker(
   sphere_marker->scale.y = scale;
   sphere_marker->scale.z = scale;
 
-  sphere_marker->pose.position.x = 0.0;
-  sphere_marker->pose.position.y = 0.0;
-  sphere_marker->pose.position.z = 0.0;
+  visualization::setPoseToIdentity(sphere_marker);
 
   sphere_marker->color.a = alpha;
   sphere_marker->header.frame_id = frame;
@@ -831,7 +829,6 @@ void publishSpheres(
   }
 
   const double scale = spheres[0].radius;
-
   visualization_msgs::Marker marker;
   createEmptySphereListMarker(
       marker_id, frame, name_space, scale, alpha, &marker);
