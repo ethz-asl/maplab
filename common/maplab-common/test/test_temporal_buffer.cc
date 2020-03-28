@@ -89,7 +89,7 @@ TEST_F(TemporalBufferFixture, GetNearestValueToTimeWorks) {
 }
 
 TEST_F(TemporalBufferFixture, GetNearestValueToTimeMaxDeltaWorks) {
-  addValue(TestData(30));
+  addValue(TestData(40));
   addValue(TestData(10));
   addValue(TestData(20));
 
@@ -107,13 +107,13 @@ TEST_F(TemporalBufferFixture, GetNearestValueToTimeMaxDeltaWorks) {
   EXPECT_TRUE(buffer_.getNearestValueToTime(16, kMaxDelta, &retrieved_item));
   EXPECT_EQ(retrieved_item.timestamp, 20);
 
-  EXPECT_TRUE(buffer_.getNearestValueToTime(26, kMaxDelta, &retrieved_item));
-  EXPECT_EQ(retrieved_item.timestamp, 30);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(36, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 40);
 
-  EXPECT_TRUE(buffer_.getNearestValueToTime(32, kMaxDelta, &retrieved_item));
-  EXPECT_EQ(retrieved_item.timestamp, 30);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(42, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 40);
 
-  EXPECT_FALSE(buffer_.getNearestValueToTime(36, kMaxDelta, &retrieved_item));
+  EXPECT_FALSE(buffer_.getNearestValueToTime(46, kMaxDelta, &retrieved_item));
 
   buffer_.clear();
   addValue(TestData(10));
@@ -133,6 +133,8 @@ TEST_F(TemporalBufferFixture, GetNearestValueToTimeMaxDeltaWorks) {
 
   buffer_.clear();
   addValue(TestData(10));
+
+  EXPECT_FALSE(buffer_.getNearestValueToTime(1, kMaxDelta, &retrieved_item));
 
   EXPECT_TRUE(buffer_.getNearestValueToTime(6, kMaxDelta, &retrieved_item));
   EXPECT_EQ(retrieved_item.timestamp, 10);
