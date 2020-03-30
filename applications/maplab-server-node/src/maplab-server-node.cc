@@ -203,7 +203,9 @@ void MaplabServerNode::shutdown() {
   shut_down_requested_.store(true);
 
   LOG(INFO) << "[MaplabServerNode] Stopping MapMerging thread...";
-  submap_merging_thread_.join();
+  if (submap_merging_thread_.joinable()) {
+    submap_merging_thread_.join();
+  }
   LOG(INFO) << "[MaplabServerNode] Done.";
 
   LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
@@ -1214,7 +1216,6 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
       blacklisted_missions_copy = blacklisted_missions_;
     }
 
-
     // Actually delete the mission from the merge map, if present.
 
     vi_map::MissionIdList mission_ids;
@@ -1259,8 +1260,8 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
         auto it = std::remove(
             robot_mission_info.mission_ids.begin(),
             robot_mission_info.mission_ids.end(), blacklisted_mission_id);
-        robot_mission_info.mission_ids.erase(it,
-            robot_mission_info.mission_ids.end());
+        robot_mission_info.mission_ids.erase(
+            it, robot_mission_info.mission_ids.end());
 
         // If this was the only/last mission of that robot, remove the entry and
         // also publish an empty point cloud to the dense map topic.
