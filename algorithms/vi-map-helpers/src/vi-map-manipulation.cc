@@ -760,17 +760,23 @@ bool VIMapManipulation::constrainStationarySubmapWithLoopClosureEdge(
   // If possible use covariance of odometry sensor, otherwise use gflags
   // value.
   aslam::TransformationCovariance T_B_first_B_last_covariance;
+  bool odometry_sensor_has_covariance = false;
   if (mission.hasOdometry6DoFSensor()) {
     const aslam::SensorId& sensor_id = mission.getOdometry6DoFSensor();
     const vi_map::Odometry6DoF& odometry_sensor =
         map_.getSensorManager().getSensor<vi_map::Odometry6DoF>(sensor_id);
     aslam::TransformationCovariance odometry_covariance;
-    odometry_sensor.get_T_St_Stp1_fixed_covariance(
-        &T_B_first_B_last_covariance);
-  } else {
-    const double kLoopClosureCovarianceScaler = 1e-4;
+    odometry_sensor_has_covariance =
+        odometry_sensor.get_T_St_Stp1_fixed_covariance(
+            &T_B_first_B_last_covariance);
+    LOG_IF(WARNING) << "An odometry sensor is set, but no covariance, odometry "
+                    << "edges will be added with a hardcoded covariance.";
+  }
+
+  if (!odometry_sensor_has_covariance) {
+    const double kOdometry6DoFCovarianceScaler = 1e-4;
     T_B_first_B_last_covariance.setIdentity();
-    T_B_first_B_last_covariance *= kLoopClosureCovarianceScaler;
+    T_B_first_B_last_covariance *= kOdometry6DoFCovarianceScaler;
   }
 
   pose_graph::VertexIdList all_vertices_in_mission;

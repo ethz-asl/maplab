@@ -10,22 +10,25 @@ DEFINE_bool(
 
 DEFINE_double(
     abs_constraints_baseframe_min_number_of_constraints, 3,
-    "Minimum number of constraints to allow for baseframe alignment or "
-    "consistency checking.");
-
+    "Outlier rejection in absolute constraints: Sets the minimum number of "
+    "constraints required to perform outlier rejection. If less constraints "
+    "are present in the map, the outlier rejection will not do anything.");
 DEFINE_double(
     abs_constraints_baseframe_min_inlier_ratio, 0.5,
-    "Minimum inlier ratio for successful mission to absolute reference "
-    "alignment.");
+    "Outlier rejection in absolute constraints: Sets the minimum required "
+    "inlier ratio for mission baseframe RANSAC.");
 DEFINE_double(
     abs_constraints_baseframe_ransac_max_orientation_error_rad, 0.0872,
-    "Maximum orientation error for inliers for mission baseframe RANSAC.");
+    "Outlier rejection in absolute constraints: Sets the maximum orientation "
+    "error for inliers for mission baseframe RANSAC.");
 DEFINE_double(
     abs_constraints_baseframe_ransac_max_position_error_m, 0.5,
-    "Maximum position error for inliers for mission baseframe RANSAC.");
+    "Outlier rejection in absolute constraints: Sets the maximum position "
+    "error for inliers for mission baseframe RANSAC. ");
 DEFINE_int32(
     abs_constraints_baseframe_ransac_num_interations, 2000,
-    "Maximum number of iterations for mission baseframe RANSAC.");
+    "Outlier rejection in absolute constraints: Sets the maximum number of "
+    "iterations for mission baseframe RANSAC.");
 
 namespace map_anchoring {
 
@@ -199,17 +202,19 @@ bool anchorAllMissions(
   // out of trials for each mission.
   CHECK(missions_to_anchor.empty());
 
+  // Reset the selected missions.
+  map->resetMissionSelection();
+
+
   if (!abandoned_missions.empty()) {
     ss << "\tCould not anchor all missions, still unknown:\n";
     for (const vi_map::MissionId& abandoned_mission_id : abandoned_missions) {
       ss << "\t- " << abandoned_mission_id << "\n";
     }
-    map->resetMissionSelection();
     ss << "----------------------------------------------------------------\n";
     LOG(INFO) << ss.str();
     return false;
   }
-  map->resetMissionSelection();
   ss << "\tAll missions anchored.\n";
   ss << "----------------------------------------------------------------\n";
   LOG(INFO) << ss.str();
