@@ -8,9 +8,9 @@
 #include <sensors/sensor-types.h>
 #include <tf/tf.h>
 #include <tf/transform_broadcaster.h>
-#include <visualization_msgs/MarkerArray.h>
 #include <vi-map/vertex.h>
 #include <vi-map/viwls-edge.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <algorithm>
 #include <functional>
@@ -189,6 +189,7 @@ void ViwlsGraphRvizPlotter::publishEdges(
     const std::string& topic_extension, const bool wait_for_subscriber) const {
   visualization::LineSegmentVector line_segments;
   visualization::LineSegmentVector lc_transformation_line_segments;
+  visualization::SphereVector lc_vertices;
   visualization::ArrowVector wheel_odom_transformation_arrows;
 
   visualization::Palette palette =
@@ -261,6 +262,22 @@ void ViwlsGraphRvizPlotter::publishEdges(
       lc_transformation_line_segments.push_back(lc_line_segment);
       line_segment.color = local_color;
 
+      visualization::Sphere lc_sphere_from, lc_sphere_to;
+      lc_sphere_from.position = from_T_G_I.getPosition();
+      lc_sphere_from.color.red = 0u;
+      lc_sphere_from.color.green = 255u;
+      lc_sphere_from.color.blue = 255u;
+      lc_sphere_from.radius = 0.3;
+      lc_sphere_from.alpha = 0.3;
+      lc_vertices.emplace_back(lc_sphere_from);
+      lc_sphere_to.position = to_T_G_I.getPosition();
+      lc_sphere_to.color.red = 255u;
+      lc_sphere_to.color.green = 0u;
+      lc_sphere_to.color.blue = 255u;
+      lc_sphere_to.radius = 0.3;
+      lc_sphere_to.alpha = 0.3;
+      lc_vertices.emplace_back(lc_sphere_to);
+
       // Assemble the transformation and covariance for later visualization.
       lc_edges_T_G_B.emplace_back(to_T_G_I);
       lc_edges_B_cov.emplace_back(edge.get_T_A_B_Covariance());
@@ -330,14 +347,21 @@ void ViwlsGraphRvizPlotter::publishEdges(
         FLAGS_vis_default_namespace, kEdgeTopic + "/wheel_odometry_arrows");
   }
 
-  if (!lc_edges_T_G_B.empty() && FLAGS_vis_lc_edge_covariances) {
+  if (!lc_edges_T_G_B.empty() && !lc_vertices.empty() &&
+      FLAGS_vis_lc_edge_covariances) {
     CHECK_EQ(lc_edges_T_G_B.size(), lc_edges_B_cov.size());
     const visualization::Color covariance_color = visualization::kCommonYellow;
     const std::string kEdgeCovTopic = kEdgeTopic + "/loop_closure_covariances";
-    const std::string kNamespace = "loop_closure_covariances";
+    const std::string kEdgeCovNamespace = "loop_closure_covariances";
     visualization::publishPoseCovariances(
         lc_edges_T_G_B, lc_edges_B_cov, covariance_color, FLAGS_tf_map_frame,
-        kNamespace, kEdgeCovTopic);
+        kEdgeCovNamespace, kEdgeCovTopic);
+
+    const std::string kEdgeVertexTopic = kEdgeTopic + "/loop_closure_vertices";
+    const std::string kEdgeVertexNamespace = "loop_closure_vertices";
+    visualization::publishSpheres(
+        lc_vertices, marker_id, FLAGS_tf_map_frame, kEdgeVertexNamespace,
+        kEdgeVertexTopic);
   }
 }
 

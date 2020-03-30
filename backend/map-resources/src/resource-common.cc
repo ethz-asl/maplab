@@ -70,4 +70,48 @@ bool isSameResource(
   return true;
 }
 
+bool csvStringToResourceTypeList(
+    const std::string& csv_resource_types,
+    std::vector<ResourceType>* resource_type_list) {
+  CHECK_NOTNULL(resource_type_list)->clear();
+  if (csv_resource_types.empty()) {
+    return true;
+  }
+
+  static const std::string kDelimiter = ",";
+
+  std::vector<std::string> resource_type_strings;
+  common::tokenizeString(
+      csv_resource_types, kDelimiter, &resource_type_strings);
+
+  if (resource_type_strings.empty()) {
+    // Nothing to do here.
+    return true;
+  }
+
+  for (const std::string& resource_type_string : resource_type_strings) {
+    bool is_valid = false;
+    try {
+      const int resource_type_int = std::stoi(resource_type_string);
+      if (resource_type_int >= 0 &&
+          resource_type_int < static_cast<int>(ResourceType::kCount)) {
+        is_valid = true;
+        resource_type_list->emplace_back(
+            static_cast<ResourceType>(resource_type_int));
+      }
+    } catch (std::invalid_argument const& e) {
+      // Fall through intended.
+    } catch (std::out_of_range const& e) {
+      // Fall through intended.
+    }
+    if (!is_valid) {
+      LOG(ERROR) << "'" << resource_type_string
+                 << "' is not a valid resource type number!";
+      resource_type_list->clear();
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace backend
