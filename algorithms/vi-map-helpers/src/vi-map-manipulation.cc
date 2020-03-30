@@ -769,8 +769,9 @@ bool VIMapManipulation::constrainStationarySubmapWithLoopClosureEdge(
     odometry_sensor_has_covariance =
         odometry_sensor.get_T_St_Stp1_fixed_covariance(
             &T_B_first_B_last_covariance);
-    LOG_IF(WARNING) << "An odometry sensor is set, but no covariance, odometry "
-                    << "edges will be added with a hardcoded covariance.";
+    LOG_IF(WARNING, !odometry_sensor_has_covariance)
+        << "An odometry sensor is set, but no covariance, odometry "
+        << "edges will be added with a hardcoded covariance.";
   }
 
   if (!odometry_sensor_has_covariance) {
