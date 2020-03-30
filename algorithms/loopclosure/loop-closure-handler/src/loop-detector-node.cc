@@ -648,10 +648,9 @@ bool LoopDetectorNode::findVertexInDatabase(
   *num_of_lc_matches = loop_closure::getNumberOfMatches(frame_matches_list);
 
   timing::Timer timer_compute_relative("lc compute absolute transform");
-  pose_graph::VertexId vertex_id_closest_to_structure_matches;
   bool ransac_ok = computeAbsoluteTransformFromFrameMatches(
       frame_matches_list, merge_landmarks, add_lc_edges, map, T_G_I,
-      inlier_constraint, &vertex_id_closest_to_structure_matches);
+      inlier_constraint, nullptr /**/);
   timer_compute_relative.Stop();
   return ransac_ok;
 }
@@ -665,7 +664,7 @@ bool LoopDetectorNode::computeAbsoluteTransformFromFrameMatches(
   CHECK_NOTNULL(map);
   CHECK_NOTNULL(T_G_I);
   CHECK_NOTNULL(inlier_constraints);
-  CHECK_NOTNULL(vertex_id_closest_to_structure_matches);
+  // vertex_id_closest_to_structure_matches can be a nullptr
 
   const size_t num_matches = loop_closure::getNumberOfMatches(frame_to_matches);
   if (num_matches == 0u) {
