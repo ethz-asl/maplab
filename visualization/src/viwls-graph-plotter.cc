@@ -263,19 +263,19 @@ void ViwlsGraphRvizPlotter::publishEdges(
       line_segment.color = local_color;
 
       visualization::Sphere lc_sphere_from, lc_sphere_to;
-      lc_sphere_from.position = to_T_G_I.getPosition();
+      lc_sphere_from.position = from_T_G_I.getPosition();
       lc_sphere_from.color.red = 0u;
-      lc_sphere_from.color.green = 0u;
+      lc_sphere_from.color.green = 255u;
       lc_sphere_from.color.blue = 255u;
       lc_sphere_from.radius = 0.3;
-      lc_sphere_from.alpha = 0.8;
+      lc_sphere_from.alpha = 0.3;
       lc_vertices.emplace_back(lc_sphere_from);
-      lc_sphere_to.position = to_T_G_I_lc.getPosition();
+      lc_sphere_to.position = to_T_G_I.getPosition();
       lc_sphere_to.color.red = 255u;
       lc_sphere_to.color.green = 0u;
-      lc_sphere_to.color.blue = 0u;
+      lc_sphere_to.color.blue = 255u;
       lc_sphere_to.radius = 0.3;
-      lc_sphere_to.alpha = 0.8;
+      lc_sphere_to.alpha = 0.3;
       lc_vertices.emplace_back(lc_sphere_to);
 
       // Assemble the transformation and covariance for later visualization.
