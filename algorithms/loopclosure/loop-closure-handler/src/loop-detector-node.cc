@@ -650,7 +650,7 @@ bool LoopDetectorNode::findVertexInDatabase(
   timing::Timer timer_compute_relative("lc compute absolute transform");
   bool ransac_ok = computeAbsoluteTransformFromFrameMatches(
       frame_matches_list, merge_landmarks, add_lc_edges, map, T_G_I,
-      inlier_constraint, nullptr /**/);
+      inlier_constraint, nullptr /*vertex_id_closest_to_structure_matches*/);
   timer_compute_relative.Stop();
   return ransac_ok;
 }
