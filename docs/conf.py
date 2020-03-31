@@ -15,6 +15,8 @@ html_logo = "logo.png"
 #    '.md': 'recommonmark.parser.CommonMarkParser',
 #}
 
+
+
 extensions = [
     'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark'
 ]
@@ -22,7 +24,37 @@ extensions = [
 project = name
 master_doc = 'index'
 
-html_theme_options = {'logo_only': True}
+html_theme_options = {
+    'canonical_url': 'maplab.asl.ethz.ch',
+    'analytics_id': 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
+    'logo_only': True,
+    'display_version': True,
+    'prev_next_buttons_location': 'bottom',
+    'style_external_links': True,
+    'vcs_pageview_mode': 'edit',
+    'style_nav_header_background': 'black',
+    # Toc options
+    # 'collapse_navigation': True,
+    # 'sticky_navigation': True,
+    # 'navigation_depth': 4,
+    # 'includehidden': True,
+    # 'titles_only': False
+}
+
+html_context = {
+    'display_github': True,
+    'github_repo': 'maplab',
+    'github_user': 'ethz-asl',
+    'github_version': 'develop-docs',
+    'conf_py_path': '/docs/pages/',
+}
+
+# Setup versioning
+scv_show_banner = True
+scv_banner_main_ref = 'develop'
+scv_priority = 'branches'
+scv_root_ref = 'develop-docs'
+scv_sort = ('time',)
 
 # Setup the breathe extension
 breathe_projects = {"project": "./doxyoutput/xml"}
