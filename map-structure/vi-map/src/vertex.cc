@@ -196,6 +196,9 @@ Vertex* Vertex::cloneWithoutVisualNFrame() const {
   cloned_vertex->incoming_edges_ = incoming_edges_;
   cloned_vertex->outgoing_edges_ = outgoing_edges_;
 
+  cloned_vertex->resource_map_ = resource_map_;
+  cloned_vertex->absolute_6dof_measurements_ = absolute_6dof_measurements_;
+
   // Check vertex state.
   CHECK(cloned_vertex->id_.isValid());
   CHECK(cloned_vertex->mission_id_.isValid());
@@ -224,6 +227,8 @@ Vertex* Vertex::cloneWithVisualNFrame(
   cloned_vertex->observed_landmark_ids_ = observed_landmark_ids_;
   cloned_vertex->landmarks_ = landmarks_;
   cloned_vertex->resource_map_ = resource_map_;
+
+  cloned_vertex->absolute_6dof_measurements_ = absolute_6dof_measurements_;
 
   // Verify that the camera of the other vertex and the new one are the same.
   const aslam::NCamera& this_ncamera = *CHECK_NOTNULL(getNCameras().get());

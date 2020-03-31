@@ -49,6 +49,9 @@ int addInertialTermsForEdges(
 int addWheelOdometryTerms(
     const bool fix_extrinsics, OptimizationProblem* problem);
 
+int add6DoFOdometryTerms(
+    const bool fix_extrinsics, OptimizationProblem* problem);
+
 int addRelativePoseTermsForEdges(
     const vi_map::Edge::EdgeType edge_type,
     const pose_graph::EdgeIdList& provided_edges, const bool fix_extrinsics,

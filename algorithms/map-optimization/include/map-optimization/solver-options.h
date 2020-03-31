@@ -8,6 +8,7 @@
 #include <maplab-common/threading-helpers.h>
 
 DECLARE_int32(ba_num_iterations);
+DECLARE_int32(ba_max_time_seconds);
 DECLARE_bool(ba_enable_signal_handler);
 DECLARE_bool(ba_use_cgnr_linear_solver);
 DECLARE_bool(ba_use_jacobi_scaling);
@@ -18,6 +19,7 @@ inline ceres::Solver::Options initSolverOptionsFromFlags() {
   ceres::Solver::Options options;
   options.minimizer_progress_to_stdout = true;
   options.max_num_iterations = FLAGS_ba_num_iterations;
+  options.max_solver_time_in_seconds = FLAGS_ba_max_time_seconds;
   options.function_tolerance = 1e-12;
   options.gradient_tolerance = 1e-10;
   options.parameter_tolerance = 1e-8;
