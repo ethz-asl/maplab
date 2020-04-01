@@ -449,7 +449,12 @@ void StreamMapBuilder::addWheelOdometryEdge(
 }
 
 bool StreamMapBuilder::checkConsistency() const {
-  return vi_map::checkMapConsistency(*CHECK_NOTNULL(constMap()));
+  bool is_consistent = false;
+  if (!FLAGS_disable_consistency_check) {
+    is_consistent = vi_map::checkMapConsistency(*CHECK_NOTNULL(constMap()));
+  }
+
+  return is_consistent;
 }
 
 void StreamMapBuilder::bufferAbsolute6DoFConstraint(
@@ -520,7 +525,7 @@ void StreamMapBuilder::notifyBuffers() {
 }
 
 void StreamMapBuilder::notifyAbsolute6DoFConstraintBuffer() {
-  if (map_->numVertices() < 1u || absolute_6dof_measurment_buffer_.empty()) {
+  if (map_->numVertices() < 2u || absolute_6dof_measurment_buffer_.empty()) {
     return;
   }
 

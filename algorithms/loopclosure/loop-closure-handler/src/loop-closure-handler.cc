@@ -434,20 +434,31 @@ bool LoopClosureHandler::handleLoopClosure(
   VLOG(10) << "Found loop-closure for query vertex "
            << query_vertex_id.hexString();
 
+  vi_map::LandmarkIdSet commonly_observed_landmarks;
+  if (vertex_id_closest_to_structure_matches != nullptr) {
+    *vertex_id_closest_to_structure_matches =
+        getVertexIdWithMostOverlappingLandmarks(
+            query_vertex_id, *inlier_structure_matches, *map_,
+            &commonly_observed_landmarks);
+    CHECK(vertex_id_closest_to_structure_matches->isValid());
+  }
+
   if (add_loopclosure_edges) {
     if (query_vertex_id.isValid() && map_ != nullptr) {
       CHECK_NOTNULL(map_);
       std::lock_guard<std::mutex> map_lock(*map_mutex);
 
-      vi_map::LandmarkIdSet commonly_observed_landmarks;
-      const pose_graph::VertexId lc_edge_target_vertex_id =
-          getVertexIdWithMostOverlappingLandmarks(
-              query_vertex_id, *inlier_structure_matches, *map_,
-              &commonly_observed_landmarks);
-      CHECK(lc_edge_target_vertex_id.isValid());
-
-      if (vertex_id_closest_to_structure_matches != nullptr) {
-        *vertex_id_closest_to_structure_matches = lc_edge_target_vertex_id;
+      pose_graph::VertexId lc_edge_target_vertex_id;
+      if (vertex_id_closest_to_structure_matches == nullptr) {
+        CHECK(commonly_observed_landmarks.empty());
+        // This function is robust against
+        lc_edge_target_vertex_id = getVertexIdWithMostOverlappingLandmarks(
+            query_vertex_id, *inlier_structure_matches, *map_,
+            &commonly_observed_landmarks);
+      } else {
+        // vertex_id_closest_to_structure_matches was already retrieved
+        // before.
+        lc_edge_target_vertex_id = *vertex_id_closest_to_structure_matches;
       }
 
       if (*inlier_ratio >= FLAGS_lc_edge_min_inlier_ratio &&

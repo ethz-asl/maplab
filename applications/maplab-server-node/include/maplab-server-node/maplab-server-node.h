@@ -1,19 +1,21 @@
 #ifndef MAPLAB_SERVER_NODE_MAPLAB_SERVER_NODE_H_
 #define MAPLAB_SERVER_NODE_MAPLAB_SERVER_NODE_H_
 
+#include <atomic>
+#include <deque>
+#include <list>
+#include <map>
+#include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <aslam/common/thread-pool.h>
 #include <map-manager/map-manager.h>
 #include <maplab-console/maplab-console.h>
 #include <vi-map/vi-map.h>
+#include <visualization/resource-visualization.h>
 #include <visualization/viwls-graph-plotter.h>
-
-#include <atomic>
-#include <deque>
-#include <map>
-#include <memory>
-#include <string>
 
 #include "maplab-server-node/maplab-server-config.h"
 
@@ -76,6 +78,20 @@ class MaplabServerNode final {
       const int64_t timestamp_ns, const Eigen::Vector3d& p_S,
       Eigen::Vector3d* p_G, Eigen::Vector3d* sensor_p_G) const;
 
+  // Initially blacklists the mission, the merging thread will then remove it
+  // within one iteration. All new submaps of this mission that arrive will be
+  // discarded. The mission can be identified with a partial hash of length 4 or
+  // more.
+  bool deleteMission(
+      const std::string& partial_mission_id_string,
+      std::string* status_message);
+
+  // Initially blacklists the missions of this robot, the merging thread will
+  // then remove them within one iteration. All new submaps of these missions
+  // that arrive will be discarded.
+  bool deleteAllRobotMissions(
+      const std::string& robot_name, std::string* status_message);
+
   void visualizeMap();
 
   void registerPoseCorrectionPublisherCallback(
@@ -85,9 +101,11 @@ class MaplabServerNode final {
           const aslam::Transformation&)>
           callback);
 
+  void registerStatusCallback(std::function<void(const std::string&)> callback);
+
  private:
   // Status thread functions:
-  void printServerStatus();
+  void printAndPublishServerStatus();
 
   // Submap processing functions:
   void extractLatestUnoptimizedPoseFromSubmap(
@@ -95,10 +113,23 @@ class MaplabServerNode final {
   void runSubmapProcessingCommands(const SubmapProcess& submap_process);
 
   // Map merging function:
+
+  // Deletes missions from the merged map that have been blacklisted. Returns
+  // false if no missions are left in the merged map, which also deletes it from
+  // the map manager.
+  bool deleteBlacklistedMissions();
+
   bool appendAvailableSubmaps();
+
   void saveMapEveryInterval();
+
   void runOneIterationOfMapMergingCommands();
+
+  void publishDenseMap();
+
   void publishMostRecentVertexPoseAndCorrection();
+
+  bool isSubmapBlacklisted(const std::string& map_key);
 
   const std::string kMergedMapKey = "merged_map";
   const int kSecondsToSleepBetweenAttempts = 1;
@@ -110,6 +141,7 @@ class MaplabServerNode final {
 
   std::thread submap_merging_thread_;
   std::thread status_thread_;
+  std::function<void(const std::string&)> status_publisher_callback_;
 
   aslam::ThreadPool submap_loading_thread_pool_;
 
@@ -143,24 +175,27 @@ class MaplabServerNode final {
       pose_correction_publisher_callback_;
 
   struct RobotMissionInformation {
-    vi_map::MissionId current_mission_id;
-    std::vector<vi_map::MissionId> past_mission_ids;
+    // Contains the mission ids of this robot, the most recent mission is at the
+    // front of the vector.
+    std::list<vi_map::MissionId> mission_ids;
 
     // These keep track of the end/start poses of submaps as they came in
-    // and the most recent submap end pose in the optimized map. This is used to
-    // compute the correction T_B_old_B_new that is published by the server.
-    // This correction can then be used to coorect any poses that
-    // were expressed in the odometry frame that was used to build the map
+    // and the most recent submap end pose in the optimized map. This is used
+    // to compute the correction T_B_old_B_new that is published by the
+    // server. This correction can then be used to coorect any poses that were
+    // expressed in the odometry frame that was used to build the map
     // initially.
     std::map<int64_t, aslam::Transformation> T_M_B_submaps_input;
     std::map<int64_t, aslam::Transformation> T_G_M_submaps_input;
-  
   };
 
   mutable std::mutex robot_to_mission_id_map_mutex_;
   std::unordered_map<std::string, RobotMissionInformation>
       robot_to_mission_id_map_;
   std::unordered_map<vi_map::MissionId, std::string> mission_id_to_robot_map_;
+
+  mutable std::mutex blacklisted_missions_mutex_;
+  std::unordered_map<vi_map::MissionId, std::string> blacklisted_missions_;
 };
 
 }  // namespace maplab

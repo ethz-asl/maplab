@@ -51,7 +51,8 @@ void publishTF(
 const std::string convertSensorTypeToTfFrameId(
     const vi_map::SensorType sensor_type);
 
-void publishSensorTFs(const vi_map::SensorManager& sensor_manager);
+void publishSensorTFs(const vi_map::SensorManager& sensor_manager,
+                      const ros::Time& ros_time);
 
 void publishTF(
     const aslam::Transformation& T_fi_fj, const std::string& frame,

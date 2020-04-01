@@ -142,7 +142,6 @@ bool SensorManager::getBaseSensorIdIfUnique(aslam::SensorId* sensor_id) const {
     return false;
   }
 
-  bool is_unique = true;
   aslam::SensorId unique_base_id;
   for (auto sensor_id_to_base_id : base_sensor_id_map_) {
     if (!unique_base_id.isValid()) {
