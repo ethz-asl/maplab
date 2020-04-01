@@ -71,7 +71,7 @@ sensors:
           id: ac4704b6b1b4cf41b0924ecb7bd863ec
           sensor_type: CAMERA
           description: "Blackfly S 0.4MP Mono Camera"
-          topic: /VersaVIS/cam0
+          topic: /VersaVIS/cam1
           line-delay-nanoseconds: 0
           image_height: 540
           image_width: 720
