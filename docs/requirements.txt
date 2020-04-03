@@ -2,4 +2,3 @@ exhale
 sphinx==2.4.4
 sphinx_rtd_theme
 recommonmark
-sphinx_versioning

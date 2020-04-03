@@ -18,7 +18,7 @@ html_logo = "logo.png"
 
 
 extensions = [
-    'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark'
+    'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark', 'sphinx_multiversion',
 ]
 
 project = name
@@ -50,11 +50,14 @@ html_context = {
 }
 
 # Setup versioning
-scv_show_banner = True
-scv_banner_main_ref = 'develop'
-scv_priority = 'branches'
-scv_root_ref = 'develop-docs'
-scv_sort = ('time',)
+# scv_show_banner = True
+# scv_banner_main_ref = 'develop'
+# scv_priority = 'branches'
+# scv_root_ref = 'develop-docs'
+# scv_sort = ('time',)
+
+templates_path = ['_templates',
+]
 
 # Setup the breathe extension
 breathe_projects = {"project": "./doxyoutput/xml"}
