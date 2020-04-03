@@ -16,9 +16,8 @@ html_logo = "logo.png"
 #}
 
 
-
 extensions = [
-    'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark', 'sphinx_multiversion',
+    'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark',
 ]
 
 project = name
@@ -49,16 +48,6 @@ html_context = {
     'conf_py_path': '/docs/pages/',
 }
 
-# Setup versioning
-# scv_show_banner = True
-# scv_banner_main_ref = 'develop'
-# scv_priority = 'branches'
-# scv_root_ref = 'develop-docs'
-# scv_sort = ('time',)
-
-templates_path = ['_templates',
-]
-
 # Setup the breathe extension
 breathe_projects = {"project": "./doxyoutput/xml"}
 breathe_default_project = "project"
@@ -75,7 +64,6 @@ exhale_args = {
     "exhaleUseDoxyfile": True,
     "pageLevelConfigMeta": ":github_url: https://github.com/ethz-asl/" + name
 }
-
 source_suffix = ['.rst', '.md']
 
 # Tell sphinx what the primary language being documented is.
