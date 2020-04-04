@@ -5,7 +5,7 @@ imu_to_camera_time_offset_ns: 0
 external_imu_parameters_rovio: ""
 # VIO
 vio_camera_topic_suffix: ""
-vio_nframe_sync_tolerance_ns: 500000
+vio_nframe_sync_tolerance_ns: 750000
 vio_nframe_sync_max_output_frequency_hz: 10
 
 # SENSOR SELECTION
@@ -15,6 +15,7 @@ selected_ncamera_sensor_id: ""
 selected_imu_sensor_id: ""
 selected_lidar_sensor_id: ""
 selected_odometry_6dof_sensor_id: ""
+#rovio_active_camera_indices: 0
 
 # DATA SOURCE [rosbag, rostopic]
 datasource_type: "rostopic"
