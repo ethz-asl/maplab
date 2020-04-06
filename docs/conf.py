@@ -45,7 +45,7 @@ html_context = {
     'github_repo': 'maplab',
     'github_user': 'ethz-asl',
     'github_version': 'develop-docs',
-    'conf_py_path': '/docs/pages/',
+    'conf_py_path': '/docs/',
 }
 
 # Setup the breathe extension
