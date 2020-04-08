@@ -26,18 +26,8 @@ class VIMapOptimizer {
 
   bool optimize(
       const map_optimization::ViProblemOptions& options,
-      const vi_map::MissionIdSet& missions_to_optimize,
-      const map_optimization::OutlierRejectionSolverOptions* const
-          outlier_rejection_options,
-      vi_map::VIMap* map);
-
-  bool optimize(
-      const map_optimization::ViProblemOptions& options,
-      const ceres::Solver::Options& solver_options,
-      const vi_map::MissionIdSet& missions_to_optimize,
-      const map_optimization::OutlierRejectionSolverOptions* const
-          outlier_rejection_options,
-      vi_map::VIMap* map);
+      const vi_map::MissionIdSet& missions_to_optimize, vi_map::VIMap* map,
+      OptimizationProblemResult* result = nullptr);
 
  private:
   const visualization::ViwlsGraphRvizPlotter* plotter_;

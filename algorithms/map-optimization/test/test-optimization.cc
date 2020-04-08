@@ -127,10 +127,7 @@ bool ViMappingTest::optimize(
 
   vi_map::MissionIdSet mission_ids;
   map->getAllMissionIds(&mission_ids);
-
-  map_optimization::OutlierRejectionSolverOptions rejection_options =
-      map_optimization::OutlierRejectionSolverOptions::initFromFlags();
-  return optimizer.optimize(options, mission_ids, &rejection_options, map);
+  return optimizer.optimize(options, mission_ids, map);
 }
 
 void ViMappingTest::testWheelCalibrationThreeVertices() {
@@ -237,18 +234,14 @@ void ViMappingTest::testWheelCalibrationThreeVertices() {
   map->addEdge(std::move(edge_B_C));
 
   // OPTIMIZE
-  ceres::Solver::Options solver_options =
-      map_optimization::initSolverOptionsFromFlags();
-  solver_options.max_num_iterations = 60;
-
+  options.solver_options.max_num_iterations = 60;
   options.add_inertial_constraints = false;
   options.add_visual_constraints = false;
   options.add_wheel_odometry_constraints = true;
+
   visualization::ViwlsGraphRvizPlotter* plotter = nullptr;
   constexpr bool kSignalHandlerEnabled = false;
   map_optimization::VIMapOptimizer optimizer(plotter, kSignalHandlerEnabled);
-  map_optimization::OutlierRejectionSolverOptions rejection_options =
-      map_optimization::OutlierRejectionSolverOptions::initFromFlags();
 
   vi_map::MissionIdSet mission_ids;
   map->getAllMissionIds(&mission_ids);
@@ -257,7 +250,7 @@ void ViMappingTest::testWheelCalibrationThreeVertices() {
       map_optimization::constructOptimizationProblem(
           mission_ids, options, map.get()));
 
-  map_optimization::solve(solver_options, optimization_problem.get());
+  map_optimization::solve(options.solver_options, optimization_problem.get());
 
   // RESULTS
   aslam::Transformation T_S_B_opt =
@@ -392,11 +385,10 @@ void ViMappingTest::testWheelCalibrationTwoVertices() {
   options.add_inertial_constraints = false;
   options.add_visual_constraints = false;
   options.add_wheel_odometry_constraints = true;
+
   visualization::ViwlsGraphRvizPlotter* plotter = nullptr;
   constexpr bool kSignalHandlerEnabled = false;
   map_optimization::VIMapOptimizer optimizer(plotter, kSignalHandlerEnabled);
-  map_optimization::OutlierRejectionSolverOptions rejection_options =
-      map_optimization::OutlierRejectionSolverOptions::initFromFlags();
 
   vi_map::MissionIdSet mission_ids;
   map->getAllMissionIds(&mission_ids);
@@ -405,7 +397,7 @@ void ViMappingTest::testWheelCalibrationTwoVertices() {
       map_optimization::constructOptimizationProblem(
           mission_ids, options, map.get()));
 
-  map_optimization::solve(solver_options, optimization_problem.get());
+  map_optimization::solve(options.solver_options, optimization_problem.get());
 
   // RESULTS
   aslam::Transformation T_S_B_opt =

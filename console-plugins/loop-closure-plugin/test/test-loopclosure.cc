@@ -41,16 +41,14 @@ class LoopClosureAppTest : public ::testing::Test {
   std::unique_ptr<VIMapMerger> map_merger_;
 };
 
-bool LoopClosureAppTest::optimize(ceres::Solver::Summary* summary) {
-  CHECK_NOTNULL(summary);
+bool LoopClosureAppTest::optimize() {
   vi_map::VIMap* map = CHECK_NOTNULL(test_app_.getMapMutable());
 
-  ceres::Solver::Options solver_options =
-      map_optimization::initSolverOptionsFromFlags();
   map_optimization::ViProblemOptions vi_problem_options =
       map_optimization::ViProblemOptions::initFromGFlags();
 
-  solver_options.max_num_iterations = 20;
+  vi_problem_options.solver_options.max_num_iterations = 20;
+  vi_problem_options.enable_visual_outlier_rejection = false;
   vi_problem_options.add_loop_closure_edges = true;
 
   // Initial visual-inertial optimization.
@@ -60,8 +58,9 @@ bool LoopClosureAppTest::optimize(ceres::Solver::Summary* summary) {
   // Optimize all missions in the map
   vi_map::MissionIdSet all_mission_ids;
   map->getAllMissionIds(&all_mission_ids);
-  const bool success = optimizer.optimize(
-      vi_problem_options, solver_options, all_mission_ids, nullptr, map);
+
+  const bool success =
+      optimizer.optimize(vi_problem_options, all_mission_ids, map);
   return success;
 }
 
@@ -98,8 +97,7 @@ TEST_F(LoopClosureAppTest, TestLoopClosureWithOptimization) {
 
   landmark_triangulation::retriangulateLandmarks(map_ptr);
   map_merger_->findLoopClosuresBetweenAllMissions();
-  ceres::Solver::Summary summary;
-  EXPECT_TRUE(optimize(&summary));
+  EXPECT_TRUE(optimize());
 
   const Eigen::Vector3d start_vertex_G_p_I =
       map_ptr->getVertex_G_p_I(start_vertex);

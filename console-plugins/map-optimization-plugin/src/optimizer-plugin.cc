@@ -13,9 +13,6 @@
 #include <vi-map/vi-map.h>
 #include <visualization/viwls-graph-plotter.h>
 
-DEFINE_bool(
-    ba_use_outlier_rejection_solver, true,
-    "Reject outlier landmarks during the solve?");
 DECLARE_string(map_mission);
 DECLARE_string(map_mission_list);
 DEFINE_string(
@@ -30,9 +27,15 @@ OptimizerPlugin::OptimizerPlugin(
   addCommand(
       {"noptimize_visual", "optv"},
       [this]() -> int {
-        constexpr bool kVisualOnly = true;
-        return optimize(
-            kVisualOnly, FLAGS_ba_use_outlier_rejection_solver);
+        map_optimization::ViProblemOptions options =
+            map_optimization::ViProblemOptions::initFromGFlags();
+
+        // The only difference to the default behaviour of the optimization is
+        // to disable inertial constraints.
+
+        options.add_inertial_constraints = false;
+
+        return optimize(options);
       },
       "Visual optimization over the selected missions "
       "(per default all).",
@@ -40,9 +43,13 @@ OptimizerPlugin::OptimizerPlugin(
   addCommand(
       {"optimize_visual_inertial", "optvi"},
       [this]() -> int {
-        constexpr bool kVisualOnly = false;
-        return optimize(
-            kVisualOnly, FLAGS_ba_use_outlier_rejection_solver);
+        map_optimization::ViProblemOptions options =
+            map_optimization::ViProblemOptions::initFromGFlags();
+
+        // No special flags need to be set, since this is the default behaviour
+        // of the optimization.
+
+        return optimize(options);
       },
       "Visual-inertial optimization over the selected missions "
       "(per default all).",
@@ -150,10 +157,9 @@ void OptimizerPlugin::addExternalLoopClosureEdgesToMap(
     aslam::generateId(&edge_id);
     CHECK(edge_id.isValid());
 
-    vi_map::Edge::UniquePtr loop_closure_edge(
-        new vi_map::LoopClosureEdge(
-            edge_id, id_from, id_to, edge.switch_variable,
-            edge.switch_variable_variance, T_loop_closure, edge.covariance));
+    vi_map::Edge::UniquePtr loop_closure_edge(new vi_map::LoopClosureEdge(
+        edge_id, id_from, id_to, edge.switch_variable,
+        edge.switch_variable_variance, T_loop_closure, edge.covariance));
     map->addEdge(std::move(loop_closure_edge));
   }
 }
@@ -183,7 +189,7 @@ pose::Transformation OptimizerPlugin::adaptTransformation(
 }
 
 int OptimizerPlugin::optimize(
-    bool visual_only, bool outlier_rejection) {
+    const map_optimization::ViProblemOptions& options) {
   // Select map and missions to optimize.
   std::string selected_map_key;
   if (!getSelectedMapKeyIfSet(&selected_map_key)) {
@@ -219,24 +225,10 @@ int OptimizerPlugin::optimize(
   vi_map::MissionIdSet missions_to_optimize(
       missions_to_optimize_list.begin(), missions_to_optimize_list.end());
 
-  map_optimization::ViProblemOptions options =
-      map_optimization::ViProblemOptions::initFromGFlags();
-  if (visual_only) {
-    options.add_inertial_constraints = false;
-  }
-
   map_optimization::VIMapOptimizer optimizer(
       getPlotterUnsafe(), kSignalHandlerEnabled);
-  bool success;
-  if (outlier_rejection) {
-    map_optimization::OutlierRejectionSolverOptions outlier_rejection_options =
-        map_optimization::OutlierRejectionSolverOptions::initFromFlags();
-    success = optimizer.optimize(
-        options, missions_to_optimize, &outlier_rejection_options, map.get());
-  } else {
-    success = optimizer.optimize(
-        options, missions_to_optimize, nullptr, map.get());
-  }
+  bool success = optimizer.optimize(options, missions_to_optimize, map.get());
+
   if (!success) {
     return common::kUnknownError;
   }

@@ -5,9 +5,21 @@
 
 namespace map_optimization {
 
+class IterationSummaryCallback : public ceres::IterationCallback {
+ public:
+  virtual ~IterationSummaryCallback() {}
+
+  ceres::CallbackReturnType operator()(const ceres::IterationSummary& summary) {
+    iteration_summaries.emplace_back(summary);
+    return ceres::SOLVER_CONTINUE;
+  }
+  std::vector<ceres::IterationSummary> iteration_summaries;
+};
+
 ceres::TerminationType solve(
     const ceres::Solver::Options& solver_options,
-    map_optimization::OptimizationProblem* optimization_problem);
+    map_optimization::OptimizationProblem* optimization_problem,
+    OptimizationProblemResult* result = nullptr);
 
 }  // namespace map_optimization
 #endif  // MAP_OPTIMIZATION_SOLVER_H_

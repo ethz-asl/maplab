@@ -948,9 +948,6 @@ void MaplabServerNode::runSubmapProcessingCommands(
     // later the optimization settings for the submaps remain the same.
     static map_optimization::ViProblemOptions options =
         map_optimization::ViProblemOptions::initFromGFlags();
-    static map_optimization::OutlierRejectionSolverOptions
-        outlier_rejection_options =
-            map_optimization::OutlierRejectionSolverOptions::initFromFlags();
 
     vi_map::VIMapManager map_manager;
     vi_map::VIMapManager::MapWriteAccess map =
@@ -996,8 +993,7 @@ void MaplabServerNode::runSubmapProcessingCommands(
         missions_to_optimize_list.begin(), missions_to_optimize_list.end());
     map_optimization::VIMapOptimizer optimizer(
         nullptr /*no plotter*/, false /*signal handler enabled*/);
-    optimizer.optimize(
-        options, missions_to_optimize, &outlier_rejection_options, map.get());
+    optimizer.optimize(options, missions_to_optimize, map.get());
 
     if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
       std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);

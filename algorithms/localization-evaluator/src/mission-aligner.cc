@@ -109,12 +109,14 @@ void alignAndCooptimizeMissionsWithoutLandmarkMerge(
   VLOG(1) << "Anchor succeeded.";
 
   VLOG(1) << "Optimizing missions.";
-  ceres::Solver::Options solver_options =
-      map_optimization::initSolverOptionsFromFlags();
+
   map_optimization::ViProblemOptions vi_problem_options =
       map_optimization::ViProblemOptions::initFromGFlags();
 
-  solver_options.max_num_iterations = 10;
+  vi_problem_options.enable_visual_outlier_rejection = false;
+
+  vi_problem_options.solver_options.max_num_iterations = 10;
+
   if (optimize_only_query_mission) {
     vi_problem_options.fix_vertices = true;
     vi_problem_options.fix_landmark_positions = true;
@@ -127,8 +129,8 @@ void alignAndCooptimizeMissionsWithoutLandmarkMerge(
   // Optimize all missions in the map
   vi_map::MissionIdSet all_mission_ids;
   map->getAllMissionIds(&all_mission_ids);
-  const bool success = optimizer.optimize(
-      vi_problem_options, solver_options, all_mission_ids, nullptr, map);
+  const bool success =
+      optimizer.optimize(vi_problem_options, all_mission_ids, map);
   CHECK(success) << "Optimization failed!";
 
   for (const vi_map::VertexKeyPointToStructureMatch& revert_item :
