@@ -35,7 +35,7 @@ class LoopClosureAppTest : public ::testing::Test {
         new VIMapMerger(test_app_.getMapMutable(), kPlotterNullptr));
   }
 
-  bool optimize(ceres::Solver::Summary* summary);
+  bool optimize();
 
   visual_inertial_mapping::VIMappingTestApp test_app_;
   std::unique_ptr<VIMapMerger> map_merger_;
