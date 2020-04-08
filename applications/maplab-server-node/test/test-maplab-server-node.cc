@@ -9,7 +9,6 @@
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
 
-#include <maplab-server-node/maplab-server-config.h>
 #include <maplab-server-node/maplab-server-node.h>
 #include <maplab-server-node/maplab-server-ros-node.h>
 
@@ -36,30 +35,8 @@ class MaplabServerNodeTest : public ::testing::Test {
   const std::string kSubmap7 = kBasePath + "euroc_v1_01_submap_7";
 };
 
-TEST_F(MaplabServerNodeTest, TestLoadingConfig) {
-  MaplabServerNodeConfig config;
-
-  const std::string path = "./test-data/test-config.yaml";
-  ASSERT_TRUE(common::fileExists(path));
-
-  EXPECT_TRUE(config.deserializeFromFile(path));
-
-  ASSERT_EQ(config.submap_commands.size(), 2u);
-  config.submap_commands[0] = "lc";
-  config.submap_commands[1] = "optvi";
-
-  ASSERT_EQ(config.global_map_commands.size(), 3u);
-  config.global_map_commands[0] = "lc";
-  config.global_map_commands[1] = "optvi";
-  config.global_map_commands[2] =
-      "elq --vi_map_landmark_quality_min_observers=2";
-}
-
 TEST_F(MaplabServerNodeTest, TestMaplabServerNode) {
-  MaplabServerNodeConfig config;
-  ASSERT_TRUE(config.deserializeFromFile("./test-data/test-config.yaml"));
-
-  MaplabServerNode maplab_server_node(config);
+  MaplabServerNode maplab_server_node;
 
   maplab_server_node.start();
 
@@ -102,10 +79,7 @@ TEST_F(MaplabServerNodeTest, TestMaplabServerNode) {
 }
 
 TEST_F(MaplabServerNodeTest, DISABLED_TestMaplabServerRosNodeLocal) {
-  MaplabServerNodeConfig config;
-  ASSERT_TRUE(config.deserializeFromFile("./test-data/test-config.yaml"));
-
-  MaplabServerRosNode maplab_server_ros_node(config);
+  MaplabServerRosNode maplab_server_ros_node;
 
   maplab_server_ros_node.start();
 
