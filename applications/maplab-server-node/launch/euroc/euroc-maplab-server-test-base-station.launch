@@ -43,8 +43,12 @@ Requires:
 			<arg name="artifact_ros_map_lookup_service_topic" default="/maplab_server/map_lookup"/>
 			<arg name="artifact_ros_new_artifacts_sub_topic" default="/operator/confirmed_artifacts" />
 
-			<arg name="artifact_ros_open_rqt" default="true" />
+			<arg name="artifact_ros_open_rqt" default="false" />
 		</include>
+	</group>
+
+	<group if="true">
+		<node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find maplab_server_node)/share/euroc/rviz/euroc-maplab-server-minimal.rviz" />
 	</group>
 
 </launch>
