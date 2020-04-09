@@ -32,7 +32,6 @@ OptimizerPlugin::OptimizerPlugin(
 
         // The only difference to the default behaviour of the optimization is
         // to disable inertial constraints.
-
         options.add_inertial_constraints = false;
 
         return optimize(options);
