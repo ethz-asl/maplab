@@ -9,6 +9,9 @@
 DEFINE_bool(
     ba_include_visual, true, "Whether or not to include visual error-terms.");
 DEFINE_bool(
+    ba_use_visual_outlier_rejection_solver, true,
+    "Reject outlier landmarks during the solve?");
+DEFINE_bool(
     ba_include_inertial, true, "Whether or not to include IMU error-terms.");
 DEFINE_bool(
     ba_include_wheel_odometry, false,
@@ -130,6 +133,13 @@ ViProblemOptions ViProblemOptions::initFromGFlags() {
 
   // Loop closure constraints (can be from an external source)
   options.add_loop_closure_edges = FLAGS_ba_include_loop_closure_edges;
+
+  options.solver_options = initSolverOptionsFromFlags();
+
+  options.enable_visual_outlier_rejection =
+      FLAGS_ba_use_visual_outlier_rejection_solver;
+  options.visual_outlier_rejection_options =
+      map_optimization::OutlierRejectionSolverOptions::initFromFlags();
 
   options.printToConsole();
 

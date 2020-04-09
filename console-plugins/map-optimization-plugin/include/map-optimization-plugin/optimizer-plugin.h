@@ -4,6 +4,7 @@
 #include <string>
 
 #include <console-common/console-plugin-base-with-plotter.h>
+#include <map-optimization/vi-optimization-builder.h>
 #include <vi-map-data-import-export/import-loop-closure-edges.h>
 #include <vi-map/vi-map.h>
 
@@ -28,7 +29,7 @@ class OptimizerPlugin : public common::ConsolePluginBaseWithPlotter {
   }
 
  private:
-  int optimize(bool visual_only, bool outlier_rejection);
+  int optimize(const map_optimization::ViProblemOptions& options);
 
   int relaxMap();
   int relaxMapMissionsSeparately();
