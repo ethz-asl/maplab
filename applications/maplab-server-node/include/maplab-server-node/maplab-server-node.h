@@ -104,8 +104,7 @@ class MaplabServerNode final {
   void printAndPublishServerStatus();
 
   // Submap processing functions:
-  void extractLatestUnoptimizedPoseFromSubmap(
-      const SubmapProcess& submap_process);
+  void updateRobotInfoBasedOnSubmap(const SubmapProcess& submap_process);
   void runSubmapProcessing(const SubmapProcess& submap_process);
 
   // Map merging function:
@@ -128,9 +127,10 @@ class MaplabServerNode final {
   bool isSubmapBlacklisted(const std::string& map_key);
 
   struct RobotMissionInformation {
-    // Contains the mission ids of this robot, the most recent mission is at the
-    // front of the vector.
-    std::list<vi_map::MissionId> mission_ids;
+    // Contains the mission ids and whether the baseframe is known of this
+    // robot, the most recent mission is at the front of the vector.
+    std::list<std::pair<vi_map::MissionId, bool>>
+        mission_ids_with_baseframe_status;
 
     // These keep track of the end/start poses of submaps as they came in
     // and the most recent submap end pose in the optimized map. This is used
@@ -179,6 +179,9 @@ class MaplabServerNode final {
   std::mutex running_merging_process_mutex_;
   std::string running_merging_process_;
   std::atomic<double> duration_last_merging_loop_s_;
+  std::atomic<double> optimization_trust_region_radius_;
+  // Keep strack of the total number of merged submaps into the global map.
+  std::atomic<uint32_t> total_num_merged_submaps_;
 
   // Server status and map management variables
   // Accessed by all threads to map between robot names and missions.
@@ -222,6 +225,10 @@ class MaplabServerNode final {
   // Exclusively accessed by the merging thread, to keep track of how often it
   // should save the map.
   double time_of_last_map_backup_s_;
+  // Exclusively accessed by the merging thread, keeps track of number of
+  // submaps at the the last time the trust region has been
+  // reset.
+  uint32_t num_submaps_at_last_trust_region_reset = 0;
 
   // Protects the whole server from concurrent access from the outside.
   mutable std::mutex mutex_;

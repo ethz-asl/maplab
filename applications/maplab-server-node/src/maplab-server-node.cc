@@ -49,6 +49,11 @@ DEFINE_bool(
     "If enabled, the submap processing will after optimization run "
     "RANSAC LSQ on the absolute pose constraints to remove outliers.");
 
+DEFINE_bool(
+    maplab_server_set_first_robot_map_baseframe_to_known, false,
+    "If enabled, the first mission to be added to the global map will server "
+    "as the anchor and it's baseframe will be set to know.");
+
 DEFINE_int32(
     maplab_server_dense_map_resource_type, 21,
     "Type of resources that are used to compose the dense map, options are ["
@@ -72,6 +77,21 @@ DEFINE_double(
     "Maximum angle [rad] between first vertex and every other vertex in a "
     "submap to consider it stationary.");
 
+DEFINE_int32(
+    maplab_server_reset_trust_region_radius_every_nth_submap, 0,
+    "If > 0, resets the trust region radius to the default initial value every "
+    "N submap that is merged into the global map.");
+
+DEFINE_bool(
+    maplab_server_reset_trust_region_radius_if_new_robot, true,
+    "If enabled and a new robot has started streaming to the maplab server we "
+    "reset the trust region radius to the default initial value.");
+
+DEFINE_bool(
+    maplab_server_preserve_trust_region_radius_across_merging_iterations, true,
+    "If enabled, the trust regions of the last iteration is used as initial "
+    "trust region for the next time the global optimization is run.");
+
 namespace maplab {
 MaplabServerNode::MaplabServerNode()
     : submap_loading_thread_pool_(
@@ -81,6 +101,8 @@ MaplabServerNode::MaplabServerNode()
       merging_thread_busy_(false),
       running_merging_process_(""),
       duration_last_merging_loop_s_(0.0),
+      optimization_trust_region_radius_(FLAGS_ba_initial_trust_region_radius),
+      total_num_merged_submaps_(0u),
       time_of_last_map_backup_s_(0.0) {
   if (!FLAGS_ros_free) {
     visualization::RVizVisualizationSink::init();
@@ -337,7 +359,7 @@ bool MaplabServerNode::loadAndProcessSubmap(
           return true;
         }
 
-        extractLatestUnoptimizedPoseFromSubmap(submap_process);
+        updateRobotInfoBasedOnSubmap(submap_process);
 
         runSubmapProcessing(submap_process);
 
@@ -376,7 +398,6 @@ void MaplabServerNode::visualizeMap() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (plotter_) {
     if (map_manager_.hasMap(kMergedMapKey)) {
-      LOG(INFO) << "[MaplabServerNode] Visualizing map...";
       vi_map::VIMapManager::MapReadAccess map =
           map_manager_.getMapReadAccess(kMergedMapKey);
       plotter_->visualizeMap(*map);
@@ -415,7 +436,8 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
     const RobotMissionInformation& robot_info =
         robot_to_mission_id_map_.at(robot_name);
 
-    submap_mission_id = robot_info.mission_ids.front();
+    submap_mission_id =
+        robot_info.mission_ids_with_baseframe_status.front().first;
 
     if (!submap_mission_id.isValid()) {
       LOG(ERROR)
@@ -567,7 +589,37 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
     map_anchoring::setMissionBaseframeToKnownIfHasAbs6DoFConstraints(map.get());
     if (map_anchoring::anchorAllMissions(map.get(), plotter_.get())) {
-      LOG(ERROR) << "[MaplabServerNode] MapMerging - Failure in map anchoring.";
+      LOG(INFO) << "[MaplabServerNode] MapMerging - Unable to anchor maps, or "
+                   "there was nothing left to do.";
+    }
+
+    // Update the baseframe information for the status thread.
+    {
+      std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+      for (const vi_map::MissionId& mission_id : mission_ids) {
+        const bool baseframe_is_known =
+            map->getMissionBaseFrameForMission(mission_id).is_T_G_M_known();
+        const std::string& robot_name = mission_id_to_robot_map_[mission_id];
+
+        bool found = false;
+        if (!robot_name.empty()) {
+          RobotMissionInformation& robot_info =
+              robot_to_mission_id_map_[robot_name];
+          for (auto& mission_id_with_baseframe_status :
+               robot_info.mission_ids_with_baseframe_status) {
+            if (mission_id_with_baseframe_status.first == mission_id) {
+              mission_id_with_baseframe_status.second = baseframe_is_known;
+              found = true;
+              break;
+            }
+          }
+        }
+        LOG_IF(ERROR, !found)
+            << "There is no mission id to robot mapping for mission "
+            << mission_id
+            << "! This should be available once the mission reaches "
+            << "the merged map";
+      }
     }
   }
 
@@ -575,8 +627,8 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   //////////////////////
   // Merges landmarks when a successful loop closure is found. Does NOT add a
   // loop closure edge, but the loop closure is enforced through the
-  // reprojection error of the landmarks. This is safer, more accurate, but also
-  // weaker, and will likely not close very large loops.
+  // reprojection error of the landmarks. This is safer, more accurate, but
+  // also weaker, and will likely not close very large loops.
   {
     {
       std::lock_guard<std::mutex> merge_status_lock(
@@ -585,14 +637,34 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
     for (vi_map::MissionIdList::const_iterator it = mission_ids.begin();
          it != mission_ids.end(); ++it) {
-      CHECK(it->isValid());
+      const vi_map::MissionId& mission_id_A = *it;
+
+      const bool baseframe_A_is_known =
+          map->getMissionBaseFrameForMission(mission_id_A).is_T_G_M_known();
+
+      CHECK(mission_id_A.isValid());
       loop_detector_node::LoopDetectorNode loop_detector;
       if (plotter_) {
         loop_detector.instantiateVisualizer();
       }
-      loop_detector.addMissionToDatabase(*it, *map);
+      loop_detector.addMissionToDatabase(mission_id_A, *map);
       for (vi_map::MissionIdList::const_iterator jt = it;
            jt != mission_ids.end(); ++jt) {
+        const vi_map::MissionId& mission_id_B = *jt;
+
+        const bool baseframe_B_is_known =
+            map->getMissionBaseFrameForMission(mission_id_B).is_T_G_M_known();
+
+        // Don't merge landmarks across missions unless their baseframe is
+        // already known. Leave the alignment to the map anchoring first.
+        // Otherwise the loop closure will deform the map and rigid baseframe
+        // alignment is not possible anymore.
+        if (mission_id_A != mission_id_B) {
+          if (!(baseframe_A_is_known && baseframe_B_is_known)) {
+            continue;
+          }
+        }
+
         loop_detector.detectLoopClosuresAndMergeLandmarks(*jt, map.get());
       }
     }
@@ -600,13 +672,13 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
 
   // Full optimization
   ////////////////////
-  // This does not scale, and never will, so it is important that # we limit the
-  // runtime by setting the --ba_max_time_seconds flag.
+  // This does not scale, and never will, so it is important that # we limit
+  // the runtime by setting the --ba_max_time_seconds flag.
   {
     {
       std::lock_guard<std::mutex> merge_status_lock(
           running_merging_process_mutex_);
-      running_merging_process_ = "map anchoring";
+      running_merging_process_ = "optimization";
     }
     const vi_map::MissionIdSet missions_to_optimize(
         mission_ids.begin(), mission_ids.end());
@@ -614,6 +686,24 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     // later the optimization settings for the submaps remain the same.
     map_optimization::ViProblemOptions options =
         map_optimization::ViProblemOptions::initFromGFlags();
+
+    // Restore previous trust region.
+    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {
+      // Reset the trust region if N submaps have been added in the meantime.
+      const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
+      const uint32_t num_submaps_since_reset =
+          num_submaps_merged - num_submaps_at_last_trust_region_reset;
+      const uint32_t reset_every_n =
+          FLAGS_maplab_server_reset_trust_region_radius_every_nth_submap;
+      if (reset_every_n != 0u && num_submaps_since_reset >= reset_every_n) {
+        optimization_trust_region_radius_ =
+            FLAGS_ba_initial_trust_region_radius;
+        num_submaps_at_last_trust_region_reset = num_submaps_merged;
+      }
+      options.solver_options.initial_trust_region_radius =
+          optimization_trust_region_radius_;
+    }
+
     map_optimization::VIMapOptimizer optimizer(
         nullptr /*no plotter for optimization*/,
         false /*signal handler enabled*/);
@@ -622,6 +712,17 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     if (!optimizer.optimize(
             options, missions_to_optimize, map.get(), &result)) {
       LOG(ERROR) << "[MaplabServerNode] MapMerging - Failure in optimization.";
+    } else {
+      if (!result.iteration_summaries.empty()) {
+        optimization_trust_region_radius_ =
+            result.iteration_summaries.back().trust_region_radius;
+      } else {
+        LOG(ERROR) << "Unable to extract final trust region of previous global "
+                   << "optimization iteration! Setting to default value ("
+                   << FLAGS_ba_initial_trust_region_radius << ").";
+        optimization_trust_region_radius_ =
+            FLAGS_ba_initial_trust_region_radius;
+      }
     }
   }
 
@@ -810,6 +911,23 @@ bool MaplabServerNode::appendAvailableSubmaps() {
                  "used to initalize merged map with key '"
               << kMergedMapKey << "'.";
       map_manager_.renameMap(submap_process.map_key, kMergedMapKey);
+
+      // If enabled, set first mission baseframe to known.
+      if (FLAGS_maplab_server_set_first_robot_map_baseframe_to_known) {
+        vi_map::VIMapManager::MapWriteAccess map =
+            map_manager_.getMapWriteAccess(kMergedMapKey);
+        vi_map::MissionIdList mission_ids;
+        map->getAllMissionIds(&mission_ids);
+        if (mission_ids.size() == 1u) {
+          map->getMissionBaseFrameForMission(mission_ids[0])
+              .set_is_T_G_M_known(true /*set to known*/);
+        } else {
+          LOG(ERROR)
+              << "The first submap does not have exactly one mission, but "
+              << mission_ids.size() << "! Something went wrong!";
+        }
+      }
+
       found_new_submaps = true;
     } else {
       LOG(INFO) << "[MaplabServerNode] MapMerging - merge submap '"
@@ -834,6 +952,8 @@ bool MaplabServerNode::appendAvailableSubmaps() {
 
     // Remove the struct from the list of processed submaps.
     submap_processing_queue_.pop_front();
+
+    ++total_num_merged_submaps_;
   }
 
   return found_new_submaps;
@@ -917,6 +1037,10 @@ void MaplabServerNode::printAndPublishServerStatus() {
   }
   ss << "   - duration of last iteration: "
      << duration_last_merging_loop_s_.load() << "s\n";
+  ss << "   - optimization tr radius:     "
+     << optimization_trust_region_radius_.load() << "\n";
+  ss << "   - num merged submaps:         " << total_num_merged_submaps_.load()
+     << "\n";
   ss << "================================================================"
      << "==\n";
   {
@@ -926,8 +1050,12 @@ void MaplabServerNode::printAndPublishServerStatus() {
          robot_to_mission_id_map_) {
       const RobotMissionInformation& robot_info = pair.second;
       ss << "\n - " << pair.first;
-      for (const vi_map::MissionId& mission_id : robot_info.mission_ids) {
-        ss << "\n\t - " << mission_id;
+      for (const std::pair<vi_map::MissionId, bool>&
+               mission_id_with_baseframe_status :
+           robot_info.mission_ids_with_baseframe_status) {
+        ss << "\n\t - " << mission_id_with_baseframe_status.first
+           << " - known baseframe: " << std::boolalpha
+           << mission_id_with_baseframe_status.second;
       }
     }
   }
@@ -942,7 +1070,7 @@ void MaplabServerNode::printAndPublishServerStatus() {
   }
 }
 
-void MaplabServerNode::extractLatestUnoptimizedPoseFromSubmap(
+void MaplabServerNode::updateRobotInfoBasedOnSubmap(
     const SubmapProcess& submap_process) {
   vi_map::VIMapManager::MapReadAccess map =
       map_manager_.getMapReadAccess(submap_process.map_key);
@@ -971,10 +1099,25 @@ void MaplabServerNode::extractLatestUnoptimizedPoseFromSubmap(
         RobotMissionInformation& robot_info =
             robot_to_mission_id_map_[submap_process.robot_name];
 
-        if (robot_info.mission_ids.empty()) {
-          robot_info.mission_ids.push_front(submap_mission_id);
-        } else if (robot_info.mission_ids.front() != submap_mission_id) {
-          robot_info.mission_ids.push_front(submap_mission_id);
+        bool new_robot = false;
+        if (robot_info.mission_ids_with_baseframe_status.empty()) {
+          robot_info.mission_ids_with_baseframe_status.emplace_front(
+              submap_mission_id, false);
+          new_robot = true;
+        } else if (
+            robot_info.mission_ids_with_baseframe_status.front().first !=
+            submap_mission_id) {
+          robot_info.mission_ids_with_baseframe_status.emplace_front(
+              submap_mission_id, false);
+          new_robot = true;
+        }
+        // Reset trust region of optimization if a new robot has started
+        // streaming.
+        if (new_robot) {
+          if (FLAGS_maplab_server_reset_trust_region_radius_if_new_robot) {
+            optimization_trust_region_radius_ =
+                FLAGS_ba_initial_trust_region_radius;
+          }
         }
 
         mission_id_to_robot_map_[submap_mission_id] = submap_process.robot_name;
@@ -1092,7 +1235,9 @@ void MaplabServerNode::publishDenseMap() {
   {
     std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
     for (const auto& kv : mission_id_to_robot_map_) {
-      robot_to_mission_id_map[kv.second].push_back(kv.first);
+      if (map->hasMission(kv.first)) {
+        robot_to_mission_id_map[kv.second].push_back(kv.first);
+      }
     }
   }
   visualization::visualizeReprojectedDepthResourcePerRobot(
@@ -1286,15 +1431,19 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
         // Check robot to robot mission info.
         RobotMissionInformation& robot_mission_info =
             robot_to_mission_id_map_[robot_name];
-        auto it = std::remove(
-            robot_mission_info.mission_ids.begin(),
-            robot_mission_info.mission_ids.end(), blacklisted_mission_id);
-        robot_mission_info.mission_ids.erase(
-            it, robot_mission_info.mission_ids.end());
+        auto it = robot_mission_info.mission_ids_with_baseframe_status.begin();
+        while (it !=
+               robot_mission_info.mission_ids_with_baseframe_status.end()) {
+          if (it->first == blacklisted_mission_id) {
+            it = robot_mission_info.mission_ids_with_baseframe_status.erase(it);
+            continue;
+          }
+          ++it;
+        }
 
         // If this was the only/last mission of that robot, remove the entry and
         // also publish an empty point cloud to the dense map topic.
-        if (robot_mission_info.mission_ids.empty()) {
+        if (robot_mission_info.mission_ids_with_baseframe_status.empty()) {
           robot_to_mission_id_map_.erase(robot_name);
 
           std::unordered_map<std::string, vi_map::MissionIdList>
