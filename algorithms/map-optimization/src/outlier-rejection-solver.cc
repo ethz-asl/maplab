@@ -277,7 +277,7 @@ ceres::TerminationType solveWithOutlierRejection(
     num_iters_remaining -= step_iters;
   }
 
-  // Safe all iteration summaries.
+  // Save all iteration summaries.
   if (result != nullptr) {
     result->iteration_summaries = callback.iteration_summaries_;
   }
