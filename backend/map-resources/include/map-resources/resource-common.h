@@ -88,7 +88,7 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeNames = {
      /*kPointCloudXYZI*/ "point_cloud_w_intensity",
      /*kObjectInstanceBoundingBoxes*/ "object_instance_bounding_boxes",
      /*kObjectInstanceMasks*/ "object_instance_masks",
-     /*kPointCloudXYZL*/ "labelled_point_cloud"}};
+     /*kPointCloudXYZL*/ "labeled_point_cloud"}};
 
 // NOTE: [ADD_RESOURCE_TYPE] Add suffix.
 const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
