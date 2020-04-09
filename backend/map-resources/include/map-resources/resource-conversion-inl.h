@@ -750,7 +750,7 @@ backend::ResourceType getResourceTypeForPointCloud(
   const bool has_normals = hasNormalsInformation(point_cloud);
   const bool has_scalars = hasScalarInformation(point_cloud);
   const bool has_color = hasColorInformation(point_cloud);
-  const bool has_labels = hasColorInformation(point_cloud);
+  const bool has_labels = hasLabelInformation(point_cloud);
 
   if (has_color && has_normals && !has_scalars) {
     return backend::ResourceType::kPointCloudXYZRGBN;
