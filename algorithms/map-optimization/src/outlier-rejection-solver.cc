@@ -233,6 +233,15 @@ OutlierRejectionSolverOptions OutlierRejectionSolverOptions::initFromFlags() {
 ceres::TerminationType solveWithOutlierRejection(
     const ceres::Solver::Options& solver_options,
     const OutlierRejectionSolverOptions& rejection_options,
+    OptimizationProblem* optimization_problem) {
+  return solveWithOutlierRejection(
+      solver_options, rejection_options, optimization_problem,
+      nullptr /*result*/);
+}
+
+ceres::TerminationType solveWithOutlierRejection(
+    const ceres::Solver::Options& solver_options,
+    const OutlierRejectionSolverOptions& rejection_options,
     OptimizationProblem* optimization_problem,
     OptimizationProblemResult* result) {
   CHECK_NOTNULL(optimization_problem);

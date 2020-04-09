@@ -7,6 +7,12 @@ namespace map_optimization {
 
 ceres::TerminationType solve(
     const ceres::Solver::Options& solver_options,
+    map_optimization::OptimizationProblem* optimization_problem) {
+  return solve(solver_options, optimization_problem, nullptr /*result*/);
+}
+
+ceres::TerminationType solve(
+    const ceres::Solver::Options& solver_options,
     map_optimization::OptimizationProblem* optimization_problem,
     OptimizationProblemResult* result) {
   CHECK_NOTNULL(optimization_problem);

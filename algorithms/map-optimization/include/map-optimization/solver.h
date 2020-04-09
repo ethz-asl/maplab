@@ -19,7 +19,11 @@ class IterationSummaryCallback : public ceres::IterationCallback {
 ceres::TerminationType solve(
     const ceres::Solver::Options& solver_options,
     map_optimization::OptimizationProblem* optimization_problem,
-    OptimizationProblemResult* result = nullptr);
+    OptimizationProblemResult* result);
+
+ceres::TerminationType solve(
+    const ceres::Solver::Options& solver_options,
+    map_optimization::OptimizationProblem* optimization_problem);
 
 }  // namespace map_optimization
 #endif  // MAP_OPTIMIZATION_SOLVER_H_

@@ -27,6 +27,12 @@ VIMapOptimizer::VIMapOptimizer(
 
 bool VIMapOptimizer::optimize(
     const map_optimization::ViProblemOptions& options,
+    const vi_map::MissionIdSet& missions_to_optimize, vi_map::VIMap* map) {
+  return optimize(options, missions_to_optimize, map, nullptr /*result*/);
+}
+
+bool VIMapOptimizer::optimize(
+    const map_optimization::ViProblemOptions& options,
     const vi_map::MissionIdSet& missions_to_optimize, vi_map::VIMap* map,
     OptimizationProblemResult* result) {
   // 'result' can be a nullptr.
