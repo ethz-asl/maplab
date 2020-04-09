@@ -76,5 +76,10 @@ ceres::TerminationType solveWithOutlierRejection(
     OptimizationProblem* optimization_problem,
     OptimizationProblemResult* result);
 
+ceres::TerminationType solveWithOutlierRejection(
+    const ceres::Solver::Options& solver_options,
+    const OutlierRejectionSolverOptions& rejection_options,
+    OptimizationProblem* optimization_problem);
+
 }  // namespace map_optimization
 #endif  // MAP_OPTIMIZATION_OUTLIER_REJECTION_SOLVER_H_

@@ -25,14 +25,13 @@ OptimizerPlugin::OptimizerPlugin(
     common::Console* console, visualization::ViwlsGraphRvizPlotter* plotter)
     : common::ConsolePluginBaseWithPlotter(console, plotter) {
   addCommand(
-      {"noptimize_visual", "optv"},
+      {"optimize_visual", "optv"},
       [this]() -> int {
         map_optimization::ViProblemOptions options =
             map_optimization::ViProblemOptions::initFromGFlags();
 
         // The only difference to the default behaviour of the optimization is
         // to disable inertial constraints.
-
         options.add_inertial_constraints = false;
 
         return optimize(options);

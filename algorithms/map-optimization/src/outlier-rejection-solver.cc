@@ -233,6 +233,15 @@ OutlierRejectionSolverOptions OutlierRejectionSolverOptions::initFromFlags() {
 ceres::TerminationType solveWithOutlierRejection(
     const ceres::Solver::Options& solver_options,
     const OutlierRejectionSolverOptions& rejection_options,
+    OptimizationProblem* optimization_problem) {
+  return solveWithOutlierRejection(
+      solver_options, rejection_options, optimization_problem,
+      nullptr /*result*/);
+}
+
+ceres::TerminationType solveWithOutlierRejection(
+    const ceres::Solver::Options& solver_options,
+    const OutlierRejectionSolverOptions& rejection_options,
     OptimizationProblem* optimization_problem,
     OptimizationProblemResult* result) {
   CHECK_NOTNULL(optimization_problem);
@@ -277,7 +286,7 @@ ceres::TerminationType solveWithOutlierRejection(
     num_iters_remaining -= step_iters;
   }
 
-  // Safe all iteration summaries.
+  // Save all iteration summaries.
   if (result != nullptr) {
     result->iteration_summaries = callback.iteration_summaries_;
   }

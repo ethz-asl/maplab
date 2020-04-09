@@ -27,7 +27,11 @@ class VIMapOptimizer {
   bool optimize(
       const map_optimization::ViProblemOptions& options,
       const vi_map::MissionIdSet& missions_to_optimize, vi_map::VIMap* map,
-      OptimizationProblemResult* result = nullptr);
+      OptimizationProblemResult* result);
+
+  bool optimize(
+      const map_optimization::ViProblemOptions& options,
+      const vi_map::MissionIdSet& missions_to_optimize, vi_map::VIMap* map);
 
  private:
   const visualization::ViwlsGraphRvizPlotter* plotter_;
