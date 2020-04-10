@@ -6,23 +6,16 @@ Requires:
  - ethz-asl/transfolder
 -->
 
-
 <launch>
 
 	<!-- MAPLAB SERVER -->
 	<group ns="maplab_server">
-		<include file="$(find maplab_server_node)/launch/maplab-server-node.launch">
-			<arg name="maplab_server_node_config_file" default="$(find maplab_server_node)/share/euroc/euroc-maplab-server-config.yaml"/>
-			<arg name="maplab_server_backup_interval_s" default="300"/>
-			<arg name="maplab_server_merged_map_folder" default="/tmp/maplab_server_merged_map"/>
-			<arg name="maplab_server_map_update_topic" default="/transfolder_receiver/folder_received"/>
+		<node name="maplab_server_node" pkg="maplab_server_node" type="maplab_server_node" output="screen" clear_params="true">
+			<rosparam command="load" file="$(find maplab_server_node)/cfg/maplab_server_ros_params.yaml"/>
 
-			<arg name="v" default="0"/>
-
-			<arg name="tf_map_frame" default="map"/>
-			<arg name="tf_mission_frame" default="maplab_server_odom"/>
-			<arg name="tf_imu_frame" default="maplab_server_imu"/>
-		</include>
+			<!-- Overwrite map update topic -->
+			<param name="maplab_server_map_update_topic" value="/transfolder_receiver/folder_received"/>
+		</node>
 	</group>
 
 	<node name="transfolder_receiver" pkg="transfolder" type="receiver_node" output="screen" args="-alsologtostderr">
@@ -44,8 +37,12 @@ Requires:
 			<arg name="artifact_ros_map_lookup_service_topic" default="/maplab_server/map_lookup"/>
 			<arg name="artifact_ros_new_artifacts_sub_topic" default="/operator/confirmed_artifacts" />
 
-			<arg name="artifact_ros_open_rqt" default="true" />
+			<arg name="artifact_ros_open_rqt" default="false" />
 		</include>
+	</group>
+
+	<group if="true">
+		<node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find maplab_server_node)/share/euroc/rviz/euroc-maplab-server-minimal.rviz" />
 	</group>
 
 </launch>

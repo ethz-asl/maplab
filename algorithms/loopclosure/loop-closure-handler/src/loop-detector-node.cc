@@ -34,8 +34,9 @@ DEFINE_bool(
     "loop-closure.");
 DEFINE_bool(lc_use_random_pnp_seed, true, "Use random seed for pnp RANSAC.");
 
-DEFINE_bool(lc_insert_lc_edge_instead_of_merging, false,
-   "Insert an LC edge in the pose graph instead of merging landmarks.");
+DEFINE_bool(
+    lc_insert_lc_edge_instead_of_merging, false,
+    "Insert an LC edge in the pose graph instead of merging landmarks.");
 
 DEFINE_double(
     lc_mission_baseframe_min_inlier_ratio, 0.2,

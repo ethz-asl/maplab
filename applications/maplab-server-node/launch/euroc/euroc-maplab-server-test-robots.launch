@@ -1,47 +1,46 @@
 <?xml version="1.0"?>
 
-<!--
-Requires:
- - ethz-asl/maplab_private
- - ethz-asl/transfolder
--->
+<!-- Requires: - ethz-asl/maplab_private - ethz-asl/transfolder -->
 
 <launch>
 
 	<arg name="euroc_attach_images" default="false"/>
-	<arg name="euroc_save_map_every_n_sec" default="10"/>
+	<arg name="euroc_save_map_every_n_sec" default="20"/>
 	<arg name="euroc_clahe" default="false"/>
-	<arg name="euroc_playback_speed" default="1.0"/>
+	<arg name="euroc_playback_speed" default="0.5"/>
 	<arg name="euroc_remove_bad_landmarks" default="true"/>
 	<arg name="euroc_bags_folder" default="/home/mfehr/experimental_ws/maplab/example_bags/euroc/"/>
 	<arg name="euroc_root_map_directory" default="/tmp/maplab_node/"/>
 
+	<arg name="group_A" default="true"/>
+	<arg name="group_B" default="true"/>
+
 	<!-- ================================== MH_01 ================================================== -->
-	<group if="true">
+	<group if="$(arg group_A)">
 		<arg name="euroc_robot_name" default="euroc_mh_1"/>
 
 		<node pkg="rosbag" type="play" name="rosbag_$(arg euroc_robot_name)" args="$(arg euroc_bags_folder)/MH_01_easy.bag -q -d 2 -s 0 -r $(arg euroc_playback_speed)">
-			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0" />
-			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw" />
-			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw" />
+			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0"/>
+			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw"/>
+			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw"/>
 		</node>
 
 		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
 			<arg name="robot_name" default="$(arg euroc_robot_name)"/>
 			<arg name="maplab_sensor_calibration_file" default="$(find maplab_server_node)/share/euroc/euroc-stereo-mh-1.yaml"/>
-		  <arg name="maplab_save_map_every_n_sec" default="$(arg euroc_save_map_every_n_sec)"/>
+			<arg name="maplab_save_map_every_n_sec" default="$(arg euroc_save_map_every_n_sec)"/>
 			<arg name="maplab_keyframe_when_saving" default="true"/>
 			<arg name="maplab_image_topic_suffix" default="image_raw"/>
 			<arg name="maplab_attach_images" default="$(arg euroc_attach_images)"/>
-		  <arg name="maplab_map_folder" default="$(arg euroc_root_map_directory)/$(arg euroc_robot_name)/"/>
+			<arg name="maplab_map_folder" default="$(arg euroc_root_map_directory)/$(arg euroc_robot_name)/"/>
 			<arg name="maplab_apply_clahe" default="$(arg euroc_clahe)"/>
 			<arg name="maplab_remove_bad_landmarks" default="$(arg euroc_remove_bad_landmarks)"/>
 		</include>
 
 		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg euroc_robot_name)_sender" output="screen" args="-alsologtostderr">
-			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
-			<param name="file_transfer_topic_name" value="/transfolder/file_transfer" />
-			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status" />
+			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification"/>
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer"/>
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status"/>
 
 			<param name="root_directory" value="$(arg euroc_root_map_directory)"/>
 			<param name="robot_name" value="$(arg euroc_robot_name)"/>
@@ -49,13 +48,13 @@ Requires:
 	</group>
 
 	<!-- ================================== MH_02 ================================================== -->
-	<group if="true">
+	<group if="$(arg group_A)">
 		<arg name="euroc_robot_name" default="euroc_mh_2"/>
 
 		<node pkg="rosbag" type="play" name="rosbag_$(arg euroc_robot_name)" args="$(arg euroc_bags_folder)/MH_02_easy.bag -q -d 2 -s 0 -r $(arg euroc_playback_speed)">
-			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0" />
-			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw" />
-			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw" />
+			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0"/>
+			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw"/>
+			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw"/>
 		</node>
 
 		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
@@ -71,9 +70,9 @@ Requires:
 		</include>
 
 		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg euroc_robot_name)_sender" output="screen" args="-alsologtostderr">
-			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
-			<param name="file_transfer_topic_name" value="/transfolder/file_transfer" />
-			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status" />
+			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification"/>
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer"/>
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status"/>
 
 			<param name="root_directory" value="$(arg euroc_root_map_directory)"/>
 			<param name="robot_name" value="$(arg euroc_robot_name)"/>
@@ -81,13 +80,13 @@ Requires:
 	</group>
 
 	<!-- ================================== MH_03 ================================================== -->
-	<group if="false">
+	<group if="$(arg group_B)">
 		<arg name="euroc_robot_name" default="euroc_mh_3"/>
 
 		<node pkg="rosbag" type="play" name="rosbag_$(arg euroc_robot_name)" args="$(arg euroc_bags_folder)/MH_03_medium.bag -q -d 2 -s 0 -r $(arg euroc_playback_speed)">
-			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0" />
-			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw" />
-			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw" />
+			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0"/>
+			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw"/>
+			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw"/>
 		</node>
 
 		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
@@ -103,9 +102,9 @@ Requires:
 		</include>
 
 		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg euroc_robot_name)_sender" output="screen" args="-alsologtostderr">
-			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
-			<param name="file_transfer_topic_name" value="/transfolder/file_transfer" />
-			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status" />
+			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification"/>
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer"/>
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status"/>
 
 			<param name="root_directory" value="$(arg euroc_root_map_directory)"/>
 			<param name="robot_name" value="$(arg euroc_robot_name)"/>
@@ -113,13 +112,13 @@ Requires:
 	</group>
 
 	<!-- ================================== MH_04 ================================================== -->
-	<group if="false">
+	<group if="$(arg group_B)">
 		<arg name="euroc_robot_name" default="euroc_mh_4"/>
 
 		<node pkg="rosbag" type="play" name="rosbag_$(arg euroc_robot_name)" args="$(arg euroc_bags_folder)/MH_04_difficult.bag -q -d 2 -s 0 -r $(arg euroc_playback_speed)">
-			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0" />
-			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw" />
-			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw" />
+			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0"/>
+			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw"/>
+			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw"/>
 		</node>
 
 		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
@@ -135,9 +134,9 @@ Requires:
 		</include>
 
 		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg euroc_robot_name)_sender" output="screen" args="-alsologtostderr">
-			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
-			<param name="file_transfer_topic_name" value="/transfolder/file_transfer" />
-			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status" />
+			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification"/>
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer"/>
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status"/>
 
 			<param name="root_directory" value="$(arg euroc_root_map_directory)"/>
 			<param name="robot_name" value="$(arg euroc_robot_name)"/>
@@ -145,13 +144,13 @@ Requires:
 	</group>
 
 	<!-- ================================== MH_05 ================================================== -->
-	<group if="false">
+	<group if="$(arg group_B)">
 		<arg name="euroc_robot_name" default="euroc_mh_5"/>
 
 		<node pkg="rosbag" type="play" name="rosbag_$(arg euroc_robot_name)" args="$(arg euroc_bags_folder)/MH_05_difficult.bag -q -d 2 -s 0 -r $(arg euroc_playback_speed)">
-			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0" />
-			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw" />
-			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw" />
+			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0"/>
+			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw"/>
+			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw"/>
 		</node>
 
 		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
@@ -167,9 +166,9 @@ Requires:
 		</include>
 
 		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg euroc_robot_name)_sender" output="screen" args="-alsologtostderr">
-			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification" />
-			<param name="file_transfer_topic_name" value="/transfolder/file_transfer" />
-			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status" />
+			<param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/maplab_node/map_update_notification"/>
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer"/>
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status"/>
 
 			<param name="root_directory" value="$(arg euroc_root_map_directory)"/>
 			<param name="robot_name" value="$(arg euroc_robot_name)"/>
