@@ -10,6 +10,7 @@
 #include <maplab_msgs/BatchMapLookup.h>
 #include <maplab_msgs/DeleteAllRobotMissions.h>
 #include <maplab_msgs/DeleteMission.h>
+#include <maplab_msgs/GetDenseMapInRange.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 #include <std_srvs/Empty.h>
@@ -54,6 +55,10 @@ class MaplabServerRosNode {
       maplab_msgs::DeleteAllRobotMissions::Request& request,     // NOLINT
       maplab_msgs::DeleteAllRobotMissions::Response& response);  // NOLINT
 
+  bool getDenseMapInRangeCallback(
+      maplab_msgs::GetDenseMapInRange::Request& request,     // NOLINT
+      maplab_msgs::GetDenseMapInRange::Response& response);  // NOLINT
+
   bool publishPoseCorrection(
       const int64_t timestamp_ns, const std::string& robot_name,
       const aslam::Transformation& T_G_curr_B_curr,
@@ -72,6 +77,7 @@ class MaplabServerRosNode {
   ros::ServiceServer map_lookup_srv_;
   ros::ServiceServer delete_mission_srv_;
   ros::ServiceServer delete_all_robot_missions_srv_;
+  ros::ServiceServer get_dense_map_in_range_srv_;
 
   // State for running for maplab.
   ros::AsyncSpinner maplab_spinner_;
@@ -90,6 +96,11 @@ class MaplabServerRosNode {
   ros::Publisher T_G_curr_M_in_pub_;
 
   ros::Publisher status_pub_;
+
+  // Publishes the result of any getDenseMapInRange service calls, in addition
+  // to returning them by service. This is mainly for introspection such that
+  // the operator can see whether the query makes sense.
+  ros::Publisher dense_map_query_result_;
 };
 
 }  // namespace maplab

@@ -1,6 +1,8 @@
 #include "maplab-server-node/maplab-server-node.h"
 
 #include <aslam/common/timer.h>
+#include <dense-mapping/dense-mapping.h>
+#include <depth-integration/depth-integration.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <landmark-triangulation/pose-interpolator.h>
@@ -418,6 +420,8 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
   CHECK_NOTNULL(p_G);
   CHECK_NOTNULL(sensor_p_G);
 
+  std::lock_guard<std::mutex> lock(mutex_);
+
   if (robot_name.empty()) {
     LOG(WARNING)
         << "[MaplabServerNode] Received map lookup with empty robot name!";
@@ -559,16 +563,11 @@ void MaplabServerNode::registerPoseCorrectionPublisherCallback(
         const aslam::Transformation&)>
         callback) {
   CHECK(callback);
+  std::lock_guard<std::mutex> lock(mutex_);
   pose_correction_publisher_callback_ = callback;
 }
 
 void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
-  vi_map::VIMapManager::MapWriteAccess map =
-      map_manager_.getMapWriteAccess(kMergedMapKey);
-
-  vi_map::MissionIdList mission_ids;
-  map->getAllMissionIds(&mission_ids);
-
   // Anchors all missions with unknown base-frame
   ///////////////////////////////////////////////
   // All missions with absolute pose constraints will automatically be set to
@@ -582,6 +581,11 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   //     agree on a rigid transformation that would be consistent with the
   //     majority of them.
   {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+
     {
       std::lock_guard<std::mutex> merge_status_lock(
           running_merging_process_mutex_);
@@ -615,8 +619,8 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
           }
         }
         LOG_IF(ERROR, !found)
-            << "There is no mission id to robot mapping for mission "
-            << mission_id
+            << "[MaplabServerNode] There is no mission id to robot mapping for "
+            << "mission " << mission_id
             << "! This should be available once the mission reaches "
             << "the merged map";
       }
@@ -630,10 +634,15 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   // reprojection error of the landmarks. This is safer, more accurate, but
   // also weaker, and will likely not close very large loops.
   {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+
     {
       std::lock_guard<std::mutex> merge_status_lock(
           running_merging_process_mutex_);
-      running_merging_process_ = "loop closure";
+      running_merging_process_ = "visual loop closure";
     }
     for (vi_map::MissionIdList::const_iterator it = mission_ids.begin();
          it != mission_ids.end(); ++it) {
@@ -670,11 +679,43 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
   }
 
+  // Lidar local constraints/loop closure
+  ///////////////////////////////////////
+  // Searches for nearby dense map data (e.g. lidar scans) within and across
+  // missions and uses point cloud registration algorithms to derive relative
+  // constraints. These are added as loop closures between vertices. When
+  // iteratively executing this command, as is done here, the candidate pairs
+  // that already posess a valid (switch variable is healthy) loop closure will
+  // not be computed again.
+  {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "lidar loop closure";
+    }
+
+    const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+    if (!dense_mapping::addDenseMappingConstraintsToMap(
+            config, mission_ids, map.get())) {
+      LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                 << "encountered an error!";
+    }
+  }
+
   // Full optimization
   ////////////////////
   // This does not scale, and never will, so it is important that # we limit
   // the runtime by setting the --ba_max_time_seconds flag.
   {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+
     {
       std::lock_guard<std::mutex> merge_status_lock(
           running_merging_process_mutex_);
@@ -717,9 +758,10 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         optimization_trust_region_radius_ =
             result.iteration_summaries.back().trust_region_radius;
       } else {
-        LOG(ERROR) << "Unable to extract final trust region of previous global "
-                   << "optimization iteration! Setting to default value ("
-                   << FLAGS_ba_initial_trust_region_radius << ").";
+        LOG(ERROR) << "[MaplabServerNode] Unable to extract final trust region "
+                   << "of previous global optimization iteration! Setting to "
+                   << "default value (" << FLAGS_ba_initial_trust_region_radius
+                   << ").";
         optimization_trust_region_radius_ =
             FLAGS_ba_initial_trust_region_radius;
       }
@@ -1221,6 +1263,8 @@ void MaplabServerNode::runSubmapProcessing(
 void MaplabServerNode::registerStatusCallback(
     std::function<void(const std::string&)> callback) {
   CHECK(callback);
+  std::lock_guard<std::mutex> lock(mutex_);
+
   status_publisher_callback_ = callback;
 }
 
@@ -1249,6 +1293,8 @@ void MaplabServerNode::publishDenseMap() {
 bool MaplabServerNode::deleteMission(
     const std::string& partial_mission_id_string, std::string* status_message) {
   CHECK_NOTNULL(status_message);
+
+  std::lock_guard<std::mutex> lock(mutex_);
 
   std::stringstream ss;
 
@@ -1318,6 +1364,7 @@ bool MaplabServerNode::deleteMission(
 bool MaplabServerNode::deleteAllRobotMissions(
     const std::string& robot_name, std::string* status_message) {
   CHECK_NOTNULL(status_message);
+  std::lock_guard<std::mutex> lock(mutex_);
 
   std::stringstream ss;
 
@@ -1473,6 +1520,41 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
     // Return false to reset the 'received_first_submap' variable.
     return false;
   }
+  return true;
+}
+
+bool MaplabServerNode::getDenseMapInRange(
+    const backend::ResourceType resource_type, const Eigen::Vector3d& center_G,
+    const double radius_m, resources::PointCloud* point_cloud_G) {
+  CHECK_NOTNULL(point_cloud_G);
+
+  std::lock_guard<std::mutex> lock(mutex_);
+
+  depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
+      [&point_cloud_G](
+          const aslam::Transformation& T_G_S,
+          const resources::PointCloud& points_S) {
+        point_cloud_G->appendTransformed(points_S, T_G_S);
+      };
+
+  // Select within a radius.
+  depth_integration::ResourceSelectionFunction get_resources_in_radius =
+      [&radius_m, &center_G](
+          const int64_t /*timestamp_ns*/,
+          const aslam::Transformation& T_G_S) -> bool {
+    return (T_G_S.getPosition() - center_G).norm() < radius_m;
+  };
+
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager_.getMapReadAccess(kMergedMapKey);
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+
+  depth_integration::integrateAllDepthResourcesOfType(
+      mission_ids, resource_type,
+      false /*use_undistorted_camera_for_depth_maps*/, *map,
+      integration_function, get_resources_in_radius);
+
   return true;
 }
 
