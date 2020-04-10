@@ -309,7 +309,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         size_t num_pointclouds_integrated = 0u;
         size_t num_points_integrated = 0u;
 
-        depth_integration::IntegrationFunction integration_function =
+        depth_integration::IntegrationFunctionPointCloudVoxblox integration_function =
             [&integrator, &icp, &T_G_C_icp_correction, &tsdf_map,
              &num_pointclouds_integrated, &color_mode, &mesh_layer,
              &mesh_integrator, &num_points_integrated](
@@ -516,7 +516,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
 
         size_t num_pointcloud_integrated = 0u;
 
-        depth_integration::IntegrationFunction integration_function =
+        depth_integration::IntegrationFunctionPointCloudVoxblox integration_function =
             [&esdf_server, &icp, &T_G_C_icp_correction, &tsdf_map,
              &num_pointcloud_integrated](
                 const voxblox::Transformation& T_G_C,
