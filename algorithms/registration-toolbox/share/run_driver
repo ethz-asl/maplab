@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+TARGET=$1
+SOURCE=$2
+REG=$3
+ST=$@
+
+rosrun registration_toolbox registration_toolbox_driver \
+  --v=3 \
+  --alsologtostderr \
+  --colorlogtostderr \
+  --source_cloud="$SOURCE" \
+  --target_cloud="$TARGET" \
+  --reg_cloud="$REG" \
+  $REST
