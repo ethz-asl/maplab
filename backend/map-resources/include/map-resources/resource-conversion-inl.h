@@ -314,8 +314,7 @@ void getScalarFromPointCloud(
     const PointCloudType& /*point_cloud*/, const size_t /*index*/,
     float* /*scalar*/) {
   LOG(FATAL) << "This point cloud either does not support scalars/intesities "
-             << "or it is not "
-             << "implemented!";
+             << "or it is not implemented!";
 }
 template <>
 void getScalarFromPointCloud(
