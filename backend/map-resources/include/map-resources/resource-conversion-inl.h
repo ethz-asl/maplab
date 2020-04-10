@@ -343,8 +343,7 @@ void getLabelFromPointCloud(
     const PointCloudType& /*point_cloud*/, const uint32_t /*label*/,
     float* /*scalar*/) {
   LOG(FATAL) << "This point cloud either does not support labels"
-             << "or it is not "
-             << "implemented!";
+             << "or it is not implemented!";
 }
 template <>
 void getLabelFromPointCloud(
