@@ -76,6 +76,7 @@ bool selectAlignmentCandidatePairs(
     const AlignmentCandidatePair& alignment = *it;
     if (!alignment.isValid()) {
       LOG(WARNING) << "Invalid AlignmentCandidatePair:\n" << alignment;
+      it = candidate_pairs_ptr->erase(it);
       continue;
     }
     const pose_graph::VertexId& vertex_id_B =

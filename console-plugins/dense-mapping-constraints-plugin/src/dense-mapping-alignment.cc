@@ -14,22 +14,50 @@ namespace dense_mapping {
 
 AlignmentConfig AlignmentConfig::fromGflags() {
   AlignmentConfig config;
-  // TODO(mfehr): implement
 
+  config.maximum_deviation_from_initial_guess_delta_position_m =
+      FLAGS_dm_candidate_alignment_max_delta_position_to_initial_guess_m;
+  config.maximum_deviation_from_initial_guess_delta_rotation_deg =
+      FLAGS_dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg;
+
+  CHECK_GT(config.maximum_deviation_from_initial_guess_delta_position_m, 0.0);
+  CHECK_GT(config.maximum_deviation_from_initial_guess_delta_rotation_deg, 0.0);
   return config;
 }
 
-static AlignmentCandidatePair candidatePairFromRegistrationResult(
-    const AlignmentCandidatePair& candidate,
-    const regbox::RegistrationResult& registration_result) {
-  AlignmentCandidatePair aligned_candidate = candidate;
+bool alignmentDeviatesTooMuchFromInitialGuess(
+    const AlignmentConfig& config, const AlignmentCandidatePair& pair) {
+  // Only need to check pairs that have not already failed.
+  if (!pair.success) {
+    return false;
+  }
 
-  aligned_candidate.success = registration_result.hasConverged();
-  aligned_candidate.T_SB_SA_final = registration_result.get_T_target_source();
-  aligned_candidate.T_SB_SA_final_covariance =
+  const aslam::Transformation T_SA_init_SA_final =
+      pair.T_SB_SA_init.inverse() * pair.T_SB_SA_final;
+
+  const double delta_position_m = T_SA_init_SA_final.getPosition().norm();
+  static constexpr double kRadToDeg = 180.0 / M_PI;
+  const double delta_rotation_deg =
+      aslam::AngleAxis(T_SA_init_SA_final.getRotation()).angle() * kRadToDeg;
+  const bool too_far_from_initial_guess =
+      delta_rotation_deg >
+          config.maximum_deviation_from_initial_guess_delta_rotation_deg ||
+      delta_position_m >
+          config.maximum_deviation_from_initial_guess_delta_position_m;
+  return too_far_from_initial_guess;
+}
+
+static AlignmentCandidatePair candidatePairFromRegistrationResult(
+    const AlignmentCandidatePair& pair,
+    const regbox::RegistrationResult& registration_result) {
+  AlignmentCandidatePair aligned_pair = pair;
+
+  aligned_pair.success = registration_result.hasConverged();
+  aligned_pair.T_SB_SA_final = registration_result.get_T_target_source();
+  aligned_pair.T_SB_SA_final_covariance =
       registration_result.get_T_target_source_covariance();
 
-  return aligned_candidate;
+  return aligned_pair;
 }
 
 template <typename ResourceDataType>
@@ -197,10 +225,17 @@ bool computeAlignmentForCandidatePairs(
         continue;
       }
 
+      // Some simple sanity checks to overrule the success of the alignment if
+      // necessary,
+      if (alignmentDeviatesTooMuchFromInitialGuess(config, processed_pair)) {
+        processed_pair.success = false;
+      }
+
+      // Only keep pair if successful.
       if (processed_pair.success) {
+        aligned_candidate_pairs_for_thread.emplace(processed_pair);
         ++successful_alignments;
       }
-      aligned_candidate_pairs_for_thread.emplace(processed_pair);
 
       progress_bar.update(++processed_pairs);
     }
@@ -240,8 +275,10 @@ bool computeAlignmentForCandidatePairs(
         aligned_candidate_pairs_for_thread.begin(),
         aligned_candidate_pairs_for_thread.end());
   }
+  // Check that all pairs are processed and that all the successful alignments
+  // have made it into the result vector.
   CHECK_EQ(total_processed_pairs, num_pairs);
-  CHECK_EQ(aligned_candidate_pairs->size(), total_successful_pairs);
+  CHECK_LE(aligned_candidate_pairs->size(), total_successful_pairs);
 
   return true;
 }

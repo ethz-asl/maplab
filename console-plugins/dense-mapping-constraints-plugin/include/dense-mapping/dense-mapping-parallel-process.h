@@ -32,10 +32,9 @@ size_t parallelProcess(
     const size_t start_idx =
         global_start_index + num_elements_per_thread * thread_idx;
 
-    // This is needed when there are more threads than elements.
+    // This is needed when there are more threads than elements or when the
+    // rounding leaves no elements for the later threads.
     if (start_idx >= global_end_index) {
-      // Just add this as a sanity check.
-      CHECK_GT(num_elements, num_threads);
       break;
     }
 
