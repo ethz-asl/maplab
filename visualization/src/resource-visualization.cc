@@ -199,6 +199,7 @@ void convertColorPointCloud(
     backend::resizePointCloud(
         point_cloud.size(), true /*input_has_color*/,
         false /*input_has_normals*/, false /*input_has_scalars*/,
+        false, /*input_has_labels*/
         ros_point_cloud);
     for (size_t i = 0u; i < point_cloud.size(); ++i) {
       backend::addPointToPointCloud(

@@ -55,6 +55,7 @@ enum class ResourceType : int {
   kPointCloudXYZI = 21,
   kObjectInstanceBoundingBoxes = 22,
   kObjectInstanceMasks = 23,
+  kPointCloudXYZL = 24,
   kCount
 };
 
@@ -86,7 +87,8 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeNames = {
      /*kVoxbloxOccupancyMap*/ "voxblox_occupancy_map",
      /*kPointCloudXYZI*/ "point_cloud_w_intensity",
      /*kObjectInstanceBoundingBoxes*/ "object_instance_bounding_boxes",
-     /*kObjectInstanceMasks*/ "object_instance_masks"}};
+     /*kObjectInstanceMasks*/ "object_instance_masks",
+     /*kPointCloudXYZL*/ "labeled_point_cloud"}};
 
 // NOTE: [ADD_RESOURCE_TYPE] Add suffix.
 const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
@@ -113,7 +115,8 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
      /*kVoxbloxOccupancyMap*/ ".occupancy.voxblox",
      /*kPointCloudXYZI*/ ".ply",
      /*kObjectInstanceBoundingBoxes*/ ".obj_instance_bboxes.proto",
-     /*kObjectInstanceMasks*/ ".obj_instance_mask.ppm"}};
+     /*kObjectInstanceMasks*/ ".obj_instance_mask.ppm",
+     /*kPointCloudXYZL*/ ".ply"}};
 
 struct ResourceTypeHash {
   template <typename T>
@@ -169,14 +172,16 @@ typedef boost::variant<
     sensor_msgs::PointCloud2ConstIterator<double>>
     PointCloud2ConstIteratorVariant;
 
-class IntensityVisitor : public boost::static_visitor<float> {
+template <typename OutputType>
+class PointCloud2Visitor : public boost::static_visitor<OutputType> {
  public:
-  IntensityVisitor() {}
-  explicit IntensityVisitor(const std::size_t index) : index_(index) {}
+  PointCloud2Visitor() {}
+  explicit PointCloud2Visitor(const std::size_t index) : index_(index) {}
 
-  template <typename T>
-  float operator()(sensor_msgs::PointCloud2ConstIterator<T>& it) const {
-    return static_cast<float>(*(it + index_));
+  template <typename InputType>
+  OutputType operator()(
+      sensor_msgs::PointCloud2ConstIterator<InputType>& it) const {
+    return static_cast<OutputType>(*(it + index_));
   }
 
   std::size_t getIndex() const {
@@ -185,7 +190,7 @@ class IntensityVisitor : public boost::static_visitor<float> {
   std::size_t& getIndex() {
     return index_;
   }
-  IntensityVisitor& setIndex(const std::size_t index) {
+  PointCloud2Visitor& setIndex(const std::size_t index) {
     index_ = index;
     return *this;
   }
