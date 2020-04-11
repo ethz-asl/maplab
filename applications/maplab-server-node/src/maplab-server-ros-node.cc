@@ -333,6 +333,8 @@ bool MaplabServerRosNode::getDenseMapInRangeCallback(
       resource_type, center_G, radius_m, &point_cloud_G);
   backend::convertPointCloudType(point_cloud_G, &response.point_cloud_G);
 
+  response.point_cloud_G.header.frame_id = FLAGS_tf_map_frame;
+
   // NOTE(mfehr): remove this if this is too expensive.
   dense_map_query_result_.publish(response.point_cloud_G);
 

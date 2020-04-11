@@ -52,7 +52,7 @@ DEFINE_bool(
     "RANSAC LSQ on the absolute pose constraints to remove outliers.");
 
 DEFINE_bool(
-    maplab_server_set_first_robot_map_baseframe_to_known, false,
+    maplab_server_set_first_robot_map_baseframe_to_known, true,
     "If enabled, the first mission to be added to the global map will server "
     "as the anchor and it's baseframe will be set to know.");
 
@@ -93,6 +93,22 @@ DEFINE_bool(
     maplab_server_preserve_trust_region_radius_across_merging_iterations, true,
     "If enabled, the trust regions of the last iteration is used as initial "
     "trust region for the next time the global optimization is run.");
+
+DEFINE_bool(
+    maplab_server_enable_visual_loop_closure, true,
+    "If enabled, visual loop closure is used to derrive constraints within and "
+    "across missions.");
+
+DEFINE_bool(
+    maplab_server_enable_visual_loop_closure_based_map_anchoring, true,
+    "If enabled, visual loop closure is used to rigidly align missions with "
+    "unkown baseframe to missions anchored missions.");
+
+DEFINE_bool(
+    maplab_server_enable_lidar_loop_closure, true,
+    "If enabled, lidar loop closure & mapping is used to derrive constraints "
+    "within and "
+    "across missions.");
 
 namespace maplab {
 MaplabServerNode::MaplabServerNode()
@@ -568,18 +584,10 @@ void MaplabServerNode::registerPoseCorrectionPublisherCallback(
 }
 
 void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
-  // Anchors all missions with unknown base-frame
-  ///////////////////////////////////////////////
+  // Declare missions anchored if absolute pose constraints are present
+  /////////////////////////////////////////////////////////////////////
   // All missions with absolute pose constraints will automatically be set to
-  // anchored, since they contain a global reference. For all other missions,
-  // this algorithm will try to perform visual loop closure and align the
-  // mission to the other missions with known base-frame. The visual
-  // colocalization will fail/not do anything if:
-  //   - No visual loop closures are found
-  //   - Several visual loop closures are found but there are too many wrong
-  //     ones (very rare) or due to a deformation of the missions they cannot
-  //     agree on a rigid transformation that would be consistent with the
-  //     majority of them.
+  // anchored, since they contain a global reference.
   {
     vi_map::VIMapManager::MapWriteAccess map =
         map_manager_.getMapWriteAccess(kMergedMapKey);
@@ -589,41 +597,80 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     {
       std::lock_guard<std::mutex> merge_status_lock(
           running_merging_process_mutex_);
-      running_merging_process_ = "map anchoring";
+      running_merging_process_ = "absolute constraint based map anchoring";
     }
     map_anchoring::setMissionBaseframeToKnownIfHasAbs6DoFConstraints(map.get());
-    if (map_anchoring::anchorAllMissions(map.get(), plotter_.get())) {
-      LOG(INFO) << "[MaplabServerNode] MapMerging - Unable to anchor maps, or "
-                   "there was nothing left to do.";
+  }
+
+  // Vision based map anchoring
+  /////////////////////////////
+  // Use visual loop closure to rigidly align any missions with unkown baseframe
+  // to the set of missions with known base frame. This allows anchoring of the
+  // map even without external absolute pose constraints. It also has a chance
+  // to solve the kidnapped robot problem, most likely caused by a robot
+  // re-initializing it's mapping session while away from whatever source of
+  // external absolute pose constraints (e.g. AprilTags). The visual
+  // colocalization will fail/not do anything if:
+  //   - No visual loop closures are found
+  //   - Several visual loop closures are found but there are too many wrong
+  //     ones (very rare) or due to a deformation of the missions they cannot
+  //     agree on a rigid transformation that would be consistent with the
+  //     majority of them.
+  if (FLAGS_maplab_server_enable_visual_loop_closure_based_map_anchoring) {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "vision based map anchoring";
     }
 
-    // Update the baseframe information for the status thread.
-    {
-      std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
-      for (const vi_map::MissionId& mission_id : mission_ids) {
-        const bool baseframe_is_known =
-            map->getMissionBaseFrameForMission(mission_id).is_T_G_M_known();
-        const std::string& robot_name = mission_id_to_robot_map_[mission_id];
+    if (map_anchoring::anchorAllMissions(map.get(), plotter_.get())) {
+      LOG(INFO) << "[MaplabServerNode] MapMerging - Unable to anchor maps "
+                << "based on vision, or there was nothing left to do.";
+    }
+  }
 
-        bool found = false;
-        if (!robot_name.empty()) {
-          RobotMissionInformation& robot_info =
-              robot_to_mission_id_map_[robot_name];
-          for (auto& mission_id_with_baseframe_status :
-               robot_info.mission_ids_with_baseframe_status) {
-            if (mission_id_with_baseframe_status.first == mission_id) {
-              mission_id_with_baseframe_status.second = baseframe_is_known;
-              found = true;
-              break;
-            }
+  // Update the baseframe information for the status thread.
+  {
+    vi_map::VIMapManager::MapReadAccess map =
+        map_manager_.getMapReadAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "update map anchoring info";
+    }
+
+    std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+    for (const vi_map::MissionId& mission_id : mission_ids) {
+      const bool baseframe_is_known =
+          map->getMissionBaseFrameForMission(mission_id).is_T_G_M_known();
+      const std::string& robot_name = mission_id_to_robot_map_[mission_id];
+
+      bool found = false;
+      if (!robot_name.empty()) {
+        RobotMissionInformation& robot_info =
+            robot_to_mission_id_map_[robot_name];
+        for (auto& mission_id_with_baseframe_status :
+             robot_info.mission_ids_with_baseframe_status) {
+          if (mission_id_with_baseframe_status.first == mission_id) {
+            mission_id_with_baseframe_status.second = baseframe_is_known;
+            found = true;
+            break;
           }
         }
-        LOG_IF(ERROR, !found)
-            << "[MaplabServerNode] There is no mission id to robot mapping for "
-            << "mission " << mission_id
-            << "! This should be available once the mission reaches "
-            << "the merged map";
       }
+      LOG_IF(ERROR, !found)
+          << "[MaplabServerNode] There is no mission id to robot mapping for "
+          << "mission " << mission_id
+          << "! This should be available once the mission reaches "
+          << "the merged map";
     }
   }
 
@@ -633,7 +680,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   // loop closure edge, but the loop closure is enforced through the
   // reprojection error of the landmarks. This is safer, more accurate, but
   // also weaker, and will likely not close very large loops.
-  {
+  if (FLAGS_maplab_server_enable_visual_loop_closure) {
     vi_map::VIMapManager::MapWriteAccess map =
         map_manager_.getMapWriteAccess(kMergedMapKey);
     vi_map::MissionIdList mission_ids;
@@ -687,7 +734,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   // iteratively executing this command, as is done here, the candidate pairs
   // that already posess a valid (switch variable is healthy) loop closure will
   // not be computed again.
-  {
+  if (FLAGS_maplab_server_enable_lidar_loop_closure) {
     vi_map::VIMapManager::MapWriteAccess map =
         map_manager_.getMapWriteAccess(kMergedMapKey);
     vi_map::MissionIdList mission_ids;
@@ -1004,10 +1051,10 @@ bool MaplabServerNode::appendAvailableSubmaps() {
 void MaplabServerNode::printAndPublishServerStatus() {
   std::stringstream ss;
 
-  ss << "\n=============================================================="
-        "=="
-     << "==\n";
-  ss << "[MaplabServerNode] Status:\n";
+  ss << "\n"
+     << "==================================================================\n";
+  ss << "=                   MaplabServerNode Status                      =\n";
+  ss << "==================================================================\n";
   {
     std::lock_guard<std::mutex> lock(submap_processing_queue_mutex_);
     if (submap_processing_queue_.empty()) {
