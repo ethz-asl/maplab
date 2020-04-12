@@ -708,6 +708,7 @@ bool convertPointCloudType(
   resizePointCloud(
       num_points, input_has_color, input_has_normals, input_has_scalars,
       input_has_labels, output_cloud);
+  CHECK_EQ(getPointCloudSize(*output_cloud), num_points);
 
   const bool output_has_scalars = hasScalarInformation(*output_cloud);
   const bool output_has_color = hasColorInformation(*output_cloud);
