@@ -1236,6 +1236,8 @@ void MaplabServerNode::runSubmapProcessing(
       map_manager_.getMapWriteAccess(submap_process.map_key);
   vi_map::MissionIdList missions_to_process;
   map->getAllMissionIds(&missions_to_process);
+  CHECK_EQ(missions_to_process.size(), 1u);
+  const vi_map::MissionId& submap_mission_id = missions_to_process[0];
 
   // Stationary submap fixing
   ///////////////////////////
@@ -1270,8 +1272,27 @@ void MaplabServerNode::runSubmapProcessing(
     vi_map_helpers::evaluateLandmarkQuality(missions_to_process, map.get());
   }
 
-  // Optimization
-  ///////////////
+  // Lidar local constraints/loop closure
+  ///////////////////////////////////////
+  // Searches for nearby dense map data (e.g. lidar scans) within the submap
+  // mission and uses point cloud registration algorithms to derive relative
+  // constraints. These are added as loop closures between vertices.
+  if (FLAGS_maplab_server_enable_lidar_loop_closure) {
+    {
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] = "lidar loop closure";
+    }
+
+    const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+    if (!dense_mapping::addDenseMappingConstraintsToMap(
+            config, missions_to_process, map.get())) {
+      LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                 << "encountered an error!";
+    }
+  }
+
+  // Submap Optimization
+  //////////////////////
   {
     {
       std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
