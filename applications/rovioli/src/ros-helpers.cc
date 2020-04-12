@@ -1,8 +1,8 @@
-#include "rovioli/ros-helpers.h"
 #include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
+#include "rovioli/ros-helpers.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -89,7 +89,24 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
         // NOTE: we assume all 8UC1 type images are monochrome images.
         cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::TYPE_8UC1);
+      } else if (
+          image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
+        // We assume it is a BGR image.
+        cv_bridge::CvImageConstPtr cv_tmp_ptr = cv_bridge::toCvShare(
+            image_message, sensor_msgs::image_encodings::TYPE_8UC3);
+
+        // Convert image and add it to the cv bridge struct, such that the
+        // remaining part of the function can stay the same.
+        cv_bridge::CvImage* converted_image = new cv_bridge::CvImage;
+        converted_image->encoding = "mono8";
+        converted_image->header = image_message->header;
+        // We assume the color format is BGR.
+        cv::cvtColor(
+            cv_tmp_ptr->image, converted_image->image, cv::COLOR_BGR2GRAY);
+        // The cv bridge takes ownership of the image ptr.
+        cv_ptr.reset(converted_image);
       } else {
+        // Try automatic conversion for all the other encodings.
         cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::MONO8);
       }
