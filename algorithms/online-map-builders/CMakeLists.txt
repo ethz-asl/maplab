@@ -4,6 +4,8 @@ project(online_map_builders)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -no-pie")
+
 ############
 # LIBRARY  #
 ############
