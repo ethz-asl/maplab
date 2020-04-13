@@ -141,12 +141,15 @@ class TemporalBuffer {
 
   size_t removeItemsBefore(const int64_t timestamp_ns);
 
+  // Returns and removes all values with timestamp <= the provided threshold.
+  // The return value is equal to the number of returned/removed values.
   template <typename ValueContainerType>
   size_t extractItemsBeforeIncluding(
       const int64_t timestamp_ns, ValueContainerType* removed_values);
 
-  // in contrast to extractItemsBeforeIncluding(), last element with older ts
-  // than timestamp_ns is kept in buffer
+  // Returns all values with timestamp <= the provided threshold.
+  // Removes all returned values EXCEPT the newest one.
+  // The return value is equal to the number of REMOVED values.
   template <typename ValueContainerType>
   size_t extractItemsBeforeIncludingKeepMostRecent(
       const int64_t timestamp_ns, ValueContainerType* values);

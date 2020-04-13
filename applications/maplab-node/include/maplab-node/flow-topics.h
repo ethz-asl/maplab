@@ -26,7 +26,7 @@ MESSAGE_FLOW_TOPIC(SYNCED_NFRAMES, vio::SynchronizedNFrame::Ptr);
 MESSAGE_FLOW_TOPIC(TRACKED_NFRAMES, vio::SynchronizedNFrame::ConstPtr);
 
 // Imu data.
-MESSAGE_FLOW_TOPIC(IMU_MEASUREMENTS, vio::ImuMeasurement::ConstPtr);
+MESSAGE_FLOW_TOPIC(IMU_MEASUREMENTS, vio::BatchedImuMeasurements::ConstPtr);
 
 // Odometry input
 MESSAGE_FLOW_TOPIC(ODOMETRY_ESTIMATES, maplab::OdometryEstimate::ConstPtr);

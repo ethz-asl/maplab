@@ -20,6 +20,9 @@
 
 #include "maplab-node/odometry-estimate.h"
 
+DECLARE_double(maplab_throttle_frequency_odometry);
+DECLARE_double(maplab_batch_imu_measurements_at_frequency);
+
 namespace maplab {
 
 #define DECLARE_SENSOR_CALLBACK(SENSOR_NAME, MEASUREMENT_TYPE)                 \
@@ -50,7 +53,7 @@ namespace maplab {
 
 class CallbackManager {
   DECLARE_SENSOR_CALLBACK(Image, vio::ImageMeasurement::ConstPtr);
-  DECLARE_SENSOR_CALLBACK(Imu, vio::ImuMeasurement::ConstPtr);
+  DECLARE_SENSOR_CALLBACK(Imu, vio::BatchedImuMeasurements::ConstPtr);
   DECLARE_SENSOR_CALLBACK(Lidar, vi_map::RosLidarMeasurement::ConstPtr);
   DECLARE_SENSOR_CALLBACK(Odometry, maplab::OdometryEstimate::ConstPtr);
   DECLARE_SENSOR_CALLBACK(
