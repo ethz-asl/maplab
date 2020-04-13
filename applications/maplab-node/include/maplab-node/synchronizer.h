@@ -48,8 +48,7 @@ class Synchronizer {
   void processAbsolute6DoFMeasurement(
       const vi_map::Absolute6DoFMeasurement::Ptr& absolute_6dof_measurement);
   void processLoopClosureMeasurement(
-      const vi_map::LoopClosureMeasurement::ConstPtr&
-          loop_closure_measurement);
+      const vi_map::LoopClosureMeasurement::ConstPtr& loop_closure_measurement);
   void processWheelOdometryMeasurement(
       const vi_map::WheelOdometryMeasurement::ConstPtr&
           wheel_odometry_measurement);
@@ -147,7 +146,8 @@ class Synchronizer {
 
   // Buffer to store the images before they are released.
   mutable std::mutex image_buffer_mutex_;
-  common::TemporalBuffer<vio::ImageMeasurement::ConstPtr> image_buffer_;
+  Aligned<std::vector, common::TemporalBuffer<vio::ImageMeasurement::ConstPtr>>
+      image_buffer_;
 
   // Buffer to store the lidar measurements before they are released.
   mutable std::mutex lidar_buffer_mutex_;
