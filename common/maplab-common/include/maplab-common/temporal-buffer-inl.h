@@ -440,7 +440,9 @@ size_t TemporalBuffer<ValueType, AllocatorType>::
   std::transform(
       values_.begin(), first_newer_timestamp_it,
       std::back_inserter(*returned_values),
-      [](auto stamped_value) { return stamped_value.second; });
+      [](const typename BufferType::value_type& stamped_value) {
+	  return stamped_value.second;
+  });
 
   // Remove values that were returned, except for the newest one.
   const size_t size_before = values_.size();
