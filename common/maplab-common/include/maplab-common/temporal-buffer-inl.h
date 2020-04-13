@@ -406,7 +406,9 @@ size_t TemporalBuffer<ValueType, AllocatorType>::extractItemsBeforeIncluding(
   std::transform(
       values_.begin(), first_newer_timestamp_it,
       std::back_inserter(*removed_values),
-      [](auto stamped_value) { return stamped_value.second; });
+      [](const typename BufferType::value_type& stamped_value) {
+	  return stamped_value.second;
+  });
 
   // Erase values.
   values_.erase(values_.begin(), first_newer_timestamp_it);
