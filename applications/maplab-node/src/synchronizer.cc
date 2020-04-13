@@ -95,6 +95,12 @@ void Synchronizer::initializeNCameraSynchronization(
   CHECK(!visual_pipeline_) << "[MaplabNode-Synchronizer] NCamera "
                            << "synchronization already initialized!";
 
+  // Initialize temporal buffer per frame.
+  {
+    std::lock_guard<std::mutex> lock(image_buffer_mutex_);
+    image_buffer_.resize(camera_system->getNumCameras());
+  }
+
   // Initialize the pipeline.
   static constexpr bool kCopyImages = false;
   std::vector<aslam::VisualPipeline::Ptr> mono_pipelines;
@@ -162,7 +168,11 @@ void Synchronizer::processCameraImage(
 
   {
     std::lock_guard<std::mutex> lock(image_buffer_mutex_);
-    image_buffer_.addValue(image_measurement->timestamp, image_measurement);
+    CHECK_LT(
+        image_measurement->camera_index,
+        static_cast<int>(image_buffer_.size()));
+    image_buffer_[image_measurement->camera_index].addValue(
+        image_measurement->timestamp, image_measurement);
   }
 }
 
@@ -326,37 +336,45 @@ void Synchronizer::processOdometryMeasurement(
 void Synchronizer::releaseCameraImages(
     const int64_t oldest_timestamp_ns, const int64_t newest_timestamp_ns) {
   CHECK_GE(newest_timestamp_ns, oldest_timestamp_ns);
-  std::vector<vio::ImageMeasurement::ConstPtr> extracted_images;
+  Aligned<std::vector, vio::ImageMeasurement::ConstPtr> all_extracted_images;
   {
     std::lock_guard<std::mutex> lock(image_buffer_mutex_);
+    for (size_t frame_idx = 0; frame_idx < image_buffer_.size(); ++frame_idx) {
+      common::TemporalBuffer<vio::ImageMeasurement::ConstPtr>& image_buffer =
+          image_buffer_[frame_idx];
 
-    // Drop these images, since there is no odometry data anymore for them.
-    const size_t dropped_images =
-        image_buffer_.removeItemsBefore(oldest_timestamp_ns);
-    LOG_IF(WARNING, dropped_images != 0u)
-        << "[MaplabNode-Synchronizer] Could not find an odometry "
-        << "transformation for " << dropped_images << " images "
-        << "because it was already dropped from the buffer! "
-        << "This might be okay during initialization.";
+      // Drop these images, since there is no odometry data anymore for them.
+      const size_t dropped_images =
+          image_buffer.removeItemsBefore(oldest_timestamp_ns);
+      LOG_IF(WARNING, dropped_images != 0u)
+          << "[MaplabNode-Synchronizer] Could not find an odometry "
+          << "transformation for " << dropped_images << " images "
+          << "because it was already dropped from the buffer! "
+          << "This might be okay during initialization.";
 
-    image_skip_counter_ += dropped_images;
-
-    image_buffer_.extractItemsBeforeIncluding(
-        newest_timestamp_ns, &extracted_images);
+      image_skip_counter_ += dropped_images;
+      Aligned<std::vector, vio::ImageMeasurement::ConstPtr> extracted_images;
+      image_buffer.extractItemsBeforeIncluding(
+          newest_timestamp_ns, &extracted_images);
+      all_extracted_images.insert(
+          all_extracted_images.end(), extracted_images.begin(),
+          extracted_images.end());
+    }
   }
 
   CHECK(visual_pipeline_) << "[MaplabNode-Synchronizer] The visual pipeline, "
                           << "which turns individual images "
                           << "into NFrames, has not been initialized yet!";
 
-  VLOG(5) << "[MaplabNode-Synchronizer] releasing " << extracted_images.size()
+  VLOG(5) << "[MaplabNode-Synchronizer] releasing "
+          << all_extracted_images.size()
           << " camera images into the visual processing pipeline for "
           << "synchronization and tracking.";
 
   // Insert all images that are released into the visual pipeline to synchronize
   // and track features.
   for (const vio::ImageMeasurement::ConstPtr& image_measurement :
-       extracted_images) {
+       all_extracted_images) {
     CHECK_LE(image_measurement->timestamp, newest_timestamp_ns);
     CHECK_GE(image_measurement->timestamp, oldest_timestamp_ns);
 
