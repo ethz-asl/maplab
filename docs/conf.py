@@ -17,7 +17,7 @@ html_logo = "logo.png"
 
 
 extensions = [
-    'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark',
+    'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark', 'sphinx_multiversion',
 ]
 
 project = name
@@ -47,6 +47,14 @@ html_context = {
     'github_version': 'develop-docs',
     'conf_py_path': '/docs/',
 }
+
+templates_path = [
+    "templates",
+]
+
+html_sidebars = [
+    "versions.html",
+]
 
 # Setup the breathe extension
 breathe_projects = {"project": "./doxyoutput/xml"}
