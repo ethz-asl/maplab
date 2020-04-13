@@ -437,7 +437,8 @@ size_t TemporalBuffer<ValueType, AllocatorType>::
 
   // Get first iterator that is greater than the timestamp, i.e. everything
   // between begin() and this iterator is what we want.
-  auto first_newer_timestamp_it = values_.upper_bound(timestamp_ns);
+  typename BufferType::iterator first_newer_timestamp_it =
+		  values_.upper_bound(timestamp_ns);
 
   // Copy values earlier or equal to the timestamp.
   std::transform(
