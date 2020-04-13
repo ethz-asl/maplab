@@ -107,6 +107,13 @@ struct ImuMeasurement {
   ImuData imu_data;
 };
 
+struct BatchedImuMeasurements {
+  MAPLAB_POINTER_TYPEDEFS(BatchedImuMeasurements);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  BatchedImuMeasurements() = default;
+  Aligned<std::vector, ImuMeasurement> batch;
+};
+
 struct GpsLlhMeasurement {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MAPLAB_POINTER_TYPEDEFS(GpsLlhMeasurement);
