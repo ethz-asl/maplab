@@ -75,12 +75,16 @@ TEST_F(VioPipelineTest, PipelineWorks) {
 
   for (int64_t t = 0; t < kNumFeededFrames * kTimestepNs; t += kTimestepNs) {
     for (size_t i = 0; i < kNumCameras; ++i) {
-      cv::Mat image = cv::Mat(
+      vio::ImageMeasurement::Ptr image_measurement(new vio::ImageMeasurement);
+      image_measurement->image = cv::Mat(
           ncamera_->getCamera(i).imageHeight(),
           ncamera_->getCamera(i).imageWidth(), CV_8UC1);
-      cv::randu(image, cv::Scalar::all(0), cv::Scalar::all(255));
+      cv::randu(
+          image_measurement->image, cv::Scalar::all(0), cv::Scalar::all(255));
+      image_measurement->camera_index = i;
+      image_measurement->timestamp = t;
 
-      synchronizer_->processCameraImage(i, image, t);
+      synchronizer_->processCameraImage(image_measurement);
     }
 
     Eigen::Matrix<int64_t, 1, Eigen::Dynamic> timestamps_nanoseconds(1, 4);
