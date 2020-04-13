@@ -41,7 +41,7 @@ class Synchronizer {
       const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& timestamps_nanoseconds,
       const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_measurements);
   void processCameraImage(
-      const size_t camera_index, const cv::Mat& image, const int64_t timestamp);
+      const vio::ImageMeasurement::ConstPtr& image_measurement);
   void processLidarMeasurement(
       const vi_map::RosLidarMeasurement::ConstPtr& lidar_measurement);
   void processOdometryMeasurement(const vio::ViNodeState& odometry);
@@ -71,7 +71,7 @@ class Synchronizer {
 
   // Release the buffered data based on the availability of the odometry pose.
   void releaseData();
-  void releaseNFrameData(
+  void releaseCameraImages(
       const int64_t oldest_timestamp_ns, const int64_t newest_timestamp_ns);
   void releaseLidarData(
       const int64_t oldest_timestamp_ns, const int64_t newest_timestamp_ns);
@@ -144,9 +144,10 @@ class Synchronizer {
 
   // Pipeline to combine images into NFrames.
   aslam::VisualNPipeline::UniquePtr visual_pipeline_;
-  // Buffer to store the assembled NFrames before they are released.
-  mutable std::mutex nframe_buffer_mutex_;
-  common::TemporalBuffer<aslam::VisualNFrame::Ptr> nframe_buffer_;
+
+  // Buffer to store the images before they are released.
+  mutable std::mutex image_buffer_mutex_;
+  common::TemporalBuffer<vio::ImageMeasurement::ConstPtr> image_buffer_;
 
   // Buffer to store the lidar measurements before they are released.
   mutable std::mutex lidar_buffer_mutex_;
@@ -171,6 +172,8 @@ class Synchronizer {
   common::TemporalBuffer<vi_map::RosPointCloudMapSensorMeasurement::ConstPtr>
       pointcloud_map_buffer_;
 
+  // Number of already skipped images.
+  size_t image_skip_counter_;
   // Number of already skipped frames.
   size_t frame_skip_counter_;
   // Timestamp of previously released NFrame, used to throttle the NFrames.

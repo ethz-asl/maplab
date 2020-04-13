@@ -24,7 +24,7 @@ inline void ImuMeasurementBuffer::addMeasurements(
     const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& timestamps_nanoseconds,
     const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_measurements) {
   CHECK_EQ(timestamps_nanoseconds.cols(), imu_measurements.cols());
-  size_t num_samples = timestamps_nanoseconds.cols();
+  const size_t num_samples = timestamps_nanoseconds.cols();
   CHECK_GT(num_samples, 0u);
 
   for (size_t idx = 0; idx < num_samples; ++idx) {
