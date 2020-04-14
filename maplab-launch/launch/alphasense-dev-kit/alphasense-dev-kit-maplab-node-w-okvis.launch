@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-	<node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/alice/alphasense/anymal_1_2020-04-13-12-47-28.bag -q -d 2 -s 3 -r 0.5"/>
+	<node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/alice/alphasense/anymal_2_2020-04-13-13-21-42.bag -q -d 2 -s 3 -r 0.5"/>
 
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 

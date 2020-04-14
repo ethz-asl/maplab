@@ -26,7 +26,7 @@ sensors:
       - camera:
           id: 9be7b5000f15adb3c0da8ac6b729ee05
           sensor_type: CAMERA
-          description: "0.4MP Mono Camera Forward"
+          description: "0.4MP Mono Camera Forward Left"
           topic: /alphasense_driver_ros/cam0
           line-delay-nanoseconds: 0
           image_height: 540
@@ -62,7 +62,7 @@ sensors:
       - camera:
           id: 61f5c269e1f9608678291fa5fdd81830
           sensor_type: CAMERA
-          description: "0.4MP Mono Camera Forward2"
+          description: "0.4MP Mono Camera Forward Right"
           topic: /alphasense_driver_ros/cam1
           line-delay-nanoseconds: 0
           image_height: 540
