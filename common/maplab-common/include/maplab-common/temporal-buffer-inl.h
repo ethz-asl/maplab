@@ -391,69 +391,69 @@ size_t TemporalBuffer<ValueType, AllocatorType>::extractItemsBeforeIncluding(
     return 0u;
   }
 
-  if (values_.begin()->first < timestamp_ns) {
-    typename BufferType::const_iterator it = values_.lower_bound(timestamp_ns);
-
-    // If all values in the buffer should be removed we don't need to move the
-    // iterator another step.
-    CHECK(it != values_.begin());
-    if (it != values_.end()) {
-      it = std::next(it);
-    }
-
-    const size_t size_before = values_.size();
-
-    // Copy values to be removed.
-    typename BufferType::const_iterator local_it = values_.begin();
-    while (local_it != it) {
-      removed_values->emplace_back(local_it->second);
-      ++local_it;
-    }
-
-    // Remove values.
-    values_.erase(values_.begin(), it);
-    const size_t num_elements_erased = size_before - values_.size();
-    CHECK_EQ(num_elements_erased, removed_values->size());
-    return num_elements_erased;
+  // If timestamp is older than oldest timestamp, then there is nothing to
+  // return.
+  if (timestamp_ns < values_.begin()->first) {
+    return 0u;
   }
-  return 0u;
+  // Otherwise there is at least one element that is equal or older.
+
+  // Get first iterator that is greater than the timestamp, i.e. everything
+  // between begin() and this iterator is what we want.
+  typename BufferType::iterator first_newer_timestamp_it =
+		  values_.upper_bound(timestamp_ns);
+
+  // Copy values to be removed.
+  std::transform(
+      values_.begin(), first_newer_timestamp_it,
+      std::back_inserter(*removed_values),
+      [](const typename BufferType::value_type& stamped_value) {
+	  return stamped_value.second;
+  });
+
+  // Erase values.
+  values_.erase(values_.begin(), first_newer_timestamp_it);
+
+  return removed_values->size();
 }
 
 template <typename ValueType, typename AllocatorType>
 template <typename ValueContainerType>
 size_t TemporalBuffer<ValueType, AllocatorType>::
     extractItemsBeforeIncludingKeepMostRecent(
-        const int64_t timestamp_ns, ValueContainerType* earlier_values) {
+        const int64_t timestamp_ns, ValueContainerType* returned_values) {
+  CHECK_NOTNULL(returned_values)->clear();
+
   if (empty()) {
     return 0u;
   }
 
-  if (values_.begin()->first < timestamp_ns) {
-    typename BufferType::const_iterator it = values_.lower_bound(timestamp_ns);
-
-    // If all values in the buffer should be removed we don't need to move the
-    // iterator another step.
-    CHECK(it != values_.begin());
-    if (it != values_.end()) {
-      it = std::next(it);
-    }
-
-    const size_t size_before = values_.size();
-
-    // Copy values to be removed.
-    typename BufferType::const_iterator local_it = values_.begin();
-    while (local_it != it) {
-      earlier_values->emplace_back(local_it->second);
-      ++local_it;
-    }
-
-    // Remove values.
-    values_.erase(values_.begin(), std::prev(it));
-    const size_t num_elements_erased = size_before - values_.size();
-    CHECK_EQ(num_elements_erased, earlier_values->size() - 1);
-    return num_elements_erased;
+  // If timestamp is older than oldest timestamp, then there is nothing to
+  // return.
+  if (timestamp_ns < values_.begin()->first) {
+    return 0u;
   }
-  return 0u;
+  // Otherwise there is at least one element that is equal or older.
+
+  // Get first iterator that is greater than the timestamp, i.e. everything
+  // between begin() and this iterator is what we want.
+  typename BufferType::iterator first_newer_timestamp_it =
+		  values_.upper_bound(timestamp_ns);
+
+  // Copy values earlier or equal to the timestamp.
+  std::transform(
+      values_.begin(), first_newer_timestamp_it,
+      std::back_inserter(*returned_values),
+      [](const typename BufferType::value_type& stamped_value) {
+	  return stamped_value.second;
+  });
+
+  // Remove values that were returned, except for the newest one.
+  const size_t size_before = values_.size();
+  values_.erase(values_.begin(), std::prev(first_newer_timestamp_it));
+  const size_t num_elements_erased = size_before - values_.size();
+  CHECK_EQ(num_elements_erased, returned_values->size() - 1);
+  return num_elements_erased;
 }
 
 template <typename ValueType, typename AllocatorType>
