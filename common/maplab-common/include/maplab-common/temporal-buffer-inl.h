@@ -400,13 +400,16 @@ size_t TemporalBuffer<ValueType, AllocatorType>::extractItemsBeforeIncluding(
 
   // Get first iterator that is greater than the timestamp, i.e. everything
   // between begin() and this iterator is what we want.
-  auto first_newer_timestamp_it = values_.upper_bound(timestamp_ns);
+  typename BufferType::iterator first_newer_timestamp_it =
+		  values_.upper_bound(timestamp_ns);
 
   // Copy values to be removed.
   std::transform(
       values_.begin(), first_newer_timestamp_it,
       std::back_inserter(*removed_values),
-      [](auto stamped_value) { return stamped_value.second; });
+      [](const typename BufferType::value_type& stamped_value) {
+	  return stamped_value.second;
+  });
 
   // Erase values.
   values_.erase(values_.begin(), first_newer_timestamp_it);
@@ -434,13 +437,16 @@ size_t TemporalBuffer<ValueType, AllocatorType>::
 
   // Get first iterator that is greater than the timestamp, i.e. everything
   // between begin() and this iterator is what we want.
-  auto first_newer_timestamp_it = values_.upper_bound(timestamp_ns);
+  typename BufferType::iterator first_newer_timestamp_it =
+		  values_.upper_bound(timestamp_ns);
 
   // Copy values earlier or equal to the timestamp.
   std::transform(
       values_.begin(), first_newer_timestamp_it,
       std::back_inserter(*returned_values),
-      [](auto stamped_value) { return stamped_value.second; });
+      [](const typename BufferType::value_type& stamped_value) {
+	  return stamped_value.second;
+  });
 
   // Remove values that were returned, except for the newest one.
   const size_t size_before = values_.size();
