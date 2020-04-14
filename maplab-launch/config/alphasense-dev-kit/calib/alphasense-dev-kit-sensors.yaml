@@ -1,0 +1,239 @@
+sensors:
+  - id: 3da6d03bd42e41a93dc941bd5fd9351d
+    sensor_type: IMU
+    description: "Bosch BMI085 IMU"
+    topic: /alphasense_driver_ros/imu
+    sigmas:
+      acc_bias_random_walk_noise_density: 0.0043
+      acc_noise_density: 0.019
+      gyro_bias_random_walk_noise_density: 0.000266
+      gyro_noise_density: 0.019
+    saturation_accel_max_mps2: 150
+    saturation_gyro_max_radps: 7.5
+    gravity_magnitude_mps2: 9.808083883386614
+
+
+  - id: cabb23479caf7592b35518478a2fe08d
+    sensor_type: ODOMETRY_6DOF
+    description: "ROVIOLI in Odometry mode"
+    topic: /odometry/maplab_odom_T_M_I
+
+  - id: 9af2bac2a7c5fad79f09e49e3b96d87c
+    sensor_type: NCAMERA
+    description: "Alphasense Dev-Kit - 5 Cameras"
+    topic: ""
+    cameras:
+      - camera:
+          id: 9be7b5000f15adb3c0da8ac6b729ee05
+          sensor_type: CAMERA
+          description: "0.4MP Mono Camera Forward Left"
+          topic: /alphasense_driver_ros/cam0
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 350.4831235139715
+              - 350.10097224389284
+              - 345.2741039224713
+              - 248.60977726525488
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - -0.038616930266761
+                - -0.001017864366762166
+                - -0.0010505629480572155
+                - 5.958057565690519e-05
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [-0.010397652184133632, 0.002270454146420686, 0.9999433653297707, 0.050014815850033034]
+            - [-0.9999427667673746, -0.0025440594885076107, -0.010391869462572922, 0.04637904976425318]
+            - [0.0025203211434270956, -0.9999941863827451, 0.0022967764466876317, -0.009598263721167621]
+            - [0.0, 0.0, 0.0, 1.0]
+
+      - camera:
+          id: 61f5c269e1f9608678291fa5fdd81830
+          sensor_type: CAMERA
+          description: "0.4MP Mono Camera Forward Right"
+          topic: /alphasense_driver_ros/cam1
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 345.3947111047077
+              - 345.21134481486314
+              - 351.54050537989343
+              - 247.96039164036995
+
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - -0.041077936150781265
+                - 0.0020649270282060614
+                - -0.0025547692930631576
+                - 0.0003120478962775664
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [0.0006867115752680064, 0.012318066740250488, 0.999923893933431, 0.048836235328994726]
+            - [0.9999958843955437, -0.0027938575426343926, -0.0006523434726576349, -0.06336122948067253]
+            - [0.0027856093026925044, 0.9999202266140107, -0.012319934618274325, -0.011686560745469907]
+            - [0.0, 0.0, 0.0, 1.0]
+
+      - camera:
+          id: fb25f4a1904f085b2715ed0f2d06e162
+          sensor_type: CAMERA
+          description: "0.4MP Mono Camera Upward"
+          topic: /alphasense_driver_ros/cam2
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 350.0802450549313
+              - 349.9300280572722
+              - 346.785453806226
+              - 274.22989247623246
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+              - -0.03816171333993053
+              - -0.0017648825319842524
+              - -6.42726416353995e-05
+              - -0.0002814406881193418
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [-0.9999399804628508, -0.010620302465901142, -0.002691588283225453, 0.009598361528114866]
+            - [-0.010641346183510005, 0.9999119466659456, 0.007928471865504477, -0.0051111252156372956]
+            - [0.0026071485105991677, 0.00795663812499809, -0.9999649467288299, -0.03423453807792576]
+            - [0.0, 0.0, 0.0, 1.0]
+
+      - camera:
+          id: 0262549ba76319fecded7d0d8615b4aa
+          sensor_type: CAMERA
+          description: "0.4MP Mono Camera Left"
+          topic: /alphasense_driver_ros/cam3
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 347.97349001139105
+              - 347.86594218328446
+              - 330.793520961563
+              - 251.65614337156387
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+              - -0.039743594706658156
+              - 0.00071501184021329
+              - -0.0017402180989032198
+              - 0.0001382564786683036
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [0.99998258633085, -0.0019287589060521491, -0.005577358169158298, -0.007673924042039326]
+            - [0.005545039959081141, -0.01637389966640118, 0.9998505628050461, 0.06018382548521369]
+            - [-0.002019793780796867, -0.9998640784120597, -0.016362919491524297, -0.011128979242716087]
+            - [0.0, 0.0, 0.0, 1.0]
+
+      - camera:
+          id: 8af1bac2a7c5fad79f09e49e3b96d87c
+          sensor_type: CAMERA
+          description: "0.4MP Mono Camera Right"
+          topic: /alphasense_driver_ros/cam4
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 350.46701795226164
+              - 350.117457607798
+              - 344.4650749301427
+              - 259.7077834337533
+
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+              - -0.03805495934320497
+              - -0.003420771708679878
+              - 0.0023364530853487273
+              - -0.0010000901735286805
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [0.9996835780316653, -0.00943993740268953, 0.023315904349619367, -0.003794172241126704]
+            - [0.023221244858616243, -0.010015978846651119, -0.9996801758337311, -0.07903510150693516]
+            - [0.00967044988733641, 0.9999052793887914, -0.009793602473031793, -0.010701331209380938]
+            - [0.0, 0.0, 0.0, 1.0]
+
+extrinsics:
+  - sensor_id: 3da6d03bd42e41a93dc941bd5fd9351d
+    base_sensor_id: 3da6d03bd42e41a93dc941bd5fd9351d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+  - sensor_id: cabb23479caf7592b35518478a2fe08d
+    base_sensor_id: 3da6d03bd42e41a93dc941bd5fd9351d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: 9af2bac2a7c5fad79f09e49e3b96d87c
+    base_sensor_id: 3da6d03bd42e41a93dc941bd5fd9351d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
