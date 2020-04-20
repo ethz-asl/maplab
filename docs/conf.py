@@ -11,12 +11,6 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # html_theme = "alabaster"
 html_logo = "logo.png"
 
-#source_parsers = {
-#    '.md': 'recommonmark.parser.CommonMarkParser',
-#}
-
-
-
 
 project = "maplab"
 master_doc = 'index'
@@ -26,11 +20,8 @@ html_last_updated_fmt = "%c"
 pygments_style = "sphinx"
 templates_path = ["_templates"]
 
-# extensions = [
-#     'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark', 'sphinx_multiversion',
-# ]
 extensions = [
-    'recommonmark', 'sphinx_multiversion',
+     'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark', 'sphinx_multiversion',
 ]
 
 html_theme_options = {
@@ -61,32 +52,23 @@ templates_path = [
     "_templates",
 ]
 
-# html_sidebars = {
-#    "**": [
-#        "about.html",
-#        "navigation.html",
-#        "relations.html",
-#        "searchbox.html",
-#        "versioning.html",
-#    ],
-# }
 
 # Setup the breathe extension
-# breathe_projects = {"project": "./doxyoutput/xml"}
-# breathe_default_project = "project"
+breathe_projects = {"project": "./doxyoutput/xml"}
+breathe_default_project = "project"
 
 # Setup the exhale extension
-# exhale_args = {
-#     "verboseBuild": False,
-#     "containmentFolder": "./api",
-#     "rootFileName": "library_root.rst",
-#     "rootFileTitle": "Library API",
-#     "doxygenStripFromPath": "..",
-#     "createTreeView": True,
-#     "exhaleExecutesDoxygen": True,
-#     "exhaleUseDoxyfile": True,
-#     "pageLevelConfigMeta": ":github_url: https://github.com/ethz-asl/" + name
-# }
+exhale_args = {
+    "verboseBuild": False,
+    "containmentFolder": "./api",
+    "rootFileName": "library_root.rst",
+    "rootFileTitle": "Library API",
+    "doxygenStripFromPath": "..",
+    "createTreeView": True,
+    "exhaleExecutesDoxygen": True,
+    "exhaleUseDoxyfile": True,
+    "pageLevelConfigMeta": ":github_url: https://github.com/ethz-asl/" + name
+}
 source_suffix = ['.rst', '.md']
 
 # Tell sphinx what the primary language being documented is.
