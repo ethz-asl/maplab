@@ -1,7 +1,3 @@
-======
-maplab
-======
-
 .. image:: https://raw.githubusercontent.com/wiki/ethz-asl/maplab/logos/maplab_new.png
   :align: center
 
