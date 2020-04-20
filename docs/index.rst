@@ -1,11 +1,15 @@
 .. image:: https://raw.githubusercontent.com/wiki/ethz-asl/maplab/logos/maplab_new.png
   :align: center
 
+test1
   
+test2
 
 
 .. image:: https://github.com/ethz-asl/maplab/wiki/images/zurich_oldtown_vs.gif
   :align: center
+
+test
 
 .. toctree::
    :maxdepth: 1
