@@ -40,11 +40,11 @@ html_theme_options = {
     'display_version': True,
     'prev_next_buttons_location': 'bottom',
     'style_external_links': True,
-    'style_nav_header_background': 'black',
+    'style_nav_header_background': 'green',
     # Toc options
-    # 'collapse_navigation': True,
-    # 'sticky_navigation': True,
-    # 'navigation_depth': 4,
+    'collapse_navigation': True,
+    'sticky_navigation': True,
+    'navigation_depth': 4,
     # 'includehidden': True,
     # 'titles_only': False
 }
