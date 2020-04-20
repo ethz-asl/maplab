@@ -67,7 +67,7 @@ exhale_args = {
     "createTreeView": True,
     "exhaleExecutesDoxygen": True,
     "exhaleUseDoxyfile": True,
-    "pageLevelConfigMeta": ":github_url: https://github.com/ethz-asl/" + name
+    "pageLevelConfigMeta": ":github_url: https://github.com/ethz-asl/" + project
 }
 source_suffix = ['.rst', '.md']
 
