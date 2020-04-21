@@ -20,8 +20,10 @@ html_last_updated_fmt = "%c"
 pygments_style = "sphinx"
 templates_path = ["_templates"]
 
-smv_tag_whitelist = r'^.*$' 
-smv_remote_whitelist = r'^.*$'  
+# Check https://holzhaus.github.io/sphinx-multiversion/master/configuration.html#tag-branch-remote-whitelists
+smv_tag_whitelist = r'^.*$'                   # Include all tags
+smv_branch_whitelist = r'^.*$'                # Include all branches
+smv_remote_whitelist = r'^.*$'                # Use branches from all remotes
 
 extensions = [
      'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark', 'sphinx_multiversion',
