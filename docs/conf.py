@@ -20,6 +20,9 @@ html_last_updated_fmt = "%c"
 pygments_style = "sphinx"
 templates_path = ["_templates"]
 
+smv_tag_whitelist = r'^.*$' 
+smv_remote_whitelist = r'^.*$'  
+
 extensions = [
      'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark', 'sphinx_multiversion',
 ]
