@@ -273,7 +273,7 @@ void TemporalBuffer<ValueType, AllocatorType>::
 
 template <typename ValueType, typename AllocatorType>
 bool TemporalBuffer<ValueType, AllocatorType>::getNearestValueToTime(
-    int64_t timestamp, int64_t maximum_delta_ns, ValueType* value,
+    int64_t timestamp_ns, int64_t maximum_delta_ns, ValueType* value,
     int64_t* timestamp_at_value_ns) const {
   CHECK_NOTNULL(timestamp_at_value_ns);
   CHECK_NOTNULL(value);
@@ -282,68 +282,74 @@ bool TemporalBuffer<ValueType, AllocatorType>::getNearestValueToTime(
     return false;
   }
 
-  const typename BufferType::const_iterator it_lower =
-      values_.lower_bound(timestamp);
+  const typename BufferType::const_iterator it_to_newer_or_equal =
+      values_.lower_bound(timestamp_ns);
 
-  // Verify if we got an exact match.
-  if (it_lower != values_.end() && it_lower->first == timestamp) {
-    *value = it_lower->second;
-    *timestamp_at_value_ns = it_lower->first;
+  // Check if we happened to get an exact match.
+  if (it_to_newer_or_equal != values_.end() &&
+      it_to_newer_or_equal->first == timestamp_ns) {
+    *value = it_to_newer_or_equal->second;
+    *timestamp_at_value_ns = it_to_newer_or_equal->first;
     return true;
   }
 
-  // No exact match found so we need to examine lower and upper
-  // bound on the timestamp.
-  const typename BufferType::const_iterator it_upper =
-      values_.upper_bound(timestamp);
-
-  // If the lower bound points out of the array, we have to return the last
-  // element.
-  if (it_lower == values_.end()) {
-    typename BufferType::const_iterator it_last = std::prev(values_.end());
-    int64_t delta_ns = std::abs(it_last->first - timestamp);
+  // If the lower bound points to end, we have to check the last element,
+  // since the timestamp is newer than the buffer.
+  if (it_to_newer_or_equal == values_.end()) {
+    typename BufferType::const_reverse_iterator it_last = values_.crbegin();
+    int64_t delta_ns = std::abs(it_last->first - timestamp_ns);
     if (delta_ns <= maximum_delta_ns) {
       *value = it_last->second;
-      *timestamp_at_value_ns = it_lower->first;
+      *timestamp_at_value_ns = it_last->first;
+      // The timestamp is newer than the buffer, but within the matching
+      // tolerance.
       return true;
     } else {
+      // The timestamp is newer than the buffer by more than the tolerance.
       return false;
     }
   }
 
-  // If the lower bound points to begin() and no exact match was found, we
-  // have to return the first element.
-  if (it_lower == values_.begin()) {
-    typename BufferType::const_iterator it_first = values_.begin();
-    int64_t delta_ns = std::abs(it_first->first - timestamp);
+  // If the upper bound points to begin(), then the timestamp is older than the
+  // buffer and we need to check the first value in the buffer.
+  if (it_to_newer_or_equal == values_.begin()) {
+    typename BufferType::const_iterator it_first = values_.cbegin();
+    int64_t delta_ns = std::abs(it_first->first - timestamp_ns);
     if (delta_ns <= maximum_delta_ns) {
       *value = it_first->second;
-      *timestamp_at_value_ns = it_lower->first;
+      *timestamp_at_value_ns = it_first->first;
+      // The timestamp is older than the buffer, but within the matching
+      // tolerance.
       return true;
     } else {
+      // The timestamp is older than the buffer, but by more than the tolerance.
       return false;
     }
   }
 
-  // Both iterators are within range so need to find out which of them is
-  // closer to the timestamp.
-  typename BufferType::const_iterator it_before = std::prev(it_lower);
-  int64_t delta_before_ns = std::abs(it_before->first - timestamp);
-  int64_t delta_after_ns = std::abs(it_upper->first - timestamp);
-  if (delta_before_ns < delta_after_ns) {
-    if (delta_before_ns <= maximum_delta_ns) {
-      *value = it_before->second;
-      *timestamp_at_value_ns = it_lower->first;
+  // The timestamp is within the buffer, now we need to figure out which one of
+  // the two adjacent values is closer. Since we already checked that the lower
+  // bound is not the first element, we can just get the older value by moving
+  // the lower_bound iterator backwards.
+  const typename BufferType::const_iterator it_to_older =
+      std::prev(it_to_newer_or_equal);
+  const int64_t delta_to_older_element_ns =
+      std::abs(it_to_older->first - timestamp_ns);
+  const int64_t delta_to_newer_element_ns =
+      std::abs(it_to_newer_or_equal->first - timestamp_ns);
+  if (delta_to_newer_element_ns < delta_to_older_element_ns) {
+    if (delta_to_newer_element_ns <= maximum_delta_ns) {
+      *value = it_to_newer_or_equal->second;
+      *timestamp_at_value_ns = it_to_newer_or_equal->first;
       return true;
     }
   } else {
-    if (delta_after_ns <= maximum_delta_ns) {
-      *value = it_upper->second;
-      *timestamp_at_value_ns = it_lower->first;
+    if (delta_to_older_element_ns <= maximum_delta_ns) {
+      *value = it_to_older->second;
+      *timestamp_at_value_ns = it_to_older->first;
       return true;
     }
   }
-
   return false;
 }
 
@@ -385,69 +391,69 @@ size_t TemporalBuffer<ValueType, AllocatorType>::extractItemsBeforeIncluding(
     return 0u;
   }
 
-  if (values_.begin()->first < timestamp_ns) {
-    typename BufferType::const_iterator it = values_.lower_bound(timestamp_ns);
-
-    // If all values in the buffer should be removed we don't need to move the
-    // iterator another step.
-    CHECK(it != values_.begin());
-    if (it != values_.end()) {
-      it = std::next(it);
-    }
-
-    const size_t size_before = values_.size();
-
-    // Copy values to be removed.
-    typename BufferType::const_iterator local_it = values_.begin();
-    while (local_it != it) {
-      removed_values->emplace_back(local_it->second);
-      ++local_it;
-    }
-
-    // Remove values.
-    values_.erase(values_.begin(), it);
-    const size_t num_elements_erased = size_before - values_.size();
-    CHECK_EQ(num_elements_erased, removed_values->size());
-    return num_elements_erased;
+  // If timestamp is older than oldest timestamp, then there is nothing to
+  // return.
+  if (timestamp_ns < values_.begin()->first) {
+    return 0u;
   }
-  return 0u;
+  // Otherwise there is at least one element that is equal or older.
+
+  // Get first iterator that is greater than the timestamp, i.e. everything
+  // between begin() and this iterator is what we want.
+  typename BufferType::iterator first_newer_timestamp_it =
+		  values_.upper_bound(timestamp_ns);
+
+  // Copy values to be removed.
+  std::transform(
+      values_.begin(), first_newer_timestamp_it,
+      std::back_inserter(*removed_values),
+      [](const typename BufferType::value_type& stamped_value) {
+	  return stamped_value.second;
+  });
+
+  // Erase values.
+  values_.erase(values_.begin(), first_newer_timestamp_it);
+
+  return removed_values->size();
 }
 
 template <typename ValueType, typename AllocatorType>
 template <typename ValueContainerType>
 size_t TemporalBuffer<ValueType, AllocatorType>::
     extractItemsBeforeIncludingKeepMostRecent(
-        const int64_t timestamp_ns, ValueContainerType* earlier_values) {
+        const int64_t timestamp_ns, ValueContainerType* returned_values) {
+  CHECK_NOTNULL(returned_values)->clear();
+
   if (empty()) {
     return 0u;
   }
 
-  if (values_.begin()->first < timestamp_ns) {
-    typename BufferType::const_iterator it = values_.lower_bound(timestamp_ns);
-
-    // If all values in the buffer should be removed we don't need to move the
-    // iterator another step.
-    CHECK(it != values_.begin());
-    if (it != values_.end()) {
-      it = std::next(it);
-    }
-
-    const size_t size_before = values_.size();
-
-    // Copy values to be removed.
-    typename BufferType::const_iterator local_it = values_.begin();
-    while (local_it != it) {
-      earlier_values->emplace_back(local_it->second);
-      ++local_it;
-    }
-
-    // Remove values.
-    values_.erase(values_.begin(), std::prev(it));
-    const size_t num_elements_erased = size_before - values_.size();
-    CHECK_EQ(num_elements_erased, earlier_values->size() - 1);
-    return num_elements_erased;
+  // If timestamp is older than oldest timestamp, then there is nothing to
+  // return.
+  if (timestamp_ns < values_.begin()->first) {
+    return 0u;
   }
-  return 0u;
+  // Otherwise there is at least one element that is equal or older.
+
+  // Get first iterator that is greater than the timestamp, i.e. everything
+  // between begin() and this iterator is what we want.
+  typename BufferType::iterator first_newer_timestamp_it =
+		  values_.upper_bound(timestamp_ns);
+
+  // Copy values earlier or equal to the timestamp.
+  std::transform(
+      values_.begin(), first_newer_timestamp_it,
+      std::back_inserter(*returned_values),
+      [](const typename BufferType::value_type& stamped_value) {
+	  return stamped_value.second;
+  });
+
+  // Remove values that were returned, except for the newest one.
+  const size_t size_before = values_.size();
+  values_.erase(values_.begin(), std::prev(first_newer_timestamp_it));
+  const size_t num_elements_erased = size_before - values_.size();
+  CHECK_EQ(num_elements_erased, returned_values->size() - 1);
+  return num_elements_erased;
 }
 
 template <typename ValueType, typename AllocatorType>

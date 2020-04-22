@@ -84,6 +84,9 @@ template <typename PointCloudType>
 void addScalarToPointCloud(
     const float scalar, const size_t index, PointCloudType* point_cloud);
 template <typename PointCloudType>
+void addLabelToPointCloud(
+    const uint32_t label, const size_t index, PointCloudType* point_cloud);
+template <typename PointCloudType>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
     PointCloudType* point_cloud);
@@ -95,6 +98,9 @@ void getPointFromPointCloud(
 template <typename PointCloudType>
 void getScalarFromPointCloud(
     const PointCloudType& point_cloud, const size_t index, float* scalar);
+template <typename PointCloudType>
+void getLabelFromPointCloud(
+    const PointCloudType& point_cloud, const size_t index, uint32_t* label);
 template <typename PointCloudType>
 void getColorFromPointCloud(
     const PointCloudType& point_cloud, const size_t index,
@@ -113,12 +119,14 @@ bool hasColorInformation(const PointCloudType& point_cloud);
 template <typename PointCloudType>
 bool hasNormalsInformation(const PointCloudType& point_cloud);
 template <typename PointCloudType>
+bool hasLabelInformation(const PointCloudType& point_cloud);
+template <typename PointCloudType>
 bool hasScalarInformation(const PointCloudType& point_cloud);
 
 template <typename PointCloudType>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool has_normals,
-    const bool has_scalar, PointCloudType* point_cloud);
+    const bool has_scalar, const bool has_labels, PointCloudType* point_cloud);
 
 }  // namespace backend
 

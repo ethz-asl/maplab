@@ -22,14 +22,6 @@ typedef std::unordered_map<vi_map::MissionId, pose_graph::VertexIdList>
 }  // namespace vi_map
 
 namespace vi_map_helpers {
-
-// Finds a vertex with the largest number of overlapping (i.e. commonly
-// observed) landmarks. Useful for creation of loop closure edges.
-pose_graph::VertexId getVertexIdWithMostOverlappingLandmarks(
-    const pose_graph::VertexId& query_vertex_id,
-    const vi_map::VertexKeyPointToStructureMatchList& structure_matches,
-    const vi_map::VIMap& map, vi_map::LandmarkIdSet* overlap_landmarks);
-
 // A collection of queries on a VIMap which involve more logic than simple
 // data retrieval.
 class VIMapQueries {

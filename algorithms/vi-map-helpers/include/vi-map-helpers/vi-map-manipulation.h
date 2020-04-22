@@ -104,6 +104,21 @@ class VIMapManipulation {
       const pose_graph::VertexId& new_root_vertex,
       const bool delete_resources_from_file_system);
 
+  // Adds TransformationEdges of type kOdometry between vertices
+  // that have fewer common landmarks than 'min_number_of_common_landmarks'. If
+  // the threshold is set to 0, we add odometry edges between all vertices.
+  uint32_t addOdometryEdgesBetweenVertices(
+      const uint32_t min_number_of_common_landmarks = 0u);
+
+  // If a (sub-)map is not moving at all, landmarks sometimes fail to constrain
+  // the position, which leads to the vertices drifting away or rotating on the
+  // spot, even when constrained with 6DoF odometry edges. This measure can be
+  // justified by the fact that most laser and vision based odometry can perform
+  // a drift-free re-localization against local geometry/features if the robot
+  // does not move.
+  bool constrainStationarySubmapWithLoopClosureEdge(
+      const double max_translation_m, const double max_rotation_m);
+
  private:
   vi_map::VIMap& map_;
   VIMapGeometry geometry_;

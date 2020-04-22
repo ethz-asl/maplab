@@ -36,6 +36,10 @@ DEFINE_double(
     "Shift applied to the scaled values when converting 16bit images to 8bit "
     "images.");
 
+DEFINE_bool(
+    set_imu_bias_to_zero, false,
+    "Setting IMU biases for odometry estimation to zero.");
+
 namespace maplab {
 
 vio::ImuMeasurement::Ptr convertRosImuToMaplabImu(
@@ -156,11 +160,15 @@ OdometryEstimate::Ptr convertRosOdometryMsgToOdometryEstimate(
 
   // IMU Biases.
   Eigen::Vector3d acc_bias = Eigen::Vector3d::Zero();
-  tf::vectorMsgToEigen(msg->accel_bias, acc_bias);
+  if (!FLAGS_set_imu_bias_to_zero) {
+    tf::vectorMsgToEigen(msg->accel_bias, acc_bias);
+  }
   odometry_estimate->vinode.setAccBias(acc_bias);
 
   Eigen::Vector3d gyro_bias = Eigen::Vector3d::Zero();
-  tf::vectorMsgToEigen(msg->gyro_bias, gyro_bias);
+  if (!FLAGS_set_imu_bias_to_zero) {
+    tf::vectorMsgToEigen(msg->gyro_bias, gyro_bias);
+  }
   odometry_estimate->vinode.setGyroBias(gyro_bias);
 
   // TODO(mfehr): We currently don't support this.

@@ -102,6 +102,13 @@ class OptimizationProblem {
   LocalParameterizations local_parameterizations_;
 };
 
+// Struct to hold the summaries and the final state of solver variables of the
+// optimization.
+struct OptimizationProblemResult {
+  std::vector<ceres::IterationSummary> iteration_summaries;
+  std::vector<ceres::Solver::Summary> solver_summaries;
+};
+
 }  // namespace map_optimization
 
 #endif  // MAP_OPTIMIZATION_OPTIMIZATION_PROBLEM_H_

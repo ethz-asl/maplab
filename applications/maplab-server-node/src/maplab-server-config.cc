@@ -16,29 +16,25 @@ bool MaplabServerNodeConfig::deserialize(const YAML::Node& config_node) {
   // Parse submap and global map commands.
   const YAML::Node& submap_commands_node =
       config_node[kYamlFieldNameSubmapCommands];
-  if (!submap_commands_node.IsDefined() || submap_commands_node.IsNull()) {
-    LOG(ERROR) << "Invalid maplab server config YAML. Can not parse "
-               << "submap commands, since the '" << kYamlFieldNameSubmapCommands
-               << "' field is missing!";
-    return false;
-  }
+  if (submap_commands_node.IsDefined() && !submap_commands_node.IsNull()) {
+    if (!submap_commands_node.IsSequence()) {
+      LOG(ERROR) << "Invalid maplab server config YAML. Can not parse "
+                 << "submap commands, since the '"
+                 << kYamlFieldNameSubmapCommands
+                 << "' field is not a sequence!";
+      return false;
+    }
+    const size_t num_commands = submap_commands_node.size();
 
-  if (!submap_commands_node.IsSequence()) {
-    LOG(ERROR) << "Invalid maplab server config YAML. Can not parse "
-               << "submap commands, since the '" << kYamlFieldNameSubmapCommands
-               << "' field is not a sequence!";
-    return false;
-  }
-  const size_t num_commands = submap_commands_node.size();
+    for (size_t command_index = 0; command_index < num_commands;
+         ++command_index) {
+      const std::string command =
+          submap_commands_node[command_index].as<std::string>();
 
-  for (size_t command_index = 0; command_index < num_commands;
-       ++command_index) {
-    const std::string command =
-        submap_commands_node[command_index].as<std::string>();
+      CHECK(!command.empty()) << "Invalid submap command in config, is empty!";
 
-    CHECK(!command.empty()) << "Invalid submap command in config, is empty!";
-
-    submap_commands.push_back(command);
+      submap_commands.push_back(command);
+    }
   }
 
   const YAML::Node& global_map_commands_node =

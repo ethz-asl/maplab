@@ -94,7 +94,7 @@ LocalizationHandler::LocalizationHandler(
     aslam::SensorIdSet odometry_sensors;
     sensor_manager_.getAllSensorIdsOfType(
         vi_map::kOdometry6DoF, &odometry_sensors);
-    CHECK_GT(odometry_sensors.size(), 0)
+    CHECK_GT(odometry_sensors.size(), 0u)
         << "[MaplabNode-LocalizationHandler] There needs to be at least one "
         << "odometry source to perform localization fusion.";
     vi_map::Odometry6DoF odometry_sensor =

@@ -111,12 +111,13 @@ LeftQuaternionJPLMultiplicationMatrix(const Eigen::MatrixBase<Derived>& q) {
 
 template <template <typename, typename> class Container>
 void transformationRansac(
-    const Container<pose::Transformation,
-                    Eigen::aligned_allocator<pose::Transformation>>&
+    const Container<
+        pose::Transformation, Eigen::aligned_allocator<pose::Transformation>>&
         T_A_B_samples,
     int num_iterations, double threshold_orientation_radians,
     double threshold_position_meters, int ransac_seed,
-    pose::Transformation* T_A_B, int* num_inliers) {
+    pose::Transformation* T_A_B, int* num_inliers,
+    std::unordered_set<int>* inlier_indices) {
   CHECK_NOTNULL(T_A_B);
   CHECK_NOTNULL(num_inliers);
   CHECK(!T_A_B_samples.empty());
@@ -173,6 +174,11 @@ void transformationRansac(
   T_A_B->getRotation().toImplementation().coeffs() = q_A_B_JPL;
   T_A_B->getPosition() = p_A_B_inliers / best_inlier_indices.size();
   *num_inliers = best_inlier_indices.size();
+
+  if (inlier_indices != nullptr) {
+    inlier_indices->insert(
+        best_inlier_indices.begin(), best_inlier_indices.end());
+  }
 }
 
 namespace geometry {

@@ -136,6 +136,9 @@ int AnchoringPlugin::anchorAllMissions() const {
   vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
+
+  map_anchoring::setMissionBaseframeToKnownIfHasAbs6DoFConstraints(map.get());
+
   const bool success = map_anchoring::anchorAllMissions(map.get());
   if (hasPlotter()) {
     getPlotter().visualizeMap(*map);

@@ -33,7 +33,7 @@
 #include <sensors/odometry-6dof-pose.h>
 #include <sensors/pointcloud-map-sensor.h>
 #include <sensors/wheel-odometry-sensor.h>
-
+#include <vi-map/sensor-manager.h>
 #include <vio-common/vio-types.h>
 
 #ifdef VOXGRAPH

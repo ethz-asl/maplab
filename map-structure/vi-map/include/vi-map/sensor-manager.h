@@ -101,6 +101,9 @@ class SensorManager : public aslam::YamlFileSerializable {
   const aslam::SensorId& getBaseSensorId(
       const aslam::SensorId& sensor_id) const;
 
+  // Get the base sensor id, if there is only one, returns false otherwise.
+  bool getBaseSensorIdIfUnique(aslam::SensorId* sensor_id) const;
+
   // Set the sensors calibration transformation to the base sensor
   void setSensor_T_B_S(
       const aslam::SensorId& sensor_id, const aslam::Transformation& T_B_S);

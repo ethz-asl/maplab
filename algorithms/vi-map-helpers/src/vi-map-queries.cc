@@ -10,44 +10,6 @@
 
 namespace vi_map_helpers {
 
-pose_graph::VertexId getVertexIdWithMostOverlappingLandmarks(
-    const pose_graph::VertexId& query_vertex_id,
-    const vi_map::VertexKeyPointToStructureMatchList& structure_matches,
-    const vi_map::VIMap& map, vi_map::LandmarkIdSet* overlap_landmarks) {
-  CHECK(!structure_matches.empty());
-  CHECK_NOTNULL(overlap_landmarks)->clear();
-
-  typedef std::unordered_map<pose_graph::VertexId, vi_map::LandmarkIdSet>
-      VertexOverlapLandmarksMap;
-  VertexOverlapLandmarksMap vertex_overlap_map;
-  for (const vi_map::VertexKeyPointToStructureMatch& structure_match :
-       structure_matches) {
-    const vi_map::LandmarkId& landmark_id = structure_match.landmark_result;
-    map.getLandmark(landmark_id)
-        .forEachObservation([&](const vi_map::KeypointIdentifier& keypoint_id) {
-          if (keypoint_id.frame_id.vertex_id != query_vertex_id) {
-            vertex_overlap_map[keypoint_id.frame_id.vertex_id].emplace(
-                landmark_id);
-          }
-        });
-  }
-
-  size_t max_overlap_landmarks = 0u;
-  pose_graph::VertexId largest_overlap_vertex_id;
-  for (const VertexOverlapLandmarksMap::value_type& item : vertex_overlap_map) {
-    if (item.second.size() > max_overlap_landmarks) {
-      largest_overlap_vertex_id = item.first;
-      max_overlap_landmarks = item.second.size();
-    }
-  }
-
-  *overlap_landmarks =
-      common::getChecked(vertex_overlap_map, largest_overlap_vertex_id);
-
-  CHECK(largest_overlap_vertex_id.isValid());
-  return largest_overlap_vertex_id;
-}
-
 VIMapQueries::VIMapQueries(const vi_map::VIMap& map) : map_(map) {}
 
 void VIMapQueries::getIdsOfVerticesWithLandmarkObservations(
@@ -104,7 +66,7 @@ void VIMapQueries::forIdsOfObservedLandmarksOfEachVertexWhile(
     const vi_map::MissionId& mission_id,
     const std::function<
         bool(const vi_map::LandmarkIdSet& store_landmarks)>&  // NOLINT
-    action) const {
+        action) const {
   CHECK(action);
   CHECK(map_.hasMission(mission_id));
   pose_graph::VertexIdList all_mission_vertices;
@@ -122,7 +84,7 @@ void VIMapQueries::forIdsOfObservedLandmarksOfEachVertexAlongGraphWhile(
     const vi_map::MissionId& mission_id,
     const std::function<
         bool(const vi_map::LandmarkIdSet& store_landmarks)>&  // NOLINT
-    action) const {
+        action) const {
   CHECK(action);
   CHECK(map_.hasMission(mission_id));
   pose_graph::VertexId vertex_id =
@@ -394,9 +356,8 @@ int VIMapQueries::getVerticesWithCommonLandmarks(
                 int common = getNumberOfCommonLandmarks(
                     vertex_id, backlink.frame_id.vertex_id);
                 if (common >= min_number_common_landmarks) {
-                  coobserver_vertex_ids->push_back(
-                      VertexCommonLandmarksCount(
-                          common, backlink.frame_id.vertex_id));
+                  coobserver_vertex_ids->push_back(VertexCommonLandmarksCount(
+                      common, backlink.frame_id.vertex_id));
                 }
               }
             }
@@ -480,8 +441,8 @@ int VIMapQueries::getNumberOfCommonLandmarks(
 
   vi_map::LandmarkIdList vector_landmark_ids_1;
   map_.getVertex(vertex_1_id).getAllObservedLandmarkIds(&vector_landmark_ids_1);
-  vi_map::LandmarkIdSet landmark_ids_1(vector_landmark_ids_1.begin(),
-                                       vector_landmark_ids_1.end());
+  vi_map::LandmarkIdSet landmark_ids_1(
+      vector_landmark_ids_1.begin(), vector_landmark_ids_1.end());
 
   vi_map::LandmarkId invalid_id;
   invalid_id.setInvalid();

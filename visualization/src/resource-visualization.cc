@@ -199,6 +199,7 @@ void convertColorPointCloud(
     backend::resizePointCloud(
         point_cloud.size(), true /*input_has_color*/,
         false /*input_has_normals*/, false /*input_has_scalars*/,
+        false, /*input_has_labels*/
         ros_point_cloud);
     for (size_t i = 0u; i < point_cloud.size(); ++i) {
       backend::addPointToPointCloud(
@@ -238,11 +239,13 @@ void publishPointCloudInLocalFrameWithTf(
           << kPointCloudTopic;
 }
 
-void publishPointCloudInGlobalFrame(sensor_msgs::PointCloud2* point_cloud_G) {
+void publishPointCloudInGlobalFrame(
+    const std::string& topic_prefix, sensor_msgs::PointCloud2* point_cloud_G) {
   CHECK_NOTNULL(point_cloud_G);
   point_cloud_G->header.stamp = ros::Time::now();
   point_cloud_G->header.frame_id = FLAGS_tf_map_frame;
-  const std::string kPointCloudTopic = "point_cloud";
+  const std::string kPointCloudTopic =
+      ((topic_prefix.empty()) ? "" : (topic_prefix + "/")) + "point_cloud";
   RVizVisualizationSink::publish(kPointCloudTopic, *point_cloud_G);
   VLOG(2) << "Visualized point-cloud with "
           << point_cloud_G->width * point_cloud_G->height << " points on topic "
@@ -309,7 +312,8 @@ void visualizeReprojectedDepthResource(
           voxblox::transformPointcloud(voxblox_T_G_S, points_S, &points_G);
           convertColorPointCloud(points_G, colors, &ros_point_cloud_G);
 
-          publishPointCloudInGlobalFrame(&ros_point_cloud_G);
+          publishPointCloudInGlobalFrame(
+              "" /*topic prefix*/, &ros_point_cloud_G);
         }
 
         // Sleep for a bit to not publish the pointclouds too fast.
@@ -333,7 +337,7 @@ void visualizeReprojectedDepthResource(
   sensor_msgs::PointCloud2 ros_point_cloud_G;
   convertColorPointCloud(
       accumulated_point_cloud_G, accumulated_colors, &ros_point_cloud_G);
-  publishPointCloudInGlobalFrame(&ros_point_cloud_G);
+  publishPointCloudInGlobalFrame("" /*topic prefix*/, &ros_point_cloud_G);
 
   // Only continue if we want to export the accumulated point cloud to file.
   if (FLAGS_vis_pointcloud_export_accumulated_pc_to_ply_path.empty()) {
@@ -350,6 +354,110 @@ void visualizeReprojectedDepthResource(
             << "'...'";
   maplab_point_cloud_G.writeToFile(
       FLAGS_vis_pointcloud_export_accumulated_pc_to_ply_path);
+}
+
+void createAndAppendAccumulatedPointCloudMessageForMission(
+    const backend::ResourceType input_resource_type,
+    const vi_map::MissionId& mission_id, const vi_map::VIMap& vi_map,
+    voxblox::Pointcloud* accumulated_point_cloud_G,
+    voxblox::Colors* accumulated_colors) {
+  CHECK_NOTNULL(accumulated_point_cloud_G);
+  CHECK_NOTNULL(accumulated_colors);
+  CHECK(mission_id.isValid());
+  CHECK(vi_map.hasMission(mission_id));
+
+  uint32_t point_cloud_counter = 0u;
+
+  srand(time(NULL));
+
+  depth_integration::IntegrationFunction integration_function =
+      [&accumulated_point_cloud_G, &accumulated_colors, &point_cloud_counter](
+          const voxblox::Transformation& voxblox_T_G_S,
+          const voxblox::Pointcloud& points_S,
+          const voxblox::Colors& original_colors) {
+        if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
+            (point_cloud_counter % FLAGS_vis_pointcloud_visualize_every_nth !=
+             0u)) {
+          ++point_cloud_counter;
+          return;
+        }
+
+        voxblox::Colors colors;
+        if (FLAGS_vis_pointcloud_color_random) {
+          const voxblox::Color new_color = voxblox::randomColor();
+          colors = voxblox::Colors(points_S.size(), new_color);
+        } else {
+          colors = original_colors;
+        }
+
+        ++point_cloud_counter;
+
+        const aslam::Transformation T_G_S = voxblox_T_G_S.cast<double>();
+
+        transformAndAppendPointcloud(
+            points_S, voxblox_T_G_S, accumulated_point_cloud_G);
+        accumulated_colors->insert(
+            accumulated_colors->end(), colors.begin(), colors.end());
+        return;
+      };
+
+  vi_map::MissionIdList mission_ids;
+  mission_ids.emplace_back(mission_id);
+  depth_integration::integrateAllDepthResourcesOfType(
+      mission_ids, input_resource_type,
+      FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
+      integration_function);
+}
+
+void visualizeReprojectedDepthResourcePerRobot(
+    const backend::ResourceType input_resource_type,
+    const std::unordered_map<std::string, vi_map::MissionIdList>
+        robot_name_to_mission_ids_map,
+    const vi_map::VIMap& vi_map) {
+  CHECK_GE(FLAGS_vis_pointcloud_sleep_between_point_clouds_ms, 0);
+  CHECK(
+      !(FLAGS_vis_pointcloud_accumulated_before_publishing &&
+        FLAGS_vis_pointcloud_publish_in_sensor_frame_with_tf));
+
+  // Accumulate all the point clouds of the robot missoins. If there are no
+  // missions in the map, a empty point cloud will be published.
+  for (const auto& kv : robot_name_to_mission_ids_map) {
+    const std::string& robot_name = kv.first;
+    const vi_map::MissionIdList& mission_ids = kv.second;
+
+    if (robot_name.empty()) {
+      LOG(ERROR) << "Cannot visualize point clouds for robot missions, because "
+                 << "the robot name is empty (name: '" << robot_name << "')";
+      continue;
+    }
+
+    voxblox::Pointcloud accumulated_point_cloud_G;
+    voxblox::Colors accumulated_colors;
+    for (const vi_map::MissionId& mission_id : mission_ids) {
+      if (!mission_id.isValid()) {
+        LOG(ERROR) << "Cannot visualize one mission of robot '" << robot_name
+                   << "' since the provided mission id is invalid!'";
+        continue;
+      }
+
+      if (!vi_map.hasMission(mission_id)) {
+        LOG(ERROR) << "Cannot visualize one mission of robot '" << robot_name
+                   << "' since the provided mission id ('" << mission_id
+                   << "') is not in the map!'";
+        continue;
+      }
+      createAndAppendAccumulatedPointCloudMessageForMission(
+          input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G,
+          &accumulated_colors);
+    }
+
+    // Publish accumulated point cloud in global frame.
+    sensor_msgs::PointCloud2 ros_point_cloud_G;
+    convertColorPointCloud(
+        accumulated_point_cloud_G, accumulated_colors, &ros_point_cloud_G);
+    publishPointCloudInGlobalFrame(
+        robot_name /*topic prefix*/, &ros_point_cloud_G);
+  }
 }
 
 }  // namespace visualization

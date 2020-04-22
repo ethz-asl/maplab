@@ -192,10 +192,10 @@ rovio::RovioInterface* constructAndConfigureRovio(
 
   rovio::RovioInterface* rovio = nullptr;
   switch (num_cameras) {
-    case 1:
+    case 1u:
       rovio = RovioBuilder<1>()(rovio_configuration, rovio_calibrations);
       break;
-    case 2:
+    case 2u:
       rovio = RovioBuilder<2>()(rovio_configuration, rovio_calibrations);
       break;
     default:
