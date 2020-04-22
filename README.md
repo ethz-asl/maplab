@@ -1,7 +1,7 @@
 <img src="https://github.com/ethz-asl/maplab/wiki/logos/maplab_new.png" width="500">
 
 *Ubuntu 14.04+ROS indigo*, *Ubuntu 16.04+ROS kinetic* and *Ubuntu 18.04+ROS melodic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly) 
-[![Documentation Status](https://readthedocs.org/projects/maplab/badge/?version=latest&token=9642413ddd033563c888dd2df561b04f3edb68d505cf190b6bcfb0bcfcb4ccda)](https://maplab.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_docs&subject=docs)](https://jenkins.asl.ethz.ch/job/maplab_docs)
 
 ## News
 
