@@ -202,8 +202,23 @@ void DataPublisherFlow::publishOdometryState(
   tf::poseStampedKindrToMsg(
       T_M_B, timestamp_ros, FLAGS_tf_mission_frame, &T_M_I_message);
   pub_pose_T_M_B_.publish(T_M_I_message);
-  visualization::publishTF(
-      T_M_B, FLAGS_tf_mission_frame, FLAGS_tf_imu_frame, timestamp_ros);
+
+  aslam::SensorId base_sensor_id;
+  if (sensor_manager_.getBaseSensorIdIfUnique(&base_sensor_id)) {
+    const vi_map::SensorType base_sensor_type =
+        sensor_manager_.getSensorType(base_sensor_id);
+    const std::string base_sensor_tf_frame_id =
+        visualization::convertSensorTypeToTfFrameId(base_sensor_type) +
+        "_0_BASE";
+
+    visualization::publishTF(
+        T_M_B, FLAGS_tf_mission_frame, base_sensor_tf_frame_id, timestamp_ros);
+
+    visualization::publishSensorTFs(sensor_manager_, timestamp_ros);
+  } else {
+    LOG(ERROR) << "There is more than one base sensor, cannot publish base to "
+                  "tf tree!";
+  }
 }
 
 void DataPublisherFlow::publishVinsState(
@@ -217,8 +232,23 @@ void DataPublisherFlow::publishVinsState(
   tf::poseStampedKindrToMsg(
       T_M_B, timestamp_ros, FLAGS_tf_mission_frame, &T_M_I_message);
   pub_pose_T_M_B_.publish(T_M_I_message);
-  visualization::publishTF(
-      T_M_B, FLAGS_tf_mission_frame, FLAGS_tf_imu_refined_frame, timestamp_ros);
+
+  aslam::SensorId base_sensor_id;
+  if (sensor_manager_.getBaseSensorIdIfUnique(&base_sensor_id)) {
+    const vi_map::SensorType base_sensor_type =
+        sensor_manager_.getSensorType(base_sensor_id);
+    const std::string localized_base_sensor_tf_frame_id =
+        visualization::convertSensorTypeToTfFrameId(base_sensor_type) +
+        "_0_BASE_LOCALIZED";
+
+    visualization::publishTF(
+        T_M_B, FLAGS_tf_mission_frame, localized_base_sensor_tf_frame_id,
+        timestamp_ros);
+
+  } else {
+    LOG(ERROR) << "There is more than one base sensor, cannot publish base to "
+                  "tf tree!";
+  }
 
   // Publish pose in global frame, but only as marker, not into the tf tree,
   // since it is composing this transformation on its own.

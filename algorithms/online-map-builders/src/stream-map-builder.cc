@@ -453,11 +453,18 @@ void StreamMapBuilder::addWheelOdometryEdge(
   // TODO(ben): use the correct covariance from config file
   const pose_graph::EdgeId edge_id =
       aslam::createRandomId<pose_graph::EdgeId>();
-  const aslam::SensorId& sensor_id =
-      getSelectedWheelOdometrySensor(constMap()->getSensorManager())->getId();
+  const vi_map::WheelOdometry::Ptr odometry_sensor =
+      getSelectedWheelOdometrySensor(constMap()->getSensorManager());
+  if (!odometry_sensor) {
+    LOG(ERROR) << "Cannot attach wheel odometry edges if there is no selected "
+                  "wheel odometry sensor!";
+    return;
+  }
+
+  const aslam::SensorId& sensor_id = odometry_sensor->getId();
   aslam::TransformationCovariance wheel_odometry_covariance;
-  CHECK(getSelectedWheelOdometrySensor(constMap()->getSensorManager())
-            ->get_T_St_stp1_fixed_covariance(&wheel_odometry_covariance))
+  CHECK(odometry_sensor->get_T_St_Stp1_fixed_covariance(
+      &wheel_odometry_covariance))
       << "No transformation covariance for wheel odometry sensor provided, "
       << "please set a fixed covariance in the wheel odometry sensor config "
          "file.";
@@ -468,7 +475,12 @@ void StreamMapBuilder::addWheelOdometryEdge(
 }
 
 bool StreamMapBuilder::checkConsistency() const {
-  return vi_map::checkMapConsistency(*CHECK_NOTNULL(constMap()));
+  bool is_consistent = false;
+  if (!FLAGS_disable_consistency_check) {
+    is_consistent = vi_map::checkMapConsistency(*CHECK_NOTNULL(constMap()));
+  }
+
+  return is_consistent;
 }
 
 void StreamMapBuilder::bufferAbsolute6DoFConstraint(
@@ -539,7 +551,7 @@ void StreamMapBuilder::notifyBuffers() {
 }
 
 void StreamMapBuilder::notifyAbsolute6DoFConstraintBuffer() {
-  if (map_->numVertices() < 1u || absolute_6dof_measurment_buffer_.empty()) {
+  if (map_->numVertices() < 2u || absolute_6dof_measurment_buffer_.empty()) {
     return;
   }
 

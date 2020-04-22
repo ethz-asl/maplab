@@ -8,6 +8,9 @@
  * Titus Cieslewski
  * Timo Hinzmann
  * Mathias Gehrig
+ * Florian Tschopp
+ * Andrei Cramariuc
+ * Lukas Bernreiter
  * Nicolas Degen
  * Andreas Pfrunder
  * Helen Oleynikova

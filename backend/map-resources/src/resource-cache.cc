@@ -50,8 +50,8 @@ void ResourceCache::resetStatistic() {
   statistic_.reset();
 }
 
-// NOTE: [ADD_RESOURCE_DATA_TYPE] Make sure the cache of the new data type is
-// also listed here.
+// NOTE: [ADD_RESOURCE_DATA_TYPE] [ADD_RESOURCE_TYPE] Make sure the cache of the
+// new data type is also listed here.
 void ResourceCache::deleteResourceNoDataType(
     const ResourceId& id, const ResourceType& type) {
   switch (type) {
@@ -79,6 +79,7 @@ void ResourceCache::deleteResourceNoDataType(
     case ResourceType::kPointCloudXYZ:
     case ResourceType::kPointCloudXYZRGBN:
     case ResourceType::kPointCloudXYZI:
+    case ResourceType::kPointCloudXYZL:
       deleteResource<resources::PointCloud>(id, type);
       break;
     case ResourceType::kVoxbloxTsdfMap:

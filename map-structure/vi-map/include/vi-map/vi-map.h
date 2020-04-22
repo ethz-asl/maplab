@@ -51,6 +51,8 @@
 #include "vi-map/vi_map.pb.h"
 #include "vi-map/viwls-edge.h"
 
+DECLARE_bool(disable_consistency_check);
+
 class LoopClosureHandlerTest;
 
 namespace vi_map {
@@ -852,8 +854,10 @@ class VIMap : public backend::ResourceMap,
       VIMission* mission);
 
   void deleteAllSensorResourcesBeforeTime(
-      const vi_map::MissionId& mission_id, int64_t timestamp_ns,
-      const bool delete_from_file_system);
+          const vi_map::MissionId& mission_id, int64_t timestamp_ns,
+          const bool delete_from_file_system);
+  void deleteAllSensorResources(
+          const vi_map::MissionId& mission_id, const bool delete_from_file_system);
 
   // Map interface (for map manager)
   // ===============================

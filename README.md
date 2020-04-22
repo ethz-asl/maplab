@@ -6,7 +6,14 @@
 
  * **May 2018:** maplab was presented at [ICRA](https://icra2018.org/) in Brisbane. ([paper](https://arxiv.org/abs/1711.10250))
  * **March 2018:** Check out our release candidate with improved localization and lots of new features! [PR](https://github.com/ethz-asl/maplab/pull/55)
- 
+
+## Description
+
+## News
+
+ * **May 2018:** maplab was presented at [ICRA](https://icra2018.org/) in Brisbane. ([paper](https://arxiv.org/abs/1711.10250))
+ * **March 2018:** Check out our release candidate with improved localization and lots of new features! [PR](https://github.com/ethz-asl/maplab/pull/55)
+
 ## Description
 
 This repository contains **maplab**,  an  open,  research-oriented visual-inertial  mapping  framework, written  in  C++,  for  creating, processing  and  manipulating  multi-session  maps.
@@ -104,5 +111,8 @@ Certain components of maplab are directly using the code of the following public
  * Titus Cieslewski
  * Timo Hinzmann
  * Mathias Gehrig
- 
+ * Florian Tschopp
+ * Andrei Cramariuc
+ * Lukas Bernreiter
+
 For a complete list of contributors, have a look at [CONTRIBUTORS.md](https://github.com/ethz-asl/maplab/blob/master/CONTRIBUTORS.md)

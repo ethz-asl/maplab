@@ -89,7 +89,7 @@ TEST_F(TemporalBufferFixture, GetNearestValueToTimeWorks) {
 }
 
 TEST_F(TemporalBufferFixture, GetNearestValueToTimeMaxDeltaWorks) {
-  addValue(TestData(30));
+  addValue(TestData(40));
   addValue(TestData(10));
   addValue(TestData(20));
 
@@ -107,13 +107,13 @@ TEST_F(TemporalBufferFixture, GetNearestValueToTimeMaxDeltaWorks) {
   EXPECT_TRUE(buffer_.getNearestValueToTime(16, kMaxDelta, &retrieved_item));
   EXPECT_EQ(retrieved_item.timestamp, 20);
 
-  EXPECT_TRUE(buffer_.getNearestValueToTime(26, kMaxDelta, &retrieved_item));
-  EXPECT_EQ(retrieved_item.timestamp, 30);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(36, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 40);
 
-  EXPECT_TRUE(buffer_.getNearestValueToTime(32, kMaxDelta, &retrieved_item));
-  EXPECT_EQ(retrieved_item.timestamp, 30);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(42, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 40);
 
-  EXPECT_FALSE(buffer_.getNearestValueToTime(36, kMaxDelta, &retrieved_item));
+  EXPECT_FALSE(buffer_.getNearestValueToTime(46, kMaxDelta, &retrieved_item));
 
   buffer_.clear();
   addValue(TestData(10));
@@ -133,6 +133,8 @@ TEST_F(TemporalBufferFixture, GetNearestValueToTimeMaxDeltaWorks) {
 
   buffer_.clear();
   addValue(TestData(10));
+
+  EXPECT_FALSE(buffer_.getNearestValueToTime(1, kMaxDelta, &retrieved_item));
 
   EXPECT_TRUE(buffer_.getNearestValueToTime(6, kMaxDelta, &retrieved_item));
   EXPECT_EQ(retrieved_item.timestamp, 10);
@@ -334,6 +336,59 @@ TEST_F(TemporalBufferFixture, RemovingAndRetrieveItemsByThreshold) {
   EXPECT_EQ(buffer_.extractItemsBeforeIncluding(110, &removed_values), 0u);
   EXPECT_EQ(buffer_.size(), 0u);
   ASSERT_TRUE(removed_values.empty());
+}
+
+TEST_F(TemporalBufferFixture, RemovingAndRetrieveItemsByThresholdCornerCases) {
+  addValue(TestData(10));
+  addValue(TestData(20));
+  EXPECT_EQ(buffer_.size(), 2u);
+
+  std::vector<TestData> removed_values_2;
+  EXPECT_EQ(buffer_.extractItemsBeforeIncluding(15, &removed_values_2), 1u);
+  EXPECT_EQ(buffer_.size(), 1u);
+  ASSERT_EQ(removed_values_2.size(), 1u);
+  EXPECT_EQ(removed_values_2[0].timestamp, 10);
+}
+
+TEST_F(TemporalBufferFixture, TestExtractItemsBeforeIncludingKeepMostRecent) {
+  {
+    addValue(TestData(10));
+    addValue(TestData(20));
+    addValue(TestData(30));
+    addValue(TestData(40));
+    addValue(TestData(50));
+    EXPECT_EQ(buffer_.size(), 5u);
+
+    std::vector<TestData> removed_values;
+    EXPECT_EQ(
+        buffer_.extractItemsBeforeIncludingKeepMostRecent(30, &removed_values),
+        2u);
+    EXPECT_EQ(buffer_.size(), 3u);
+    ASSERT_EQ(removed_values.size(), 3u);
+    EXPECT_EQ(removed_values[0].timestamp, 10);
+    EXPECT_EQ(removed_values[1].timestamp, 20);
+    EXPECT_EQ(removed_values[2].timestamp, 30);
+  }
+
+  buffer_.clear();
+
+  {
+    addValue(TestData(10));
+    addValue(TestData(20));
+    addValue(TestData(30));
+    addValue(TestData(40));
+    addValue(TestData(50));
+    EXPECT_EQ(buffer_.size(), 5u);
+
+    std::vector<TestData> returned_values;
+    EXPECT_EQ(
+        buffer_.extractItemsBeforeIncludingKeepMostRecent(28, &returned_values),
+        1u);
+    EXPECT_EQ(buffer_.size(), 4u);
+    ASSERT_EQ(returned_values.size(), 2u);
+    EXPECT_EQ(returned_values[0].timestamp, 10);
+    EXPECT_EQ(returned_values[1].timestamp, 20);
+  }
 }
 
 TEST_F(TemporalBufferFixture, GetValuesFromIncludingToIncluding) {

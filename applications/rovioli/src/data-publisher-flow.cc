@@ -4,6 +4,7 @@
 #include <maplab-common/file-logger.h>
 #include <maplab_msgs/OdometryWithImuBiases.h>
 #include <minkindr_conversions/kindr_msg.h>
+#include <nav_msgs/Odometry.h>
 #include "rovioli/data-publisher-flow.h"
 #include "rovioli/ros-helpers.h"
 
@@ -72,6 +73,8 @@ void DataPublisherFlow::registerPublishers() {
   pub_maplab_odom_T_M_I_ =
       node_handle_.advertise<maplab_msgs::OdometryWithImuBiases>(
           kTopicMaplabOdomMsg, 1);
+  pub_odom_T_M_I_ =
+      node_handle_.advertise<nav_msgs::Odometry>(kTopicOdomMsg, 1);
 }
 
 void DataPublisherFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
@@ -191,6 +194,7 @@ void DataPublisherFlow::publishVinsState(
   // Check whether publishing is needed.
   const bool maplab_odom_should_publish =
       pub_maplab_odom_T_M_I_.getNumSubscribers() > 0;
+  const bool odom_should_publish = pub_odom_T_M_I_.getNumSubscribers() > 0;
   const bool pose_T_M_I_should_publish =
       pub_pose_T_M_I_.getNumSubscribers() > 0;
   const bool velocity_I_should_publish =
@@ -202,8 +206,10 @@ void DataPublisherFlow::publishVinsState(
 
   // Publish pose in mission frame.
   maplab_msgs::OdometryWithImuBiases maplab_odom_T_M_I;
+  nav_msgs::Odometry odom_T_M_I;
   const aslam::Transformation& T_M_I = vinode.get_T_M_I();
-  if (pose_T_M_I_should_publish || maplab_odom_should_publish) {
+  if (pose_T_M_I_should_publish || maplab_odom_should_publish ||
+      odom_should_publish) {
     geometry_msgs::PoseStamped T_M_I_message;
     tf::poseStampedKindrToMsg(
         T_M_I, timestamp_ros, FLAGS_tf_mission_frame, &T_M_I_message);
@@ -216,6 +222,12 @@ void DataPublisherFlow::publishVinsState(
     eigenMatrixToOdometryCovariance(
         vinode.getPoseCovariance(), maplab_odom_T_M_I.pose.covariance.data());
     maplab_odom_T_M_I.odometry_state = 0u;  //  = OK
+
+    odom_T_M_I.header = T_M_I_message.header;
+    odom_T_M_I.child_frame_id = FLAGS_tf_imu_frame;
+    odom_T_M_I.pose.pose = T_M_I_message.pose;
+    eigenMatrixToOdometryCovariance(
+        vinode.getPoseCovariance(), odom_T_M_I.pose.covariance.data());
   }
   visualization::publishTF(
       T_M_I, FLAGS_tf_mission_frame, FLAGS_tf_imu_frame, timestamp_ros);
@@ -249,7 +261,8 @@ void DataPublisherFlow::publishVinsState(
       T_G_M, FLAGS_tf_map_frame, FLAGS_tf_mission_frame, timestamp_ros);
 
   // Publish velocity.
-  if (velocity_I_should_publish || maplab_odom_should_publish) {
+  if (velocity_I_should_publish || maplab_odom_should_publish ||
+      odom_should_publish) {
     const Eigen::Vector3d& v_M_I = vinode.get_v_M_I();
     geometry_msgs::Vector3Stamped velocity_msg;
     velocity_msg.header.stamp = timestamp_ros;
@@ -258,12 +271,15 @@ void DataPublisherFlow::publishVinsState(
     velocity_msg.vector.z = v_M_I[2];
     // Also copy the velocity to the maplab odom message
     maplab_odom_T_M_I.twist.twist.linear = velocity_msg.vector;
+    odom_T_M_I.twist.twist.linear = velocity_msg.vector;
     if (velocity_I_should_publish) {
       pub_velocity_I_.publish(velocity_msg);
     }
     // add the velocity covariance terms
     eigenMatrixToOdometryCovariance(
         vinode.getTwistCovariance(), maplab_odom_T_M_I.twist.covariance.data());
+    eigenMatrixToOdometryCovariance(
+        vinode.getTwistCovariance(), odom_T_M_I.twist.covariance.data());
   }
 
   // Publish IMU bias.
@@ -293,6 +309,10 @@ void DataPublisherFlow::publishVinsState(
 
   if (maplab_odom_should_publish) {
     pub_maplab_odom_T_M_I_.publish(maplab_odom_T_M_I);
+  }
+
+  if (odom_should_publish) {
+    pub_odom_T_M_I_.publish(odom_T_M_I);
   }
 
   if (FLAGS_publish_debug_markers) {

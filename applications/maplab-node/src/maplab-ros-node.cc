@@ -55,6 +55,9 @@ DEFINE_bool(
     "number will be appended to map_output_folder to obtain an available "
     "folder.");
 DEFINE_bool(
+    map_add_unique_timestamp_prefix_for_save_map_folder, false,
+    "Adds an unique timestamp to the store location of the map folder");
+DEFINE_bool(
     map_compute_localization_map, false,
     "Optimize and process the map into a localization map before "
     "saving it.");
@@ -102,6 +105,11 @@ MaplabRosNode::MaplabRosNode(
   // a number to the name until a name is found that is free.
   map_output_folder_ = FLAGS_map_output_folder;
   if (!FLAGS_map_overwrite_enabled && !map_output_folder_.empty()) {
+    // Add a unique mission_timestamp prefix for storing the submaps.
+    if (FLAGS_map_add_unique_timestamp_prefix_for_save_map_folder) {
+      map_output_folder_ +=
+          "/mission_" + std::to_string(aslam::time::nanoSecondsSinceEpoch());
+    }
     map_output_folder_ = common::getUniqueFolderName(map_output_folder_);
   }
   if (map_output_folder_.empty()) {

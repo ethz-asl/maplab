@@ -51,6 +51,13 @@ DEFINE_bool(
     "if keyframing is enabled it is highly recommended to set "
     "--vi_map_landmark_quality_min_observers to 2.");
 
+DEFINE_int32(
+    map_add_odometry_edges_if_less_than_n_common_landmarks, -1,
+    "Add odometry 6DoF edges/constraints based on the incoming odometry "
+    "poses, but only if there are less common landmarks than this threshold. "
+    "If set to 0, edges are added between all vertices, if set to -1, no "
+    "odometry edges are added.");
+
 namespace maplab {
 MapBuilderFlow::MapBuilderFlow(
     const vi_map::SensorManager& sensor_manager,
@@ -301,9 +308,19 @@ bool MapBuilderFlow::saveMapAndOptionallyOptimize(
     }
   }
 
+  vi_map_helpers::VIMapManipulation manipulation(&map_with_mutex_->vi_map);
+
+  if (FLAGS_map_add_odometry_edges_if_less_than_n_common_landmarks >= 0) {
+    const uint32_t num_odom_edges_added =
+        manipulation.addOdometryEdgesBetweenVertices(
+            FLAGS_map_add_odometry_edges_if_less_than_n_common_landmarks);
+    LOG(INFO) << "[MaplabNode-MapBuilder] Added " << num_odom_edges_added
+              << " odometry edges to map.";
+  }
+
   if (FLAGS_map_remove_bad_landmarks) {
     LOG(INFO) << "[MaplabNode-MapBuilder] Removing bad landmarks.";
-    vi_map_helpers::VIMapManipulation manipulation(&map_with_mutex_->vi_map);
+
     const size_t num_removed = manipulation.removeBadLandmarks();
     LOG(INFO) << "[MaplabNode-MapBuilder] Removed " << num_removed
               << " bad landmark(s).";
@@ -387,6 +404,13 @@ bool MapBuilderFlow::saveMapAndOptionallyOptimize(
     drop_data_manipulation.dropMapDataBeforeVertex(
         id_of_first_mission, last_vertex_of_previous_map_saving_,
         false /* delete resources from file system */);
+
+    // Even though dropping all the map data up until the current vertex removes
+    // all resources up to the vertex, there might still be some resources that
+    // are ahead of the current map. So we delete them all to be sure we catch
+    // those as well.
+    map_with_mutex_->vi_map.deleteAllSensorResources(
+        id_of_first_mission, false);
 
     stream_map_builder_.updateMapDependentData();
   }

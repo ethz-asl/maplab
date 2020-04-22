@@ -46,6 +46,8 @@ Synchronizer::Synchronizer(const vi_map::SensorManager& sensor_manager)
       min_nframe_timestamp_diff_ns_(
           kSecondsToNanoSeconds /
           FLAGS_vio_nframe_sync_max_output_frequency_hz),
+      min_nframe_timestamp_diff_tolerance_factor_(
+          FLAGS_vio_nframe_sync_max_output_frequency_tolerance_factor_),
       odometry_measurement_counter_(0),
       lidar_skip_counter_(0u),
       shutdown_(false),
@@ -63,9 +65,7 @@ Synchronizer::Synchronizer(const vi_map::SensorManager& sensor_manager)
       time_last_loop_closure_message_received_or_checked_ns_(
           aslam::time::getInvalidTime()),
       time_last_pointcloud_map_message_received_or_checked_ns_(
-          aslam::time::getInvalidTime()),
-      min_nframe_timestamp_diff_tolerance_factor_(
-          FLAGS_vio_nframe_sync_max_output_frequency_tolerance_factor_) {
+          aslam::time::getInvalidTime()) {
   CHECK_GT(FLAGS_vio_nframe_sync_max_output_frequency_hz, 0.);
 
   if (FLAGS_enable_synchronizer_statistics) {

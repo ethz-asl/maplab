@@ -5,6 +5,7 @@
 #include <vi-map-helpers/vi-map-queries.h>
 #include <vi-map/vi-map.h>
 
+#include <ceres/ceres.h>
 #include <limits>
 #include <unordered_map>
 #include <unordered_set>
@@ -12,6 +13,8 @@
 
 #include "map-optimization/optimization-problem.h"
 #include "map-optimization/optimization-terms-addition.h"
+#include "map-optimization/outlier-rejection-solver.h"
+#include "map-optimization/solver-options.h"
 
 namespace map_optimization {
 
@@ -38,6 +41,10 @@ struct ViProblemOptions {
   bool fix_wheel_extrinsics;
   bool fix_vertices;
 
+  // 6DoF odometry constraints.
+  bool add_6dof_odometry_constraints;
+  bool fix_6dof_odometry_extrinsics;
+
   // Absolute pose constraints
   bool add_absolute_pose_constraints;
   bool fix_absolute_pose_sensor_extrinsics;
@@ -45,8 +52,16 @@ struct ViProblemOptions {
 
   bool add_loop_closure_edges;
 
+  bool enable_visual_outlier_rejection;
+  map_optimization::OutlierRejectionSolverOptions
+      visual_outlier_rejection_options;
+
+  ceres::Solver::Options solver_options;
+
   bool isValid() const {
-    return (gravity_magnitude > 0.0);
+    bool is_valid = true;
+    is_valid &= (gravity_magnitude > 0.0);
+    return is_valid;
   }
 
   void printToConsole(const int verbosity_level = 3) {

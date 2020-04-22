@@ -7,16 +7,16 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <minkindr_conversions/kindr_msg.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
+#include <std_srvs/Empty.h>
 
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
 #include <maplab_msgs/MapLookupRequest.h>
 #include <maplab_msgs/MapLookupResponse.h>
-
-#include <std_srvs/Empty.h>
 
 #include "maplab-server-node/maplab-server-config.h"
 #include "maplab-server-node/maplab-server-node.h"
@@ -67,12 +67,62 @@ MaplabServerRosNode::MaplabServerRosNode(
           boost::bind(&MaplabServerRosNode::mapLookupCallback, this, _1, _2);
   map_lookup_srv_ = nh_.advertiseService("map_lookup", map_lookup_callback);
 
+  boost::function<bool(
+      maplab_msgs::DeleteMission::Request&,
+      maplab_msgs::DeleteMission::Response&)>
+      delete_mission_callback = boost::bind(
+          &MaplabServerRosNode::deleteMissionCallback, this, _1, _2);
+  delete_mission_srv_ =
+      nh_.advertiseService("delete_mission", delete_mission_callback);
+
+  boost::function<bool(
+      maplab_msgs::DeleteAllRobotMissions::Request&,
+      maplab_msgs::DeleteAllRobotMissions::Response&)>
+      delete_all_robot_missions_callback = boost::bind(
+          &MaplabServerRosNode::deleteAllRobotMissionsCallback, this, _1, _2);
+  delete_all_robot_missions_srv_ = nh_.advertiseService(
+      "delete_all_robot_missions", delete_all_robot_missions_callback);
+
   boost::function<void(const diagnostic_msgs::KeyValueConstPtr&)>
       submap_loading_callback =
           boost::bind(&MaplabServerRosNode::submapLoadingCallback, this, _1);
   map_update_notification_sub_ = nh_.subscribe(
       FLAGS_maplab_server_map_update_topic,
       FLAGS_maplab_server_map_update_topic_queue_size, submap_loading_callback);
+
+  T_G_curr_B_curr_pub_ =
+      nh_.advertise<geometry_msgs::TransformStamped>("T_G_curr_B_curr", 1);
+  T_G_curr_M_curr_pub_ =
+      nh_.advertise<geometry_msgs::TransformStamped>("T_G_curr_M_curr", 1);
+
+  T_G_in_B_in_pub_ =
+      nh_.advertise<geometry_msgs::TransformStamped>("T_G_in_B_in", 1);
+  T_G_in_M_in_pub_ =
+      nh_.advertise<geometry_msgs::TransformStamped>("T_G_in_M_in", 1);
+
+  T_G_curr_M_in_pub_ =
+      nh_.advertise<geometry_msgs::TransformStamped>("T_G_curr_M_in", 1);
+
+  status_pub_ = nh_.advertise<std_msgs::String>("status", 1);
+
+  maplab_server_node_->registerStatusCallback(
+      [this](const std::string status_string) {
+        std_msgs::String msg;
+        msg.data = status_string;
+        status_pub_.publish(msg);
+      });
+
+  maplab_server_node_->registerPoseCorrectionPublisherCallback(
+      [this](
+          const int64_t timestamp_ns, const std::string& robot_name,
+          const aslam::Transformation& T_G_curr_B_curr,
+          const aslam::Transformation& T_G_curr_M_curr,
+          const aslam::Transformation& T_G_in_B_in,
+          const aslam::Transformation& T_G_in_M_in) {
+        publishPoseCorrection(
+            timestamp_ns, robot_name, T_G_curr_B_curr, T_G_curr_M_curr,
+            T_G_in_B_in, T_G_in_M_in);
+      });
 }
 
 bool MaplabServerRosNode::start() {
@@ -129,6 +179,55 @@ bool MaplabServerRosNode::saveMapCallback(
   return saveMap();
 }
 
+bool MaplabServerRosNode::publishPoseCorrection(
+    const int64_t timestamp_ns, const std::string& robot_name,
+    const aslam::Transformation& T_G_curr_B_curr,
+    const aslam::Transformation& T_G_curr_M_curr,
+    const aslam::Transformation& T_G_in_B_in,
+    const aslam::Transformation& T_G_in_M_in) const {
+  ros::Time timestamp_ros;
+  timestamp_ros.fromNSec(timestamp_ns);
+
+  geometry_msgs::TransformStamped T_G_curr_B_curr_msg;
+  T_G_curr_B_curr_msg.child_frame_id = robot_name;
+  T_G_curr_B_curr_msg.header.stamp = timestamp_ros;
+  T_G_curr_B_curr_msg.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_G_curr_B_curr, &T_G_curr_B_curr_msg.transform);
+  T_G_curr_B_curr_pub_.publish(T_G_curr_B_curr_msg);
+
+  geometry_msgs::TransformStamped T_G_curr_M_curr_msgs;
+  T_G_curr_M_curr_msgs.child_frame_id = robot_name;
+  T_G_curr_M_curr_msgs.header.stamp = timestamp_ros;
+  T_G_curr_M_curr_msgs.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_G_curr_M_curr, &T_G_curr_M_curr_msgs.transform);
+  T_G_curr_M_curr_pub_.publish(T_G_curr_M_curr_msgs);
+
+  geometry_msgs::TransformStamped T_G_in_B_in_msgs;
+  T_G_in_B_in_msgs.child_frame_id = robot_name;
+  T_G_in_B_in_msgs.header.stamp = timestamp_ros;
+  T_G_in_B_in_msgs.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_G_in_B_in, &T_G_in_B_in_msgs.transform);
+  T_G_in_B_in_pub_.publish(T_G_in_B_in_msgs);
+
+  geometry_msgs::TransformStamped T_G_in_M_in_msgs;
+  T_G_in_M_in_msgs.child_frame_id = robot_name;
+  T_G_in_M_in_msgs.header.stamp = timestamp_ros;
+  T_G_in_M_in_msgs.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_G_in_M_in, &T_G_in_M_in_msgs.transform);
+  T_G_in_M_in_pub_.publish(T_G_in_M_in_msgs);
+
+  const aslam::Transformation T_B_in_M_in = T_G_in_B_in.inverse() * T_G_in_M_in;
+  const aslam::Transformation T_G_curr_M_in = T_G_curr_B_curr * T_B_in_M_in;
+
+  geometry_msgs::TransformStamped T_G_curr_M_in_msgs;
+  T_G_curr_M_in_msgs.child_frame_id = robot_name;
+  T_G_curr_M_in_msgs.header.stamp = timestamp_ros;
+  T_G_curr_M_in_msgs.header.frame_id = FLAGS_tf_map_frame;
+  tf::transformKindrToMsg(T_G_curr_M_in, &T_G_curr_M_in_msgs.transform);
+  T_G_curr_M_in_pub_.publish(T_G_curr_M_in_msgs);
+  return true;
+}
+
 // Look up the current global frame position of a point in sensor frame.
 bool MaplabServerRosNode::mapLookupCallback(
     maplab_msgs::BatchMapLookup::Request& requests,      // NOLINT
@@ -159,6 +258,30 @@ bool MaplabServerRosNode::mapLookupCallback(
 
     responses.map_lookups.emplace_back(std::move(response));
   }
+
+  return true;
+}
+
+bool MaplabServerRosNode::deleteMissionCallback(
+    maplab_msgs::DeleteMission::Request& request,      // NOLINT
+    maplab_msgs::DeleteMission::Response& response) {  // NOLINT
+  const std::string& partial_mission_id_string =
+      request.mission_id_to_delete.data;
+
+  response.success.data = maplab_server_node_->deleteMission(
+      partial_mission_id_string, &response.message.data);
+
+  return true;
+}
+
+bool MaplabServerRosNode::deleteAllRobotMissionsCallback(
+    maplab_msgs::DeleteAllRobotMissions::Request& request,      // NOLINT
+    maplab_msgs::DeleteAllRobotMissions::Response& response) {  // NOLINT
+
+  const std::string& robot_name = request.robot_name.data;
+
+  response.success.data = maplab_server_node_->deleteAllRobotMissions(
+      robot_name, &response.message.data);
 
   return true;
 }

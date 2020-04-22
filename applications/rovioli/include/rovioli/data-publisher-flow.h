@@ -34,6 +34,7 @@ class DataPublisherFlow {
   const std::string kTopicBiasGyro = "bias_gyro";
   const std::string kCameraExtrinsicTopic = "cam_T_C_B";
   const std::string kTopicMaplabOdomMsg = "maplab_odom_T_M_I";
+  const std::string kTopicOdomMsg = "odom_T_M_I";
 
   DataPublisherFlow();
 
@@ -63,6 +64,7 @@ class DataPublisherFlow {
 
   // Maplab odometry message publisher (includes IMU biases).
   ros::Publisher pub_maplab_odom_T_M_I_;
+  ros::Publisher pub_odom_T_M_I_;
 
   common::TimeoutCounter map_publisher_timeout_;
 

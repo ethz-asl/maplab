@@ -62,6 +62,12 @@ void visualizeReprojectedDepthResource(
     const backend::ResourceType type, const vi_map::MissionIdList& mission_ids,
     const vi_map::VIMap& map);
 
+void visualizeReprojectedDepthResourcePerRobot(
+    const backend::ResourceType input_resource_type,
+    const std::unordered_map<std::string, vi_map::MissionIdList>
+        robot_name_to_mission_ids_map,
+    const vi_map::VIMap& vi_map);
+
 void getOpenCvWindowsForNCamera(
     const aslam::NCamera& n_camera, std::vector<std::string>* named_windows);
 
