@@ -97,6 +97,3 @@
 [submodule "dependencies/internal/maplab_msgs"]
 	path = dependencies/internal/maplab_msgs
 	url = git@github.com:ethz-asl/maplab_msgs.git
-[submodule "dependencies/3rdparty/sphinx-multiversion"]
-	path = dependencies/3rdparty/sphinx-multiversion
-	url = git@github.com:Holzhaus/sphinx-multiversion.git
