@@ -3,7 +3,8 @@
 For your convenience, we provide an install script to automate the whole installtion. Please make sure that you have an [SSH key activated on your GitHub account.](https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
 To install maplab, use the following commands
 ```bash
-
+wget https://raw.githubusercontent.com/ethz-asl/maplab/docs/install-instructions/install.sh
+sudo ./install # Use the argument "experimental" to also install our latest features if your are eligible.
 ```
 
 ### Manual installation
@@ -98,7 +99,7 @@ These steps are only necessary if you plan on contributing to maplab.
 
 ```bash
 cd $CATKIN_WS/src/maplab
-./tools/linter/init-git-hooks.py
+./dependencies/internal/linter/init-git-hooks.py
 ```
 
 #### Building maplab
