@@ -52,6 +52,17 @@ echo "
 ||                                                                                                ||
 ===================================================================================================="
 
+if [ -z "$1" ]
+then
+  echo -e "\e[92m\e[1mInstalling maplab develop.\e[39m\e[0m"
+  EXPERIMENTAL=False
+elif [ "$1" == "experimental" ]
+then
+  echo -e "\e[92m\e[1mInstalling maplab experimental.\e[39m\e[0m"
+  EXPERIMENTAL=True
+else
+  echo -e "\e[41m\e1mERROR: Argument $1 not defined.\e[39m\e[0m"
+fi
 
 UBUNTU_VERSION=$(lsb_release -cs)
 if [ "$UBUNTU_VERSION" == "trusty" ]
@@ -106,7 +117,22 @@ catkin config --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-
 cd src
 
 echo -e "\e[92m\e[1mCloning maplab repository and dependencies...\e[39m\e[0m"
-git clone git@github.com:ethz-asl/maplab.git --recursive -b develop
+if [ $EXPERIMENTAL ] 
+then
+  git clone git@github.com:ethz-asl/maplab_experimental.git --recursive
+else
+  git clone git@github.com:ethz-asl/maplab.git --recursive -b develop
+fi
+
+echo -e "\e[92m\e[1mInstalling the linter...\e[39m\e\0m"
+
+if [ $EXPERIMENTAL ]
+then
+  cd $CATKIN_WS/src/maplab
+else
+  cd $CATKIN_WS/src/maplab_experimental/maplab
+fi
+./dependencies/internal/linter/init-git-hooks.py
 
 echo -e "\e[92m\e[1mBuilding maplab...\e[39m\e[0m"
 catkin build maplab
