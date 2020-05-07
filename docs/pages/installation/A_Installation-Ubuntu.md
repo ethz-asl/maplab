@@ -1,12 +1,14 @@
-## Installing on Ubuntu 14.04, 16.04, (experimental: 18.04)
+## Installing on Ubuntu 14.04 (depricated), 16.04, 18.04
+
+
+```bash 
+export UBUNTU_VERSION=$(lsb_release -cs) #(Ubuntu 16.04: xenial, Ubuntu 14.04: trusty, Ubuntu 18.04: bionic)
+export ROS_VERSION=melodic #(Ubuntu 16.04: kinetic, Ubuntu 14.04: indigo, Ubuntu 18.04: melodic)
+export CATKIN_WS=~/maplab_ws
 
 ### Install required system packages
-
 ```bash
-# Install ROS 
-export UBUNTU_VERSION=xenial #(Ubuntu 16.04: xenial, Ubuntu 14.04: trusty, Ubuntu 18.04: bionic)
-export ROS_VERSION=kinetic #(Ubuntu 16.04: kinetic, Ubuntu 14.04: indigo, Ubuntu 18.04: melodic)
-
+# Install ROS
 # NOTE: Follow the official ROS installation instructions for melodic.
 sudo apt install software-properties-common
 sudo add-apt-repository "deb http://packages.ros.org/ros/ubuntu $UBUNTU_VERSION main"
@@ -16,8 +18,7 @@ sudo apt install ros-$ROS_VERSION-desktop-full "ros-$ROS_VERSION-tf2-*" "ros-$RO
 
 
 # Install framework dependencies.
-# NOTE: clang-format-3.8 is not available anymore on bionic, install a newer version.
-sudo apt install autotools-dev ccache doxygen dh-autoreconf git liblapack-dev libblas-dev libgtest-dev libreadline-dev libssh2-1-dev pylint clang-format-3.8 python-autopep8 python-catkin-tools python-pip python-git python-setuptools python-termcolor python-wstool libatlas3-base --yes
+sudo apt install autotools-dev ccache doxygen dh-autoreconf git liblapack-dev libblas-dev libgtest-dev libreadline-dev libssh2-1-dev pylint clang-format-3.9 python-autopep8 python-catkin-tools python-pip python-git python-setuptools python-termcolor python-wstool libatlas3-base --yes
 
 sudo pip install requests
 ```
@@ -31,7 +32,7 @@ echo ". /opt/ros/$ROS_VERSION/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### (OPTIONAL) Install ccache for faster rebuilds.
+### (OPTIONAL but HIGHLY RECOMMENDED) Install ccache for faster rebuilds.
 ccache is a tool that caches intermediate build files to speed up rebuilds of the same code. On Ubuntu it can be set up with the following command. The max. cache size is set to 10GB and can be adapted in the lines below:
 
 ```bash
@@ -63,29 +64,24 @@ ccache only works for a clean workspace. You will need a `make clean` otherwise.
 
 To create a workspace, run:
 ```bash
-export ROS_VERSION=kinetic #(Ubuntu 16.04: kinetic, Ubuntu 14.04: indigo)
-export CATKIN_WS=~/maplab_ws
 mkdir -p $CATKIN_WS/src
 cd $CATKIN_WS
 catkin init
 catkin config --merge-devel # Necessary for catkin_tools >= 0.4.
 catkin config --extend /opt/ros/$ROS_VERSION
 catkin config --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# For more informative and readable output.
+catkin config --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-fdiagnostics-color
 cd src
 ```
 
-Now you can clone maplab and its dependencies, either via HTTPS or SSH.
+### Cloning maplab repository
+Now you can clone maplab and its dependencies via SSH, https clone is not supported for developer version.
+SSH keys need to be installed and connected to your GitHub account, as explained [here.](https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
 
-### Cloning over HTTPS (no github account needed)
 ```bash
-git clone https://github.com/ethz-asl/maplab.git --recursive
-git clone https://github.com/ethz-asl/maplab_dependencies --recursive
-```
-
-### Cloning over SSH (github account needed)
-```bash
-git clone git@github.com:ethz-asl/maplab.git --recursive
-git clone git@github.com:ethz-asl/maplab_dependencies.git --recursive
+git clone git@github.com:ethz-asl/maplab.git --recursive -b develop
 ```
 
 ### Setting up the linter
