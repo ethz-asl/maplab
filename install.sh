@@ -62,14 +62,15 @@ then
   echo -e "\e[92m\e[1mInstalling maplab experimental.\e[39m\e[0m"
   EXPERIMENTAL=True
 else
-  echo -e "\e[41m\e1mERROR: Argument $1 not defined.\e[39m\e[0m"
+  echo -e "\e[41\e1mERROR: Argument $1 not defined.\e[39m\e[0m"
+  exit 1
 fi
 
 UBUNTU_VERSION=$(lsb_release -cs)
 if [ "$UBUNTU_VERSION" == "trusty" ]
 then
   ROS_VERSION="indigo"
-  echo -e "\e[33m\e[1mWARNING: 14.04 support is depricated. Try at your own risk.\e[39m\e[0m"
+  echo -e "\e[93m\e[1mWARNING: 14.04 support is depricated. Try at your own risk.\e[39m\e[0m"
 elif [ "$UNUNTU_VERSION" == "xenial" ]
 then
   ROS_VERSION="kinetic"
@@ -78,8 +79,8 @@ then
   ROS_VERSION="melodic"
 elif [ $UBUNTU_VERSION == "focal" ]
 then
-  ROS_VERSION=""
-  echo -e "\[33m\e[1mWARNING: 20.04 support is experimental. Try at your own risk.\e[39m\e[0m"
+  ROS_VERSION="noetic"
+  echo -e "\[93m\e[1mWARNING: 20.04 support is experimental. Try at your own risk.\e[39m\e[0m"
 else
   echo -e "\e[41m\e[1mERROR: Operating system is not supported.\e[39m\e[0m"
   exit 1
