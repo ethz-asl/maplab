@@ -42,7 +42,8 @@ echo ". /opt/ros/$ROS_VERSION/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-#### (OPTIONAL but HIGHLY RECOMMENDED) Install ccache for faster rebuilds.
+#### Install ccache for faster rebuilds.
+(OPTIONAL but HIGHLY RECOMMENDED)
 ccache is a tool that caches intermediate build files to speed up rebuilds of the same code. On Ubuntu it can be set up with the following command. The max. cache size is set to 10GB and can be adapted in the lines below:
 
 ```bash
@@ -108,8 +109,8 @@ cd $CATKIN_WS/src/maplab
 cd $CATKIN_WS
 catkin build maplab
 ```
-**Note:** Currently some of our dependencies contain superfluous packages that will not have all the necessary dependencies. Therefore compilation will fail for these packages, if you try to build the complete workspace with: `catkin build`. Please have a look at the [FAQ](https://github.com/ethz-asl/maplab/wiki/FAQ#q-why-do-i-get-missing-dependencies-when-building-the-maplab-workspace)
+**Note:** Currently some of our dependencies contain superfluous packages that will not have all the necessary dependencies. Therefore compilation will fail for these packages, if you try to build the complete workspace with: `catkin build`. Please have a look at the [FAQ](pages/overview_and_introduction/D_FAQ.md).
 
 #### Troubleshooting
 
-Please visit the [[FAQ]] section.
+Please visit the [FAQ](pages/overview_and_introduction/D_FAQ.md) section.
