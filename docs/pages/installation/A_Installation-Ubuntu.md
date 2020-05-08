@@ -5,7 +5,7 @@ For your convenience, we provide an install script to automate the whole install
 To install maplab, use the following commands
 ```bash
 wget https://raw.githubusercontent.com/ethz-asl/maplab/docs/install-instructions/install.sh
-sudo ./install # Use the argument "experimental" to also install our latest features if your are eligible.
+sudo bash install.sh # Use the argument "experimental" to also install our latest features if your are eligible.
 ```
 
 ### Manual installation
