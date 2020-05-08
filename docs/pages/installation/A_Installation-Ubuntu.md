@@ -1,4 +1,5 @@
-## Installing on Ubuntu 14.04 (depricated), 16.04, 18.04
+## Installing on Ubuntu 
+14.04 (depricated), 16.04, 18.04, 20.04 (experimental)
 ### Automatic installation
 For your convenience, we provide an install script to automate the whole installtion. Please make sure that you have an [SSH key activated on your GitHub account.](https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
 To install maplab, use the following commands
