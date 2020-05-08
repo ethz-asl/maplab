@@ -109,8 +109,8 @@ cd $CATKIN_WS/src/maplab
 cd $CATKIN_WS
 catkin build maplab
 ```
-**Note:** Currently some of our dependencies contain superfluous packages that will not have all the necessary dependencies. Therefore compilation will fail for these packages, if you try to build the complete workspace with: `catkin build`. Please have a look at the [FAQ](pages/overview_and_introduction/D_FAQ.md).
+**Note:** Currently some of our dependencies contain superfluous packages that will not have all the necessary dependencies. Therefore compilation will fail for these packages, if you try to build the complete workspace with: `catkin build`. Please have a look at the [FAQ](../overview_and_introduction/D_FAQ.md).
 
 #### Troubleshooting
 
-Please visit the [FAQ](pages/overview_and_introduction/D_FAQ.md) section.
+Please visit the [FAQ](../overview_and_introduction/D_FAQ.md) section.
