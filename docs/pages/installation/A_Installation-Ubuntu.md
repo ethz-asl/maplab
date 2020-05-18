@@ -12,9 +12,10 @@ sudo bash install.sh # Use the argument "experimental" to also install our lates
 If you prefer manually installing all compoments, following this guideline.
 
 ```bash 
-export UBUNTU_VERSION=$(lsb_release -cs) #(Ubuntu 16.04: xenial, Ubuntu 14.04: trusty, Ubuntu 18.04: bionic)
-export ROS_VERSION=melodic #(Ubuntu 16.04: kinetic, Ubuntu 14.04: indigo, Ubuntu 18.04: melodic)
+export UBUNTU_VERSION=$(lsb_release -cs) #(Ubuntu 14.04: trusty (depricated), Ubuntu 16.04: xenial, Ubuntu 18.04: bionic, Ubuntu 20.04: focal (experimental))
+export ROS_VERSION=melodic #(Ubuntu 14.04: indigo (depricated), Ubuntu 16.04: kinetic, Ubuntu 18.04: melodic, Ubuntu 20.04: noetic (experimental))
 export CATKIN_WS=~/maplab_ws
+```
 
 #### Install required system packages
 ```bash

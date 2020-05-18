@@ -71,7 +71,7 @@ if [ "$UBUNTU_VERSION" == "trusty" ]
 then
   ROS_VERSION="indigo"
   echo -e "\e[93m\e[1mWARNING: 14.04 support is depricated. Try at your own risk.\e[39m\e[0m"
-elif [ "$UNUNTU_VERSION" == "xenial" ]
+elif [ "$UBUNTU_VERSION" == "xenial" ]
 then
   ROS_VERSION="kinetic"
 elif [ $UBUNTU_VERSION == "bionic" ]
