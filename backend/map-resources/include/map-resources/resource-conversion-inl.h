@@ -390,19 +390,20 @@ bool convertDepthMapToPointCloud(
     treat_as_range_image = true;
   }
 
-  const bool has_color = has_image;
+  const bool has_color = has_image && has_three_channels;
   constexpr bool kHasNormals = false;
-  constexpr bool kHasScalar = false;
+  const bool has_scalars = has_image && !has_three_channels;
   constexpr bool kHasLabels = false;
 
   resizePointCloud(
-      valid_depth_entries, has_color, kHasNormals, kHasScalar, kHasLabels,
+      valid_depth_entries, has_color, kHasNormals, has_scalars, kHasLabels,
       point_cloud);
 
   constexpr double kMillimetersToMeters = 1e-3;
   constexpr double kEpsilon = 1e-6;
 
   resources::RgbaColor color(255u, 255u, 255u, 255u);
+  float scalar = 0.f;
   const uint16_t* depth_map_ptr;
   size_t point_index = 0u;
   for (int v = 0; v < depth_map.rows; ++v) {
@@ -441,18 +442,19 @@ bool convertDepthMapToPointCloud(
           color[0] = cv_color[2];
           color[1] = cv_color[1];
           color[2] = cv_color[0];
+          color[3] = 255u;
         } else {
-          color[0] = image.at<uint8_t>(v, u);
-          color[1] = color[0];
-          color[2] = color[0];
+          scalar = image.at<uint8_t>(v, u);
         }
-        color[3] = 255u;
       }
 
       CHECK_LT(point_index, valid_depth_entries);
       addPointToPointCloud(point_C, point_index, point_cloud);
       if (has_color) {
         addColorToPointCloud(color, point_index, point_cloud);
+      }
+      if (has_scalars) {
+        addScalarToPointCloud(scalar, point_index, point_cloud);
       }
 
       ++point_index;
@@ -463,7 +465,8 @@ bool convertDepthMapToPointCloud(
 
   // Shrink pointcloud if necessary.
   resizePointCloud(
-      point_index, has_color, kHasNormals, kHasScalar, kHasLabels, point_cloud);
+      point_index, has_color, kHasNormals, has_scalars, kHasLabels,
+      point_cloud);
 
   if (point_index == 0u) {
     VLOG(3) << "Depth map has no valid depth measurements!";
