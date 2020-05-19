@@ -1,0 +1,217 @@
+  sensors:
+    - id:                                    5d2fcf479caf7592b35518478a2fe08f
+      sensor_type:                           IMU
+      description:                           "Newer College Dataset - D435i - Bosch BMI055"
+      topic:                                 /camera/imu
+      sigmas:
+        # Source: Oxford
+        # gyro_noise_density:                  0.000208
+        # gyro_bias_random_walk_noise_density: 0.000004
+        # acc_noise_density:                   0.001249
+        # acc_bias_random_walk_noise_density:  0.000106
+        # Source: Tuned by MF
+        acc_noise_density:                   1.883649e-3
+        acc_bias_random_walk_noise_density:  1.2589254e-2
+        gyro_noise_density:                  5.3088444e-2
+        gyro_bias_random_walk_noise_density: 1.4125375e-2
+      saturation_accel_max_mps2:             150
+      saturation_gyro_max_radps:             7.5
+      gravity_magnitude_mps2:                9.808083883386614
+
+    - id:                                    abf123479caf7592b35518478a2fe08f
+      sensor_type:                           LIDAR
+      description:                           "Newer College Dataset - Ouster OS1"
+      topic:                                 /os1_cloud_node/points
+
+    - id:                                    ffff23479caf7592b35518478a2fe08f
+      sensor_type:                           POINTCLOUD_MAP
+      description:                           "Newer College Dataset - Ouster OS1 - Throttled"
+      topic:                                 /os1_cloud_node/points_throttled
+
+    - id:                                    aabb23479caf7592b35518478a2fe08f
+      sensor_type:                           ODOMETRY_6DOF
+      description:                           "ROVIOLI in Odometry mode"
+      topic:                                 /odometry/maplab_odom_T_M_I
+
+    - id:                                    8af1bac2a7c5fad79f09e49e3b96d87c
+      sensor_type:                           NCAMERA
+      description:                           "Newer College Dataset - D435i - IR Stereo Pair"
+      topic:                                 ""
+      cameras:
+        - camera:
+            id:                              ca27b5000f15adb3c0da8ac6b729ee05
+            sensor_type:                     CAMERA
+            description:                     "Newer College Dataset - D435i - Left IR camera"
+            topic:                           /camera/infra1
+            line-delay-nanoseconds:          0
+            image_height:                    480
+            image_width:                     848
+            type:                            pinhole
+            intrinsics:
+              rows:                          4
+              cols:                          1
+              data:
+                - 431.3873911369959
+                - 430.2496176152663
+                - 427.4407802012019
+                - 238.52694867508183
+            distortion:
+              type:                          equidistant
+              parameters:
+                rows:                        4
+                cols:                        1
+                data:
+                  - 0.007017508922248575
+                  - -0.002598448110748391
+                  - -0.0014755213248257705
+                  - 0.0006640775125219394
+          T_C_B:
+            rows:                            4
+            cols:                            4
+            data:
+              - [0.9999939502115871, 0.0030115382751228314, 0.0017407404872137112, 0.005856600714844551]
+              - [-0.0030140392894640352, 0.9999944268351256, 0.0014359198622239905, 0.017379823476871097]
+              - [-0.0017364064581548752, -0.0014411578354338686, 0.9999974539751119, -0.015955663353945555]
+              - [0.0, 0.0, 0.0, 1.0]
+
+        - camera:
+            id:                              ca17b5000f15adb3c0da8ac6b729ee05
+            sensor_type:                     CAMERA
+            description:                     "Newer College Dataset - D435i - Right IR camera"
+            topic:                           /camera/infra2
+            line-delay-nanoseconds:          0
+            image_height:                    480
+            image_width:                     848
+            type:                            pinhole
+            intrinsics:
+              rows:                          4
+              cols:                          1
+              data:
+                - 431.4435041724946
+                - 430.32814097594184
+                - 427.28683910723333
+                - 238.38215822538055
+            distortion:
+              type:                          equidistant
+              parameters:
+                rows:                        4
+                cols:                        1
+                data:
+                  - 0.007925673974579087
+                  - -0.0036215088874331737
+                  - -0.001422629239660213
+                  - 0.0002909310193082525
+          T_C_B:
+            rows:                            4
+            cols:                            4
+            data:
+              - [0.9999898605072938, 0.003029711806796407, 0.0033316255748877424, -0.044212059434622974]
+              - [-0.003034497361930646, 0.9999943701741709, 0.0014322868860543432, 0.017394287882335553]
+              - [-0.0033272674019266288, -0.0014423821724098462, 0.9999934243910332, -0.015801835581461726]
+              - [0.0, 0.0, 0.0, 1.0]
+
+    - id:                                    ccccbac2a7c5fad79f09e49e3b96d87c
+      sensor_type:                           NCAMERA
+      description:                           "Newer College Dataset - OS-1 Camera"
+      topic:                                 ""
+      cameras:
+        - camera:
+            id:                              aaaab5000f15adb3c0da8ac6b729ee05
+            sensor_type:                     CAMERA
+            description:                     "Newer College Dataset - OS-1 Camera - Uses camera coordinate frame convention: x-right, y-down, z-forward"
+            topic:                           ""
+            line-delay-nanoseconds:          97656
+            image_height:                    64
+            image_width:                     1024
+            type:                            camera-3d-lidar
+            intrinsics:
+              # kHorizontalResolutionRad      0.351562 deg
+              # kVerticalResolutionRad        0.527333 deg
+              # kVerticalCenterRad            16.611   deg
+              # kHorizontalCenterRad          0        deg
+              rows:                          4
+              cols:                          1
+              data:
+                - 0.006135923
+                - 0.009203703
+                - 0.289916642
+                - 0.
+          T_B_C:
+            rows:                            4
+            cols:                            4
+            data:
+              - [ 0.0,  0.0,  1.0,  0.0]
+              - [-1.0,  0.0,  0.0,  0.0]
+              - [ 0.0, -1.0,  0.0,  0.0]
+              - [ 0.0,  0.0,  0.0,  1.0]
+
+  extrinsics:
+    - sensor_id:                             abf123479caf7592b35518478a2fe08f
+      base_sensor_id:                        5d2fcf479caf7592b35518478a2fe08f
+      T_B_S:
+        rows:                                4
+        cols:                                4
+        data:
+          - [ 0.7086210167767423   , -0.7053852064621129   ,         0.016969534074274924 , -0.0032348758282003467]
+          - [ 0.02572348560718148  ,  0.0017923695978440113,        -0.999667489568127    , -0.008695174705707964 ]
+          - [ 0.7051202428455112   ,  0.7088219084619404   ,         0.01941507697281086  , -0.056138765639571195 ]
+          - [ 0.                   ,  0.                   ,         0.                   ,  1.                   ]
+
+    - sensor_id:                             ffff23479caf7592b35518478a2fe08f
+      base_sensor_id:                        5d2fcf479caf7592b35518478a2fe08f
+      T_B_S:
+        rows:                                4
+        cols:                                4
+        data:
+          - [ 0.7086210167767423   , -0.7053852064621129   ,         0.016969534074274924 , -0.0032348758282003467]
+          - [ 0.02572348560718148  ,  0.0017923695978440113,        -0.999667489568127    , -0.008695174705707964 ]
+          - [ 0.7051202428455112   ,  0.7088219084619404   ,         0.01941507697281086  , -0.056138765639571195 ]
+          - [ 0.                   ,  0.                   ,         0.                   ,  1.                   ]
+
+    - sensor_id:                             5d2fcf479caf7592b35518478a2fe08f
+      base_sensor_id:                        5d2fcf479caf7592b35518478a2fe08f
+      T_B_S:
+        rows:                                4
+        cols:                                4
+        data:
+          - [1,0,0,0]
+          - [0,1,0,0]
+          - [0,0,1,0]
+          - [0,0,0,1]
+
+    - sensor_id:                             aabb23479caf7592b35518478a2fe08f
+      base_sensor_id:                        5d2fcf479caf7592b35518478a2fe08f
+      T_B_S:
+        rows:                                4
+        cols:                                4
+        data:
+          - [1,0,0,0]
+          - [0,1,0,0]
+          - [0,0,1,0]
+          - [0,0,0,1]
+
+    - sensor_id:                             8af1bac2a7c5fad79f09e49e3b96d87c
+      base_sensor_id:                        5d2fcf479caf7592b35518478a2fe08f
+      T_B_S:
+        rows:                                4
+        cols:                                4
+        data:
+          - [1,0,0,0]
+          - [0,1,0,0]
+          - [0,0,1,0]
+          - [0,0,0,1]
+
+    - sensor_id:                             ccccbac2a7c5fad79f09e49e3b96d87c
+      base_sensor_id:                        5d2fcf479caf7592b35518478a2fe08f
+      T_B_S:
+        rows:                                4
+        cols:                                4
+        data:
+           - [ 0.7086210167767423   , -0.7053852064621129   ,         0.016969534074274924 , -0.0032348758282003467]
+           - [ 0.02572348560718148  ,  0.0017923695978440113,        -0.999667489568127    , -0.008695174705707964 ]
+           - [ 0.7051202428455112   ,  0.7088219084619404   ,         0.01941507697281086  , -0.056138765639571195 ]
+           - [ 0.                   ,  0.                   ,         0.                   ,  1.                   ]
+        # - [ 0.7053852064621129   ,  0.7086210167767423   ,         0.016969534074274924 , -0.0032348758282003467]
+        # - [-0.0017923695978440113,  0.02572348560718148  ,        -0.999667489568127    , -0.008695174705707964 ]
+        # - [-0.7088219084619404   ,  0.7051202428455112   ,         0.01941507697281086  , -0.056138765639571195 ]
+        # - [ 0.                   ,  0.                   ,         0.                   ,  1.                   ]
