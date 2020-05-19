@@ -187,8 +187,13 @@ void findAllAlignmentCandidates(
                 << "].";
 
         // Get transformation between reference (e.g. IMU) and sensor.
-        const aslam::Transformation& T_B_S =
-            sensor_manager.getSensor_T_B_S(sensor_id);
+        // Get transformation between reference (e.g. IMU) and sensor.
+        aslam::Transformation T_B_S;
+        if (!sensor_manager.hasSensor(sensor_id)) {
+          T_B_S = sensor_manager.getCamera_T_B_C(sensor_id);
+        } else {
+          T_B_S = sensor_manager.getSensor_T_B_S(sensor_id);
+        }
 
         // Get a mapping from resource to closest vertex.
         std::map<int64_t, pose_graph::VertexId, std::less<int64_t>>

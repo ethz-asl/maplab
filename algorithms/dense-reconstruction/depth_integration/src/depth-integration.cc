@@ -45,7 +45,8 @@ namespace depth_integration {
 
 template <>
 void integratePointCloud(
-    const int64_t /*timestamp*/, const aslam::Transformation& T_G_C,
+    const vi_map::MissionId& mission_id, const int64_t timestamp_ns,
+    const aslam::SensorId& sensor_id, const aslam::Transformation& T_G_C,
     const resources::PointCloud& points_C,
     IntegrationFunctionPointCloudVoxblox integration_function) {
   CHECK(integration_function);
@@ -68,21 +69,26 @@ void integratePointCloud(
   const voxblox::Transformation T_G_C_voxblox(T_G_C_mat);
 
   // Call the voxblox integration function.
-  integration_function(T_G_C_voxblox, tmp_points_C, tmp_colors);
+  integration_function(
+      mission_id, timestamp_ns, sensor_id, T_G_C_voxblox, tmp_points_C,
+      tmp_colors);
 }
 
 template <>
 void integratePointCloud(
-    const int64_t /*timestamp*/, const aslam::Transformation& T_G_C,
+    const vi_map::MissionId& mission_id, const int64_t timestamp_ns,
+    const aslam::SensorId& sensor_id, const aslam::Transformation& T_G_C,
     const resources::PointCloud& points_C,
     IntegrationFunctionPointCloudMaplab integration_function) {
   CHECK(integration_function);
-  integration_function(T_G_C, points_C);
+  integration_function(mission_id, timestamp_ns, sensor_id, T_G_C, points_C);
 }
 
 template <>
 void integratePointCloud(
-    const int64_t /*timestamp*/, const aslam::Transformation& /*T_G_C*/,
+    const vi_map::MissionId& /*mission_id*/, const int64_t /*timestamp*/,
+    const aslam::SensorId& /*sensor_id*/,
+    const aslam::Transformation& /*T_G_C*/,
     const resources::PointCloud& /*points_C*/,
     IntegrationFunctionDepthImage /*integration_function*/) {
   LOG(WARNING) << "Cannot integrate point cloud type resources using the depth "
@@ -91,8 +97,9 @@ void integratePointCloud(
 
 template <>
 void integrateDepthMap(
-    const int64_t /*timestamp*/, const aslam::Transformation& T_G_C,
-    const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
+    const vi_map::MissionId& mission_id, const int64_t timestamp_ns,
+    const aslam::Transformation& T_G_C, const cv::Mat& depth_map,
+    const cv::Mat& image, const aslam::Camera& camera,
     IntegrationFunctionPointCloudVoxblox integration_function) {
   CHECK(integration_function);
   CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
@@ -113,13 +120,16 @@ void integrateDepthMap(
   const voxblox::Transformation T_G_C_voxblox(T_G_C_mat);
 
   CHECK_EQ(point_cloud.size(), colors.size());
-  integration_function(T_G_C_voxblox, point_cloud, colors);
+  integration_function(
+      mission_id, timestamp_ns, camera.getId(), T_G_C_voxblox, point_cloud,
+      colors);
 }
 
 template <>
 void integrateDepthMap(
-    const int64_t /*timestamp*/, const aslam::Transformation& T_G_C,
-    const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
+    const vi_map::MissionId& mission_id, const int64_t timestamp_ns,
+    const aslam::Transformation& T_G_C, const cv::Mat& depth_map,
+    const cv::Mat& image, const aslam::Camera& camera,
     IntegrationFunctionPointCloudMaplab integration_function) {
   CHECK(integration_function);
   CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
@@ -133,19 +143,22 @@ void integrateDepthMap(
         depth_map, image, camera, &point_cloud);
   }
 
-  integration_function(T_G_C, point_cloud);
+  integration_function(
+      mission_id, timestamp_ns, camera.getId(), T_G_C, point_cloud);
 }
 
 template <>
 void integrateDepthMap(
-    const int64_t /*timestamp*/, const aslam::Transformation& T_G_C,
-    const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
+    const vi_map::MissionId& mission_id, const int64_t timestamp_ns,
+    const aslam::Transformation& T_G_C, const cv::Mat& depth_map,
+    const cv::Mat& image, const aslam::Camera& camera,
     IntegrationFunctionDepthImage integration_function) {
   CHECK(integration_function);
   CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
   CHECK_EQ(CV_MAT_TYPE(image.type()), CV_8UC1);
 
-  integration_function(T_G_C, camera, depth_map, image);
+  integration_function(
+      mission_id, timestamp_ns, T_G_C, camera, depth_map, image);
 }
 
 template <>

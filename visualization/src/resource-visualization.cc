@@ -225,6 +225,8 @@ void visualizeReprojectedDepthResource(
 
   depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
       [&accumulated_point_cloud_G, &point_cloud_counter](
+          const vi_map::MissionId& /*mission_id*/,
+          const int64_t /*timestamp_ns*/, const aslam::SensorId& /*sensor_id*/,
           const aslam::Transformation& T_G_S,
           const resources::PointCloud& points_S) {
         if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
@@ -333,6 +335,8 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
 
   depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
       [&accumulated_point_cloud_G, &point_cloud_counter](
+          const vi_map::MissionId& /*mission_id*/,
+          const int64_t /*timestamp_ns*/, const aslam::SensorId& /*sensor_id*/,
           const aslam::Transformation& T_G_S,
           const resources::PointCloud& points_S) {
         if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&

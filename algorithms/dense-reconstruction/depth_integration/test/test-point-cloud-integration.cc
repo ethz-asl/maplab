@@ -45,6 +45,8 @@ TEST_F(PointCloudIntegrationTest, TestIntegrationFunctionPointCloudVoxblox) {
 
   depth_integration::IntegrationFunctionPointCloudVoxblox integration_function =
       [&counter](
+          const vi_map::MissionId& /*mission_id*/,
+          const int64_t /*timestamp_ns*/, const aslam::SensorId& /*sensor_id*/,
           const voxblox::Transformation& /*T_G_S*/,
           const voxblox::Pointcloud& points, const voxblox::Colors& colors) {
         ASSERT_FALSE(points.empty());
@@ -68,6 +70,8 @@ TEST_F(PointCloudIntegrationTest, TestIntegrationFunctionPointCloudMaplab) {
 
   depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
       [&counter](
+          const vi_map::MissionId& /*mission_id*/,
+          const int64_t /*timestamp_ns*/, const aslam::SensorId& /*sensor_id*/,
           const aslam::Transformation& /*T_G_S*/,
           const resources::PointCloud& points_C) {
         ASSERT_FALSE(points_C.empty());
@@ -99,6 +103,8 @@ TEST_F(
 
   depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
       [&counter](
+          const vi_map::MissionId& /*mission_id*/,
+          const int64_t /*timestamp_ns*/, const aslam::SensorId& /*sensor_id*/,
           const aslam::Transformation& /*T_G_S*/,
           const resources::PointCloud& points_C) {
         ASSERT_FALSE(points_C.empty());
@@ -165,6 +171,9 @@ TEST_F(
   depth_integration::IntegrationFunctionPointCloudMaplab
       selective_integration_function =
           [&counter, &G_p_center, &radius_m](
+              const vi_map::MissionId& /*mission_id*/,
+              const int64_t /*timestamp_ns*/,
+              const aslam::SensorId& /*sensor_id*/,
               const aslam::Transformation& T_G_S,
               const resources::PointCloud& points_C) {
             ASSERT_FALSE(points_C.empty());
@@ -203,7 +212,8 @@ TEST_F(PointCloudIntegrationTest, TestIntegrationFunctionDepthImage) {
   // so the integration function should never be called!
 
   depth_integration::IntegrationFunctionDepthImage integration_function =
-      [](const aslam::Transformation& /*T_G_C*/,
+      [](const vi_map::MissionId& /*mission_id*/,
+         const int64_t /*timestamp_ns*/, const aslam::Transformation& /*T_G_C*/,
          const aslam::Camera& /*camera*/, const cv::Mat& /*depth_image*/,
          const cv::Mat& /*intensity_image*/) { ASSERT_TRUE(false); };
 

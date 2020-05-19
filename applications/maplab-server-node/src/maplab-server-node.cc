@@ -1237,7 +1237,6 @@ void MaplabServerNode::runSubmapProcessing(
   vi_map::MissionIdList missions_to_process;
   map->getAllMissionIds(&missions_to_process);
   CHECK_EQ(missions_to_process.size(), 1u);
-  const vi_map::MissionId& submap_mission_id = missions_to_process[0];
 
   // Stationary submap fixing
   ///////////////////////////
@@ -1600,6 +1599,8 @@ bool MaplabServerNode::getDenseMapInRange(
 
   depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
       [&point_cloud_G](
+          const vi_map::MissionId& /*mission_id*/,
+          const int64_t /*timestamp_ns*/, const aslam::SensorId& /*sensor_id*/,
           const aslam::Transformation& T_G_S,
           const resources::PointCloud& points_S) {
         point_cloud_G->appendTransformed(points_S, T_G_S);

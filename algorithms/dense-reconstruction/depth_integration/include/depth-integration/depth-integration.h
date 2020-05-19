@@ -16,11 +16,15 @@ namespace depth_integration {
 
 // Point cloud integration functions
 typedef std::function<void(
+    const vi_map::MissionId& /*mission_id*/, const int64_t /*timestamp_ns*/,
+    const aslam::SensorId& /*sensor_id*/,
     const voxblox::Transformation& /*T_G_S*/,
     const voxblox::Pointcloud& /*points_S*/, const voxblox::Colors& /*colors*/)>
     IntegrationFunctionPointCloudVoxblox;
 
 typedef std::function<void(
+    const vi_map::MissionId& /*mission_id*/, const int64_t /*timestamp_ns*/,
+    const aslam::SensorId& /*sensor_id*/,
     const aslam::Transformation /*T_G_S*/&,
     const resources::PointCloud& /*points_S*/)>
     IntegrationFunctionPointCloudMaplab;
@@ -38,6 +42,7 @@ static std::unordered_set<backend::ResourceType, backend::ResourceTypeHash>
 
 // Depth map integration function.
 typedef std::function<void(
+    const vi_map::MissionId& /*mission_id*/, const int64_t /*timestamp_ns*/,
     const aslam::Transformation& /*T_G_C*/, const aslam::Camera& /*camera*/,
     const cv::Mat& /*depth_image*/, const cv::Mat& /*intensity_image*/)>
     IntegrationFunctionDepthImage;
@@ -92,7 +97,8 @@ void integrateAllDepthResourcesOfType(
 // the integration function and calls it.
 template <typename IntegrationFunctionType>
 void integratePointCloud(
-    const int64_t timestamp_ns, const aslam::Transformation& T_G_C,
+    const vi_map::MissionId& mission_id, const int64_t timestamp_ns,
+    const aslam::SensorId& sensor_id, const aslam::Transformation& T_G_C,
     const resources::PointCloud& points_C,
     IntegrationFunctionType integration_function);
 
@@ -100,8 +106,9 @@ void integratePointCloud(
 // integration function and calls it.
 template <typename IntegrationFunctionType>
 void integrateDepthMap(
-    const int64_t timestamp_ns, const aslam::Transformation& T_G_C,
-    const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
+    const vi_map::MissionId& mission_id, const int64_t timestamp_ns,
+    const aslam::Transformation& T_G_C, const cv::Mat& depth_map,
+    const cv::Mat& image, const aslam::Camera& camera,
     IntegrationFunctionType integration_function);
 
 template <typename IntegrationFunctionType>

@@ -110,6 +110,9 @@ class SensorManager : public aslam::YamlFileSerializable {
   // Assumes no rotation in the extrinsics with respect to the base sensor.
   void setSensor_T_B_S(
       const aslam::SensorId& sensor_id, const aslam::Position3D& p_B_S);
+
+  aslam::Transformation getCamera_T_B_C(const aslam::SensorId& sensor_id) const;
+
   // Returns the relative transformation T_B_S to the base sensor.
   const aslam::Transformation& getSensor_T_B_S(
       const aslam::SensorId& sensor_id) const;

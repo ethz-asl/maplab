@@ -178,6 +178,39 @@ const aslam::Transformation& SensorManager::getSensor_T_B_S(
   return common::getChecked(T_B_S_map_, sensor_id);
 }
 
+aslam::Transformation SensorManager::getCamera_T_B_C(
+    const aslam::SensorId& sensor_id) const {
+  CHECK(sensor_id.isValid());
+  auto it = T_B_S_map_.find(sensor_id);
+  if (it != T_B_S_map_.end()) {
+    return it->second;
+  } else {
+    // Might be a camera, we need to check the NCameras.
+    for (const auto& id_sensor_pair : sensors_) {
+      CHECK(id_sensor_pair.second);
+      if (id_sensor_pair.second->getSensorType() ==
+          aslam::SensorType::kNCamera) {
+        const aslam::NCamera::Ptr ncamera_ptr =
+            std::static_pointer_cast<aslam::NCamera>(id_sensor_pair.second);
+        CHECK(ncamera_ptr);
+        const size_t num_cameras = ncamera_ptr->getNumCameras();
+        for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
+          if (ncamera_ptr->getCamera(camera_idx).getId() == sensor_id) {
+            const aslam::Transformation& T_B_Cn =
+                getSensor_T_B_S(ncamera_ptr->getId());
+            const aslam::Transformation T_B_C =
+                T_B_Cn * ncamera_ptr->get_T_C_B(camera_idx).inverse();
+            return T_B_C;
+          }
+        }
+      }
+    }
+    LOG(FATAL) << "There is no sensor with id " << sensor_id
+               << " in the sensor manager!";
+  }
+  return aslam::Transformation();
+}
+
 aslam::Transformation& SensorManager::getSensor_T_B_S(
     const aslam::SensorId& sensor_id) {
   CHECK(sensor_id.isValid());

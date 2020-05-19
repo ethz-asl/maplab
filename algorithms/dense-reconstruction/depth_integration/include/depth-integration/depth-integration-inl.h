@@ -136,6 +136,8 @@ void integrateAllFrameDepthResourcesOfType(
         // Compute complete transformation.
         const aslam::Transformation T_Cn_C =
             n_camera.get_T_C_B(frame_idx).inverse();
+        const aslam::SensorId& sensor_id =
+            n_camera.getCamera(frame_idx).getId();
         const aslam::Transformation T_B_C = T_B_Cn * T_Cn_C;
         const aslam::Transformation T_G_C = T_G_B * T_B_C;
 
@@ -183,8 +185,8 @@ void integrateAllFrameDepthResourcesOfType(
 
             // Integrate with or without intensity information.
             integrateDepthMap(
-                timestamp_ns, T_G_C, depth_map, image, *cameras[frame_idx],
-                integration_function);
+                mission_id, timestamp_ns, T_G_C, depth_map, image,
+                *cameras[frame_idx], integration_function);
 
             continue;
           }
@@ -203,7 +205,8 @@ void integrateAllFrameDepthResourcesOfType(
 
             VLOG(3) << "Found point cloud.";
             integratePointCloud(
-                timestamp_ns, T_G_C, point_cloud, integration_function);
+                mission_id, timestamp_ns, sensor_id, T_G_C, point_cloud,
+                integration_function);
             continue;
           }
           default:
@@ -313,14 +316,20 @@ void integrateAllSensorDepthResourcesOfType(
       const aslam::SensorId& sensor_id = sensor_to_res_ids.first;
 
       // Get transformation between reference (e.g. IMU) and sensor.
-      aslam::Transformation T_B_S = sensor_manager.getSensor_T_B_S(sensor_id);
+      aslam::Transformation T_B_S;
+      if (!sensor_manager.hasSensor(sensor_id)) {
+        T_B_S = sensor_manager.getCamera_T_B_C(sensor_id);
+      } else {
+        T_B_S = sensor_manager.getSensor_T_B_S(sensor_id);
+      }
 
       // If the sensor is a camera and the resource type is a depth map we will
       // need the camera model to reproject them.
       aslam::NCamera::Ptr ncamera_ptr;
       aslam::Camera::Ptr camera_ptr;
-      if (sensor_manager.getSensorType(sensor_id) ==
-          vi_map::SensorType::kNCamera) {
+      if (sensor_manager.hasSensor(sensor_id) &&
+          sensor_manager.getSensorType(sensor_id) ==
+              vi_map::SensorType::kNCamera) {
         ncamera_ptr = sensor_manager.getSensorPtr<aslam::NCamera>(sensor_id);
         CHECK(ncamera_ptr);
         CHECK_EQ(ncamera_ptr->getNumCameras(), 1u);
@@ -476,7 +485,7 @@ void integrateAllSensorDepthResourcesOfType(
 
             // Integrate with or without intensity information.
             integrateDepthMap(
-                timestamp_ns, T_G_S, depth_map, image, camera,
+                mission_id, timestamp_ns, T_G_S, depth_map, image, camera,
                 integration_function);
 
             continue;
@@ -498,7 +507,8 @@ void integrateAllSensorDepthResourcesOfType(
             VLOG(3) << "Found point cloud at timestamp " << timestamp_ns
                     << "ns";
             integratePointCloud(
-                timestamp_ns, T_G_S, point_cloud, integration_function);
+                mission_id, timestamp_ns, sensor_id, T_G_S, point_cloud,
+                integration_function);
             continue;
           }
           default:

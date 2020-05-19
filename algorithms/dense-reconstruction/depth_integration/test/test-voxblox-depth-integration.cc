@@ -80,6 +80,8 @@ TEST_F(VoxbloxDepthIntegrationTest, TestIntegrateDepthMap) {
 
   depth_integration::IntegrationFunctionPointCloudVoxblox integration_function =
       [&integrator](
+          const vi_map::MissionId& /*mission_id*/,
+          const int64_t /*timestamp_ns*/, const aslam::SensorId& /*sensor_id*/,
           const voxblox::Transformation& T_G_C,
           const voxblox::Pointcloud& points, const voxblox::Colors& colors) {
         CHECK(integrator);
