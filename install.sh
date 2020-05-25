@@ -56,11 +56,11 @@ echo "
 if [ -z "$1" ]
 then
   echo -e "\e[92m\e[1mInstalling maplab develop.\e[39m\e[0m"
-  EXPERIMENTAL=False
+  EXPERIMENTAL=false
 elif [ "$1" == "experimental" ]
 then
   echo -e "\e[92m\e[1mInstalling maplab experimental.\e[39m\e[0m"
-  EXPERIMENTAL=True
+  EXPERIMENTAL=true
 else
   echo -e "\e[41m\e1mERROR: Argument $1 not defined.\e[39m\e[0m"
   exit 1
