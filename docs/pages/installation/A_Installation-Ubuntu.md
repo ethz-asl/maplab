@@ -5,16 +5,17 @@ For your convenience, we provide an install script to automate the whole install
 To install maplab, use the following commands
 ```bash
 wget https://raw.githubusercontent.com/ethz-asl/maplab/docs/install-instructions/install.sh
-sudo ./install # Use the argument "experimental" to also install our latest features if your are eligible.
+sudo bash install.sh # Use the argument "experimental" to also install our latest features if your are eligible.
 ```
 
 ### Manual installation
 If you prefer manually installing all compoments, following this guideline.
 
 ```bash 
-export UBUNTU_VERSION=$(lsb_release -cs) #(Ubuntu 16.04: xenial, Ubuntu 14.04: trusty, Ubuntu 18.04: bionic)
-export ROS_VERSION=melodic #(Ubuntu 16.04: kinetic, Ubuntu 14.04: indigo, Ubuntu 18.04: melodic)
+export UBUNTU_VERSION=$(lsb_release -cs) #(Ubuntu 14.04: trusty (depricated), Ubuntu 16.04: xenial, Ubuntu 18.04: bionic, Ubuntu 20.04: focal (experimental))
+export ROS_VERSION=melodic #(Ubuntu 14.04: indigo (depricated), Ubuntu 16.04: kinetic, Ubuntu 18.04: melodic, Ubuntu 20.04: noetic (experimental))
 export CATKIN_WS=~/maplab_ws
+```
 
 #### Install required system packages
 ```bash
@@ -109,8 +110,8 @@ cd $CATKIN_WS/src/maplab
 cd $CATKIN_WS
 catkin build maplab
 ```
-**Note:** Currently some of our dependencies contain superfluous packages that will not have all the necessary dependencies. Therefore compilation will fail for these packages, if you try to build the complete workspace with: `catkin build`. Please have a look at the [FAQ](pages/overview_and_introduction/D_FAQ.md).
+**Note:** Currently some of our dependencies contain superfluous packages that will not have all the necessary dependencies. Therefore compilation will fail for these packages, if you try to build the complete workspace with: `catkin build`. Please have a look at the [FAQ](../overview_and_introduction/D_FAQ.md).
 
 #### Troubleshooting
 
-Please visit the [FAQ](pages/overview_and_introduction/D_FAQ.md) section.
+Please visit the [FAQ](../overview_and_introduction/D_FAQ.md) section.
