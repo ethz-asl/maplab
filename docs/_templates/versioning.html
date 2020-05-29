@@ -1,0 +1,14 @@
+{% if versions %}
+<h3>{{ _('Branches') }}</h3>
+<ul>
+  {%- for item in versions.branches %}
+  <li><a href="{{ item.url }}">{{ item.name }}</a></li>
+  {%- endfor %}
+</ul>
+<h3>{{ _('Tags') }}</h3>
+<ul>
+  {%- for item in versions.tags %}
+  <li><a href="{{ item.url }}">{{ item.name }}</a></li>
+  {%- endfor %}
+</ul>
+{% endif %}

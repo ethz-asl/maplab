@@ -1,6 +1,7 @@
 <img src="https://github.com/ethz-asl/maplab/wiki/logos/maplab_new.png" width="500">
 
-*Ubuntu 14.04+ROS indigo*, *Ubuntu 16.04+ROS kinetic* and *Ubuntu 18.04+ROS melodic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly)
+*Ubuntu 14.04+ROS indigo*, *Ubuntu 16.04+ROS kinetic* and *Ubuntu 18.04+ROS melodic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly) 
+[![Documentation Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_docs&subject=docs)](https://jenkins.asl.ethz.ch/job/maplab_docs)
 
 ## News
 
@@ -22,7 +23,7 @@ On  the  other  hand,  maplab provides  the  research  community  with  a  colle
 
 Furthermore, it includes an online frontend, **ROVIOLI**, that can create visual-inertial maps and also track a global drift-free pose within a localization map.
 
-For documentation, tutorials and datasets, please visit the [wiki](https://github.com/ethz-asl/maplab/wiki).
+For documentation, tutorials and datasets, please visit the [wiki](https://maplab.asl.ethz.ch/docs/develop/index.html).
 
 Please also check out our video:
 
@@ -46,6 +47,7 @@ Please also check out our video:
 
 The following articles help you with getting started with maplab and ROVIOLI:
 
+<!-- TODO(floriantschopp): Update links to new wiki -->
 - [Installation on Ubuntu 14.04 or 16.04](https://github.com/ethz-asl/maplab/wiki/Installation-Ubuntu)
 - [Introduction to the maplab framework](https://github.com/ethz-asl/maplab/wiki/Introduction-to-the-Maplab-Framework)
 - [Structure of the framework](https://github.com/ethz-asl/maplab/wiki/Structure-of-the-framework)
@@ -53,7 +55,7 @@ The following articles help you with getting started with maplab and ROVIOLI:
 - [Basic console usage](https://github.com/ethz-asl/maplab/wiki/Basic-Console-Usage)
 - [Console map management](https://github.com/ethz-asl/maplab/wiki/Console-map-management)
 
-More detailed information can be found in the [wiki pages](https://github.com/ethz-asl/maplab/wiki).
+More detailed information can be found in the [wiki pages](https://maplab.asl.ethz.ch/docs/develop/index.html).
 
 ## Research Results
 
