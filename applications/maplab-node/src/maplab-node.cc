@@ -67,13 +67,13 @@ MaplabNode::MaplabNode(
   }
   CHECK(sensor_manager_);
 
-  // At the very beginning check if the main ncamera images need to be resized
+  // At the very beginning check if the main ncamera images need to be resized.
   aslam::NCamera::Ptr mapping_ncamera =
       vi_map::getSelectedNCamera(*sensor_manager_);
   if (mapping_ncamera && fabs(FLAGS_image_resize_factor - 1.0) > 1e-6) {
     for (size_t i = 0; i < mapping_ncamera->getNumCameras(); i++) {
       // The intrinsics of the camera can just be multiplied with the resize
-      // factor. Distortion parameters are agnostic to the image size
+      // factor. Distortion parameters are agnostic to the image size.
       aslam::Camera::Ptr camera = mapping_ncamera->getCameraShared(i);
       camera->setParameters(
           camera->getParameters() * FLAGS_image_resize_factor);
@@ -85,7 +85,7 @@ MaplabNode::MaplabNode(
           camera->getDescription() + " - resized " +
           std::to_string(FLAGS_image_resize_factor));
 
-      // The parameters have changed so we need to generate a new sensor id
+      // The parameters have changed so we need to generate a new sensor id.
       aslam::SensorId camera_id;
       generateId(&camera_id);
       camera->setId(camera_id);

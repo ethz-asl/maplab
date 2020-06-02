@@ -62,17 +62,20 @@ int main(int argc, char** argv) {
     LOG(FATAL) << "[ROVIOLI] Failed to read the sensor calibration from '"
                << FLAGS_sensor_calibration_file << "'!";
   }
-  CHECK(vi_map::getSelectedNCamera(sensor_manager))
-      << "[ROVIOLI] The sensor calibration does not contain a NCamera!";
+
   CHECK(vi_map::getSelectedImu(sensor_manager))
       << "[ROVIOLI] The sensor calibration does not contain an IMU!";
 
+  aslam::NCamera::Ptr mapping_ncamera =
+      vi_map::getSelectedNCamera(sensor_manager);
+  CHECK(mapping_ncamera)
+      << "[ROVIOLI] The sensor calibration does not contain a NCamera!";
+
   if (fabs(FLAGS_rovioli_image_resize_factor - 1.0) > 1e-6) {
-    aslam::NCamera::Ptr ncamera = vi_map::getSelectedNCamera(sensor_manager);
-    for (size_t i = 0; i < ncamera->getNumCameras(); i++) {
+    for (size_t i = 0; i < mapping_ncamera->getNumCameras(); i++) {
       // The intrinsics of the camera can just be multiplied with the resize
-      // factor. Distortion parameters are agnostic to the image size
-      aslam::Camera::Ptr camera = ncamera->getCameraShared(i);
+      // factor. Distortion parameters are agnostic to the image size.
+      aslam::Camera::Ptr camera = mapping_ncamera->getCameraShared(i);
       camera->setParameters(
           camera->getParameters() * FLAGS_rovioli_image_resize_factor);
       camera->setImageWidth(
@@ -83,7 +86,7 @@ int main(int argc, char** argv) {
           camera->getDescription() + " - resized " +
           std::to_string(FLAGS_rovioli_image_resize_factor));
 
-      // The parameters have changed so we need to generate a new sensor id
+      // The parameters have changed so we need to generate a new sensor id.
       aslam::SensorId camera_id;
       generateId(&camera_id);
       camera->setId(camera_id);

@@ -111,9 +111,9 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
   CHECK(cv_ptr);
 
   if (fabs(FLAGS_rovioli_image_resize_factor - 1.0) > 1e-6) {
-    int newcols = round(
+    const int newcols = round(
         image_measurement->image.cols * FLAGS_rovioli_image_resize_factor);
-    int newrows = round(
+    const int newrows = round(
         image_measurement->image.rows * FLAGS_rovioli_image_resize_factor);
 
     cv::resize(
