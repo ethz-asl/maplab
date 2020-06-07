@@ -40,6 +40,8 @@ DEFINE_bool(
     set_imu_bias_to_zero, false,
     "Setting IMU biases for odometry estimation to zero.");
 
+DEFINE_double(image_resize_factor, 1.0, "Factor to resize images.");
+
 namespace maplab {
 
 vio::ImuMeasurement::Ptr convertRosImuToMaplabImu(
@@ -111,6 +113,17 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
     LOG(FATAL) << "cv_bridge exception: " << e.what();
   }
   CHECK(cv_ptr);
+
+  if (fabs(FLAGS_image_resize_factor - 1.0) > 1e-6) {
+    const int newcols =
+        round(image_measurement->image.cols * FLAGS_image_resize_factor);
+    const int newrows =
+        round(image_measurement->image.rows * FLAGS_image_resize_factor);
+
+    cv::resize(
+        image_measurement->image, image_measurement->image,
+        cv::Size(newcols, newrows));
+  }
 
   image_measurement->timestamp =
       rosTimeToNanoseconds(image_message->header.stamp);

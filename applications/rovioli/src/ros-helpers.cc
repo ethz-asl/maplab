@@ -35,6 +35,8 @@ DEFINE_double(
     "Shift applied to the scaled values when converting 16bit images to 8bit "
     "images.");
 
+DEFINE_double(rovioli_image_resize_factor, 1.0, "Factor to resize images.");
+
 namespace rovioli {
 vio::ImuMeasurement::Ptr convertRosImuToMaplabImu(
     const sensor_msgs::ImuConstPtr& imu_msg) {
@@ -107,6 +109,17 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
     LOG(FATAL) << "cv_bridge exception: " << e.what();
   }
   CHECK(cv_ptr);
+
+  if (fabs(FLAGS_rovioli_image_resize_factor - 1.0) > 1e-6) {
+    const int newcols = round(
+        image_measurement->image.cols * FLAGS_rovioli_image_resize_factor);
+    const int newrows = round(
+        image_measurement->image.rows * FLAGS_rovioli_image_resize_factor);
+
+    cv::resize(
+        image_measurement->image, image_measurement->image,
+        cv::Size(newcols, newrows));
+  }
 
   image_measurement->timestamp =
       rosTimeToNanoseconds(image_message->header.stamp);
