@@ -10,7 +10,8 @@
 		<node name="hlds_laser_publisher" pkg="hls_lfcd_lds_driver" type="hlds_laser_publisher" output="screen">
 			<param name="port" value="/dev/ttyUSB1"/>
 			<param name="frame_id" value="lidar_sensor_0"/>
- 		</node>
+		</node>
+		<node name="laser2pc" pkg="laser2pc" type="laser2pc.py" output="screen" />
 	</group>
 
 	<!-- ROVIOLI -->
