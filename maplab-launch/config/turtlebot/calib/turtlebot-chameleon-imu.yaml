@@ -1,0 +1,127 @@
+sensors:
+  - id: b45c2b5f78d7f98ca6d78c0f35e19781
+    sensor_type: IMU
+    description: "ADIS-16460 IMU"
+    topic: /versavis/imu
+    sigmas:
+      gyro_noise_density: 0.00384
+      gyro_bias_random_walk_noise_density: 5.8178e-05
+      acc_noise_density: 0.0221
+      acc_bias_random_walk_noise_density: 0.000733
+    saturation_accel_max_mps2: 150.0
+    saturation_gyro_max_radps: 7.5
+    gravity_magnitude_mps2: 9.808083883386614
+
+  - id: aabb23479caf7592b35518478a2fe08f
+    sensor_type: ODOMETRY_6DOF
+    description: "ROVIOLI in Odometry mode"
+    topic: /odometry/maplab_odom_T_M_I
+
+  - id: abf123479caf7592b35518478a2fe08f
+    sensor_type: LIDAR
+    description: "Lidar"
+    topic: /laserPointCloud
+
+  - id: fcb6857917fa910083505899b7af880e
+    sensor_type: WHEEL_ODOMETRY
+    description: "Dynamixel Wheel Odometry"
+    topic: /odom
+    T_St_Stp1_fixed_covariance:
+      rows: 6
+      cols: 6
+      data:
+        - [0.001, 0, 0, 0, 0, 0]
+        - [0, 0.001, 0, 0, 0, 0]
+        - [0, 0, 1000, 0, 0, 0]
+        - [0, 0, 0, 1000, 0, 0]
+        - [0, 0, 0, 0, 1000, 0]
+        - [0, 0, 0, 0, 0, 0.01]
+
+  - id: 8af1bac2a7c5fad79f09e49e3b96d87c
+    sensor_type: NCAMERA
+    description: "Chameleon 3"
+    topic: ""
+    cameras:
+      - camera:
+          id: 9be7b5000f15adb3c0da8ac6b729ee05
+          sensor_type: CAMERA
+          description: "Chameleon 3"
+          topic: /versavis/cam0
+          line-delay-nanoseconds: 0
+          image_height: 1536
+          image_width: 2048
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data: [1134.9265685590738, 1136.4767052557436, 1012.1861209958684, 787.1689939495063]
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data: [0.017985405188639215, 0.0011481273620037287, 0.0016716875870097516, -0.0004891515804889826]
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [-0.004527656886343712, -0.010832847150211877, 0.9999310724973696, 0.02388278800522898]
+            - [0.9999883142633512, -0.001743563036193052, 0.004509027021441736, 0.058692593191691574]
+            - [0.0016945972562278366, 0.9999398028934338, 0.010840614815600502, -0.013705944917642324]
+            - [0.0, 0.0, 0.0, 1.0]
+extrinsics:
+  - sensor_id: b45c2b5f78d7f98ca6d78c0f35e19781
+    base_sensor_id: b45c2b5f78d7f98ca6d78c0f35e19781
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: 8af1bac2a7c5fad79f09e49e3b96d87c
+    base_sensor_id: b45c2b5f78d7f98ca6d78c0f35e19781
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: fcb6857917fa910083505899b7af880e
+    base_sensor_id: b45c2b5f78d7f98ca6d78c0f35e19781
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1, 0, 0, 0.06]
+        - [0, -1, 0, 0]
+        - [0, 0, -1, -0.29]
+        - [0, 0, 0, 1]
+
+  - sensor_id: abf123479caf7592b35518478a2fe08f
+    base_sensor_id: b45c2b5f78d7f98ca6d78c0f35e19781
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1, 0, 0, 0.06]
+        - [0, -1, 0, 0]
+        - [0, 0, -1, -0.195]
+        - [0, 0, 0, 1]
+
+  - sensor_id: aabb23479caf7592b35518478a2fe08f
+    base_sensor_id: b45c2b5f78d7f98ca6d78c0f35e19781
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
