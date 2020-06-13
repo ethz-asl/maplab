@@ -38,7 +38,7 @@ optimize_map_to_localization_map: false
 map_builder_save_image_as_resources: false
 
 # VISUAL LOCALIZATION
-vio_localization_map_folder: ""
+vio_localization_map_folder: "~/maps/v8/lidar_large"
 
 # TF
 tf_map_frame: map
