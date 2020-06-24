@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package format="2">
+  <name>bosch_plugin</name>
+  <version>0.0.0</version>
+  <description>A custom plugin to allow map optimization as desired within the Bosch ETHZ Collaboration</description>
+  <maintainer email="stefan.benz@de.bosch.com">Stefan Benz (CR/AEI1)</maintainer>
+  <license>Copyright Robert Bosch GmbH. All rights reserved.</license>
+
+  <buildtool_depend>catkin_simple</buildtool_depend>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>console_common</depend>
+  <depend>map_manager</depend>
+  <depend>vi_map</depend>
+</package>
