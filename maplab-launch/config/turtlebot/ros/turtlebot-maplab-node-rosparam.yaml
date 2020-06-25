@@ -25,7 +25,7 @@ image_resize_factor: 0.5
 
 # LOCALIZATION BASED ON VISION
 enable_visual_localization: false
-visual_localization_map_folder: ""
+visual_localization_map_folder: "/home/rigel/maps/v11/apartment_lidar"
 
 # LOCALIZATION BASED ON LIDAR
 enable_lidar_localization: false

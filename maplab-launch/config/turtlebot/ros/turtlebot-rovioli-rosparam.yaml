@@ -32,13 +32,13 @@ rovioli_enable_health_checking: true
 
 # MAP BUILDING
 rovioli_run_map_builder: true
-save_map_folder: rovioli_map
+save_map_folder: /tmp/rovioli_map
 overwrite_existing_map: false
 optimize_map_to_localization_map: false
 map_builder_save_image_as_resources: false
 
 # VISUAL LOCALIZATION
-vio_localization_map_folder: "~/maps/v8/lidar_large"
+vio_localization_map_folder: "/home/rigel/maps/v11/apartment_lidar"
 
 # TF
 tf_map_frame: map

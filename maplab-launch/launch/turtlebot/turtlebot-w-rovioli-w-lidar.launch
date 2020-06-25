@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+
+<launch>
+	<!--node pkg="rosbag" type="play" name="rosbag" args="/home/rigel/calibration_data/dynamic.bag"/-->
+
+	<!--node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/-->
+
+	<!-- LIDAR -->
+	<group ns="lidar">
+		<node name="hlds_laser_publisher" pkg="hls_lfcd_lds_driver" type="hlds_laser_publisher" output="screen">
+			<param name="port" value="/dev/ttyUSB1"/>
+			<param name="frame_id" value="lidar_sensor_0"/>
+		</node>
+		<node name="laser2pc" pkg="laser2pc" type="laser2pc.py" output="screen" />
+	</group>
+
+	<!-- ROVIOLI -->
+	<group ns="rovioli">
+		<node name="rovioli" pkg="rovioli" type="rovioli" output="screen" clear_params="true">
+
+			<!-- GENERAL PARAMS -->
+			<rosparam command="load" file="$(find maplab_launch)/config/turtlebot/ros/turtlebot-rovioli-rosparam.yaml"/>
+
+			<!-- ROBOT SPECIFIC PARAMS -->
+			<!-- SENSORS -->
+			<param name="sensor_calibration_file" value="$(find maplab_launch)/config/turtlebot/calib/turtlebot-chameleon-imu.yaml"/>
+			<param name="imu_to_camera_time_offset_ns" value="4406810"/>
+			<param name="vio_camera_topic_suffix" value="image_raw"/>
+			<param name="selected_ncamera_sensor_id" value="8af1bac2a7c5fad79f09e49e3b96d87c"/>
+
+			<!-- ROVIOLI CONFIG -->
+			<param name="rovioli_run_map_builder" value="true"/>
+			<param name="rovioli_image_apply_clahe_histogram_equalization" value="true"/>
+			<param name="rovio_enable_frame_visualization" value="false"/><!-- changed from true to run remotely -->
+			<param name="rovioli_enable_health_checking" value="true"/>
+			<!--param name="image_transport" value="compressed"/--><!-- Added for better performance-->
+
+			<remap from="/rovioli/maplab_odom_T_M_I" to="/odometry/maplab_odom_T_M_I"/>
+		</node>
+
+		<node pkg="tf" type="static_transform_publisher" name="lidar_tf_broadcast" args="0.06 0 0.195 1 0 0 0 imu lidar_sensor_0 10" />
+	</group>
+
+
+</launch>
