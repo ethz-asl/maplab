@@ -4,7 +4,7 @@
 For your convenience, we provide an install script to automate the whole installtion. Please make sure that you have an [SSH key activated on your GitHub account.](https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
 To install maplab, use the following commands
 ```bash
-wget https://raw.githubusercontent.com/ethz-asl/maplab/docs/install-instructions/install.sh
+wget https://raw.githubusercontent.com/ethz-asl/maplab/develop/install.sh
 bash install.sh # Use the argument "experimental" to also install our latest features if your are eligible. Do not use sudo.
 ```
 
