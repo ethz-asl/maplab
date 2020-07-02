@@ -70,16 +70,24 @@ UBUNTU_VERSION=$(lsb_release -cs)
 if [ "$UBUNTU_VERSION" == "trusty" ]
 then
   ROS_VERSION="indigo"
+  PYHTON="python"
+  PIP="pip"
   echo -e "\e[93m\e[1mWARNING: 14.04 support is depricated. Try at your own risk.\e[39m\e[0m"
 elif [ "$UBUNTU_VERSION" == "xenial" ]
 then
   ROS_VERSION="kinetic"
+  PYTHON="python"
+  PIP="pip"
 elif [ $UBUNTU_VERSION == "bionic" ]
 then
   ROS_VERSION="melodic"
+  PYTHON="python"
+  PIP="pip"
 elif [ $UBUNTU_VERSION == "focal" ]
 then
   ROS_VERSION="noetic"
+  PYTHON="python3"
+  PIP="pip3"
   echo -e "\e[93m\e[1mWARNING: 20.04 support is experimental. Try at your own risk.\e[39m\e[0m"
 else
   echo -e "\e[41m\e[1mERROR: Operating system is not supported.\e[39m\e[0m"
@@ -94,11 +102,9 @@ wget https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -O - | sudo 
 sudo apt update
 sudo apt-get install ros-$ROS_VERSION-desktop-full "ros-$ROS_VERSION-tf2-*" "ros-$ROS_VERSION-camera-info-manager*" --yes
 sudo apt-get install autotools-dev ccache doxygen dh-autoreconf git liblapack-dev libblas-dev libgtest-dev libreadline-dev libssh2-1-dev pylint clang-format-6.0 $PYTHON-autopep8 $PYTHON-catkin-tools $PYTHON-pip $PYTHON-git $PYTHON-setuptools $PYTHON-termcolor $PYTHON-wstool libatlas3-base --yes
-sudo pip install requests
+sudo $PIP install requests
 
 echo -e "\e[92m\e[1mUpdate ROS environment...\e[39m\e[0m"
-sudo rosdep init
-rosdep update
 echo ". /opt/ros/$ROS_VERSION/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 
