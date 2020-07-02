@@ -15,6 +15,8 @@ If you prefer manually installing all compoments, following this guideline.
 export UBUNTU_VERSION=$(lsb_release -cs) #(Ubuntu 14.04: trusty (depricated), Ubuntu 16.04: xenial, Ubuntu 18.04: bionic, Ubuntu 20.04: focal (experimental))
 export ROS_VERSION=melodic #(Ubuntu 14.04: indigo (depricated), Ubuntu 16.04: kinetic, Ubuntu 18.04: melodic, Ubuntu 20.04: noetic (experimental))
 export CATKIN_WS=~/maplab_ws
+export PYTHON=python # choose python3 for Ubuntu 20.04
+export PIP=pip # choose pip3 for Ubuntu 20.04
 ```
 
 #### Install required system packages
@@ -25,20 +27,18 @@ sudo apt install software-properties-common
 sudo add-apt-repository "deb http://packages.ros.org/ros/ubuntu $UBUNTU_VERSION main"
 wget https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -O - | sudo apt-key add -
 sudo apt update
-sudo apt install ros-$ROS_VERSION-desktop-full "ros-$ROS_VERSION-tf2-*" "ros-$ROS_VERSION-camera-info-manager*" --yes
+sudo apt-get install ros-$ROS_VERSION-desktop-full "ros-$ROS_VERSION-tf2-*" "ros-$ROS_VERSION-camera-info-manager*" --yes
 
 
 # Install framework dependencies.
-sudo apt install autotools-dev ccache doxygen dh-autoreconf git liblapack-dev libblas-dev libgtest-dev libreadline-dev libssh2-1-dev pylint clang-format-3.9 python-autopep8 python-catkin-tools python-pip python-git python-setuptools python-termcolor python-wstool libatlas3-base --yes
+sudo apt-get install autotools-dev ccache doxygen dh-autoreconf git liblapack-dev libblas-dev libgtest-dev libreadline-dev libssh2-1-dev pylint clang-format-6.0 $PYTHON-autopep8 $PYTHON-catkin-tools $PYTHON-pip $PYTHON-git $PYTHON-setuptools $PYTHON-termcolor $PYTHON-wstool libatlas3-base --yes
 
-sudo pip install requests
+sudo $PIP install requests
 ```
 
 #### Update ROS environment
 
 ```bash
-sudo rosdep init
-rosdep update
 echo ". /opt/ros/$ROS_VERSION/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
