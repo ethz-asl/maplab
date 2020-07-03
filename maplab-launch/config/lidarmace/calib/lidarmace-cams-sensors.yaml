@@ -1,0 +1,162 @@
+sensors:
+  - id: 3da6d03bd42e41a93dc941bd5fd9353d
+    sensor_type: IMU
+    description: "Bosch BMI085 IMU"
+    topic: /alphasense_driver_ros/imu
+    sigmas:
+      acc_bias_random_walk_noise_density: 0.0043
+      acc_noise_density: 0.019
+      gyro_bias_random_walk_noise_density: 0.000266
+      gyro_noise_density: 0.019
+    saturation_accel_max_mps2: 150
+    saturation_gyro_max_radps: 7.5
+    gravity_magnitude_mps2: 9.808083883386614
+
+
+  - id: abf123479caf7592b35518478a2fe08d
+    sensor_type: LIDAR
+    description: "Lidarstick - Ouster OS1"
+    topic: /os1_cloud_node/points
+
+  - id: ffff23479caf7592b35518478a2fe08d
+    sensor_type: POINTCLOUD_MAP
+    description: "Lidarstick - Ouster OS1 - Throttled"
+    topic: /os1_node/points_throttled
+
+  - id: ccbb23479caf7592b35518478a2fe08f
+    sensor_type: ODOMETRY_6DOF
+    description: "ROVIOLI in Odometry mode"
+    topic: /odometry/maplab_odom_T_M_I
+
+  - id: 7af1bac2a7c5fad79f09e49e3b96d87c
+    sensor_type: NCAMERA
+    description: "Lidarstick - Blackfly S 0.4MP (Color/Mono) Stereo Pair"
+    topic: ""
+    cameras:
+      - camera:
+          id: 9ce7b5000f15adb3c0da8ac6b729ee05
+          sensor_type: CAMERA
+          description: "0.4MP Mono Camera Forward Left"
+          topic: /alphasense_driver_ros/cam0
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 351.0428156950817
+              - 350.9884792099844
+              - 361.61014421274814
+              - 275.9740537178959
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - -0.03945592508368481
+                - 0.0006666690986538722
+                - -0.002486306664168486
+                - 0.00042250750815395503
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [-0.99991418, -0.00981253, -0.00868014, 0.04307205]
+            - [0.00862336, 0.00581423, -0.99994591, -0.08894419]
+            - [0.00986246, -0.99993495, -0.00572911, 0.04921697]
+            - [0.0, 0.0, 0.0, 1.0]
+
+      - camera:
+          id: 61f5c269e1f9608678291fa5fdd81830
+          sensor_type: CAMERA
+          description: "0.4MP Mono Camera Forward Right"
+          topic: /alphasense_driver_ros/cam2
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 350.39906177992754
+              - 350.38461881052297
+              - 374.16020018863065
+              - 282.6931459822242
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - -0.03671736959641215
+                - -0.0012031560990614194
+                - -0.0012175498733418004
+                - 0.00011391552811256003
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [0.99999332, 0.00345138, 0.0012074, -0.06292934]
+            - [0.00122137, -0.00404926, -0.99999106, -0.08631673]
+            - [-0.00344646, 0.99998585, -0.00405345, 0.04033255]
+            - [0.0, 0.0, 0.0, 1.0]
+
+extrinsics:
+  - sensor_id: abf123479caf7592b35518478a2fe08d
+    base_sensor_id: 3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [-0.6978447576305695, 0.7161518144580716, 0.01180139381358678, -0.1021019447103219]
+        - [0.7160088243900917, 0.697942707663664, -0.01439931299167545, -0.08936602296234536]
+        - [-0.01854879087839803, -0.001598582974091693, -0.999826678424528, -0.07460082421278309]
+        - [0, 0, 0, 1]
+
+  - sensor_id: ffff23479caf7592b35518478a2fe08d
+    base_sensor_id: 3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [-0.6978447576305695, 0.7161518144580716, 0.01180139381358678, -0.1021019447103219]
+        - [0.7160088243900917, 0.697942707663664, -0.01439931299167545, -0.08936602296234536]
+        - [-0.01854879087839803, -0.001598582974091693, -0.999826678424528, -0.07460082421278309]
+        - [0, 0, 0, 1]
+
+  - sensor_id: 3da6d03bd42e41a93dc941bd5fd9353d
+    base_sensor_id: 3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: ccbb23479caf7592b35518478a2fe08f
+    base_sensor_id: 3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: 7af1bac2a7c5fad79f09e49e3b96d87c
+    base_sensor_id: 3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
