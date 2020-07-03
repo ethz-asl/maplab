@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+
+<launch>
+	<node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/arche_1_2020-06-29-16-30-34.bag -q -d 2 -s 3 -r 0.5"/>
+
+	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
+
+	<!-- OKVIS -->
+  <group ns="okvis">
+		<node name="okvis_node" pkg="okvis_ros" type="okvis_node" output="screen" required="true" args="--alsologtostderr --v=3">
+			<param name="config_filename" value="$(find maplab_launch)/config/lidarmace/calib/lidarmace-okvis.yaml"/>
+			<remap from="/camera0" to="/alphasense_driver_ros/cam0"/>
+			<remap from="/camera1" to="/alphasense_driver_ros/cam1"/>
+			<remap from="/imu" to="/alphasense_driver_ros/imu"/>
+			<!-- remove okvis tf frames from tf -->
+			<remap from="/tf" to="/tf_okvis"/>
+
+			<remap from="/okvis/okvis_node/okvis_maplab_odometry" to="/odometry/maplab_odom_T_M_I"/>
+		</node>
+	</group>
+
+	<!-- MAPLAB -->
+	<node name="maplab_node" pkg="maplab_node" type="maplab_node" output="screen" clear_params="true">
+
+		<!-- GENERAL PARAMS -->
+		<rosparam command="load" file="$(find maplab_launch)/config/lidarmace/ros/lidarmace-rovioli-rosparam.yaml"/>
+
+		<!-- ROBOT SPECIFIC PARAMS -->
+		<!-- SENSORS -->
+		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarmace/calib/lidarmace-sensors.yaml"/>
+		<param name="imu_to_camera_time_offset_ns" value="0"/>
+		<param name="vio_camera_topic_suffix" value=""/>
+
+		<!-- DENSE MAP -->
+		<param name="map_builder_save_point_cloud_maps_as_resources" value="true"/>
+
+		<!-- MAPLAB_NODE_CONFIG -->
+		<param name="map_save_every_n_sec" value="0"/>
+		<param name="map_run_keyframing_when_saving" value="false"/>
+		<param name="image_apply_clahe_histogram_equalization" value="true"/>
+		<param name="map_output_folder" value="/tmp/alphasense-dev-kit/submaps/"/>
+	</node>
+</launch>
