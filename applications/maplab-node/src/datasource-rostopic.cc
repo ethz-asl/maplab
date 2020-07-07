@@ -290,6 +290,12 @@ void DataSourceRostopic::lidarMeasurementCallback(
       convertRosCloudToMaplabCloud(msg, sensor_id);
   CHECK(lidar_measurement);
 
+  // Apply the IMU to lidar time shift.
+  if (FLAGS_imu_to_lidar_time_offset_ns != 0) {
+    *lidar_measurement->getTimestampNanosecondsMutable() +=
+        FLAGS_imu_to_lidar_time_offset_ns;
+  }
+
   // Shift timestamps to start at 0.
   if (!FLAGS_zero_initial_timestamps ||
       shiftByFirstTimestamp(

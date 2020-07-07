@@ -15,8 +15,8 @@ sensors:
 
   - id: abf123479caf7592b35518478a2fe08d
     sensor_type: LIDAR
-    description: "Lidarstick - Ouster OS1"
-    topic: /os1_cloud_node/points
+    description: "Lidarmace - Ouster OS0"
+    topic: /os_cloud_node/points
 
   - id: ffff23479caf7592b35518478a2fe08d
     sensor_type: POINTCLOUD_MAP
@@ -180,13 +180,13 @@ sensors:
 extrinsics:
   - sensor_id: abf123479caf7592b35518478a2fe08d
     base_sensor_id: 3da6d03bd42e41a93dc941bd5fd9353d
-    T_B_S:
+    T_S_B:
       rows: 4
       cols: 4
       data:
-        - [-0.6978447576305695, 0.7161518144580716, 0.01180139381358678, -0.1021019447103219]
-        - [0.7160088243900917, 0.697942707663664, -0.01439931299167545, -0.08936602296234536]
-        - [-0.01854879087839803, -0.001598582974091693, -0.999826678424528, -0.07460082421278309]
+        - [0.955704, -0.261873, -0.134362, 0.0129429]
+        - [0.242655, 0.959385, -0.143868, 0.0129429]
+        - [0.16658, 0.104892, 0.980433, 0.0359222]
         - [0, 0, 0, 1]
 
   - sensor_id: ffff23479caf7592b35518478a2fe08d

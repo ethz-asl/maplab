@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-	<node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/arche_1_2020-06-29-16-30-34.bag -q -d 2 -s 3 -r 1.0"/>
+	<node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/lidarstick/arche_calib_lidar_3_2020-07-02-15-57-54_restamped.bag -q -d 2 -s 3 -r 1.0"/>
 
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 
@@ -38,10 +38,11 @@
 		<!-- SENSORS -->
 		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarmace/calib/lidarmace-sensors.yaml"/>
 		<param name="imu_to_camera_time_offset_ns" value="1903666"/>
+		<param name="imu_to_lidar_time_offset_ns" value="28302300"/>
 		<param name="vio_camera_topic_suffix" value=""/>
 
 		<!-- DENSE MAP -->
-		<param name="map_builder_save_point_cloud_maps_as_resources" value="true"/>
+		<param name="map_builder_save_point_clouds_as_resources" value="true"/>
 
 		<!-- MAPLAB_NODE_CONFIG -->
 		<param name="map_save_every_n_sec" value="0"/>
