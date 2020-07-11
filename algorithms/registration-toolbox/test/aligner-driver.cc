@@ -1,6 +1,6 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
 #include <pcl/point_types.h>
 #include <ros/ros.h>
 
@@ -21,7 +21,7 @@ static pcl::PointCloud<pcl::PointXYZI>::Ptr readPointCloud(
   LOG(INFO) << "Reading point cloud from " << cloud;
   pcl::PointCloud<pcl::PointXYZI>::Ptr input_cloud(
       new pcl::PointCloud<pcl::PointXYZI>);
-  if (pcl::io::loadPCDFile<pcl::PointXYZI>(cloud, *input_cloud) == -1) {
+  if (pcl::io::loadPLYFile<pcl::PointXYZI>(cloud, *input_cloud) == -1) {
     LOG(FATAL) << "Unable to load point cloud.";
     return nullptr;
   }
@@ -33,7 +33,7 @@ static void writePointCloud(
     const std::string& reg_file, pcl::PointCloud<pcl::PointXYZI>::Ptr cloud) {
   CHECK(!reg_file.empty());
   CHECK_NOTNULL(cloud);
-  pcl::io::savePCDFileASCII(reg_file, *cloud);
+  pcl::io::savePLYFileASCII(reg_file, *cloud);
   LOG(INFO) << "Wrote registered cloud to " << reg_file;
 }
 
