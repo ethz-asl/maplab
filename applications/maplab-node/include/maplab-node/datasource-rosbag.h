@@ -26,6 +26,7 @@
 #include "maplab-node/datasource.h"
 
 DECLARE_int64(imu_to_camera_time_offset_ns);
+DECLARE_int64(imu_to_lidar_time_offset_ns);
 
 namespace maplab {
 
@@ -60,7 +61,6 @@ class DataSourceRosbag : public DataSource {
   int64_t last_imu_timestamp_ns_;
   std::vector<int64_t> last_image_timestamp_ns_;
   int64_t last_wheel_odometry_timestamp_ns_;
-
 };
 
 }  // namespace maplab
