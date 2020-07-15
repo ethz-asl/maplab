@@ -128,17 +128,6 @@ TEST_F(RegBoxTest, TestControllerSanityRegistrationMock) {
   EXPECT_EQ(true, result.hasConverged());
 }
 
-TEST_F(RegBoxTest, TestControllerSanityRegistrationLpmICP) {
-  auto aligner =
-      regbox::BaseController::make(Aligner::LpmIcp, "Libpointmatcher ICP");
-  EXPECT_NE(nullptr, aligner);
-
-  aslam::Transformation prior;
-  prior.setIdentity();
-  regbox::RegistrationResult result = aligner->align(target_, source_, prior);
-  EXPECT_EQ(true, result.hasConverged());
-}
-
 }  // namespace regbox
 
 MAPLAB_UNITTEST_ENTRYPOINT
