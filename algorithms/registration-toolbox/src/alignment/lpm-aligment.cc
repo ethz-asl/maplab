@@ -10,7 +10,6 @@ RegistrationResult LpmAlignment::registerCloudImpl(
     const PclPointCloudPtr<pcl::PointXYZI>& target,
     const PclPointCloudPtr<pcl::PointXYZI>& source,
     const aslam::Transformation& prior_T_target_source) {
-
   // TODO(lbern): Implement settings.
   icp_.setDefault();
 
@@ -42,6 +41,7 @@ RegistrationResult LpmAlignment::createResultFromTransformation(
   result.setRegisteredCloud(reg);
   result.set_T_target_source(convertEigenToKindr(T));
   result.set_T_target_source_covariance(icp_.errorMinimizer->getCovariance());
+  result.hasConverged(true);
 
   return result;
 }
