@@ -99,5 +99,8 @@ catkin_add_gtest(test_aid_error_term
   test/test_aid_error_term.cc)
 target_link_libraries(test_aid_error_term ${PROJECT_NAME})
 
+catkin_add_gtest(test_lidar_term_test test/test_lidar_term_test.cc)
+target_link_libraries(test_lidar_term_test ${PROJECT_NAME})
+
 cs_install()
 cs_export()
