@@ -64,6 +64,7 @@ bool addLidarPositionTermForKeypoint(
   const Eigen::Vector3d& lidar_measurement =
       vertex_ptr->getVisualFrame(frame_idx).getKeypointVector(keypoint_idx);
 
+  VLOG(0) << "lidar_measurement: " << lidar_measurement;
   // TODO(mariusbr) This just takes the uncertainty of the 2D measurement
   const double image_point_uncertainty =
       vertex_ptr->getVisualFrame(frame_idx).getKeypointMeasurementUncertainty(
@@ -446,9 +447,7 @@ int addVisualTermsForVertices(
         if (!vi_map::isLandmarkWellConstrained(*map, landmark)) {
           continue;
         }
-
-        if (vertex.getCamera(frame_idx)->getType() ==
-            aslam::Camera::Type::kLidar3D) {
+        if (vertex.getVisualFrame(frame_idx).hasKeypointVectors()) {
           if (addLidarPositionTermForKeypoint(
                   keypoint_idx, frame_idx, fix_landmark_positions,
                   fix_intrinsics, fix_extrinsics_rotation,
@@ -494,7 +493,7 @@ int addVisualTerms(
         parameterizations.baseframe_parameterization,
         parameterizations.quaternion_parameterization, vertices, problem);
   }
-  VLOG(1) << "Added " << num_visual_constraints << " visual residuals.";
+  VLOG(0) << "Added " << num_visual_constraints << " visual residuals.";
   return num_visual_constraints;
 }
 

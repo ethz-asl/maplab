@@ -98,6 +98,18 @@ void findOutlierLandmarks(
             const Eigen::Vector3d& p_C_fi =
                 map.getLandmark_p_C_fi(landmark_id, observer_vertex, frame_idx);
 
+            if (observer_vertex.getVisualFrame(frame_idx)
+                    .hasKeypointVectors()) {
+              const Eigen::Vector3d measurement =
+                  observer_vertex.getVisualFrame(frame_idx).getKeypointVector(
+                      keypoint_id.keypoint_index);
+              if ((measurement - p_C_fi).norm() / p_C_fi.norm() >
+                  max_lidar_error) {
+                local_outlier_landmarks.emplace_back(landmark_id);
+              }
+              break;
+            }
+
             if (p_C_fi[2] <= 0.0) {
               local_outlier_landmarks.emplace_back(landmark_id);
               break;
