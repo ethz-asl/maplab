@@ -30,6 +30,15 @@ DEFINE_int32(
     "Outlier rejection in absolute constraints: Sets the maximum number of "
     "iterations for mission baseframe RANSAC.");
 
+DEFINE_double(
+    map_anchoring_min_medial_inlier_ratio, 0.20,
+    "Minimum median inlier ration required for a successful (rigid) map "
+    "alignment/anchoring.");
+DEFINE_int32(
+    map_anchoring_min_num_vertex_links, 10,
+    "Minimum number of vertex links for a successful (rigid) map "
+    "alignment/anchoring.");
+
 namespace map_anchoring {
 
 void setMissionBaseframeToKnownIfHasAbs6DoFConstraints(vi_map::VIMap* map) {
@@ -121,14 +130,14 @@ bool anchorAllMissions(
   if (missions_to_anchor.size() == all_missions.size()) {
     ss << "\tFailed: At least one mission needs to have a known baseframe. \n";
     ss << "----------------------------------------------------------------\n";
-    LOG(INFO) << ss.str();
+    VLOG(1) << ss.str();
     return false;
   }
 
   if (missions_to_anchor.empty()) {
     ss << "\tAll baseframes are known -- nothing to do.\n";
     ss << "----------------------------------------------------------------\n";
-    LOG(INFO) << ss.str();
+    VLOG(1) << ss.str();
     return true;
   }
 
@@ -136,6 +145,9 @@ bool anchorAllMissions(
   // This allows us to avoid building the index over and over as we anchor new
   // missions.
   loop_detector_node::LoopDetectorNode loop_detector;
+  if (plotter != nullptr) {
+    loop_detector.instantiateVisualizer();
+  }
 
   // Add the known missions to the database.
   bool initial_mission_added = false;
@@ -194,7 +206,7 @@ bool anchorAllMissions(
       continue;
     }
 
-    if (plotter != nullptr) {
+    if (plotter != nullptr && success) {
       plotter->visualizeMap(*map);
     }
   }
@@ -205,19 +217,18 @@ bool anchorAllMissions(
   // Reset the selected missions.
   map->resetMissionSelection();
 
-
   if (!abandoned_missions.empty()) {
     ss << "\tCould not anchor all missions, still unknown:\n";
     for (const vi_map::MissionId& abandoned_mission_id : abandoned_missions) {
       ss << "\t- " << abandoned_mission_id << "\n";
     }
     ss << "----------------------------------------------------------------\n";
-    LOG(INFO) << ss.str();
+    VLOG(1) << ss.str();
     return false;
   }
   ss << "\tAll missions anchored.\n";
   ss << "----------------------------------------------------------------\n";
-  LOG(INFO) << ss.str();
+  VLOG(1) << ss.str();
   return true;
 }
 
@@ -292,8 +303,10 @@ ProbeResult::ProbeResult()
     : num_vertex_candidate_links(0), average_landmark_match_inlier_ratio(0.) {}
 
 bool ProbeResult::wasSuccessful() const {
-  return num_vertex_candidate_links >= kMinMergingNumLinks &&
-         average_landmark_match_inlier_ratio >= kMinMergingInlierRatioThreshold;
+  return num_vertex_candidate_links >=
+             FLAGS_map_anchoring_min_num_vertex_links &&
+         average_landmark_match_inlier_ratio >=
+             FLAGS_map_anchoring_min_medial_inlier_ratio;
 }
 
 void probeMissionAnchoring(

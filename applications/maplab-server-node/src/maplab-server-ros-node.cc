@@ -18,12 +18,7 @@
 #include <maplab_msgs/MapLookupRequest.h>
 #include <maplab_msgs/MapLookupResponse.h>
 
-#include "maplab-server-node/maplab-server-config.h"
 #include "maplab-server-node/maplab-server-node.h"
-
-DEFINE_string(
-    maplab_server_node_config_file, "",
-    "Path the the config YAML file for the maplab server node.");
 
 DEFINE_int32(
     maplab_server_map_update_topic_queue_size, 100, "Size of ROS subscriber.");
@@ -35,10 +30,10 @@ DEFINE_string(
 
 namespace maplab {
 
-MaplabServerRosNode::MaplabServerRosNode(const MaplabServerNodeConfig& config)
+MaplabServerRosNode::MaplabServerRosNode()
     : maplab_spinner_(common::getNumHardwareThreads()) {
   LOG(INFO) << "[MaplabServerRosNode] Initializing MaplabServerNode...";
-  maplab_server_node_.reset(new MaplabServerNode(config));
+  maplab_server_node_.reset(new MaplabServerNode);
 }
 
 MaplabServerRosNode::MaplabServerRosNode(
@@ -46,14 +41,9 @@ MaplabServerRosNode::MaplabServerRosNode(
     : nh_(nh),
       nh_private_(nh_private),
       maplab_spinner_(common::getNumHardwareThreads()) {
-  MaplabServerNodeConfig config;
-  CHECK(config.deserializeFromFile(FLAGS_maplab_server_node_config_file))
-      << "[MaplabServerRosNode] Failed to parse config from '"
-      << FLAGS_maplab_server_node_config_file << "'";
-
   // === MAPLAB SERVER NODE ===
   LOG(INFO) << "[MaplabServerRosNode] Initializing MaplabServerNode...";
-  maplab_server_node_.reset(new MaplabServerNode(config));
+  maplab_server_node_.reset(new MaplabServerNode);
 
   boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
       save_map_callback =

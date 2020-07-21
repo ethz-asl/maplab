@@ -24,7 +24,7 @@ class MaplabServerRosNode {
       const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
 
   // Only for test purposes.
-  explicit MaplabServerRosNode(const MaplabServerNodeConfig& config);
+  MaplabServerRosNode();
 
   // Start the app.
   bool start();
