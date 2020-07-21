@@ -1,11 +1,20 @@
 #ifndef MAP_OPTIMIZATION_OPTIMIZATION_TERMS_ADDITION_H_
 #define MAP_OPTIMIZATION_OPTIMIZATION_TERMS_ADDITION_H_
 
+#include <aslam/common/memory.h>
+#include <aslam/common/unique-id.h>
+#include <memory>
+#include <vi-map/unique-id.h>
+#include <vi-map/vi-map.h>
+
 #include "map-optimization/optimization-problem.h"
 
-#include <memory>
-
 namespace map_optimization {
+
+bool addLidarPositionTermForKeypoint(
+    const bool fix_landmark_positions, const bool fix_intrinsics,
+    const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
+    const size_t min_landmarks_per_frame, OptimizationProblem* problem);
 
 int addVisualTerms(
     const bool fix_landmark_positions, const bool fix_intrinsics,

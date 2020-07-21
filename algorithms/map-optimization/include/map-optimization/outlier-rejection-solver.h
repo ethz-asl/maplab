@@ -27,6 +27,9 @@ struct OutlierRejectionSolverOptions {
   // Reprojection error threshold for landmarks based on observations across
   // missions.
   double reprojection_error_other_mission_px = 400;
+  // Maximal angle error between the lidar measurement and the landmark
+  // position
+  double max_lidar_error;
 };
 
 class OutlierRejectionCallback : public ceres::IterationCallback {

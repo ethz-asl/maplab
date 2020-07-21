@@ -4,6 +4,8 @@ project(map_optimization)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
+add_compile_options(-w)
+
 ########
 # LIB  #
 ########

@@ -20,6 +20,10 @@ DEFINE_double(
     ba_outlier_rejection_reprojection_error_other_mission_px, 400,
     "Reprojection error threshold in pixels for observations from missions"
     "the landmark is NOT stored in.");
+DEFINE_double(
+    ba_outlier_max_lidar_error, 0.05,
+    "Maximal angle error between the lidar measurement and the landmark"
+    "position");
 DEFINE_bool(
     ba_hide_iterations_console_output, false,
     "Define whether iterations should have output on verbosity level 0 or "
@@ -51,6 +55,7 @@ void findOutlierLandmarks(
     const vi_map::VIMap& map, const vi_map::LandmarkIdSet& landmark_ids_set,
     const bool use_reprojection_error,
     const double same_mission_reprojection_error_px,
+    const double max_lidar_error,
     const double other_mission_reprojection_error_px,
     vi_map::LandmarkIdList* outlier_landmarks) {
   CHECK_NOTNULL(outlier_landmarks)->clear();
@@ -196,6 +201,7 @@ void rejectOutliers(
       map, present_landmarks,
       rejection_options.reject_landmarks_based_on_reprojection_errors,
       rejection_options.reprojection_error_same_mission_px,
+      rejection_options.max_lidar_error,
       rejection_options.reprojection_error_other_mission_px,
       &outlier_landmarks);
 

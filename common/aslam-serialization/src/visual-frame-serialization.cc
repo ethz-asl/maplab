@@ -1,11 +1,10 @@
 #include "aslam-serialization/visual-frame-serialization.h"
 
-#include <glog/logging.h>
-
 #include <aslam/cameras/camera.h>
 #include <aslam/cameras/ncamera.h>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
+#include <glog/logging.h>
 #include <maplab-common/eigen-proto.h>
 
 namespace aslam {
@@ -52,6 +51,13 @@ void serializeVisualFrame(
   } else {
     VLOG(200) << "Frame " << frame.getId() << " has no descriptors!";
   }
+  if (frame.hasKeypointVectors()) {
+    ::common::eigen_proto::serialize(
+        frame.getKeypointVectors(), proto->mutable_keypoint_vectors());
+    CHECK_EQ(
+        3 * proto->keypoint_measurements_size(),
+        2 * proto->keypoint_vectors_size());
+  }
 }
 
 void deserializeVisualFrame(
@@ -93,6 +99,8 @@ void deserializeVisualFrame(
         proto.descriptor_scales().data(), proto.descriptor_scales_size());
     Eigen::Map<const Eigen::VectorXi> track_ids(
         proto.track_ids().data(), proto.track_ids_size());
+    Eigen::Map<const Eigen::Matrix3Xd> keypoint_vectors(
+        proto.keypoint_vectors().data(), 3, proto.keypoint_vectors_size() / 3);
 
     *frame = aligned_shared<aslam::VisualFrame>();
     aslam::VisualFrame& frame_ref = **frame;
@@ -105,6 +113,7 @@ void deserializeVisualFrame(
     frame_ref.setTimestampNanoseconds(proto.timestamp());
     frame_ref.setKeypointMeasurements(img_points_distorted);
     frame_ref.setKeypointMeasurementUncertainties(uncertainties);
+    frame_ref.setKeypointVectors(keypoint_vectors);
     if (scales.rows() != 0) {
       CHECK_EQ(scales.rows(), uncertainties.rows());
       frame_ref.setKeypointScales(scales);
@@ -121,6 +130,7 @@ void deserializeVisualFrame(
     CHECK(frame_ref.hasKeypointMeasurements());
     CHECK(frame_ref.hasKeypointMeasurementUncertainties());
     CHECK(frame_ref.hasDescriptors());
+    CHECK(frame_ref.hasKeypointVectors());
 
     if (proto.has_is_valid() && !proto.is_valid()) {
       frame_ref.invalidate();

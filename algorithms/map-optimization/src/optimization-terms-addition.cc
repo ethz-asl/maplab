@@ -1,20 +1,199 @@
 #include "map-optimization/optimization-terms-addition.h"
 
-#include <memory>
-
 #include <ceres-error-terms/block-pose-prior-error-term-v2.h>
 #include <ceres-error-terms/inertial-error-term.h>
+#include <ceres-error-terms/lidar-error-term-factory.h>
+#include <ceres-error-terms/lidar-error-term.h>
 #include <ceres-error-terms/pose-prior-error-term.h>
+#include <ceres-error-terms/position-error-term.h>
 #include <ceres-error-terms/six-dof-block-pose-error-term-autodiff.h>
 #include <ceres-error-terms/six-dof-block-pose-error-term-with-extrinsics-autodiff.h>
 #include <ceres-error-terms/visual-error-term-factory.h>
 #include <ceres-error-terms/visual-error-term.h>
 #include <ceres/ceres.h>
 #include <maplab-common/progress-bar.h>
+#include <memory>
 #include <vi-map-helpers/vi-map-queries.h>
 #include <vi-map/landmark-quality-metrics.h>
 
 namespace map_optimization {
+
+bool addLidarPositionTermForKeypoint(
+    const int keypoint_idx, const int frame_idx,
+    const bool fix_landmark_positions, const bool fix_intrinsics,
+    const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
+    const std::shared_ptr<ceres::LocalParameterization>& pose_parameterization,
+    const std::shared_ptr<ceres::LocalParameterization>&
+        baseframe_parameterization,
+    const std::shared_ptr<ceres::LocalParameterization>&
+        camera_parameterization,
+    vi_map::Vertex* vertex_ptr, OptimizationProblem* problem) {
+  CHECK_NOTNULL(vertex_ptr);
+  CHECK_NOTNULL(problem);
+
+  CHECK(pose_parameterization != nullptr);
+  CHECK(baseframe_parameterization != nullptr);
+  CHECK(camera_parameterization != nullptr);
+
+  OptimizationStateBuffer* buffer =
+      CHECK_NOTNULL(problem->getOptimizationStateBufferMutable());
+  vi_map::VIMap* map = CHECK_NOTNULL(problem->getMapMutable());
+  ceres_error_terms::ProblemInformation* problem_information =
+      CHECK_NOTNULL(problem->getProblemInformationMutable());
+
+  const aslam::VisualFrame& visual_frame =
+      vertex_ptr->getVisualFrame(frame_idx);
+  CHECK_GE(keypoint_idx, 0);
+  CHECK_LT(
+      keypoint_idx,
+      static_cast<int>(visual_frame.getNumKeypointMeasurements()));
+
+  const vi_map::LandmarkId landmark_id =
+      vertex_ptr->getObservedLandmarkId(frame_idx, keypoint_idx);
+
+  // The keypoint must have a valid association with a landmark.
+  CHECK(landmark_id.isValid());
+
+  vi_map::Vertex& landmark_store_vertex =
+      map->getLandmarkStoreVertex(landmark_id);
+  vi_map::Landmark& landmark = map->getLandmark(landmark_id);
+
+  const aslam::Camera::Ptr camera_ptr = vertex_ptr->getCamera(frame_idx);
+  CHECK(camera_ptr != nullptr);
+
+  const Eigen::Vector3d& lidar_measurement =
+      vertex_ptr->getVisualFrame(frame_idx).getKeypointVector(keypoint_idx);
+
+  // TODO(mariusbr) This just takes the uncertainty of the 2D measurement
+  const double image_point_uncertainty =
+      vertex_ptr->getVisualFrame(frame_idx).getKeypointMeasurementUncertainty(
+          keypoint_idx);
+
+  // As defined here: http://en.wikipedia.org/wiki/Huber_Loss_Function
+  double huber_loss_delta = 3.0;
+
+  ceres_error_terms::visual::VisualErrorType error_term_type;
+  if (vertex_ptr->id() != landmark_store_vertex.id()) {
+    // Verify if the landmark and keyframe belong to the same mission.
+    if (vertex_ptr->getMissionId() == landmark_store_vertex.getMissionId()) {
+      error_term_type =
+          ceres_error_terms::visual::VisualErrorType::kLocalMission;
+    } else {
+      error_term_type = ceres_error_terms::visual::VisualErrorType::kGlobal;
+      huber_loss_delta = 10.0;
+    }
+  } else {
+    error_term_type =
+        ceres_error_terms::visual::VisualErrorType::kLocalKeyframe;
+  }
+
+  double* distortion_params = nullptr;
+  if (camera_ptr->getDistortion().getType() !=
+      aslam::Distortion::Type::kNoDistortion) {
+    distortion_params =
+        camera_ptr->getDistortionMutable()->getParametersMutable();
+    CHECK_NOTNULL(distortion_params);
+  }
+
+  vi_map::MissionBaseFrameId observer_baseframe_id =
+      map->getMissionForVertex(vertex_ptr->id()).getBaseFrameId();
+  vi_map::MissionBaseFrameId store_baseframe_id =
+      map->getMissionForVertex(landmark_store_vertex.id()).getBaseFrameId();
+  double* observer_baseframe_q_GM__G_p_GM =
+      buffer->get_baseframe_q_GM__G_p_GM_JPL(observer_baseframe_id);
+  double* landmark_store_baseframe_q_GM__G_p_GM =
+      buffer->get_baseframe_q_GM__G_p_GM_JPL(store_baseframe_id);
+
+  double* vertex_q_IM__M_p_MI =
+      buffer->get_vertex_q_IM__M_p_MI_JPL(vertex_ptr->id());
+  double* landmark_store_vertex_q_IM__M_p_MI =
+      buffer->get_vertex_q_IM__M_p_MI_JPL(landmark_store_vertex.id());
+
+  const aslam::CameraId& camera_id = camera_ptr->getId();
+  CHECK(camera_id.isValid());
+  double* camera_q_CI =
+      buffer->get_camera_extrinsics_q_CI__C_p_CI_JPL(camera_id);
+  // The visual error term requires the camera rotation and translation
+  // to be feeded separately. Shifting by 4 = the quaternione size.
+  double* camera_C_p_CI = camera_q_CI + 4;
+
+  std::shared_ptr<ceres::CostFunction> lidar_term_cost(
+      ceres_error_terms::createLidarCostFunction<
+          ceres_error_terms::LidarPositionError>(
+          lidar_measurement, image_point_uncertainty, error_term_type,
+          camera_ptr.get()));
+
+  std::vector<double*> cost_term_args = {landmark.get_p_B_Mutable(),
+                                         landmark_store_vertex_q_IM__M_p_MI,
+                                         landmark_store_baseframe_q_GM__G_p_GM,
+                                         observer_baseframe_q_GM__G_p_GM,
+                                         vertex_q_IM__M_p_MI,
+                                         camera_q_CI,
+                                         camera_C_p_CI,
+                                         camera_ptr->getParametersMutable()};
+
+  // Certain types of visual cost terms (as indicated by error_term_type) do not
+  // use all of the pointer arguments. Ceres, however, requires us to provide
+  // valid pointers so we replace unnecessary arguments with dummy variables
+  // filled with NaNs. The function also returns the pointers of the dummies
+  // used so that we can set them constant below.
+  std::vector<double*> dummies_to_set_constant;
+  ceres_error_terms::replaceUnusedArgumentsOfLidarCostFunctionWithDummies(
+      error_term_type, &cost_term_args, &dummies_to_set_constant);
+
+  for (double* dummy : dummies_to_set_constant) {
+    problem_information->setParameterBlockConstant(dummy);
+  }
+
+  std::shared_ptr<ceres::LossFunction> loss_function(
+      new ceres::LossFunctionWrapper(
+          new ceres::HuberLoss(huber_loss_delta * image_point_uncertainty),
+          ceres::TAKE_OWNERSHIP));
+
+  problem_information->addResidualBlock(
+      ceres_error_terms::ResidualType::kLidarPositionError, lidar_term_cost,
+      loss_function, cost_term_args);
+
+  if (error_term_type !=
+      ceres_error_terms::visual::VisualErrorType::kLocalKeyframe) {
+    problem_information->setParameterization(
+        landmark_store_vertex_q_IM__M_p_MI, pose_parameterization);
+    problem_information->setParameterization(
+        vertex_q_IM__M_p_MI, pose_parameterization);
+
+    if (error_term_type ==
+        ceres_error_terms::visual::VisualErrorType::kGlobal) {
+      problem_information->setParameterization(
+          landmark_store_baseframe_q_GM__G_p_GM, baseframe_parameterization);
+      problem_information->setParameterization(
+          observer_baseframe_q_GM__G_p_GM, baseframe_parameterization);
+    }
+  }
+
+  problem_information->setParameterization(
+      camera_q_CI, camera_parameterization);
+
+  if (fix_landmark_positions) {
+    problem_information->setParameterBlockConstant(landmark.get_p_B_Mutable());
+  }
+  if (fix_intrinsics) {
+    problem_information->setParameterBlockConstant(
+        camera_ptr->getParametersMutable());
+  }
+  if (fix_extrinsics_rotation) {
+    problem_information->setParameterBlockConstant(camera_q_CI);
+  }
+  if (fix_extrinsics_translation) {
+    problem_information->setParameterBlockConstant(camera_C_p_CI);
+  }
+
+  // NOTE: Whether or not the baseframes are fixed is decided when setting up
+  // the problem on a higher level.
+
+  problem->getProblemBookkeepingMutable()->landmarks_in_problem.emplace(
+      landmark_id, lidar_term_cost.get());
+  return true;
+}
 
 void addVisualTermForKeypoint(
     const int keypoint_idx, const int frame_idx,
@@ -268,12 +447,24 @@ int addVisualTermsForVertices(
           continue;
         }
 
-        addVisualTermForKeypoint(
-            keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
-            fix_extrinsics_rotation, fix_extrinsics_translation,
-            pose_parameterization, baseframe_parameterization,
-            camera_parameterization, &vertex, problem);
-        num_visual_constraints++;
+        if (vertex.getCamera(frame_idx)->getType() ==
+            aslam::Camera::Type::kLidar3D) {
+          if (addLidarPositionTermForKeypoint(
+                  keypoint_idx, frame_idx, fix_landmark_positions,
+                  fix_intrinsics, fix_extrinsics_rotation,
+                  fix_extrinsics_translation, pose_parameterization,
+                  baseframe_parameterization, camera_parameterization, &vertex,
+                  problem)) {
+            num_visual_constraints++;
+          }
+        } else {
+          addVisualTermForKeypoint(
+              keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
+              fix_extrinsics_rotation, fix_extrinsics_translation,
+              pose_parameterization, baseframe_parameterization,
+              camera_parameterization, &vertex, problem);
+          num_visual_constraints++;
+        }
       }
     }
   }
