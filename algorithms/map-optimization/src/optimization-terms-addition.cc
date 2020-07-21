@@ -64,7 +64,6 @@ bool addLidarPositionTermForKeypoint(
   const Eigen::Vector3d& lidar_measurement =
       vertex_ptr->getVisualFrame(frame_idx).getKeypointVector(keypoint_idx);
 
-  VLOG(0) << "lidar_measurement: " << lidar_measurement;
   // TODO(mariusbr) This just takes the uncertainty of the 2D measurement
   const double image_point_uncertainty =
       vertex_ptr->getVisualFrame(frame_idx).getKeypointMeasurementUncertainty(
