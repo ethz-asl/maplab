@@ -1,6 +1,9 @@
 <?xml version="1.0"?>
 
-<!-- Requires: - ethz-asl/maplab_private - ethz-asl/transfolder -->
+<!-- Requires: 
+  - ethz-asl/maplab (develop)
+  - ethz-asl/transfolder 
+-->
 
 <launch>
 
