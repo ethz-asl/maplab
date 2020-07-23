@@ -19,4 +19,6 @@ rosrun rovioli rovioli \
   --save_map_folder="$LOCALIZATION_MAP_OUTPUT" \
   --optimize_map_to_localization_map=false \
   --map_builder_save_image_as_resources=false \
+  --rovioli_visualize_map=true \
+  --publish_debug_markers=true \
   --datasource_rosbag=$ROSBAG $REST
