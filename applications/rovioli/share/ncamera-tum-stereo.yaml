@@ -9,13 +9,13 @@ cameras:
     intrinsics:
       cols: 1
       rows: 4
-      data: [190.97847715128717, 190.9733070521226, 254.93170605935475, 256.8974428996504]
+      data: [192.29072575, 192.24916158, 254.81683736, 256.89970136]
     distortion:
-      type: fisheye
+      type: equidistant
       parameters:
         cols: 1
-        rows: 1
-        data: [1]
+        rows: 4
+        data: [-0.02171268, 0.04402479, -0.03201928, 0.00735334]
   T_B_C:
     cols: 4
     rows: 4
@@ -33,13 +33,13 @@ cameras:
     intrinsics:
       cols: 1
       rows: 4
-      data: [190.44236969414825, 190.4344384721956, 252.59949716835982, 254.91723064636983]
+      data: [192.180974, 192.12146172, 252.54814238, 255.04114817]
     distortion:
-      type: fisheye
+      type: equidistant
       parameters:
         cols: 1
-        rows: 1
-        data: [1]
+        rows: 4
+        data: [-0.03515337, 0.06999031, -0.05016279, 0.01161358]
   T_B_C:
     cols: 4
     rows: 4
