@@ -17,6 +17,6 @@ rosrun rovioli rovioli \
   --imu_parameters_rovio=$IMU_PARAMETERS_ROVIO \
   --datasource_type="rosbag" \
   --save_map_folder="$LOCALIZATION_MAP_OUTPUT" \
-  --optimize_map_to_localization_map=true \
-  --map_builder_save_image_as_resources=true \
+  --optimize_map_to_localization_map=false \
+  --map_builder_save_image_as_resources=false \
   --datasource_rosbag=$ROSBAG $REST
