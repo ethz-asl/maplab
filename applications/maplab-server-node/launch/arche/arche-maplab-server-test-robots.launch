@@ -26,6 +26,7 @@
 			<remap from="/alphasense_driver_ros/cam0" to="/$(arg arche_robot_name)/cam0"/>
 			<remap from="/alphasense_driver_ros/cam2" to="/$(arg arche_robot_name)/cam2"/>
 			<remap from="/RTK_GPS/pose" to="/$(arg arche_robot_name)/pose"/>
+			<remap from="/os_cloud_node/points" to="/$(arg arche_robot_name)/points"/>
 		</node>
 
 		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
@@ -35,6 +36,7 @@
 			<arg name="maplab_keyframe_when_saving" default="true"/>
 			<arg name="maplab_image_topic_suffix" default=""/>
 			<arg name="maplab_attach_images" default="$(arg arche_attach_images)"/>
+			<arg name="maplab_attach_point_clouds" default="true"/>
 			<arg name="maplab_map_folder" default="$(arg arche_root_map_directory)/$(arg arche_robot_name)/"/>
 			<arg name="maplab_apply_clahe" default="$(arg arche_clahe)"/>
 			<arg name="maplab_remove_bad_landmarks" default="$(arg arche_remove_bad_landmarks)"/>
@@ -59,6 +61,7 @@
 			<remap from="/alphasense_driver_ros/cam0" to="/$(arg arche_robot_name)/cam0"/>
 			<remap from="/alphasense_driver_ros/cam2" to="/$(arg arche_robot_name)/cam2"/>
 			<remap from="/RTK_GPS/pose" to="/$(arg arche_robot_name)/pose"/>
+			<remap from="/os_cloud_node/points" to="/$(arg arche_robot_name)/points"/>
 		</node>
 
 		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
@@ -68,6 +71,7 @@
 			<arg name="maplab_keyframe_when_saving" default="true"/>
 			<arg name="maplab_image_topic_suffix" default=""/>
 			<arg name="maplab_attach_images" default="$(arg arche_attach_images)"/>
+			<arg name="maplab_attach_point_clouds" default="true"/>
 			<arg name="maplab_map_folder" default="$(arg arche_root_map_directory)/$(arg arche_robot_name)/"/>
 			<arg name="maplab_apply_clahe" default="$(arg arche_clahe)"/>
 			<arg name="maplab_remove_bad_landmarks" default="$(arg arche_remove_bad_landmarks)"/>

@@ -1,6 +1,7 @@
 #include "maplab-server-node/maplab-server-node.h"
 
 #include <aslam/common/timer.h>
+#include <dense-mapping/dense-mapping.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <landmark-triangulation/pose-interpolator.h>
@@ -669,6 +670,21 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         loop_detector.detectLoopClosuresAndMergeLandmarks(*jt, map.get());
       }
     }
+  }
+
+  // Dense mapping constraints
+  ////////////////////////////
+  {
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "dense mapping constraints";
+    }
+    dense_mapping::Config config = dense_mapping::Config::fromGflags();
+    CHECK_GT(
+        config.search_config.proximity_search_min_distance_along_graph_m, 2.5);
+    dense_mapping::addDenseMappingConstraintsToMap(
+        config, mission_ids, map.get());
   }
 
   // Full optimization
