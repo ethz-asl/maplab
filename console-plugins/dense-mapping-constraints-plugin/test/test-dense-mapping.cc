@@ -1,5 +1,6 @@
 #include "dense-mapping/dense-mapping.h"
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <thread>
@@ -114,21 +115,73 @@ TEST_F(DenseMappingTest, TestDenseMapping) {
   LOG(INFO) << timing::Timing::Print();
 }
 
-TEST_F(DenseMappingTest, TestParallelProcess) {
-  const std::size_t num_threads = 10;
+TEST_F(DenseMappingTest, TestParallelProcessEqualThreads) {
+  const std::size_t num_threads = 4;
   const std::size_t start = 0;
-  const std::size_t end = 10;
+  const std::size_t end = 4;
+  std::atomic<std::size_t> thread_accum{0u};
   std::function<void(std::size_t, std::size_t, std::size_t)> functor =
-      [start, end](
+      [start, end, &thread_accum](
           std::size_t thread_idx, std::size_t start_idx, std::size_t end_idx) {
         EXPECT_GE(start_idx, start);
         EXPECT_LE(end_idx, end);
         EXPECT_GE(thread_idx, start_idx);
         EXPECT_LE(thread_idx, end_idx);
+        ++thread_accum;
       };
 
-  std::size_t actual_num_threads = parallelProcess(functor, 0, 10, num_threads);
+  const std::size_t actual_num_threads =
+      parallelProcess(functor, start, end, num_threads);
   EXPECT_EQ(actual_num_threads, num_threads);
+  EXPECT_EQ(thread_accum.load(), end - start);
+}
+
+TEST_F(DenseMappingTest, TestParallelProcessLessThreads) {
+  const std::size_t num_threads = 4;
+  const std::size_t start = 0;
+  const std::size_t end = 6;
+  std::atomic<std::size_t> thread_accum{0u};
+  std::function<void(std::size_t, std::size_t, std::size_t)> functor =
+      [start, end, &thread_accum](
+          std::size_t thread_idx, std::size_t start_idx, std::size_t end_idx) {
+        EXPECT_GE(start_idx, start);
+        EXPECT_LE(end_idx, end);
+        EXPECT_GE(thread_idx, start);
+        EXPECT_LE(thread_idx, end);
+        for (std::size_t i = start_idx; i < end_idx; ++i) {
+          ++thread_accum;
+        }
+      };
+
+  const std::size_t actual_num_threads =
+      parallelProcess(functor, start, end, num_threads);
+  EXPECT_GT(actual_num_threads, 0);
+  EXPECT_LE(actual_num_threads, num_threads);
+  EXPECT_EQ(thread_accum.load(), end - start);
+}
+
+TEST_F(DenseMappingTest, TestParallelProcessMoreThreads) {
+  const std::size_t num_threads = 4;
+  const std::size_t start = 0;
+  const std::size_t end = 2;
+  std::atomic<std::size_t> thread_accum{0u};
+  std::function<void(std::size_t, std::size_t, std::size_t)> functor =
+      [start, end, &thread_accum](
+          std::size_t thread_idx, std::size_t start_idx, std::size_t end_idx) {
+        EXPECT_GE(start_idx, start);
+        EXPECT_LE(end_idx, end);
+        EXPECT_GE(thread_idx, start);
+        EXPECT_LE(thread_idx, end);
+        for (std::size_t i = start_idx; i < end_idx; ++i) {
+          ++thread_accum;
+        }
+      };
+
+  const std::size_t actual_num_threads =
+      parallelProcess(functor, start, end, num_threads);
+  EXPECT_GT(actual_num_threads, 0);
+  EXPECT_LE(actual_num_threads, num_threads);
+  EXPECT_EQ(thread_accum.load(), end - start);
 }
 
 }  // namespace dense_mapping
