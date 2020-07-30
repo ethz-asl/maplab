@@ -36,7 +36,8 @@
 			<arg name="maplab_keyframe_when_saving" default="true"/>
 			<arg name="maplab_image_topic_suffix" default=""/>
 			<arg name="maplab_attach_images" default="$(arg arche_attach_images)"/>
-			<arg name="maplab_attach_point_clouds" default="true"/>
+			<arg name="maplab_attach_point_clouds" default="false"/>
+			<arg name="maplab_attach_point_cloud_maps" default="true"/>
 			<arg name="maplab_map_folder" default="$(arg arche_root_map_directory)/$(arg arche_robot_name)/"/>
 			<arg name="maplab_apply_clahe" default="$(arg arche_clahe)"/>
 			<arg name="maplab_remove_bad_landmarks" default="$(arg arche_remove_bad_landmarks)"/>
@@ -50,6 +51,9 @@
 			<param name="root_directory" value="$(arg arche_root_map_directory)"/>
 			<param name="robot_name" value="$(arg arche_robot_name)"/>
 		</node>
+
+		<node name="lidar_throttler_$(arg arche_robot_name)" type="throttle" pkg="topic_tools"
+			args="messages /$(arg arche_robot_name)/points 0.1 /$(arg arche_robot_name)/points_throttled"/>
 	</group>
 
 	<!-- ================================== ARCHE_02 ================================================== -->
@@ -71,7 +75,8 @@
 			<arg name="maplab_keyframe_when_saving" default="true"/>
 			<arg name="maplab_image_topic_suffix" default=""/>
 			<arg name="maplab_attach_images" default="$(arg arche_attach_images)"/>
-			<arg name="maplab_attach_point_clouds" default="true"/>
+			<arg name="maplab_attach_point_clouds" default="false"/>
+			<arg name="maplab_attach_point_cloud_maps" default="true"/>
 			<arg name="maplab_map_folder" default="$(arg arche_root_map_directory)/$(arg arche_robot_name)/"/>
 			<arg name="maplab_apply_clahe" default="$(arg arche_clahe)"/>
 			<arg name="maplab_remove_bad_landmarks" default="$(arg arche_remove_bad_landmarks)"/>
@@ -85,6 +90,8 @@
 			<param name="root_directory" value="$(arg arche_root_map_directory)"/>
 			<param name="robot_name" value="$(arg arche_robot_name)"/>
 		</node>
+		<node name="lidar_throttler_$(arg arche_robot_name)" type="throttle" pkg="topic_tools"
+			args="messages /$(arg arche_robot_name)/points 0.1 /$(arg arche_robot_name)/points_throttled"/>
 	</group>
 
 </launch>

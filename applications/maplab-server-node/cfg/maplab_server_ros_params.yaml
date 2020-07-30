@@ -163,7 +163,7 @@ maplab_server_reset_trust_region_radius_if_new_robot:                 true
 
 dm_candidate_search_enable_intra_mission_proximity:                   true
 dm_candidate_search_enable_inter_mission_proximity:                   true
-dm_candidate_search_proximity_min_distance_along_graph_m:             3.0
+dm_candidate_search_proximity_min_distance_along_graph_m:             1.0
 dm_candidate_search_proximity_max_delta_position_m:                   5.0
 
 # DEBUGGING AND VISUALIZATION
