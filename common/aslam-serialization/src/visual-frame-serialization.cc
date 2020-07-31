@@ -54,9 +54,6 @@ void serializeVisualFrame(
   if (frame.hasKeypointVectors()) {
     ::common::eigen_proto::serialize(
         frame.getKeypointVectors(), proto->mutable_keypoint_vectors());
-    CHECK_EQ(
-        3 * proto->keypoint_measurements_size(),
-        2 * proto->keypoint_vectors_size());
   }
 }
 
