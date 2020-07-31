@@ -18,7 +18,7 @@
 
 namespace map_optimization {
 
-bool addLidarPositionTermForKeypoint(
+void addLidarPositionTermForKeypoint(
     const int keypoint_idx, const int frame_idx,
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
@@ -192,7 +192,6 @@ bool addLidarPositionTermForKeypoint(
 
   problem->getProblemBookkeepingMutable()->landmarks_in_problem.emplace(
       landmark_id, lidar_term_cost.get());
-  return true;
 }
 
 void addVisualTermForKeypoint(
@@ -446,15 +445,13 @@ int addVisualTermsForVertices(
         if (!vi_map::isLandmarkWellConstrained(*map, landmark)) {
           continue;
         }
-        if (vertex.getVisualFrame(frame_idx).hasKeypointVectors()) {
-          if (addLidarPositionTermForKeypoint(
-                  keypoint_idx, frame_idx, fix_landmark_positions,
-                  fix_intrinsics, fix_extrinsics_rotation,
-                  fix_extrinsics_translation, pose_parameterization,
-                  baseframe_parameterization, camera_parameterization, &vertex,
-                  problem)) {
-            num_visual_constraints++;
-          }
+        if (vertex.getVisualFrame(frame_idx).getKeypointVectors().cols()) {
+          addLidarPositionTermForKeypoint(
+              keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
+              fix_extrinsics_rotation, fix_extrinsics_translation,
+              pose_parameterization, baseframe_parameterization,
+              camera_parameterization, &vertex, problem);
+          { num_visual_constraints++; }
         } else {
           addVisualTermForKeypoint(
               keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,

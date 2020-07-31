@@ -99,7 +99,7 @@ void findOutlierLandmarks(
                 map.getLandmark_p_C_fi(landmark_id, observer_vertex, frame_idx);
 
             if (observer_vertex.getVisualFrame(frame_idx)
-                    .hasKeypointVectors()) {
+                    .getKeypointVectors().cols()) {
               const Eigen::Vector3d measurement =
                   observer_vertex.getVisualFrame(frame_idx).getKeypointVector(
                       keypoint_id.keypoint_index);

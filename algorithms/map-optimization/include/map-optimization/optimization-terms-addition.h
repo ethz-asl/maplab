@@ -11,7 +11,7 @@
 
 namespace map_optimization {
 
-bool addLidarPositionTermForKeypoint(
+void addLidarPositionTermForKeypoint(
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
     const size_t min_landmarks_per_frame, OptimizationProblem* problem);
