@@ -445,7 +445,14 @@ int addVisualTermsForVertices(
         if (!vi_map::isLandmarkWellConstrained(*map, landmark)) {
           continue;
         }
-        if (vertex.getVisualFrame(frame_idx).getKeypointVectors().cols()) {
+        bool contains_keypoint_vector_channel =
+            vertex.getVisualFrame(frame_idx).hasKeypointVectors();
+        bool contains_keypoint_vector_data;
+        if (contains_keypoint_vector_channel) {
+          contains_keypoint_vector_data =
+              vertex.getVisualFrame(frame_idx).getKeypointVectors().cols();
+        }
+        if (contains_keypoint_vector_data) {
           addLidarPositionTermForKeypoint(
               keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
               fix_extrinsics_rotation, fix_extrinsics_translation,
