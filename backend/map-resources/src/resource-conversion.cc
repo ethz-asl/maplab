@@ -31,7 +31,6 @@ static const std::string kPointCloud2ColorR = "r";
 static const std::string kPointCloud2ColorG = "g";
 static const std::string kPointCloud2ColorB = "b";
 static const std::string kPointCloud2ColorA = "a";
-static const float kMaxIntensityValue = 1024.0f;
 
 static PointCloud2Visitor<float> intensity_visitor;
 static PointCloud2Visitor<uint32_t> label_visitor;
@@ -384,9 +383,8 @@ void getColorFromPointCloud(
 
     PointCloud2ConstIteratorVariant var =
         getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
-    float result =
-        boost::apply_visitor(intensity_visitor.setIndex(index), var) /
-        kMaxIntensityValue;
+    const float result =
+        boost::apply_visitor(intensity_visitor.setIndex(index), var);
 
     const voxblox::Color color = voxblox::grayColorMap(result);
     color_out[0] = color.r;
@@ -547,8 +545,7 @@ void getScalarFromPointCloud(
 
   PointCloud2ConstIteratorVariant var =
       getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
-  *scalar = boost::apply_visitor(intensity_visitor.setIndex(index), var) /
-            kMaxIntensityValue;
+  *scalar = boost::apply_visitor(intensity_visitor.setIndex(index), var);
 }
 
 template <>

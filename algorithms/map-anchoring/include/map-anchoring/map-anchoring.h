@@ -16,9 +16,6 @@ struct ProbeResult {
 
   ProbeResult();
 
-  static constexpr double kMinMergingInlierRatioThreshold = 0.20;
-  static constexpr int kMinMergingNumLinks = 10;
-
   bool wasSuccessful() const;
 };
 

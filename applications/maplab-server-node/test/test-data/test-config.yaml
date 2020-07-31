@@ -1,8 +1,0 @@
-submap_commands:
-  - "lc"
-  - "optvi"
-
-global_map_commands:
-  - "lc"
-  - "optvi"
-  - "elq --vi_map_landmark_quality_min_observers=2"

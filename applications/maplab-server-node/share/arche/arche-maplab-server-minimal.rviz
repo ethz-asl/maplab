@@ -52,59 +52,59 @@ Visualization Manager:
           Value: true
         map:
           Value: true
-        maplab_euroc_mh_1_imu_0_BASE:
+        maplab_arche_mh_1_imu_0_BASE:
           Value: true
-        maplab_euroc_mh_1_imu_0_BASE_LOCALIZED:
+        maplab_arche_mh_1_imu_0_BASE_LOCALIZED:
           Value: true
-        maplab_euroc_mh_1_odom:
+        maplab_arche_mh_1_odom:
           Value: true
-        maplab_euroc_mh_2_imu_0_BASE:
+        maplab_arche_mh_2_imu_0_BASE:
           Value: true
-        maplab_euroc_mh_2_imu_0_BASE_LOCALIZED:
+        maplab_arche_mh_2_imu_0_BASE_LOCALIZED:
           Value: true
-        maplab_euroc_mh_2_odom:
+        maplab_arche_mh_2_odom:
           Value: true
-        maplab_euroc_mh_3_imu_0_BASE:
+        maplab_arche_mh_3_imu_0_BASE:
           Value: true
-        maplab_euroc_mh_3_imu_0_BASE_LOCALIZED:
+        maplab_arche_mh_3_imu_0_BASE_LOCALIZED:
           Value: true
-        maplab_euroc_mh_3_odom:
+        maplab_arche_mh_3_odom:
           Value: true
-        maplab_euroc_mh_4_imu_0_BASE:
+        maplab_arche_mh_4_imu_0_BASE:
           Value: true
-        maplab_euroc_mh_4_imu_0_BASE_LOCALIZED:
+        maplab_arche_mh_4_imu_0_BASE_LOCALIZED:
           Value: true
-        maplab_euroc_mh_4_odom:
+        maplab_arche_mh_4_odom:
           Value: true
-        maplab_euroc_mh_5_imu_0_BASE:
+        maplab_arche_mh_5_imu_0_BASE:
           Value: true
-        maplab_euroc_mh_5_imu_0_BASE_LOCALIZED:
+        maplab_arche_mh_5_imu_0_BASE_LOCALIZED:
           Value: true
-        maplab_euroc_mh_5_odom:
+        maplab_arche_mh_5_odom:
           Value: true
         ncamera_0:
           Value: true
         odometry_6dof_sensor_0:
           Value: true
-        rovioli_euroc_mh_1_imu:
+        rovioli_arche_mh_1_imu:
           Value: true
-        rovioli_euroc_mh_1_odom:
+        rovioli_arche_mh_1_odom:
           Value: true
-        rovioli_euroc_mh_2_imu:
+        rovioli_arche_mh_2_imu:
           Value: true
-        rovioli_euroc_mh_2_odom:
+        rovioli_arche_mh_2_odom:
           Value: true
-        rovioli_euroc_mh_3_imu:
+        rovioli_arche_mh_3_imu:
           Value: true
-        rovioli_euroc_mh_3_odom:
+        rovioli_arche_mh_3_odom:
           Value: true
-        rovioli_euroc_mh_4_imu:
+        rovioli_arche_mh_4_imu:
           Value: true
-        rovioli_euroc_mh_4_odom:
+        rovioli_arche_mh_4_odom:
           Value: true
-        rovioli_euroc_mh_5_imu:
+        rovioli_arche_mh_5_imu:
           Value: true
-        rovioli_euroc_mh_5_odom:
+        rovioli_arche_mh_5_odom:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -136,7 +136,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Marker
       Enabled: false
-      Marker Topic: /euroc_mh_1/maplab_node/vi_map_edges/viwls
+      Marker Topic: /arche_mh_1/maplab_node/vi_map_edges/viwls
       Name: ROVIOLI_MH_1
       Namespaces:
         {}
@@ -144,7 +144,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/Marker
       Enabled: false
-      Marker Topic: /euroc_mh_2/maplab_node/vi_map_edges/viwls
+      Marker Topic: /arche_mh_2/maplab_node/vi_map_edges/viwls
       Name: ROVIOLI_MH_2
       Namespaces:
         {}
@@ -152,7 +152,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/Marker
       Enabled: false
-      Marker Topic: /euroc_mh_3/maplab_node/vi_map_edges/viwls
+      Marker Topic: /arche_mh_3/maplab_node/vi_map_edges/viwls
       Name: ROVIOLI_MH_3
       Namespaces:
         {}
@@ -160,7 +160,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/Marker
       Enabled: false
-      Marker Topic: /euroc_mh_4/maplab_node/vi_map_edges/viwls
+      Marker Topic: /arche_mh_4/maplab_node/vi_map_edges/viwls
       Name: ROVIOLI_MH_4
       Namespaces:
         {}
@@ -168,7 +168,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/Marker
       Enabled: false
-      Marker Topic: /euroc_mh_5/maplab_node/vi_map_edges/viwls
+      Marker Topic: /arche_mh_5/maplab_node/vi_map_edges/viwls
       Name: ROVIOLI_MH_5
       Namespaces:
         {}

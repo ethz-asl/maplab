@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-	<node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/lidarstick/arche_calib_lidar_3_2020-07-02-15-57-54_restamped.bag -q -d 2 -s 3 -r 1.0"/>
+  <node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/arche/arche_16_2020-06-30-17-57-19.bag -q -d 3 -s 0 -r 0.5"/>
 
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 
@@ -43,6 +43,7 @@
 
 		<!-- DENSE MAP -->
 		<param name="map_builder_save_point_clouds_as_resources" value="true"/>
+		<param name="map_builder_save_image_as_resources" value="true"/>
 
 		<!-- MAPLAB_NODE_CONFIG -->
 		<param name="map_save_every_n_sec" value="0"/>

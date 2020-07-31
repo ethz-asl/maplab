@@ -29,7 +29,7 @@ Requires:
 	<!-- ARTIFACT MANAGER NODE -->
 	<group if="true">
 		<include file="$(find artifact_manager_node)/launch/artifact_manager.launch">
-			<arg name="initial_artifact_store_folder" default="$(find maplab_server_node)/share/euroc/euroc-artifact-store" />
+			<arg name="initial_artifact_store_folder" default="$(find maplab_server_node)/share/arche/arche-artifact-store" />
 			<arg name="backup_artifact_store_folder" default="/tmp/backup-artifacts" />
 			<arg name="artifact_vis_world_frame_name" default="map" />
 			<arg name="artifact_refinement_sensor_frame" default="NCAMERA" />
@@ -42,7 +42,7 @@ Requires:
 	</group>
 
 	<group if="true">
-		<node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find maplab_server_node)/share/euroc/rviz/euroc-maplab-server-minimal.rviz" />
+		<node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find maplab_server_node)/share/arche/arche-maplab-server-minimal.rviz" />
 	</group>
 
 </launch>
