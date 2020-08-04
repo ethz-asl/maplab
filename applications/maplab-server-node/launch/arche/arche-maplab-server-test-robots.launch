@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+
+<!-- Requires:
+  - ethz-asl/maplab (develop)
+  - ethz-asl/transfolder
+-->
+
+<launch>
+
+	<arg name="arche_attach_images" default="false"/>
+	<arg name="arche_save_map_every_n_sec" default="60"/>
+	<arg name="arche_clahe" default="false"/>
+	<arg name="arche_playback_speed" default="0.5"/>
+	<arg name="arche_remove_bad_landmarks" default="true"/>
+	<arg name="arche_bags_folder" default="/media/berlukas/T7\ Touch/data/arche/"/>
+	<arg name="arche_root_map_directory" default="/tmp/maplab_node"/>
+
+	<arg name="group_A" default="true"/>
+
+	<!-- ================================== ARCHE_01 ================================================== -->
+	<group if="$(arg group_A)">
+		<arg name="arche_robot_name" default="arche_1"/>
+
+		<node pkg="rosbag" type="play" name="rosbag_$(arg arche_robot_name)" args="$(arg arche_bags_folder)/arche_16_2020-06-30-17-57-19.bag -q -d 2 -s 0 -r $(arg arche_playback_speed)">
+			<remap from="/alphasense_driver_ros/imu" to="/$(arg arche_robot_name)/imu0"/>
+			<remap from="/alphasense_driver_ros/cam0" to="/$(arg arche_robot_name)/cam0"/>
+			<remap from="/alphasense_driver_ros/cam2" to="/$(arg arche_robot_name)/cam2"/>
+			<remap from="/RTK_GPS/pose" to="/$(arg arche_robot_name)/pose"/>
+		</node>
+
+		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
+			<arg name="robot_name" default="$(arg arche_robot_name)"/>
+			<arg name="maplab_sensor_calibration_file" default="$(find maplab_server_node)/share/arche/arche-1.yaml"/>
+			<arg name="maplab_save_map_every_n_sec" default="$(arg arche_save_map_every_n_sec)"/>
+			<arg name="maplab_keyframe_when_saving" default="true"/>
+			<arg name="maplab_image_topic_suffix" default=""/>
+			<arg name="maplab_attach_images" default="$(arg arche_attach_images)"/>
+			<arg name="maplab_map_folder" default="$(arg arche_root_map_directory)/$(arg arche_robot_name)/"/>
+			<arg name="maplab_apply_clahe" default="$(arg arche_clahe)"/>
+			<arg name="maplab_remove_bad_landmarks" default="$(arg arche_remove_bad_landmarks)"/>
+		</include>
+
+		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg arche_robot_name)_sender" output="screen" args="-alsologtostderr">
+			<param name="new_subfolder_notification_topic_name" value="/$(arg arche_robot_name)/maplab_node/map_update_notification"/>
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer"/>
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status"/>
+
+			<param name="root_directory" value="$(arg arche_root_map_directory)"/>
+			<param name="robot_name" value="$(arg arche_robot_name)"/>
+		</node>
+	</group>
+
+	<!-- ================================== ARCHE_02 ================================================== -->
+	<group if="$(arg group_A)">
+		<arg name="arche_robot_name" default="arche_2"/>
+
+		<node pkg="rosbag" type="play" name="rosbag_$(arg arche_robot_name)" args="$(arg arche_bags_folder)/arche_05_2020-06-29-17-10-47.bag -q -d 2 -s 0 -r $(arg arche_playback_speed)">
+			<remap from="/alphasense_driver_ros/imu" to="/$(arg arche_robot_name)/imu0"/>
+			<remap from="/alphasense_driver_ros/cam0" to="/$(arg arche_robot_name)/cam0"/>
+			<remap from="/alphasense_driver_ros/cam2" to="/$(arg arche_robot_name)/cam2"/>
+			<remap from="/RTK_GPS/pose" to="/$(arg arche_robot_name)/pose"/>
+		</node>
+
+		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
+			<arg name="robot_name" default="$(arg arche_robot_name)"/>
+			<arg name="maplab_sensor_calibration_file" default="$(find maplab_server_node)/share/arche/arche-2.yaml"/>
+			<arg name="maplab_save_map_every_n_sec" default="$(arg arche_save_map_every_n_sec)"/>
+			<arg name="maplab_keyframe_when_saving" default="true"/>
+			<arg name="maplab_image_topic_suffix" default=""/>
+			<arg name="maplab_attach_images" default="$(arg arche_attach_images)"/>
+			<arg name="maplab_map_folder" default="$(arg arche_root_map_directory)/$(arg arche_robot_name)/"/>
+			<arg name="maplab_apply_clahe" default="$(arg arche_clahe)"/>
+			<arg name="maplab_remove_bad_landmarks" default="$(arg arche_remove_bad_landmarks)"/>
+		</include>
+
+		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg arche_robot_name)_sender" output="screen" args="-alsologtostderr">
+			<param name="new_subfolder_notification_topic_name" value="/$(arg arche_robot_name)/maplab_node/map_update_notification"/>
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer"/>
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status"/>
+
+			<param name="root_directory" value="$(arg arche_root_map_directory)"/>
+			<param name="robot_name" value="$(arg arche_robot_name)"/>
+		</node>
+	</group>
+
+</launch>

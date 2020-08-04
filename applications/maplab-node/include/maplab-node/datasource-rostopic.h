@@ -43,6 +43,7 @@
 #include "maplab-node/odometry-estimate.h"
 
 DECLARE_int64(imu_to_camera_time_offset_ns);
+DECLARE_int64(imu_to_lidar_time_offset_ns);
 
 namespace maplab {
 

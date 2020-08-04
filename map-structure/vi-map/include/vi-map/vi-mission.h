@@ -131,6 +131,8 @@ class VIMission : public Mission {
   // NOTE: Do not use these functions directly to modify the resource
   // bookkeeping, use the interface in the VIMap instead.
 
+  bool hasSensorResource(const backend::ResourceType& type) const;
+
   bool hasSensorResourceId(
       const backend::ResourceType& type, const aslam::SensorId& sensor_id,
       const int64_t timestamp_ns) const;

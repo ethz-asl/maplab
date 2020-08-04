@@ -84,9 +84,9 @@ typedef std::pair<MissionId, pose_graph::VertexIdList> MissionVertexIdPair;
 
 class VIMap : public backend::ResourceMap,
               public backend::MapInterface<vi_map::VIMap> {
-  friend ::LoopClosureHandlerTest;                   // Test.
-  friend class MapConsistencyCheckTest;              // Test.
-  friend class SixDofVIMapGenerator;                 // Test.
+  friend ::LoopClosureHandlerTest;       // Test.
+  friend class MapConsistencyCheckTest;  // Test.
+  friend class SixDofVIMapGenerator;     // Test.
   friend bool checkMapConsistency(const VIMap&);
   friend class VIMapStats;
 
@@ -682,6 +682,9 @@ class VIMap : public backend::ResourceMap,
   bool hasSensorResource(
       const VIMission& mission, const backend::ResourceType& type,
       const aslam::SensorId& sensor_id, const int64_t timestamp_ns) const;
+  bool hasSensorResource(
+      const MissionIdList& involved_mission_ids,
+      const backend::ResourceType& type) const;
 
   template <typename DataType>
   bool getSensorResource(

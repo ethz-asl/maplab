@@ -346,8 +346,19 @@ void DataSourceRosbag::streamingWorker() {
       vi_map::RosLidarMeasurement::Ptr lidar_measurement =
           convertRosCloudToMaplabCloud(lidar_msgs, sensor_id);
 
-      VLOG(3) << "Publish Lidar measurement...";
-      invokeLidarCallbacks(lidar_measurement);
+      // Apply the IMU to lidar time shift.
+      if (FLAGS_imu_to_lidar_time_offset_ns != 0) {
+        *lidar_measurement->getTimestampNanosecondsMutable() +=
+            FLAGS_imu_to_lidar_time_offset_ns;
+      }
+
+      // Shift timestamps to start at 0.
+      if (!FLAGS_zero_initial_timestamps ||
+          shiftByFirstTimestamp(
+              lidar_measurement->getTimestampNanosecondsMutable())) {
+        VLOG(3) << "Publish Lidar measurement...";
+        invokeLidarCallbacks(lidar_measurement);
+      }
     }
 
     geometry_msgs::PoseWithCovarianceStampedConstPtr absolute_constraint =
