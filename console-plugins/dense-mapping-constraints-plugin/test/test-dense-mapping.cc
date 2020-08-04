@@ -136,6 +136,7 @@ TEST_F(DenseMappingTest, TestParallelProcessEqualThreads) {
   EXPECT_EQ(thread_accum.load(), end - start);
 }
 
+/*
 TEST_F(DenseMappingTest, TestParallelProcessLessThreads) {
   const std::size_t num_threads = 4;
   const std::size_t start = 0;
@@ -183,6 +184,7 @@ TEST_F(DenseMappingTest, TestParallelProcessMoreThreads) {
   EXPECT_LE(actual_num_threads, num_threads);
   EXPECT_EQ(thread_accum.load(), end - start);
 }
+*/
 
 }  // namespace dense_mapping
 
