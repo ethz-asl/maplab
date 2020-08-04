@@ -39,12 +39,12 @@ class SynchronizerFlow {
         kSubscriberNodeName, delivery_method_,
         [this](const vio::BatchedImuMeasurements::ConstPtr& imu) {
           CHECK(imu);
-          const int num_measurements = imu->batch.size();
+          const size_t num_measurements = imu->batch.size();
           Eigen::Matrix<int64_t, 1, Eigen::Dynamic> timestamps_nanoseconds(
               1, num_measurements);
           Eigen::Matrix<double, 6, Eigen::Dynamic> imu_measurements(
               6, num_measurements);
-          for (int idx = 0; idx < num_measurements; ++idx) {
+          for (size_t idx = 0u; idx < num_measurements; ++idx) {
             const vio::ImuMeasurement& measurement = imu->batch[idx];
             timestamps_nanoseconds(idx) = measurement.timestamp;
             imu_measurements.col(idx) = measurement.imu_data;

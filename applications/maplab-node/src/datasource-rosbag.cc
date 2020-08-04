@@ -279,9 +279,9 @@ void DataSourceRosbag::streamingWorker() {
           *imu_msg, current_imu_batch_.get());
 
       // To batch or not to batch.
-      if (timestamp_ns - last_imu_dispatch_timestamp_ns_ >
-              imu_batch_period_ns_ ||
-          imu_batch_period_ns_ <= 0 || imu_batch_period_ns_ <= 0) {
+      if (imu_batch_period_ns_ <= 0 ||
+          timestamp_ns - last_imu_dispatch_timestamp_ns_ >
+              imu_batch_period_ns_) {
         // Should release the current batch and initialize a new one.
         vio::BatchedImuMeasurements::ConstPtr const_batch_ptr =
             std::const_pointer_cast<const vio::BatchedImuMeasurements>(
