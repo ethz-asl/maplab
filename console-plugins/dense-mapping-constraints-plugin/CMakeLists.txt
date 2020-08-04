@@ -21,9 +21,9 @@ create_console_plugin(${PROJECT_NAME})
 #############
 ## TESTING ##
 #############
-#catkin_add_gtest(test_dense_mapping test/test-dense-mapping.cc)
-#target_link_libraries(test_dense_mapping ${PROJECT_NAME})
-#maplab_import_test_maps(test_dense_mapping)
+catkin_add_gtest(test_dense_mapping test/test-dense-mapping.cc)
+target_link_libraries(test_dense_mapping ${PROJECT_NAME})
+maplab_import_test_maps(test_dense_mapping)
 
 ##################
 # CMAKE Indexing #
