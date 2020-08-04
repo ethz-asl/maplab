@@ -11,7 +11,7 @@ DEFINE_double(
     "maplab_node.");
 
 DEFINE_double(
-    maplab_batch_imu_measurements_at_frequency, 20,
+    maplab_batch_imu_measurements_at_frequency, 0,
     "Individual IMU measurements are collected and forwarded to the rest of "
     "the system in batches, rather than individually at a high frequency. If "
     "set to <= 0, batching is disabled.");
