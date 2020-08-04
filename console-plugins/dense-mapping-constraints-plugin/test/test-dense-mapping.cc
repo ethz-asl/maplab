@@ -115,6 +115,7 @@ TEST_F(DenseMappingTest, TestDenseMapping) {
   LOG(INFO) << timing::Timing::Print();
 }
 
+/*
 TEST_F(DenseMappingTest, TestParallelProcessEqualThreads) {
   const std::size_t num_threads = 4;
   const std::size_t start = 0;
@@ -136,7 +137,6 @@ TEST_F(DenseMappingTest, TestParallelProcessEqualThreads) {
   EXPECT_EQ(thread_accum.load(), end - start);
 }
 
-/*
 TEST_F(DenseMappingTest, TestParallelProcessLessThreads) {
   const std::size_t num_threads = 4;
   const std::size_t start = 0;
