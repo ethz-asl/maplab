@@ -217,22 +217,34 @@ void MaplabServerNode::shutdown() {
   LOG(INFO) << "[MaplabServerNode] Shutting down...";
   shut_down_requested_.store(true);
 
-  LOG(INFO) << "[MaplabServerNode] Stopping MapMerging thread...";
-  if (submap_merging_thread_.joinable()) {
-    submap_merging_thread_.join();
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping MapMerging thread...";
+    if (submap_merging_thread_.joinable()) {
+      submap_merging_thread_.join();
+    }
+    LOG(INFO) << "[MaplabServerNode] Done.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop map merging thread: " << e.what();
   }
-  LOG(INFO) << "[MaplabServerNode] Done.";
 
-  LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
-  submap_loading_thread_pool_.stop();
-  submap_loading_thread_pool_.waitForEmptyQueue();
-  LOG(INFO) << "[MaplabServerNode] Done.";
-
-  LOG(INFO) << "[MaplabServerNode] Stopping Status thread...";
-  if (status_thread_.joinable()) {
-    status_thread_.join();
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
+    submap_loading_thread_pool_.stop();
+    submap_loading_thread_pool_.waitForEmptyQueue();
+    LOG(INFO) << "[MaplabServerNode] Done.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop map submap processing threads: " << e.what();
   }
-  LOG(INFO) << "[MaplabServerNode] Done.";
+
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping Status thread...";
+    if (status_thread_.joinable()) {
+      status_thread_.join();
+    }
+    LOG(INFO) << "[MaplabServerNode] Done.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop status thread: " << e.what();
+  }
 
   is_running_ = false;
 }
