@@ -226,21 +226,26 @@ void DataSourceRosbag::streamingWorker() {
         image_measurement->timestamp += FLAGS_imu_to_camera_time_offset_ns;
       }
 
-      // Check for strictly increasing image timestamps.
-      CHECK_LT(camera_idx, last_image_timestamp_ns_.size());
-      if (aslam::time::isValidTime(last_image_timestamp_ns_[camera_idx]) &&
-          last_image_timestamp_ns_[camera_idx] >=
-              image_measurement->timestamp) {
-        LOG(WARNING) << "[MaplabNode-DataSource] Image message (cam "
-                     << camera_idx << ") is not strictly "
-                     << "increasing! Current timestamp: "
-                     << image_measurement->timestamp << "ns vs last timestamp: "
-                     << last_image_timestamp_ns_[camera_idx] << "ns.";
-      } else {
-        last_image_timestamp_ns_[camera_idx] = image_measurement->timestamp;
+      // Shift timestamps to start at 0.
+      if (!FLAGS_zero_initial_timestamps ||
+          shiftByFirstTimestamp(&(image_measurement->timestamp))) {
+        // Check for strictly increasing image timestamps.
+        CHECK_LT(camera_idx, last_image_timestamp_ns_.size());
+        if (aslam::time::isValidTime(last_image_timestamp_ns_[camera_idx]) &&
+            last_image_timestamp_ns_[camera_idx] >=
+                image_measurement->timestamp) {
+          LOG(WARNING) << "[MaplabNode-DataSource] Image message (cam "
+                       << camera_idx << ") is not strictly "
+                       << "increasing! Current timestamp: "
+                       << image_measurement->timestamp
+                       << "ns vs last timestamp: "
+                       << last_image_timestamp_ns_[camera_idx] << "ns.";
+        } else {
+          last_image_timestamp_ns_[camera_idx] = image_measurement->timestamp;
 
-        VLOG(3) << "Publish Image measurement...";
-        invokeImageCallbacks(image_measurement);
+          VLOG(3) << "Publish Image measurement...";
+          invokeImageCallbacks(image_measurement);
+        }
       }
     }
 
@@ -250,91 +255,99 @@ void DataSourceRosbag::streamingWorker() {
           message.instantiate<sensor_msgs::Imu>();
       CHECK(imu_msg);
 
-      const int64_t timestamp_ns = rosTimeToNanoseconds(imu_msg->header.stamp);
+      int64_t timestamp_ns = rosTimeToNanoseconds(imu_msg->header.stamp);
 
-      // Check for strictly increasing imu timestamps.
-      if (aslam::time::isValidTime(last_imu_timestamp_ns_) &&
-          last_imu_timestamp_ns_ >= timestamp_ns) {
-        LOG(WARNING) << "[MaplabNode-DataSource] IMU message is not strictly "
-                     << "increasing! Current timestamp: " << timestamp_ns
-                     << "ns vs last timestamp: " << last_imu_timestamp_ns_
-                     << "ns.";
-        return;
-      }
-      // This IMU measurement was accepted.
-      last_imu_timestamp_ns_ = timestamp_ns;
+      if (!FLAGS_zero_initial_timestamps ||
+          shiftByFirstTimestamp(&timestamp_ns)) {
+        // Check for strictly increasing imu timestamps.
+        if (aslam::time::isValidTime(last_imu_timestamp_ns_) &&
+            last_imu_timestamp_ns_ >= timestamp_ns) {
+          LOG(WARNING) << "[MaplabNode-DataSource] IMU message is not strictly "
+                       << "increasing! Current timestamp: " << timestamp_ns
+                       << "ns vs last timestamp: " << last_imu_timestamp_ns_
+                       << "ns.";
+          return;
+        }
+        // This IMU measurement was accepted.
+        last_imu_timestamp_ns_ = timestamp_ns;
 
-      // Initialize the dispatch timer, if we get here for the first time.
-      if (!aslam::time::isValidTime(last_imu_dispatch_timestamp_ns_)) {
-        last_imu_dispatch_timestamp_ns_ = timestamp_ns;
-      }
-      // Initialize a new batch if this is the first time or if in the previous
-      // call we just released a batch.
-      if (!current_imu_batch_) {
-        current_imu_batch_.reset(new vio::BatchedImuMeasurements);
-      }
-      CHECK(current_imu_batch_);
+        // Initialize the dispatch timer, if we get here for the first time.
+        if (!aslam::time::isValidTime(last_imu_dispatch_timestamp_ns_)) {
+          last_imu_dispatch_timestamp_ns_ = timestamp_ns;
+        }
+        // Initialize a new batch if this is the first time or if in the
+        // previous call we just released a batch.
+        if (!current_imu_batch_) {
+          current_imu_batch_.reset(new vio::BatchedImuMeasurements);
+        }
+        CHECK(current_imu_batch_);
 
-      addRosImuMeasurementToImuMeasurementBatch(
-          *imu_msg, current_imu_batch_.get());
+        addRosImuMeasurementToImuMeasurementBatch(
+            *imu_msg, current_imu_batch_.get());
 
-      // To batch or not to batch.
-      if (imu_batch_period_ns_ <= 0 ||
-          timestamp_ns - last_imu_dispatch_timestamp_ns_ >
-              imu_batch_period_ns_) {
-        // Should release the current batch and initialize a new one.
-        vio::BatchedImuMeasurements::ConstPtr const_batch_ptr =
-            std::const_pointer_cast<const vio::BatchedImuMeasurements>(
-                current_imu_batch_);
-        invokeImuCallbacks(const_batch_ptr);
+        // To batch or not to batch.
+        if (imu_batch_period_ns_ <= 0 ||
+            timestamp_ns - last_imu_dispatch_timestamp_ns_ >
+                imu_batch_period_ns_) {
+          // Should release the current batch and initialize a new one.
+          vio::BatchedImuMeasurements::ConstPtr const_batch_ptr =
+              std::const_pointer_cast<const vio::BatchedImuMeasurements>(
+                  current_imu_batch_);
+          invokeImuCallbacks(const_batch_ptr);
 
-        // Reset current batch.
-        current_imu_batch_.reset();
+          // Reset current batch.
+          current_imu_batch_.reset();
 
-        // Update time of last dispatch.
-        last_imu_dispatch_timestamp_ns_ = timestamp_ns;
+          // Update time of last dispatch.
+          last_imu_dispatch_timestamp_ns_ = timestamp_ns;
+        }
       }
     }
-
     if (topic == ros_topics_.odometry_6dof_topic.first) {
       maplab_msgs::OdometryWithImuBiasesConstPtr odometry_msg =
           message.instantiate<maplab_msgs::OdometryWithImuBiases>();
       CHECK(odometry_msg);
 
       const aslam::SensorId& sensor_id = ros_topics_.odometry_6dof_topic.second;
-
-      const int64_t timestamp_ns =
-          rosTimeToNanoseconds(odometry_msg->header.stamp);
-
-      if (aslam::time::isValidTime(last_odometry_timestamp_ns_)) {
-        const int64_t odometry_period_ns =
-            timestamp_ns - last_odometry_timestamp_ns_;
-        if (odometry_period_ns <= 0) {
-          LOG(WARNING)
-              << "[MaplabNode-DataSource] Odometry message is not strictly "
-              << "increasing! Current timestamp: " << timestamp_ns
-              << "ns vs last timestamp: " << last_odometry_timestamp_ns_
-              << "ns.";
-          return;
-        } else if (odometry_period_ns < odometry_min_period_ns_) {
-          // Skip this odometry message, since it arrives at a higher frequency
-          // than desired.
-          return;
+      static constexpr int64_t kAcceptanceTime = -10000;
+      int64_t timestamp_ns = rosTimeToNanoseconds(odometry_msg->header.stamp);
+      if (!FLAGS_zero_initial_timestamps ||
+          shiftByFirstTimestamp(&timestamp_ns)) {
+        if (aslam::time::isValidTime(last_odometry_timestamp_ns_)) {
+          const int64_t odometry_period_ns =
+              timestamp_ns - last_odometry_timestamp_ns_;
+          if (odometry_period_ns <= 0) {
+            LOG(WARNING)
+                << "[MaplabNode-DataSource] Odometry message is not strictly "
+                << "increasing! Current timestamp: " << timestamp_ns
+                << "ns vs last timestamp: " << last_odometry_timestamp_ns_
+                << "ns.";
+            return;
+          } else {
+            const int64_t odometry_diff_ns =
+                odometry_period_ns - odometry_min_period_ns_;
+            if (odometry_diff_ns < 0 && odometry_diff_ns < kAcceptanceTime) {
+              // Skip this odometry message, since it arrives at a higher
+              // frequency than desired.
+              return;
+            }
+          }
         }
+        // This odometry measurement was accepted.
+        last_odometry_timestamp_ns_ = timestamp_ns;
+
+        // Convert message.
+        const vi_map::Odometry6DoF& sensor =
+            sensor_manager_.getSensor<vi_map::Odometry6DoF>(sensor_id);
+        const aslam::Transformation& T_B_S =
+            sensor_manager_.getSensor_T_B_S(sensor_id);
+        maplab::OdometryEstimate::Ptr odometry_measurement =
+            convertRosOdometryMsgToOdometryEstimate(
+                odometry_msg, T_B_S, sensor);
+        CHECK(odometry_measurement);
+
+        invokeOdometryCallbacks(odometry_measurement);
       }
-      // This odometry measurement was accepted.
-      last_odometry_timestamp_ns_ = timestamp_ns;
-
-      // Convert message.
-      const vi_map::Odometry6DoF& sensor =
-          sensor_manager_.getSensor<vi_map::Odometry6DoF>(sensor_id);
-      const aslam::Transformation& T_B_S =
-          sensor_manager_.getSensor_T_B_S(sensor_id);
-      maplab::OdometryEstimate::Ptr odometry_measurement =
-          convertRosOdometryMsgToOdometryEstimate(odometry_msg, T_B_S, sensor);
-      CHECK(odometry_measurement);
-
-      invokeOdometryCallbacks(odometry_measurement);
     }
 
     // Enqueue lidar messages.
