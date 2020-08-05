@@ -104,7 +104,8 @@ MaplabServerNode::MaplabServerNode()
       duration_last_merging_loop_s_(0.0),
       optimization_trust_region_radius_(FLAGS_ba_initial_trust_region_radius),
       total_num_merged_submaps_(0u),
-      time_of_last_map_backup_s_(0.0) {
+      time_of_last_map_backup_s_(0.0),
+      is_running_(false) {
   if (!FLAGS_ros_free) {
     visualization::RVizVisualizationSink::init();
     plotter_.reset(new visualization::ViwlsGraphRvizPlotter);
@@ -112,7 +113,9 @@ MaplabServerNode::MaplabServerNode()
 }
 
 MaplabServerNode::~MaplabServerNode() {
-  shutdown();
+  if (is_running_) {
+    shutdown();
+  }
 }
 
 void MaplabServerNode::start() {
