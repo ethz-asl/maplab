@@ -229,7 +229,9 @@ void MaplabServerNode::shutdown() {
   LOG(INFO) << "[MaplabServerNode] Done.";
 
   LOG(INFO) << "[MaplabServerNode] Stopping Status thread...";
-  status_thread_.join();
+  if (status_thread_.joinable()) {
+    status_thread_.join();
+  }
   LOG(INFO) << "[MaplabServerNode] Done.";
 
   is_running_ = false;
