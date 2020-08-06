@@ -110,7 +110,9 @@ void deserializeVisualFrame(
     frame_ref.setTimestampNanoseconds(proto.timestamp());
     frame_ref.setKeypointMeasurements(img_points_distorted);
     frame_ref.setKeypointMeasurementUncertainties(uncertainties);
-    frame_ref.setKeypointVectors(keypoint_vectors);
+    if (proto.keypoint_vectors_size() != 0) {
+      frame_ref.setKeypointVectors(keypoint_vectors);
+    }
     if (scales.rows() != 0) {
       CHECK_EQ(scales.rows(), uncertainties.rows());
       frame_ref.setKeypointScales(scales);
@@ -127,7 +129,6 @@ void deserializeVisualFrame(
     CHECK(frame_ref.hasKeypointMeasurements());
     CHECK(frame_ref.hasKeypointMeasurementUncertainties());
     CHECK(frame_ref.hasDescriptors());
-    CHECK(frame_ref.hasKeypointVectors());
 
     if (proto.has_is_valid() && !proto.is_valid()) {
       frame_ref.invalidate();

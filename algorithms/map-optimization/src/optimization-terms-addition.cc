@@ -123,14 +123,15 @@ void addLidarPositionTermForKeypoint(
           lidar_measurement, image_point_uncertainty, error_term_type,
           camera_ptr.get()));
 
-  std::vector<double*> cost_term_args = {landmark.get_p_B_Mutable(),
-                                         landmark_store_vertex_q_IM__M_p_MI,
-                                         landmark_store_baseframe_q_GM__G_p_GM,
-                                         observer_baseframe_q_GM__G_p_GM,
-                                         vertex_q_IM__M_p_MI,
-                                         camera_q_CI,
-                                         camera_C_p_CI,
-                                         camera_ptr->getParametersMutable()};
+  std::vector<double*> cost_term_args = {
+      landmark.get_p_B_Mutable(),
+      landmark_store_vertex_q_IM__M_p_MI,
+      landmark_store_baseframe_q_GM__G_p_GM,
+      observer_baseframe_q_GM__G_p_GM,
+      vertex_q_IM__M_p_MI,
+      camera_q_CI,
+      camera_C_p_CI,
+      camera_ptr->getParametersMutable()};
 
   // Certain types of visual cost terms (as indicated by error_term_type) do not
   // use all of the pointer arguments. Ceres, however, requires us to provide
@@ -445,14 +446,8 @@ int addVisualTermsForVertices(
         if (!vi_map::isLandmarkWellConstrained(*map, landmark)) {
           continue;
         }
-        bool contains_keypoint_vector_channel =
-            vertex.getVisualFrame(frame_idx).hasKeypointVectors();
-        bool contains_keypoint_vector_data;
-        if (contains_keypoint_vector_channel) {
-          contains_keypoint_vector_data =
-              vertex.getVisualFrame(frame_idx).getKeypointVectors().cols();
-        }
-        if (contains_keypoint_vector_data) {
+
+        if (vertex.getVisualFrame(frame_idx).hasKeypointVectors()) {
           addLidarPositionTermForKeypoint(
               keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
               fix_extrinsics_rotation, fix_extrinsics_translation,
@@ -496,7 +491,7 @@ int addVisualTerms(
         parameterizations.baseframe_parameterization,
         parameterizations.quaternion_parameterization, vertices, problem);
   }
-  VLOG(0) << "Added " << num_visual_constraints << " visual residuals.";
+  VLOG(1) << "Added " << num_visual_constraints << " visual residuals.";
   return num_visual_constraints;
 }
 

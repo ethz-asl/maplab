@@ -39,9 +39,6 @@ CATKIN_IGNORE
 .idea
 cmake-build-debug
 
-# VS Code
-*.json
-
 # QtCreator
 CMakeLists.txt.user
 
