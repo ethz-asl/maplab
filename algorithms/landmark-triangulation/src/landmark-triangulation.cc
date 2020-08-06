@@ -1,13 +1,12 @@
 #include "landmark-triangulation/landmark-triangulation.h"
 
-#include <functional>
-#include <string>
-#include <unordered_map>
-
 #include <aslam/common/statistics/statistics.h>
 #include <aslam/triangulation/triangulation.h>
+#include <functional>
 #include <maplab-common/multi-threaded-progress-bar.h>
 #include <maplab-common/parallel-process.h>
+#include <string>
+#include <unordered_map>
 #include <vi-map/landmark-quality-metrics.h>
 #include <vi-map/vi-map.h>
 
@@ -141,6 +140,7 @@ void retriangulateLandmarksOfVertex(
     // The following have one entry per measurement:
     Eigen::Matrix3Xd G_bearing_vectors;
     Eigen::Matrix3Xd p_G_C_vector;
+    Eigen::Matrix3Xd lidar_landmark_measurements;
 
     landmark.setQuality(vi_map::Landmark::Quality::kBad);
 
@@ -153,10 +153,13 @@ void retriangulateLandmarksOfVertex(
       continue;
     }
 
+    Eigen::Vector3d keypoint_vector;
     G_bearing_vectors.resize(Eigen::NoChange, observations.size());
     p_G_C_vector.resize(Eigen::NoChange, observations.size());
+    lidar_landmark_measurements.resize(Eigen::NoChange, observations.size());
 
     int num_measurements = 0;
+    double min_distance_to_lidar = std::numeric_limits<double>::max();
     for (const vi_map::KeypointIdentifier& observation : observations) {
       const pose_graph::VertexId& observer_id = observation.frame_id.vertex_id;
       CHECK(map->hasVertex(observer_id))
@@ -184,6 +187,32 @@ void retriangulateLandmarksOfVertex(
         T_G_I_observer = T_G_M_observer * T_M_I_observer;
       }
 
+      const aslam::CameraId& cam_id =
+          observer.getCamera(observation.frame_id.frame_index)->getId();
+      aslam::Transformation T_G_C =
+          (T_G_I_observer *
+           observer.getNCameras()->get_T_C_B(cam_id).inverse());
+
+      // Retriangulation when there is 3D LiDAR data available
+      Eigen::Vector3d G_keypoint_vector;
+      if (visual_frame.hasKeypointVectors()) {
+        keypoint_vector =
+            visual_frame.getKeypointVector(observation.keypoint_index);
+
+        Eigen::Vector3d G_keypoint_vector =
+            T_G_C.getRotationMatrix() * keypoint_vector;
+        Eigen::Vector3d lidar_landmark_measurement =
+            T_G_C.getPosition() + G_keypoint_vector;
+
+        lidar_landmark_measurements.col(num_measurements) =
+            lidar_landmark_measurement;
+        if (G_keypoint_vector.norm() < min_distance_to_lidar) {
+          min_distance_to_lidar = G_keypoint_vector.norm();
+        }
+        ++num_measurements;
+        continue;
+      }
+
       Eigen::Vector2d measurement =
           visual_frame.getKeypointMeasurement(observation.keypoint_index);
 
@@ -198,18 +227,46 @@ void retriangulateLandmarksOfVertex(
         continue;
       }
 
-      const aslam::CameraId& cam_id =
-          observer.getCamera(observation.frame_id.frame_index)->getId();
-      aslam::Transformation T_G_C =
-          (T_G_I_observer *
-           observer.getNCameras()->get_T_C_B(cam_id).inverse());
       G_bearing_vectors.col(num_measurements) =
           T_G_C.getRotationMatrix() * C_bearing_vector;
       p_G_C_vector.col(num_measurements) = T_G_C.getPosition();
       ++num_measurements;
     }
+    lidar_landmark_measurements.conservativeResize(
+        Eigen::NoChange, num_measurements);
     G_bearing_vectors.conservativeResize(Eigen::NoChange, num_measurements);
     p_G_C_vector.conservativeResize(Eigen::NoChange, num_measurements);
+
+    Eigen::Vector3d p_G_fi;
+
+    if (min_distance_to_lidar < std::numeric_limits<double>::max()) {
+      double x_deviation =
+          abs(lidar_landmark_measurements.row(0).maxCoeff() -
+              lidar_landmark_measurements.row(0).minCoeff());
+      double y_deviation =
+          abs(lidar_landmark_measurements.row(1).maxCoeff() -
+              lidar_landmark_measurements.row(1).minCoeff());
+      double z_deviation =
+          abs(lidar_landmark_measurements.row(2).maxCoeff() -
+              lidar_landmark_measurements.row(2).minCoeff());
+      double averaging_uncertainty = sqrt(
+          x_deviation * x_deviation + y_deviation * y_deviation +
+          z_deviation * z_deviation);
+
+      p_G_fi = lidar_landmark_measurements.rowwise().mean();
+      constexpr bool kReEvaluateQuality = true;
+      if (vi_map::isLandmarkWellConstrained(
+              *map, landmark, kReEvaluateQuality, min_distance_to_lidar,
+              averaging_uncertainty)) {
+        statistics::StatsCollector stats_good("Landmark good");
+        stats_good.IncrementOne();
+        landmark.setQuality(vi_map::Landmark::Quality::kGood);
+      } else {
+        statistics::StatsCollector stats("Landmark bad after triangulation");
+        stats.IncrementOne();
+      }
+      continue;
+    }
 
     if (num_measurements < 2) {
       statistics::StatsCollector stats("Landmark triangulation too few meas.");
@@ -217,11 +274,9 @@ void retriangulateLandmarksOfVertex(
       continue;
     }
 
-    Eigen::Vector3d p_G_fi;
     aslam::TriangulationResult triangulation_result =
         aslam::linearTriangulateFromNViews(
             G_bearing_vectors, p_G_C_vector, &p_G_fi);
-
     if (triangulation_result.wasTriangulationSuccessful()) {
       landmark.set_p_B(T_G_I_storing.inverse() * p_G_fi);
       constexpr bool kReEvaluateQuality = true;
