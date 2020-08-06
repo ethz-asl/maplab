@@ -1,11 +1,10 @@
 #include "vi-map/landmark-quality-metrics.h"
 
-#include <limits>
-#include <vector>
-
 #include <Eigen/Dense>
 #include <aslam/common/statistics/statistics.h>
 #include <gflags/gflags.h>
+#include <limits>
+#include <vector>
 #include <vi-map/landmark.h>
 #include <vi-map/vi-map.h>
 
@@ -29,6 +28,15 @@ DEFINE_double(
     "Minimum distance from closest observer for a landmark to be "
     "well constrained [m].");
 
+DEFINE_double(
+    vi_map_landmark_quality_max_position_deviation_lidar, 4.0,
+    "Maximum distance between landmark measurements of a LiDAR [m].");
+
+DEFINE_double(
+    vi_map_landmark_quality_max_position_uncertainty_lidar, 0.1,
+    "Maximal ratio between the distance between LiDAR landmark measurements "
+    "and the distance from the observer to the closest measurement.");
+
 namespace vi_map {
 LandmarkWellConstrainedSettings::LandmarkWellConstrainedSettings()
     : max_distance_to_closest_observer(
@@ -37,12 +45,30 @@ LandmarkWellConstrainedSettings::LandmarkWellConstrainedSettings()
           FLAGS_vi_map_landmark_quality_min_distance_from_closest_observer),
       min_observation_angle_deg(
           FLAGS_vi_map_landmark_quality_min_observation_angle_deg),
-      min_observers(FLAGS_vi_map_landmark_quality_min_observers) {}
+      min_observers(FLAGS_vi_map_landmark_quality_min_observers),
+      max_position_deviation_lidar(
+          FLAGS_vi_map_landmark_quality_max_position_deviation_lidar),
+      max_position_uncertainty_lidar(
+          FLAGS_vi_map_landmark_quality_max_position_uncertainty_lidar) {}
 
 bool isLandmarkWellConstrained(
     const vi_map::VIMap& map, const vi_map::Landmark& landmark) {
   constexpr bool kReEvaluateQuality = false;
   return isLandmarkWellConstrained(map, landmark, kReEvaluateQuality);
+}
+
+bool isLandmarkWellConstrained(
+    const vi_map::VIMap& map, const vi_map::Landmark& landmark,
+    bool re_evaluate_quality, double min_distance_to_lidar,
+    double position_uncertainty) {
+  LandmarkWellConstrainedSettings settings;
+  if (position_uncertainty / min_distance_to_lidar >
+          settings.max_position_uncertainty_lidar ||
+      position_uncertainty > settings.max_position_deviation_lidar) {
+    return false;
+  }
+
+  return isLandmarkWellConstrained(map, landmark, re_evaluate_quality);
 }
 
 bool isLandmarkWellConstrained(

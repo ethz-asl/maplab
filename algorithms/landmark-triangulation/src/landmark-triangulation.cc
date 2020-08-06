@@ -12,9 +12,6 @@
 
 #include "landmark-triangulation/pose-interpolator.h"
 
-double max_position_uncertainty = 0.1;
-double max_position_deviation = 4.0;
-
 namespace landmark_triangulation {
 typedef AlignedUnorderedMap<aslam::FrameId, aslam::Transformation>
     FrameToPoseMap;
@@ -259,10 +256,8 @@ void retriangulateLandmarksOfVertex(
       p_G_fi = lidar_landmark_measurements.rowwise().mean();
       constexpr bool kReEvaluateQuality = true;
       if (vi_map::isLandmarkWellConstrained(
-              *map, landmark, kReEvaluateQuality) &&
-          averaging_uncertainty / min_distance_to_lidar <
-              max_position_uncertainty &&
-          averaging_uncertainty < max_position_deviation) {
+              *map, landmark, kReEvaluateQuality, min_distance_to_lidar,
+              averaging_uncertainty)) {
         statistics::StatsCollector stats_good("Landmark good");
         stats_good.IncrementOne();
         landmark.setQuality(vi_map::Landmark::Quality::kGood);

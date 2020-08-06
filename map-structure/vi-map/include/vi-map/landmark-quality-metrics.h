@@ -1,15 +1,14 @@
 #ifndef VI_MAP_LANDMARK_QUALITY_METRICS_H_
 #define VI_MAP_LANDMARK_QUALITY_METRICS_H_
 
-#include <vector>
-
 #include <Eigen/Core>
 #include <aslam/common/memory.h>
+#include <vector>
 
 namespace vi_map {
 class VIMap;
 class Landmark;
-}
+}  // namespace vi_map
 
 namespace vi_map {
 
@@ -26,6 +25,11 @@ struct LandmarkWellConstrainedSettings {
   double min_observation_angle_deg;
   /// Minimum number of observers for a landmark to be well constrained.
   size_t min_observers;
+  /// Maximum distance between landmark measurements of a LiDAR [m].
+  double max_position_deviation_lidar;
+  /// Maximal ratio between the distance between LiDAR landmark measurements and
+  /// the distance from the observer to the closest measurement..
+  double max_position_uncertainty_lidar;
 
   LandmarkWellConstrainedSettings();
 };
@@ -46,6 +50,12 @@ inline bool isLandmarkWellConstrained(
 bool isLandmarkWellConstrained(
     const vi_map::VIMap& map, const vi_map::Landmark& landmark,
     bool re_evaluate_quality);
+
+// Includes an additional check for 3D LiDAR data
+bool isLandmarkWellConstrained(
+    const vi_map::VIMap& map, const vi_map::Landmark& landmark,
+    bool re_evaluate_quality, double min_distance_to_lidar,
+    double position_uncertainty);
 
 }  // namespace vi_map
 #include "./landmark-quality-metrics-inl.h"
