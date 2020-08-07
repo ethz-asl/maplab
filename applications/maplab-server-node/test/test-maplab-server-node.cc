@@ -13,6 +13,7 @@
 #include <maplab-server-node/maplab-server-ros-node.h>
 
 DECLARE_bool(overwrite);
+DECLARE_bool(ros_free);
 
 namespace maplab {
 
@@ -20,6 +21,7 @@ class MaplabServerNodeTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
     FLAGS_overwrite = true;
+    FLAGS_ros_free = true;
   }
 
  public:
@@ -37,16 +39,14 @@ class MaplabServerNodeTest : public ::testing::Test {
 
 TEST_F(MaplabServerNodeTest, TestMaplabServerNodeSanity) {
   MaplabServerNode maplab_server_node;
-  // maplab_server_node.start();
-  // maplab_server_node.shutdown();
+  maplab_server_node.start();
+  maplab_server_node.shutdown();
 }
-
-/*
 
 TEST_F(MaplabServerNodeTest, TestMaplabServerNode) {
   MaplabServerNode maplab_server_node;
-
   maplab_server_node.start();
+  ros::Time::init();
 
   EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap0));
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -134,7 +134,7 @@ TEST_F(MaplabServerNodeTest, DISABLED_TestMaplabServerRosNodeLocal) {
 
   maplab_server_ros_node.shutdown();
 }
-*/
+
 
 }  // namespace maplab
 

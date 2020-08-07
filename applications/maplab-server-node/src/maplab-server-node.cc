@@ -1,7 +1,6 @@
 #include "maplab-server-node/maplab-server-node.h"
 
 #include <aslam/common/timer.h>
-#include <dense-mapping/dense-mapping.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <landmark-triangulation/pose-interpolator.h>
@@ -104,18 +103,22 @@ MaplabServerNode::MaplabServerNode()
       duration_last_merging_loop_s_(0.0),
       optimization_trust_region_radius_(FLAGS_ba_initial_trust_region_radius),
       total_num_merged_submaps_(0u),
-      time_of_last_map_backup_s_(0.0),
-      is_running_(false) {
+      time_of_last_map_backup_s_(0.0) {
   if (!FLAGS_ros_free) {
     visualization::RVizVisualizationSink::init();
     plotter_.reset(new visualization::ViwlsGraphRvizPlotter);
   }
 }
+MaplabServerNode::MaplabServerNode(int test)
+: submap_loading_thread_pool_(
+      FLAGS_maplab_server_submap_loading_thread_pool_size)
+      {
+
+VLOG(1) << "RUNNING------------";
+      }
 
 MaplabServerNode::~MaplabServerNode() {
-  if (is_running_) {
-    shutdown();
-  }
+  shutdown();
 }
 
 void MaplabServerNode::start() {
@@ -211,11 +214,6 @@ void MaplabServerNode::start() {
 }
 
 void MaplabServerNode::shutdown() {
-  if (shut_down_requested_.load()) {
-    // Already shut down.
-    return;
-  }
-
   std::lock_guard<std::mutex> lock(mutex_);
   LOG(INFO) << "[MaplabServerNode] Shutting down...";
   shut_down_requested_.store(true);
@@ -687,19 +685,6 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         loop_detector.detectLoopClosuresAndMergeLandmarks(*jt, map.get());
       }
     }
-  }
-
-  // Dense mapping constraints
-  ////////////////////////////
-  {
-    {
-      std::lock_guard<std::mutex> merge_status_lock(
-          running_merging_process_mutex_);
-      running_merging_process_ = "dense mapping constraints";
-    }
-    dense_mapping::Config config = dense_mapping::Config::fromGflags();
-    dense_mapping::addDenseMappingConstraintsToMap(
-        config, mission_ids, map.get());
   }
 
   // Full optimization
