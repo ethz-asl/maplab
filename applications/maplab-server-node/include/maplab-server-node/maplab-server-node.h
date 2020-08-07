@@ -48,7 +48,6 @@ struct SubmapProcess {
 class MaplabServerNode final {
  public:
   explicit MaplabServerNode();
-  MaplabServerNode(int test);
 
   ~MaplabServerNode();
 
