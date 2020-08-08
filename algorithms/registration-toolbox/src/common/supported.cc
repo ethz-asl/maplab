@@ -11,6 +11,8 @@ std::string SupportedAligner::getKeyForAligner(Aligner aligner) {
     return "regbox::PclGeneralizedIcpController";
   } else if (aligner == Aligner::Mock) {
     return "regbox::MockController";
+  } else if (aligner == Aligner::LpmIcp) {
+    return "regbox::LpmIcpController";
   } else {
     LOG(FATAL) << "Unsupported alignment type given: "
                << static_cast<int>(aligner);

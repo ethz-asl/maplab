@@ -22,14 +22,16 @@ catkin_simple(ALL_DEPS_REQUIRED)
 #############
 
 cs_add_library(${PROJECT_NAME}
-  src/model/registration-result.cc
+  src/alignment/lpm-aligment.cc
   src/common/common.cc
-  src/common/supported.cc
-  src/common/registration-gflags.cc
   src/common/registration-factory.cc
-  src/pcl-icp-controller.cc
-  src/pcl-gicp-controller.cc
+  src/common/registration-gflags.cc
+  src/common/supported.cc
+  src/model/registration-result.cc
+  src/lpm-icp-controller.cc
   src/mock-controller.cc
+  src/pcl-gicp-controller.cc
+  src/pcl-icp-controller.cc
 )
 
 ##########

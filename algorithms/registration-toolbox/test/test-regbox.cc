@@ -81,6 +81,18 @@ TEST_F(RegBoxTest, TestControllerCreationMockEnum) {
   EXPECT_NE(nullptr, aligner);
 }
 
+TEST_F(RegBoxTest, TestControllerCreationLbmIcpString) {
+  auto aligner = regbox::BaseController::make(
+      "regbox::LpmIcpController", "Libpointmatcher ICP");
+  EXPECT_NE(nullptr, aligner);
+}
+
+TEST_F(RegBoxTest, TestControllerCreationLbmIcpEnum) {
+  auto aligner =
+      regbox::BaseController::make(Aligner::LpmIcp, "Libpointmatcher ICP");
+  EXPECT_NE(nullptr, aligner);
+}
+
 TEST_F(RegBoxTest, TestControllerCreationFailure) {
   auto aligner = regbox::BaseController::make("foo", "PCL ICP");
   EXPECT_EQ(nullptr, aligner);
