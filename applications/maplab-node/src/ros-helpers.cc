@@ -44,16 +44,16 @@ DEFINE_double(image_resize_factor, 1.0, "Factor to resize images.");
 
 namespace maplab {
 
-vio::ImuMeasurement::Ptr convertRosImuToMaplabImu(
-    const sensor_msgs::ImuConstPtr& imu_msg) {
-  CHECK(imu_msg);
-  vio::ImuMeasurement::Ptr imu_measurement(new vio::ImuMeasurement);
-  imu_measurement->timestamp = rosTimeToNanoseconds(imu_msg->header.stamp);
-  imu_measurement->imu_data << imu_msg->linear_acceleration.x,
-      imu_msg->linear_acceleration.y, imu_msg->linear_acceleration.z,
-      imu_msg->angular_velocity.x, imu_msg->angular_velocity.y,
-      imu_msg->angular_velocity.z;
-  return imu_measurement;
+void addRosImuMeasurementToImuMeasurementBatch(
+    const sensor_msgs::Imu& imu_msg,
+    vio::BatchedImuMeasurements* batched_imu_measurements_ptr) {
+  CHECK_NOTNULL(batched_imu_measurements_ptr);
+  auto it = batched_imu_measurements_ptr->batch.insert(
+      batched_imu_measurements_ptr->batch.end(), vio::ImuMeasurement());
+  it->timestamp = rosTimeToNanoseconds(imu_msg.header.stamp);
+  it->imu_data << imu_msg.linear_acceleration.x, imu_msg.linear_acceleration.y,
+      imu_msg.linear_acceleration.z, imu_msg.angular_velocity.x,
+      imu_msg.angular_velocity.y, imu_msg.angular_velocity.z;
 }
 
 void applyHistogramEqualization(
