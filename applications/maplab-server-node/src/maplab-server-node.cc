@@ -691,8 +691,9 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
           running_merging_process_mutex_);
       running_merging_process_ = "visual loop closure";
     }
-    for (vi_map::MissionIdList::const_iterator it = mission_ids.begin();
-         it != mission_ids.end(); ++it) {
+    vi_map::MissionIdList::const_iterator mission_ids_end = mission_ids.cend();
+    for (vi_map::MissionIdList::const_iterator it = mission_ids.cbegin();
+         it != mission_ids_end; ++it) {
       const vi_map::MissionId& mission_id_A = *it;
 
       const bool baseframe_A_is_known =
@@ -704,8 +705,8 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         loop_detector.instantiateVisualizer();
       }
       loop_detector.addMissionToDatabase(mission_id_A, *map);
-      for (vi_map::MissionIdList::const_iterator jt = it;
-           jt != mission_ids.end(); ++jt) {
+      for (vi_map::MissionIdList::const_iterator jt = it; jt != mission_ids_end;
+           ++jt) {
         const vi_map::MissionId& mission_id_B = *jt;
 
         const bool baseframe_B_is_known =

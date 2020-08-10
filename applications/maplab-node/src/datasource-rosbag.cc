@@ -268,8 +268,8 @@ void DataSourceRosbag::streamingWorker() {
       if (!aslam::time::isValidTime(last_imu_dispatch_timestamp_ns_)) {
         last_imu_dispatch_timestamp_ns_ = timestamp_ns;
       }
-      // Initialize a new batch if this is the first time or if in the previous
-      // call we just released a batch.
+      // Initialize a new batch if this is the first time or if in the
+      // previous call we just released a batch.
       if (!current_imu_batch_) {
         current_imu_batch_.reset(new vio::BatchedImuMeasurements);
       }
@@ -279,9 +279,9 @@ void DataSourceRosbag::streamingWorker() {
           *imu_msg, current_imu_batch_.get());
 
       // To batch or not to batch.
-      if (timestamp_ns - last_imu_dispatch_timestamp_ns_ >
-              imu_batch_period_ns_ ||
-          imu_batch_period_ns_ <= 0 || imu_batch_period_ns_ <= 0) {
+      if (imu_batch_period_ns_ <= 0 ||
+          timestamp_ns - last_imu_dispatch_timestamp_ns_ >
+              imu_batch_period_ns_) {
         // Should release the current batch and initialize a new one.
         vio::BatchedImuMeasurements::ConstPtr const_batch_ptr =
             std::const_pointer_cast<const vio::BatchedImuMeasurements>(
@@ -295,17 +295,15 @@ void DataSourceRosbag::streamingWorker() {
         last_imu_dispatch_timestamp_ns_ = timestamp_ns;
       }
     }
-
     if (topic == ros_topics_.odometry_6dof_topic.first) {
       maplab_msgs::OdometryWithImuBiasesConstPtr odometry_msg =
           message.instantiate<maplab_msgs::OdometryWithImuBiases>();
       CHECK(odometry_msg);
 
       const aslam::SensorId& sensor_id = ros_topics_.odometry_6dof_topic.second;
-
+      static constexpr int64_t kAcceptanceTime = -10000;
       const int64_t timestamp_ns =
           rosTimeToNanoseconds(odometry_msg->header.stamp);
-
       if (aslam::time::isValidTime(last_odometry_timestamp_ns_)) {
         const int64_t odometry_period_ns =
             timestamp_ns - last_odometry_timestamp_ns_;
@@ -316,10 +314,14 @@ void DataSourceRosbag::streamingWorker() {
               << "ns vs last timestamp: " << last_odometry_timestamp_ns_
               << "ns.";
           return;
-        } else if (odometry_period_ns < odometry_min_period_ns_) {
-          // Skip this odometry message, since it arrives at a higher frequency
-          // than desired.
-          return;
+        } else {
+          const int64_t odometry_diff_ns =
+              odometry_period_ns - odometry_min_period_ns_;
+          if (odometry_diff_ns < 0 && odometry_diff_ns < kAcceptanceTime) {
+            // Skip this odometry message, since it arrives at a higher
+            // frequency than desired.
+            return;
+          }
         }
       }
       // This odometry measurement was accepted.
@@ -345,6 +347,12 @@ void DataSourceRosbag::streamingWorker() {
           common::getChecked(ros_topics_.lidar_topic_sensor_id_map, topic);
       vi_map::RosLidarMeasurement::Ptr lidar_measurement =
           convertRosCloudToMaplabCloud(lidar_msgs, sensor_id);
+
+      // Apply the IMU to lidar time shift.
+      if (FLAGS_imu_to_lidar_time_offset_ns != 0) {
+        *lidar_measurement->getTimestampNanosecondsMutable() +=
+            FLAGS_imu_to_lidar_time_offset_ns;
+      }
 
       VLOG(3) << "Publish Lidar measurement...";
       invokeLidarCallbacks(lidar_measurement);

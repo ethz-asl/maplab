@@ -15,3 +15,8 @@ DEFINE_double(
     "Individual IMU measurements are collected and forwarded to the rest of "
     "the system in batches, rather than individually at a high frequency. If "
     "set to <= 0, batching is disabled.");
+
+DEFINE_int64(
+    imu_to_lidar_time_offset_ns, 0,
+    "Fixed time offset of IMU to the lidar, such that: t_imu - offset = "
+    "t_lidar");
