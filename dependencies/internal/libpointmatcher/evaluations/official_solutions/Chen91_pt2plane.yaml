@@ -1,0 +1,47 @@
+# Solution based on:
+# Y Chen and G Medioni, 1991. Object modeling by registration of multiple range images. Robotics and 
+# Automation. Proc. of IEEE International Conf. on, 3, pp. 2724 - 2729.
+# - and -
+# Chetverikov, D and Svirko, D and Stepanov, D and Krsek, P, 2002. The Trimmed Iterative Closest 
+# Point algorithm. Pattern Recognition, 2002. Proceedings. 16th International Conference on, 3, pp. 2724 - 2729.
+readingDataPointsFilters:
+  - MinDistDataPointsFilter:
+      minDist: 1.0
+  - RandomSamplingDataPointsFilter:
+      prob: 0.05
+
+referenceDataPointsFilters:
+  - MinDistDataPointsFilter:
+      minDist: 1.0
+  - SamplingSurfaceNormalDataPointsFilter:
+      knn: 7
+      samplingMethod: 1
+      ratio: 0.1
+
+matcher:
+  KDTreeMatcher:
+    knn: 1
+    epsilon: 3.16
+
+outlierFilters:
+  - TrimmedDistOutlierFilter:
+      ratio: 0.7
+
+errorMinimizer:
+  PointToPlaneErrorMinimizer
+
+transformationCheckers:
+  - CounterTransformationChecker:
+      maxIterationCount: 150
+  - DifferentialTransformationChecker:
+      minDiffRotErr: 0.001
+      minDiffTransErr: 0.01
+      smoothLength: 4   
+      
+inspector:
+  PerformanceInspector
+
+logger:
+#  FileLogger
+  NullLogger
+

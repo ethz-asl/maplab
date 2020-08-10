@@ -1,0 +1,40 @@
+readingDataPointsFilters:
+  - SurfaceNormalDataPointsFilter:
+        knn: 10
+        keepDensities: 1
+
+  - MaxDensityDataPointsFilter:
+       maxDensity: 0.3
+
+referenceDataPointsFilters:
+  - SurfaceNormalDataPointsFilter:
+      knn: 10
+
+matcher:
+  KDTreeMatcher:
+    knn: 1
+    epsilon: 0 
+
+outlierFilters:
+  - TrimmedDistOutlierFilter:
+      ratio: 0.75
+
+errorMinimizer:
+  PointToPlaneErrorMinimizer
+
+transformationCheckers:
+  - CounterTransformationChecker:
+      maxIterationCount: 40
+  - DifferentialTransformationChecker:
+      minDiffRotErr: 0.001
+      minDiffTransErr: 0.01
+      smoothLength: 4   
+      
+inspector:
+  NullInspector
+#  VTKFileInspector
+
+logger:
+  NullLogger
+#  FileLogger
+

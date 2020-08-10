@@ -71,7 +71,31 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
     return false;
   }
 
-  const regbox::RegistrationResult result =
+    if(pFunc && PyCallable_Check(pFunc)) {
+        LOG(INFO) << "Successfully given pFunc as argument";
+    }
+
+    PyObject *pItem, *pDict, *pValue, *pArgs, *pList;
+    pDict = PyDict_New();
+    int len = 1024;
+    pList = PyList_New(len);
+    for (int i = 0; i < len; ++i) {
+        pItem = PyLong_FromLong(i);
+        PyList_SetItem(pList, i, pItem);
+    }
+    PyDict_SetItem(pDict, PyUnicode_FromString("list"), pList);
+    pArgs = PyTuple_New(1);
+    PyTuple_SetItem(pArgs, 0, pDict);
+    pValue = PyObject_CallObject(pFunc, pArgs);
+
+    printf("C: getInteger() = %i\n", PyList_CheckExact(pValue));
+
+    Py_DECREF(pValue);
+    Py_DECREF(pArgs);
+    Py_DECREF(pList);
+    Py_DECREF(pDict);
+
+    const regbox::RegistrationResult result =
       (*aligner_ptr)
           ->align(
               candidate_resource_B, candidate_resource_A, pair.T_SB_SA_init);
@@ -83,9 +107,56 @@ bool computeAlignmentForCandidatePairs(
     const AlignmentConfig& config, const vi_map::VIMap& map,
     const AlignmentCandidatePairs& candidate_pairs,
     AlignmentCandidatePairs* aligned_candidate_pairs) {
-  CHECK_NOTNULL(aligned_candidate_pairs);
+    CHECK_NOTNULL(aligned_candidate_pairs);
 
-  const size_t num_pairs = candidate_pairs.size();
+    const size_t num_pairs = candidate_pairs.size();
+
+    // Initialize CPython
+    PyObject *pFunc;
+    if (!Py_IsInitialized()) {
+        Py_Initialize();
+        PyRun_SimpleString("import sys");
+        PyRun_SimpleString("sys.path.insert(0, \"/home/dominic/maplab_ws/src/maplab_experimental/maplab/console-plugins/dense-mapping-constraints-plugin/src\")");
+
+        PyObject *pName = PyUnicode_FromString("test");
+        PyObject *pModule = PyImport_Import(pName);
+        Py_DECREF(pName);
+        if (pModule) {
+            pFunc = PyObject_GetAttrString(pModule, "test");
+            Py_DECREF(pModule);
+            if (pFunc && PyCallable_Check(pFunc)) {
+                LOG(INFO) << "Successfully initialized CPython";
+            }
+        }
+    }
+
+    PyObject *pItem, *pDict, *pValue, *pArgs, *pList;
+    pDict = PyDict_New();
+    int len = 1024;
+    pList = PyList_New(len);
+    for (int i = 0; i < len; ++i) {
+        pItem = PyLong_FromLong(i);
+        PyList_SetItem(pList, i, pItem);
+    }
+    PyDict_SetItem(pDict, PyUnicode_FromString("list"), pList);
+    pArgs = PyTuple_New(1);
+    PyTuple_SetItem(pArgs, 0, pDict);
+    pValue = PyObject_CallObject(pFunc, pArgs);
+
+    if PyList_CheckExact(pValue){
+        LOG(INFO) << "list returned";
+    } else {
+        LOG(ERROR) << "no list returned";
+    }
+
+    Py_DECREF(pValue);
+    Py_DECREF(pArgs);
+    Py_DECREF(pList);
+    Py_DECREF(pDict);
+    Py_DECREF(pFunc);
+    Py_Finalize();
+
+    LOG(INFO) <<
 
   // Parallelization settings.
   const size_t num_threads = common::getNumHardwareThreads();
@@ -173,7 +244,7 @@ bool computeAlignmentForCandidatePairs(
         case backend::ResourceType::kPointCloudXYZRGBN:
           aligned_without_error =
               computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
-                  map, pair, &aligner_ptr, &processed_pair);
+                  map, pair, &aligner_ptr, &processed_pair, pFunc);
           break;
         default:
           LOG(FATAL) << "Alignment algorithm between resource types '"
@@ -242,7 +313,6 @@ bool computeAlignmentForCandidatePairs(
   }
   CHECK_EQ(total_processed_pairs, num_pairs);
   CHECK_EQ(aligned_candidate_pairs->size(), total_successful_pairs);
-
   return true;
 }
 

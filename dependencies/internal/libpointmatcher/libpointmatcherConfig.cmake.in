@@ -1,0 +1,22 @@
+# - Config file for the libpointmatcher package
+# It defines the following variables
+#  libpointmatcher_INCLUDE_DIRS - include directories for pointmatcher
+#  libpointmatcher_LIBRARIES    - libraries to link against
+
+# Compute paths
+get_filename_component(POINTMATCHER_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+set(libpointmatcher_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@")
+set(LIBPOINTMATCHER_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@")
+set(pointmatcher_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@")
+set(POINTMATCHER_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@")
+
+set(libpointmatcher_LIBRARIES "@POINTMATCHER_LIB@;@EXTERNAL_LIBS@")
+set(LIBPOINTMATCHER_LIBRARIES "@POINTMATCHER_LIB@;@EXTERNAL_LIBS@")
+set(pointmatcher_LIBRARIES "@POINTMATCHER_LIB@;@EXTERNAL_LIBS@")
+set(POINTMATCHER_LIBRARIES "@POINTMATCHER_LIB@;@EXTERNAL_LIBS@")
+
+# This causes catkin simple to link against these libraries
+set(libpointmatcher_FOUND_CATKIN_PROJECT true)
+set(LIBPOINTMATCHER_FOUND_CATKIN_PROJECT true)
+set(pointmatcher_FOUND_CATKIN_PROJECT true)
+set(POINTMATCHER_FOUND_CATKIN_PROJECT true)

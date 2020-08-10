@@ -1,0 +1,28 @@
+site_name: libpointmatcher
+repo_url: https://github.com/ethz-asl/libpointmatcher
+site_description: An "Iterative Closest Point" library for 2-D/3-D mapping in robotic
+google_analytics: ['UA-70950258-1', 'libpointmatcher.readthedocs.org']
+pages:
+- Home: 'index.md'
+- Introduction:
+    - 'What is libpointmatcher about?': 'Introduction.md'
+    - 'What can I do with libpointmatcher': 'ApplicationsAndPub.md'
+    - 'What the different data filters do?': 'Datafilters.md'
+    - 'Example: applying a chain of data filters': 'ApplyingDatafilters.md'
+    - 'Example: An introduction to ICP': 'ICPIntro.md'
+    - 'The ICP chain configuration and its variants': 'DefaultICPConfig.md'
+    - 'Configuring libpointmatcher using YAML': 'Configuration.md'
+    - 'Supported file types and importing/exporting point clouds': 'ImportExport.md'
+- Compilation:
+    - 'Ubuntu': 'Compilation.md'
+    - 'Windows': 'CompilationWindows.md'
+    - 'Mac OS X': 'CompilationMac.md'
+- Advanced:
+    - 'How to link a project to libpointmatcher': 'LinkingProjects.md'
+    - 'How are point clouds represented?': 'Pointclouds.md'
+    - 'Example: Writing a program which performs ICP': 'BasicRegistration.md'
+    - 'How to move a point cloud using a rigid transformation?': 'Transformations.md'
+- Developer:
+    - 'Creating a DataPointsFilter': 'DataPointsFilterDev.md'
+    - 'Creating a Transformation': 'TransformationDev.md'
+    - 'Creating unit tests': 'UnitTestDev.md'

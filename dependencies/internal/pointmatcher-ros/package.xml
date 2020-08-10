@@ -1,0 +1,24 @@
+<package format="2">
+
+  <name>pointmatcher_ros</name>
+  <description>Bridge between libpointmatcher and ROS.</description>
+  <version>1.3.0</version>
+  <maintainer email="rdiethelm@anybotics.com">Remo Diethelm</maintainer>
+  <maintainer email="ynava@anybotics.com">Yoshua Nava</maintainer>
+  <author email="stephane.magnenat@mavt.ethz.ch">Stéphane Magnenat</author>
+  <author>Francois Pomerleau</author>
+  <license>new BSD</license>
+  <url>https://github.com/ANYbotics/pointmatcher-ros</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>eigen_conversions</depend>
+  <depend>libpointmatcher</depend>
+  <depend>nav_msgs</depend>
+  <depend>pcl_conversions</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>tf</depend>
+  <depend>tf_conversions</depend>
+
+</package>

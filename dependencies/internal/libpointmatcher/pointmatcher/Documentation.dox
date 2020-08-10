@@ -1,0 +1,191 @@
+// kate: replace-tabs off; indent-width 4; indent-mode normal
+// vim: ts=4:sw=4:noexpandtab
+/*
+
+Copyright (c) 2010--2012,
+François Pomerleau and Stephane Magnenat, ASL, ETHZ, Switzerland
+You can contact the authors at <f dot pomerleau at gmail dot com> and
+<stephane at magnenat dot net>
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the <organization> nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL ETH-ASL BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+*/
+
+/*!
+\mainpage libpointmatcher
+
+from http://github.com/ethz-asl/libpointmatcher by François Pomerleau and Stéphane Magnenat (http://stephane.magnenat.net), ASL-ETHZ, Switzerland (http://www.asl.ethz.ch)
+
+libpointmatcher is a modular ICP library, useful for robotics and computer vision. This help assumes that libpointmatcher is already installed, if not, please read the \c README.md file at the top-level of the source tree.
+
+\section Test
+
+To test, you can use the \c pmicp command provided in the \c example directory, or installed system-wide with the \c -bin deb package.
+
+In 2D:
+\code
+pmicp ${SRC_DIR}/examples/data/2D_oneBox.csv ${SRC_DIR}/examples/data/data/2D_twoBoxes.csv
+\endcode
+In 3D:
+\code
+pmicp ${SRC_DIR}/examples/data/car_cloud401.csv ${SRC_DIR}/examples/data/car_cloud400.csv
+\endcode
+Use \ref Paraview to view the results. On \ref Ubuntu, you can install Paraview with:
+\code
+sudo apt-get install paraview
+\endcode
+
+You can list the available modules with:
+\code
+pmicp -l
+\endcode
+
+If you have compiled libpointmatcher with \ref yaml-cpp enabled, you can configure the ICP chain without any recompilation by passing a configuration file to the \c pmicp command using the \c --config switch. An example file is available in \c examples/data/default.yaml.
+
+\section Understanding Understanding libpointmatcher
+
+\subsection UnderstandingICP ICP - Iterative Closest Point algorithm
+
+This library implements a modular ICP chain.
+ICP is an iterative algorithm performing several sequential processing steps, both inside and outside its main loop.
+For each step, there exist several strategies, and each strategy demands specific parameters.
+In libpointmatcher, every module is a class that can describe its own possible parameters, therefore enabling the whole chain to be configured at run time using <a href="http://www.yaml.org/">YAML</a> .
+This text-based configuration aids to explicit parameters used and eases the sharing of working setups with others, which ultimately allows for reproducibility and reusability of the solutions.
+
+The ICP chain takes as input two point clouds, in 2D or 3D, and estimates the translation and the rotation parameters that minimize the alignment error.
+We called the first point cloud the \e reference and the second the \e reading. 
+The ICP algorithm tries to align the reading onto the reference.
+To do so, it first applies filtering (PointMatcher::DataPointsFilters) to the point clouds, and then it iterates through a sequence of processing blocks.
+For each iteration, it associates points in reading to points in reference (PointMatcher::Matcher), rejects outliers (PointMatcher::OutlierFilters) and finds a transformation (PointMatcher::TransformationParameters) of reading that minimizes the alignment error (PointMatcher::ErrorMinimizer).
+
+\subsection UnderstandingArchitecture Software architecture
+
+All modules are children of parent classes defined within the PointMatcher class.
+This class is templatized on the scalar type for the point coordinates, typically \c float or \c double.
+Additionally, the PointMatcherSupport namespace hosts classes that do not depend on the template parameter.
+Every kind of module has its own pair of \e .h and \e .cpp files.
+Because modules can enumerate their parameters at run time, only the parent classes lie in the publicly accessible header PointMatcher.h.
+This maintains a lean and easy-to-learn API.
+
+To use libpointmatcher from a third-party program, the two classes PointMatcher::ICP and PointMatcher::ICPSequence can be instantiated.
+The first provides a basic registration between a reading and a reference, given an initial transformation.
+The second provides a tracker-style interface: an instance of this class receives several point clouds in sequence and continuously updates the transformation with respect to a user-provided point cloud.
+This is useful to limit drift due to noise in the case of high-frequency sensors such as RGB-D camera.
+A common base class, PointMatcher::ICPChainBase, holds the instances of the modules and provides the loading mechanism.
+
+When doing research, it is crucial to understand what is going on, in particular in complex processing pipelines like the ICP chain.
+Therefore, libpointmatcher provides two inspection mechanisms: the PointMatcherSupport::Logger and the PointMatcher::Inspector.
+The logger is responsible for writing information during execution to a file or to the console.
+It will typically display light statistics and warnings.
+The inspector provides deeper scrutiny than the logger.
+There are several instances of inspectors in libpointmatcher.
+For instance, one dumps ICP operations as <a href="http://www.vtk.org/">VTK</a> files, allowing to visualize the inner loop of the algorithm frame by frame.
+Another inspector collects statistics for performance evaluation.
+
+\section DevelopingUsing Developing using libpointmatcher
+
+If you wish to develop using libpointmatcher, you can start by looking at the sources of icp_simple and pmicp (in \c example/icp_simple.cpp and \c example/icp.cpp). You can see how loading/saving of data files work by looking at convert (\c example/convert.cpp). If you want to see how libpointmatcher can align a sequence of clouds, you can have a look at align_sequence (\c example/align_sequence.cpp).
+
+\section DevelopingSelf Extending libpointmatcher
+
+You can also extend libpointmatcher relatively easily, by adding new modules. The file PointMatcher.h is the most important file, it defines the interfaces for all module types, as well as the ICP algorithms. Each interface is an inner class of the PointMatcher class, which is templatized on the scalar type. Instanciation is forced in \c Registry.cpp for float and double scalar types. There are different types of modules corresponding to the different bricks of the ICP algorithm. The modules themselves are defined in their own files, for instance data-point filters live in the \c DataPointFiltersImpl.h/\c .cpp files. Start from the documentation of PointMatcher to see the different interfaces, and then read the source code of the existing modules for the interface you are interested in, to get an idea of what you have to implement.
+
+All modules have a common way to get parameters at initialization (Parametrizable), and feature a self-documentation mechanism. This allows to configure the ICP chain from external descriptions such as \ref yaml-cpp "yaml files".
+
+\subsection CreatingNewDataPointFilter Example: creating a new module of type DataPointsFilter
+
+You have to modify 3 files to add a new \ref PointMatcher::DataPointsFilter "DataPointsFilter": \c DataPointsFiltersImpl.h, \c DataPointsFiltersImpl.cpp and \c Registry.cpp. The easiest way is to start by copying and renaming \c IdentityDataPointsFilter, and then to modify it.
+
+- In \c DataPointsFiltersImpl.h, copy the declaration of the struct \c IdentityDataPointsFilter at the end of the file.
+- Rename the pasted structure with the new filter name.
+- Fill the \c description() function with a short explanation of the filter's action.
+- If you need parameters for the filter:
+	- Uncomment the \c availableParameters() function and fill the description, default, min, max values as string.
+	- The types of the parameters are used to properly cast the string value and can be:  \c &P::Comp<T>, \c &P::Comp<int>, \c &P::Comp<unsigned>, etc. See \c DataPointsFiltersImpl.h for examples.
+	- Uncomment and rename the constructor.
+
+- In \c DataPointsFiltersImpl.cpp, copy the implementation of \c IdentityDataPointsFilter at the end of the file including the explicit instantiation (i.e. \c template \c struct \c DataPointsFiltersImpl<float>::YourFilter; and \c template \c struct 
+\c DataPointsFiltersImpl<double>::YourFilter;).
+- Add the constructor if needed.
+- At this stage, you should let the implementation of the filter function to hold only the statement that returns the input.
+
+- In \c Registry.cpp, search for \c "ADD_TO_REGISTRAR(DataPointsFilter,".
+- You should see all available \c DataPointsFilter there. At the end of that block, add your filter.
+
+- Compile.
+
+- Test if your new module is available with the \c pmicp \c -l command, which lists the documentation of all modules. You should be able to find yours in the output.
+
+- Go back to \c DataPointsFiltersImpl.cpp and code the \c filter() function.
+
+\subsection CodingStyle Coding Style
+
+One shall:
+- indent with tabs,
+- put {} on single lines (\ref Allman_style "Allman coding style"),
+- use \ref CamelCase "camel case" with classes beginning with Capitals and members with a small letter.
+
+For documentation, one shall document classes and data members inside the header file and methods at the implementation location.
+One exception is purely-virtual methods, which must be documented in the header file.
+
+\section BugReporting Bug reporting
+
+Please use <a href="http://github.com/ethz-asl/libpointmatcher/issues">github's issue tracker</a> to report bugs.
+
+\section Citing
+
+If you use libpointmatcher in an academic context, please cite the following publication:
+\code
+@INPROCEEDINGS{pomerleau11tracking,
+	author = {François Pomerleau and Stéphane Magnenat and Francis Colas and Ming Liu and Roland Siegwart},
+	title = {Tracking a Depth Camera: Parameter Exploration for Fast ICP},
+	booktitle = {Proc. of the IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+	publisher = {IEEE Press},
+	pages = {3824--3829},
+	year = {2011}
+}
+\endcode
+
+\section License
+
+libpointmatcher is released under a permissive BSD license.
+
+\section References
+
+- \anchor Eigen Eigen: http://eigen.tuxfamily.org
+- \anchor libnabo libnabo: http://github.com/ethz-asl/libnabo
+- \anchor yaml-cpp yaml-cpp: http://code.google.com/p/yaml-cpp/
+- \anchor CMake CMake: http://www.cmake.org
+- \anchor Boost Boost: http://www.boost.org
+- \anchor Ubuntu Ubuntu: http://www.ubuntu.com
+- \anchor CMake CMake: http://www.cmake.org
+- \anchor CMakeDoc CMake documentation: http://www.cmake.org/cmake/help/cmake2.6docs.html
+- \anchor git git: http://git-scm.com
+- \anchor ROS ROS: http://www.ros.org/
+- \anchor Paraview Paraview: http://www.paraview.org/
+- \anchor Allman_style Allman coding style: http://en.wikipedia.org/wiki/Indent_style#Allman_style
+- \anchor CamelCase Camel case style: http://en.wikipedia.org/wiki/CamelCase
+
+*/

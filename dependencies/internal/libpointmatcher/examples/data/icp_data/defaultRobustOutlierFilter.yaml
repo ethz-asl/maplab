@@ -1,0 +1,37 @@
+readingDataPointsFilters:
+
+referenceDataPointsFilters:
+
+matcher:
+  KDTreeMatcher:
+    knn: 10
+    epsilon: 0 
+
+outlierFilters:
+  - RobustOutlierFilter:
+      robustFct: cauchy
+      scaleEstimator: mad
+      tuning: 1
+
+errorMinimizer:
+  PointToPointErrorMinimizer
+
+transformationCheckers:
+  - CounterTransformationChecker:
+      maxIterationCount: 40
+  - DifferentialTransformationChecker:
+      minDiffRotErr: 0.001
+      minDiffTransErr: 0.01
+      smoothLength: 4   
+      
+inspector:
+  NullInspector
+#  VTKFileInspector:
+#    dumpDataLinks: 1
+#    dumpReading: 1
+#    dumpReference: 1
+
+logger:
+  NullLogger
+#  FileLogger
+

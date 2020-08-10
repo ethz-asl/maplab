@@ -1,0 +1,45 @@
+# Solution based on:
+# P Besl and H McKay, 1992. A method for registration of 3-D shapes. 
+# Pattern Analysis and Machine Intelligence, IEEE Transactions on, 14, pp. 239 - 256. 
+# - and -
+# Chetverikov, D and Svirko, D and Stepanov, D and Krsek, P, 2002. The Trimmed Iterative Closest 
+# Point algorithm. Pattern Recognition, 2002. Proceedings. 16th International Conference on, 3, pp. 2724 - 2729. 
+readingDataPointsFilters:
+  - MinDistDataPointsFilter:
+      minDist: 1.0
+  - RandomSamplingDataPointsFilter:
+      prob: 0.05
+
+referenceDataPointsFilters:
+  - MinDistDataPointsFilter:
+      minDist: 1.0  
+  - RandomSamplingDataPointsFilter:
+      prob: 0.05
+
+matcher:
+  KDTreeMatcher:
+    knn: 1
+    epsilon: 3.16
+
+outlierFilters:
+  - TrimmedDistOutlierFilter:
+      ratio: 0.75
+
+errorMinimizer:
+  PointToPointErrorMinimizer
+
+transformationCheckers:
+  - CounterTransformationChecker:
+      maxIterationCount: 150
+  - DifferentialTransformationChecker:
+      minDiffRotErr: 0.001
+      minDiffTransErr: 0.01
+      smoothLength: 4   
+      
+inspector:
+  PerformanceInspector
+
+logger:
+#  FileLogger
+  NullLogger
+

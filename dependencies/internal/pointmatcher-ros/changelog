@@ -1,0 +1,2049 @@
+pointmatcher-ros (0.9.6-336) unstable; urgency=low
+
+  * Catkinization
+
+ -- Ralf Kaestner <ralf.kaestner@gmail.com>  Fri, 13 Feb 2015 12:44:00 +0100
+
+pointmatcher-ros (0.9.6-335) unstable; urgency=low
+
+  * Initial commit of forked pointmatcher ROS package integration
+
+ -- Ralf Kaestner <ralf.kaestner@gmail.com>  Fri, 13 Feb 2015 09:42:40 +0100
+
+pointmatcher-ros (0.9.6-334) unstable; urgency=low
+
+  * Added config files for Atlas head sensor MultiSense SL
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 05 Feb 2015 02:17:37 +0100
+
+pointmatcher-ros (0.9.6-333) unstable; urgency=low
+
+  * update library and some config files
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 22 Jan 2015 17:52:50 +0100
+
+pointmatcher-ros (0.9.6-332) unstable; urgency=low
+
+  * update to latest library version
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 22 Jan 2015 17:48:05 +0100
+
+pointmatcher-ros (0.9.6-331) unstable; urgency=low
+
+  * Merge branch 'master' of https://github.com/chipironcin/ethzasl_icp_mapping into
+    chipironcin-master
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Wed, 12 Nov 2014 17:26:47 +0100
+
+pointmatcher-ros (0.9.6-330) unstable; urgency=low
+
+  * Merge branch 'master' of git://github.com/ethz-asl/ethzasl_icp_mapping
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 30 Sep 2014 03:57:55 +0200
+
+pointmatcher-ros (0.9.6-329) unstable; urgency=low
+
+  * now save the path as CSV file
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 30 Sep 2014 03:57:36 +0200
+
+pointmatcher-ros (0.9.6-328) unstable; urgency=low
+
+  * remove dependency on yaml
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 30 Sep 2014 03:56:43 +0200
+
+pointmatcher-ros (0.9.6-327) unstable; urgency=low
+
+  * update to latest version
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 30 Sep 2014 01:18:31 +0200
+
+pointmatcher-ros (0.9.6-326) unstable; urgency=low
+
+  * Added a parameter to choose the saved file extension (csv,vtk,ply,pcd) and
+    a parameter to use a custom filename prefix (instead of the topic name).
+
+ -- smichaud <smichaud@smichaud-Z68A-D3H-B3.(none)>  Wed, 27 Aug 2014 16:59:25 +0200
+
+pointmatcher-ros (0.9.6-325) unstable; urgency=low
+
+  * Added a parameter to select  where the point clouds are saved (for the
+    pointCloudToVtk node)
+
+ -- smichaud <smichaud@smichaud-Z68A-D3H-B3.(none)>  Tue, 26 Aug 2014 19:31:57 +0200
+
+pointmatcher-ros (0.9.6-324) unstable; urgency=low
+
+  * Fix debug function parameters
+
+ -- chipironcin <jamarin.shurtugal@hotmail.com>  Wed, 20 Aug 2014 11:27:39 +0200
+
+pointmatcher-ros (0.9.6-323) unstable; urgency=low
+
+  * Deleted unnecessary 'Eigen/Core' include
+
+ -- chipironcin <jamarin.shurtugal@hotmail.com>  Wed, 20 Aug 2014 08:37:05 +0200
+
+pointmatcher-ros (0.9.6-322) unstable; urgency=low
+
+  * Fix debug function parameters
+  * Now its building
+
+ -- chipironcin <jamarin.shurtugal@hotmail.com>  Wed, 20 Aug 2014 08:34:26 +0200
+
+pointmatcher-ros (0.9.6-321) unstable; urgency=low
+
+  * Fix declaration of debug function
+
+ -- chipironcin <jamarin.shurtugal@hotmail.com>  Wed, 20 Aug 2014 07:38:45 +0200
+
+pointmatcher-ros (0.9.6-320) unstable; urgency=low
+
+  * New `LoadMap` service and debug function
+  * Edited LoadMap callback function in order to support the modified
+    service.
+  * Added new function to verbose information about wrong features or descriptors
+    matching
+
+ -- chipironcin <jamarin.shurtugal@hotmail.com>  Wed, 13 Aug 2014 13:59:33 +0200
+
+pointmatcher-ros (0.9.6-319) unstable; urgency=low
+
+  * New `LoadMap` service
+  * Allow loading a 3D map and use it as 2D map.
+  * Allow setting an initial transform TOdomToMap when new map is
+    loaded.
+
+ -- chipironcin <jamarin.shurtugal@hotmail.com>  Wed, 13 Aug 2014 13:42:24 +0200
+
+pointmatcher-ros (0.9.6-318) unstable; urgency=low
+
+  * New `LoadMap` service and debug function
+
+ -- chipironcin <jamarin.shurtugal@hotmail.com>  Wed, 13 Aug 2014 13:40:28 +0200
+
+pointmatcher-ros (0.9.6-317) unstable; urgency=low
+
+  * Merge branch 'master' of git://github.com/ethz-asl/ethzasl_icp_mapping
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 04 Aug 2014 20:46:24 +0200
+
+pointmatcher-ros (0.9.6-316) unstable; urgency=low
+
+  * add husky config and lizbeth config for ISER
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 04 Aug 2014 20:43:41 +0200
+
+pointmatcher-ros (0.9.6-315) unstable; urgency=low
+
+  * Correct TOdomToMap to fit dimp1
+  * Correct TOdomToMap to fit dimp1 (dimension of input data)
+  * We need to do this because we could have called 'CorrectPose' which
+    always returns a [4][4] matrix
+
+ -- chipironcin <jamarin.shurtugal@hotmail.com>  Wed, 23 Jul 2014 09:12:29 +0200
+
+pointmatcher-ros (0.9.6-314) unstable; urgency=low
+
+  * copy launch files for ICRA 14 article
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 20 May 2014 17:03:01 +0200
+
+pointmatcher-ros (0.9.6-313) unstable; urgency=low
+
+  * update to latest libpointmatcher
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Sun, 27 Apr 2014 22:11:51 +0200
+
+pointmatcher-ros (0.9.6-312) unstable; urgency=low
+
+  * accelerate map computation
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Sun, 27 Apr 2014 21:54:59 +0200
+
+pointmatcher-ros (0.9.6-311) unstable; urgency=low
+
+  * start refactoring code
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Sat, 05 Apr 2014 00:21:17 +0200
+
+pointmatcher-ros (0.9.6-310) unstable; urgency=low
+
+  * dynamic mapper: changed variable and point cloud channel names from
+    obervedTime/unobservedTime to probabilityStatic/probabilityDynamic
+
+ -- Philipp Kruesi <philipp.kruesi@mavt.ethz.ch>  Tue, 11 Mar 2014 17:12:26 +0100
+
+pointmatcher-ros (0.9.6-309) unstable; urgency=low
+
+  * clean debug traces
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 06 Mar 2014 23:41:07 +0100
+
+pointmatcher-ros (0.9.6-308) unstable; urgency=low
+
+  * Merge branch 'master' of git://github.com/ethz-asl/ethzasl_icp_mapping
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 06 Mar 2014 20:43:11 +0100
+
+pointmatcher-ros (0.9.6-307) unstable; urgency=low
+
+  * add possibility to add timestamp to points
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 06 Mar 2014 20:42:41 +0100
+
+pointmatcher-ros (0.9.6-306) unstable; urgency=low
+
+  * correct error in time splitting
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 06 Mar 2014 20:42:10 +0100
+
+pointmatcher-ros (0.9.6-305) unstable; urgency=low
+
+  * remove dependancy to tf2
+
+ -- Administrator <administrator@cpr-lav01.cpr-lav01>  Sat, 01 Mar 2014 23:17:45 +0100
+
+pointmatcher-ros (0.9.6-304) unstable; urgency=low
+
+  * do the transformation at a finer resolution
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Sat, 01 Mar 2014 22:51:13 +0100
+
+pointmatcher-ros (0.9.6-303) unstable; urgency=low
+
+  * correct a transformation error
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Sat, 01 Mar 2014 22:50:08 +0100
+
+pointmatcher-ros (0.9.6-302) unstable; urgency=low
+
+  * added changes for ISER paper
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Wed, 26 Feb 2014 18:31:23 +0100
+
+pointmatcher-ros (0.9.6-301) unstable; urgency=low
+
+  * corrected some transformation problem and added functionality to have
+    scan converted in 2D or 3D
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Wed, 26 Feb 2014 16:24:12 +0100
+
+pointmatcher-ros (0.9.6-300) unstable; urgency=low
+
+  * add 2D config for the robot Kingfisher
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 26 Nov 2013 11:24:14 +0100
+
+pointmatcher-ros (0.9.6-299) unstable; urgency=low
+
+  * resolve bad link with pointmatcher/MatchersImpl.h
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 19 Aug 2013 15:15:45 +0200
+
+pointmatcher-ros (0.9.6-298) unstable; urgency=low
+
+  * update to latest libpointmatcher version
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 16 Aug 2013 13:46:33 +0200
+
+pointmatcher-ros (0.9.6-297) unstable; urgency=low
+
+  * add source for dynamic obstacle detections
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 15 Aug 2013 13:19:37 +0200
+
+pointmatcher-ros (0.9.6-296) unstable; urgency=low
+
+  * now publishing outliers on a new topic
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 30 Jul 2013 19:44:32 +0200
+
+pointmatcher-ros (0.9.6-295) unstable; urgency=low
+
+  * update to the latest version of libpointmatcher
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 30 Jul 2013 15:01:28 +0200
+
+pointmatcher-ros (0.9.6-294) unstable; urgency=low
+
+  * clean remaining commented code, add warning for real-time processing
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 29 Jul 2013 16:17:35 +0200
+
+pointmatcher-ros (0.9.6-293) unstable; urgency=low
+
+  * Ajust parameters for high density
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 29 Jul 2013 16:16:59 +0200
+
+pointmatcher-ros (0.9.6-292) unstable; urgency=low
+
+  * Ajust parameters for high density
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 29 Jul 2013 16:16:24 +0200
+
+pointmatcher-ros (0.9.6-291) unstable; urgency=low
+
+  * add new service for bounded maps
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 26 Jul 2013 14:28:09 +0200
+
+pointmatcher-ros (0.9.6-290) unstable; urgency=low
+
+  * Merge branch 'master' of git://github.com/ethz-asl/ethzasl_icp_mapping
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 26 Jul 2013 14:05:16 +0200
+
+pointmatcher-ros (0.9.6-289) unstable; urgency=low
+
+  * correct tf bugs
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 26 Jul 2013 14:05:11 +0200
+
+pointmatcher-ros (0.9.6-288) unstable; urgency=low
+
+  * adding expected period for map tf
+
+ -- Francis Colas <francis.colas@mavt.ethz.ch>  Wed, 24 Jul 2013 11:11:49 +0200
+
+pointmatcher-ros (0.9.6-287) unstable; urgency=low
+
+  * adapt to boost 1.5 filesystem naming
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 11 Jul 2013 15:11:37 +0200
+
+pointmatcher-ros (0.9.6-286) unstable; urgency=low
+
+  * renamed the parameter tfRefreshPeriod and added its documentation
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 08 Jul 2013 15:29:15 +0200
+
+pointmatcher-ros (0.9.6-285) unstable; urgency=low
+
+  * Merge branch 'master' of git://github.com/ethz-asl/ethzasl_icp_mapping
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 08 Jul 2013 12:19:12 +0200
+
+pointmatcher-ros (0.9.6-284) unstable; urgency=low
+
+  * adapte launch file to be able to force 2D transformation on 3D point
+    cloud
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 08 Jul 2013 12:19:06 +0200
+
+pointmatcher-ros (0.9.6-283) unstable; urgency=low
+
+  * Fixed bug adding spurious walls in map builder.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 05 Jul 2013 12:41:08 +0200
+
+pointmatcher-ros (0.9.6-282) unstable; urgency=low
+
+  * Simplified README and had it pointing to the ROS Wiki.
+
+ -- fcolas <francis.colas@mavt.ethz.ch>  Fri, 07 Jun 2013 16:51:42 +0200
+
+pointmatcher-ros (0.9.6-281) unstable; urgency=low
+
+  * removed debug cout
+
+ -- pomerlef <f.pomerleau@gmail.com>  Wed, 10 Apr 2013 11:10:15 +0200
+
+pointmatcher-ros (0.9.6-280) unstable; urgency=low
+
+  * force orthogonal matrix before ICP
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 05 Apr 2013 17:49:10 +0200
+
+pointmatcher-ros (0.9.6-279) unstable; urgency=low
+
+  * resolved naming conflict with IROS 2011 launch file
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 05 Apr 2013 15:54:51 +0200
+
+pointmatcher-ros (0.9.6-278) unstable; urgency=low
+
+  * resolve error in launch file
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 05 Apr 2013 15:31:44 +0200
+
+pointmatcher-ros (0.9.6-277) unstable; urgency=low
+
+  * Merge branch 'master' of git://github.com/ethz-asl/ethzasl_icp_mapping
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 02 Apr 2013 19:33:53 +0200
+
+pointmatcher-ros (0.9.6-276) unstable; urgency=low
+
+  * added launch file to interact with nifti maps
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 02 Apr 2013 19:33:49 +0200
+
+pointmatcher-ros (0.9.6-275) unstable; urgency=low
+
+  * Correct boost filesystem migration problem (take 2)
+
+ -- pomerlef <f.pomerleau@gmail.com>  Thu, 28 Mar 2013 18:17:05 +0100
+
+pointmatcher-ros (0.9.6-274) unstable; urgency=low
+
+  * Fix boost compilation error with filesystem
+
+ -- pomerlef <f.pomerleau@gmail.com>  Thu, 28 Mar 2013 18:01:43 +0100
+
+pointmatcher-ros (0.9.6-273) unstable; urgency=low
+
+  * Cleaned-up service names and fixed threading bugs
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 28 Mar 2013 17:32:49 +0100
+
+pointmatcher-ros (0.9.6-272) unstable; urgency=low
+
+  * add services and functionalities to pause mapping, reload map,
+    etc.
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 28 Mar 2013 14:11:17 +0100
+
+pointmatcher-ros (0.9.6-271) unstable; urgency=low
+
+  * clean up the launch folder
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 01 Mar 2013 15:03:17 +0100
+
+pointmatcher-ros (0.9.6-270) unstable; urgency=low
+
+  * stabilized the object mapping by adding flexibility to the transformation
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 28 Feb 2013 14:28:04 +0100
+
+pointmatcher-ros (0.9.6-269) unstable; urgency=low
+
+  * stabilized the object mapping by adding flexibility to the transformation
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 28 Feb 2013 14:26:16 +0100
+
+pointmatcher-ros (0.9.6-268) unstable; urgency=low
+
+  * bring back latest version of the library, now with VTK color
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 26 Feb 2013 16:50:17 +0100
+
+pointmatcher-ros (0.9.6-267) unstable; urgency=low
+
+  * add documentation on how to test
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 22 Feb 2013 17:25:33 +0100
+
+pointmatcher-ros (0.9.6-266) unstable; urgency=low
+
+  * added better noise handling for Kinect
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 22 Feb 2013 16:59:43 +0100
+
+pointmatcher-ros (0.9.6-265) unstable; urgency=low
+
+  * corrected bug for 2D and added launch files for 2D test
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 22 Feb 2013 16:57:21 +0100
+
+pointmatcher-ros (0.9.6-264) unstable; urgency=low
+
+  * Removed legacy launch file.
+
+ -- Francis Colas <francis.colas@mavt.ethz.ch>  Tue, 19 Feb 2013 11:21:44 +0100
+
+pointmatcher-ros (0.9.6-263) unstable; urgency=low
+
+  * Updated libnabo to latest version.
+
+ -- Francis Colas <francis.colas@mavt.ethz.ch>  Tue, 19 Feb 2013 11:20:19 +0100
+
+pointmatcher-ros (0.9.6-262) unstable; urgency=low
+
+  * add missing modifications for the new node
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Wed, 13 Feb 2013 18:49:24 +0100
+
+pointmatcher-ros (0.9.6-261) unstable; urgency=low
+
+  * new node for object scanning
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Wed, 13 Feb 2013 18:48:17 +0100
+
+pointmatcher-ros (0.9.6-260) unstable; urgency=low
+
+  * remove extra frame to work with the calibration
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 12 Feb 2013 11:57:54 +0100
+
+pointmatcher-ros (0.9.6-259) unstable; urgency=low
+
+  * remove tmp files
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 12 Feb 2013 11:48:03 +0100
+
+pointmatcher-ros (0.9.6-258) unstable; urgency=low
+
+  * minor modif on launch files for IROS
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 12 Feb 2013 11:44:43 +0100
+
+pointmatcher-ros (0.9.6-257) unstable; urgency=low
+
+  * add launch file for IROS article
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 12 Feb 2013 11:02:54 +0100
+
+pointmatcher-ros (0.9.6-256) unstable; urgency=low
+
+  * Updated libnabo.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 08 Feb 2013 10:50:51 +0100
+
+pointmatcher-ros (0.9.6-255) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ethzasl_icp_mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 08 Feb 2013 10:37:00 +0100
+
+pointmatcher-ros (0.9.6-254) unstable; urgency=low
+
+  * Updated libnabo.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 08 Feb 2013 10:36:12 +0100
+
+pointmatcher-ros (0.9.6-253) unstable; urgency=low
+
+  * Merge branch 'master' of git://github.com/ethz-asl/ethzasl_icp_mapping
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 07 Feb 2013 18:29:12 +0100
+
+pointmatcher-ros (0.9.6-252) unstable; urgency=low
+
+  * put back tf refresh at 100hz
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 07 Feb 2013 18:29:07 +0100
+
+pointmatcher-ros (0.9.6-251) unstable; urgency=low
+
+  * Updated version.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 07 Feb 2013 13:58:10 +0100
+
+pointmatcher-ros (0.9.6-250) unstable; urgency=low
+
+  * put back the tf refresh
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 07 Feb 2013 13:46:26 +0100
+
+pointmatcher-ros (0.9.6-249) unstable; urgency=low
+
+  * Resolve conflic
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 07 Feb 2013 11:52:36 +0100
+
+pointmatcher-ros (0.9.6-248) unstable; urgency=low
+
+  * Resolve lag and correct odom msg
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 07 Feb 2013 11:45:25 +0100
+
+pointmatcher-ros (0.9.6-247) unstable; urgency=low
+
+  * version update
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 06 Feb 2013 19:07:26 +0100
+
+pointmatcher-ros (0.9.6-246) unstable; urgency=low
+
+  * Should fix compilation on fuerte lucid
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 06 Feb 2013 18:47:01 +0100
+
+pointmatcher-ros (0.9.6-245) unstable; urgency=low
+
+  * Updated openni launch files for groovy.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 06 Feb 2013 17:59:19 +0100
+
+pointmatcher-ros (0.9.6-244) unstable; urgency=low
+
+  * Uses -DHAVE_YAML for all users of libpointmatcher
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 01 Feb 2013 15:08:51 +0100
+
+pointmatcher-ros (0.9.6-243) unstable; urgency=low
+
+  * Updated libpointmatcher
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 01 Feb 2013 11:34:56 +0100
+
+pointmatcher-ros (0.9.6-242) unstable; urgency=low
+
+  * Cleaned-up build files.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 31 Jan 2013 18:16:47 +0100
+
+pointmatcher-ros (0.9.6-241) unstable; urgency=low
+
+  * Output messages when config files where not loaded.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 31 Jan 2013 18:02:26 +0100
+
+pointmatcher-ros (0.9.6-240) unstable; urgency=low
+
+  * Removed unclear aliases file
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 31 Jan 2013 15:41:00 +0100
+
+pointmatcher-ros (0.9.6-239) unstable; urgency=low
+
+  * add working revision tags in launch files
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Wed, 30 Jan 2013 18:14:45 +0100
+
+pointmatcher-ros (0.9.6-238) unstable; urgency=low
+
+  * ajust launch files with new structure
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Wed, 30 Jan 2013 16:25:24 +0100
+
+pointmatcher-ros (0.9.6-237) unstable; urgency=low
+
+  * lib update with exceptions for badly configured YAML files
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 18 Jan 2013 13:29:50 +0100
+
+pointmatcher-ros (0.9.6-236) unstable; urgency=low
+
+  * added longer tf buffer (useful for offline tests)
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 18 Jan 2013 13:27:32 +0100
+
+pointmatcher-ros (0.9.6-235) unstable; urgency=low
+
+  * new version with corrected density filter
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 15 Jan 2013 18:03:40 +0100
+
+pointmatcher-ros (0.9.6-234) unstable; urgency=low
+
+  * correct with new density
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 15 Jan 2013 18:02:51 +0100
+
+pointmatcher-ros (0.9.6-233) unstable; urgency=low
+
+  * corrected outlier logs
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 14 Jan 2013 11:37:37 +0100
+
+pointmatcher-ros (0.9.6-232) unstable; urgency=low
+
+  * Update libpointmatcher/manifest.xml
+
+ -- pomerlef <f.pomerleau@gmail.com>  Wed, 09 Jan 2013 17:27:36 +0100
+
+pointmatcher-ros (0.9.6-231) unstable; urgency=low
+
+  * Bumped version number
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 20 Dec 2012 22:37:19 +0100
+
+pointmatcher-ros (0.9.6-230) unstable; urgency=low
+
+  * Cleanup and fix for quantal.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 20 Dec 2012 22:28:33 +0100
+
+pointmatcher-ros (0.9.6-229) unstable; urgency=low
+
+  * Updated to fix quantal compilation error.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 20 Dec 2012 19:39:56 +0100
+
+pointmatcher-ros (0.9.6-228) unstable; urgency=low
+
+  * Fixed quantal compilation.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 20 Dec 2012 19:19:49 +0100
+
+pointmatcher-ros (0.9.6-227) unstable; urgency=low
+
+  * Bumped version number.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 20 Dec 2012 03:49:41 +0100
+
+pointmatcher-ros (0.9.6-226) unstable; urgency=low
+
+  * Fixed groovy compilation.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 20 Dec 2012 02:44:28 +0100
+
+pointmatcher-ros (0.9.6-225) unstable; urgency=low
+
+  * Updated API to suit groovy
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 20 Dec 2012 01:42:29 +0100
+
+pointmatcher-ros (0.9.6-224) unstable; urgency=low
+
+  * Added missing dep to map_msgs in stack.xml
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 19 Dec 2012 23:35:54 +0100
+
+pointmatcher-ros (0.9.6-223) unstable; urgency=low
+
+  * Updated package name in launch files.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 19 Dec 2012 22:27:52 +0100
+
+pointmatcher-ros (0.9.6-222) unstable; urgency=low
+
+  * Set version to 0.9.0
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 19 Dec 2012 06:18:01 +0100
+
+pointmatcher-ros (0.9.6-221) unstable; urgency=low
+
+  * Added missing link directive
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 19 Dec 2012 02:40:40 +0100
+
+pointmatcher-ros (0.9.6-220) unstable; urgency=low
+
+  * Updated to latest version of libpointmatcher
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 19 Dec 2012 02:19:49 +0100
+
+pointmatcher-ros (0.9.6-219) unstable; urgency=low
+
+  * Added dependency on pointmatcher for occupancy_grid_builder to fix compilation
+    on lucid.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 19 Dec 2012 02:19:26 +0100
+
+pointmatcher-ros (0.9.6-218) unstable; urgency=low
+
+  * Fixed compilation on lucid where boost::future is not available yet,
+    use mono-threading for map creation in that case.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 19 Dec 2012 01:52:18 +0100
+
+pointmatcher-ros (0.9.6-217) unstable; urgency=low
+
+  * Fixed compilation on lucid.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 19 Dec 2012 00:10:16 +0100
+
+pointmatcher-ros (0.9.6-216) unstable; urgency=low
+
+  * Renamed modular cloud matcher experiment
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Dec 2012 22:19:27 +0100
+
+pointmatcher-ros (0.9.6-215) unstable; urgency=low
+
+  * renammed point cloud vtk tools.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Dec 2012 22:09:39 +0100
+
+pointmatcher-ros (0.9.6-214) unstable; urgency=low
+
+  * fix location of NIFTi launch file.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Dec 2012 21:09:27 +0100
+
+pointmatcher-ros (0.9.6-213) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ethzasl_icp_mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Dec 2012 20:01:33 +0100
+
+pointmatcher-ros (0.9.6-212) unstable; urgency=low
+
+  * Renammed modular_cloud_matcher and extrinsic_calibration.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Dec 2012 20:01:08 +0100
+
+pointmatcher-ros (0.9.6-211) unstable; urgency=low
+
+  * new params for Srivatsa
+
+ -- Francis Colas <francis.colas@mavt.ethz.ch>  Tue, 18 Dec 2012 10:56:32 +0100
+
+pointmatcher-ros (0.9.6-210) unstable; urgency=low
+
+  * Fixed in the field-to-feature/descriptor table
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 14 Dec 2012 00:32:18 +0100
+
+pointmatcher-ros (0.9.6-209) unstable; urgency=low
+
+  * Updated openni launch files following correction in openni_camera
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 13 Dec 2012 23:10:17 +0100
+
+pointmatcher-ros (0.9.6-208) unstable; urgency=low
+
+  * Updated README.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 11 Dec 2012 23:05:16 +0100
+
+pointmatcher-ros (0.9.6-207) unstable; urgency=low
+
+  * Fixed dependency instructions inREADME.md
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 11 Dec 2012 20:40:47 +0100
+
+pointmatcher-ros (0.9.6-206) unstable; urgency=low
+
+  * Renammed stack.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 11 Dec 2012 20:32:12 +0100
+
+pointmatcher-ros (0.9.6-205) unstable; urgency=low
+
+  * Added launch file for sensor in QQVGA
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 10 Dec 2012 22:44:32 +0100
+
+pointmatcher-ros (0.9.6-204) unstable; urgency=low
+
+  * Prefixed gridmap_2d with ethzasl to avoid package naming conflict.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 10 Dec 2012 19:53:13 +0100
+
+pointmatcher-ros (0.9.6-203) unstable; urgency=low
+
+  * Merge /u/smagnenat/build/fuerte/ethzasl_mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 05 Dec 2012 03:12:16 +0100
+
+pointmatcher-ros (0.9.6-202) unstable; urgency=low
+
+  * Updated libpointmatcher.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 05 Dec 2012 03:11:53 +0100
+
+pointmatcher-ros (0.9.6-201) unstable; urgency=low
+
+  * updated version of libpointmatcher
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 04 Dec 2012 20:04:14 +0100
+
+pointmatcher-ros (0.9.6-200) unstable; urgency=low
+
+  * remove unused variables
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 04 Dec 2012 19:25:20 +0100
+
+pointmatcher-ros (0.9.6-199) unstable; urgency=low
+
+  * Merge branch 'master' of git://github.com/ethz-asl/ros-mapping
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 30 Nov 2012 19:00:25 +0100
+
+pointmatcher-ros (0.9.6-198) unstable; urgency=low
+
+  * update scripts for thesis results
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 30 Nov 2012 18:56:51 +0100
+
+pointmatcher-ros (0.9.6-197) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 30 Nov 2012 01:45:18 +0100
+
+pointmatcher-ros (0.9.6-196) unstable; urgency=low
+
+  * Updated code to match my current understanding of the de-facto standard
+    in ROS.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 30 Nov 2012 01:44:38 +0100
+
+pointmatcher-ros (0.9.6-195) unstable; urgency=low
+
+  * Catching base tf exception
+
+ -- Francis Colas <francis.colas@mavt.ethz.ch>  Wed, 28 Nov 2012 10:53:37 +0100
+
+pointmatcher-ros (0.9.6-194) unstable; urgency=low
+
+  * warning message in case of tf issue
+
+ -- Francis Colas <francis.colas@mavt.ethz.ch>  Tue, 27 Nov 2012 17:18:04 +0100
+
+pointmatcher-ros (0.9.6-193) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 22 Nov 2012 00:17:59 +0100
+
+pointmatcher-ros (0.9.6-192) unstable; urgency=low
+
+  * Renammed grid-map into gridmap_2d to match the name of package costmap_2d.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 22 Nov 2012 00:16:40 +0100
+
+pointmatcher-ros (0.9.6-191) unstable; urgency=low
+
+  * removed Shadowfilter for NIFTi
+
+ -- Francis Colas <francis.colas@mavt.ethz.ch>  Wed, 21 Nov 2012 10:50:23 +0100
+
+pointmatcher-ros (0.9.6-190) unstable; urgency=low
+
+  * Added option to clear a small distance if laser beam is invalid
+
+ -- Francis Colas <francis.colas@mavt.ethz.ch>  Tue, 20 Nov 2012 11:13:05 +0100
+
+pointmatcher-ros (0.9.6-189) unstable; urgency=low
+
+  * Added default vtk extension to save map.
+
+ -- Francis Colas <francis.colas@mavt.ethz.ch>  Mon, 19 Nov 2012 18:37:18 +0100
+
+pointmatcher-ros (0.9.6-188) unstable; urgency=low
+
+  * Fixed interfacing of colors and normals with ROS/PCL.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 16 Nov 2012 05:34:06 +0100
+
+pointmatcher-ros (0.9.6-187) unstable; urgency=low
+
+  * Added rosdoc.yaml to have proper code documentation on the ROS
+    wiki.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 15 Nov 2012 04:04:56 +0100
+
+pointmatcher-ros (0.9.6-186) unstable; urgency=low
+
+  * Removed conflicting mapping_msgs.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 15 Nov 2012 02:17:20 +0100
+
+pointmatcher-ros (0.9.6-185) unstable; urgency=low
+
+  * Rebuild libnabo and libpointmatcher if there are changes from
+    upstream.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 14 Nov 2012 22:14:53 +0100
+
+pointmatcher-ros (0.9.6-184) unstable; urgency=low
+
+  * free and observation values
+
+ -- Francis Colas <francis.colas@mavt.ethz.ch>  Wed, 14 Nov 2012 18:31:15 +0100
+
+pointmatcher-ros (0.9.6-183) unstable; urgency=low
+
+  * Comply with libpointmatcher 1.0.0 API
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 14 Nov 2012 04:37:49 +0100
+
+pointmatcher-ros (0.9.6-182) unstable; urgency=low
+
+  * Updated to libpointmatcher 1.0.0
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 14 Nov 2012 04:27:41 +0100
+
+pointmatcher-ros (0.9.6-181) unstable; urgency=low
+
+  * Fixed bugs in gridmap, added occupancy grid builder program.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 14 Nov 2012 04:26:20 +0100
+
+pointmatcher-ros (0.9.6-180) unstable; urgency=low
+
+  * Imported gridmap from lonelybuilder.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 13 Nov 2012 23:45:53 +0100
+
+pointmatcher-ros (0.9.6-179) unstable; urgency=low
+
+  * Updated libpointmatcher version, mapper is now-multi-threaded.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 09 Nov 2012 04:41:00 +0100
+
+pointmatcher-ros (0.9.6-178) unstable; urgency=low
+
+  * Tuned kinect demo.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 07 Nov 2012 05:37:22 +0100
+
+pointmatcher-ros (0.9.6-177) unstable; urgency=low
+
+  * Updated libnabo to version 1.0.1
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 07 Nov 2012 00:58:06 +0100
+
+pointmatcher-ros (0.9.6-176) unstable; urgency=low
+
+  * Removed typename that made gcc 4.4 unhappy.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 10 Oct 2012 06:09:52 +0200
+
+pointmatcher-ros (0.9.6-175) unstable; urgency=low
+
+  * Added missing dependency.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 10 Oct 2012 02:42:31 +0200
+
+pointmatcher-ros (0.9.6-174) unstable; urgency=low
+
+  * Cleaned up remaining programs out of modular_cloud_matcher.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 10 Oct 2012 02:10:50 +0200
+
+pointmatcher-ros (0.9.6-173) unstable; urgency=low
+
+  * Kinect tracker is now working again.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 10 Oct 2012 01:27:49 +0200
+
+pointmatcher-ros (0.9.6-172) unstable; urgency=low
+
+  * Optimised the number of times the input point cloud gets transformed.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 09 Oct 2012 23:35:13 +0200
+
+pointmatcher-ros (0.9.6-171) unstable; urgency=low
+
+  * Made kinect run again, although it does not work yet. NIFTi works.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 09 Oct 2012 05:18:51 +0200
+
+pointmatcher-ros (0.9.6-170) unstable; urgency=low
+
+  * Mapper now uses new ICPSequence: kd-tree is only initialized when a
+    new map is set. Tested with NIFTi bag.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 09 Oct 2012 02:04:52 +0200
+
+pointmatcher-ros (0.9.6-169) unstable; urgency=low
+
+  * Fixed launch files.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 08 Oct 2012 20:59:55 +0200
+
+pointmatcher-ros (0.9.6-168) unstable; urgency=low
+
+  * Use latch topics
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 05 Oct 2012 23:37:54 +0200
+
+pointmatcher-ros (0.9.6-167) unstable; urgency=low
+
+  * Added republish_map service
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 05 Oct 2012 22:47:22 +0200
+
+pointmatcher-ros (0.9.6-166) unstable; urgency=low
+
+  * Removed useless file.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 05 Oct 2012 02:35:50 +0200
+
+pointmatcher-ros (0.9.6-165) unstable; urgency=low
+
+  * Massive clean-up.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 05 Oct 2012 01:16:23 +0200
+
+pointmatcher-ros (0.9.6-164) unstable; urgency=low
+
+  * Cleaned-up files.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 05 Oct 2012 00:58:05 +0200
+
+pointmatcher-ros (0.9.6-163) unstable; urgency=low
+
+  * Updated cloud_matcher_service
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 05 Oct 2012 00:29:32 +0200
+
+pointmatcher-ros (0.9.6-162) unstable; urgency=low
+
+  * Added ability to save maps from mapper.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 04 Oct 2012 23:38:03 +0200
+
+pointmatcher-ros (0.9.6-161) unstable; urgency=low
+
+  * Added dimensionality check
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 04 Oct 2012 21:14:15 +0200
+
+pointmatcher-ros (0.9.6-160) unstable; urgency=low
+
+  * Added dynamic_point_map service.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 04 Oct 2012 20:20:45 +0200
+
+pointmatcher-ros (0.9.6-159) unstable; urgency=low
+
+  * Added msg package for mapping, hopefully it gets standard one
+    day.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 04 Oct 2012 19:56:08 +0200
+
+pointmatcher-ros (0.9.6-158) unstable; urgency=low
+
+  * getting NIFTi map published each time
+
+ -- Francis Colas <francis.colas@mavt.ethz.ch>  Thu, 04 Oct 2012 11:48:36 +0200
+
+pointmatcher-ros (0.9.6-157) unstable; urgency=low
+
+  * Removed kinect_exp_logger
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 27 Sep 2012 00:46:40 +0200
+
+pointmatcher-ros (0.9.6-156) unstable; urgency=low
+
+  * temporary removed modular_cloud_matcher_batch and bag from CMakeList.txt
+    waiting for clean up
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 24 Sep 2012 18:11:49 +0200
+
+pointmatcher-ros (0.9.6-155) unstable; urgency=low
+
+  * correct typo for eigen dependancy, added dependancy on doxygen
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 24 Sep 2012 17:18:44 +0200
+
+pointmatcher-ros (0.9.6-154) unstable; urgency=low
+
+  * Updated rosdep.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 24 Sep 2012 16:28:34 +0200
+
+pointmatcher-ros (0.9.6-153) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 24 Sep 2012 16:00:47 +0200
+
+pointmatcher-ros (0.9.6-152) unstable; urgency=low
+
+  * added TODOs
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 24 Sep 2012 15:15:41 +0200
+
+pointmatcher-ros (0.9.6-151) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 16 Jul 2012 13:44:10 +0200
+
+pointmatcher-ros (0.9.6-150) unstable; urgency=low
+
+  * Fixed compilation fuerte.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 16 Jul 2012 13:43:33 +0200
+
+pointmatcher-ros (0.9.6-149) unstable; urgency=low
+
+  * change arguments from !=2 to <2. Otherwise ROS complains a
+    lot.
+
+ -- ming <ming@ming-desktop.(none)>  Fri, 06 Jul 2012 17:41:48 +0200
+
+pointmatcher-ros (0.9.6-148) unstable; urgency=low
+
+  * Added vtk to point cloud static publisher.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 06 Jul 2012 14:17:19 +0200
+
+pointmatcher-ros (0.9.6-147) unstable; urgency=low
+
+  * Fixed bug when tf was not available
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 02 Jul 2012 18:01:32 +0200
+
+pointmatcher-ros (0.9.6-146) unstable; urgency=low
+
+  * Added back max point filter.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 02 Jul 2012 15:23:23 +0200
+
+pointmatcher-ros (0.9.6-145) unstable; urgency=low
+
+  * Fixed tf.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 29 Jun 2012 17:29:56 +0200
+
+pointmatcher-ros (0.9.6-144) unstable; urgency=low
+
+  * Fixed bug with tf in mapper.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 26 Jun 2012 19:18:08 +0200
+
+pointmatcher-ros (0.9.6-143) unstable; urgency=low
+
+  * Added matrix-size conversions to run mapper in 2D.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 26 Jun 2012 16:51:03 +0200
+
+pointmatcher-ros (0.9.6-142) unstable; urgency=low
+
+  * Using tf now.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 26 Jun 2012 14:09:07 +0200
+
+pointmatcher-ros (0.9.6-141) unstable; urgency=low
+
+  * Fixed typo.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 25 Jun 2012 18:57:13 +0200
+
+pointmatcher-ros (0.9.6-140) unstable; urgency=low
+
+  * Changed frames.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 25 Jun 2012 18:56:08 +0200
+
+pointmatcher-ros (0.9.6-139) unstable; urgency=low
+
+  * Added 2D mode.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 25 Jun 2012 18:43:42 +0200
+
+pointmatcher-ros (0.9.6-138) unstable; urgency=low
+
+  * Fixed bugs.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 19 Jun 2012 11:01:08 +0200
+
+pointmatcher-ros (0.9.6-137) unstable; urgency=low
+
+  * Fixes.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 18 Jun 2012 18:52:58 +0200
+
+pointmatcher-ros (0.9.6-136) unstable; urgency=low
+
+  * clean-up
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 14 Jun 2012 14:20:04 +0200
+
+pointmatcher-ros (0.9.6-135) unstable; urgency=low
+
+  * Cleaned-up mapper.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 13 Jun 2012 10:38:49 +0200
+
+pointmatcher-ros (0.9.6-134) unstable; urgency=low
+
+  * Removed PCL dependency.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 11 Jun 2012 18:00:14 +0200
+
+pointmatcher-ros (0.9.6-133) unstable; urgency=low
+
+  * Fixed compilation.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 11 Jun 2012 16:42:51 +0200
+
+pointmatcher-ros (0.9.6-132) unstable; urgency=low
+
+  * Fixed compilation on fuerte.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 08 Jun 2012 18:05:16 +0200
+
+pointmatcher-ros (0.9.6-131) unstable; urgency=low
+
+  * First version of conversion package.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 07 Jun 2012 17:04:37 +0200
+
+pointmatcher-ros (0.9.6-130) unstable; urgency=low
+
+  * Improved README
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 19 Mar 2012 18:37:29 +0100
+
+pointmatcher-ros (0.9.6-129) unstable; urgency=low
+
+  * Fixed libnabo link.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 19 Mar 2012 11:20:22 +0100
+
+pointmatcher-ros (0.9.6-128) unstable; urgency=low
+
+  * Fixed variables for libnabo
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 19 Mar 2012 10:58:42 +0100
+
+pointmatcher-ros (0.9.6-127) unstable; urgency=low
+
+  * Fixed variables for libnabo
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 19 Mar 2012 10:51:23 +0100
+
+pointmatcher-ros (0.9.6-126) unstable; urgency=low
+
+  * Setuped variables for libnabo
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 19 Mar 2012 10:48:08 +0100
+
+pointmatcher-ros (0.9.6-125) unstable; urgency=low
+
+  * Fixed boost link.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Sun, 18 Mar 2012 11:53:29 +0100
+
+pointmatcher-ros (0.9.6-124) unstable; urgency=low
+
+  * Use libnabo and libpointmatcher from packages.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Sun, 18 Mar 2012 11:38:17 +0100
+
+pointmatcher-ros (0.9.6-123) unstable; urgency=low
+
+  * Updated libpointmatcher.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Sun, 18 Mar 2012 11:11:19 +0100
+
+pointmatcher-ros (0.9.6-122) unstable; urgency=low
+
+  * Removed system dep for libpointmatcher.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Sun, 18 Mar 2012 10:53:47 +0100
+
+pointmatcher-ros (0.9.6-121) unstable; urgency=low
+
+  * Removed system dep for libpointmatcher.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Sun, 18 Mar 2012 10:53:00 +0100
+
+pointmatcher-ros (0.9.6-120) unstable; urgency=low
+
+  * Adapted modular_cloud_matcher to use submodules.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 16 Mar 2012 18:06:18 +0100
+
+pointmatcher-ros (0.9.6-119) unstable; urgency=low
+
+  * Added libpointmatcher.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 16 Mar 2012 17:58:04 +0100
+
+pointmatcher-ros (0.9.6-118) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 16 Mar 2012 17:22:54 +0100
+
+pointmatcher-ros (0.9.6-117) unstable; urgency=low
+
+  * Added boost as dep.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 16 Mar 2012 17:21:32 +0100
+
+pointmatcher-ros (0.9.6-116) unstable; urgency=low
+
+  * Updated README.md for recursive git fetch.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 16 Mar 2012 17:18:07 +0100
+
+pointmatcher-ros (0.9.6-115) unstable; urgency=low
+
+  * Added working external library based on git submodule.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 16 Mar 2012 17:14:59 +0100
+
+pointmatcher-ros (0.9.6-114) unstable; urgency=low
+
+  * Work in progress.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 16 Mar 2012 17:04:19 +0100
+
+pointmatcher-ros (0.9.6-113) unstable; urgency=low
+
+  * add pointCloudToVtk.cpp
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 14 Feb 2012 16:01:27 +0100
+
+pointmatcher-ros (0.9.6-112) unstable; urgency=low
+
+  * add tools for 3D mapping
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 14 Feb 2012 10:17:49 +0100
+
+pointmatcher-ros (0.9.6-111) unstable; urgency=low
+
+  * add node creating 3D map with limited number of points
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Wed, 07 Dec 2011 09:57:05 +0100
+
+pointmatcher-ros (0.9.6-110) unstable; urgency=low
+
+  * Added back structure for yaml dep.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 16 Nov 2011 09:55:00 +0100
+
+pointmatcher-ros (0.9.6-109) unstable; urgency=low
+
+  * correct rosdep file
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 15 Nov 2011 10:35:38 +0100
+
+pointmatcher-ros (0.9.6-108) unstable; urgency=low
+
+  * Added option to use ROS logger, added yaml config to service node.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 14 Nov 2011 17:17:13 +0100
+
+pointmatcher-ros (0.9.6-107) unstable; urgency=low
+
+  * give more range and stability to the tracker
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 14 Nov 2011 16:42:06 +0100
+
+pointmatcher-ros (0.9.6-106) unstable; urgency=low
+
+  * ajust configuration
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 14 Nov 2011 16:04:46 +0100
+
+pointmatcher-ros (0.9.6-105) unstable; urgency=low
+
+  * Fixed compilation.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 14 Nov 2011 11:12:38 +0100
+
+pointmatcher-ros (0.9.6-104) unstable; urgency=low
+
+  * Removed useless params.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 11 Nov 2011 12:08:13 +0100
+
+pointmatcher-ros (0.9.6-103) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 11 Nov 2011 11:07:03 +0100
+
+pointmatcher-ros (0.9.6-102) unstable; urgency=low
+
+  * Cleaned-up dependencies.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 11 Nov 2011 11:06:19 +0100
+
+pointmatcher-ros (0.9.6-101) unstable; urgency=low
+
+  * Updated kinect script for new libpointmatcher
+
+ -- Francis Colas <fcolas@fcolas-laptop.(none)>  Thu, 10 Nov 2011 15:37:48 +0100
+
+pointmatcher-ros (0.9.6-100) unstable; urgency=low
+
+  * Uses methods from Inspector to compute stats.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 10 Nov 2011 09:37:29 +0100
+
+pointmatcher-ros (0.9.6-99) unstable; urgency=low
+
+  * Fixed link
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 10 Nov 2011 09:28:47 +0100
+
+pointmatcher-ros (0.9.6-98) unstable; urgency=low
+
+  * Made yaml-cpp rule the same as in electric.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 04 Nov 2011 10:03:31 +0100
+
+pointmatcher-ros (0.9.6-97) unstable; urgency=low
+
+  * Fixed cwise operations for eigen3
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 31 Oct 2011 15:02:37 +0100
+
+pointmatcher-ros (0.9.6-96) unstable; urgency=low
+
+  * Removed eigen2 stuff
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 28 Oct 2011 15:03:29 +0200
+
+pointmatcher-ros (0.9.6-95) unstable; urgency=low
+
+  * Added compatibility code for electric.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 28 Oct 2011 12:22:50 +0200
+
+pointmatcher-ros (0.9.6-94) unstable; urgency=low
+
+  * Fixed compilation to track latest libpointmatcher API.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 27 Oct 2011 09:54:57 +0200
+
+pointmatcher-ros (0.9.6-93) unstable; urgency=low
+
+  * Removed libnabo, as we have now packages at https://launchpad.net/~stephane.magnenat
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 26 Oct 2011 09:49:20 +0200
+
+pointmatcher-ros (0.9.6-92) unstable; urgency=low
+
+  * Using improved logger structure.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 06 Oct 2011 17:20:53 +0200
+
+pointmatcher-ros (0.9.6-91) unstable; urgency=low
+
+  * Load config from file, added ROS logger.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 06 Oct 2011 16:50:29 +0200
+
+pointmatcher-ros (0.9.6-90) unstable; urgency=low
+
+  * finish to test icp_sequence
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Sat, 24 Sep 2011 23:01:27 +0200
+
+pointmatcher-ros (0.9.6-89) unstable; urgency=low
+
+  * Made naming of filters consistent with yaml version inside libpointmatcher.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 23 Sep 2011 16:38:03 +0200
+
+pointmatcher-ros (0.9.6-88) unstable; urgency=low
+
+  * Added libyaml-cpp as dependency.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 23 Sep 2011 16:31:10 +0200
+
+pointmatcher-ros (0.9.6-87) unstable; urgency=low
+
+  * Track libpointmatcher changes.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 22 Sep 2011 17:19:38 +0200
+
+pointmatcher-ros (0.9.6-86) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 22 Sep 2011 10:41:27 +0200
+
+pointmatcher-ros (0.9.6-85) unstable; urgency=low
+
+  * Now uses the new parameter infrastructure from latest libpointmatcher's git.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 22 Sep 2011 10:41:09 +0200
+
+pointmatcher-ros (0.9.6-84) unstable; urgency=low
+
+  * test
+
+ -- Francis Colas <fcolas@fcolas-laptop.(none)>  Mon, 22 Aug 2011 12:09:22 +0200
+
+pointmatcher-ros (0.9.6-83) unstable; urgency=low
+
+  * add script to convert parameter file from yaml to txt
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Mon, 22 Aug 2011 12:07:08 +0200
+
+pointmatcher-ros (0.9.6-82) unstable; urgency=low
+
+  * Added cmd line option for changing generation count.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 11 Jul 2011 10:01:38 +0200
+
+pointmatcher-ros (0.9.6-81) unstable; urgency=low
+
+  * Improved debug output.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 07 Jul 2011 17:17:19 +0200
+
+pointmatcher-ros (0.9.6-80) unstable; urgency=low
+
+  * Improved output message.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 07 Jul 2011 16:51:36 +0200
+
+pointmatcher-ros (0.9.6-79) unstable; urgency=low
+
+  * Fixed statistics.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 07 Jul 2011 16:49:46 +0200
+
+pointmatcher-ros (0.9.6-78) unstable; urgency=low
+
+  * Fixed more bugs.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 07 Jul 2011 16:21:10 +0200
+
+pointmatcher-ros (0.9.6-77) unstable; urgency=low
+
+  * Fixed bugs.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 07 Jul 2011 16:05:27 +0200
+
+pointmatcher-ros (0.9.6-76) unstable; urgency=low
+
+  * cloud_matcher_bag does not store clouds in memory any more.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 05 Jul 2011 11:06:04 +0200
+
+pointmatcher-ros (0.9.6-75) unstable; urgency=low
+
+  * Added timestamp to output of tf_logger.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 04 Jul 2011 17:18:29 +0200
+
+pointmatcher-ros (0.9.6-74) unstable; urgency=low
+
+  * Fixed output dump of dtf.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 04 Jul 2011 16:49:34 +0200
+
+pointmatcher-ros (0.9.6-73) unstable; urgency=low
+
+  * Added computation of mean and variance, using cheap averaging for
+    quaternion.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 04 Jul 2011 16:38:44 +0200
+
+pointmatcher-ros (0.9.6-72) unstable; urgency=low
+
+  * Added outlier rejection to evolution strategy.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 04 Jul 2011 15:03:53 +0200
+
+pointmatcher-ros (0.9.6-71) unstable; urgency=low
+
+  * Added limit possible limit of number of clouds, pass correction in one
+    string.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 24 Jun 2011 16:07:00 +0200
+
+pointmatcher-ros (0.9.6-70) unstable; urgency=low
+
+  * Changed node name, removed useless parameters.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 21 Jun 2011 10:12:45 +0200
+
+pointmatcher-ros (0.9.6-69) unstable; urgency=low
+
+  * Fixed control code for point matcher service.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 21 Jun 2011 09:50:37 +0200
+
+pointmatcher-ros (0.9.6-68) unstable; urgency=low
+
+  * Fixed typo.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 17 Jun 2011 14:57:59 +0200
+
+pointmatcher-ros (0.9.6-67) unstable; urgency=low
+
+  * Fixed bug
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 17 Jun 2011 14:45:11 +0200
+
+pointmatcher-ros (0.9.6-66) unstable; urgency=low
+
+  * delta-tf output now uses new format: stamp, ipc, gt
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 17 Jun 2011 14:33:26 +0200
+
+pointmatcher-ros (0.9.6-65) unstable; urgency=low
+
+  * Fixed dump and adapted evolutions startegy.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 17 Jun 2011 14:27:11 +0200
+
+pointmatcher-ros (0.9.6-64) unstable; urgency=low
+
+  * Reverted buggy commit.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 16 Jun 2011 15:40:33 +0200
+
+pointmatcher-ros (0.9.6-63) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 16 Jun 2011 15:28:24 +0200
+
+pointmatcher-ros (0.9.6-62) unstable; urgency=low
+
+  * Rearchitectured modular cloud matcher. Added back service.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 16 Jun 2011 15:25:06 +0200
+
+pointmatcher-ros (0.9.6-61) unstable; urgency=low
+
+  * Rearchitectured modular cloud matcher. Added back service.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 16 Jun 2011 15:25:02 +0200
+
+pointmatcher-ros (0.9.6-60) unstable; urgency=low
+
+  * add parameter file for tum tests + fix bug when no data is available
+    in the bag
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Thu, 16 Jun 2011 10:04:31 +0200
+
+pointmatcher-ros (0.9.6-59) unstable; urgency=low
+
+  * add rosdep.yaml file to install dependencies
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Tue, 14 Jun 2011 17:29:05 +0200
+
+pointmatcher-ros (0.9.6-58) unstable; urgency=low
+
+  * Added skeleton of service (not working); improved cmd line of
+    cloud_matcher_bag.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 14 Jun 2011 14:45:20 +0200
+
+pointmatcher-ros (0.9.6-57) unstable; urgency=low
+
+  * Cleaned-up bag-based tracker, now use libargtable2 for command line
+    parsing.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 09 Jun 2011 11:29:42 +0200
+
+pointmatcher-ros (0.9.6-56) unstable; urgency=low
+
+  * Added missing file
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 31 May 2011 17:19:49 +0200
+
+pointmatcher-ros (0.9.6-55) unstable; urgency=low
+
+  * Added first iteration of bag-version of batch modular cloud matcher.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 31 May 2011 17:18:32 +0200
+
+pointmatcher-ros (0.9.6-54) unstable; urgency=low
+
+  * Removed useless service.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 05 May 2011 11:05:27 +0200
+
+pointmatcher-ros (0.9.6-53) unstable; urgency=low
+
+  * Added Stamped version of delta transform, thanks Thomas.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 29 Apr 2011 12:05:40 +0200
+
+pointmatcher-ros (0.9.6-52) unstable; urgency=low
+
+  * Added support for in-matcher maxDist.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 15 Apr 2011 10:21:49 +0200
+
+pointmatcher-ros (0.9.6-51) unstable; urgency=low
+
+  * Fixed default settings for tracker.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 06 Apr 2011 15:51:24 +0200
+
+pointmatcher-ros (0.9.6-50) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 04 Apr 2011 18:15:06 +0200
+
+pointmatcher-ros (0.9.6-49) unstable; urgency=low
+
+  * send delat pose.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 04 Apr 2011 18:14:00 +0200
+
+pointmatcher-ros (0.9.6-48) unstable; urgency=low
+
+  * Merge branch 'master' of git://github.com/ethz-asl/ros-mapping
+
+ -- pomerlef <pomerlef@data.asl.ethz.ch>  Tue, 22 Mar 2011 11:52:44 +0100
+
+pointmatcher-ros (0.9.6-47) unstable; urgency=low
+
+  * Add makefile to build batch test without ROS
+
+ -- pomerlef <pomerlef@data.asl.ethz.ch>  Tue, 22 Mar 2011 11:48:06 +0100
+
+pointmatcher-ros (0.9.6-46) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 21 Mar 2011 15:34:53 +0100
+
+pointmatcher-ros (0.9.6-45) unstable; urgency=low
+
+  * Added option to send pose on a topic.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 21 Mar 2011 15:34:01 +0100
+
+pointmatcher-ros (0.9.6-44) unstable; urgency=low
+
+  * add scripts to generate parameters for each experiments
+
+ -- pomerlef <pomerlef@data.asl.ethz.ch>  Sun, 20 Mar 2011 18:52:05 +0100
+
+pointmatcher-ros (0.9.6-43) unstable; urgency=low
+
+  * Added pcakgae for libnabo.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 18 Mar 2011 14:57:25 +0100
+
+pointmatcher-ros (0.9.6-42) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 10 Mar 2011 09:47:24 +0100
+
+pointmatcher-ros (0.9.6-41) unstable; urgency=low
+
+  * Seed random using time.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 10 Mar 2011 09:46:41 +0100
+
+pointmatcher-ros (0.9.6-40) unstable; urgency=low
+
+  * add define for eigen2 support
+
+ -- pomerlef <pomerlef@data.asl.ethz.ch>  Wed, 09 Mar 2011 12:16:13 +0100
+
+pointmatcher-ros (0.9.6-39) unstable; urgency=low
+
+  * Fixed logger, improved order of loading argument to batch processing.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 09 Mar 2011 11:14:53 +0100
+
+pointmatcher-ros (0.9.6-38) unstable; urgency=low
+
+  * Fixed computation of differences.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 08 Mar 2011 18:25:19 +0100
+
+pointmatcher-ros (0.9.6-37) unstable; urgency=low
+
+  * Fixed error measurement, added correction to ground truth logger.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Mon, 07 Mar 2011 18:28:03 +0100
+
+pointmatcher-ros (0.9.6-36) unstable; urgency=low
+
+  * exit experiment loop when no param was loaded.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 03 Mar 2011 17:05:34 +0100
+
+pointmatcher-ros (0.9.6-35) unstable; urgency=low
+
+  * Updated settings to match latest version of NI.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 02 Mar 2011 18:50:03 +0100
+
+pointmatcher-ros (0.9.6-34) unstable; urgency=low
+
+  * Fixed optimiser for diamondback/eigen3. Cleaned-up experiment names.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 01 Mar 2011 16:42:25 +0100
+
+pointmatcher-ros (0.9.6-33) unstable; urgency=low
+
+  * Switched timer to clock_gettime()
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 24 Feb 2011 13:59:55 +0100
+
+pointmatcher-ros (0.9.6-32) unstable; urgency=low
+
+  * Fixed multiple experiments.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 24 Feb 2011 12:11:09 +0100
+
+pointmatcher-ros (0.9.6-31) unstable; urgency=low
+
+  * First version of batch tester.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 24 Feb 2011 11:19:37 +0100
+
+pointmatcher-ros (0.9.6-30) unstable; urgency=low
+
+  * First draft of cloud matcher batch, new loads data from log.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 23 Feb 2011 19:29:34 +0100
+
+pointmatcher-ros (0.9.6-29) unstable; urgency=low
+
+  * Switche to diamondback.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 23 Feb 2011 17:41:58 +0100
+
+pointmatcher-ros (0.9.6-28) unstable; urgency=low
+
+  * uses point cloud converter.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 23 Feb 2011 16:35:46 +0100
+
+pointmatcher-ros (0.9.6-27) unstable; urgency=low
+
+  * Added logger for kinect experiments (not tested yet).
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 22 Feb 2011 18:18:29 +0100
+
+pointmatcher-ros (0.9.6-26) unstable; urgency=low
+
+  * Added automated experiment support.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 08 Feb 2011 16:19:30 +0100
+
+pointmatcher-ros (0.9.6-25) unstable; urgency=low
+
+  * Added pre filter for reading.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Fri, 04 Feb 2011 17:41:18 +0100
+
+pointmatcher-ros (0.9.6-24) unstable; urgency=low
+
+  * Fixed world coordinates, updated to follow libpointmatcher.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 03 Feb 2011 17:11:28 +0100
+
+pointmatcher-ros (0.9.6-23) unstable; urgency=low
+
+  * Returned to experimental work, optimised libpointmatcher for tracker,
+    gives 3x speed increase.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 02 Feb 2011 18:18:23 +0100
+
+pointmatcher-ros (0.9.6-22) unstable; urgency=low
+
+  * Added specific Nabo version to dependency.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 27 Jan 2011 15:44:22 +0100
+
+pointmatcher-ros (0.9.6-21) unstable; urgency=low
+
+  * Merge /home/steph/build/ethzasl_mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 27 Jan 2011 14:33:48 +0100
+
+pointmatcher-ros (0.9.6-20) unstable; urgency=low
+
+  * Checkout a specific revision of libpointmatcher.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Thu, 27 Jan 2011 14:33:26 +0100
+
+pointmatcher-ros (0.9.6-19) unstable; urgency=low
+
+  * Renamed logger into tf_logger; added rosparams for hardcoded strings.
+
+ -- Francis Colas <fcolas@fcolas-laptop.(none)>  Sun, 23 Jan 2011 17:07:58 +0100
+
+pointmatcher-ros (0.9.6-18) unstable; urgency=low
+
+  * add print to start tf with rosrun
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Sun, 23 Jan 2011 16:01:56 +0100
+
+pointmatcher-ros (0.9.6-17) unstable; urgency=low
+
+  * Added 0 instead of random z
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Sat, 22 Jan 2011 19:43:53 +0100
+
+pointmatcher-ros (0.9.6-16) unstable; urgency=low
+
+  * Added nice output for optimization.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Sat, 22 Jan 2011 19:34:42 +0100
+
+pointmatcher-ros (0.9.6-15) unstable; urgency=low
+
+  * Fixed launch file.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Sat, 22 Jan 2011 19:16:04 +0100
+
+pointmatcher-ros (0.9.6-14) unstable; urgency=low
+
+  * Merge branch 'master' of github.com:ethz-asl/ros-mapping
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Sat, 22 Jan 2011 19:14:11 +0100
+
+pointmatcher-ros (0.9.6-13) unstable; urgency=low
+
+  * Added extrinsic calibration package.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Sat, 22 Jan 2011 19:12:57 +0100
+
+pointmatcher-ros (0.9.6-12) unstable; urgency=low
+
+  * jump point cloud with too low nb pts. Sometimes the Kinect send haft
+    of the image
+
+ -- Francois Pomerleau <f.pomerleau@gmail.com>  Fri, 21 Jan 2011 17:12:13 +0100
+
+pointmatcher-ros (0.9.6-11) unstable; urgency=low
+
+  * Fetch Eigen from ROS
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Wed, 19 Jan 2011 12:23:49 +0100
+
+pointmatcher-ros (0.9.6-10) unstable; urgency=low
+
+  * Improved launch files.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Jan 2011 17:17:14 +0100
+
+pointmatcher-ros (0.9.6-9) unstable; urgency=low
+
+  * Added rosinstall file.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Jan 2011 15:31:08 +0100
+
+pointmatcher-ros (0.9.6-8) unstable; urgency=low
+
+  * Fixed README
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Jan 2011 15:25:51 +0100
+
+pointmatcher-ros (0.9.6-7) unstable; urgency=low
+
+  * Renamed README
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Jan 2011 15:25:01 +0100
+
+pointmatcher-ros (0.9.6-6) unstable; urgency=low
+
+  * Added README.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Jan 2011 15:24:20 +0100
+
+pointmatcher-ros (0.9.6-5) unstable; urgency=low
+
+  * Added README.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Jan 2011 15:18:48 +0100
+
+pointmatcher-ros (0.9.6-4) unstable; urgency=low
+
+  * Added fetching and compilation of external dependencies.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Jan 2011 15:10:20 +0100
+
+pointmatcher-ros (0.9.6-3) unstable; urgency=low
+
+  * Fixed naming of topic.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Jan 2011 14:36:28 +0100
+
+pointmatcher-ros (0.9.6-2) unstable; urgency=low
+
+  * Renamed stuff.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Jan 2011 14:27:22 +0100
+
+pointmatcher-ros (0.9.6-1) unstable; urgency=low
+
+  * Import from aslforge.
+
+ -- Stéphane Magnenat <stephane@magnenat.net>  Tue, 18 Jan 2011 13:50:00 +0100

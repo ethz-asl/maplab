@@ -1,0 +1,41 @@
+readingDataPointsFilters:
+  - MinDistDataPointsFilter:
+      minDist: 1 
+  - RandomSamplingDataPointsFilter:
+      prob: 0.05
+
+referenceDataPointsFilters:
+  - MinDistDataPointsFilter:
+      minDist: 1.0  
+  - RandomSamplingDataPointsFilter:
+      prob: 0.05
+
+matcher:
+  KDTreeMatcher:
+    knn: 1
+    epsilon: 3.16
+
+outlierFilters:
+  - TrimmedDistOutlierFilter:
+      ratio: 0.75
+
+errorMinimizer:
+  PointToPointErrorMinimizer
+
+transformationCheckers:
+  - CounterTransformationChecker:
+      maxIterationCount: 150
+  - DifferentialTransformationChecker:
+      minDiffRotErr: 0.001
+      minDiffTransErr: 0.01
+      smoothLength: 4   
+      
+inspector:
+  NullInspector
+#  VTKFileInspector
+
+logger:
+  NullLogger
+#  FileLogger
+
+

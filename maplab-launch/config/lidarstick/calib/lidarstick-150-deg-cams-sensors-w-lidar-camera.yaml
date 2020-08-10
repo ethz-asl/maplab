@@ -15,7 +15,7 @@ sensors:
   - id: abf123479caf7592b35518478a2fe08f
     sensor_type: LIDAR
     description: "Lidarstick - Ouster OS1"
-    topic: /os1_node/points
+    topic: /os1_cloud_node/points
 
   - id: ffff23479caf7592b35518478a2fe08f
     sensor_type: POINTCLOUD_MAP

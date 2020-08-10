@@ -1,0 +1,26 @@
+libpointmatcher (1.2.0) UNRELEASED; urgency=low
+
+  * Add a new data filter: VoxelGrid 
+  * Add support for PCL (Point Cloud Library) data format: PCD
+  * Improved *.vtk legacy format to handle UNSTRUCTURED_GRID format
+  * New ErrorMinimizer producing covariance matrix
+  * Better user documentation and tutorials
+  * Avoids point cloud copies when filtering
+  * Add CMake support for find_package
+  * Added support for PLY (Polygon File Format or the Stanford Triangle Format) for ascii encoding
+  * Improved CSV file support with import/export of selected descriptors
+
+ -- Samuel Charreyron <samlcharreyron@gmail.com>  Fri, 20 Jun 2014 13:23:06 +0200
+
+libpointmatcher (1.1.0) precise; urgency=low
+
+  * new upstream release
+
+ -- Stéphane Magnenat <stephane@nospam.magnenat.net>  Wed, 04 Sep 2013 13:54:46 +0200
+
+libpointmatcher (1.0.0) precise; urgency=low
+
+  * new upstream release
+
+ -- Stéphane Magnenat <stephane@nospam.magnenat.net>  Mon, 12 Nov 2012 09:54:00 -0800
+

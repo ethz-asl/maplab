@@ -56,7 +56,7 @@ struct AlignmentCandidatePair {
 
   // Initial guess for the relative transformation between these two sensor
   // frames. This can be either obtained through their relative position in the
-  // pose graph or an algorithm for an intial rough alignment.
+  // pose graph or an algorithm for an initial rough alignment.
   aslam::Transformation T_SB_SA_init;
 
   // Final relative transformation between these two sensor frames after

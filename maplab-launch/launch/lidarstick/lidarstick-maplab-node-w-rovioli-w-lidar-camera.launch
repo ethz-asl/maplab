@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-	<node pkg="rosbag" type="play" name="rosbag" args="/home/mfehr/experimental_ws/maplab/lidarstick_gonzen/gonzen_run_9_2019-02-15-14-08-27.bag -q -d 2 -s 3 -r 2.0"/>
+	<node pkg="rosbag" type="play" name="rosbag" args="'/media/dominic/Extreme SSD/datasets/asl_koze/asl_koze_table_both_side_with_loop_light_change_medium.bag' -q -d 2 -s 3 -r 2.0"/>
 
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 
@@ -14,13 +14,13 @@
 
 			<!-- ROBOT SPECIFIC PARAMS -->
 			<!-- SENSORS -->
-			<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors-w-lidar-camera.yaml"/>
+			<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors.yaml"/>
 			<param name="imu_to_camera_time_offset_ns" value="19779092"/>
 			<param name="vio_camera_topic_suffix" value="image_raw"/>
 			<param name="selected_ncamera_sensor_id" value="8af1bac2a7c5fad79f09e49e3b96d87c"/>
 
 			<!-- ROVIOLI CONFIG -->
-			<param name="rovioli_run_map_builder" value="false"/>
+			<param name="rovioli_run_map_builder" value="true"/>
 			<param name="rovioli_image_apply_clahe_histogram_equalization" value="true"/>
 			<param name="rovio_enable_frame_visualization" value="true"/>
 			<param name="rovioli_enable_health_checking" value="true"/>
@@ -42,7 +42,7 @@
 
 		<!-- ROBOT SPECIFIC PARAMS -->
 		<!-- SENSORS -->
-		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors-w-lidar-camera.yaml"/>
+		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors.yaml"/>
 		<param name="imu_to_camera_time_offset_ns" value="19779092"/>
 		<param name="vio_camera_topic_suffix" value="image_raw"/>
 		<param name="selected_ncamera_sensor_id" value="8af1bac2a7c5fad79f09e49e3b96d87c"/>

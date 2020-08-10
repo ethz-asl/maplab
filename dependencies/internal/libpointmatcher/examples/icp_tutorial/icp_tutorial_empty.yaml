@@ -1,0 +1,23 @@
+readingDataPointsFilters:
+   - IdentityDataPointsFilter
+
+referenceDataPointsFilters:
+   - IdentityDataPointsFilter
+
+matcher:
+  KDTreeMatcher
+
+outlierFilters:
+   - NullOutlierFilter
+
+errorMinimizer:
+   IdentityErrorMinimizer
+
+transformationCheckers:
+   - CounterTransformationChecker
+
+inspector:
+   NullInspector
+
+logger:
+   FileLogger

@@ -15,7 +15,7 @@ sensors:
   - id: abf123479caf7592b35518478a2fe08f
     sensor_type: LIDAR
     description: "Lidarstick - Ouster OS1"
-    topic: /os1_node/points
+    topic: /os1_cloud_node/points
 
   - id: ffff23479caf7592b35518478a2fe08f
     sensor_type: POINTCLOUD_MAP
@@ -32,41 +32,6 @@ sensors:
     description: "Lidarstick - Blackfly S 0.4MP (Color/Mono) Stereo Pair"
     topic: ""
     cameras:
-      - camera:
-          id: ca27b5000f15adb3c0da8ac6b729ee05
-          sensor_type: CAMERA
-          description: "Blackfly S 0.4MP Mono Camera"
-          topic: /VersaVIS/cam1
-          line-delay-nanoseconds: 0
-          image_height: 540
-          image_width: 720
-          type: pinhole
-          intrinsics:
-            rows: 4
-            cols: 1
-            data:
-              - 318.3884836637401
-              - 318.3155591743098
-              - 359.7920158885187
-              - 274.6524854825948
-          distortion:
-            type: equidistant
-            parameters:
-              rows: 4
-              cols: 1
-              data:
-                - 0.005297224609545764
-                - -0.002056917493785131
-                - 0.00399665025864434
-                - -0.001542989667889886
-        T_B_C:
-          rows: 4
-          cols: 4
-          data:
-            - [-0.9999641621045086, -0.0070026295913249385, 0.004757907674077553, -0.16210012684230665]
-            - [0.004779879776070842, -0.00312430862659371, 0.9999836955895492, 0.04699334402275922]
-            - [-0.006987650245587189, 0.9999706005050412, 0.0031576683855106015, 0.05573138381457567]
-            - [0.0, 0.0, 0.0, 1.0]
 
       - camera:
           id: ca17b5000f15adb3c0da8ac6b729ee05
@@ -103,19 +68,44 @@ sensors:
             - [-0.01404346691982178, -0.006212441369011223, 0.9998820863527402, 0.04578551805201717]
             - [-0.006542650159741623, 0.9999598625408523, 0.006121032279554073, 0.05665531205066083]
             - [0, 0, 0, 1]
+
+  - id: ccccbac2a7c5fad79f09e49e3b96d87c
+    sensor_type: NCAMERA
+    description: "Lidarstick - OS-1 camera model"
+    topic: ""
+    cameras:
+      - camera:
+          id: aaaab5000f15adb3c0da8ac6b729ee05
+          sensor_type: CAMERA
+          description: "Lidarstick - OS-1 64 beam lidar - camera model"
+          topic: ""
+          line-delay-nanoseconds: 97656
+          image_height: 64
+          image_width: 1024
+          type: camera-3d-lidar
+          intrinsics:
+            # kHorizontalResolutionRad      0.351562 deg
+            # kVerticalResolutionRad        0.527333 deg
+            # kVerticalCenterRad            16.611   deg
+            # kHorizontalCenterRad          0        deg
+            rows: 4
+            cols: 1
+            data:
+              - 0.006135923
+              - 0.009203703
+              - 0.289916642
+              - 0.
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [ 0.0,  0.0,  1.0,  0.0]
+            - [-1.0,  0.0,  0.0,  0.0]
+            - [ 0.0, -1.0,  0.0,  0.0]
+            - [ 0.0,  0.0,  0.0,  1.0]
+
 extrinsics:
   - sensor_id: abf123479caf7592b35518478a2fe08f
-    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
-    T_B_S:
-      rows: 4
-      cols: 4
-      data:
-        - [-0.6978447576305695, 0.7161518144580716, 0.01180139381358678, -0.1021019447103219]
-        - [0.7160088243900917, 0.697942707663664, -0.01439931299167545, -0.08936602296234536]
-        - [-0.01854879087839803, -0.001598582974091693, -0.999826678424528, -0.07460082421278309]
-        - [0, 0, 0, 1]
-
-  - sensor_id: ffff23479caf7592b35518478a2fe08f
     base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
     T_B_S:
       rows: 4
@@ -136,6 +126,17 @@ extrinsics:
         - [0,1,0,0]
         - [0,0,1,0]
         - [0,0,0,1]
+
+  - sensor_id: ffff23479caf7592b35518478a2fe08f
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [-0.6978447576305695, 0.7161518144580716, 0.01180139381358678, -0.1021019447103219]
+        - [0.7160088243900917, 0.697942707663664, -0.01439931299167545, -0.08936602296234536]
+        - [-0.01854879087839803, -0.001598582974091693, -0.999826678424528, -0.07460082421278309]
+        - [0, 0, 0, 1]
 
   - sensor_id: aabb23479caf7592b35518478a2fe08f
     base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
@@ -158,3 +159,14 @@ extrinsics:
         - [0,1,0,0]
         - [0,0,1,0]
         - [0,0,0,1]
+
+  - sensor_id: ccccbac2a7c5fad79f09e49e3b96d87c
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [-0.6978447576305695, 0.7161518144580716, 0.01180139381358678, -0.1021019447103219]
+        - [0.7160088243900917, 0.697942707663664, -0.01439931299167545, -0.08936602296234536]
+        - [-0.01854879087839803, -0.001598582974091693, -0.999826678424528, -0.07460082421278309]
+        - [0, 0, 0, 1]

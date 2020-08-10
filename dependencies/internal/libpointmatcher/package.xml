@@ -1,0 +1,25 @@
+<package>
+	<name>libpointmatcher</name>
+	<version>1.3.1</version>
+	<description>
+		libpointmatcher is a modular ICP library, useful for robotics and computer vision.
+	</description>
+	<maintainer email="f.pomerleau@gmail.com">Francois Pomerleau</maintainer>
+	<license>BSD</license>
+	<url type="repository">https://github.com/ethz-asl/libpointmatcher</url>
+
+	<buildtool_depend>cmake</buildtool_depend>
+
+	<build_depend>boost</build_depend>
+	<build_depend>libnabo</build_depend>
+	<build_depend>eigen</build_depend>
+
+	<run_depend>boost</run_depend>
+	<run_depend>libnabo</run_depend>
+	<run_depend>eigen</run_depend>
+	<run_depend>catkin</run_depend>
+
+	<export>
+		<build_type>cmake</build_type>
+	</export>
+</package>
