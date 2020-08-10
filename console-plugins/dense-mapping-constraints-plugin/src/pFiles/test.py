@@ -54,7 +54,7 @@ def test(a):
     args.model = "/home/dominic/maplab_ws/src/maplab_experimental/maplab/console-plugins/dense-mapping-constraints-plugin/src/pFiles/test.pt"
     show = False
     # initialize lidar db
-    root = '/media/dominic/Extreme SSD/datasets/asl_koze/data_both_side'
+    root = '/media/dominic/Extreme SSD/datasets/asl_koze/data_both_side/data'
     db = LidarSynthetic(root, skip=(0, -1, 1), crop=False)
     idx1 = 45
     idx2 = idx1 + 98

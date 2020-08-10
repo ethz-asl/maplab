@@ -131,7 +131,8 @@ namespace dense_mapping {
         {
             LOG(INFO) << "dict returned";
             PyObject *pObj = PyDict_GetItem(pDict, PyUnicode_FromString("keypointsA"));
-            LOG(INFO) << PyArray_NDIM(pObj) << " " << {PyArray_SHAPE(pObj)[0]} << " " << {PyArray_SHAPE(pObj)[1]};
+            auto len PyArray_DIM(pObj, 0);
+            LOG(INFO) << PyArray_NDIM(pObj) << " " << len;
             Py_DECREF(pObj);
 
         } else {
