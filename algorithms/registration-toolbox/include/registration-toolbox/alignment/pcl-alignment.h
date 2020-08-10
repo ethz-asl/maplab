@@ -55,6 +55,11 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
 
   bool is_converged = true;
   PclPointCloudPtr<T_point> transformed(new pcl::PointCloud<T_point>);
+  aligner_.setMaximumIterations(150);
+  aligner_.setTransformationEpsilon(1e-9);
+  aligner_.setEuclideanFitnessEpsilon(1);
+  aligner_.setRANSACOutlierRejectionThreshold(1.6);
+  aligner_.setMaxCorrespondenceDistance(0.08);
   try {
     const Eigen::Matrix4f prior =
         prior_T_target_source.getTransformationMatrix().cast<float>();

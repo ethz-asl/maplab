@@ -348,21 +348,21 @@ void DataSourceRostopic::odometryEstimateCallback(
         return;
       }
     }
-
-    // This odometry measurement was accepted.
-    last_odometry_timestamp_ns_ = timestamp_ns;
-
-    // Convert message.
-    const vi_map::Odometry6DoF& sensor =
-        sensor_manager_.getSensor<vi_map::Odometry6DoF>(sensor_id);
-    const aslam::Transformation& T_B_S =
-        sensor_manager_.getSensor_T_B_S(sensor_id);
-    maplab::OdometryEstimate::Ptr odometry_measurement =
-        convertRosOdometryMsgToOdometryEstimate(msg, T_B_S, sensor);
-    CHECK(odometry_measurement);
-
-    invokeOdometryCallbacks(odometry_measurement);
   }
+
+  // This odometry measurement was accepted.
+  last_odometry_timestamp_ns_ = timestamp_ns;
+
+  // Convert message.
+  const vi_map::Odometry6DoF& sensor =
+      sensor_manager_.getSensor<vi_map::Odometry6DoF>(sensor_id);
+  const aslam::Transformation& T_B_S =
+      sensor_manager_.getSensor_T_B_S(sensor_id);
+  maplab::OdometryEstimate::Ptr odometry_measurement =
+      convertRosOdometryMsgToOdometryEstimate(msg, T_B_S, sensor);
+  CHECK(odometry_measurement);
+
+  invokeOdometryCallbacks(odometry_measurement);
 }
 
 void DataSourceRostopic::absolute6DoFConstraintCallback(

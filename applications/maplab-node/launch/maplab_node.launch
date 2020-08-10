@@ -41,6 +41,7 @@
 	<arg name="map_initialize_and_triangulate_landmarks_when_saving" default="true"/>
 	<arg name="map_save_every_n_sec" default="0"/>
 	<arg name="map_split_map_into_submaps_when_saving_periodically" default="false"/>
+  <arg name="map_add_odometry_edges_if_less_than_n_common_landmarks" default="70"/>
 
 
 	<!-- ATTACHING RESOURCES TO MAP -->
@@ -59,7 +60,7 @@
 	<!-- DEBUGGING AND LOGGING -->
 	<arg name="alsologtostderr" default="true"/>
 	<arg name="colorlogtostderr" default="true"/>
-	<arg name="v" default="3"/>
+	<arg name="v" default="0"/>
 	<arg name="publish_debug_markers" default="true"/>
 	<arg name="vis_default_namespace" default="maplab_rviz"/>
 	<arg name="export_estimated_poses_to_csv" default=""/>
@@ -112,6 +113,7 @@
 		<param name="map_initialize_and_triangulate_landmarks_when_saving" value="$(arg map_initialize_and_triangulate_landmarks_when_saving)"/>
 		<param name="map_save_every_n_sec" value="$(arg map_save_every_n_sec)"/>
 		<param name="map_split_map_into_submaps_when_saving_periodically" value="$(arg map_split_map_into_submaps_when_saving_periodically)"/>
+	  <param name="map_add_odometry_edges_if_less_than_n_common_landmarks" value="$(arg map_add_odometry_edges_if_less_than_n_common_landmarks)"/>
 
 		<!-- ATTACHING RESOURCES TO MAP -->
 		<param name="map_builder_save_image_as_resources" value="$(arg map_builder_save_image_as_resources)"/>
