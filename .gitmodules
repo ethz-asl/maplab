@@ -67,9 +67,6 @@
 [submodule "dependencies/internal/minkindr"]
 	path = dependencies/internal/minkindr
 	url = git@github.com:ethz-asl/minkindr.git
-[submodule "dependencies/internal/minkindr_ros"]
-	path = dependencies/internal/minkindr_ros
-	url = git@github.com:ethz-asl/minkindr_ros.git
 [submodule "dependencies/internal/maplab_rovio"]
 	path = dependencies/internal/maplab_rovio
 	url = git@github.com:ethz-asl/maplab_rovio.git

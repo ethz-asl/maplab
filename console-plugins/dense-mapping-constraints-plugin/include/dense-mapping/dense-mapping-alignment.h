@@ -18,6 +18,7 @@
 #include "dense-mapping/dense-mapping-gflags.h"
 
 #include <Python.h>
+#include <numpy/arrayobject.h>
 
 namespace dense_mapping {
 
