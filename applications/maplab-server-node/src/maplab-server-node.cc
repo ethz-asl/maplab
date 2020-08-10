@@ -689,14 +689,14 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   {
     {
       std::lock_guard<std::mutex> merge_status_lock(
-         running_merging_process_mutex_);
+          running_merging_process_mutex_);
       running_merging_process_ = "dense mapping constraints";
     }
 
-      dense_mapping::Config config = dense_mapping::Config::fromGflags();
-      dense_mapping::addDenseMappingConstraintsToMap(
-         config, mission_ids, map.get());
-  }  
+    dense_mapping::Config config = dense_mapping::Config::fromGflags();
+    dense_mapping::addDenseMappingConstraintsToMap(
+        config, mission_ids, map.get());
+  }
 
   // Full optimization
   ////////////////////
