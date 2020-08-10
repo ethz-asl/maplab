@@ -43,6 +43,8 @@ DEFINE_int64(
     "Enable visualization of the visual localization observations and inliers "
     "as ROS message.");
 
+DECLARE_double(image_resize_factor);
+
 namespace maplab {
 MaplabNode::MaplabNode(
     const std::string& sensor_calibration_file,
@@ -64,6 +66,31 @@ MaplabNode::MaplabNode(
                << sensor_calibration_file << "'!";
   }
   CHECK(sensor_manager_);
+
+  // At the very beginning check if the main ncamera images need to be resized.
+  aslam::NCamera::Ptr mapping_ncamera =
+      vi_map::getSelectedNCamera(*sensor_manager_);
+  if (mapping_ncamera && fabs(FLAGS_image_resize_factor - 1.0) > 1e-6) {
+    for (size_t i = 0; i < mapping_ncamera->getNumCameras(); i++) {
+      // The intrinsics of the camera can just be multiplied with the resize
+      // factor. Distortion parameters are agnostic to the image size.
+      aslam::Camera::Ptr camera = mapping_ncamera->getCameraShared(i);
+      camera->setParameters(
+          camera->getParameters() * FLAGS_image_resize_factor);
+      camera->setImageWidth(
+          round(camera->imageWidth() * FLAGS_image_resize_factor));
+      camera->setImageHeight(
+          round(camera->imageHeight() * FLAGS_image_resize_factor));
+      camera->setDescription(
+          camera->getDescription() + " - resized " +
+          std::to_string(FLAGS_image_resize_factor));
+
+      // The parameters have changed so we need to generate a new sensor id.
+      aslam::SensorId camera_id;
+      generateId(&camera_id);
+      camera->setId(camera_id);
+    }
+  }
 
   // === SYNCHRONIZER ===
   synchronizer_flow_.reset(new SynchronizerFlow(*sensor_manager_));

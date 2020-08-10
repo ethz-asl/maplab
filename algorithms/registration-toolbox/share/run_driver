@@ -3,7 +3,8 @@
 TARGET=$1
 SOURCE=$2
 REG=$3
-ST=$@
+T=$4
+REST=$@
 
 rosrun registration_toolbox registration_toolbox_driver \
   --v=3 \
@@ -12,4 +13,5 @@ rosrun registration_toolbox registration_toolbox_driver \
   --source_cloud="$SOURCE" \
   --target_cloud="$TARGET" \
   --reg_cloud="$REG" \
+  --transform="$T" \
   $REST

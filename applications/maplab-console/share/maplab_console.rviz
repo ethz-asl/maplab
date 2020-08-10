@@ -27,11 +27,6 @@ Panels:
     Name: Time
     SyncMode: 0
     SyncSource: MAPLAB_CONSOLE_LANDMARKS
-  - Class: mav_planning_rviz/PlanningPanel
-    Name: PlanningPanel
-    namespace: jay
-    odometry_topic: ""
-    planner_name: rrt_planner_voxblox
 Preferences:
   PromptSaveOnExit: true
 Toolbars:

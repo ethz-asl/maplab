@@ -23,18 +23,25 @@ size_t parallelProcess(
     // Nothing todo.
     return 0u;
   }
+
+  const size_t num_processing_threads = std::min(num_elements, num_threads);
+  VLOG(1) << "num_processing_threads vs num_threads: " << num_processing_threads
+          << " vs " << num_threads;
   const size_t num_elements_per_thread =
-      std::ceil(static_cast<double>(num_elements) / num_threads);
+      std::ceil(static_cast<double>(num_elements) / num_processing_threads);
 
   // If we have less elements than threads, we simply run one thread.
   std::vector<std::thread> thread_pool;
-  for (size_t thread_idx = 0u; thread_idx < num_threads; ++thread_idx) {
+  for (size_t thread_idx = 0u; thread_idx < num_processing_threads;
+       ++thread_idx) {
     const size_t start_idx =
         global_start_index + num_elements_per_thread * thread_idx;
 
     // This is needed when there are more threads than elements or when the
     // rounding leaves no elements for the later threads.
     if (start_idx >= global_end_index) {
+      // Just add this as a sanity check.
+      CHECK_GT(num_elements, num_processing_threads);
       break;
     }
 

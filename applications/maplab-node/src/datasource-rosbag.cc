@@ -346,6 +346,11 @@ void DataSourceRosbag::streamingWorker() {
       vi_map::RosLidarMeasurement::Ptr lidar_measurement =
           convertRosCloudToMaplabCloud(lidar_msgs, sensor_id);
 
+      // Apply the IMU to lidar time shift.
+      if (FLAGS_imu_to_lidar_time_offset_ns != 0) {
+        *lidar_measurement->getTimestampNanosecondsMutable() +=
+            FLAGS_imu_to_lidar_time_offset_ns;
+      }
       VLOG(3) << "Publish Lidar measurement...";
       invokeLidarCallbacks(lidar_measurement);
     }

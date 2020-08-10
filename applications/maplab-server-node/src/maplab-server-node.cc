@@ -121,7 +121,8 @@ MaplabServerNode::MaplabServerNode()
       duration_last_merging_loop_s_(0.0),
       optimization_trust_region_radius_(FLAGS_ba_initial_trust_region_radius),
       total_num_merged_submaps_(0u),
-      time_of_last_map_backup_s_(0.0) {
+      time_of_last_map_backup_s_(0.0),
+      is_running_(false) {
   if (!FLAGS_ros_free) {
     visualization::RVizVisualizationSink::init();
     plotter_.reset(new visualization::ViwlsGraphRvizPlotter);
@@ -129,7 +130,9 @@ MaplabServerNode::MaplabServerNode()
 }
 
 MaplabServerNode::~MaplabServerNode() {
-  shutdown();
+  if (is_running_) {
+    shutdown();
+  }
 }
 
 void MaplabServerNode::start() {
@@ -225,29 +228,38 @@ void MaplabServerNode::start() {
 }
 
 void MaplabServerNode::shutdown() {
-  if (shut_down_requested_.load()) {
-    // Already shut down.
-    return;
-  }
-
   std::lock_guard<std::mutex> lock(mutex_);
   LOG(INFO) << "[MaplabServerNode] Shutting down...";
   shut_down_requested_.store(true);
 
-  LOG(INFO) << "[MaplabServerNode] Stopping MapMerging thread...";
-  if (submap_merging_thread_.joinable()) {
-    submap_merging_thread_.join();
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping MapMerging thread...";
+    if (submap_merging_thread_.joinable()) {
+      submap_merging_thread_.join();
+    }
+    LOG(INFO) << "[MaplabServerNode] Done.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop map merging thread: " << e.what();
   }
-  LOG(INFO) << "[MaplabServerNode] Done.";
 
-  LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
-  submap_loading_thread_pool_.stop();
-  submap_loading_thread_pool_.waitForEmptyQueue();
-  LOG(INFO) << "[MaplabServerNode] Done.";
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
+    submap_loading_thread_pool_.stop();
+    submap_loading_thread_pool_.waitForEmptyQueue();
+    LOG(INFO) << "[MaplabServerNode] Done.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop map submap processing threads: " << e.what();
+  }
 
-  LOG(INFO) << "[MaplabServerNode] Stopping Status thread...";
-  status_thread_.join();
-  LOG(INFO) << "[MaplabServerNode] Done.";
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping Status thread...";
+    if (status_thread_.joinable()) {
+      status_thread_.join();
+    }
+    LOG(INFO) << "[MaplabServerNode] Done.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop status thread: " << e.what();
+  }
 
   is_running_ = false;
 }
@@ -691,8 +703,9 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
           running_merging_process_mutex_);
       running_merging_process_ = "visual loop closure";
     }
-    for (vi_map::MissionIdList::const_iterator it = mission_ids.begin();
-         it != mission_ids.end(); ++it) {
+    vi_map::MissionIdList::const_iterator mission_ids_end = mission_ids.cend();
+    for (vi_map::MissionIdList::const_iterator it = mission_ids.cbegin();
+         it != mission_ids_end; ++it) {
       const vi_map::MissionId& mission_id_A = *it;
 
       const bool baseframe_A_is_known =
@@ -704,8 +717,8 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         loop_detector.instantiateVisualizer();
       }
       loop_detector.addMissionToDatabase(mission_id_A, *map);
-      for (vi_map::MissionIdList::const_iterator jt = it;
-           jt != mission_ids.end(); ++jt) {
+      for (vi_map::MissionIdList::const_iterator jt = it; jt != mission_ids_end;
+           ++jt) {
         const vi_map::MissionId& mission_id_B = *jt;
 
         const bool baseframe_B_is_known =

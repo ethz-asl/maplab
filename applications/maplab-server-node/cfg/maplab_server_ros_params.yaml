@@ -157,7 +157,7 @@ vi_map_landmark_quality_min_observation_angle_deg:                    5   # Defa
 # of iterations are significantly increased, this can have weird effects as the
 # optimization does not have a robust abort criterion.
 ba_num_iterations:                                                    5
-ba_max_time_seconds:                                                  120
+ba_max_time_seconds:                                                  180
 ba_enable_signal_handler:                                             false
 ba_hide_iterations_console_output:                                    true
 ba_include_visual:                                                    true
