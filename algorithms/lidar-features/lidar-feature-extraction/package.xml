@@ -14,5 +14,6 @@
   <depend>glog_catkin</depend>
   <depend>loop_closure_handler</depend>
   <depend>maplab_common</depend>
+  <depend>vio_common</depend>
   <depend>vi_map</depend>
 </package>
