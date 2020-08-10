@@ -43,6 +43,16 @@ class GenericController {
         target_pc, source_pc, prior_T_target_source);
   }
 
+  T_align& getAlignment() {
+    CHECK_NOTNULL(alignment_);
+    return *alignment_;
+  }
+
+  const T_align& getAlignment() const {
+    CHECK_NOTNULL(alignment_);
+    return *alignment_;
+  }
+
  private:
   std::unique_ptr<T_align> alignment_;
 };

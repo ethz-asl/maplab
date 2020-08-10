@@ -275,8 +275,8 @@ void DataSourceRostopic::imuMeasurementCallback(
   if (!aslam::time::isValidTime(last_imu_dispatch_timestamp_ns_)) {
     last_imu_dispatch_timestamp_ns_ = timestamp_ns;
   }
-  // Initialize a new batch if this is the first time or if in the previous call
-  // we just released a batch.
+  // Initialize a new batch if this is the first time or if in the previous
+  // call we just released a batch.
   if (!current_imu_batch_) {
     current_imu_batch_.reset(new vio::BatchedImuMeasurements);
   }
@@ -328,8 +328,8 @@ void DataSourceRostopic::odometryEstimateCallback(
     return;
   }
 
+  static constexpr int64_t kAcceptanceTime = -10000;
   const int64_t timestamp_ns = rosTimeToNanoseconds(msg->header.stamp);
-
   if (aslam::time::isValidTime(last_odometry_timestamp_ns_)) {
     const int64_t odometry_period_ns =
         timestamp_ns - last_odometry_timestamp_ns_;
@@ -339,25 +339,30 @@ void DataSourceRostopic::odometryEstimateCallback(
           << "increasing! Current timestamp: " << timestamp_ns
           << "ns vs last timestamp: " << last_odometry_timestamp_ns_ << "ns.";
       return;
-    } else if (odometry_period_ns < odometry_min_period_ns_) {
-      // Skip this odometry message, since it arrives at a higher frequency
-      // than desired.
-      return;
+    } else {
+      const int64_t odometry_diff_ns =
+          odometry_period_ns - odometry_min_period_ns_;
+      if (odometry_diff_ns < 0 && odometry_diff_ns < kAcceptanceTime) {
+        // Skip this odometry message, since it arrives at a higher
+        // frequency than desired.
+        return;
+      }
     }
+
+    // This odometry measurement was accepted.
+    last_odometry_timestamp_ns_ = timestamp_ns;
+
+    // Convert message.
+    const vi_map::Odometry6DoF& sensor =
+        sensor_manager_.getSensor<vi_map::Odometry6DoF>(sensor_id);
+    const aslam::Transformation& T_B_S =
+        sensor_manager_.getSensor_T_B_S(sensor_id);
+    maplab::OdometryEstimate::Ptr odometry_measurement =
+        convertRosOdometryMsgToOdometryEstimate(msg, T_B_S, sensor);
+    CHECK(odometry_measurement);
+
+    invokeOdometryCallbacks(odometry_measurement);
   }
-  // This odometry measurement was accepted.
-  last_odometry_timestamp_ns_ = timestamp_ns;
-
-  // Convert message.
-  const vi_map::Odometry6DoF& sensor =
-      sensor_manager_.getSensor<vi_map::Odometry6DoF>(sensor_id);
-  const aslam::Transformation& T_B_S =
-      sensor_manager_.getSensor_T_B_S(sensor_id);
-  maplab::OdometryEstimate::Ptr odometry_measurement =
-      convertRosOdometryMsgToOdometryEstimate(msg, T_B_S, sensor);
-  CHECK(odometry_measurement);
-
-  invokeOdometryCallbacks(odometry_measurement);
 }
 
 void DataSourceRostopic::absolute6DoFConstraintCallback(

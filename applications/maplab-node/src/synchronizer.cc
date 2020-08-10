@@ -339,7 +339,8 @@ void Synchronizer::releaseCameraImages(
   Aligned<std::vector, vio::ImageMeasurement::ConstPtr> all_extracted_images;
   {
     std::lock_guard<std::mutex> lock(image_buffer_mutex_);
-    for (size_t frame_idx = 0; frame_idx < image_buffer_.size(); ++frame_idx) {
+    const size_t n_image_buffer = image_buffer_.size();
+    for (size_t frame_idx = 0u; frame_idx < n_image_buffer; ++frame_idx) {
       common::TemporalBuffer<vio::ImageMeasurement::ConstPtr>& image_buffer =
           image_buffer_[frame_idx];
 
@@ -375,6 +376,7 @@ void Synchronizer::releaseCameraImages(
   // and track features.
   for (const vio::ImageMeasurement::ConstPtr& image_measurement :
        all_extracted_images) {
+    CHECK_NOTNULL(image_measurement);
     CHECK_LE(image_measurement->timestamp, newest_timestamp_ns);
     CHECK_GE(image_measurement->timestamp, oldest_timestamp_ns);
 
@@ -400,11 +402,9 @@ void Synchronizer::releaseCameraImages(
   aslam::VisualNFrame::Ptr next_nframe = visual_pipeline_->getNext();
   size_t num_nframes_released = 0u;
   while (next_nframe) {
-    const int64_t current_frame_timestamp_ns =
-        next_nframe->getMinTimestampNanoseconds();
-
     VLOG(5) << "[MaplabNode-Synchronizer] retrieved finished VisualNFrame at "
-            << aslam::time::timeNanosecondsToString(current_frame_timestamp_ns)
+            << aslam::time::timeNanosecondsToString(
+                   next_nframe->getMinTimestampNanoseconds())
             << " from visual processing pipeline.";
 
     finished_nframes.emplace_back(next_nframe);
