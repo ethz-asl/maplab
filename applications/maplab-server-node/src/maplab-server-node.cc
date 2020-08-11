@@ -220,7 +220,7 @@ void MaplabServerNode::shutdown() {
     if (submap_merging_thread_.joinable()) {
       submap_merging_thread_.join();
     }
-    LOG(INFO) << "[MaplabServerNode] Done.";
+    LOG(INFO) << "[MaplabServerNode] Done stopping MapMerging thread.";
   } catch (std::exception& e) {
     LOG(ERROR) << "Unable to stop map merging thread: " << e.what();
   }
