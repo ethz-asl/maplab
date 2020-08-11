@@ -25,8 +25,6 @@ size_t parallelProcess(
   }
 
   const size_t num_processing_threads = std::min(num_elements, num_threads);
-  VLOG(1) << "num_processing_threads vs num_threads: " << num_processing_threads
-          << " vs " << num_threads;
   const size_t num_elements_per_thread =
       std::ceil(static_cast<double>(num_elements) / num_processing_threads);
 

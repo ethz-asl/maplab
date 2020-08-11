@@ -1,7 +1,10 @@
 #include "maplab-server-node/maplab-server-node.h"
 
-#include <aslam/common/timer.h>
+#if __GNUC__ > 5
 #include <dense-mapping/dense-mapping.h>
+#endif
+
+#include <aslam/common/timer.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <landmark-triangulation/pose-interpolator.h>
@@ -684,8 +687,9 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
   }
 
-  // Dense mapping constraints
-  ////////////////////////////
+// Dense mapping constraints
+////////////////////////////
+#if __GNUC__ > 5
   {
     {
       std::lock_guard<std::mutex> merge_status_lock(
@@ -697,6 +701,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     dense_mapping::addDenseMappingConstraintsToMap(
         config, mission_ids, map.get());
   }
+#endif
 
   // Full optimization
   ////////////////////
