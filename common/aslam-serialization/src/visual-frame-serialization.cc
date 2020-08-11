@@ -51,9 +51,9 @@ void serializeVisualFrame(
   } else {
     VLOG(200) << "Frame " << frame.getId() << " has no descriptors!";
   }
-  if (frame.hasKeypointVectors()) {
+  if (frame.hasLidarKeypoint3DMeasurements()) {
     ::common::eigen_proto::serialize(
-        frame.getKeypointVectors(), proto->mutable_keypoint_vectors());
+        frame.getLidarKeypoint3DMeasurements(), proto->mutable_keypoint_vectors());
   }
 }
 
@@ -111,7 +111,7 @@ void deserializeVisualFrame(
     frame_ref.setKeypointMeasurements(img_points_distorted);
     frame_ref.setKeypointMeasurementUncertainties(uncertainties);
     if (proto.keypoint_vectors_size() != 0) {
-      frame_ref.setKeypointVectors(keypoint_vectors);
+      frame_ref.setLidarKeypoint3DMeasurements(keypoint_vectors);
     }
     if (scales.rows() != 0) {
       CHECK_EQ(scales.rows(), uncertainties.rows());

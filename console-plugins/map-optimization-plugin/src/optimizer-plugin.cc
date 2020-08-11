@@ -54,6 +54,19 @@ OptimizerPlugin::OptimizerPlugin(
       "(per default all).",
       common::Processing::Sync);
   addCommand(
+      {"optimize_visual_inertial_lidar", "optvil"},
+      [this]() -> int {
+        map_optimization::ViProblemOptions options =
+            map_optimization::ViProblemOptions::initFromGFlags();
+
+        options.add_lidar_constraints = true;
+
+        return optimize(options);
+      },
+      "Visual-inertial-lidar optimization over the selected missions "
+      "(per default all).",
+      common::Processing::Sync);
+  addCommand(
       {"relax"}, [this]() -> int { return relaxMap(); }, "nRelax posegraph.",
       common::Processing::Sync);
   addCommand(

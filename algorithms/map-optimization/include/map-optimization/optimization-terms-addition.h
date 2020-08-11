@@ -19,11 +19,13 @@ void addLidarPositionTermForKeypoint(
 int addVisualTerms(
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
+    const bool add_visual_terms, const bool add_lidar_terms,
     const size_t min_landmarks_per_frame, OptimizationProblem* problem);
 
 int addVisualTermsForVertices(
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
+    const bool add_visual_constraints, const bool add_lidar_constraints,
     const size_t min_landmarks_per_frame,
     const std::shared_ptr<ceres::LocalParameterization>& pose_parameterization,
     const std::shared_ptr<ceres::LocalParameterization>&

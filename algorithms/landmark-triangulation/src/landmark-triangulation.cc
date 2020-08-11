@@ -195,9 +195,9 @@ void retriangulateLandmarksOfVertex(
 
       // Retriangulation when there is 3D LiDAR data available
       Eigen::Vector3d G_keypoint_vector;
-      if (visual_frame.hasKeypointVectors()) {
+      if (visual_frame.hasLidarKeypoint3DMeasurements()) {
         keypoint_vector =
-            visual_frame.getKeypointVector(observation.keypoint_index);
+            visual_frame.getLidarKeypoint3DMeasurement(observation.keypoint_index);
 
         Eigen::Vector3d G_keypoint_vector =
             T_G_C.getRotationMatrix() * keypoint_vector;

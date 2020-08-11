@@ -62,7 +62,8 @@ void addLidarPositionTermForKeypoint(
   CHECK(camera_ptr != nullptr);
 
   const Eigen::Vector3d& lidar_measurement =
-      vertex_ptr->getVisualFrame(frame_idx).getKeypointVector(keypoint_idx);
+      vertex_ptr->getVisualFrame(frame_idx).getLidarKeypoint3DMeasurement(
+          keypoint_idx);
 
   // TODO(mariusbr) This just takes the uncertainty of the 2D measurement
   const double image_point_uncertainty =
@@ -380,6 +381,7 @@ void addVisualTermForKeypoint(
 int addVisualTermsForVertices(
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
+    const bool add_visual_constraints, const bool add_lidar_constraints,
     const size_t min_landmarks_per_frame,
     const std::shared_ptr<ceres::LocalParameterization>& pose_parameterization,
     const std::shared_ptr<ceres::LocalParameterization>&
@@ -420,6 +422,28 @@ int addVisualTermsForVertices(
       const aslam::VisualFrame& visual_frame = vertex.getVisualFrame(frame_idx);
       const size_t num_keypoints = visual_frame.getNumKeypointMeasurements();
 
+      bool add_visual_constraint_for_vertex = false;
+      bool add_lidar_constraint_for_vertex = false;
+
+      if (add_visual_constraints) {
+        if (vertex.getVisualFrame(frame_idx).hasKeypointMeasurements()) {
+          add_visual_constraint_for_vertex = true;
+        } else {
+          LOG(WARNING)
+              << "Tried to add visual constraints, but the vertex does "
+                 "not contain any!";
+        }
+      }
+
+      if (add_lidar_constraints) {
+        if (vertex.getVisualFrame(frame_idx).hasLidarKeypoint3DMeasurements()) {
+          add_lidar_constraint_for_vertex = true;
+        } else {
+          LOG(WARNING) << "Tried to add lidar constraints, but the vertex does "
+                          "not contain any!";
+        }
+      }
+
       for (size_t keypoint_idx = 0u; keypoint_idx < num_keypoints;
            ++keypoint_idx) {
         const vi_map::LandmarkId landmark_id =
@@ -447,14 +471,15 @@ int addVisualTermsForVertices(
           continue;
         }
 
-        if (vertex.getVisualFrame(frame_idx).hasKeypointVectors()) {
+        if (add_lidar_constraint_for_vertex) {
           addLidarPositionTermForKeypoint(
               keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
               fix_extrinsics_rotation, fix_extrinsics_translation,
               pose_parameterization, baseframe_parameterization,
               camera_parameterization, &vertex, problem);
-          { num_visual_constraints++; }
-        } else {
+          num_visual_constraints++;
+        }
+        if (add_visual_constraint_for_vertex) {
           addVisualTermForKeypoint(
               keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
               fix_extrinsics_rotation, fix_extrinsics_translation,
@@ -471,9 +496,11 @@ int addVisualTermsForVertices(
 int addVisualTerms(
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
+    const bool add_visual_constraints, const bool add_lidar_constraints,
     const size_t min_landmarks_per_frame, OptimizationProblem* problem) {
   CHECK_NOTNULL(problem);
-
+  VLOG(0) << "add_visual_constraints:" << add_visual_constraints;
+  VLOG(0) << "add_lidar_constraints:" << add_lidar_constraints;
   vi_map::VIMap* map = CHECK_NOTNULL(problem->getMapMutable());
 
   const OptimizationProblem::LocalParameterizations& parameterizations =
@@ -486,7 +513,8 @@ int addVisualTerms(
     map->getAllVertexIdsInMissionAlongGraph(mission_id, &vertices);
     num_visual_constraints += addVisualTermsForVertices(
         fix_landmark_positions, fix_intrinsics, fix_extrinsics_rotation,
-        fix_extrinsics_translation, min_landmarks_per_frame,
+        fix_extrinsics_translation, add_visual_constraints,
+        add_lidar_constraints, min_landmarks_per_frame,
         parameterizations.pose_parameterization,
         parameterizations.baseframe_parameterization,
         parameterizations.quaternion_parameterization, vertices, problem);
