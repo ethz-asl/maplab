@@ -99,9 +99,9 @@ void findOutlierLandmarks(
                 map.getLandmark_p_C_fi(landmark_id, observer_vertex, frame_idx);
 
             if (observer_vertex.getVisualFrame(frame_idx)
-                    .hasKeypointVectors()) {
+                    .hasLidarKeypoint3DMeasurements()) {
               const Eigen::Vector3d measurement =
-                  observer_vertex.getVisualFrame(frame_idx).getKeypointVector(
+                  observer_vertex.getVisualFrame(frame_idx).getLidarKeypoint3DMeasurement(
                       keypoint_id.keypoint_index);
               if ((measurement - p_C_fi).norm() / p_C_fi.norm() >
                   max_lidar_error) {

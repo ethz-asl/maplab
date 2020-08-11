@@ -156,7 +156,7 @@ void ApplyKeypointFeaturesToVisualNFrame(
     frame.setKeypointScores(keypoint_features[i].keypoint_scores);
     frame.setTrackIds(keypoint_features[i].keypoint_track_ids);
     frame.setDescriptors(keypoint_features[i].keypoint_descriptors);
-    frame.setKeypointVectors(keypoint_features[i].keypoint_vectors);
+    frame.setLidarKeypoint3DMeasurements(keypoint_features[i].keypoint_vectors);
   }
 }
 

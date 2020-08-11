@@ -41,4 +41,6 @@
 	<depend>vi_mapping_test_app</depend>
 	<depend>vio_common</depend>
 	<depend>visualization</depend>
+	<depend>lidar_feature_extraction</depend>
+	<depend>feature_tracking_pipelines</depend>
 </package>
