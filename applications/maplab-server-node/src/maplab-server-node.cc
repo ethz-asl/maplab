@@ -239,7 +239,7 @@ void MaplabServerNode::shutdown() {
     if (status_thread_.joinable()) {
       status_thread_.join();
     }
-    LOG(INFO) << "[MaplabServerNode] Done.";
+    LOG(INFO) << "[MaplabServerNode] Done stopping Status thread.";
   } catch (std::exception& e) {
     LOG(ERROR) << "Unable to stop status thread: " << e.what();
   }
