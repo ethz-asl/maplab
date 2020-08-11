@@ -129,7 +129,6 @@ TEST_F(MaplabServerNodeTest, DISABLED_TestMaplabServerRosNodeLocal) {
   maplab_server_ros_node.shutdown();
 }
 
-
 }  // namespace maplab
 
 MAPLAB_UNITTEST_ENTRYPOINT
