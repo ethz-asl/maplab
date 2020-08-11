@@ -229,7 +229,7 @@ void MaplabServerNode::shutdown() {
     LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
     submap_loading_thread_pool_.stop();
     submap_loading_thread_pool_.waitForEmptyQueue();
-    LOG(INFO) << "[MaplabServerNode] Done.";
+    LOG(INFO) << "[MaplabServerNode] Done stopping SubmapProcessing threads.";
   } catch (std::exception& e) {
     LOG(ERROR) << "Unable to stop map submap processing threads: " << e.what();
   }
