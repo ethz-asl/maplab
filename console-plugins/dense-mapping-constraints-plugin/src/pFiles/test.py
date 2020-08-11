@@ -16,7 +16,7 @@ class Args:
         self.reliability_thr = 0.7
         self.repeatability_thr = 0.7
 
-        self.gpu = [0]
+        self.gpu = -1
 
 
 # def execute_global_registration(source_down, target_down, reference_desc, target_desc, distance_threshold):
@@ -150,6 +150,6 @@ def test(a):
     #     cv2.waitKey(0) & 0xFF
     return {"keypointsA": xyzA_sort, "keypointsB": xyzB_sort, "descriptorsA": descA, "descriptorsB": descB}
 
-# if __name__ == '__main__':
-#     ts = 1575642837062210048
-#     test(ts)
+if __name__ == '__main__':
+    ts = 1575642837062210048
+    test(ts)

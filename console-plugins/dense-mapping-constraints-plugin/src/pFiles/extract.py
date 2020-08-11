@@ -9,8 +9,11 @@ from tools.dataloader import norm_RGB
 from nets.patchnet import *
 
 
-def load_network(model_fn): 
-    checkpoint = torch.load(model_fn)
+def load_network(model_fn, iscuda):
+    if iscuda:
+        checkpoint = torch.load(model_fn)
+    else:
+        checkpoint = torch.load(model_fn, map_location=torch.device('cpu'))
     print("\n>> Creating net = " + checkpoint['net']) 
     net = eval(checkpoint['net'])
     nb_of_weights = common.model_size(net)
@@ -111,7 +114,7 @@ def extract_keypoints(img, args):
     iscuda = common.torch_set_gpu(args.gpu)
 
     # load the network...
-    net = load_network(args.model)
+    net = load_network(args.model, iscuda)
     if iscuda: net = net.cuda()
 
     # create the non-maxima detector
