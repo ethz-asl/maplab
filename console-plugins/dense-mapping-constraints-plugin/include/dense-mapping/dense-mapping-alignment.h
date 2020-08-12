@@ -17,6 +17,9 @@
 #include "dense-mapping/dense-mapping-common.h"
 #include "dense-mapping/dense-mapping-gflags.h"
 
+#include <Python.h>
+#include <numpy/arrayobject.h>
+
 namespace dense_mapping {
 
 struct AlignmentConfig {
