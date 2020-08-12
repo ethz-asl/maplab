@@ -3,10 +3,9 @@
 #if __GNUC__ > 5
 #include <dense-mapping/dense-mapping.h>
 #endif
+#include <depth-integration/depth-integration.h>
 
 #include <aslam/common/timer.h>
-#include <dense-mapping/dense-mapping.h>
-#include <depth-integration/depth-integration.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <landmark-triangulation/pose-interpolator.h>
@@ -1296,6 +1295,7 @@ void MaplabServerNode::runSubmapProcessing(
   // Searches for nearby dense map data (e.g. lidar scans) within the submap
   // mission and uses point cloud registration algorithms to derive relative
   // constraints. These are added as loop closures between vertices.
+#if __GNUC__ > 5
   if (FLAGS_maplab_server_enable_lidar_loop_closure) {
     {
       std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
@@ -1309,6 +1309,7 @@ void MaplabServerNode::runSubmapProcessing(
                  << "encountered an error!";
     }
   }
+  #endif
 
   // Submap Optimization
   //////////////////////
