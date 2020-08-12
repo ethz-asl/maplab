@@ -56,6 +56,18 @@ void serializeVisualFrame(
         frame.getLidarKeypoint3DMeasurements(),
         proto->mutable_keypoint_vectors());
   }
+  if (frame.hasLidarKeypoint2DMeasurements()) {
+    ::common::eigen_proto::serialize(
+        frame.getLidarKeypoint2DMeasurements(),
+        proto->mutable_lidar_2d_measurements());
+  }
+  if (frame.hasLidarDescriptors()) {
+    const aslam::VisualFrame::DescriptorsT& descriptors =
+        frame.getLidarDescriptors();
+    VLOG(200) << "Frame " << frame.getId() << " has " << descriptors.cols()
+              << " LiDAR descriptors!";
+    internal::serializeLidarDescriptors(descriptors, proto);
+  }
 }
 
 void deserializeVisualFrame(
@@ -104,8 +116,6 @@ void deserializeVisualFrame(
     Eigen::Map<const Eigen::Matrix2Xd> lidar_2d_measurements(
         proto.lidar_2d_measurements().data(), 2,
         proto.lidar_2d_measurements_size() / 2);
-    Eigen::Map<const Eigen::VectorXd> lidar_descriptors(
-        proto.lidar_descriptors().data(), proto.lidar_descriptors_size());
 
     *frame = aligned_shared<aslam::VisualFrame>();
     aslam::VisualFrame& frame_ref = **frame;
@@ -145,9 +155,9 @@ void deserializeVisualFrame(
     if (proto.lidar_2d_measurements_size() != 0) {
       frame_ref.setLidarKeypoint2DMeasurements(lidar_2d_measurements);
     }
-    if (proto.lidar_descriptors_size() != 0) {
+    if (proto.keypoint_vectors_size() != 0) {
       frame_ref.setLidarDescriptors(aslam::VisualFrame::DescriptorsT());
-      internal::deserializeDescriptors(
+      internal::deserializeLidarDescriptors(
           proto, frame_ref.getLidarDescriptorsMutable());
     }
   }
@@ -248,6 +258,23 @@ void serializeDescriptors(
   descriptors_map = descriptors;
 }
 
+void serializeLidarDescriptors(
+    const aslam::VisualFrame::DescriptorsT& descriptors,
+    aslam::proto::VisualFrame* proto) {
+  CHECK_NOTNULL(proto);
+
+  proto->set_lidar_descriptor_size(
+      descriptors.rows() * sizeof(aslam::VisualFrame::DescriptorsT::Scalar));
+
+  std::string* descriptors_string = proto->mutable_lidar_descriptors();
+  descriptors_string->resize(
+      descriptors.size() * sizeof(aslam::VisualFrame::DescriptorsT::Scalar));
+  Eigen::Map<aslam::VisualFrame::DescriptorsT> descriptors_map(
+      reinterpret_cast<unsigned char*>(&descriptors_string->front()),
+      descriptors.rows(), descriptors.cols());
+  descriptors_map = descriptors;
+}
+
 void deserializeDescriptors(
     const aslam::proto::VisualFrame& proto,
     aslam::VisualFrame::DescriptorsT* descriptors) {
@@ -258,6 +285,22 @@ void deserializeDescriptors(
             &proto.keypoint_descriptors().front()),
         proto.keypoint_descriptor_size(),
         proto.keypoint_descriptors().size() / proto.keypoint_descriptor_size());
+    *descriptors = descriptor_map;
+  } else {
+    descriptors->resize(0, 0);
+  }
+}
+
+void deserializeLidarDescriptors(
+    const aslam::proto::VisualFrame& proto,
+    aslam::VisualFrame::DescriptorsT* descriptors) {
+  CHECK_NOTNULL(descriptors);
+  if (proto.lidar_descriptor_size() != 0) {
+    Eigen::Map<const aslam::VisualFrame::DescriptorsT> descriptor_map(
+        reinterpret_cast<const unsigned char*>(
+            &proto.lidar_descriptors().front()),
+        proto.lidar_descriptor_size(),
+        proto.lidar_descriptors().size() / proto.lidar_descriptor_size());
     *descriptors = descriptor_map;
   } else {
     descriptors->resize(0, 0);
