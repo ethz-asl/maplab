@@ -82,7 +82,7 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
   // Initialize the aligner if we haven't already.
   if (!*aligner_ptr) {
     *aligner_ptr =
-        regbox::BaseController::make(regbox::Aligner::PclGIcp, "ADMC Aligner");
+        regbox::BaseController::make(regbox::Aligner::PclIcp, "ADMC Aligner");
   }
   CHECK(*aligner_ptr);
 
@@ -199,9 +199,13 @@ bool computeAlignmentForCandidatePairs(
         case backend::ResourceType::kPointCloudXYZI:
         // Fall through intended.
         case backend::ResourceType::kPointCloudXYZRGBN:
-          aligned_without_error =
-              computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
-                  map, pair, &aligner_ptr, &processed_pair);
+          try {
+            aligned_without_error =
+                computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
+                    map, pair, &aligner_ptr, &processed_pair);
+          } catch (const std::exception&) {
+            aligned_without_error = false;
+          }
           break;
         default:
           LOG(FATAL) << "Alignment algorithm between resource types '"
