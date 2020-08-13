@@ -36,6 +36,9 @@ struct ViProblemOptions {
   bool fix_extrinsics_translation;
   bool fix_landmark_positions;
 
+  // Lidar constraints
+  bool add_lidar_constraints;
+
   // Wheel constraints
   bool add_wheel_odometry_constraints;
   bool fix_wheel_extrinsics;

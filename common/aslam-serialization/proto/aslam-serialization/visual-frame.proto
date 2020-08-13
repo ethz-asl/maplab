@@ -15,6 +15,10 @@ message VisualFrame {
   optional bool is_valid = 9;
   repeated int32 track_ids = 10;
   repeated double keypoint_vectors = 11;
+  repeated double lidar_2d_measurements = 12;
+  optional bytes lidar_descriptors = 13;
+  optional uint32 lidar_descriptor_size = 14;
+
 }
 
 message VisualNFrame {
