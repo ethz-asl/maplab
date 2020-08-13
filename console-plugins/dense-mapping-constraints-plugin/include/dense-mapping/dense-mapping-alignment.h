@@ -22,7 +22,8 @@ namespace dense_mapping {
 struct AlignmentConfig {
   static AlignmentConfig fromGflags();
 
-  // TODO(mfehr): implement
+  double maximum_deviation_from_initial_guess_delta_position_m;
+  double maximum_deviation_from_initial_guess_delta_rotation_deg;
 };
 
 bool computeAlignmentForCandidatePairs(

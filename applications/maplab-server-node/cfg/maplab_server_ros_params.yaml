@@ -1,41 +1,24 @@
 # MAPLAB SERVER CONFIGURATION
 
-# MERGED MAP SAVING BEHAVIOR
+# THREADING
+###########
+num_hardware_threads:                                                 4 # Set in between num cores and num threads.
+
+# INPUT / OUTPUT
 ############################
 maplab_server_backup_interval_s:                                      300
 maplab_server_merged_map_folder:                                      /tmp/maplab_server/merged_map
 overwrite:                                                            true
-
-# ROS & TF
-##########
 maplab_server_map_update_topic:                                       map_update_notification
-tf_map_frame:                                                         map
-tf_mission_frame:                                                     maplab_mission
-tf_abs_6dof_sensor_frame:                                             maplab_abs_6dof_sensor_frame
-tf_odometry_6dof_sensor_frame:                                        maplab_odometry_6dof_sensor
-tf_wheel_odometry_sensor_frame:                                       maplab_wheel_odometry_sensor
-tf_lc_sensor_frame:                                                   maplab_lc_sensor
-tf_lidar_sensor_frame:                                                maplab_lidar_sensor
-tf_pointcloud_map_frame:                                              maplab_pointcloud_map
-tf_gps_wgs_sensor_frame:                                              maplab_gps_wgs_sensor
-tf_gps_utm_sensor_frame:                                              maplab_gps_utm_sensor
-tf_imu_frame:                                                         maplab_imu
-tf_camera_frame:                                                      maplab_camera
-tf_ncamera_frame:                                                     maplab_ncamera
-tf_imu_refined_frame:                                                 maplab_imu_refined
 
+# BASE FRAME ALIGNMENT / MAP ANCHORING
+######################################
+# If enabled, the first mission will be the anchor and the baseframe will
+# be set to known. Only use this if no absolute pose constraints are present.
+maplab_server_set_first_robot_map_baseframe_to_known:                 true # Default true
 
-# STATIONARY SUBMAP FIX
-#######################
-# If enabled, a simple check will be performed to determine if a submap is
-# stationary and if it is, the first and last vertex will be constrained
-# with a lc edge.
-maplab_server_stationary_submaps_fix_with_lc_edge:                    false
-maplab_stationary_submaps_max_translation_m:                          0.20
-maplab_stationary_submaps_max_rotation_rad:                           0.18
-
-# EXTERNAL ABSOLUTE POSE CONSTRAINTS / OUTLIER REJECTION
-#####################################################################
+# ABSOLUTE POSE CONSTRAINTS OUTLIER REJECTION
+#############################################
 # If enabled, the submap processing will after optimization run
 # RANSAC LSQ on the absolute pose constraints to remove outliers.
 maplab_server_remove_outliers_in_absolute_pose_constraints:           false
@@ -59,8 +42,8 @@ abs_constraints_baseframe_ransac_num_interations:                     2000
 # vision-based map anchoring!
 # If enabled, only landmarks labeled as 'good' are considered for loop closure
 lc_filter_underconstrained_landmarks:                                 true # Default true
-lc_ransac_pixel_sigma:                                                3.0 # Default 2.0
-lc_min_inlier_count:                                                  8 # Default 10
+lc_ransac_pixel_sigma:                                                2.0 # Default 2.0
+lc_min_inlier_count:                                                  10 # Default 10
 lc_min_inlier_ratio:                                                  0.2 # Default 0.2
 lc_num_ransac_iters:                                                  100 # Default 100
 # If nonlinear refinement on all ransac inliers should be run.
@@ -82,14 +65,51 @@ lc_edge_min_inlier_ratio:                                             0.5 # Defa
 # The minimum loop-closure inlier count to add a loop-closure edge.
 lc_edge_min_inlier_count:                                             20 # Default 20
 
-# BASE FRAME ALIGNMENT / MAP ANCHORING
-######################################
-# If enabled, the first mission will the anchor and the baseframe will
-# be set to known
-maplab_server_set_first_robot_map_baseframe_to_known:                 true
+# DENSE MAPPING CONSTRAINTS/LOOP CLOSURES
+#########################################
+# Enable/disable dense mapping constraints based loop closure
+maplab_server_enable_lidar_loop_closure:                              false # Default true
+# Type of resource that are used to derive the dense mapping constraints, this
+# can be a CSV list of values. Meaningful options are:
+# kPointCloudXYZI = 21                    (Attaching raw VLP16/OS-1 lidar scans)
+# kPointCloudXYZL = 24                    (Attaching LOAM features)
+dm_resource_types:                                                    "21,24"
+# Size of voxel grid downsampling on the point clouds to derive mapping constraints.
+regbox_pcl_downsample_leaf_size_m:                                    0.1
+# Enable/disable dense mapping constraint search modes:
+# Add constraints for consecutive point clouds.
+dm_candidate_search_enable_intra_mission_consecutive:                 true # Default true
+dm_candidate_search_consecutive_max_delta_time_s:                     20 # Default 20.0
+dm_candidate_search_consecutive_max_delta_position_m:                 5.0 # Default 5.0
+dm_candidate_search_consecutive_max_delta_rotation_deg:               180 # Default 180
+# Add constraints for consecutive nearby point clouds.
+dm_candidate_search_enable_intra_mission_proximity:                   true # Default true
+dm_candidate_search_enable_inter_mission_proximity:                   true # Default true
+dm_candidate_search_proximity_max_delta_position_m:                   2.0 # Default 2.0
+dm_candidate_search_proximity_max_delta_rotation_deg:                 180.0 # Default 180.0
+dm_candidate_search_proximity_min_distance_along_graph_m:             2.0 # Default 1.0
+dm_candidate_search_proximity_take_closest_n_candidates:              3 # Default 3
+# Add constraints between global point cloud matches - NOT IMPLEMENTED YET
+dm_candidate_search_enable_intra_mission_global:                      false # Default true
+dm_candidate_search_enable_inter_mission_global:                      false # Default true
+# Decide which constraints to recompute when calling the function iteratively,
+# as it is done in the server.
+dm_candidate_selection_recompute_all_constraints:                     false # Default false
+dm_candidate_selection_recompute_invalid_constraints:                 true # Default true
+dm_candidate_selection_min_switch_variable_value:                     0.5 # Default 0.5
+# Alignment sanity checks.
+dm_candidate_alignment_max_delta_position_to_initial_guess_m:         0.5 # Default 0.5
+dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg:       10 # Default 10
+# Initialization of loop closure constraints
+dm_constraint_switch_variable_sigma:                                  1e-3 # Default 1e-3
+
 
 # VISUAL LOOP CLOSURE BASED MAP ANCHORING
 #########################################
+# Enable/disable visual loop closure
+maplab_server_enable_visual_loop_closure:                             true # Default true
+# Enable/disable vision based map anchoring
+maplab_server_enable_visual_loop_closure_based_map_anchoring:         true # Default true
 # Minimum inlier ratio for successful vision-based map anchoring.
 lc_mission_baseframe_min_inlier_ratio:                                0.2   # Default 0.2
 # Maximum orientation error for inliers for vision-based map anchoring.
@@ -111,12 +131,9 @@ map_anchoring_min_num_vertex_links:                                   5 # Defaul
 # have been successfully anchored using visual loop closure.
 dense_depth_integrator_visualize_only_with_known_baseframe:           true
 # Type of resources that are used to compose the dense map, options are:
-# kRawDepthMap = 8
-# kOptimizedDepthMap = 9
-# kPointCloudXYZ = 16
-# kPointCloudXYZRGBN = 17
-# kVoxbloxOccupancyMap = 20
-# kPointCloudXYZI = 21      ----> Currently only this one is tested.
+# kRawDepthMap = 8                        (Attaching lidar scans as depth maps)
+# kPointCloudXYZI = 21                    (Attaching raw VLP16/OS-1 lidar scans)
+# kPointCloudXYZL = 24                    (Attaching LOAM features)
 maplab_server_dense_map_resource_type:                                21
 # This will only publish the closest point cloud of each vertex, this way,
 # keyframing has also an effect on the dense map and large errors in case
@@ -124,15 +141,15 @@ maplab_server_dense_map_resource_type:                                21
 dense_depth_integrator_use_closest_to_vertex:                         true
 dense_depth_integrator_enable_sigint_breaker:                         false
 
-# VISUAL LANMARKS
+# VISUAL LANDMARKS
 #################
 # Settings for the default submap processing commands:
 # ELQ (evaluate landmark quality)
 # needs to be set because due to keyframing the default value is way to strict
-vi_map_landmark_quality_min_observers:                            2   # Default: 4
-vi_map_landmark_quality_max_distance_from_closest_observer:       20  # Default: 40m
-vi_map_landmark_quality_min_distance_from_closest_observer:       0.1 # Default: 0.05m
-vi_map_landmark_quality_min_observation_angle_deg:                5   # Default: 5deg
+vi_map_landmark_quality_min_observers:                                2   # Default 4
+vi_map_landmark_quality_max_distance_from_closest_observer:           20  # Default 40m
+vi_map_landmark_quality_min_distance_from_closest_observer:           0.1 # Default 0.05m
+vi_map_landmark_quality_min_observation_angle_deg:                    5   # Default 5deg
 
 # OPTIMIZATION
 ##############
@@ -143,12 +160,14 @@ ba_num_iterations:                                                    5
 ba_max_time_seconds:                                                  180
 ba_enable_signal_handler:                                             false
 ba_hide_iterations_console_output:                                    true
+ba_include_visual:                                                    true
+ba_include_inertial:                                                  true
 ba_include_loop_closure_edges:                                        false
-ba_include_6dof_odometry:                                             false
 ba_include_absolute_pose_constraints:                                 false
+ba_include_6dof_odometry:                                             false
 # This is useful to allow the absolute pose constraints to directly influence
 # the baseframe rather than aligning the map by moving around the vertices themselves.
-ba_absolute_pose_sensor_fix_mission_baseframes:                       true
+ba_absolute_pose_sensor_fix_mission_baseframes:                       false
 # If enabled, the trust regions of the last iteration is used as initial
 # trust region for the next time the global optimization is run.
 maplab_server_preserve_trust_region_radius_across_merging_iterations: true
@@ -161,10 +180,31 @@ maplab_server_reset_trust_region_radius_every_nth_submap:             0
 # reset the trust region radius to the default initial value.
 maplab_server_reset_trust_region_radius_if_new_robot:                 true
 
-dm_candidate_search_enable_intra_mission_proximity:                   true
-dm_candidate_search_enable_inter_mission_proximity:                   true
-dm_candidate_search_proximity_min_distance_along_graph_m:             1.0
-dm_candidate_search_proximity_max_delta_position_m:                   5.0
+# STATIONARY SUBMAP FIX
+#######################
+# If enabled, a simple check will be performed to determine if a submap is
+# stationary and if it is, the first and last vertex will be constrained
+# with a lc edge.
+maplab_server_stationary_submaps_fix_with_lc_edge:                    false
+maplab_stationary_submaps_max_translation_m:                          0.20
+maplab_stationary_submaps_max_rotation_rad:                           0.18
+
+# TF FRAMES
+###########
+tf_map_frame:                                                         map
+tf_mission_frame:                                                     maplab_mission
+tf_abs_6dof_sensor_frame:                                             maplab_abs_6dof_sensor_frame
+tf_odometry_6dof_sensor_frame:                                        maplab_odometry_6dof_sensor
+tf_wheel_odometry_sensor_frame:                                       maplab_wheel_odometry_sensor
+tf_lc_sensor_frame:                                                   maplab_lc_sensor
+tf_lidar_sensor_frame:                                                maplab_lidar_sensor
+tf_pointcloud_map_frame:                                              maplab_pointcloud_map
+tf_gps_wgs_sensor_frame:                                              maplab_gps_wgs_sensor
+tf_gps_utm_sensor_frame:                                              maplab_gps_utm_sensor
+tf_imu_frame:                                                         maplab_imu
+tf_camera_frame:                                                      maplab_camera
+tf_ncamera_frame:                                                     maplab_ncamera
+tf_imu_refined_frame:                                                 maplab_imu_refined
 
 # DEBUGGING AND VISUALIZATION
 #############################

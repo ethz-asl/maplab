@@ -5,8 +5,6 @@
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/camera.h>
 #include <glog/logging.h>
-#include <landmark-triangulation/landmark-triangulation.h>
-#include <map-manager/map-manager.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
@@ -28,12 +26,6 @@ const std::string kVoxbloxIntegratorType = "simple";
 class VoxbloxDepthIntegrationTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    vi_map::VIMapManager map_manager;
-    CHECK(
-        map_manager.loadMapFromFolder("./test_maps/vi_app_test", &vi_map_key_));
-    landmark_triangulation::retriangulateLandmarks(
-        map_manager.getMapMutable(vi_map_key_));
-
     depth_map_openni_ = cv::imread(
         kTestDataBaseFolder + "/depth_map_OpenNI.pgm", CV_LOAD_IMAGE_UNCHANGED);
     CHECK_EQ(CV_MAT_TYPE(depth_map_openni_.type()), CV_16U);
@@ -53,23 +45,7 @@ class VoxbloxDepthIntegrationTest : public ::testing::Test {
         intrinsics, image_.cols, image_.rows);
   }
 
-  virtual void TearDown() {
-    vi_map::VIMapManager map_manager;
-    if (map_manager.hasMap(vi_map_key_)) {
-      map_manager.deleteMap(vi_map_key_);
-    }
-  }
-
-  voxblox::TsdfIntegratorBase::Config getLandmarksTsdfIntegratorConfig() const {
-    voxblox::TsdfIntegratorBase::Config integrator_config;
-    integrator_config.default_truncation_distance = 0.5f;
-    integrator_config.max_weight = std::numeric_limits<float>::max();
-    integrator_config.min_ray_length_m =
-        static_cast<voxblox::FloatingPoint>(0.1);
-    integrator_config.max_ray_length_m =
-        static_cast<voxblox::FloatingPoint>(5.0);
-    return integrator_config;
-  }
+  virtual void TearDown() {}
 
   voxblox::TsdfIntegratorBase::Config getDepthmapTsdfIntegratorConfig() const {
     voxblox::TsdfIntegratorBase::Config integrator_config;
@@ -82,50 +58,12 @@ class VoxbloxDepthIntegrationTest : public ::testing::Test {
     return integrator_config;
   }
 
-  const vi_map::VIMap& getViMap() const {
-    vi_map::VIMapManager map_manager;
-    CHECK(map_manager.hasMap(vi_map_key_));
-    return map_manager.getMap(vi_map_key_);
-  }
-
   cv::Mat depth_map_openni_;
   cv::Mat image_;
   aslam::Camera::Ptr camera_without_distortion_;
 
-  pose::Transformation T_G_C_;
-
- private:
-  std::string vi_map_key_;
+  aslam::Transformation T_G_C_;
 };
-
-TEST_F(VoxbloxDepthIntegrationTest, TestIntegrateAllLandmarks) {
-  voxblox::TsdfMap::Config tsdf_map_config;
-  tsdf_map_config.tsdf_voxel_size = 0.25;
-  tsdf_map_config.tsdf_voxels_per_side = 8u;
-  voxblox::TsdfMap tsdf_map(tsdf_map_config);
-
-  voxblox::TsdfIntegratorBase::Config integrator_config =
-      getLandmarksTsdfIntegratorConfig();
-  voxblox::TsdfIntegratorBase::Ptr integrator =
-      voxblox::TsdfIntegratorFactory::create(
-          kVoxbloxIntegratorType, integrator_config,
-          tsdf_map.getTsdfLayerPtr());
-
-  depth_integration::IntegrationFunction integration_function =
-      [&integrator](
-          const voxblox::Transformation& T_G_C,
-          const voxblox::Pointcloud& points, const voxblox::Colors& colors) {
-        CHECK(integrator);
-        integrator->integratePointCloud(T_G_C, points, colors);
-      };
-
-  const vi_map::VIMap& vi_map = getViMap();
-  depth_integration::integrateAllLandmarks(vi_map, integration_function);
-
-  EXPECT_EQ(tsdf_map.getTsdfLayer().getNumberOfAllocatedBlocks(), 128u);
-  EXPECT_NEAR(tsdf_map.getTsdfLayer().getMemorySize(), 792724u, 10u);
-  // TODO(fabianbl): Compare to serialized TSDF map.
-}
 
 TEST_F(VoxbloxDepthIntegrationTest, TestIntegrateDepthMap) {
   voxblox::TsdfMap::Config tsdf_map_config;
@@ -140,7 +78,7 @@ TEST_F(VoxbloxDepthIntegrationTest, TestIntegrateDepthMap) {
           kVoxbloxIntegratorType, integrator_config,
           tsdf_map.getTsdfLayerPtr());
 
-  depth_integration::IntegrationFunction integration_function =
+  depth_integration::IntegrationFunctionPointCloudVoxblox integration_function =
       [&integrator](
           const voxblox::Transformation& T_G_C,
           const voxblox::Pointcloud& points, const voxblox::Colors& colors) {
@@ -149,8 +87,8 @@ TEST_F(VoxbloxDepthIntegrationTest, TestIntegrateDepthMap) {
       };
 
   depth_integration::integrateDepthMap(
-      T_G_C_, depth_map_openni_, image_, *camera_without_distortion_,
-      integration_function);
+      0 /*timestamp*/, T_G_C_, depth_map_openni_, image_,
+      *camera_without_distortion_, integration_function);
 
   EXPECT_EQ(tsdf_map.getTsdfLayer().getNumberOfAllocatedBlocks(), 20u);
   EXPECT_NEAR(tsdf_map.getTsdfLayer().getMemorySize(), 984040u, 10u);

@@ -7,7 +7,7 @@ namespace dense_mapping {
 
 // CANDIDATE SEARCH
 DEFINE_string(
-    dm_resource_types, "16,17,21",
+    dm_resource_types, "16,17,21,24",
     "Defines the resource types that are used to derive the dense mapping "
     "constraints. Provide a CSV string with the resource type numbers.");
 
@@ -86,6 +86,14 @@ DEFINE_bool(
 DEFINE_double(
     dm_candidate_selection_min_switch_variable_value, 0.75,
     "Threshold for the switch variable to classify a constraint as valid.");
+
+// ALIGNMENTS
+DEFINE_double(
+    dm_candidate_alignment_max_delta_position_to_initial_guess_m, 0.5,
+    "Maximum translation deviation of the alignment from the initial guess.");
+DEFINE_double(
+    dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg, 10,
+    "Maximum angular deviation of the alignment from the initial guess.");
 
 // CONSTRAINTS
 DEFINE_double(

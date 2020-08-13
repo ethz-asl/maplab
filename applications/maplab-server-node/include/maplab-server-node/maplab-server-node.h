@@ -12,6 +12,7 @@
 
 #include <aslam/common/thread-pool.h>
 #include <map-manager/map-manager.h>
+#include <resources-common/point-cloud.h>
 #include <vi-map/vi-map.h>
 #include <visualization/resource-visualization.h>
 #include <visualization/viwls-graph-plotter.h>
@@ -87,6 +88,13 @@ class MaplabServerNode final {
   // that arrive will be discarded.
   bool deleteAllRobotMissions(
       const std::string& robot_name, std::string* status_message);
+
+  // Returns an accumulation of the dense map data in global frame within a
+  // radius around a center.
+  bool getDenseMapInRange(
+      const backend::ResourceType resource_type,
+      const Eigen::Vector3d& center_G, const double radius_m,
+      resources::PointCloud* point_cloud_G);
 
   void visualizeMap();
 

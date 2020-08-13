@@ -9,14 +9,18 @@
 #include <glog/logging.h>
 #include <minkindr_conversions/kindr_msg.h>
 #include <ros/ros.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <std_msgs/String.h>
 #include <std_srvs/Empty.h>
 
+#include <map-resources/resource-common.h>
+#include <map-resources/resource-conversion.h>
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
 #include <maplab_msgs/MapLookupRequest.h>
 #include <maplab_msgs/MapLookupResponse.h>
+#include <resources-common/point-cloud.h>
 
 #include "maplab-server-node/maplab-server-node.h"
 
@@ -73,6 +77,14 @@ MaplabServerRosNode::MaplabServerRosNode(
   delete_all_robot_missions_srv_ = nh_.advertiseService(
       "delete_all_robot_missions", delete_all_robot_missions_callback);
 
+  boost::function<bool(
+      maplab_msgs::GetDenseMapInRange::Request&,
+      maplab_msgs::GetDenseMapInRange::Response&)>
+      get_dense_map_in_range_callback = boost::bind(
+          &MaplabServerRosNode::getDenseMapInRangeCallback, this, _1, _2);
+  get_dense_map_in_range_srv_ = nh_.advertiseService(
+      "get_dense_map_in_range", get_dense_map_in_range_callback);
+
   boost::function<void(const diagnostic_msgs::KeyValueConstPtr&)>
       submap_loading_callback =
           boost::bind(&MaplabServerRosNode::submapLoadingCallback, this, _1);
@@ -94,6 +106,9 @@ MaplabServerRosNode::MaplabServerRosNode(
       nh_.advertise<geometry_msgs::TransformStamped>("T_G_curr_M_in", 1);
 
   status_pub_ = nh_.advertise<std_msgs::String>("status", 1);
+
+  dense_map_query_result_ =
+      nh_.advertise<sensor_msgs::PointCloud2>("dense_map_query_result", 1);
 
   maplab_server_node_->registerStatusCallback(
       [this](const std::string status_string) {
@@ -272,6 +287,56 @@ bool MaplabServerRosNode::deleteAllRobotMissionsCallback(
 
   response.success.data = maplab_server_node_->deleteAllRobotMissions(
       robot_name, &response.message.data);
+
+  return true;
+}
+
+bool MaplabServerRosNode::getDenseMapInRangeCallback(
+    maplab_msgs::GetDenseMapInRange::Request& request,      // NOLINT
+    maplab_msgs::GetDenseMapInRange::Response& response) {  // NOLINT
+  Eigen::Vector3d center_G;
+  center_G << request.center_G.x, request.center_G.y, request.center_G.z;
+  const double radius_m = request.radius_m;
+
+  if (radius_m < 1e-6) {
+    LOG(ERROR) << "[MaplabServerRosNode] Received a request from robot '"
+               << request.robot_name
+               << "' for the dense map with invalid radius: " << radius_m;
+    return true;
+  }
+
+  const uint32_t point_cloud_type = request.point_cloud_type;
+  backend::ResourceType resource_type;
+  switch (point_cloud_type) {
+    case maplab_msgs::GetDenseMapInRange::Request::POINT_CLOUD_TYPE_XYZI:
+      resource_type = backend::ResourceType::kPointCloudXYZI;
+      break;
+    case maplab_msgs::GetDenseMapInRange::Request::POINT_CLOUD_TYPE_XYZL:
+      resource_type = backend::ResourceType::kPointCloudXYZL;
+      break;
+    default:
+      LOG(ERROR) << "[MaplabServerRosNode] Received a request from robot '"
+                 << request.robot_name
+                 << "' for the dense map with invalid type: "
+                 << point_cloud_type;
+      return true;
+  }
+
+  LOG(INFO) << "[MaplabServerRosNode] Received a request from robot '"
+            << request.robot_name << "' for the dense map of type '"
+            << backend::ResourceTypeNames[static_cast<int>(resource_type)]
+            << "' in a radius of " << radius_m << "m around "
+            << center_G.transpose() << ".";
+
+  resources::PointCloud point_cloud_G;
+  maplab_server_node_->getDenseMapInRange(
+      resource_type, center_G, radius_m, &point_cloud_G);
+  backend::convertPointCloudType(point_cloud_G, &response.point_cloud_G);
+
+  response.point_cloud_G.header.frame_id = FLAGS_tf_map_frame;
+
+  // NOTE(mfehr): remove this if this is too expensive.
+  dense_map_query_result_.publish(response.point_cloud_G);
 
   return true;
 }
