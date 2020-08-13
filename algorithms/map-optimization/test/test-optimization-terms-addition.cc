@@ -86,8 +86,8 @@ TEST_F(OptimizationTermAdditionTest, AddVisualTerms) {
   EXPECT_GT(
       addVisualTerms(
           kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
-          kFixExtrinsicsTranslation, kMinLandmarksPerFrame, kAddVisualTerms,
-          kAddLidarTerms, &optimization_problem),
+          kFixExtrinsicsTranslation, kAddVisualTerms, kAddLidarTerms,
+          kMinLandmarksPerFrame, &optimization_problem),
       0u);
 
   EXPECT_EQ(
@@ -131,8 +131,8 @@ TEST_F(OptimizationTermAdditionTest, AddVisualAndInertialTerms) {
   EXPECT_GT(
       addVisualTerms(
           kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
-          kFixExtrinsicsTranslation, kMinLandmarksPerFrame, kAddVisualTerms,
-          kAddLidarTerms, &optimization_problem),
+          kFixExtrinsicsTranslation, kAddVisualTerms, kAddLidarTerms,
+          kMinLandmarksPerFrame, &optimization_problem),
       0u);
   EXPECT_GT(
       addInertialTerms(
