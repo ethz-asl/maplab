@@ -66,6 +66,8 @@ class OptimizationTermAdditionTest : public ::testing::Test {
   static constexpr bool kFixIntrinsics = false;
   static constexpr bool kFixExtrinsicsRotation = false;
   static constexpr bool kFixExtrinsicsTranslation = false;
+  static constexpr bool kAddVisualTerms = true;
+  static constexpr bool kAddLidarTerms = false;
   static constexpr size_t kMinLandmarksPerFrame = 0u;
 
   static constexpr bool kFixGyroBias = false;
@@ -84,8 +86,8 @@ TEST_F(OptimizationTermAdditionTest, AddVisualTerms) {
   EXPECT_GT(
       addVisualTerms(
           kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
-          kFixExtrinsicsTranslation, kMinLandmarksPerFrame,
-          &optimization_problem),
+          kFixExtrinsicsTranslation, kMinLandmarksPerFrame, kAddVisualTerms,
+          kAddLidarTerms, &optimization_problem),
       0u);
 
   EXPECT_EQ(
@@ -129,8 +131,8 @@ TEST_F(OptimizationTermAdditionTest, AddVisualAndInertialTerms) {
   EXPECT_GT(
       addVisualTerms(
           kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
-          kFixExtrinsicsTranslation, kMinLandmarksPerFrame,
-          &optimization_problem),
+          kFixExtrinsicsTranslation, kMinLandmarksPerFrame, kAddVisualTerms,
+          kAddLidarTerms, &optimization_problem),
       0u);
   EXPECT_GT(
       addInertialTerms(
