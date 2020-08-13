@@ -31,7 +31,7 @@
 	<group ns="rovioli">
 
 		<!-- SENSORS AND CALIBRATION -->
-		<arg name="sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/lidarstick-180-deg-cams-sensors-color.yaml"/>
+		<arg name="sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/lidarstick-150-deg-cams-sensors-color.yaml"/>
 		<arg name="external_imu_parameters_rovio" default=""/>
 		<arg name="imu_to_camera_time_offset_ns" default="19779092"/>
 		<arg name="rovio_enable_frame_visualization" default="true"/>

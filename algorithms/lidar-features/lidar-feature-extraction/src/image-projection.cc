@@ -205,8 +205,8 @@ void ImageProjection::createFeatureImage() {
 
   // Perform histogram equalization on both images.
   clahe_range_->apply(range_image_, range_image_eq);
-  cv::imshow("range_image_", range_image_eq);
-  cv::waitKey(1);
+  // cv::imshow("range_image_", range_image_eq);
+  // cv::waitKey(1);
   clahe_range_->apply(inpainted_range_image, range_image_eq);
 
   clahe_intensity_->apply(intensity_image_, intensity_image_eq);
@@ -240,13 +240,13 @@ void ImageProjection::createFeatureImage() {
   cv::Mat range_gradient;
   addWeighted(range_abs_grad_x, 0.5, _range_abs_grad_y, 0.5, 0, range_gradient);
 
-  cv::imshow("Gradient Range", range_gradient);
-  cv::waitKey(1);
-  cv::imshow("inpainted_range_image", inpainted_range_image);
-  cv::waitKey(1);
+  // cv::imshow("Gradient Range", range_gradient);
+  // cv::waitKey(1);
+  // cv::imshow("inpainted_range_image", inpainted_range_image);
+  // cv::waitKey(1);
 
-  cv::imshow("intensity_image_eq", intensity_image_eq);
-  cv::waitKey(1);
+  // cv::imshow("intensity_image_eq", intensity_image_eq);
+  // cv::waitKey(1);
   // Merge the two images into one HDR image.
   images.emplace_back(std::move(range_gradient));
   images.emplace_back(std::move(intensity_image_eq));
@@ -255,8 +255,8 @@ void ImageProjection::createFeatureImage() {
   hdr_image = hdr_image * 255u;
   // hdr_image = intensity_image_eq;
   hdr_image.convertTo(feature_image_, CV_8UC1);
-  cv::imshow("feature_image_", feature_image_);
-  cv::waitKey(1);
+  // cv::imshow("feature_image_", feature_image_);
+  // cv::waitKey(1);
 
   // Histogram equalize the final image.
   // clahe_hdr_->apply(hdr_image, feature_image_);
