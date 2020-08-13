@@ -1,14 +1,29 @@
 <?xml version="1.0"?>
 
 <launch>
-	<!-- ================================== PLAY ROSBAG ============================================== -->
+	  <!-- ================================== PLAY ROSBAG ============================================== -->
+  <!-- ruins -->
+  <!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/marius/Documents/Masterarbeit/bags/arche_13_2019-07-04-12-00-20.bag -s 0 " /> -->
 
-	<!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/mfehr/experimental_ws/maplab/gonzen_bags/gonzen_run_14_2019-02-15-15-36-01.bag -q -d 5"/> -->
-	<!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/mfehr/experimental_ws/maplab/gonzen_bags/gonzen_rsl_network_dataset_2019-02-15-11-26-42.bag -q -d 5"/> -->
-	<node pkg="rosbag" type="play" name="rosbag" args="/home/mfehr/experimental_ws/maplab/gonzen_bags/gonzen_run_2_2019-02-13-15-52-12.bag -q -d 5 -r 1.5"/>
+  <!-- More indoor  / close to walls -->
+  <!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/marius/Documents/Masterarbeit/bags/arche_15_2019-07-04-13-54-18.bag -s 0" /> -->
 
-	<!-- <node pkg="rosbag" type="play" name="rosbag" args="/media/mfehr/SSD_1TB/darpa_gonzen/new/run_2_2019-03-11-09-39-37.bag -q -d 5 -r 1.5"/> -->
-	<!-- <node pkg="rosbag" type="play" name="rosbag" args="/media/mfehr/SSD_1TB/darpa_gonzen/new/run_3_2019-03-11-09-46-24.bag -q -d 5 -r 1.5"/> -->
+  <!-- Loop closure  -->
+  <!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/marius/Documents/Masterarbeit/bags/arche_16_2019-07-04-14-06-27.bag -r 0.3 -s 100" /> -->
+
+  <!-- Inital bag -->
+  <!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/marius/Documents/Masterarbeit/bags/arche_17_2019-07-04-14-15-19.bag -r 0.3 -s 0" /> -->
+
+  <!-- Koze 1  -->
+  <node pkg="rosbag" type="play" name="rosbag" args="/home/marius/Documents/Masterarbeit/bags/asl_koze_table_both_side_with_loop_light_change_medium.bag -r 0.3 -s 0" />
+
+  <!-- Koze 2  -->
+  <!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/marius/Documents/Masterarbeit/bags/asl_koze_table_one_side_with_loop_light_change_max.bag -r 0.3 -s 0" /> -->
+
+  <!-- Koze 3  -->
+  <!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/marius/Documents/Masterarbeit/bags/asl_koze_table_one_side_with_loop_light_change_medium.bag -r 0.3 -s 0" /> -->
+
+
 
 
 	<!-- ================================== ROVIOLI ================================================== -->
@@ -19,11 +34,13 @@
 		<arg name="sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/lidarstick-180-deg-cams-sensors-color.yaml"/>
 		<arg name="external_imu_parameters_rovio" default=""/>
 		<arg name="imu_to_camera_time_offset_ns" default="19779092"/>
-    <arg name="rovio_enable_frame_visualization" default="true"/>
+		<arg name="rovio_enable_frame_visualization" default="true"/>
+
 
 		<!-- DATA SOURCE -->
 		<arg name="datasource_type" default="rostopic"/>
 		<arg name="datasource_rosbag" default=""/>
+
 
 		<!-- MAP BUILDING (DISABLED) -->
 		<arg name="rovioli_run_map_builder" default="false"/>
@@ -55,9 +72,9 @@
 		<remap from="/odometry/maplab_odom_T_M_I" to="/rovioli/maplab_odom_T_M_I"/>
 
 		<!-- SENSORS -->
-		<arg name="sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/lidarstick-180-deg-cams-sensors.yaml"/>
+		<arg name="sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/lidarstick-180.yaml"/>
 		<!-- only needed if there are multiple ncameras/lidars/imus/odometries in the calibration file. -->
-		<arg name="selected_ncamera_sensor_id" default="8af1bac2a7c5fad79f09e49e3b96d87c"/>
+		<arg name="selected_ncamera_sensor_id" default="8af1bac2a7c5fad79f09e49e3b96d87b"/>
 		<arg name="selected_lidar_ncamera_sensor_id" default="99c1bac2a7c5fad79f09e49e3b96d99c"/>
 		<arg name="selected_imu_sensor_id" default=""/>
 		<arg name="selected_lidar_sensor_id" default=""/>
@@ -66,10 +83,9 @@
 		<!-- DATA SOURCE -->
 		<arg name="datasource_type" default="rostopic"/>
 		<arg name="datasource_rosbag" default=""/>
-		<arg name="imu_to_camera_time_offset_ns" default="19779092"/>
 
 		<!-- DATA PREPROCESSING -->
-		<arg name="image_apply_clahe_histogram_equalization" default="false"/>
+		<arg name="image_apply_clahe_histogram_equalization" default="true"/>
 
 		<!-- LOCALIZATION BASED ON VISION -->
 		<arg name="enable_visual_localization" default="false"/>
@@ -77,20 +93,20 @@
 
 		<!-- LOCALIZATION BASED ON LIDAR -->
 		<arg name="enable_lidar_localization" default="false"/>
-    <arg name="lidar_localization_map_folder" default=""/>
-    <arg name="lidar_image_projection_flatness_range" default="1"/>
-    <arg name="lidar_image_projection_close_point" default="1"/>
-    <arg name="lidar_image_projection_far_point" default="80"/>
-    <arg name="lidar_image_projection_flatness_intensity" default="6"/>
-    <arg name="lidar_image_projection_min_intensity" default="20"/>
-    <arg name="lidar_image_projection_max_intensity" default="8000"/>
-    <arg name="lidar_image_projection_draw" default="true"/>
+		<arg name="lidar_localization_map_folder" default=""/>
+		<arg name="lidar_image_projection_flatness_range" default="1"/>
+		<arg name="lidar_image_projection_close_point" default="1"/>
+		<arg name="lidar_image_projection_far_point" default="80"/>
+		<arg name="lidar_image_projection_flatness_intensity" default="6"/>
+		<arg name="lidar_image_projection_min_intensity" default="20"/>
+		<arg name="lidar_image_projection_max_intensity" default="8000"/>
+		<arg name="lidar_image_projection_draw" default="true"/>
 
 		<!-- ONLINE MAPPING -->
 		<arg name="enable_online_mapping" default="false"/>
 
 		<!-- MAP BUILDING -->
-		<arg name="map_output_folder" default="/tmp/maplab_node/test_rovioli_map"/>
+		<arg name="map_output_folder" default="/tmp/map"/>
 		<arg name="map_save_on_shutdown" default="true"/>
 		<arg name="map_overwrite_enabled" default="false"/>
 		<arg name="map_compute_localization_map" default="false"/>
@@ -101,7 +117,7 @@
 
 		<!-- ATTACHING RESOURCES TO MAP -->
 		<arg name="map_builder_save_image_as_resources" default="false"/>
-		<arg name="map_builder_save_point_clouds_as_resources" default="false"/>
+		<arg name="map_builder_save_point_clouds_as_resources" default="true"/>
 		<arg name="map_builder_save_point_cloud_maps_as_resources" default="false"/>
 
 		<!-- TF -->
@@ -116,28 +132,33 @@
 		<arg name="v" default="1"/>
 		<arg name="publish_debug_markers" default="true"/>
 
-		<arg name="detection_visualize_keypoints" default="true"/>
-		<arg name="feature_tracker_visualize_feature_tracks" default="true"/>
-		<arg name="feature_tracker_visualize_keypoint_matches" default="true"/>
-		<arg name="feature_tracker_visualize_keypoints" default="true"/>
-		<arg name="feature_tracker_visualize_keypoints_individual_frames" default="true"/>
+		<arg name="detection_visualize_keypoints" default="false"/>
+		<arg name="feature_tracker_visualize_feature_tracks" default="false"/>
+		<arg name="feature_tracker_visualize_keypoint_matches" default="false"/>
+		<arg name="feature_tracker_visualize_keypoints" default="false"/>
+		<arg name="feature_tracker_visualize_keypoints_individual_frames" default="false"/>
 
-    <!-- LIDAR FEATURE TRACKING -->
+		<!-- LIDAR FEATURE TRACKING -->
 		<arg name="NEW_feature_tracker_num_features" default="500"/>
-		<arg name="NEW_feature_tracker_num_pyramid_levels" default="3"/>
+		<arg name="NEW_feature_tracker_num_pyramid_levels" default="2"/>
+		<arg name="NEW_feature_tracker_min_eigen_threshold" default="0.01"/>
+		<arg name="NEW_feature_tracker_criteria_max_count" default="20"/>
+		<arg name="NEW_feature_tracker_window_height" default="50"/>
+		<arg name="NEW_feature_tracker_window_width" default="50"/>
+		<arg name="NEW_feature_tracker_min_tracking_distance" default="1.5"/>
 		<arg name="NEW_feature_tracker_pyramid_scale_decimation" default="1.5"/>
-		<arg name="NEW_feature_tracker_ransac_threshold" default="0.00003807693"/>
-		<arg name="NEW_feature_tracker_ransac_max_iters" default="200"/>
+		<arg name="NEW_feature_tracker_ransac_threshold" default=".8"/>
+		<arg name="NEW_feature_tracker_ransac_max_iters" default="50"/>
 		<arg name="NEW_eature_tracker_ransac_fix_seed" default="false"/>
 		<arg name="NEW_feature_tracker_detector_orb_edge_threshold" default="31"/>
 		<arg name="NEW_feature_tracker_detector_orb_fast_threshold" default="20"/>
 		<arg name="NEW_feature_tracker_brisk_uniformity_radius" default="5.0"/>
 		<arg name="NEW_feature_tracker_detector_brisk_absolute_threshold" default="35.0"/>
-		<arg name="NEW_feature_detector_type" default="sift"/>
-		<arg name="NEW_feature_descriptor_type" default="freak"/>
+		<arg name="NEW_feature_detector_type" default="surf"/>
+		<arg name="NEW_feature_descriptor_type" default="brisk"/>
 		<arg name="NEW_feature_pipeline_type" default="lk"/>
 
-    <!-- SURF FEATURES -->
+		<!-- SURF FEATURES -->
 		<arg name="NEW_feature_tracker_surf_hessian_threshold" default="2000"/>
 		<arg name="NEW_feature_tracker_surf_n_octaves" default="4"/>
 		<arg name="NEW_feature_tracker_surf_octave_layers" default="5"/>
@@ -147,4 +168,4 @@
 		<!-- MAPLAB_NODE -->
 		<include file="$(find maplab_node)/launch/maplab_node.launch" pass_all_args="true"/>
 	</group>
-</launch>
+</launch> 

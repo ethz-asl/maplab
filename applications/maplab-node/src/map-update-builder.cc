@@ -1,5 +1,6 @@
 #include "maplab-node/map-update-builder.h"
 
+#include <aslam/cameras/ncamera.h>
 #include <maplab-common/interpolation-helpers.h>
 
 DEFINE_int64(
@@ -11,31 +12,40 @@ DEFINE_int64(
 namespace maplab {
 
 MapUpdateBuilder::MapUpdateBuilder(
-    const vio_common::PoseLookupBuffer& T_M_B_buffer)
+    const vio_common::PoseLookupBuffer& T_M_B_buffer,
+    const aslam::SensorIdSet& ncamera_ids)
     : T_M_B_buffer_(T_M_B_buffer),
+      ncamera_ids_(ncamera_ids),
       localization_buffer_(FLAGS_localization_buffer_history_ns),
-      last_received_timestamp_tracked_nframe_queue_(
+      last_published_timestamp_tracked_nframe_queue_(
           aslam::time::getInvalidTime()),
-      last_localization_state_(common::LocalizationState::kUninitialized) {}
+      last_localization_state_(common::LocalizationState::kUninitialized) {
+  for (aslam::SensorId ncamera_id : ncamera_ids_) {
+    VLOG(1) << "[MaplabNode-MapUpdateBuilder] Initialize nframe queue with id "
+            << ncamera_id;
+    tracked_nframe_queues_.insert(
+        std::pair<aslam::SensorId, TrackedNFrameQueue>(
+            ncamera_id, TrackedNFrameQueue()));
+  }
+}
 
 void MapUpdateBuilder::processTrackedNFrame(
     const vio::SynchronizedNFrame::ConstPtr& tracked_nframe) {
   CHECK(tracked_nframe != nullptr);
   const int64_t timestamp_nframe_ns =
       tracked_nframe->nframe->getMaxTimestampNanoseconds();
-  CHECK_GT(
-      timestamp_nframe_ns,
-      last_received_timestamp_tracked_nframe_queue_.load());
 
   std::lock_guard<std::recursive_mutex> lock(queue_mutex_);
 
   VLOG(3) << "[MaplabNode-MapUpdateBuilder] Received synchronized visual frame";
 
-  tracked_nframe_queue_.push(tracked_nframe);
-  findMatchAndPublish();
-
-  last_received_timestamp_tracked_nframe_queue_.store(
-      tracked_nframe->nframe->getMinTimestampNanoseconds());
+  tracked_nframe_queues_[tracked_nframe->nframe->getNCameraShared()->getId()]
+      .push(tracked_nframe);
+  VLOG(1) << "[MaplabNode-MapUpdateBuilder] Add visual frame to queue id:"
+          << tracked_nframe->nframe->getNCameraShared()->getId()
+          << ", ts: " << tracked_nframe->nframe->getMinTimestampNanoseconds();
+  while (findMatchAndPublish())
+    ;
 }
 
 void MapUpdateBuilder::processLocalizationResult(
@@ -56,21 +66,48 @@ void MapUpdateBuilder::processLocalizationResult(
       localization_result->timestamp_ns, *fused_localization_result);
 }
 
-void MapUpdateBuilder::findMatchAndPublish() {
+bool MapUpdateBuilder::findMatchAndPublish() {
+  LOG_IF(ERROR, tracked_nframe_queues_.empty())
+      << "[MaplabNode-MapUpdateBuilder] No NFrame queue registered.";
+  constexpr int kMaxTimeBeforeWarningAndSkippingS = 5;
+  const int64_t kMaxTimeBeforeWarningAndSkippingNS =
+      aslam::time::secondsToNanoSeconds(kMaxTimeBeforeWarningAndSkippingS);
   vio::SynchronizedNFrame::ConstPtr oldest_unmatched_tracked_nframe;
 
-  int64_t timestamp_nframe_ns;
+  int64_t timestamp_nframe_ns = aslam::time::getInvalidTime();
   {
+    // Buffers and aligns nframes from different ncameras (e.g.
+    // standard camera and lidar). To be sure that all ncameras don't have
+    // delayed messages, wait until all of them have at least a message ready.
+    // Then publish the oldest one.
+    // TODO(floriantschopp): Implement drop of sensor in case of sensor failure.
     std::lock_guard<std::recursive_mutex> lock(queue_mutex_);
 
-    if (tracked_nframe_queue_.empty()) {
-      // Nothing to do.
-      return;
+    for (aslam::SensorId ncamera_id : ncamera_ids_) {
+      if (tracked_nframe_queues_[ncamera_id].empty()) {
+        return false;
+      }
+      if (!aslam::time::isValidTime(timestamp_nframe_ns) ||
+          tracked_nframe_queues_[ncamera_id]
+                  .front()
+                  ->nframe->getMinTimestampNanoseconds() <
+              timestamp_nframe_ns) {
+        oldest_unmatched_tracked_nframe =
+            tracked_nframe_queues_[ncamera_id].front();
+        timestamp_nframe_ns = oldest_unmatched_tracked_nframe->nframe
+                                  ->getMinTimestampNanoseconds();
+      }
     }
-    oldest_unmatched_tracked_nframe = tracked_nframe_queue_.front();
-    timestamp_nframe_ns =
-        oldest_unmatched_tracked_nframe->nframe->getMinTimestampNanoseconds();
+    // oldest_unmatched_tracked_nframe should be set by now.
+    CHECK_NOTNULL(oldest_unmatched_tracked_nframe);
+    VLOG(1)
+        << "[MaplabNode-MapUpdateBuilder] Found oldest nframe with id: "
+        << oldest_unmatched_tracked_nframe->nframe->getNCameraShared()->getId()
+        << " and ts: " << timestamp_nframe_ns;
   }
+  CHECK_GT(
+      timestamp_nframe_ns,
+      last_published_timestamp_tracked_nframe_queue_.load());
 
   vio::MapUpdate::Ptr map_update = aligned_shared<vio::MapUpdate>();
 
@@ -85,37 +122,39 @@ void MapUpdateBuilder::findMatchAndPublish() {
       vinode_lookup_result !=
       vio_common::PoseLookupBuffer::ResultStatus::kFailedWillNeverSucceed);
 
-  // If this is the first frame, we don't need to associate imu data with it,
-  // since there is no edge incomming.
+  // If this is the first frame, we don't need to associate imu data with
+  // it, since there is no edge incomming.
   bool skip_frame = false;
   if (aslam::time::isValidTime(
-          last_received_timestamp_tracked_nframe_queue_.load())) {
-    // Match the imu data. There is no need to wait here, since the synchronizer
-    // ensures this data is available already.
-    const int64_t kWaitTimeoutNanoseconds = 0;
+          last_published_timestamp_tracked_nframe_queue_.load())) {
+    // TODO(nico): there should be no need to wait here, the synchronizer
+    // should ensure this data is available already.
+
+    // Match the imu data
+    const int64_t kWaitTimeoutNanoseconds = aslam::time::milliseconds(50);
     vio_common::ImuMeasurementBuffer::QueryResult result =
         T_M_B_buffer_.imu_buffer().getImuDataInterpolatedBordersBlocking(
-            last_received_timestamp_tracked_nframe_queue_, timestamp_nframe_ns,
+            last_published_timestamp_tracked_nframe_queue_, timestamp_nframe_ns,
             kWaitTimeoutNanoseconds, &map_update->imu_timestamps,
             &map_update->imu_measurements);
-
-    CHECK(
-        result !=
-        vio_common::ImuMeasurementBuffer::QueryResult::kDataNotYetAvailable)
-        << "This should never happen, as it is ensure by the synchronizer";
 
     if (result ==
         vio_common::ImuMeasurementBuffer::QueryResult::kQueueShutdown) {
       // Shutdown.
-      return;
+      return false;
     } else if (
         result ==
         vio_common::ImuMeasurementBuffer::QueryResult::kDataNeverAvailable) {
       LOG(ERROR) << "[MaplabNode-MapUpdateBuilder] No IMU data available "
-                 << "for this key frame! This can happen if we are lagging "
-                 << "behind and the data has already been released by the "
-                 << "synchronizer. Skipping NFrame.";
+                    "for this key frame! Skipping.";
 
+      skip_frame = true;
+    } else if (
+        result ==
+        vio_common::ImuMeasurementBuffer::QueryResult::kDataNotYetAvailable) {
+      LOG(ERROR)
+          << "[MaplabNode-MapUpdateBuilder] No IMU data available yet for "
+          << "this NFrame. Skipping.";
       skip_frame = true;
     } else {
       CHECK(
@@ -182,12 +221,18 @@ void MapUpdateBuilder::findMatchAndPublish() {
     map_update->map_update_type = vio::UpdateType::kNormalUpdate;
 
     // Publish map update.
-    VLOG(3) << "[MaplabNode-MapUpdateBuilder] Published a MapUpdate.";
+    VLOG(1) << "[MaplabNode-MapUpdateBuilder] Published a MapUpdate.";
     CHECK(map_update_publish_function_);
     map_update_publish_function_(map_update);
   }
   // Clean up the queue.
-  tracked_nframe_queue_.pop();
+  CHECK_NOTNULL(oldest_unmatched_tracked_nframe);
+  last_published_timestamp_tracked_nframe_queue_.store(
+      oldest_unmatched_tracked_nframe->nframe->getMinTimestampNanoseconds());
+  tracked_nframe_queues_
+      [oldest_unmatched_tracked_nframe->nframe->getNCameraShared()->getId()]
+          .pop();
+  return true;
 }
 
 }  // namespace maplab

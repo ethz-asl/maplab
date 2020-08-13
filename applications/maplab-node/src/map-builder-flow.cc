@@ -10,6 +10,7 @@
 #include <maplab-common/map-manager-config.h>
 #include <mapping-workflows-plugin/localization-map-creation.h>
 #include <online-map-builders/stream-map-builder.h>
+#include <sensors/sensor-types.h>
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/check-map-consistency.h>
@@ -67,7 +68,9 @@ MapBuilderFlow::MapBuilderFlow(
       map_with_mutex_(aligned_shared<VIMapWithMutex>()),
       last_vertex_of_previous_map_saving_(),
       mapping_terminated_(false),
-      map_update_builder_(T_M_B_buffer),
+      map_update_builder_(
+          T_M_B_buffer,
+          sensor_manager_.getAllSensorIdsOfType(vi_map::SensorType::kNCamera)),
       external_resource_folder_(),
       stream_map_builder_(sensor_manager_, &map_with_mutex_->vi_map) {
   if (!save_map_folder.empty()) {

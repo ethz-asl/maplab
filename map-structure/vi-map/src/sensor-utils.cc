@@ -16,6 +16,9 @@ DEFINE_string(
     "to determine which one is used.");
 
 DEFINE_string(
+    selected_lidar_ncamera_sensor_id, "", "Points to the lidar ncamera hack ");
+
+DEFINE_string(
     selected_imu_sensor_id, "",
     "If there is more than one IMU in the sensor manager, use this flag "
     "to determine which one is used.");
@@ -89,6 +92,31 @@ aslam::NCamera::Ptr getSelectedNCamera(const SensorManager& sensor_manager) {
     mapping_ncamera_id = *all_ncamera_ids.begin();
   }
 
+  aslam::NCamera::Ptr mapping_ncamera_ptr =
+      sensor_manager.getSensorPtr<aslam::NCamera>(mapping_ncamera_id);
+  CHECK(mapping_ncamera_ptr);
+  return mapping_ncamera_ptr;
+}
+
+aslam::NCamera::Ptr getLidarNCamera(const SensorManager& sensor_manager) {
+  aslam::SensorIdSet all_ncamera_ids;
+  sensor_manager.getAllSensorIdsOfType(SensorType::kNCamera, &all_ncamera_ids);
+
+  if (all_ncamera_ids.empty()) {
+    VLOG(1) << "No NCameras were found in sensor manager!";
+    return aslam::NCamera::Ptr();
+  }
+  aslam::SensorId mapping_ncamera_id;
+  CHECK(
+      !FLAGS_selected_lidar_ncamera_sensor_id.empty() &&
+      mapping_ncamera_id.fromHexString(FLAGS_selected_lidar_ncamera_sensor_id))
+        << "Please provide the lidar ncamera";
+  CHECK(
+      sensor_manager.hasSensor(mapping_ncamera_id) &&
+      (sensor_manager.getSensorType(mapping_ncamera_id) ==
+       SensorType::kNCamera))
+      << "The sensor id provided by --selected_lidar_ncamera_sensor_id is not "
+      << "in the sensor manager or is not an NCamera!";
   aslam::NCamera::Ptr mapping_ncamera_ptr =
       sensor_manager.getSensorPtr<aslam::NCamera>(mapping_ncamera_id);
   CHECK(mapping_ncamera_ptr);

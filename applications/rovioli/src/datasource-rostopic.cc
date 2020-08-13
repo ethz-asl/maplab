@@ -123,7 +123,9 @@ void DataSourceRostopic::imuMeasurementCallback(
   }
 
   vio::ImuMeasurement::Ptr imu_measurement = convertRosImuToMaplabImu(msg);
-
+  int64_t diff = imu_measurement->timestamp - last_time_imu;
+  if (diff < 0) return;
+  last_time_imu = imu_measurement->timestamp;
   // Shift timestamps to start at 0.
   if (!FLAGS_rovioli_zero_initial_timestamps ||
       shiftByFirstTimestamp(&(imu_measurement->timestamp))) {

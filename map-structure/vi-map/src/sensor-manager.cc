@@ -104,6 +104,18 @@ void SensorManager::getAllSensorIdsOfType(
   }
 }
 
+const aslam::SensorIdSet SensorManager::getAllSensorIdsOfType(
+    const vi_map::SensorType& sensor_type) const {
+  aslam::SensorIdSet all_sensor_ids;
+  CHECK(isValidSensorType(sensor_type));
+  for (const auto& sensor_with_id : sensors_) {
+    if (sensor_with_id.second->getSensorType() == sensor_type) {
+      all_sensor_ids.emplace(sensor_with_id.first);
+    }
+  }
+  return all_sensor_ids;
+}
+
 bool SensorManager::hasSensor(const aslam::SensorId& sensor_id) const {
   CHECK(sensor_id.isValid());
   return sensors_.count(sensor_id) > 0u;

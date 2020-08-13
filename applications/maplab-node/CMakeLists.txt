@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(maplab_node)
 
-add_compile_options(-std=c++14 -fPIC)
+add_compile_options(-w -std=c++14 -fPIC)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -42,7 +42,8 @@ cs_add_library(${PROJECT_NAME}_lib
   src/map-update-builder.cc
 	src/visual-localizer-flow.cc
 	src/visual-localizer-helpers.cc
-	src/visual-localizer.cc)
+	src/visual-localizer.cc
+	src/lidar-tracking.cc)
 
 
 #######

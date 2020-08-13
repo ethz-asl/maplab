@@ -1,12 +1,11 @@
 #include "vi-map/vi-map.h"
 
-#include <limits>
-#include <queue>
-
 #include <aslam/common/memory.h>
 #include <aslam/common/time.h>
+#include <limits>
 #include <map-resources/resource_metadata.pb.h>
 #include <maplab-common/file-system-tools.h>
+#include <queue>
 
 #include "vi-map/sensor-manager.h"
 #include "vi-map/sensor-utils.h"
@@ -946,12 +945,19 @@ void VIMap::associateMissionSensors(
   for (const auto& sensor_of_type : sensors_of_type) {
     CHECK(!sensor_of_type.second.empty());
     if (static_cast<SensorType>(sensor_of_type.first) == SensorType::kNCamera) {
-      CHECK(!mission.hasNCamera()) << "There shouldn't be a NCamera sensor "
-                                   << "associated yet with this mission!";
+      CHECK(!mission.hasNCamera() && mission.hasAdditionalNCamera())
+          << "There shouldn't be a NCamera sensor "
+          << "associated yet with this mission!";
       const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
           FLAGS_selected_ncamera_sensor_id, "selected_ncamera_sensor_id",
           "NCamera", sensor_of_type.second);
-      mission.setNCameraId(sensor_id);
+      if (!mission.hasNCamera()) {
+        VLOG(1) << "setting normal: " << sensor_id;
+        mission.setNCameraId(sensor_id);
+      } else {
+        VLOG(1) << "setting additional: " << sensor_id;
+        mission.setAdditionalNCameraId(sensor_id);
+      }
     } else if (
         static_cast<SensorType>(sensor_of_type.first) == SensorType::kImu) {
       CHECK(!mission.hasImu()) << "There shouldn't be a IMU sensor associated "
@@ -1022,6 +1028,14 @@ void VIMap::associateMissionSensors(
           << sensor_of_type.first;
     }
   }
+}
+
+const aslam::NCamera& VIMap::getAdditionalNCamera(
+    const vi_map::MissionId& id) const {
+  const VIMission& mission = getMission(id);
+  CHECK(mission.hasAdditionalNCamera());
+  return sensor_manager_.getSensor<aslam::NCamera>(
+      mission.getAdditionalNCameraId());
 }
 
 void VIMap::getAllAssociatedMissionSensorIds(

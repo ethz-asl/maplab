@@ -22,6 +22,7 @@ VIMission::VIMission(const VIMission& other)
     : Mission(other),
       ordering_(other.getOrdering()),
       ncamera_id_(other.ncamera_id_),
+      additional_ncamera_id_(other.additional_ncamera_id_),
       imu_id_(other.imu_id_),
       lidar_id_(other.lidar_id_),
       odometry_6dof_id_(other.odometry_6dof_id_),
@@ -42,6 +43,11 @@ void VIMission::setOrdering(int ordering) {
 void VIMission::setNCameraId(const aslam::SensorId& ncamera_id) {
   CHECK(ncamera_id.isValid());
   ncamera_id_ = ncamera_id;
+}
+
+void VIMission::setAdditionalNCameraId(const aslam::SensorId& ncamera_id) {
+  CHECK(ncamera_id.isValid());
+  additional_ncamera_id_ = ncamera_id;
 }
 
 void VIMission::setImuId(const aslam::SensorId& imu_id) {
@@ -80,6 +86,13 @@ const aslam::SensorId& VIMission::getNCameraId() const {
       << "There is no valid NCamera ID associated with mission "
       << mission_id_.shortHex() << "!";
   return ncamera_id_;
+}
+
+const aslam::SensorId& VIMission::getAdditionalNCameraId() const {
+  CHECK(additional_ncamera_id_.isValid())
+      << "There is no valid NCamera ID associated with mission "
+      << mission_id_.shortHex() << "!";
+  return additional_ncamera_id_;
 }
 
 const aslam::SensorId& VIMission::getImuId() const {
@@ -126,6 +139,9 @@ const aslam::SensorId& VIMission::getWheelOdometrySensor() const {
 
 bool VIMission::hasNCamera() const {
   return ncamera_id_.isValid();
+}
+bool VIMission::hasAdditionalNCamera() const {
+  return additional_ncamera_id_.isValid();
 }
 bool VIMission::hasImu() const {
   return imu_id_.isValid();

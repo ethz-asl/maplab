@@ -191,6 +191,7 @@ class VIMap : public backend::ResourceMap,
       const vi_map::MissionId& id, aslam::SensorIdSet* sensor_ids) const;
 
   const aslam::NCamera& getMissionNCamera(const vi_map::MissionId& id) const;
+  const aslam::NCamera& getAdditionalNCamera(const vi_map::MissionId& id) const;
   aslam::NCamera::Ptr getMissionNCameraPtr(const vi_map::MissionId& id) const;
   const vi_map::Imu& getMissionImu(const vi_map::MissionId& id) const;
   vi_map::Imu::Ptr getMissionImuPtr(const vi_map::MissionId& id) const;

@@ -201,21 +201,12 @@ void DataSourceRosbag::streamingWorker() {
           message.instantiate<sensor_msgs::Imu>();
       vio::ImuMeasurement::Ptr imu_measurement =
           convertRosImuToMaplabImu(imu_msg);
-
+       int64_t diff = imu_measurement->timestamp - last_time_imu;
       // Shift timestamps to start at 0.
-      if (!FLAGS_rovioli_zero_initial_timestamps ||
-          shiftByFirstTimestamp(&(imu_measurement->timestamp))) {
-        // Check for strictly increasing imu timestamps.
-        if (aslam::time::isValidTime(last_imu_timestamp_ns_) &&
-            last_imu_timestamp_ns_ >= imu_measurement->timestamp) {
-          LOG(WARNING) << "[ROVIOLI-DataSource] IMU message is not strictly "
-                       << "increasing! Current timestamp: "
-                       << imu_measurement->timestamp
-                       << "ns vs last timestamp: " << last_imu_timestamp_ns_
-                       << "ns.";
-        } else {
-          last_imu_timestamp_ns_ = imu_measurement->timestamp;
-
+      if (diff > 0) {
+        last_time_imu = imu_measurement->timestamp;
+        if (!FLAGS_rovioli_zero_initial_timestamps ||
+            shiftByFirstTimestamp(&(imu_measurement->timestamp))) {
           VLOG(3) << "Publish IMU measurement...";
           invokeImuCallbacks(imu_measurement);
         }

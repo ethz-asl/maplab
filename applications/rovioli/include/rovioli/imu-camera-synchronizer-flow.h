@@ -41,6 +41,12 @@ class ImuCameraSynchronizerFlow {
         kSubscriberNodeName, message_flow::DeliveryOptions(),
         [this](const vio::ImuMeasurement::Ptr& imu) {
           CHECK(imu);
+          int64_t diff = imu->timestamp - this->last_imu_time;
+          if (diff <= 0) {
+            VLOG(1) << "skipped imu measurement [rovio]";
+            return;
+          }
+          this->last_imu_time = imu->timestamp;
           // TODO(schneith): This seems inefficient. Should we batch IMU
           // measurements on the datasource side?
           this->synchronizing_pipeline_.addImuMeasurements(
@@ -59,6 +65,7 @@ class ImuCameraSynchronizerFlow {
 
  private:
   ImuCameraSynchronizer synchronizing_pipeline_;
+  int64_t last_imu_time = 0;
 };
 
 }  // namespace rovioli
