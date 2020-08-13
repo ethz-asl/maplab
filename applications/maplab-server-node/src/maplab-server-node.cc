@@ -1,5 +1,9 @@
 #include "maplab-server-node/maplab-server-node.h"
 
+#if __GNUC__ > 5
+#include <dense-mapping/dense-mapping.h>
+#endif
+
 #include <aslam/common/timer.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -103,7 +107,8 @@ MaplabServerNode::MaplabServerNode()
       duration_last_merging_loop_s_(0.0),
       optimization_trust_region_radius_(FLAGS_ba_initial_trust_region_radius),
       total_num_merged_submaps_(0u),
-      time_of_last_map_backup_s_(0.0) {
+      time_of_last_map_backup_s_(0.0),
+      is_running_(false) {
   if (!FLAGS_ros_free) {
     visualization::RVizVisualizationSink::init();
     plotter_.reset(new visualization::ViwlsGraphRvizPlotter);
@@ -111,7 +116,9 @@ MaplabServerNode::MaplabServerNode()
 }
 
 MaplabServerNode::~MaplabServerNode() {
-  shutdown();
+  if (is_running_) {
+    shutdown();
+  }
 }
 
 void MaplabServerNode::start() {
@@ -207,29 +214,38 @@ void MaplabServerNode::start() {
 }
 
 void MaplabServerNode::shutdown() {
-  if (shut_down_requested_.load()) {
-    // Already shut down.
-    return;
-  }
-
   std::lock_guard<std::mutex> lock(mutex_);
   LOG(INFO) << "[MaplabServerNode] Shutting down...";
   shut_down_requested_.store(true);
 
-  LOG(INFO) << "[MaplabServerNode] Stopping MapMerging thread...";
-  if (submap_merging_thread_.joinable()) {
-    submap_merging_thread_.join();
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping MapMerging thread...";
+    if (submap_merging_thread_.joinable()) {
+      submap_merging_thread_.join();
+    }
+    LOG(INFO) << "[MaplabServerNode] Done stopping MapMerging thread.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop map merging thread: " << e.what();
   }
-  LOG(INFO) << "[MaplabServerNode] Done.";
 
-  LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
-  submap_loading_thread_pool_.stop();
-  submap_loading_thread_pool_.waitForEmptyQueue();
-  LOG(INFO) << "[MaplabServerNode] Done.";
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
+    submap_loading_thread_pool_.stop();
+    submap_loading_thread_pool_.waitForEmptyQueue();
+    LOG(INFO) << "[MaplabServerNode] Done stopping SubmapProcessing threads.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop map submap processing threads: " << e.what();
+  }
 
-  LOG(INFO) << "[MaplabServerNode] Stopping Status thread...";
-  status_thread_.join();
-  LOG(INFO) << "[MaplabServerNode] Done.";
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping Status thread...";
+    if (status_thread_.joinable()) {
+      status_thread_.join();
+    }
+    LOG(INFO) << "[MaplabServerNode] Done stopping Status thread.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop status thread: " << e.what();
+  }
 
   is_running_ = false;
 }
@@ -670,6 +686,22 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
       }
     }
   }
+
+// Dense mapping constraints
+////////////////////////////
+#if __GNUC__ > 5
+  {
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "dense mapping constraints";
+    }
+
+    dense_mapping::Config config = dense_mapping::Config::fromGflags();
+    dense_mapping::addDenseMappingConstraintsToMap(
+        config, mission_ids, map.get());
+  }
+#endif
 
   // Full optimization
   ////////////////////

@@ -30,10 +30,6 @@ Panels:
     Name: Time
     SyncMode: 0
     SyncSource: Image
-  - Class: mav_planning_rviz/PlanningPanel
-    Name: PlanningPanel
-    namespace: jay
-    planner_name: rrt_planner_voxblox
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
