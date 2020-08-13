@@ -499,8 +499,6 @@ int addVisualTerms(
     const bool add_visual_constraints, const bool add_lidar_constraints,
     const size_t min_landmarks_per_frame, OptimizationProblem* problem) {
   CHECK_NOTNULL(problem);
-  VLOG(0) << "add_visual_constraints:" << add_visual_constraints;
-  VLOG(0) << "add_lidar_constraints:" << add_lidar_constraints;
   vi_map::VIMap* map = CHECK_NOTNULL(problem->getMapMutable());
 
   const OptimizationProblem::LocalParameterizations& parameterizations =
