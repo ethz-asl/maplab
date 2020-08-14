@@ -1,16 +1,15 @@
 #ifndef FEATURE_TRACKING_PIPELINES_KEYFRAME_FEATURES_H_
 #define FEATURE_TRACKING_PIPELINES_KEYFRAME_FEATURES_H_
 
-#include <sstream>
-#include <string>
-#include <vector>
-
 #include <Eigen/Core>
 #include <aslam/cameras/ncamera.h>
 #include <aslam/frames/visual-nframe.h>
 #include <glog/logging.h>
 #include <maplab-common/eigen-helpers.h>
 #include <opencv2/core/core.hpp>
+#include <sstream>
+#include <string>
+#include <vector>
 
 namespace feature_tracking_pipelines {
 
@@ -47,6 +46,10 @@ void RemoveKeypoints(
     KeyframeFeatures* keyframe_features);
 void AppendKeypoints(
     const KeyframeFeatures& data_to_append, KeyframeFeatures* keyframe_merged);
+
+void ApplyLidarKeypointFeaturesToVisualNFrame(
+    const std::vector<KeyframeFeatures>& keypoint_features,
+    aslam::VisualNFrame* nframe);
 
 void ApplyKeypointFeaturesToVisualNFrame(
     const std::vector<KeyframeFeatures>& keypoint_features,

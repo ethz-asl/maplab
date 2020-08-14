@@ -60,7 +60,7 @@ bool FeatureTrackerGyroAidedLaser::processNFrame(
       q_Ikp1_Ik, curr_nframe_images, prev_nframe_images_, prev_nframe_features_,
       &curr_nframe_features, cloud, tracking_debug_output.get());
 
-  feature_tracking_pipelines::ApplyKeypointFeaturesToVisualNFrame(
+  feature_tracking_pipelines::ApplyLidarKeypointFeaturesToVisualNFrame(
       curr_nframe_features, in_out_nframe);
 
   if (debug_data_callback_) {

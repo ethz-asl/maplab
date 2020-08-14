@@ -945,7 +945,7 @@ void VIMap::associateMissionSensors(
   for (const auto& sensor_of_type : sensors_of_type) {
     CHECK(!sensor_of_type.second.empty());
     if (static_cast<SensorType>(sensor_of_type.first) == SensorType::kNCamera) {
-      CHECK(!mission.hasNCamera() && mission.hasAdditionalNCamera())
+      CHECK(!(mission.hasNCamera() && mission.hasAdditionalNCamera()))
           << "There shouldn't be a NCamera sensor "
           << "associated yet with this mission!";
       const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(

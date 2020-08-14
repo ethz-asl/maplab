@@ -1,14 +1,13 @@
 #include "feature-tracking-pipelines/keyframe-features.h"
 
-#include <sstream>
-#include <string>
-#include <vector>
-
 #include <Eigen/Core>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
 #include <glog/logging.h>
 #include <maplab-common/eigen-helpers.h>
+#include <sstream>
+#include <string>
+#include <vector>
 
 namespace feature_tracking_pipelines {
 
@@ -124,17 +123,19 @@ void AppendKeypoints(
 
   common::AppendColsRightToEigen(
       data_to_append.keypoint_sizes, &keyframe_merged->keypoint_sizes);
-  //TODO(lbern): something is broken here
+  // TODO(lbern): something is broken here
   /*
   if (keyframe_merged->keypoint_sizes.cols() > 0) {
     CHECK_EQ(keyframe_merged->keypoint_sizes.cols(), num_keypoints);
   }*/
 
   common::AppendColsRightToEigen(
-      data_to_append.keypoint_measurement_uncertainties, 
+      data_to_append.keypoint_measurement_uncertainties,
       &keyframe_merged->keypoint_measurement_uncertainties);
   if (keyframe_merged->keypoint_measurement_uncertainties.cols() > 0) {
-    CHECK_EQ(keyframe_merged->keypoint_measurement_uncertainties.cols(), num_keypoints);
+    CHECK_EQ(
+        keyframe_merged->keypoint_measurement_uncertainties.cols(),
+        num_keypoints);
   }
 }
 
@@ -156,6 +157,32 @@ void ApplyKeypointFeaturesToVisualNFrame(
     frame.setKeypointScores(keypoint_features[i].keypoint_scores);
     frame.setTrackIds(keypoint_features[i].keypoint_track_ids);
     frame.setDescriptors(keypoint_features[i].keypoint_descriptors);
+  }
+}
+
+void ApplyLidarKeypointFeaturesToVisualNFrame(
+    const std::vector<KeyframeFeatures>& keypoint_features,
+    aslam::VisualNFrame* nframe) {
+  CHECK_NOTNULL(nframe);
+  CHECK_EQ(keypoint_features.size(), nframe->getNumFrames());
+  for (size_t i = 0; i < nframe->getNumFrames(); ++i) {
+    aslam::VisualFrame& frame = *CHECK_NOTNULL(nframe->getFrameShared(i).get());
+    CHECK_EQ(keypoint_features[i].frame_idx, i);
+
+    // TODO: mariusbr -> fix map building and then remove this
+    frame.setKeypointMeasurements(keypoint_features[i].keypoint_measurements);
+    frame.setKeypointMeasurementUncertainties(
+        keypoint_features[i].keypoint_measurement_uncertainties);
+    frame.setKeypointScales(keypoint_features[i].keypoint_scales);
+    frame.setKeypointOrientations(
+        keypoint_features[i].keypoint_orientations_rad);
+    frame.setKeypointScores(keypoint_features[i].keypoint_scores);
+    frame.setTrackIds(keypoint_features[i].keypoint_track_ids);
+    frame.setDescriptors(keypoint_features[i].keypoint_descriptors);
+
+    frame.setLidarKeypoint2DMeasurements(
+        keypoint_features[i].keypoint_measurements);
+    frame.setLidarDescriptors(keypoint_features[i].keypoint_descriptors);
     frame.setLidarKeypoint3DMeasurements(keypoint_features[i].keypoint_vectors);
   }
 }
