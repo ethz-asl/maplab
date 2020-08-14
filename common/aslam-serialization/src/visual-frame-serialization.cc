@@ -54,7 +54,7 @@ void serializeVisualFrame(
   if (frame.hasLidarKeypoint3DMeasurements()) {
     ::common::eigen_proto::serialize(
         frame.getLidarKeypoint3DMeasurements(),
-        proto->mutable_keypoint_vectors());
+        proto->mutable_lidar_3d_measurements());
   }
   if (frame.hasLidarKeypoint2DMeasurements()) {
     ::common::eigen_proto::serialize(
@@ -111,8 +111,8 @@ void deserializeVisualFrame(
         proto.track_ids().data(), proto.track_ids_size());
 
     // LiDAR features
-    Eigen::Map<const Eigen::Matrix3Xd> keypoint_vectors(
-        proto.keypoint_vectors().data(), 3, proto.keypoint_vectors_size() / 3);
+    Eigen::Map<const Eigen::Matrix3Xd> lidar_3d_measurements(
+        proto.lidar_3d_measurements().data(), 3, proto.lidar_3d_measurements_size() / 3);
     Eigen::Map<const Eigen::Matrix2Xd> lidar_2d_measurements(
         proto.lidar_2d_measurements().data(), 2,
         proto.lidar_2d_measurements_size() / 2);
@@ -149,13 +149,13 @@ void deserializeVisualFrame(
       frame_ref.invalidate();
     }
     // LiDAR features
-    if (proto.keypoint_vectors_size() != 0) {
-      frame_ref.setLidarKeypoint3DMeasurements(keypoint_vectors);
+    if (proto.lidar_3d_measurements_size() != 0) {
+      frame_ref.setLidarKeypoint3DMeasurements(lidar_3d_measurements);
     }
     if (proto.lidar_2d_measurements_size() != 0) {
       frame_ref.setLidarKeypoint2DMeasurements(lidar_2d_measurements);
     }
-    if (proto.keypoint_vectors_size() != 0) {
+    if (proto.lidar_3d_measurements_size() != 0) {
       frame_ref.setLidarDescriptors(aslam::VisualFrame::DescriptorsT());
       internal::deserializeLidarDescriptors(
           proto, frame_ref.getLidarDescriptorsMutable());
