@@ -9,6 +9,7 @@
 
 DEFINE_double(lc_ransac_pixel_sigma, 2.0, "Pixel sigma for ransac.");
 DEFINE_int32(lc_min_inlier_count, 10, "Minimum inlier count for loop closure.");
+DEFINE_double(lc_ransac_lidar_uncertainty, 0.7, "Lidar error for ransac.");
 DEFINE_double(
     lc_min_inlier_ratio, 0.2, "Minimum inlier ratio for loop closure.");
 DECLARE_bool(lc_filter_underconstrained_landmarks);
@@ -48,6 +49,7 @@ bool addLoopClosureEdge(
   CHECK_NOTNULL(map)->hasVertex(vertex_id_from_structure_matches);
   CHECK(vertex_id_from_structure_matches != query_vertex_id);
 
+  Eigen::Matrix3Xd measurements_keypoint_vectors;
   Eigen::Matrix2Xd measurements;
   std::vector<int> measurement_camera_indices;
   Eigen::Matrix3Xd G_landmark_positions;
@@ -63,6 +65,8 @@ bool addLoopClosureEdge(
   // Resize the containers to the maximum possible size.
   measurements.resize(Eigen::NoChange, observed_landmark_ids.size());
   G_landmark_positions.resize(Eigen::NoChange, observed_landmark_ids.size());
+  measurements_keypoint_vectors.resize(
+      Eigen::NoChange, observed_landmark_ids.size());
 
   int index = 0;
   const size_t num_frames = vertex.numFrames();
@@ -83,11 +87,16 @@ bool addLoopClosureEdge(
 
         CHECK_LT(index, measurements.cols());
         CHECK_LT(index, G_landmark_positions.cols());
+        CHECK_LT(index, measurements_keypoint_vectors.cols());
 
         measurement_camera_indices.push_back(frame_idx);
         measurements.col(index) = visual_frame.getKeypointMeasurement(i);
         G_landmark_positions.col(index) =
             map->getLandmark_G_p_fi(observed_landmarks[i]);
+        if (visual_frame.hasLidarKeypoint3DMeasurements()) {
+          measurements_keypoint_vectors.col(index) =
+              visual_frame.getLidarKeypoint3DMeasurement(i);
+        }
 
         ++index;
       }
@@ -97,6 +106,7 @@ bool addLoopClosureEdge(
   // Resize the containers to the actual data size.
   measurements.conservativeResize(Eigen::NoChange, index);
   G_landmark_positions.conservativeResize(Eigen::NoChange, index);
+  measurements_keypoint_vectors.conservativeResize(Eigen::NoChange, index);
 
   CHECK_EQ(
       measurements.cols(), static_cast<int>(measurement_camera_indices.size()));
@@ -113,11 +123,20 @@ bool addLoopClosureEdge(
   pose::Transformation T_G_Inn_ransac;
   std::vector<int> inliers;
   std::vector<double> inlier_distances_to_model;
+  bool pnp_success;
   int num_iters;
-  bool pnp_success = pose_estimator.absoluteMultiPoseRansacPinholeCam(
-      measurements, measurement_camera_indices, G_landmark_positions,
-      FLAGS_lc_ransac_pixel_sigma, FLAGS_lc_num_ransac_iters, ncamera,
-      &T_G_Inn_ransac, &inliers, &inlier_distances_to_model, &num_iters);
+  if (ncamera->getCameraShared(0)->getType() == aslam::Camera::Type::kLidar3D) {
+    pnp_success = pose_estimator.absoluteMultiPoseRansac3DFeatures(
+        measurements_keypoint_vectors, measurement_camera_indices,
+        G_landmark_positions, FLAGS_lc_ransac_lidar_uncertainty,
+        FLAGS_lc_num_ransac_iters, ncamera, &T_G_Inn_ransac, &inliers,
+        &inlier_distances_to_model, &num_iters);
+  } else {
+    pnp_success = pose_estimator.absoluteMultiPoseRansacPinholeCam(
+        measurements, measurement_camera_indices, G_landmark_positions,
+        FLAGS_lc_ransac_pixel_sigma, FLAGS_lc_num_ransac_iters, ncamera,
+        &T_G_Inn_ransac, &inliers, &inlier_distances_to_model, &num_iters);
+  }
 
   if (!pnp_success) {
     // We could not retrieve a pose for the vertex observing matched landmarks.
@@ -254,10 +273,12 @@ bool LoopClosureHandler::handleLoopClosure(
     return false;
   }
 
-  Eigen::Matrix2Xd measurements;
+  Eigen::Matrix2Xd keypoint_measurements;
+  Eigen::Matrix3Xd keypoint_vectors;
   std::vector<int> measurement_camera_indices;
   Eigen::Matrix3Xd G_landmark_positions;
-  measurements.resize(Eigen::NoChange, total_matches);
+  keypoint_measurements.resize(Eigen::NoChange, total_matches);
+  keypoint_vectors.resize(Eigen::NoChange, total_matches);
   G_landmark_positions.resize(Eigen::NoChange, total_matches);
   measurement_camera_indices.resize(total_matches);
 
@@ -300,9 +321,16 @@ bool LoopClosureHandler::handleLoopClosure(
         col_idx,
         static_cast<int>(query_keypoint_idx_to_map_landmark_pairs.size()));
     CHECK(query_vertex_n_frame.isFrameSet(structure_match.frame_index_query));
-    measurements.col(col_idx) =
+    keypoint_measurements.col(col_idx) =
         query_vertex_n_frame.getFrame(structure_match.frame_index_query)
             .getKeypointMeasurement(structure_match.keypoint_index_query);
+    if (query_vertex_n_frame.getFrame(structure_match.frame_index_query)
+            .hasLidarKeypoint3DMeasurements()) {
+      keypoint_vectors.col(col_idx) =
+          query_vertex_n_frame.getFrame(structure_match.frame_index_query)
+              .getLidarKeypoint3DMeasurement(
+                  structure_match.keypoint_index_query);
+    }
     G_landmark_positions.col(col_idx) = getLandmark_p_G_fi(db_landmark_id);
     map_mutex->unlock();
 
@@ -344,7 +372,8 @@ bool LoopClosureHandler::handleLoopClosure(
     return false;
   }
 
-  measurements.conservativeResize(Eigen::NoChange, col_idx);
+  keypoint_measurements.conservativeResize(Eigen::NoChange, col_idx);
+  keypoint_vectors.conservativeResize(Eigen::NoChange, col_idx);
   G_landmark_positions.conservativeResize(Eigen::NoChange, col_idx);
   query_keypoint_idx_to_map_landmark_pairs.resize(col_idx);
   query_landmark_to_map_landmark_pairs.resize(col_idx);
@@ -358,10 +387,18 @@ bool LoopClosureHandler::handleLoopClosure(
 
   aslam::NCamera::ConstPtr ncamera = query_vertex_n_frame.getNCameraShared();
   CHECK(ncamera != nullptr);
-  pose_estimator.absoluteMultiPoseRansacPinholeCam(
-      measurements, measurement_camera_indices, G_landmark_positions,
-      FLAGS_lc_ransac_pixel_sigma, FLAGS_lc_num_ransac_iters, ncamera,
-      T_G_I_ransac, &inliers, &inlier_distances_to_model, &num_iters);
+  if (ncamera->getCamera(0).getType() == aslam::Camera::Type::kLidar3D) {
+    pose_estimator.absoluteMultiPoseRansac3DFeatures(
+        keypoint_vectors, measurement_camera_indices, G_landmark_positions,
+        FLAGS_lc_ransac_lidar_uncertainty, FLAGS_lc_num_ransac_iters, ncamera,
+        T_G_I_ransac, &inliers, &inlier_distances_to_model, &num_iters);
+  } else {
+    pose_estimator.absoluteMultiPoseRansacPinholeCam(
+        keypoint_measurements, measurement_camera_indices, G_landmark_positions,
+        FLAGS_lc_ransac_pixel_sigma, FLAGS_lc_num_ransac_iters, ncamera,
+        T_G_I_ransac, &inliers, &inlier_distances_to_model, &num_iters);
+    CHECK_EQ(inliers.size(), inlier_distances_to_model.size());
+  }
   CHECK_EQ(inliers.size(), inlier_distances_to_model.size());
 
   KeypointToInlierIndexWithReprojectionErrorMap
