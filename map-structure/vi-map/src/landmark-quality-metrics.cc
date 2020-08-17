@@ -57,18 +57,15 @@ bool isLandmarkWellConstrained(
   return isLandmarkWellConstrained(map, landmark, kReEvaluateQuality);
 }
 
-bool isLandmarkWellConstrained(
-    const vi_map::VIMap& map, const vi_map::Landmark& landmark,
-    bool re_evaluate_quality, double min_distance_to_lidar,
-    double position_uncertainty) {
+bool isLidarLandmarkWellConstrained(
+    double min_distance_to_lidar, double position_uncertainty) {
   LandmarkWellConstrainedSettings settings;
   if (position_uncertainty / min_distance_to_lidar >
           settings.max_position_uncertainty_lidar ||
       position_uncertainty > settings.max_position_deviation_lidar) {
     return false;
   }
-
-  return isLandmarkWellConstrained(map, landmark, re_evaluate_quality);
+  return true;
 }
 
 bool isLandmarkWellConstrained(

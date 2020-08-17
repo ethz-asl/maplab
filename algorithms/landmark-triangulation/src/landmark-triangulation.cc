@@ -254,11 +254,10 @@ void retriangulateLandmarksOfVertex(
           z_deviation * z_deviation);
 
       p_G_fi = lidar_landmark_measurements.rowwise().mean();
+      landmark.set_p_B(T_G_I_storing.inverse() * p_G_fi);
       constexpr bool kReEvaluateQuality = true;
-      //TODO mariusbr: make custom function for lidar here
-      if (vi_map::isLandmarkWellConstrained(
-              *map, landmark, kReEvaluateQuality, min_distance_to_lidar,
-              averaging_uncertainty)) {
+      if (vi_map::isLidarLandmarkWellConstrained(
+              min_distance_to_lidar, averaging_uncertainty)) {
         statistics::StatsCollector stats_good("Landmark good");
         stats_good.IncrementOne();
         landmark.setQuality(vi_map::Landmark::Quality::kGood);

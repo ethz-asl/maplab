@@ -52,10 +52,8 @@ bool isLandmarkWellConstrained(
     bool re_evaluate_quality);
 
 // Includes an additional check for 3D LiDAR data
-bool isLandmarkWellConstrained(
-    const vi_map::VIMap& map, const vi_map::Landmark& landmark,
-    bool re_evaluate_quality, double min_distance_to_lidar,
-    double position_uncertainty);
+bool isLidarLandmarkWellConstrained(
+    double min_distance_to_lidar, double position_uncertainty);
 
 }  // namespace vi_map
 #include "./landmark-quality-metrics-inl.h"
