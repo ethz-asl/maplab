@@ -479,13 +479,14 @@ int addVisualTermsForVertices(
               camera_parameterization, &vertex, problem);
           num_visual_constraints++;
         }
+        // TODO: mariusbr --> fix map building and solve this
         if (add_visual_constraint_for_vertex) {
-          addVisualTermForKeypoint(
-              keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
-              fix_extrinsics_rotation, fix_extrinsics_translation,
-              pose_parameterization, baseframe_parameterization,
-              camera_parameterization, &vertex, problem);
-          num_visual_constraints++;
+        //   addVisualTermForKeypoint(
+        //       keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
+        //       fix_extrinsics_rotation, fix_extrinsics_translation,
+        //       pose_parameterization, baseframe_parameterization,
+        //       camera_parameterization, &vertex, problem);
+        //   num_visual_constraints++;
         }
       }
     }
