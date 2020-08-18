@@ -14,10 +14,10 @@ def load_network(model_fn, iscuda):
         checkpoint = torch.load(model_fn)
     else:
         checkpoint = torch.load(model_fn, map_location=torch.device('cpu'))
-    print("\n>> Creating net = " + checkpoint['net']) 
+    # print("\n>> Creating net = " + checkpoint['net'])
     net = eval(checkpoint['net'])
     nb_of_weights = common.model_size(net)
-    print("Model size: %8.0f K parameters" % (nb_of_weights/1000.0))
+    # print("Model size: %8.0f K parameters" % (nb_of_weights/1000.0))
 
     # initialization
     weights = checkpoint['state_dict']
@@ -110,11 +110,9 @@ def extract_multiscale(net, img, detector, scale_f=2**0.25,
     return XYS, D, scores
 
 
-def extract_keypoints(img, args):
+def extract_keypoints(img, args, net):
     iscuda = common.torch_set_gpu(args.gpu)
 
-    # load the network...
-    net = load_network(args.model, iscuda)
     if iscuda: net = net.cuda()
 
     # create the non-maxima detector

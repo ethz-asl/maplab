@@ -32,10 +32,10 @@ def torch_set_gpu(gpus):
             os.environ['HOSTNAME'],os.environ['CUDA_VISIBLE_DEVICES'])
         torch.backends.cudnn.benchmark = True # speed-up cudnn
         torch.backends.cudnn.fastest = True # even more speed-up?
-        print( 'Launching on GPUs ' + os.environ['CUDA_VISIBLE_DEVICES'] )
+        # print( 'Launching on GPUs ' + os.environ['CUDA_VISIBLE_DEVICES'] )
 
-    else:
-        print( 'Launching on CPU' )
+    # else:
+        # print( 'Launching on CPU' )
 
     return cuda
 

@@ -18,7 +18,11 @@
 #include "dense-mapping/dense-mapping-gflags.h"
 
 #include <Python.h>
-#include <numpy/arrayobject.h>
+#include <pcl/registration/correspondence_estimation.h>
+#include <pcl/registration/correspondence_rejection_sample_consensus.h>
+#include <pcl/registration/transformation_estimation_svd.h>
+#include <maplab-common/progress-bar.h>
+//#include "numpy/arrayobject.h"
 
 namespace dense_mapping {
 

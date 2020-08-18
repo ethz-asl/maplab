@@ -78,7 +78,7 @@ class L2_Net (PatchNet):
     """ Compute a 128D descriptor for all overlapping 32x32 patches.
         From the L2Net paper (CVPR'17).
     """
-    def __init__(self, dim=64, **kw ):
+    def __init__(self, dim=33, **kw ):
         PatchNet.__init__(self, **kw)
         add_conv = lambda n,**kw: self._add_conv((n*dim)//128,**kw)
         add_conv(32)
@@ -94,7 +94,7 @@ class L2_Net (PatchNet):
 class Quad_L2Net (PatchNet):
     """ Same than L2_Net, but replace the final 8x8 conv by 3 successive 2x2 convs.
     """
-    def __init__(self, dim=64, mchan=4, relu22=False, **kw ):
+    def __init__(self, dim=33, mchan=4, relu22=False, **kw ):
         PatchNet.__init__(self, **kw)
         self._add_conv(  8*mchan)
         self._add_conv(  8*mchan)

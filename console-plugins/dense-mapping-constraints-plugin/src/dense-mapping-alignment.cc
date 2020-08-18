@@ -10,6 +10,11 @@
 
 #include "dense-mapping/dense-mapping-parallel-process.h"
 
+#include <iostream>
+#include <fstream>
+
+typedef pcl::FPFHSignature33 FeatureT;
+
 namespace dense_mapping {
 
     AlignmentConfig AlignmentConfig::fromGflags() {
@@ -89,63 +94,126 @@ namespace dense_mapping {
 
         // Initialize CPython
         PyObject *pFunc;
-        if (!Py_IsInitialized()) {
-            Py_Initialize();
-            _import_array();
-            PyRun_SimpleString("import sys");
-            PyRun_SimpleString(
-                    "sys.path.insert(0, \"/home/dominic/maplab_ws/src/maplab_experimental/maplab/console-plugins/dense-mapping-constraints-plugin/src/pFiles\")");
+        Py_Initialize();
+//            _import_array();
+        PyRun_SimpleString("import sys");
+        PyRun_SimpleString("sys.path.insert(0, \"/home/dominic/maplab_ws/src/maplab_experimental/maplab/console-plugins/dense-mapping-constraints-plugin/src/pFiles\")");
 
-            PyObject *pName = PyUnicode_FromString("test");
-            PyObject *pModule = PyImport_Import(pName);
-            Py_DECREF(pName);
-            if (pModule) {
-                pFunc = PyObject_GetAttrString(pModule, "test");
-                Py_DECREF(pModule);
-                if (pFunc && PyCallable_Check(pFunc)) {
-                    LOG(INFO) << "Successfully initialized CPython";
-                }
+        PyObject *pName = PyUnicode_FromString("test");
+        PyObject *pModule = PyImport_Import(pName);
+        if (pModule) {
+            pFunc = PyObject_GetAttrString(pModule, "test");
+            if (pFunc && PyCallable_Check(pFunc)) {
+                LOG(INFO) << "Successfully initialized CPython";
             }
         }
 
+        // Fill list of tuples with all candidate pair timestamps
+        LOG(INFO) << num_pairs;
+        common::ProgressBar pB(num_pairs);
+
+        std::ofstream myfile;
+        myfile.open ("example.txt");
 
         auto it = candidate_pairs.cbegin();
-        const AlignmentCandidatePair &pair = *it;
+        for(size_t idx = 0; idx < num_pairs; ++idx, ++it) {
+            AlignmentCandidatePair pair = *it;
+//            myfile << pair.candidate_A.timestamp_ns << ", " << pair.candidate_B.timestamp_ns << std::endl;
+            PyObject *pTuple;
+            pTuple = PyTuple_New(2);
+            PyTuple_SetItem(pTuple, 0, PyLong_FromLong(pair.candidate_A.timestamp_ns));
+            PyTuple_SetItem(pTuple, 1, PyLong_FromLong(pair.candidate_B.timestamp_ns));
+            PyObject *pArgs = PyTuple_New(2);
+            PyTuple_SetItem(pArgs, 0, pTuple);
+            PyTuple_SetItem(pArgs, 1, PyBool_FromLong(0));
+            PyObject *pDict = PyObject_CallObject(pFunc, pArgs);
 
-        LOG(INFO) << "number of pairs: " << num_pairs << ", timestamp pair A: " << pair.candidate_A.timestamp_ns
-                  << pair.candidate_A.timestamp_ns;
+            // set keypoints and features
+            pcl::PointCloud<FeatureT>::Ptr descAPtr(new pcl::PointCloud<FeatureT>);
+            pcl::PointCloud<FeatureT>::Ptr descBPtr(new pcl::PointCloud<FeatureT>);
 
-        PyObject *pItem, *pDict, *pArgs, *pList;
-        pDict = PyDict_New();
-        int len = 1024;
-        pList = PyList_New(len);
-        for (int i = 0; i < len; ++i) {
-            pItem = PyLong_FromLong(i);
-            PyList_SetItem(pList, i, pItem);
+            pcl::PointCloud<pcl::PointXYZ>::Ptr keyptAPtr(new pcl::PointCloud<pcl::PointXYZ>);
+            pcl::PointCloud<pcl::PointXYZ>::Ptr keyptBPtr(new pcl::PointCloud<pcl::PointXYZ>);
+
+
+            const size_t lenA = PyLong_AsLong(PyDict_GetItem(pDict, PyUnicode_FromString("num_points_A")));
+            const size_t lenB = PyLong_AsLong(PyDict_GetItem(pDict, PyUnicode_FromString("num_points_B")));
+
+            descAPtr->width = lenA;
+            descAPtr->height = 1;
+            descAPtr->points.resize(descAPtr->width * descAPtr->height);
+
+            keyptAPtr->width = lenA;
+            keyptAPtr->height = 1;
+            keyptAPtr->points.resize(keyptAPtr->width * keyptAPtr->height);
+
+            // Fill pcl datastructures with entries from python list
+            PyObject *pDescA = PyDict_GetItem(pDict, PyUnicode_FromString("descriptors_A"));
+            PyObject *pKeyPtA = PyDict_GetItem(pDict, PyUnicode_FromString("keypoints_A"));
+            PyObject *pDescB = PyDict_GetItem(pDict, PyUnicode_FromString("descriptors_B"));
+            PyObject *pKeyPtB = PyDict_GetItem(pDict, PyUnicode_FromString("keypoints_B"));
+            for (size_t i = 0; i < lenA; ++i) {
+                for (size_t j = 0; j < 33; ++j) {
+                    descAPtr->points[i].histogram[j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pDescA, i), j));;
+                }
+                keyptAPtr->points[i].x = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtA, i), 0));;
+                keyptAPtr->points[i].y = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtA, i), 1));;
+                keyptAPtr->points[i].z = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtA, i), 2));;
+
+            }
+
+            descBPtr->width = lenB;
+            descBPtr->height = 1;
+            descBPtr->points.resize(descBPtr->width * descBPtr->height);
+
+            keyptBPtr->width = lenB;
+            keyptBPtr->height = 1;
+            keyptBPtr->points.resize(keyptBPtr->width * keyptBPtr->height);
+
+            for (size_t i = 0; i < lenB; ++i) {
+                for (size_t j = 0; j < 33; ++j) {
+                    descBPtr->points[i].histogram[j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pDescB, i), j));
+                }
+                keyptBPtr->points[i].x = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtB, i), 0));
+                keyptBPtr->points[i].y = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtB, i), 1));
+                keyptBPtr->points[i].z = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtB, i), 2));
+            }
+            Py_CLEAR(pArgs);
+            Py_CLEAR(pDict);
+            Py_CLEAR(pKeyPtA);
+            Py_CLEAR(pKeyPtB);
+            Py_CLEAR(pDescA);
+            Py_CLEAR(pDescB);
+
+            // get correspondence estimate based on descriptors
+            pcl::CorrespondencesPtr correspondencesPtr(new pcl::Correspondences);
+            pcl::registration::CorrespondenceEstimation<FeatureT , FeatureT> cest;
+            cest.setInputSource(descAPtr);
+            cest.setInputTarget(descBPtr);
+            cest.determineCorrespondences(*correspondencesPtr);
+
+            pcl::CorrespondencesPtr corr_filteredPtr(new pcl::Correspondences);
+            pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> rejector;
+            rejector.setInputSource(keyptAPtr);
+            rejector.setInputTarget(keyptBPtr);
+            rejector.setInlierThreshold (0.75);
+            rejector.setMaximumIterations (1000000);
+            rejector.setRefineModel (false);
+            rejector.setInputCorrespondences(correspondencesPtr);
+            rejector.getCorrespondences (*corr_filteredPtr);
+            pcl::registration::TransformationEstimationSVD<pcl::PointXYZ, pcl::PointXYZ> trans_est;
+            Eigen::Matrix4f transform;
+            trans_est.estimateRigidTransformation (*keyptAPtr, *keyptBPtr, *corr_filteredPtr, transform);
+
+            Eigen::Matrix4d tf = transform.cast<double>();
+//            LOG(WARNING) << tf;
+            aslam::Transformation T_SB_SA(pair.T_SB_SA_init.constructAndRenormalizeRotation(tf));
+//            LOG(ERROR) << pair.T_SB_SA_init;
+            pair.T_SB_SA_init = T_SB_SA;
+//            LOG(WARNING) << pair.T_SB_SA_init;
+            pB.increment();
         }
-        PyDict_SetItem(pDict, PyUnicode_FromString("list"), pList);
-        pArgs = PyTuple_New(1);
-        PyTuple_SetItem(pArgs, 0, pDict);
-        Py_DECREF(pDict);
-        pDict = PyObject_CallObject(pFunc, pArgs);
-
-        if PyDict_CheckExact(pDict)
-        {
-            LOG(INFO) << "dict returned";
-            PyObject *pObj = PyDict_GetItem(pDict, PyUnicode_FromString("keypointsA"));
-            auto len
-            PyArray_DIM(pObj, 0);
-            LOG(INFO) << PyArray_NDIM(pObj) << " " << len;
-            Py_DECREF(pObj);
-
-        } else {
-            LOG(ERROR) << "no dict returned";
-        }
-
-        Py_DECREF(pArgs);
-        Py_DECREF(pList);
-        Py_DECREF(pDict);
-        Py_DECREF(pFunc);
+        myfile.close();
         Py_Finalize();
 
         // Parallelization settings.
