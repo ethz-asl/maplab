@@ -2,7 +2,11 @@ cmake_minimum_required (VERSION 2.8)
 project(dense_mapping_constraints_plugin)
 
 find_package(catkin_simple REQUIRED)
+find_package(Open3D REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
+
+include_directories(${Open3D_INCLUDE_DIRS})
+link_directories(${Open3D_LIBRARY_DIRS})
 
 add_definitions(-fPIC -shared)
 
@@ -17,6 +21,8 @@ cs_add_library(${PROJECT_NAME}
                                src/dense-mapping.cc
 )
 create_console_plugin(${PROJECT_NAME})
+
+target_link_libraries(${PROJECT_NAME} ${Open3D_LIBRARIES})
 
 #############
 ## TESTING ##

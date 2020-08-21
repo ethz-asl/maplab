@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <open3d/Open3D.h>
 
 typedef pcl::FPFHSignature33 FeatureT;
 
@@ -112,8 +113,8 @@ namespace dense_mapping {
         LOG(INFO) << num_pairs;
         common::ProgressBar pB(num_pairs);
 
-        std::ofstream myfile;
-        myfile.open ("example.txt");
+//        std::ofstream myfile;
+//        myfile.open ("example.txt");
 
         auto it = candidate_pairs.cbegin();
         for(size_t idx = 0; idx < num_pairs; ++idx, ++it) {
@@ -128,56 +129,47 @@ namespace dense_mapping {
             PyTuple_SetItem(pArgs, 1, PyBool_FromLong(0));
             PyObject *pDict = PyObject_CallObject(pFunc, pArgs);
 
-            // set keypoints and features
-            pcl::PointCloud<FeatureT>::Ptr descAPtr(new pcl::PointCloud<FeatureT>);
-            pcl::PointCloud<FeatureT>::Ptr descBPtr(new pcl::PointCloud<FeatureT>);
-
-            pcl::PointCloud<pcl::PointXYZ>::Ptr keyptAPtr(new pcl::PointCloud<pcl::PointXYZ>);
-            pcl::PointCloud<pcl::PointXYZ>::Ptr keyptBPtr(new pcl::PointCloud<pcl::PointXYZ>);
-
-
+            // set keypoints and descriptors
             const size_t lenA = PyLong_AsLong(PyDict_GetItem(pDict, PyUnicode_FromString("num_points_A")));
             const size_t lenB = PyLong_AsLong(PyDict_GetItem(pDict, PyUnicode_FromString("num_points_B")));
 
-            descAPtr->width = lenA;
-            descAPtr->height = 1;
-            descAPtr->points.resize(descAPtr->width * descAPtr->height);
+            Eigen::MatrixXd desc_source(33, lenA);
+            Eigen::MatrixXd desc_target(33, lenB);
 
-            keyptAPtr->width = lenA;
-            keyptAPtr->height = 1;
-            keyptAPtr->points.resize(keyptAPtr->width * keyptAPtr->height);
+            std::vector<Eigen::Vector3d> kpts_source;
+            std::vector<Eigen::Vector3d> kpts_target;
 
-            // Fill pcl datastructures with entries from python list
+            std::vector<Eigen::Vector3d> pc_source;
+            std::vector<Eigen::Vector3d> pc_target;
+
+            // get r2d2 key points and descriptors from python lists
             PyObject *pDescA = PyDict_GetItem(pDict, PyUnicode_FromString("descriptors_A"));
             PyObject *pKeyPtA = PyDict_GetItem(pDict, PyUnicode_FromString("keypoints_A"));
             PyObject *pDescB = PyDict_GetItem(pDict, PyUnicode_FromString("descriptors_B"));
             PyObject *pKeyPtB = PyDict_GetItem(pDict, PyUnicode_FromString("keypoints_B"));
+            // point cloud A
             for (size_t i = 0; i < lenA; ++i) {
                 for (size_t j = 0; j < 33; ++j) {
-                    descAPtr->points[i].histogram[j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pDescA, i), j));;
+                    desc_source(j, i) = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pDescA, i), j));;
                 }
-                keyptAPtr->points[i].x = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtA, i), 0));;
-                keyptAPtr->points[i].y = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtA, i), 1));;
-                keyptAPtr->points[i].z = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtA, i), 2));;
-
+                double x = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtA, i), 0));
+                double y = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtA, i), 1));
+                double z = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtA, i), 2));
+                Eigen::Vector3d point(x, y, z);
+                kpts_source.push_back(point);
             }
-
-            descBPtr->width = lenB;
-            descBPtr->height = 1;
-            descBPtr->points.resize(descBPtr->width * descBPtr->height);
-
-            keyptBPtr->width = lenB;
-            keyptBPtr->height = 1;
-            keyptBPtr->points.resize(keyptBPtr->width * keyptBPtr->height);
-
+            // point cloud B
             for (size_t i = 0; i < lenB; ++i) {
                 for (size_t j = 0; j < 33; ++j) {
-                    descBPtr->points[i].histogram[j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pDescB, i), j));
+                    desc_target(j, i) = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pDescB, i), j));
                 }
-                keyptBPtr->points[i].x = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtB, i), 0));
-                keyptBPtr->points[i].y = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtB, i), 1));
-                keyptBPtr->points[i].z = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtB, i), 2));
+                double x = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtB, i), 0));
+                double y = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtB, i), 1));
+                double z = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(pKeyPtB, i), 2));
+                Eigen::Vector3d point(x, y, z);
+                kpts_target.push_back(point);
             }
+            // free allocated memory for python objects
             Py_CLEAR(pArgs);
             Py_CLEAR(pDict);
             Py_CLEAR(pKeyPtA);
@@ -185,35 +177,51 @@ namespace dense_mapping {
             Py_CLEAR(pDescA);
             Py_CLEAR(pDescB);
 
-            // get correspondence estimate based on descriptors
-            pcl::CorrespondencesPtr correspondencesPtr(new pcl::Correspondences);
-            pcl::registration::CorrespondenceEstimation<FeatureT , FeatureT> cest;
-            cest.setInputSource(descAPtr);
-            cest.setInputTarget(descBPtr);
-            cest.determineCorrespondences(*correspondencesPtr);
+            auto *desc_source_ptr(new open3d::pipelines::registration::Feature);
+            desc_source_ptr->Resize(33, lenA);
+            desc_source_ptr->data_ = desc_source;
+            auto *desc_target_ptr(new open3d::pipelines::registration::Feature);
+            desc_target_ptr->Resize(33, lenB);
+            desc_target_ptr->data_ = desc_target;
 
-            pcl::CorrespondencesPtr corr_filteredPtr(new pcl::Correspondences);
-            pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> rejector;
-            rejector.setInputSource(keyptAPtr);
-            rejector.setInputTarget(keyptBPtr);
-            rejector.setInlierThreshold (0.75);
-            rejector.setMaximumIterations (1000000);
-            rejector.setRefineModel (false);
-            rejector.setInputCorrespondences(correspondencesPtr);
-            rejector.getCorrespondences (*corr_filteredPtr);
-            pcl::registration::TransformationEstimationSVD<pcl::PointXYZ, pcl::PointXYZ> trans_est;
-            Eigen::Matrix4f transform;
-            trans_est.estimateRigidTransformation (*keyptAPtr, *keyptBPtr, *corr_filteredPtr, transform);
+            auto *kpts_source_ptr(new open3d::geometry::PointCloud(kpts_source));
+            auto *kpts_target_ptr(new open3d::geometry::PointCloud(kpts_target));
 
-            Eigen::Matrix4d tf = transform.cast<double>();
-//            LOG(WARNING) << tf;
+            auto *pc_source_ptr(new open3d::geometry::PointCloud(pc_source));
+            auto *pc_target_ptr(new open3d::geometry::PointCloud(pc_target));
+
+
+            // get rigid transformation based on matches
+            const double max_correspondence_distance = 0.5;
+            const open3d::pipelines::registration::TransformationEstimation &estimation = open3d::pipelines::registration::TransformationEstimationPointToPoint(
+                    false);
+            int ransac_n = 4;
+            const open3d::pipelines::registration::CorrespondenceCheckerBasedOnDistance &dist_checker(
+                    max_correspondence_distance);
+            const open3d::pipelines::registration::CorrespondenceCheckerBasedOnEdgeLength &edge_length_checker(0.7);
+            const std::vector<std::reference_wrapper<const open3d::pipelines::registration::CorrespondenceChecker>> &checkers{
+                    dist_checker, edge_length_checker};
+            const open3d::pipelines::registration::RANSACConvergenceCriteria &criteria = open3d::pipelines::registration::RANSACConvergenceCriteria(
+                    800000, 1000);
+            open3d::pipelines::registration::RegistrationResult registration_result;
+            registration_result = open3d::pipelines::registration::RegistrationRANSACBasedOnFeatureMatching(*kpts_source_ptr,
+                                                                                                            *kpts_target_ptr,
+                                                                                                            *desc_source_ptr,
+                                                                                                            *desc_target_ptr,
+                                                                                                            max_correspondence_distance,
+                                                                                                            estimation,
+                                                                                                            ransac_n,
+                                                                                                            checkers,
+                                                                                                            criteria);
+            std::cout << registration_result.transformation_ << std::endl;
+            std::cout << registration_result.fitness_;
+
+            Eigen::Matrix4d tf = registration_result.transformation_;
             aslam::Transformation T_SB_SA(pair.T_SB_SA_init.constructAndRenormalizeRotation(tf));
-//            LOG(ERROR) << pair.T_SB_SA_init;
             pair.T_SB_SA_init = T_SB_SA;
-//            LOG(WARNING) << pair.T_SB_SA_init;
             pB.increment();
         }
-        myfile.close();
+//        myfile.close();
         Py_Finalize();
 
         // Parallelization settings.
