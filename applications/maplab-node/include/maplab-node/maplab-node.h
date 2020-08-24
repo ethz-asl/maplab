@@ -57,6 +57,7 @@ class MaplabNode final {
  private:
   // Map constraints.
   void initializeVisualMapping();
+  void initializeExternalFeatures();
   void initializeLidarMapping();
   void initializeOdometrySource();
   void initializeInertialMapping();

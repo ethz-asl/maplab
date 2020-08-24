@@ -111,13 +111,13 @@ void DataSourceRostopic::registerSubscribers(
       ros_topics.odometry_6dof_topic;
   if (!topic_sensorid.first.empty()) {
     CHECK(topic_sensorid.second.isValid());
-    constexpr size_t kRosSubscriberQueueSizeWheelOdometry = 1000u;
+    constexpr size_t kRosSubscriberQueueSizeOdometry = 1000u;
     boost::function<void(const maplab_msgs::OdometryWithImuBiasesConstPtr&)>
         odometry_callback = boost::bind(
             &DataSourceRostopic::odometryEstimateCallback, this, _1,
             topic_sensorid.second);
     sub_odom_ = node_handle_.subscribe(
-        topic_sensorid.first, kRosSubscriberQueueSizeWheelOdometry,
+        topic_sensorid.first, kRosSubscriberQueueSizeOdometry,
         odometry_callback);
 
     VLOG(1) << "[MaplabNode-DataSource] External odometry sensor with id "
@@ -160,6 +160,25 @@ void DataSourceRostopic::registerSubscribers(
         wheel_odometry_callback);
 
     VLOG(1) << "[MaplabNode-DataSource] External wheel odometry "
+            << "sensor with id " << topic_sensorid.second
+            << " is subscribed to topic: '" << topic_sensorid.first << "'";
+  }
+
+  // External features subscribers.
+  for (const std::pair<const std::string, aslam::SensorId>& topic_sensorid :
+       ros_topics.external_features_topic_map) {
+    constexpr size_t kRosSubscriberQueueSizeExternalFeatures = 1000u;
+
+    boost::function<void(const maplab_msgs::FeaturesConstPtr&)>
+        external_features_callback = boost::bind(
+            &DataSourceRostopic::externalFeaturesCallback, this, _1,
+            topic_sensorid.second);
+
+    sub_external_features_.emplace_back(node_handle_.subscribe(
+        topic_sensorid.first, kRosSubscriberQueueSizeExternalFeatures,
+        external_features_callback));
+
+    VLOG(1) << "[MaplabNode-DataSource] External features "
             << "sensor with id " << topic_sensorid.second
             << " is subscribed to topic: '" << topic_sensorid.first << "'";
   }
@@ -473,6 +492,19 @@ void DataSourceRostopic::wheelOdometryConstraintCallback(
   }
 
   invokeWheelOdometryConstraintCallbacks(wheel_odometry_measurement);
+}
+
+void DataSourceRostopic::externalFeaturesCallback(
+    const maplab_msgs::FeaturesConstPtr& msg,
+    const aslam::SensorId& sensor_id) {
+  CHECK(msg);
+  if (shutdown_requested_) {
+    return;
+  }
+
+  vi_map::ExternalFeaturesMeasurement::Ptr external_features_measurement;
+
+  invokeExternalFeaturesCallbacks(external_features_measurement);
 }
 
 }  // namespace maplab

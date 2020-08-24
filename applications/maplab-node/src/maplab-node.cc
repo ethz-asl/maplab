@@ -122,6 +122,7 @@ MaplabNode::MaplabNode(
   initializeInertialMapping();
   initializeLidarMapping();
   initializeVisualMapping();
+  initializeExternalFeatures();
   initializeAbsolute6DoFSource();
   initializeWheelOdometrySource();
   initializeLoopClosureSource();
@@ -184,6 +185,48 @@ void MaplabNode::initializeVisualMapping() {
     LOG(INFO) << "[MaplabNode] Visual-inertial mapping is ENABLED!";
   } else {
     LOG(WARNING) << "[MaplabNode] Visual-inertial mapping is DISABLED!";
+  }
+}
+
+void MaplabNode::initializeExternalFeatures() {
+  CHECK(sensor_manager_);
+  CHECK(synchronizer_flow_)
+      << "[MaplabNode] Initialize the Synchronizer first!";
+
+  aslam::SensorIdSet all_external_feature_sensor_ids;
+  sensor_manager_->getAllSensorIdsOfType(
+      vi_map::SensorType::kExternalFeatures, &all_external_feature_sensor_ids);
+
+  if (all_external_feature_sensor_ids.size() > 0) {
+    aslam::NCamera::Ptr mapping_ncamera =
+        vi_map::getSelectedNCamera(*sensor_manager_);
+    CHECK(mapping_ncamera) << "[MaplabNode] External features require a "
+                              "NCamera to add the features to";
+
+    for (const aslam::SensorId sensor_id : all_external_feature_sensor_ids) {
+      vi_map::ExternalFeatures::Ptr external_features_sensor =
+          sensor_manager_->getSensorPtr<vi_map::ExternalFeatures>(sensor_id);
+
+      bool camera_exists = false;
+      for (size_t i = 0; i < mapping_ncamera->getNumCameras(); i++) {
+        if (mapping_ncamera->getCamera(i).getId() ==
+            external_features_sensor->getTargetSensorId()) {
+          camera_exists = true;
+        }
+      }
+
+      CHECK(camera_exists)
+          << "[MaplabNode] External features enabled, but target sensor "
+          << external_features_sensor->getTargetSensorId() << " not found.";
+
+      LOG(INFO) << "[MaplabNode] External features ENABLED for sensor "
+                << external_features_sensor->getTargetSensorId();
+    }
+    // synchronizer_flow_->initializeVisualData(mapping_ncamera);
+    // tracker_flow_.reset(new FeatureTrackingFlow(
+    //    mapping_ncamera, synchronizer_flow_->T_M_B_buffer()));
+    // tracker_flow_->attachToMessageFlow(message_flow_);
+    // LOG(INFO) << "[MaplabNode] Visual-inertial mapping is ENABLED!";
   }
 }
 

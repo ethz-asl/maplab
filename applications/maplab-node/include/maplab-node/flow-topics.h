@@ -63,6 +63,11 @@ MESSAGE_FLOW_TOPIC(
 MESSAGE_FLOW_TOPIC(
     SYNCED_POINTCLOUD_MAP, vi_map::RosPointCloudMapSensorMeasurement::ConstPtr);
 
+// External features input. Used to attach externally detected features to
+// an existing camera inside an ncamera.
+MESSAGE_FLOW_TOPIC(
+    EXTERNAL_FEATURES, vi_map::ExternalFeaturesMeasurement::ConstPtr);
+
 // Output of the localizer.
 MESSAGE_FLOW_TOPIC(LOCALIZATION_RESULT, common::LocalizationResult::ConstPtr);
 
