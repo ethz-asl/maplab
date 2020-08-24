@@ -9,6 +9,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 #############
 cs_add_library(${PROJECT_NAME} ${PROTO_SRCS} ${PROTO_HDRS}
   src/absolute-6dof-pose.cc
+  src/external-features.cc
   src/gps-utm.cc
   src/gps-wgs.cc
   src/imu.cc

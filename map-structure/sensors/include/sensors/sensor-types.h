@@ -23,6 +23,7 @@ enum SensorType : uint8_t {
   kAbsolute6DoF,
   kWheelOdometry,
   kPointCloudMapSensor,
+  kExternalFeatures,
   kInvalid  // this must be the last one
 };
 
@@ -37,6 +38,7 @@ constexpr const char* kLoopClosureSensorIdentifier = "LOOP_CLOSURE";
 constexpr const char* kAbsolute6DoFIdentifier = "ABSOLUTE_6DOF";
 constexpr const char* kWheelOdometryIdentifier = "WHEEL_ODOMETRY";
 constexpr const char* kPointCloudMapSensorIdentifier = "POINTCLOUD_MAP";
+constexpr const char* kExternalFeaturesIdentifier = "EXTERNAL_FEATURES";
 
 // Check if an integer is a valid sensor type. Function argument is an int to
 // avoid having to cast to SensorType before passing the argument, since for
@@ -74,6 +76,8 @@ inline SensorType convertStringToSensorType(const std::string& sensor_string) {
     return SensorType::kWheelOdometry;
   } else if (equals(sensor_c_string, kPointCloudMapSensorIdentifier)) {
     return SensorType::kPointCloudMapSensor;
+  } else if (equals(sensor_c_string, kExternalFeaturesIdentifier)) {
+    return SensorType::kExternalFeatures;
   } else {
     LOG(ERROR) << "Unable to parse sensor type string: '" << sensor_string
                << "' to a sensor type!";
