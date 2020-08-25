@@ -62,7 +62,9 @@ int LandmarkManipulationPlugin::retriangulateLandmarks() {
   } else {
     map->getAllMissionIds(&mission_ids);
   }
-
+  // TODO mariusbr -> Nothing happens when there are no lidar landmarks but it
+  // might be not very efficient
+  landmark_triangulation::retriangulateLidarLandmarks(mission_ids, map.get());
   landmark_triangulation::retriangulateLandmarks(mission_ids, map.get());
   return common::kSuccess;
 }
