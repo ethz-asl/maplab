@@ -11,6 +11,7 @@ SET(VI_MAP_SOURCE src/check-map-consistency.cc
                   src/cklam-edge.cc
                   src/edge.cc
                   src/landmark-quality-metrics.cc
+                  src/lidar-landmark-quality-metrics.cc
                   src/landmark-store.cc
                   src/landmark.cc
                   src/laser-edge.cc

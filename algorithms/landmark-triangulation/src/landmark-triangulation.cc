@@ -9,6 +9,7 @@
 #include <maplab-common/multi-threaded-progress-bar.h>
 #include <maplab-common/parallel-process.h>
 #include <vi-map/landmark-quality-metrics.h>
+#include <vi-map/lidar-landmark-quality-metrics.h>
 #include <vi-map/vi-map.h>
 
 #include "landmark-triangulation/pose-interpolator.h"
