@@ -1,5 +1,5 @@
-#ifndef VI_MAP_LANDMARK_QUALITY_METRICS_INL_H_
-#define VI_MAP_LANDMARK_QUALITY_METRICS_INL_H_
+#ifndef VI_MAP_LIDAR_LANDMARK_QUALITY_METRICS_INL_H_
+#define VI_MAP_LIDAR_LANDMARK_QUALITY_METRICS_INL_H_
 
 #include <algorithm>
 #include <vector>
@@ -11,21 +11,21 @@
 
 namespace vi_map {
 
-inline bool isLandmarkWellConstrained(
+inline bool isLidarLandmarkWellConstrained(
     const Aligned<std::vector, Eigen::Vector3d>& G_normalized_incidence_rays,
-    double signed_distance_to_closest_observer,
-    const LandmarkWellConstrainedSettings& settings) {
+    double distance_to_closest_observer,
+    const LidarLandmarkWellConstrainedSettings& settings) {
   const size_t num_observations = G_normalized_incidence_rays.size();
-  if (num_observations < settings.min_observers) {
+  if (num_observations < settings.min_observers_lidar) {
     return false;
   }
 
-  if (signed_distance_to_closest_observer >
-          settings.max_distance_to_closest_observer ||
-      signed_distance_to_closest_observer <
-          settings.min_distance_to_closest_observer) {
+  if (distance_to_closest_observer >
+          settings.max_distance_to_closest_observer_lidar ||
+      distance_to_closest_observer <
+          settings.min_distance_to_closest_observer_lidar) {
     statistics::StatsCollector stats("Landmark too close or too far away.");
-    stats.AddSample(signed_distance_to_closest_observer);
+    stats.AddSample(distance_to_closest_observer);
     return false;
   }
 
@@ -35,7 +35,7 @@ inline bool isLandmarkWellConstrained(
 
   constexpr double kRadToDeg = 180.0 / M_PI;
   double angle_deg = max_disparity_angle_rad * kRadToDeg;
-  bool quality_good = angle_deg >= settings.min_observation_angle_deg;
+  bool quality_good = angle_deg >= settings.min_observation_angle_deg_lidar;
   if (!quality_good) {
     statistics::StatsCollector stats(
         "Landmark observations angles too close together.");
@@ -43,7 +43,6 @@ inline bool isLandmarkWellConstrained(
   }
   return quality_good;
 }
-
 }  // namespace vi_map
 
-#endif  // VI_MAP_LANDMARK_QUALITY_METRICS_INL_H_
+#endif  // VI_MAP_LIDAR_LANDMARK_QUALITY_METRICS_INL_H_
