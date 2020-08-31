@@ -169,17 +169,7 @@ void ApplyLidarKeypointFeaturesToVisualNFrame(
     aslam::VisualFrame& frame = *CHECK_NOTNULL(nframe->getFrameShared(i).get());
     CHECK_EQ(keypoint_features[i].frame_idx, i);
 
-    // TODO: mariusbr -> fix map building and then remove this
-    frame.setKeypointMeasurements(keypoint_features[i].keypoint_measurements);
-    frame.setKeypointMeasurementUncertainties(
-        keypoint_features[i].keypoint_measurement_uncertainties);
-    frame.setKeypointScales(keypoint_features[i].keypoint_scales);
-    frame.setKeypointOrientations(
-        keypoint_features[i].keypoint_orientations_rad);
-    frame.setKeypointScores(keypoint_features[i].keypoint_scores);
-    frame.setTrackIds(keypoint_features[i].keypoint_track_ids);
-    frame.setDescriptors(keypoint_features[i].keypoint_descriptors);
-
+    frame.setLidarTrackIds(keypoint_features[i].keypoint_track_ids);
     frame.setLidarKeypoint2DMeasurements(
         keypoint_features[i].keypoint_measurements);
     frame.setLidarDescriptors(keypoint_features[i].keypoint_descriptors);

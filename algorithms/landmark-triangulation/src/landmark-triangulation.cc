@@ -1,13 +1,12 @@
 #include "landmark-triangulation/landmark-triangulation.h"
 
-#include <functional>
-#include <string>
-#include <unordered_map>
-
 #include <aslam/common/statistics/statistics.h>
 #include <aslam/triangulation/triangulation.h>
+#include <functional>
 #include <maplab-common/multi-threaded-progress-bar.h>
 #include <maplab-common/parallel-process.h>
+#include <string>
+#include <unordered_map>
 #include <vi-map/landmark-quality-metrics.h>
 #include <vi-map/lidar-landmark-quality-metrics.h>
 #include <vi-map/vi-map.h>
@@ -168,6 +167,11 @@ void retriangulateLandmarksOfVertex(
           const_cast<const vi_map::VIMap*>(map)->getVertex(observer_id);
       const aslam::VisualFrame& visual_frame =
           observer.getVisualFrame(observation.frame_id.frame_index);
+
+      if (!visual_frame.hasKeypointMeasurements()) {
+        continue;
+      }
+
       const aslam::Transformation& T_G_M_observer =
           const_cast<const vi_map::VIMap*>(map)
               ->getMissionBaseFrameForVertex(observer_id)
@@ -347,6 +351,11 @@ void retriangulateLidarLandmarksOfVertex(
           const_cast<const vi_map::VIMap*>(map)->getVertex(observer_id);
       const aslam::VisualFrame& visual_frame =
           observer.getVisualFrame(observation.frame_id.frame_index);
+
+      if (!visual_frame.hasLidarKeypoint3DMeasurements()) {
+        continue;
+      }
+
       const aslam::Transformation& T_G_M_observer =
           const_cast<const vi_map::VIMap*>(map)
               ->getMissionBaseFrameForVertex(observer_id)
@@ -365,32 +374,32 @@ void retriangulateLidarLandmarksOfVertex(
       }
 
       // Retriangulation when there is 3D LiDAR data available
-      Eigen::Vector3d G_lm_measurement;
-      if (visual_frame.hasLidarKeypoint3DMeasurements()) {
-        lm_measurement = visual_frame.getLidarKeypoint3DMeasurement(
-            observation.keypoint_index);
+      Eigen::Vector3d lm_measurement =
+          visual_frame.getLidarKeypoint3DMeasurement(
+              observation.keypoint_index);
 
-        const aslam::CameraId& cam_id =
-            observer.getCamera(observation.frame_id.frame_index)->getId();
-        aslam::Transformation T_G_C =
-            (T_G_I_observer *
-             observer.getNCameras()->get_T_C_B(cam_id).inverse());
+      const aslam::CameraId& cam_id =
+          observer.getCamera(observation.frame_id.frame_index)->getId();
+      aslam::Transformation T_G_C =
+          (T_G_I_observer *
+           observer.getNCameras()->get_T_C_B(cam_id).inverse());
 
-        Eigen::Vector3d G_lm_measurement =
-            T_G_C.getRotationMatrix() * lm_measurement;
-        Eigen::Vector3d lm_position = T_G_C.getPosition() + G_lm_measurement;
+      Eigen::Vector3d G_lm_measurement =
+          T_G_C.getRotationMatrix() * lm_measurement;
+      Eigen::Vector3d lm_position = T_G_C.getPosition() + G_lm_measurement;
 
-        lm_positions.col(num_measurements) = lm_position;
-        if (G_lm_measurement.norm() < min_distance_to_lidar) {
-          min_distance_to_lidar = G_lm_measurement.norm();
-        }
-        ++num_measurements;
-        continue;
+      lm_positions.col(num_measurements) = lm_position;
+      if (G_lm_measurement.norm() < min_distance_to_lidar) {
+        min_distance_to_lidar = G_lm_measurement.norm();
       }
+      ++num_measurements;
     }
     lm_positions.conservativeResize(Eigen::NoChange, num_measurements);
     p_G_C_vector.conservativeResize(Eigen::NoChange, num_measurements);
 
+    if (num_measurements == 0) {
+      continue;
+    }
     Eigen::Vector3d p_G_fi;
     if (min_distance_to_lidar < std::numeric_limits<double>::max()) {
       double x_deviation =
@@ -432,7 +441,8 @@ void retriangulateLidarLandmarksOfMission(
       mission_id, starting_vertex_id, &relevant_vertex_ids);
 
   const size_t num_vertices = relevant_vertex_ids.size();
-  VLOG(1) << "Retriangulating landmarks of " << num_vertices << " vertices.";
+  VLOG(1) << "Retriangulating Lidar landmarks of " << num_vertices
+          << " vertices.";
 
   common::MultiThreadedProgressBar progress_bar;
   std::function<void(const std::vector<size_t>&)> retriangulator =

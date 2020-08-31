@@ -1,7 +1,6 @@
 #include "maplab-node/map-builder-flow.h"
 
 #include <functional>
-
 #include <landmark-triangulation/landmark-triangulation.h>
 #include <localization-summary-map/localization-summary-map-creation.h>
 #include <localization-summary-map/localization-summary-map.h>
@@ -287,10 +286,15 @@ bool MapBuilderFlow::saveMapAndOptionallyOptimize(
           id_of_first_mission);
       landmark_triangulation::retriangulateLandmarksOfMission(
           id_of_first_mission, &map_with_mutex_->vi_map);
+      landmark_triangulation::retriangulateLidarLandmarksOfMission(
+          id_of_first_mission, &map_with_mutex_->vi_map);
     } else {
       landmark_manipulation.initializeLandmarksFromUnusedFeatureTracksOfMission(
           id_of_first_mission, last_vertex_of_previous_map_saving_);
       landmark_triangulation::retriangulateLandmarksAlongMissionAfterVertex(
+          id_of_first_mission, last_vertex_of_previous_map_saving_,
+          &map_with_mutex_->vi_map);
+      landmark_triangulation::retriangulateLidarLandmarksAlongMissionAfterVertex(
           id_of_first_mission, last_vertex_of_previous_map_saving_,
           &map_with_mutex_->vi_map);
     }

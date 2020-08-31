@@ -5,7 +5,7 @@
 
 	<!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/mfehr/experimental_ws/maplab/gonzen_bags/gonzen_run_14_2019-02-15-15-36-01.bag -q -d 5"/> -->
 	<!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/mfehr/experimental_ws/maplab/gonzen_bags/gonzen_rsl_network_dataset_2019-02-15-11-26-42.bag -q -d 5"/> -->
-	<node pkg="rosbag" type="play" name="rosbag" args="/home/mfehr/experimental_ws/maplab/gonzen_bags/gonzen_run_2_2019-02-13-15-52-12.bag -q -d 5 -r 1.5"/>
+  	<node pkg="rosbag" type="play" name="rosbag" args="/home/marius/Documents/Masterarbeit/bags/asl_koze_table_both_side_with_loop_light_change_medium.bag -r 0.3 -s 0" />
 
 	<!-- <node pkg="rosbag" type="play" name="rosbag" args="/media/mfehr/SSD_1TB/darpa_gonzen/new/run_2_2019-03-11-09-39-37.bag -q -d 5 -r 1.5"/> -->
 	<!-- <node pkg="rosbag" type="play" name="rosbag" args="/media/mfehr/SSD_1TB/darpa_gonzen/new/run_3_2019-03-11-09-46-24.bag -q -d 5 -r 1.5"/> -->
@@ -16,7 +16,7 @@
 	<group ns="rovioli">
 
 		<!-- SENSORS AND CALIBRATION -->
-		<arg name="sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/lidarstick-180-deg-cams-sensors-color.yaml"/>
+		<arg name="sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/lidarstick-150-deg-cams-sensors-color.yaml"/>
 		<arg name="external_imu_parameters_rovio" default=""/>
 		<arg name="imu_to_camera_time_offset_ns" default="19779092"/>
     <arg name="rovio_enable_frame_visualization" default="true"/>
@@ -55,10 +55,9 @@
 		<remap from="/odometry/maplab_odom_T_M_I" to="/rovioli/maplab_odom_T_M_I"/>
 
 		<!-- SENSORS -->
-		<arg name="sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/lidarstick-180-deg-cams-sensors.yaml"/>
+		<arg name="sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/lidarstick-150-deg-cams-sensors-color.yaml"/>
 		<!-- only needed if there are multiple ncameras/lidars/imus/odometries in the calibration file. -->
 		<arg name="selected_ncamera_sensor_id" default="8af1bac2a7c5fad79f09e49e3b96d87c"/>
-		<arg name="selected_lidar_ncamera_sensor_id" default="99c1bac2a7c5fad79f09e49e3b96d99c"/>
 		<arg name="selected_imu_sensor_id" default=""/>
 		<arg name="selected_lidar_sensor_id" default=""/>
 		<arg name="selected_odometry_6dof_sensor_id" default=""/>
