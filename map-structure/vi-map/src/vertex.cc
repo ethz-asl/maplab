@@ -282,6 +282,21 @@ Vertex* Vertex::cloneWithVisualNFrame(
     if (this_frame.hasRawImage()) {
       cloned_frame->setRawImage(this_frame.getRawImage().clone());
     }
+    if (this_frame.hasLidarKeypoint3DMeasurements()) {
+      cloned_frame->setLidarKeypoint3DMeasurements(
+          this_frame.getLidarKeypoint3DMeasurements());
+    }
+    if (this_frame.hasLidarKeypoint3DMeasurements()) {
+      cloned_frame->setLidarKeypoint3DMeasurements(
+          this_frame.getLidarKeypoint3DMeasurements());
+    }
+    if (this_frame.hasLidarKeypoint2DMeasurements()) {
+      cloned_frame->setLidarKeypoint2DMeasurements(
+          this_frame.getLidarKeypoint2DMeasurements());
+    }
+    if (this_frame.hasLidarDescriptors()) {
+      cloned_frame->setLidarDescriptors(this_frame.getLidarDescriptors());
+    }
 
     // Verify landmark vs keypoint state.
     size_t num_keypoints = cloned_frame->getNumKeypointMeasurements();
@@ -744,6 +759,18 @@ void Vertex::expandVisualObservationContainersIfNecessary() {
         new_size = determineNewObservedLandmarkIdVectorSize(
             new_size, frame.getKeypointScores().rows(), old_size);
       }
+      if (frame.hasLidarKeypoint3DMeasurements()) {
+        new_size = determineNewObservedLandmarkIdVectorSize(
+            new_size, frame.getLidarKeypoint3DMeasurements().cols(), old_size);
+      }
+      if (frame.hasLidarKeypoint2DMeasurements()) {
+        new_size = determineNewObservedLandmarkIdVectorSize(
+            new_size, frame.getLidarKeypoint2DMeasurements().cols(), old_size);
+      }
+      if (frame.hasLidarDescriptors()) {
+        new_size = determineNewObservedLandmarkIdVectorSize(
+            new_size, frame.getLidarDescriptors().cols(), old_size);
+      }
       if (new_size > old_size) {
         VLOG(4) << "Resizing visual observation container from " << old_size
                 << " to " << new_size << " for VisualFrame " << frame_idx
@@ -821,6 +848,21 @@ void Vertex::checkConsistencyOfVisualObservationContainers() const {
       if (frame.hasKeypointScores()) {
         CHECK_EQ(
             frame.getKeypointScores().rows(),
+            static_cast<int>(observed_landmark_ids_[frame_idx].size()));
+      }
+      if (frame.hasLidarKeypoint3DMeasurements()) {
+        CHECK_EQ(
+            frame.getLidarKeypoint3DMeasurements().cols(),
+            static_cast<int>(observed_landmark_ids_[frame_idx].size()));
+      }
+      if (frame.hasLidarKeypoint2DMeasurements()) {
+        CHECK_EQ(
+            frame.getLidarKeypoint2DMeasurements().cols(),
+            static_cast<int>(observed_landmark_ids_[frame_idx].size()));
+      }
+      if (frame.hasLidarDescriptors()) {
+        CHECK_EQ(
+            frame.getLidarDescriptors().cols(),
             static_cast<int>(observed_landmark_ids_[frame_idx].size()));
       }
     }

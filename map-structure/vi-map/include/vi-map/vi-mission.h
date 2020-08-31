@@ -70,6 +70,7 @@ class VIMission : public Mission {
   int getOrdering() const;
 
   void setNCameraId(const aslam::SensorId& ncamera_id);
+  void setAdditionalNCameraId(const aslam::SensorId& ncamera_id);
   void setImuId(const aslam::SensorId& imu_id);
   void setLidarId(const aslam::SensorId& lidar_id);
   void setOdometry6DoFSensor(const aslam::SensorId& odometry_6dof_id);
@@ -81,6 +82,7 @@ class VIMission : public Mission {
   // with the mission. Use the hasNCamera and related functions below to check
   // first!
   const aslam::SensorId& getNCameraId() const;
+  const aslam::SensorId& getAdditionalNCameraId() const;
   const aslam::SensorId& getImuId() const;
   const aslam::SensorId& getLidarId() const;
   const aslam::SensorId& getOdometry6DoFSensor() const;
@@ -89,6 +91,7 @@ class VIMission : public Mission {
   const aslam::SensorId& getWheelOdometrySensor() const;
 
   bool hasNCamera() const;
+  bool hasAdditionalNCamera() const;
   bool hasImu() const;
   bool hasLidar() const;
   bool hasOdometry6DoFSensor() const;
@@ -194,6 +197,7 @@ class VIMission : public Mission {
   int ordering_;
 
   aslam::SensorId ncamera_id_;
+  aslam::SensorId additional_ncamera_id_;
   aslam::SensorId imu_id_;
   aslam::SensorId lidar_id_;
   aslam::SensorId odometry_6dof_id_;

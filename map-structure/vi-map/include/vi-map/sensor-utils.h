@@ -42,6 +42,8 @@ namespace vi_map {
 
 aslam::NCamera::Ptr getSelectedNCamera(const SensorManager& sensor_manager);
 
+aslam::NCamera::Ptr getLidarNCamera(const SensorManager& sensor_manager);
+
 Imu::Ptr getSelectedImu(const SensorManager& sensor_manager);
 
 Lidar::Ptr getSelectedLidar(const SensorManager& sensor_manager);

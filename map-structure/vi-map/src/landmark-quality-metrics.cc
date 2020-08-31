@@ -75,8 +75,7 @@ bool isLandmarkWellConstrained(
   const Eigen::Vector3d& p_G_fi = map.getLandmark_G_p_fi(landmark.id());
   Aligned<std::vector, Eigen::Vector3d> G_normalized_incidence_rays;
   G_normalized_incidence_rays.reserve(backlinks.size());
-  double signed_distance_to_closest_observer =
-      std::numeric_limits<double>::max();
+  double distance_to_closest_observer = std::numeric_limits<double>::max();
   for (const vi_map::KeypointIdentifier& backlink : backlinks) {
     const vi_map::Vertex& vertex = map.getVertex(backlink.frame_id.vertex_id);
 
@@ -91,9 +90,8 @@ bool isLandmarkWellConstrained(
     const Eigen::Vector3d G_incidence_ray = T_G_C.getPosition() - p_G_fi;
 
     const double distance = G_incidence_ray.norm();
-    const double signed_distance = distance * (p_C_fi(2) < 0.0 ? -1.0 : 1.0);
-    signed_distance_to_closest_observer =
-        std::min(signed_distance_to_closest_observer, signed_distance);
+    distance_to_closest_observer =
+        std::min(distance_to_closest_observer, distance);
 
     if (distance > 0) {
       G_normalized_incidence_rays.emplace_back(G_incidence_ray / distance);
@@ -101,7 +99,6 @@ bool isLandmarkWellConstrained(
   }
 
   return isLandmarkWellConstrained(
-      G_normalized_incidence_rays, signed_distance_to_closest_observer,
-      settings);
+      G_normalized_incidence_rays, distance_to_closest_observer, settings);
 }
 }  // namespace vi_map

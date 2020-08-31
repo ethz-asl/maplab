@@ -51,6 +51,10 @@ void serializeVisualFrame(
   } else {
     VLOG(200) << "Frame " << frame.getId() << " has no descriptors!";
   }
+  if (frame.hasLidarTrackIds()) {
+    ::common::eigen_proto::serialize(
+        frame.getLidarTrackIds(), proto->mutable_lidar_track_ids());
+  }
   if (frame.hasLidarKeypoint3DMeasurements()) {
     ::common::eigen_proto::serialize(
         frame.getLidarKeypoint3DMeasurements(),
@@ -86,6 +90,9 @@ void deserializeVisualFrame(
   frame_id.deserialize(proto.id());
   // If the frame_id is invalid this frame has been un-set.
   if (frame_id.isValid()) {
+    *frame = aligned_shared<aslam::VisualFrame>();
+    aslam::VisualFrame& frame_ref = **frame;
+
     bool success = true;
     success &=
         (2 * proto.keypoint_measurement_sigmas_size() ==
@@ -99,56 +106,58 @@ void deserializeVisualFrame(
 
     CHECK(success) << "Inconsistent landmark Visual Frame field sizes.";
 
-    Eigen::Map<const Eigen::Matrix2Xd> img_points_distorted(
-        proto.keypoint_measurements().data(), 2,
-        proto.keypoint_measurements_size() / 2);
-    Eigen::Map<const Eigen::VectorXd> uncertainties(
-        proto.keypoint_measurement_sigmas().data(),
-        proto.keypoint_measurement_sigmas_size());
-    Eigen::Map<const Eigen::VectorXd> scales(
-        proto.descriptor_scales().data(), proto.descriptor_scales_size());
-    Eigen::Map<const Eigen::VectorXi> track_ids(
-        proto.track_ids().data(), proto.track_ids_size());
+    frame_ref.setId(frame_id);
+    frame_ref.setTimestampNanoseconds(proto.timestamp());
 
+    if (proto.keypoint_descriptor_size() != 0) {
+      Eigen::Map<const Eigen::Matrix2Xd> img_points_distorted(
+          proto.keypoint_measurements().data(), 2,
+          proto.keypoint_measurements_size() / 2);
+      Eigen::Map<const Eigen::VectorXd> uncertainties(
+          proto.keypoint_measurement_sigmas().data(),
+          proto.keypoint_measurement_sigmas_size());
+      Eigen::Map<const Eigen::VectorXd> scales(
+          proto.descriptor_scales().data(), proto.descriptor_scales_size());
+      Eigen::Map<const Eigen::VectorXi> track_ids(
+          proto.track_ids().data(), proto.track_ids_size());
+
+      if (camera != nullptr) {
+        frame_ref.setCameraGeometry(camera);
+      }
+
+      frame_ref.setKeypointMeasurements(img_points_distorted);
+      frame_ref.setKeypointMeasurementUncertainties(uncertainties);
+      if (scales.rows() != 0) {
+        CHECK_EQ(scales.rows(), uncertainties.rows());
+        frame_ref.setKeypointScales(scales);
+      }
+      if (track_ids.rows() != 0) {
+        CHECK_EQ(track_ids.rows(), uncertainties.rows());
+        frame_ref.setTrackIds(track_ids);
+      }
+
+      // Need to set empty descriptors, otherwise getMutable call below fails.
+      frame_ref.setDescriptors(aslam::VisualFrame::DescriptorsT());
+      internal::deserializeDescriptors(
+          proto, frame_ref.getDescriptorsMutable());
+
+      CHECK(frame_ref.hasKeypointMeasurements());
+      CHECK(frame_ref.hasKeypointMeasurementUncertainties());
+      CHECK(frame_ref.hasDescriptors());
+    }
     // LiDAR features
     Eigen::Map<const Eigen::Matrix3Xd> lidar_3d_measurements(
-        proto.lidar_3d_measurements().data(), 3, proto.lidar_3d_measurements_size() / 3);
+        proto.lidar_3d_measurements().data(), 3,
+        proto.lidar_3d_measurements_size() / 3);
     Eigen::Map<const Eigen::Matrix2Xd> lidar_2d_measurements(
         proto.lidar_2d_measurements().data(), 2,
         proto.lidar_2d_measurements_size() / 2);
+    Eigen::Map<const Eigen::VectorXi> lidar_track_ids(
+        proto.lidar_track_ids().data(), proto.lidar_track_ids_size());
 
-    *frame = aligned_shared<aslam::VisualFrame>();
-    aslam::VisualFrame& frame_ref = **frame;
-
-    if (camera != nullptr) {
-      frame_ref.setCameraGeometry(camera);
+    if (proto.lidar_track_ids_size() != 0) {
+      frame_ref.setLidarTrackIds(lidar_track_ids);
     }
-
-    frame_ref.setId(frame_id);
-    frame_ref.setTimestampNanoseconds(proto.timestamp());
-    frame_ref.setKeypointMeasurements(img_points_distorted);
-    frame_ref.setKeypointMeasurementUncertainties(uncertainties);
-    if (scales.rows() != 0) {
-      CHECK_EQ(scales.rows(), uncertainties.rows());
-      frame_ref.setKeypointScales(scales);
-    }
-    if (track_ids.rows() != 0) {
-      CHECK_EQ(track_ids.rows(), uncertainties.rows());
-      frame_ref.setTrackIds(track_ids);
-    }
-
-    // Need to set empty descriptors, otherwise getMutable call below fails.
-    frame_ref.setDescriptors(aslam::VisualFrame::DescriptorsT());
-    internal::deserializeDescriptors(proto, frame_ref.getDescriptorsMutable());
-
-    CHECK(frame_ref.hasKeypointMeasurements());
-    CHECK(frame_ref.hasKeypointMeasurementUncertainties());
-    CHECK(frame_ref.hasDescriptors());
-
-    if (proto.has_is_valid() && !proto.is_valid()) {
-      frame_ref.invalidate();
-    }
-    // LiDAR features
     if (proto.lidar_3d_measurements_size() != 0) {
       frame_ref.setLidarKeypoint3DMeasurements(lidar_3d_measurements);
     }
@@ -159,6 +168,10 @@ void deserializeVisualFrame(
       frame_ref.setLidarDescriptors(aslam::VisualFrame::DescriptorsT());
       internal::deserializeLidarDescriptors(
           proto, frame_ref.getLidarDescriptorsMutable());
+    }
+
+    if (proto.has_is_valid() && !proto.is_valid()) {
+      frame_ref.invalidate();
     }
   }
 }
