@@ -1,16 +1,19 @@
+#include <memory>
+
 #include <Eigen/Core>
 #include <Eigen/Dense>
-#include <aslam/cameras/camera-3d-lidar.h>
-#include <ceres-error-terms/lidar-error-term.h>
-#include <ceres-error-terms/parameterization/pose-param-jpl.h>
-#include <ceres-error-terms/parameterization/quaternion-param-jpl.h>
 #include <ceres/ceres.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include <aslam/cameras/camera-3d-lidar.h>
+
+#include <ceres-error-terms/parameterization/pose-param-jpl.h>
+#include <ceres-error-terms/parameterization/quaternion-param-jpl.h>
+#include <ceres-error-terms/lidar-error-term.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <memory>
 
 using ceres_error_terms::LidarPositionError;
 

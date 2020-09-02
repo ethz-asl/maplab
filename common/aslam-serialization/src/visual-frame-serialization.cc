@@ -1,10 +1,11 @@
 #include "aslam-serialization/visual-frame-serialization.h"
 
+#include <glog/logging.h>
+
 #include <aslam/cameras/camera.h>
 #include <aslam/cameras/ncamera.h>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
-#include <glog/logging.h>
 #include <maplab-common/eigen-proto.h>
 
 namespace aslam {

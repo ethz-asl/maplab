@@ -43,7 +43,6 @@ inline bool isLandmarkWellConstrained(
   }
   return quality_good;
 }
-
 }  // namespace vi_map
 
 #endif  // VI_MAP_LANDMARK_QUALITY_METRICS_INL_H_

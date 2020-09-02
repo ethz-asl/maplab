@@ -1,18 +1,18 @@
 #include "map-optimization/optimization-terms-addition.h"
 
+#include <memory>
+
 #include <ceres-error-terms/block-pose-prior-error-term-v2.h>
 #include <ceres-error-terms/inertial-error-term.h>
 #include <ceres-error-terms/lidar-error-term-factory.h>
 #include <ceres-error-terms/lidar-error-term.h>
 #include <ceres-error-terms/pose-prior-error-term.h>
-#include <ceres-error-terms/position-error-term.h>
 #include <ceres-error-terms/six-dof-block-pose-error-term-autodiff.h>
 #include <ceres-error-terms/six-dof-block-pose-error-term-with-extrinsics-autodiff.h>
 #include <ceres-error-terms/visual-error-term-factory.h>
 #include <ceres-error-terms/visual-error-term.h>
 #include <ceres/ceres.h>
 #include <maplab-common/progress-bar.h>
-#include <memory>
 #include <vi-map-helpers/vi-map-queries.h>
 #include <vi-map/landmark-quality-metrics.h>
 

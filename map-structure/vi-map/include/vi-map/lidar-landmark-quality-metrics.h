@@ -25,12 +25,12 @@ struct LidarLandmarkWellConstrainedSettings {
   /// Minimum angle disparity of observers for a LiDAR landmark to be well
   /// constrained [deg].
   double min_observation_angle_deg_lidar;
-  /// Minimum number of observers for a landmark to be well constrained.
+  /// Minimum number of observers for a LiDAR landmark to be well constrained.
   size_t min_observers_lidar;
   /// Maximum distance between landmark measurements of a LiDAR [m].
   double max_position_deviation_lidar;
-  /// Maximal ratio between the distance between LiDAR landmark measurements and
-  /// the distance from the observer to the closest measurement..
+  /// Maximal ratio between the distance between landmark measurements and
+  /// the distance from the observer to the closest measurement.
   double max_position_uncertainty_lidar;
 
   LidarLandmarkWellConstrainedSettings();

@@ -10,7 +10,7 @@ namespace vi_map {
 class VIMap;
 class Landmark;
 }
-   
+
 namespace vi_map {
 
 struct LandmarkWellConstrainedSettings {
@@ -18,14 +18,13 @@ struct LandmarkWellConstrainedSettings {
   /// Maximum distance from closest observer for a landmark to be well
   /// constrained [m].
   double max_distance_to_closest_observer;
-  /// Maximum distance from closest observer for a LiDAR landmark to be well
+  /// Minimum distance from closest observer for a landmark to be well
   /// constrained [m].
   double min_distance_to_closest_observer;
-  /// Minimum distance from closest observer for a LiDAR landmark to be well
-  /// constrained [m].
+  /// Minimum angle disparity of observers for a landmark to be well constrained
+  /// [deg].
   double min_observation_angle_deg;
-  /// Minimum angle disparity of observers for a LiDAR landmark to be well
-  /// constrained [deg].
+  /// Minimum number of observers for a landmark to be well constrained. 
   size_t min_observers;
 
   LandmarkWellConstrainedSettings();
