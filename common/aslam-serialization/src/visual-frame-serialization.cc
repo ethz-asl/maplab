@@ -73,6 +73,11 @@ void serializeVisualFrame(
               << " LiDAR descriptors!";
     internal::serializeLidarDescriptors(descriptors, proto);
   }
+  if (frame.hasLidarKeypoint2DMeasurementUncertainties()) {
+    ::common::eigen_proto::serialize(
+        frame.getLidarKeypoint2DMeasurementUncertainties(),
+        proto->mutable_lidar_keypoint_2d_measurement_sigmas());
+  }
 }
 
 void deserializeVisualFrame(
@@ -155,6 +160,9 @@ void deserializeVisualFrame(
         proto.lidar_2d_measurements_size() / 2);
     Eigen::Map<const Eigen::VectorXi> lidar_track_ids(
         proto.lidar_track_ids().data(), proto.lidar_track_ids_size());
+    Eigen::Map<const Eigen::VectorXd> lidar_2d_uncertainties(
+        proto.lidar_keypoint_2d_measurement_sigmas().data(),
+        proto.lidar_keypoint_2d_measurement_sigmas_size());
 
     if (proto.lidar_track_ids_size() != 0) {
       frame_ref.setLidarTrackIds(lidar_track_ids);
@@ -169,6 +177,9 @@ void deserializeVisualFrame(
       frame_ref.setLidarDescriptors(aslam::VisualFrame::DescriptorsT());
       internal::deserializeLidarDescriptors(
           proto, frame_ref.getLidarDescriptorsMutable());
+    }
+    if (proto.lidar_keypoint_2d_measurement_sigmas_size() != 0) {
+      frame_ref.setLidarKeypoint2DMeasurementUncertainties(lidar_2d_uncertainties);
     }
 
     if (proto.has_is_valid() && !proto.is_valid()) {

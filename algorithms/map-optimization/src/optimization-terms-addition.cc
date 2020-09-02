@@ -65,9 +65,8 @@ void addLidarPositionTermForKeypoint(
       vertex_ptr->getVisualFrame(frame_idx).getLidarKeypoint3DMeasurement(
           keypoint_idx);
 
-  // TODO(mariusbr) This just takes the uncertainty of the 2D measurement
   const double image_point_uncertainty =
-      vertex_ptr->getVisualFrame(frame_idx).getKeypointMeasurementUncertainty(
+      vertex_ptr->getVisualFrame(frame_idx).getLidarKeypoint2DMeasurementUncertainty(
           keypoint_idx);
 
   // As defined here: http://en.wikipedia.org/wiki/Huber_Loss_Function

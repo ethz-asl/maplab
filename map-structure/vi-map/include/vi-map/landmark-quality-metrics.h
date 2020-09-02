@@ -24,7 +24,7 @@ struct LandmarkWellConstrainedSettings {
   /// Minimum angle disparity of observers for a landmark to be well constrained
   /// [deg].
   double min_observation_angle_deg;
-  /// Minimum number of observers for a landmark to be well constrained. 
+  /// Minimum number of observers for a landmark to be well constrained.
   size_t min_observers;
 
   LandmarkWellConstrainedSettings();

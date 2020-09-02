@@ -321,9 +321,12 @@ bool LoopClosureHandler::handleLoopClosure(
         col_idx,
         static_cast<int>(query_keypoint_idx_to_map_landmark_pairs.size()));
     CHECK(query_vertex_n_frame.isFrameSet(structure_match.frame_index_query));
-    keypoint_measurements.col(col_idx) =
-        query_vertex_n_frame.getFrame(structure_match.frame_index_query)
-            .getKeypointMeasurement(structure_match.keypoint_index_query);
+    if (query_vertex_n_frame.getFrame(structure_match.frame_index_query)
+            .hasKeypointMeasurements()) {
+      keypoint_measurements.col(col_idx) =
+          query_vertex_n_frame.getFrame(structure_match.frame_index_query)
+              .getKeypointMeasurement(structure_match.keypoint_index_query);
+    }
     if (query_vertex_n_frame.getFrame(structure_match.frame_index_query)
             .hasLidarKeypoint3DMeasurements()) {
       keypoint_vectors.col(col_idx) =
