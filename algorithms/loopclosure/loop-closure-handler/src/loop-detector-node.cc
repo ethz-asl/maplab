@@ -136,17 +136,27 @@ void LoopDetectorNode::convertFrameToProjectedImageOnlyUsingProvidedLandmarkIds(
   projected_image->keyframe_id = frame_id;
   projected_image->timestamp_nanoseconds = frame.getTimestampNanoseconds();
 
-  CHECK_EQ(
-      static_cast<int>(observed_landmark_ids.size()),
-      frame.getKeypointMeasurements().cols());
-  CHECK_EQ(
-      static_cast<int>(observed_landmark_ids.size()),
-      frame.getDescriptors().cols());
-
-  const Eigen::Matrix2Xd& original_measurements =
-      frame.getKeypointMeasurements();
-  const aslam::VisualFrame::DescriptorsT& original_descriptors =
-      frame.getDescriptors();
+  Eigen::Matrix2Xd original_measurements;
+  aslam::VisualFrame::DescriptorsT original_descriptors;
+  if (frame.hasKeypointMeasurements()) {
+    CHECK_EQ(
+        static_cast<int>(observed_landmark_ids.size()),
+        frame.getKeypointMeasurements().cols());
+    CHECK_EQ(
+        static_cast<int>(observed_landmark_ids.size()),
+        frame.getDescriptors().cols());
+    original_measurements = frame.getKeypointMeasurements();
+    original_descriptors = frame.getDescriptors();
+  } else if (frame.hasLidarKeypoint2DMeasurements()) {
+    CHECK_EQ(
+        static_cast<int>(observed_landmark_ids.size()),
+        frame.getLidarKeypoint2DMeasurements().cols());
+    CHECK_EQ(
+        static_cast<int>(observed_landmark_ids.size()),
+        frame.getLidarDescriptors().cols());
+    original_measurements = frame.getLidarKeypoint2DMeasurements();
+    original_descriptors = frame.getLidarDescriptors();
+  }
 
   aslam::VisualFrame::DescriptorsT valid_descriptors(
       original_descriptors.rows(), original_descriptors.cols());
@@ -804,7 +814,7 @@ void LoopDetectorNode::queryVertexInDatabase(
     if (query_vertex.isVisualFrameSet(frame_idx) &&
         query_vertex.isVisualFrameValid(frame_idx)) {
       const aslam::VisualFrame& frame = query_vertex.getVisualFrame(frame_idx);
-      CHECK(frame.hasKeypointMeasurements());
+      CHECK(frame.hasKeypointMeasurements() || frame.hasLidarKeypoint2DMeasurements());
       if (frame.getNumKeypointMeasurements() == 0u) {
         // Skip frame if zero measurements found.
         continue;
