@@ -411,11 +411,17 @@ void VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfVertex(
                           const size_t frame_index,
                           const aslam::VisualFrame& frame) {
     const size_t num_keypoints = frame.getNumKeypointMeasurements();
-    if (!frame.hasTrackIds()) {
+    if (!frame.hasTrackIds() && !frame.hasLidarTrackIds()) {
       VLOG(0) << "Frame has no tracking information. Skipping frame...";
       return;
     }
-    const Eigen::VectorXi& track_ids = frame.getTrackIds();
+    Eigen::VectorXi track_ids;
+    if (frame.hasLidarTrackIds()) {
+      track_ids = frame.getLidarTrackIds();
+    }
+    if (frame.hasTrackIds()) {
+      track_ids = frame.getTrackIds();
+    }
 
     CHECK_EQ(static_cast<int>(num_keypoints), track_ids.rows());
 
