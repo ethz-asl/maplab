@@ -58,9 +58,7 @@ OptimizerPlugin::OptimizerPlugin(
       [this]() -> int {
         map_optimization::ViProblemOptions options =
             map_optimization::ViProblemOptions::initFromGFlags();
-
         options.add_lidar_constraints = true;
-
         return optimize(options);
       },
       "Visual-inertial-lidar optimization over the selected missions "
