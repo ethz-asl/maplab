@@ -37,14 +37,13 @@ LandmarkWellConstrainedSettings::LandmarkWellConstrainedSettings()
           FLAGS_vi_map_landmark_quality_min_distance_from_closest_observer),
       min_observation_angle_deg(
           FLAGS_vi_map_landmark_quality_min_observation_angle_deg),
-      min_observers(FLAGS_vi_map_landmark_quality_min_observers){}
+      min_observers(FLAGS_vi_map_landmark_quality_min_observers) {}
 
 bool isLandmarkWellConstrained(
     const vi_map::VIMap& map, const vi_map::Landmark& landmark) {
   constexpr bool kReEvaluateQuality = false;
   return isLandmarkWellConstrained(map, landmark, kReEvaluateQuality);
 }
-
 
 bool isLandmarkWellConstrained(
     const vi_map::VIMap& map, const vi_map::Landmark& landmark,

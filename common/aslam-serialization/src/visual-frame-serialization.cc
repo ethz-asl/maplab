@@ -1,10 +1,11 @@
 #include "aslam-serialization/visual-frame-serialization.h"
 
+#include <glog/logging.h>
+
 #include <aslam/cameras/camera.h>
 #include <aslam/cameras/ncamera.h>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
-#include <glog/logging.h>
 #include <maplab-common/eigen-proto.h>
 
 namespace aslam {
@@ -50,6 +51,10 @@ void serializeVisualFrame(
     }
   } else {
     VLOG(200) << "Frame " << frame.getId() << " has no descriptors!";
+  }
+  if (frame.hasLidarTrackIds()) {
+    ::common::eigen_proto::serialize(
+        frame.getLidarTrackIds(), proto->mutable_lidar_track_ids());
   }
   if (frame.hasLidarKeypoint3DMeasurements()) {
     ::common::eigen_proto::serialize(
@@ -148,7 +153,12 @@ void deserializeVisualFrame(
     Eigen::Map<const Eigen::Matrix2Xd> lidar_2d_measurements(
         proto.lidar_2d_measurements().data(), 2,
         proto.lidar_2d_measurements_size() / 2);
+    Eigen::Map<const Eigen::VectorXi> lidar_track_ids(
+        proto.lidar_track_ids().data(), proto.lidar_track_ids_size());
 
+    if (proto.lidar_track_ids_size() != 0) {
+      frame_ref.setLidarTrackIds(lidar_track_ids);
+    }
     if (proto.lidar_3d_measurements_size() != 0) {
       frame_ref.setLidarKeypoint3DMeasurements(lidar_3d_measurements);
     }

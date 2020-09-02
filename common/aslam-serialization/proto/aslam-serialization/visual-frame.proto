@@ -18,7 +18,7 @@ message VisualFrame {
   repeated double lidar_2d_measurements = 12;
   optional bytes lidar_descriptors = 13;
   optional uint32 lidar_descriptor_size = 14;
-
+  repeated int32 lidar_track_ids = 15;
 }
 
 message VisualNFrame {
