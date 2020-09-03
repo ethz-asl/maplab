@@ -329,12 +329,6 @@ void retriangulateLidarLandmarksOfVertex(
 
     const vi_map::KeypointIdentifierList& observations =
         landmark.getObservations();
-    if (observations.size() < 2u) {
-      statistics::StatsCollector stats(
-          "Landmark triangulation failed too few observations.");
-      stats.IncrementOne();
-      continue;
-    }
 
     Eigen::Vector3d lm_measurement;
     p_G_C_vector.resize(Eigen::NoChange, observations.size());

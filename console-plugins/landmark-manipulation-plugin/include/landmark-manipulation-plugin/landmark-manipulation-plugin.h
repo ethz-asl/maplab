@@ -20,6 +20,7 @@ class LandmarkManipulationPlugin : public common::ConsolePluginBaseWithPlotter {
 
  private:
   int retriangulateLandmarks();
+  int retriangulateLidarLandmarks();
   int evaluateLandmarkQuality();
   int resetLandmarkQualityToUnknown();
   int initTrackLandmarks();
