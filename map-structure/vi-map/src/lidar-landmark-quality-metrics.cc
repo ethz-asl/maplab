@@ -15,7 +15,7 @@ DEFINE_double(
     "well constrained.");
 
 DEFINE_uint64(
-    vi_map_landmark_quality_min_observers_lidar, 1,
+    vi_map_landmark_quality_min_observers_lidar, 2,
     "Minimum number of observers for a LiDAR landmark to be "
     "well constrained.");
 
