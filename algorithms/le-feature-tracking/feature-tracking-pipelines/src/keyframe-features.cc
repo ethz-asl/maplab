@@ -174,6 +174,8 @@ void ApplyLidarKeypointFeaturesToVisualNFrame(
         keypoint_features[i].keypoint_measurements);
     frame.setLidarDescriptors(keypoint_features[i].keypoint_descriptors);
     frame.setLidarKeypoint3DMeasurements(keypoint_features[i].keypoint_vectors);
+    frame.setLidarKeypoint2DMeasurementUncertainties(
+        keypoint_features[i].keypoint_measurement_uncertainties);
   }
 }
 
