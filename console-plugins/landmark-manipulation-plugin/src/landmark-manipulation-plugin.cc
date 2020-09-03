@@ -21,6 +21,10 @@ LandmarkManipulationPlugin::LandmarkManipulationPlugin(
       [this]() -> int { return retriangulateLandmarks(); },
       "Retriangulate all landmarks.", common::Processing::Sync);
   addCommand(
+      {"retriangulate_lidar_landmarks", "rtll"},
+      [this]() -> int { return retriangulateLidarLandmarks(); },
+      "Retriangulate all landmarks.", common::Processing::Sync);
+  addCommand(
       {"evaluate_landmark_quality", "elq"},
       [this]() -> int { return evaluateLandmarkQuality(); },
       "Evaluates and sets the landmark quality of all landmarks.",
@@ -62,10 +66,34 @@ int LandmarkManipulationPlugin::retriangulateLandmarks() {
   } else {
     map->getAllMissionIds(&mission_ids);
   }
-  // TODO mariusbr -> Nothing happens when there are no lidar landmarks but it
-  // might be not very efficient
-  landmark_triangulation::retriangulateLidarLandmarks(mission_ids, map.get());
+
   landmark_triangulation::retriangulateLandmarks(mission_ids, map.get());
+  return common::kSuccess;
+}
+
+int LandmarkManipulationPlugin::retriangulateLidarLandmarks() {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids;
+  if (!FLAGS_map_mission.empty()) {
+    vi_map::MissionId mission_id;
+    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
+    if (!mission_id.isValid()) {
+      return common::kStupidUserError;
+    }
+    mission_ids.emplace_back(mission_id);
+  } else {
+    map->getAllMissionIds(&mission_ids);
+  }
+
+  landmark_triangulation::retriangulateLidarLandmarks(mission_ids, map.get());
   return common::kSuccess;
 }
 
