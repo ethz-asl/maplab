@@ -75,7 +75,7 @@ bool selectAlignmentCandidatePairs(
   while (it != candidate_pairs_ptr->end()) {
     const AlignmentCandidatePair& alignment = *it;
     if (!alignment.isValid()) {
-      LOG(WARNING) << "Invalid AlignmentCandidatePair:\n" << alignment;
+      VLOG(3) << "Invalid AlignmentCandidatePair:\n" << alignment;
       it = candidate_pairs_ptr->erase(it);
       continue;
     }
