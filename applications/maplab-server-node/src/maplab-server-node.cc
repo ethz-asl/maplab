@@ -105,7 +105,7 @@ DEFINE_bool(
     "unkown baseframe to missions anchored missions.");
 
 DEFINE_bool(
-    maplab_server_enable_lidar_loop_closure, true,
+    maplab_server_enable_lidar_loop_closure, false,
     "If enabled, lidar loop closure & mapping is used to derrive constraints "
     "within and "
     "across missions.");
@@ -747,6 +747,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   // iteratively executing this command, as is done here, the candidate pairs
   // that already posess a valid (switch variable is healthy) loop closure will
   // not be computed again.
+#if __GNUC__ > 5
   if (FLAGS_maplab_server_enable_lidar_loop_closure) {
     vi_map::VIMapManager::MapWriteAccess map =
         map_manager_.getMapWriteAccess(kMergedMapKey);
@@ -758,6 +759,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
       running_merging_process_ = "lidar loop closure";
     }
 
+    VLOG(1) << "gcc: " << __GNUC__;
     const dense_mapping::Config config = dense_mapping::Config::fromGflags();
     if (!dense_mapping::addDenseMappingConstraintsToMap(
             config, mission_ids, map.get())) {
@@ -765,6 +767,9 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
                  << "encountered an error!";
     }
   }
+#else
+    LOG(WARNING) << "Dense mapping constraints are experimental on old compilers.";
+#endif
 
   // Full optimization
   ////////////////////
