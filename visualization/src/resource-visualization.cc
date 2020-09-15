@@ -69,6 +69,11 @@ DEFINE_bool(
     "If enabled, the accumulated dense map will be filtered before "
     "publishing.");
 
+DEFINE_double(
+    vis_pointcloud_filter_leaf_size_m, 0.3,
+    "If point cloud filtering is enabled, defines the leaf size of the voxel "
+    "grid filter. ");
+
 namespace visualization {
 
 bool visualizeCvMatResources(
@@ -285,8 +290,20 @@ void visualizeReprojectedDepthResource(
           }
 
           sensor_msgs::PointCloud2 ros_point_cloud_G;
-          backend::convertPointCloudType(points_G, &ros_point_cloud_G);
 
+          if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
+            pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
+                new pcl::PointCloud<pcl::PointXYZI>);
+            CHECK_NOTNULL(pcl_cloud);
+            backend::convertPointCloudType(
+                accumulated_point_cloud_G, &(*pcl_cloud));
+            voxelGridPointCloud(
+                FLAGS_vis_pointcloud_filter_leaf_size_m, pcl_cloud);
+            backend::convertPointCloudType((*pcl_cloud), &ros_point_cloud_G);
+          } else {
+            backend::convertPointCloudType(
+                accumulated_point_cloud_G, &ros_point_cloud_G);
+          }
           publishPointCloudInGlobalFrame(
               "" /*topic prefix*/, &ros_point_cloud_G);
         }
@@ -315,9 +332,7 @@ void visualizeReprojectedDepthResource(
         new pcl::PointCloud<pcl::PointXYZI>);
     CHECK_NOTNULL(pcl_cloud);
     backend::convertPointCloudType(accumulated_point_cloud_G, &(*pcl_cloud));
-    constexpr float leaf_size_m = 0.3;
-    PointCloudFilter pcl_filter(leaf_size_m);
-    pcl_filter.filterCloud(pcl_cloud);
+    voxelGridPointCloud(FLAGS_vis_pointcloud_filter_leaf_size_m, pcl_cloud);
     backend::convertPointCloudType((*pcl_cloud), &ros_point_cloud_G);
   } else {
     backend::convertPointCloudType(
@@ -436,9 +451,7 @@ void visualizeReprojectedDepthResourcePerRobot(
       CHECK_NOTNULL(pcl_cloud);
 
       backend::convertPointCloudType(accumulated_point_cloud_G, &(*pcl_cloud));
-      constexpr unsigned int leaf_size_m = 0.2;
-      PointCloudFilter pcl_filter(leaf_size_m);
-      pcl_filter.filterCloud(pcl_cloud);
+      voxelGridPointCloud(FLAGS_vis_pointcloud_filter_leaf_size_m, pcl_cloud);
       backend::convertPointCloudType((*pcl_cloud), &ros_point_cloud_G);
     } else {
       backend::convertPointCloudType(

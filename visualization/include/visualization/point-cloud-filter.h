@@ -8,21 +8,13 @@ namespace visualization {
 template <typename T>
 using PclPointCloudPtr = typename boost::shared_ptr<pcl::PointCloud<T>>;
 
-class PointCloudFilter {
- public:
-  explicit PointCloudFilter(const float vg_leaf_size_m);
-  template <typename T_point>
-  void filterCloud(PclPointCloudPtr<T_point> cloud);
-
- private:
-  const float vg_leaf_size_m_;
-};
-
 template <typename T_point>
-void PointCloudFilter::filterCloud(PclPointCloudPtr<T_point> cloud) {
+void voxelGridPointCloud(
+    const float vg_leaf_size_m, PclPointCloudPtr<T_point> cloud) {
   CHECK_NOTNULL(cloud);
+  CHECK_GT(vg_leaf_size_m, 0.0f);
   pcl::VoxelGrid<T_point> voxel_grid_;
-  voxel_grid_.setLeafSize(vg_leaf_size_m_, vg_leaf_size_m_, vg_leaf_size_m_);
+  voxel_grid_.setLeafSize(vg_leaf_size_m, vg_leaf_size_m, vg_leaf_size_m);
   voxel_grid_.setInputCloud(cloud);
   voxel_grid_.filter(*cloud);
 }

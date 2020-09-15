@@ -24,7 +24,6 @@ cs_add_library(${PROJECT_NAME}
   src/vertex-landmark-visibility-plotter.cc
   src/viwls-graph-plotter.cc
   src/viz-data-collector.cc
-  src/point-cloud-filter.cc
 )
 
 ##########
