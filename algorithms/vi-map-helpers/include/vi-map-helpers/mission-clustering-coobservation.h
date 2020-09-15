@@ -45,6 +45,9 @@ bool hasVisualConstraintsInAllMissionsInCluster(
 bool hasWheelOdometryConstraintsInAllMissionsInCluster(
     const vi_map::VIMap& vi_map, const vi_map::MissionIdSet& mission_ids);
 
+bool has6DoFOdometryConstraintsInAllMissionsInCluster(
+    const vi_map::VIMap& vi_map, const vi_map::MissionIdSet& mission_ids);
+
 }  // namespace vi_map_helpers
 
 #endif  // VI_MAP_HELPERS_MISSION_CLUSTERING_COOBSERVATION_H_

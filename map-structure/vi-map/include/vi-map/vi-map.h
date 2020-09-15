@@ -49,6 +49,8 @@
 #include "vi-map/vi_map.pb.h"
 #include "vi-map/viwls-edge.h"
 
+DECLARE_bool(disable_consistency_check);
+
 class LoopClosureHandlerTest;
 
 namespace vi_map {
@@ -82,9 +84,9 @@ typedef std::pair<MissionId, pose_graph::VertexIdList> MissionVertexIdPair;
 
 class VIMap : public backend::ResourceMap,
               public backend::MapInterface<vi_map::VIMap> {
-  friend ::LoopClosureHandlerTest;                   // Test.
-  friend class MapConsistencyCheckTest;              // Test.
-  friend class SixDofVIMapGenerator;                 // Test.
+  friend ::LoopClosureHandlerTest;       // Test.
+  friend class MapConsistencyCheckTest;  // Test.
+  friend class SixDofVIMapGenerator;     // Test.
   friend bool checkMapConsistency(const VIMap&);
   friend class VIMapStats;
 
@@ -680,6 +682,9 @@ class VIMap : public backend::ResourceMap,
   bool hasSensorResource(
       const VIMission& mission, const backend::ResourceType& type,
       const aslam::SensorId& sensor_id, const int64_t timestamp_ns) const;
+  bool hasSensorResource(
+      const MissionIdList& involved_mission_ids,
+      const backend::ResourceType& type) const;
 
   template <typename DataType>
   bool getSensorResource(
@@ -720,8 +725,10 @@ class VIMap : public backend::ResourceMap,
       VIMission* mission);
 
   void deleteAllSensorResourcesBeforeTime(
-      const vi_map::MissionId& mission_id, int64_t timestamp_ns,
-      const bool delete_from_file_system);
+          const vi_map::MissionId& mission_id, int64_t timestamp_ns,
+          const bool delete_from_file_system);
+  void deleteAllSensorResources(
+          const vi_map::MissionId& mission_id, const bool delete_from_file_system);
 
   // Map interface (for map manager)
   // ===============================

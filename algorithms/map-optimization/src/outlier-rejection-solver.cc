@@ -137,9 +137,10 @@ void findOutlierLandmarks(
 ceres::TerminationType solveStep(
     const ceres::Solver::Options& solver_options, int num_iters,
     OptimizationProblem* optimization_problem,
-    OutlierRejectionCallback* callback) {
+    OutlierRejectionCallback* callback, OptimizationProblemResult* result) {
   CHECK_NOTNULL(optimization_problem);
   CHECK_NOTNULL(callback);
+  // 'result' can be a nullptr.
 
   ceres::Problem problem(ceres_error_terms::getDefaultProblemOptions());
   ceres_error_terms::buildCeresProblemFromProblemInformation(
@@ -147,9 +148,12 @@ ceres::TerminationType solveStep(
 
   ceres::Solver::Options local_options = solver_options;
   local_options.callbacks.push_back(callback);
+
   // Reusing the trust region size from the last iteration.
-  local_options.initial_trust_region_radius =
-      callback->initial_trust_region_radius_;
+  if (!callback->iteration_summaries_.empty()) {
+    local_options.initial_trust_region_radius =
+        callback->iteration_summaries_.back().trust_region_radius;
+  }
 
   // Disable the default Ceres output.
   local_options.minimizer_progress_to_stdout = false;
@@ -159,6 +163,10 @@ ceres::TerminationType solveStep(
   ceres::Solver::Summary summary;
   ceres::Solve(local_options, &problem, &summary);
 
+  // Save the solver summary of each iteration.
+  if (result != nullptr) {
+    result->solver_summaries.emplace_back(summary);
+  }
   return summary.termination_type;
 }
 
@@ -226,7 +234,18 @@ ceres::TerminationType solveWithOutlierRejection(
     const ceres::Solver::Options& solver_options,
     const OutlierRejectionSolverOptions& rejection_options,
     OptimizationProblem* optimization_problem) {
+  return solveWithOutlierRejection(
+      solver_options, rejection_options, optimization_problem,
+      nullptr /*result*/);
+}
+
+ceres::TerminationType solveWithOutlierRejection(
+    const ceres::Solver::Options& solver_options,
+    const OutlierRejectionSolverOptions& rejection_options,
+    OptimizationProblem* optimization_problem,
+    OptimizationProblemResult* result) {
   CHECK_NOTNULL(optimization_problem);
+  // 'result' can be a nullptr.
 
   if (rejection_options.reject_outliers_every_n_iters == 0 ||
       solver_options.max_num_iterations == 0) {
@@ -239,14 +258,16 @@ ceres::TerminationType solveWithOutlierRejection(
   ceres::TerminationType termination_type =
       ceres::TerminationType::NO_CONVERGENCE;
   int num_iters_remaining = solver_options.max_num_iterations;
-  while (num_iters_remaining > 0) {
+  timing::TimerImpl timer_full_ba("BA: Full", true);
+  double max_solver_time_s = solver_options.max_solver_time_in_seconds;
+  while (num_iters_remaining > 0 && max_solver_time_s > 0) {
+    timer_full_ba.Start();
     const int step_iters = std::min(
         num_iters_remaining, rejection_options.reject_outliers_every_n_iters);
 
     timing::Timer timer_solve("BA: Solve");
-    termination_type =
-        solveStep(solver_options, step_iters, optimization_problem, &callback);
-    timer_solve.Stop();
+    termination_type = solveStep(
+        solver_options, step_iters, optimization_problem, &callback, result);
 
     timing::Timer timer_copy("BA: CopyDataToMap");
     optimization_problem->getOptimizationStateBufferMutable()
@@ -261,7 +282,13 @@ ceres::TerminationType solveWithOutlierRejection(
       break;
     }
 
+    max_solver_time_s -= timer_full_ba.Stop();
     num_iters_remaining -= step_iters;
+  }
+
+  // Save all iteration summaries.
+  if (result != nullptr) {
+    result->iteration_summaries = callback.iteration_summaries_;
   }
 
   return termination_type;

@@ -34,6 +34,10 @@ DEFINE_bool(
     "loop-closure.");
 DEFINE_bool(lc_use_random_pnp_seed, true, "Use random seed for pnp RANSAC.");
 
+DEFINE_bool(
+    lc_insert_lc_edge_instead_of_merging, false,
+    "Insert an LC edge in the pose graph instead of merging landmarks.");
+
 DEFINE_double(
     lc_mission_baseframe_min_inlier_ratio, 0.2,
     "Minimum inlier ratio for successful mission to database alignment.");
@@ -648,10 +652,9 @@ bool LoopDetectorNode::findVertexInDatabase(
   *num_of_lc_matches = loop_closure::getNumberOfMatches(frame_matches_list);
 
   timing::Timer timer_compute_relative("lc compute absolute transform");
-  pose_graph::VertexId vertex_id_closest_to_structure_matches;
   bool ransac_ok = computeAbsoluteTransformFromFrameMatches(
       frame_matches_list, merge_landmarks, add_lc_edges, map, T_G_I,
-      inlier_constraint, &vertex_id_closest_to_structure_matches);
+      inlier_constraint, nullptr /*vertex_id_closest_to_structure_matches*/);
   timer_compute_relative.Stop();
   return ransac_ok;
 }
@@ -665,7 +668,7 @@ bool LoopDetectorNode::computeAbsoluteTransformFromFrameMatches(
   CHECK_NOTNULL(map);
   CHECK_NOTNULL(T_G_I);
   CHECK_NOTNULL(inlier_constraints);
-  CHECK_NOTNULL(vertex_id_closest_to_structure_matches);
+  // vertex_id_closest_to_structure_matches can be a nullptr
 
   const size_t num_matches = loop_closure::getNumberOfMatches(frame_to_matches);
   if (num_matches == 0u) {
@@ -1079,8 +1082,8 @@ void LoopDetectorNode::detectLoopClosuresAndMergeLandmarks(
     const MissionId& mission, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
 
-  constexpr bool kMergeLandmarks = true;
-  constexpr bool kAddLoopclosureEdges = false;
+  const bool kAddLoopclosureEdges = FLAGS_lc_insert_lc_edge_instead_of_merging;
+  const bool kMergeLandmarks = !kAddLoopclosureEdges;
   int num_vertex_candidate_links;
   double summary_landmark_match_inlier_ratio;
 

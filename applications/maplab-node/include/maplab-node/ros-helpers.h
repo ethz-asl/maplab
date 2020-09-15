@@ -33,7 +33,7 @@
 #include <sensors/odometry-6dof-pose.h>
 #include <sensors/pointcloud-map-sensor.h>
 #include <sensors/wheel-odometry-sensor.h>
-
+#include <vi-map/sensor-manager.h>
 #include <vio-common/vio-types.h>
 
 #ifdef VOXGRAPH
@@ -51,8 +51,9 @@ constexpr int64_t rosTimeToNanoseconds(const ros::Time& rostime) {
          static_cast<int64_t>(rostime.nsec);
 }
 
-vio::ImuMeasurement::Ptr convertRosImuToMaplabImu(
-    const sensor_msgs::ImuConstPtr& imu_msg);
+void addRosImuMeasurementToImuMeasurementBatch(
+    const sensor_msgs::Imu& imu_msg,
+    vio::BatchedImuMeasurements* batched_imu_measurements_ptr);
 
 vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
     const sensor_msgs::ImageConstPtr& image_message, size_t camera_idx);

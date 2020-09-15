@@ -17,7 +17,7 @@ artifact {
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
-  is_reported: false
+  report_state: "not_reported"
   is_correct: false
 }
 artifact {
@@ -39,7 +39,7 @@ artifact {
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
-  is_reported: false
+  report_state: "not_reported"
   is_correct: false
 }
 artifact {
@@ -61,7 +61,7 @@ artifact {
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
-  is_reported: false
+  report_state: "not_reported"
   is_correct: false
 }
 artifact {
@@ -83,7 +83,7 @@ artifact {
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
-  is_reported: false
+  report_state: "not_reported"
   is_correct: false
 }
 artifact {
@@ -105,7 +105,7 @@ artifact {
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
-  is_reported: false
+  report_state: "not_reported"
   is_correct: false
 }
 artifact {
@@ -127,6 +127,6 @@ artifact {
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
   sensor_p_G_refined: 0
-  is_reported: false
+  report_state: "not_reported"
   is_correct: false
 }

@@ -340,6 +340,20 @@ void VIMission::getAllMissionResourceIds(
   }
 }
 
+bool VIMission::hasSensorResource(const backend::ResourceType& type) const {
+  const backend::SensorIdToResourcesMap* resources =
+      getAllSensorResourceIdsOfType(type);
+
+  if (resources == nullptr) {
+    LOG(WARNING) << "No sensor found of type "
+                 << backend::ResourceTypeNames[static_cast<int>(type)];
+    return false;
+  }
+  VLOG(3) << "Found " << resources->size() << " sensors of type "
+          << backend::ResourceTypeNames[static_cast<int>(type)];
+  return true;
+}
+
 bool VIMission::hasSensorResourceId(
     const backend::ResourceType& type, const aslam::SensorId& sensor_id,
     const int64_t timestamp_ns) const {

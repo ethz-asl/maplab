@@ -1,0 +1,132 @@
+artifact {
+  artifact_id: 1
+  robot_name: "arche_1"
+  confidence: 0.465186
+  class_label: "baby goat"
+  timestamp_ns: 1403636650603555500
+  p_S: 3.4
+  p_S: 2
+  p_S: 3
+  p_G_initial: -8
+  p_G_initial: 14
+  p_G_initial: 3
+  has_refined_position: false
+  p_G_refined: 0
+  p_G_refined: 0
+  p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  report_state: "not_reported"
+  is_correct: false
+}
+artifact {
+  artifact_id: 2
+  robot_name: "arche_1"
+  confidence: 0.465186
+  class_label: "goat"
+  timestamp_ns: 1403636630603555500
+  p_S: -2.5
+  p_S: 1
+  p_S: 3
+  p_G_initial: -2
+  p_G_initial: 3
+  p_G_initial: -3
+  has_refined_position: false
+  p_G_refined: 0
+  p_G_refined: 0
+  p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  report_state: "not_reported"
+  is_correct: false
+}
+artifact {
+  artifact_id: 3
+  robot_name: "arche_2"
+  confidence: 0.453
+  class_label: "red sheep"
+  timestamp_ns: 1403636940276666500
+  p_S: 4
+  p_S: 2.5
+  p_S: 2
+  p_G_initial: -1.5
+  p_G_initial: 9
+  p_G_initial: 3
+  has_refined_position: false
+  p_G_refined: 0
+  p_G_refined: 0
+  p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  report_state: "not_reported"
+  is_correct: false
+}
+artifact {
+  artifact_id: 4
+  robot_name: "arche_2"
+  confidence: 0.755
+  class_label: "blue sheep"
+  timestamp_ns: 1403636930276666500
+  p_S: -5
+  p_S: 3
+  p_S: 3
+  p_G_initial: -6
+  p_G_initial: 11
+  p_G_initial: -5.5
+  has_refined_position: false
+  p_G_refined: 0
+  p_G_refined: 0
+  p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  report_state: "not_reported"
+  is_correct: false
+}
+artifact {
+  artifact_id: 5
+  robot_name: "arche_2"
+  confidence: 0.755
+  class_label: "black sheep"
+  timestamp_ns: 1403636910176666500
+  p_S: -4
+  p_S: 3.1
+  p_S: 2
+  p_G_initial: -4.5
+  p_G_initial: 6
+  p_G_initial: -3
+  has_refined_position: false
+  p_G_refined: 0
+  p_G_refined: 0
+  p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  report_state: "not_reported"
+  is_correct: false
+}
+artifact {
+  artifact_id: 6
+  robot_name: "arche_1"
+  confidence: 0.999
+  class_label: "green sheep"
+  timestamp_ns: 1403636610603555500
+  p_S: 1
+  p_S: 2
+  p_S: 3
+  p_G_initial: -3
+  p_G_initial: 2
+  p_G_initial: 0.5
+  has_refined_position: false
+  p_G_refined: 0
+  p_G_refined: 0
+  p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  sensor_p_G_refined: 0
+  report_state: "not_reported"
+  is_correct: false
+}

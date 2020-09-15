@@ -28,7 +28,6 @@ struct SynchronizerStatistics {
       const std::string& sensor_name,
       const statistics::StatsCollectorImpl& stats_handle,
       const int64_t latency_shift_ns) const {
-    CHECK_GE(latency_shift_ns, 0);
     CHECK(!sensor_name.empty());
     if (statistics::Statistics::GetNumSamples(stats_handle.GetHandle()) > 0) {
       std::stringstream ss;

@@ -36,18 +36,24 @@ DEFINE_double(
     "Shift applied to the scaled values when converting 16bit images to 8bit "
     "images.");
 
+DEFINE_bool(
+    set_imu_bias_to_zero, false,
+    "Setting IMU biases for odometry estimation to zero.");
+
+DEFINE_double(image_resize_factor, 1.0, "Factor to resize images.");
+
 namespace maplab {
 
-vio::ImuMeasurement::Ptr convertRosImuToMaplabImu(
-    const sensor_msgs::ImuConstPtr& imu_msg) {
-  CHECK(imu_msg);
-  vio::ImuMeasurement::Ptr imu_measurement(new vio::ImuMeasurement);
-  imu_measurement->timestamp = rosTimeToNanoseconds(imu_msg->header.stamp);
-  imu_measurement->imu_data << imu_msg->linear_acceleration.x,
-      imu_msg->linear_acceleration.y, imu_msg->linear_acceleration.z,
-      imu_msg->angular_velocity.x, imu_msg->angular_velocity.y,
-      imu_msg->angular_velocity.z;
-  return imu_measurement;
+void addRosImuMeasurementToImuMeasurementBatch(
+    const sensor_msgs::Imu& imu_msg,
+    vio::BatchedImuMeasurements* batched_imu_measurements_ptr) {
+  CHECK_NOTNULL(batched_imu_measurements_ptr);
+  auto it = batched_imu_measurements_ptr->batch.insert(
+      batched_imu_measurements_ptr->batch.end(), vio::ImuMeasurement());
+  it->timestamp = rosTimeToNanoseconds(imu_msg.header.stamp);
+  it->imu_data << imu_msg.linear_acceleration.x, imu_msg.linear_acceleration.y,
+      imu_msg.linear_acceleration.z, imu_msg.angular_velocity.x,
+      imu_msg.angular_velocity.y, imu_msg.angular_velocity.z;
 }
 
 void applyHistogramEqualization(
@@ -89,7 +95,24 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
         // NOTE: we assume all 8UC1 type images are monochrome images.
         cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::TYPE_8UC1);
+      } else if (
+          image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
+        // We assume it is a BGR image.
+        cv_bridge::CvImageConstPtr cv_tmp_ptr = cv_bridge::toCvShare(
+            image_message, sensor_msgs::image_encodings::TYPE_8UC3);
+
+        // Convert image and add it to the cv bridge struct, such that the
+        // remaining part of the function can stay the same.
+        cv_bridge::CvImage* converted_image = new cv_bridge::CvImage;
+        converted_image->encoding = "mono8";
+        converted_image->header = image_message->header;
+        // We assume the color format is BGR.
+        cv::cvtColor(
+            cv_tmp_ptr->image, converted_image->image, cv::COLOR_BGR2GRAY);
+        // The cv bridge takes ownership of the image ptr.
+        cv_ptr.reset(converted_image);
       } else {
+        // Try automatic conversion for all the other encodings.
         cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::MONO8);
       }
@@ -107,6 +130,17 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
     LOG(FATAL) << "cv_bridge exception: " << e.what();
   }
   CHECK(cv_ptr);
+
+  if (fabs(FLAGS_image_resize_factor - 1.0) > 1e-6) {
+    const int newcols =
+        round(image_measurement->image.cols * FLAGS_image_resize_factor);
+    const int newrows =
+        round(image_measurement->image.rows * FLAGS_image_resize_factor);
+
+    cv::resize(
+        image_measurement->image, image_measurement->image,
+        cv::Size(newcols, newrows));
+  }
 
   image_measurement->timestamp =
       rosTimeToNanoseconds(image_message->header.stamp);
@@ -156,11 +190,15 @@ OdometryEstimate::Ptr convertRosOdometryMsgToOdometryEstimate(
 
   // IMU Biases.
   Eigen::Vector3d acc_bias = Eigen::Vector3d::Zero();
-  tf::vectorMsgToEigen(msg->accel_bias, acc_bias);
+  if (!FLAGS_set_imu_bias_to_zero) {
+    tf::vectorMsgToEigen(msg->accel_bias, acc_bias);
+  }
   odometry_estimate->vinode.setAccBias(acc_bias);
 
   Eigen::Vector3d gyro_bias = Eigen::Vector3d::Zero();
-  tf::vectorMsgToEigen(msg->gyro_bias, gyro_bias);
+  if (!FLAGS_set_imu_bias_to_zero) {
+    tf::vectorMsgToEigen(msg->gyro_bias, gyro_bias);
+  }
   odometry_estimate->vinode.setGyroBias(gyro_bias);
 
   // TODO(mfehr): We currently don't support this.

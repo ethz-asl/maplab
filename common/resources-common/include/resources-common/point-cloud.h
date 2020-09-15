@@ -25,6 +25,7 @@ struct PointCloud {
   std::vector<float> normals;
   std::vector<unsigned char> colors;
   std::vector<float> scalars;
+  std::vector<uint32_t> labels;
 
   // Apply transformation T_A_B to pointcloud, assuming the pointcloud is
   // currently expressed in the B frame.
@@ -40,6 +41,21 @@ struct PointCloud {
             xyz[idx + 1u] = transformed_point.y();
             xyz[idx + 2u] = transformed_point.z();
           }
+
+          // Rotate normals if present.
+          if (normals.size() == xyz.size()) {
+            const aslam::Quaternion& R_A_B = T_A_B.getRotation();
+            for (size_t point_idx : batch) {
+              const size_t idx = point_idx * 3;
+              const Eigen::Vector3d normal(
+                  normals[idx], normals[idx + 1u], normals[idx + 2u]);
+              const Eigen::Vector3f& transformed_normal =
+                  R_A_B.rotate(normal).cast<float>();
+              normals[idx] = transformed_normal.x();
+              normals[idx + 1u] = transformed_normal.y();
+              normals[idx + 2u] = transformed_normal.z();
+            }
+          }
         };
 
     const size_t num_threads = common::getNumHardwareThreads();
@@ -50,7 +66,8 @@ struct PointCloud {
 
   inline void resize(
       const size_t size, const bool has_normals = true,
-      const bool has_colors = true, const bool has_scalars = true) {
+      const bool has_colors = true, const bool has_scalars = true,
+      const bool has_labels = true) {
     xyz.resize(3 * size);
 
     if (has_normals) {
@@ -63,6 +80,10 @@ struct PointCloud {
 
     if (has_scalars) {
       scalars.resize(1 * size);
+    }
+
+    if (has_labels) {
+      labels.resize(1 * size);
     }
   }
 
@@ -87,18 +108,24 @@ struct PointCloud {
     return (scalars.size() == xyz.size() / 3u) && !scalars.empty();
   }
 
+  inline bool hasLabels() const {
+    return (labels.size() == xyz.size() / 3u) && !labels.empty();
+  }
+
   inline bool checkConsistency(const bool verbose = false) const {
     bool consistent = true;
     consistent &= (normals.size() == xyz.size()) || normals.empty();
     consistent &= (colors.size() == xyz.size()) || colors.empty();
     consistent &= (scalars.size() == xyz.size() / 3u) || scalars.empty();
+    consistent &= (labels.size() == xyz.size() / 3u) || labels.empty();
 
     LOG_IF(ERROR, verbose && !consistent)
         << "\nInconsistent point cloud:"
         << "\n - Point vector size:  " << xyz.size()
         << "\n - Normal vector size: " << normals.size()
         << "\n - Color vector size:  " << colors.size()
-        << "\n - Scalar vector size: " << scalars.size();
+        << "\n - Scalar vector size: " << scalars.size()
+        << "\n - Label vector size: " << labels.size();
     return consistent;
   }
 
@@ -111,11 +138,53 @@ struct PointCloud {
     normals.reserve(normals.size() + other.normals.size());
     colors.reserve(colors.size() + other.colors.size());
     scalars.reserve(scalars.size() + other.scalars.size());
+    labels.reserve(labels.size() + other.labels.size());
 
     xyz.insert(xyz.end(), other.xyz.begin(), other.xyz.end());
     normals.insert(normals.end(), other.normals.begin(), other.normals.end());
     colors.insert(colors.end(), other.colors.begin(), other.colors.end());
     scalars.insert(scalars.end(), other.scalars.begin(), other.scalars.end());
+    labels.insert(labels.end(), other.labels.begin(), other.labels.end());
+
+    CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
+  }
+
+  // Transforms the other point cloud and appends it to the current one. Assumes
+  // the other point cloud is in B frame.
+  inline void appendTransformed(
+      const PointCloud& other, const aslam::Transformation& T_A_B) {
+    if (other.empty()) {
+      return;
+    }
+
+    // Remember how many points there wrere before.
+    const size_t old_size = size();
+    append(other);
+    const size_t new_size = size();
+
+    for (size_t point_idx = old_size; point_idx < new_size; ++point_idx) {
+      const size_t idx = point_idx * 3;
+      const Eigen::Vector3d point(xyz[idx], xyz[idx + 1u], xyz[idx + 2u]);
+      const Eigen::Vector3f& transformed_point = (T_A_B * point).cast<float>();
+      xyz[idx] = transformed_point.x();
+      xyz[idx + 1u] = transformed_point.y();
+      xyz[idx + 2u] = transformed_point.z();
+    }
+
+    // Rotate normals if present.
+    if (normals.size() == xyz.size()) {
+      const aslam::Quaternion& R_A_B = T_A_B.getRotation();
+      for (size_t point_idx = old_size; point_idx < new_size; ++point_idx) {
+        const size_t idx = point_idx * 3;
+        const Eigen::Vector3d normal(
+            normals[idx], normals[idx + 1u], normals[idx + 2u]);
+        const Eigen::Vector3f& transformed_normal =
+            R_A_B.rotate(normal).cast<float>();
+        normals[idx] = transformed_normal.x();
+        normals[idx + 1u] = transformed_normal.y();
+        normals[idx + 2u] = transformed_normal.z();
+      }
+    }
 
     CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
   }
@@ -125,6 +194,7 @@ struct PointCloud {
     auto it_normals = normals.begin();
     auto it_colors = colors.begin();
     auto it_scalars = scalars.begin();
+    auto it_labels = labels.begin();
 
     size_t removed_points = 0u;
     const size_t initial_number_of_points = xyz.size() / 3u;
@@ -151,6 +221,10 @@ struct PointCloud {
         if (!scalars.empty()) {
           it_scalars = scalars.erase(it_scalars);
         }
+
+        if (!labels.empty()) {
+          it_labels = labels.erase(it_labels);
+        }
       } else {
         it_xyz += 3;
 
@@ -164,6 +238,10 @@ struct PointCloud {
 
         if (!scalars.empty()) {
           ++it_scalars;
+        }
+
+        if (!labels.empty()) {
+          ++it_labels;
         }
       }
     }
@@ -179,6 +257,7 @@ struct PointCloud {
     is_same &= normals == other.normals;
     is_same &= colors == other.colors;
     is_same &= scalars == other.scalars;
+    is_same &= labels == other.labels;
     return is_same;
   }
 
@@ -212,6 +291,11 @@ struct PointCloud {
           "vertex", {"scalar"}, const_cast<std::vector<float>&>(scalars));
     }
 
+    if (!labels.empty()) {
+      ply_file.add_properties_to_element(
+          "vertex", {"label"}, const_cast<std::vector<uint32_t>&>(labels));
+    }
+
     ply_file.comments.push_back("generated by tinyply from maplab");
     ply_file.write(output_stream, true);
     filebuf.close();
@@ -232,8 +316,10 @@ struct PointCloud {
           "vertex", {"nx", "ny", "nz"}, normals);
       const int normals_count = ply_file.request_properties_from_element(
           "vertex", {"red", "green", "blue"}, colors);
-      const int value_count = ply_file.request_properties_from_element(
+      const int scalar_count = ply_file.request_properties_from_element(
           "vertex", {"scalar"}, scalars);
+      const int label_count =
+          ply_file.request_properties_from_element("vertex", {"label"}, labels);
       if (xyz_point_count > 0) {
         if (colors_count > 0) {
           // If colors are present, their count should match the point count.
@@ -244,10 +330,16 @@ struct PointCloud {
           CHECK_EQ(xyz_point_count, normals_count);
         }
 
-        if (value_count > 0) {
+        if (scalar_count > 0) {
           // If a value attribute is present, its count should match the point
           // count.
-          CHECK_EQ(xyz_point_count, value_count);
+          CHECK_EQ(xyz_point_count, scalar_count);
+        }
+
+        if (label_count > 0) {
+          // If a label attribute is present, its count should match the point
+          // count.
+          CHECK_EQ(xyz_point_count, label_count);
         }
 
         ply_file.read(stream_ply);
@@ -256,6 +348,32 @@ struct PointCloud {
       return true;
     }
     return false;
+  }
+
+  inline bool colorizePointCloud(
+      const size_t start_point_idx, const size_t end_point_idx, const uint8_t r,
+      const uint8_t g, const uint8_t b) {
+    if (colors.size() != xyz.size()) {
+      return false;
+    }
+    CHECK_LT(end_point_idx, size());
+    CHECK_LE(start_point_idx, end_point_idx);
+
+    auto it_rgb = colors.begin() + start_point_idx;
+    auto end_it = colors.begin() + end_point_idx;
+    while (it_rgb != end_it && it_rgb != colors.end()) {
+      *it_rgb = r;
+      *(it_rgb + 1) = g;
+      *(it_rgb + 2) = b;
+      it_rgb += 3;
+    }
+
+    return true;
+  }
+
+  inline bool colorizePointCloud(
+      const uint8_t r, const uint8_t g, const uint8_t b) {
+    return colorizePointCloud(0, size(), r, g, b);
   }
 };
 

@@ -93,6 +93,26 @@ void addScalarToPointCloud(
     const float scalar, const size_t index,
     pcl::PointCloud<pcl::OusterPointType>* point_cloud);
 
+template <typename PointCloudType>
+void addLabelToPointCloud(
+    const float scalar, const size_t index, PointCloudType* point_cloud) {
+  LOG(FATAL) << "This point cloud either does not support labels"
+             << "or it is not implemented!";
+}
+
+template <>
+void addLabelToPointCloud(
+    const uint32_t label, const size_t index,
+    resources::PointCloud* point_cloud);
+template <>
+void addLabelToPointCloud(
+    const uint32_t label, const size_t index,
+    sensor_msgs::PointCloud2* point_cloud);
+template <>
+void addLabelToPointCloud(
+    const uint32_t label, const size_t index,
+    pcl::PointCloud<pcl::PointXYZL>* point_cloud);
+
 template <>
 void addPointToPointCloud(
     const Eigen::Vector3d& point_C, const size_t index,
@@ -171,27 +191,42 @@ template <>
 bool hasScalarInformation(
     const pcl::PointCloud<pcl::OusterPointType>& point_cloud);
 
+template <typename PointCloudType>
+bool hasLabelInformation(const PointCloudType& /*point_cloud*/) {
+  return false;
+}
+template <>
+bool hasLabelInformation(const sensor_msgs::PointCloud2& point_cloud);
+template <>
+bool hasLabelInformation(const resources::PointCloud& point_cloud);
+template <>
+bool hasLabelInformation(const pcl::PointCloud<pcl::PointXYZL>& point_cloud);
+
 template <>
 void resizePointCloud(
     const size_t size, const bool /*has_color*/, const bool /*has_normals*/,
-    const bool /*has_scalar*/, voxblox::Pointcloud* point_cloud);
+    const bool /*has_scalar*/, const bool /*has_labels*/,
+    voxblox::Pointcloud* point_cloud);
 template <>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool /*has_normals*/,
-    const bool /*has_scalar*/, resources::VoxbloxColorPointCloud* point_cloud);
+    const bool /*has_scalar*/, const bool /*has_labels*/,
+    resources::VoxbloxColorPointCloud* point_cloud);
 template <>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool has_normals,
-    const bool has_scalar, resources::PointCloud* point_cloud);
+    const bool has_scalar, const bool /*has_labels*/,
+    resources::PointCloud* point_cloud);
 template <>
 void resizePointCloud(
     const size_t num_points, const bool has_color, const bool /*has_normals*/,
-    const bool has_scalar, sensor_msgs::PointCloud2* point_cloud);
+    const bool has_scalar, const bool /*has_labels*/,
+    sensor_msgs::PointCloud2* point_cloud);
 template <typename PointType>
 void resizePointCloud(
     const size_t num_points, const bool /*has_color*/,
     const bool /*has_normals*/, const bool /*has_scalar*/,
-    pcl::PointCloud<PointType>* point_cloud) {
+    const bool /*has_labels*/, pcl::PointCloud<PointType>* point_cloud) {
   CHECK_NOTNULL(point_cloud);
   CHECK_GT(num_points, 0u);
   point_cloud->points.resize(num_points);
@@ -279,8 +314,7 @@ void getScalarFromPointCloud(
     const PointCloudType& /*point_cloud*/, const size_t /*index*/,
     float* /*scalar*/) {
   LOG(FATAL) << "This point cloud either does not support scalars/intesities "
-                "or it is not "
-             << "implemented!";
+             << "or it is not implemented!";
 }
 template <>
 void getScalarFromPointCloud(
@@ -302,6 +336,26 @@ template <>
 void getScalarFromPointCloud(
     const pcl::PointCloud<pcl::OusterPointType>& point_cloud,
     const size_t index, float* scalar);
+
+template <typename PointCloudType>
+void getLabelFromPointCloud(
+    const PointCloudType& /*point_cloud*/, const uint32_t /*label*/,
+    float* /*scalar*/) {
+  LOG(FATAL) << "This point cloud either does not support labels"
+             << "or it is not implemented!";
+}
+template <>
+void getLabelFromPointCloud(
+    const resources::PointCloud& point_cloud, const size_t index,
+    uint32_t* label);
+template <>
+void getLabelFromPointCloud(
+    const sensor_msgs::PointCloud2& point_cloud, const size_t index,
+    uint32_t* label);
+template <>
+void getLabelFromPointCloud(
+    const pcl::PointCloud<pcl::PointXYZL>& point_cloud, const size_t index,
+    uint32_t* label);
 
 template <typename PointCloudType>
 bool convertDepthMapToPointCloud(
@@ -339,9 +393,11 @@ bool convertDepthMapToPointCloud(
   const bool has_color = has_image;
   constexpr bool kHasNormals = false;
   constexpr bool kHasScalar = false;
+  constexpr bool kHasLabels = false;
 
   resizePointCloud(
-      valid_depth_entries, has_color, kHasNormals, kHasScalar, point_cloud);
+      valid_depth_entries, has_color, kHasNormals, kHasScalar, kHasLabels,
+      point_cloud);
 
   constexpr double kMillimetersToMeters = 1e-3;
   constexpr double kEpsilon = 1e-6;
@@ -407,7 +463,7 @@ bool convertDepthMapToPointCloud(
 
   // Shrink pointcloud if necessary.
   resizePointCloud(
-      point_index, has_color, kHasNormals, kHasScalar, point_cloud);
+      point_index, has_color, kHasNormals, kHasScalar, kHasLabels, point_cloud);
 
   if (point_index == 0u) {
     VLOG(3) << "Depth map has no valid depth measurements!";
@@ -643,15 +699,18 @@ bool convertPointCloudType(
   const bool input_has_normals = hasNormalsInformation(input_cloud);
   const bool input_has_scalars = hasScalarInformation(input_cloud);
   const bool input_has_color = hasColorInformation(input_cloud);
+  const bool input_has_labels = hasLabelInformation(input_cloud);
 
   const size_t num_points = getPointCloudSize(input_cloud);
 
   resizePointCloud(
       num_points, input_has_color, input_has_normals, input_has_scalars,
-      output_cloud);
+      input_has_labels, output_cloud);
+  CHECK_EQ(getPointCloudSize(*output_cloud), num_points);
 
   const bool output_has_scalars = hasScalarInformation(*output_cloud);
   const bool output_has_color = hasColorInformation(*output_cloud);
+  const bool output_has_labels = hasLabelInformation(*output_cloud);
 
   for (size_t point_idx = 0u; point_idx < num_points; ++point_idx) {
     Eigen::Vector3d point_C;
@@ -669,6 +728,12 @@ bool convertPointCloudType(
       getScalarFromPointCloud(input_cloud, point_idx, &scalar);
       addScalarToPointCloud(scalar, point_idx, output_cloud);
     }
+
+    if (input_has_labels && output_has_labels) {
+      uint32_t label;
+      getLabelFromPointCloud(input_cloud, point_idx, &label);
+      addLabelToPointCloud(label, point_idx, output_cloud);
+    }
   }
 
   CHECK_EQ(getPointCloudSize(*output_cloud), num_points);
@@ -684,6 +749,7 @@ backend::ResourceType getResourceTypeForPointCloud(
   const bool has_normals = hasNormalsInformation(point_cloud);
   const bool has_scalars = hasScalarInformation(point_cloud);
   const bool has_color = hasColorInformation(point_cloud);
+  const bool has_labels = hasLabelInformation(point_cloud);
 
   if (has_color && has_normals && !has_scalars) {
     return backend::ResourceType::kPointCloudXYZRGBN;
@@ -691,11 +757,14 @@ backend::ResourceType getResourceTypeForPointCloud(
     return backend::ResourceType::kPointCloudXYZI;
   } else if (!has_color && !has_normals && !has_scalars) {
     return backend::ResourceType::kPointCloudXYZ;
+  } else if (!has_color && !has_normals && !has_scalars && has_labels) {
+    return backend::ResourceType::kPointCloudXYZL;
   }
   LOG(FATAL) << "Currently there is no point cloud type implemented as "
              << "resource that has this particular configuration of color("
              << has_color << "), normals(" << has_normals << ") and scalar("
-             << has_scalars << ") data!";
+             << has_scalars << "), label (" << has_labels << ") data!";
+  return backend::ResourceType::kCount;
 }
 
 }  // namespace backend

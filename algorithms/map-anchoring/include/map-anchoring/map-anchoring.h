@@ -16,11 +16,13 @@ struct ProbeResult {
 
   ProbeResult();
 
-  static constexpr double kMinMergingInlierRatioThreshold = 0.20;
-  static constexpr int kMinMergingNumLinks = 10;
-
   bool wasSuccessful() const;
 };
+
+void setMissionBaseframeToKnownIfHasAbs6DoFConstraints(
+    vi_map::VIMap* map);
+
+void removeOutliersInAbsolute6DoFConstraints(vi_map::VIMap* map);
 
 void setMissionBaseframeKnownState(
     const vi_map::MissionId& mission_id, const bool baseframe_known_state,

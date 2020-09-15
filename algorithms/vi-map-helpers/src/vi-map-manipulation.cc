@@ -607,7 +607,7 @@ void VIMapManipulation::dropMapDataBeforeVertex(
       map_.removeLandmark(landmark_id);
       CHECK(!map_.hasLandmarkIdInLandmarkIndex(landmark_id));
       CHECK(!vertex->hasStoredLandmark(landmark_id));
-      CHECK_EQ(vertex->getNumLandmarkObservations(landmark_id), 0);
+      CHECK_EQ(vertex->getNumLandmarkObservations(landmark_id), 0u);
     }
     CHECK_EQ(0u, vertex->getLandmarks().size());
 
@@ -655,6 +655,179 @@ void VIMapManipulation::dropMapDataBeforeVertex(
 
   // Set vertex as root vertex.
   map_.getMission(mission_id).setRootVertexId(new_root_vertex);
+}
+
+uint32_t VIMapManipulation::addOdometryEdgesBetweenVertices(
+    const uint32_t min_number_of_common_landmarks) {
+  uint32_t num_edges_added = 0u;
+
+  vi_map::MissionIdList mission_ids;
+  map_.getAllMissionIds(&mission_ids);
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    const vi_map::VIMission& mission = map_.getMission(mission_id);
+
+    if (!mission.hasOdometry6DoFSensor()) {
+      LOG(ERROR) << "Cannot add odometry edges in between the vertices of "
+                 << "mission " << mission_id
+                 << " because it does not have an odometry sensor!";
+      continue;
+    }
+
+    const aslam::SensorId& sensor_id = mission.getOdometry6DoFSensor();
+
+    const vi_map::Odometry6DoF& odometry_sensor =
+        map_.getSensorManager().getSensor<vi_map::Odometry6DoF>(sensor_id);
+
+    const aslam::Transformation& T_B_S =
+        map_.getSensorManager().getSensor_T_B_S(sensor_id);
+
+    aslam::TransformationCovariance odometry_covariance;
+    if (!odometry_sensor.get_T_St_Stp1_fixed_covariance(&odometry_covariance)) {
+      LOG(ERROR) << "Cannot add odometry edges in between vertices if the "
+                    "provided odometry sensor ("
+                 << sensor_id << ") does not have a valid covariance!";
+      return num_edges_added;
+    }
+
+    pose_graph::VertexIdList all_vertices_in_mission;
+    map_.getAllVertexIdsInMissionAlongGraph(
+        mission_id, &all_vertices_in_mission);
+
+    vi_map_helpers::VIMapQueries vi_map_queries(map_);
+
+    const bool add_vertices_based_on_common_landmarks =
+        min_number_of_common_landmarks > 0u;
+
+    for (uint32_t vertex_idx = 1u; vertex_idx < all_vertices_in_mission.size();
+         ++vertex_idx) {
+      const pose_graph::VertexId& current_vertex_id =
+          all_vertices_in_mission[vertex_idx - 1];
+      const pose_graph::VertexId& next_vertex_id =
+          all_vertices_in_mission[vertex_idx];
+      const vi_map::Vertex& current_vertex = map_.getVertex(current_vertex_id);
+      const vi_map::Vertex& next_vertex = map_.getVertex(next_vertex_id);
+
+      if (add_vertices_based_on_common_landmarks) {
+        vi_map::LandmarkIdSet common_landmarks;
+        const int num_common_landmarks =
+            vi_map_queries.getNumberOfCommonLandmarks(
+                current_vertex_id, next_vertex_id, &common_landmarks);
+        if (num_common_landmarks >
+            static_cast<int>(min_number_of_common_landmarks)) {
+          continue;
+        }
+      }
+      const aslam::Transformation& T_M_B_current = current_vertex.get_T_M_I();
+      const aslam::Transformation& T_M_B_next = next_vertex.get_T_M_I();
+      const aslam::Transformation T_S_current_S_next =
+          T_B_S.inverse() * T_M_B_current.inverse() * T_M_B_next * T_B_S;
+
+      const pose_graph::EdgeId edge_id =
+          aslam::createRandomId<pose_graph::EdgeId>();
+
+      map_.addEdge(aligned_unique<vi_map::TransformationEdge>(
+          pose_graph::Edge::EdgeType::kOdometry, edge_id, current_vertex_id,
+          next_vertex_id, T_S_current_S_next, odometry_covariance, sensor_id));
+
+      ++num_edges_added;
+    }
+  }
+  return num_edges_added;
+}
+
+bool VIMapManipulation::constrainStationarySubmapWithLoopClosureEdge(
+    const double max_translation_m, const double max_rotation_rad) {
+  CHECK_GE(max_translation_m, 0.0);
+  CHECK_GE(max_rotation_rad, 0.0);
+
+  vi_map::MissionIdList mission_ids;
+  map_.getAllMissionIds(&mission_ids);
+
+  if (mission_ids.size() > 1u) {
+    LOG(ERROR) << "Constraining a potentially stationary submap with a loop "
+               << "closure edge does not make sense for multi-mission maps!";
+    return false;
+  } else if (mission_ids.empty()) {
+    LOG(ERROR)
+        << "Constraining a potentially stationary submap with a loop "
+        << "closure edge does not make sense for map without a single mission!";
+    return false;
+  }
+
+  const vi_map::MissionId& mission_id = mission_ids.front();
+  const vi_map::VIMission& mission = map_.getMission(mission_id);
+
+  // If possible use covariance of odometry sensor, otherwise use gflags
+  // value.
+  aslam::TransformationCovariance T_B_first_B_last_covariance;
+  bool odometry_sensor_has_covariance = false;
+  if (mission.hasOdometry6DoFSensor()) {
+    const aslam::SensorId& sensor_id = mission.getOdometry6DoFSensor();
+    const vi_map::Odometry6DoF& odometry_sensor =
+        map_.getSensorManager().getSensor<vi_map::Odometry6DoF>(sensor_id);
+    aslam::TransformationCovariance odometry_covariance;
+    odometry_sensor_has_covariance =
+        odometry_sensor.get_T_St_Stp1_fixed_covariance(
+            &T_B_first_B_last_covariance);
+    LOG_IF(WARNING, !odometry_sensor_has_covariance)
+        << "An odometry sensor is set, but no covariance, odometry "
+        << "edges will be added with a hardcoded covariance.";
+  }
+
+  if (!odometry_sensor_has_covariance) {
+    const double kOdometry6DoFCovarianceScaler = 1e-4;
+    T_B_first_B_last_covariance.setIdentity();
+    T_B_first_B_last_covariance *= kOdometry6DoFCovarianceScaler;
+  }
+
+  pose_graph::VertexIdList all_vertices_in_mission;
+  map_.getAllVertexIdsInMissionAlongGraph(mission_id, &all_vertices_in_mission);
+
+  if (all_vertices_in_mission.size() < 2u) {
+    LOG(ERROR) << "Constraining a potentially stationary submap with a loop "
+               << "closure edge does not make sense for map with less than two "
+               << "vertices!";
+    return false;
+  }
+
+  const pose_graph::VertexId& first_vertex_id = all_vertices_in_mission.front();
+  const vi_map::Vertex& first_vertex = map_.getVertex(first_vertex_id);
+  const aslam::Transformation& T_M_B_first = first_vertex.get_T_M_I();
+
+  // Vertex id and transformation to the final vertex if the map turns out to be
+  // stationary.
+  pose_graph::VertexId last_vertex_id;
+  aslam::Transformation T_B_first_B_last;
+
+  for (uint32_t vertex_idx = 1u; vertex_idx < all_vertices_in_mission.size();
+       ++vertex_idx) {
+    last_vertex_id = all_vertices_in_mission[vertex_idx];
+    const vi_map::Vertex& last_vertex = map_.getVertex(last_vertex_id);
+    const aslam::Transformation& T_M_B_last = last_vertex.get_T_M_I();
+    T_B_first_B_last = T_M_B_first.inverse() * T_M_B_last;
+
+    // If at any point in this map we move past the translation or rotation
+    // threshold, we don't consider this map as stationary.
+    if (T_B_first_B_last.getPosition().norm() > max_translation_m) {
+      return false;
+    }
+    if (std::abs(aslam::AngleAxis(T_B_first_B_last.getRotation()).angle()) >
+        max_rotation_rad) {
+      return false;
+    }
+  }
+
+  // If we get to this point, the map is stationary and we will add a loop
+  // closure edge between first and last vertex.
+  const pose_graph::EdgeId loop_closure_edge_id =
+      aslam::createRandomId<pose_graph::EdgeId>();
+  const double kSwitchVariable = 1.0;
+  const double kSwitchVariableVariance = 1e-8;
+  map_.addEdge(aligned_unique<vi_map::LoopClosureEdge>(
+      loop_closure_edge_id, first_vertex_id, last_vertex_id, kSwitchVariable,
+      kSwitchVariableVariance, T_B_first_B_last, T_B_first_B_last_covariance));
+
+  return true;
 }
 
 }  // namespace vi_map_helpers
