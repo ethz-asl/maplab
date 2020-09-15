@@ -19,6 +19,7 @@
 #include <vi-map/vertex.h>
 #include <vi-map/vi-map.h>
 #include <visualization/common-rviz-visualization.h>
+#include <visualization/point-cloud-filter.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <voxblox/core/common.h>
 
@@ -62,6 +63,11 @@ DEFINE_double(
 DEFINE_bool(
     vis_pointcloud_color_random, false,
     "If enabled, every point cloud receives a random color.");
+
+DEFINE_bool(
+    vis_pointcloud_filter_dense_map_before_publishing, true,
+    "If enabled, the accumulated dense map will be filtered before "
+    "publishing.");
 
 namespace visualization {
 
@@ -304,7 +310,19 @@ void visualizeReprojectedDepthResource(
 
   // Publish accumulated point cloud in global frame.
   sensor_msgs::PointCloud2 ros_point_cloud_G;
-  backend::convertPointCloudType(accumulated_point_cloud_G, &ros_point_cloud_G);
+  if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
+    pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
+        new pcl::PointCloud<pcl::PointXYZI>);
+    CHECK_NOTNULL(pcl_cloud);
+    backend::convertPointCloudType(accumulated_point_cloud_G, &(*pcl_cloud));
+    constexpr float leaf_size_m = 0.3;
+    PointCloudFilter pcl_filter(leaf_size_m);
+    pcl_filter.filterCloud(pcl_cloud);
+    backend::convertPointCloudType((*pcl_cloud), &ros_point_cloud_G);
+  } else {
+    backend::convertPointCloudType(
+        accumulated_point_cloud_G, &ros_point_cloud_G);
+  }
   publishPointCloudInGlobalFrame("" /*topic prefix*/, &ros_point_cloud_G);
 
   // Only continue if we want to export the accumulated point cloud to file.
@@ -412,8 +430,21 @@ void visualizeReprojectedDepthResourcePerRobot(
 
     // Publish accumulated point cloud in global frame.
     sensor_msgs::PointCloud2 ros_point_cloud_G;
-    backend::convertPointCloudType(
-        accumulated_point_cloud_G, &ros_point_cloud_G);
+    if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
+      pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
+          new pcl::PointCloud<pcl::PointXYZI>);
+      CHECK_NOTNULL(pcl_cloud);
+
+      backend::convertPointCloudType(accumulated_point_cloud_G, &(*pcl_cloud));
+      constexpr unsigned int leaf_size_m = 0.2;
+      PointCloudFilter pcl_filter(leaf_size_m);
+      pcl_filter.filterCloud(pcl_cloud);
+      backend::convertPointCloudType((*pcl_cloud), &ros_point_cloud_G);
+    } else {
+      backend::convertPointCloudType(
+          accumulated_point_cloud_G, &ros_point_cloud_G);
+    }
+
     publishPointCloudInGlobalFrame(
         robot_name /*topic prefix*/, &ros_point_cloud_G);
   }
