@@ -25,6 +25,7 @@
 
 	<!-- Make sure all the plugins are available to the server to support all the algorithms necessary -->
 	<depend>dense_reconstruction_plugin</depend>
+	<depend>dense_mapping_constraints_plugin</depend>
 	<depend>landmark_manipulation_plugin</depend>
 	<depend>loop_closure_plugin</depend>
 	<depend>map_anchoring_plugin</depend>
