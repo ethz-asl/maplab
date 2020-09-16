@@ -37,13 +37,6 @@ class MaplabServerNodeTest : public ::testing::Test {
   const std::string kSubmap7 = kBasePath + "euroc_v1_01_submap_7";
 };
 
-TEST_F(MaplabServerNodeTest, TestSanityMaplabServerNode) {
-  MaplabServerNode maplab_server_node;
-  maplab_server_node.start();
-  ros::Time::init();
-  maplab_server_node.shutdown();
-}
-
 TEST_F(MaplabServerNodeTest, TestMaplabServerNode) {
   MaplabServerNode maplab_server_node;
   maplab_server_node.start();

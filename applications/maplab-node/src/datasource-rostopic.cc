@@ -1,13 +1,12 @@
 #include "maplab-node/datasource-rostopic.h"
 
-#include <string>
-
 #include <aslam/common/time.h>
 #include <boost/bind.hpp>
 #include <map-resources/resource-conversion.h>
 #include <maplab-common/accessors.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensors/lidar.h>
+#include <string>
 #include <vi-map/sensor-utils.h>
 #include <vio-common/rostopic-settings.h>
 
