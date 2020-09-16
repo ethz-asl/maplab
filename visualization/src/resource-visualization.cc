@@ -65,7 +65,7 @@ DEFINE_bool(
     "If enabled, every point cloud receives a random color.");
 
 DEFINE_bool(
-    vis_pointcloud_filter_dense_map_before_publishing, true,
+    vis_pointcloud_filter_dense_map_before_publishing, false,
     "If enabled, the visualized dense map will be filtered before "
     "publishing.");
 
