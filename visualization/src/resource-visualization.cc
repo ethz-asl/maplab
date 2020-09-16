@@ -66,7 +66,7 @@ DEFINE_bool(
 
 DEFINE_bool(
     vis_pointcloud_filter_dense_map_before_publishing, true,
-    "If enabled, the accumulated dense map will be filtered before "
+    "If enabled, the visualized dense map will be filtered before "
     "publishing.");
 
 DEFINE_double(
