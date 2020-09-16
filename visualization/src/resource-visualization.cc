@@ -76,6 +76,18 @@ DEFINE_double(
 
 namespace visualization {
 
+template <typename T_input, typename T_output>
+static void applyVoxelGridFilter(
+    const T_input& cloud_in, T_output* cloud_filtered) {
+  pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
+      new pcl::PointCloud<pcl::PointXYZI>);
+  CHECK_NOTNULL(pcl_cloud);
+
+  backend::convertPointCloudType(cloud_in, &(*pcl_cloud));
+  voxelGridPointCloud(FLAGS_vis_pointcloud_filter_leaf_size_m, pcl_cloud);
+  backend::convertPointCloudType((*pcl_cloud), cloud_filtered);
+}
+
 bool visualizeCvMatResources(
     const vi_map::VIMap& map, backend::ResourceType type) {
   CHECK_GT(FLAGS_vis_resource_visualization_frequency, 0.0);
@@ -272,25 +284,29 @@ void visualizeReprojectedDepthResource(
               new pcl::PointCloud<pcl::PointXYZI>);
           CHECK_NOTNULL(pcl_cloud);
           backend::convertPointCloudType(points_S, &(*pcl_cloud));
+          /*
           voxelGridPointCloud(
               FLAGS_vis_pointcloud_filter_leaf_size_m, pcl_cloud);
           backend::convertPointCloudType((*pcl_cloud), &points_S);
+          */
         }
 
         // Either publish in local frame with a tf or in global frame.
         if (FLAGS_vis_pointcloud_publish_in_sensor_frame_with_tf) {
+          sensor_msgs::PointCloud2 ros_point_cloud_S;
           if (FLAGS_vis_pointcloud_color_random) {
             resources::PointCloud points_C_colorized = points_S;
             accumulated_point_cloud_G.colorizePointCloud(r, g, b);
             sensor_msgs::PointCloud2 ros_point_cloud_S;
             backend::convertPointCloudType(
                 points_C_colorized, &ros_point_cloud_S);
-            publishPointCloudInLocalFrameWithTf(T_G_S, &ros_point_cloud_S);
           } else {
-            sensor_msgs::PointCloud2 ros_point_cloud_S;
             backend::convertPointCloudType(points_S, &ros_point_cloud_S);
-            publishPointCloudInLocalFrameWithTf(T_G_S, &ros_point_cloud_S);
           }
+          if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
+            applyVoxelGridFilter(ros_point_cloud_S, &ros_point_cloud_S);
+          }
+          publishPointCloudInLocalFrameWithTf(T_G_S, &ros_point_cloud_S);
         } else {
           resources::PointCloud points_G;
           points_G.appendTransformed(points_S, T_G_S);
@@ -300,7 +316,11 @@ void visualizeReprojectedDepthResource(
           }
 
           sensor_msgs::PointCloud2 ros_point_cloud_G;
-          backend::convertPointCloudType(points_G, &ros_point_cloud_G);
+          if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
+            applyVoxelGridFilter(points_G, &ros_point_cloud_G);
+          } else {
+            backend::convertPointCloudType(points_G, &ros_point_cloud_G);
+          }
           publishPointCloudInGlobalFrame(
               "" /*topic prefix*/, &ros_point_cloud_G);
         }
@@ -325,12 +345,7 @@ void visualizeReprojectedDepthResource(
   // Publish accumulated point cloud in global frame.
   sensor_msgs::PointCloud2 ros_point_cloud_G;
   if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
-    pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
-        new pcl::PointCloud<pcl::PointXYZI>);
-    CHECK_NOTNULL(pcl_cloud);
-    backend::convertPointCloudType(accumulated_point_cloud_G, &(*pcl_cloud));
-    voxelGridPointCloud(FLAGS_vis_pointcloud_filter_leaf_size_m, pcl_cloud);
-    backend::convertPointCloudType((*pcl_cloud), &ros_point_cloud_G);
+    applyVoxelGridFilter(accumulated_point_cloud_G, &ros_point_cloud_G);
   } else {
     backend::convertPointCloudType(
         accumulated_point_cloud_G, &ros_point_cloud_G);
@@ -443,13 +458,7 @@ void visualizeReprojectedDepthResourcePerRobot(
     // Publish accumulated point cloud in global frame.
     sensor_msgs::PointCloud2 ros_point_cloud_G;
     if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
-      pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
-          new pcl::PointCloud<pcl::PointXYZI>);
-      CHECK_NOTNULL(pcl_cloud);
-
-      backend::convertPointCloudType(accumulated_point_cloud_G, &(*pcl_cloud));
-      voxelGridPointCloud(FLAGS_vis_pointcloud_filter_leaf_size_m, pcl_cloud);
-      backend::convertPointCloudType((*pcl_cloud), &ros_point_cloud_G);
+      applyVoxelGridFilter(accumulated_point_cloud_G, &ros_point_cloud_G);
     } else {
       backend::convertPointCloudType(
           accumulated_point_cloud_G, &ros_point_cloud_G);
