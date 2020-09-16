@@ -267,6 +267,16 @@ void visualizeReprojectedDepthResource(
           return;
         }
 
+        if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
+          pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
+              new pcl::PointCloud<pcl::PointXYZI>);
+          CHECK_NOTNULL(pcl_cloud);
+          backend::convertPointCloudType(points_S, &(*pcl_cloud));
+          voxelGridPointCloud(
+              FLAGS_vis_pointcloud_filter_leaf_size_m, pcl_cloud);
+          backend::convertPointCloudType((*pcl_cloud), &points_S);
+        }
+
         // Either publish in local frame with a tf or in global frame.
         if (FLAGS_vis_pointcloud_publish_in_sensor_frame_with_tf) {
           if (FLAGS_vis_pointcloud_color_random) {
@@ -286,24 +296,11 @@ void visualizeReprojectedDepthResource(
           points_G.appendTransformed(points_S, T_G_S);
 
           if (FLAGS_vis_pointcloud_color_random) {
-            accumulated_point_cloud_G.colorizePointCloud(r, g, b);
+            points_G.colorizePointCloud(r, g, b);
           }
 
           sensor_msgs::PointCloud2 ros_point_cloud_G;
-
-          if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
-            pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
-                new pcl::PointCloud<pcl::PointXYZI>);
-            CHECK_NOTNULL(pcl_cloud);
-            backend::convertPointCloudType(
-                accumulated_point_cloud_G, &(*pcl_cloud));
-            voxelGridPointCloud(
-                FLAGS_vis_pointcloud_filter_leaf_size_m, pcl_cloud);
-            backend::convertPointCloudType((*pcl_cloud), &ros_point_cloud_G);
-          } else {
-            backend::convertPointCloudType(
-                accumulated_point_cloud_G, &ros_point_cloud_G);
-          }
+          backend::convertPointCloudType(points_G, &ros_point_cloud_G);
           publishPointCloudInGlobalFrame(
               "" /*topic prefix*/, &ros_point_cloud_G);
         }
