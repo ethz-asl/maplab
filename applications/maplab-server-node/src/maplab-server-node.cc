@@ -22,6 +22,7 @@
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/landmark-quality-metrics.h>
+#include <vi-map/sensor-utils.h>
 
 #include <atomic>
 #include <memory>
@@ -535,6 +536,17 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
         return MapLookupStatus::kNoSuchSensor;
       }
       sensor_id = mission.getOdometry6DoFSensor();
+    } else if (sensor_type == vi_map::SensorType::kPointCloudMapSensor) {
+      const vi_map::SensorManager& sm = map->getSensorManager();
+      vi_map::PointCloudMapSensor::Ptr pcm_sensor =
+          vi_map::getSelectedPointCloudMapSensor(sm);
+      if (pcm_sensor == nullptr) {
+        LOG(WARNING)
+            << "[MaplabServerNode] Received map lookup with the point "
+               "cloud map sensor, but there is no such sensor in the map!";
+        return MapLookupStatus::kNoSuchSensor;
+      }
+      sensor_id = pcm_sensor->getId();
     } else {
       LOG(WARNING)
           << "[MaplabServerNode] Received map lookup with invalid sensor!";
