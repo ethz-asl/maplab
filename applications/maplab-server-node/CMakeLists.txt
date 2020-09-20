@@ -10,7 +10,6 @@ catkin_simple(ALL_DEPS_REQUIRED)
 # LIBRARIES #
 #############
 cs_add_library(${PROJECT_NAME}_lib
-	src/maplab-server-config.cc
 	src/maplab-server-node.cc
   src/maplab-server-ros-node.cc)
 
@@ -28,7 +27,6 @@ target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib)
 ##########
 catkin_add_gtest(test_maplab_server_node test/test-maplab-server-node.cc)
 target_link_libraries(test_maplab_server_node ${PROJECT_NAME}_lib)
-maplab_import_local_test_data(test_maplab_server_node)
 maplab_import_test_maps(test_maplab_server_node)
 
 ############

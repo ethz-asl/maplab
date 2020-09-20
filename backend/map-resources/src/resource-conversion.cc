@@ -31,7 +31,6 @@ static const std::string kPointCloud2ColorR = "r";
 static const std::string kPointCloud2ColorG = "g";
 static const std::string kPointCloud2ColorB = "b";
 static const std::string kPointCloud2ColorA = "a";
-static const float kMaxIntensityValue = 1024.0f;
 
 static PointCloud2Visitor<float> intensity_visitor;
 static PointCloud2Visitor<uint32_t> label_visitor;
@@ -384,9 +383,8 @@ void getColorFromPointCloud(
 
     PointCloud2ConstIteratorVariant var =
         getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
-    float result =
-        boost::apply_visitor(intensity_visitor.setIndex(index), var) /
-        kMaxIntensityValue;
+    const float result =
+        boost::apply_visitor(intensity_visitor.setIndex(index), var);
 
     const voxblox::Color color = voxblox::grayColorMap(result);
     color_out[0] = color.r;
@@ -547,8 +545,7 @@ void getScalarFromPointCloud(
 
   PointCloud2ConstIteratorVariant var =
       getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
-  *scalar = boost::apply_visitor(intensity_visitor.setIndex(index), var) /
-            kMaxIntensityValue;
+  *scalar = boost::apply_visitor(intensity_visitor.setIndex(index), var);
 }
 
 template <>
@@ -586,7 +583,7 @@ void addLabelToPointCloud(
     const uint32_t label, const size_t index,
     resources::PointCloud* point_cloud) {
   CHECK_NOTNULL(point_cloud);
-  CHECK_LT(index, point_cloud->scalars.size());
+  DCHECK_LT(index, point_cloud->labels.size());
   point_cloud->labels[index] = label;
 }
 
@@ -606,7 +603,7 @@ template <>
 void addLabelToPointCloud(
     const uint32_t label, const size_t index,
     pcl::PointCloud<pcl::PointXYZL>* point_cloud) {
-  CHECK_LT(index, point_cloud->points.size());
+  DCHECK_LT(index, point_cloud->points.size());
   pcl::PointXYZL& point = point_cloud->points[index];
   point.label = label;
 }

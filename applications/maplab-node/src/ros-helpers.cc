@@ -44,16 +44,16 @@ DEFINE_double(image_resize_factor, 1.0, "Factor to resize images.");
 
 namespace maplab {
 
-vio::ImuMeasurement::Ptr convertRosImuToMaplabImu(
-    const sensor_msgs::ImuConstPtr& imu_msg) {
-  CHECK(imu_msg);
-  vio::ImuMeasurement::Ptr imu_measurement(new vio::ImuMeasurement);
-  imu_measurement->timestamp = rosTimeToNanoseconds(imu_msg->header.stamp);
-  imu_measurement->imu_data << imu_msg->linear_acceleration.x,
-      imu_msg->linear_acceleration.y, imu_msg->linear_acceleration.z,
-      imu_msg->angular_velocity.x, imu_msg->angular_velocity.y,
-      imu_msg->angular_velocity.z;
-  return imu_measurement;
+void addRosImuMeasurementToImuMeasurementBatch(
+    const sensor_msgs::Imu& imu_msg,
+    vio::BatchedImuMeasurements* batched_imu_measurements_ptr) {
+  CHECK_NOTNULL(batched_imu_measurements_ptr);
+  auto it = batched_imu_measurements_ptr->batch.insert(
+      batched_imu_measurements_ptr->batch.end(), vio::ImuMeasurement());
+  it->timestamp = rosTimeToNanoseconds(imu_msg.header.stamp);
+  it->imu_data << imu_msg.linear_acceleration.x, imu_msg.linear_acceleration.y,
+      imu_msg.linear_acceleration.z, imu_msg.angular_velocity.x,
+      imu_msg.angular_velocity.y, imu_msg.angular_velocity.z;
 }
 
 void applyHistogramEqualization(
@@ -95,7 +95,24 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
         // NOTE: we assume all 8UC1 type images are monochrome images.
         cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::TYPE_8UC1);
+      } else if (
+          image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
+        // We assume it is a BGR image.
+        cv_bridge::CvImageConstPtr cv_tmp_ptr = cv_bridge::toCvShare(
+            image_message, sensor_msgs::image_encodings::TYPE_8UC3);
+
+        // Convert image and add it to the cv bridge struct, such that the
+        // remaining part of the function can stay the same.
+        cv_bridge::CvImage* converted_image = new cv_bridge::CvImage;
+        converted_image->encoding = "mono8";
+        converted_image->header = image_message->header;
+        // We assume the color format is BGR.
+        cv::cvtColor(
+            cv_tmp_ptr->image, converted_image->image, cv::COLOR_BGR2GRAY);
+        // The cv bridge takes ownership of the image ptr.
+        cv_ptr.reset(converted_image);
       } else {
+        // Try automatic conversion for all the other encodings.
         cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::MONO8);
       }

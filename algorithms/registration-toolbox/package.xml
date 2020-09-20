@@ -17,4 +17,6 @@
   <depend>resources_common</depend>
   <depend>aslam_cv_common</depend>
   <depend>map_resources</depend>
+  <depend>libpointmatcher</depend>
+  <depend>pointmatcher_ros</depend>
 </package>
