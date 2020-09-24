@@ -1,0 +1,46 @@
+readingDataPointsFilters:
+  - FixStepSamplingDataPointsFilter:
+     startStep:              2
+  - RandomSamplingDataPointsFilter:
+     prob:                   0.4
+
+referenceDataPointsFilters:
+  - MaxDistDataPointsFilter:
+      maxDist:               200.0
+  - SamplingSurfaceNormalDataPointsFilter:
+      knn:                   10
+
+matcher:
+  KDTreeMatcher:
+    knn:                     3
+    maxDist:                 2.0
+    epsilon:                 1
+
+outlierFilters:
+  - TrimmedDistOutlierFilter:
+     ratio:                  0.9
+
+errorMinimizer:
+  PointToPointErrorMinimizer
+
+transformationCheckers:
+  - DifferentialTransformationChecker:
+      minDiffRotErr:         0.001
+      minDiffTransErr:       0.001
+      smoothLength:          2
+  - CounterTransformationChecker:
+      maxIterationCount:     40
+  - BoundTransformationChecker:
+      maxRotationNorm:       0.80
+      maxTranslationNorm:    0.80
+
+inspector:
+#  VTKFileInspector:
+#    dumpDataLinks:          1
+#    dumpReading:            1
+#    dumpReference:          1
+  NullInspector
+
+logger:
+#  FileLogger
+  NullLogger

@@ -1,6 +1,8 @@
 #ifndef REGISTRATION_TOOLBOX_ALIGNMENT_LPM_ALIGNMENT_H_
 #define REGISTRATION_TOOLBOX_ALIGNMENT_LPM_ALIGNMENT_H_
 
+#include <memory>
+
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
@@ -16,6 +18,7 @@ using PclPointCloudPtr = typename boost::shared_ptr<pcl::PointCloud<T>>;
 
 class LpmAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
  public:
+  LpmAlignment();
   virtual ~LpmAlignment() = default;
 
  protected:
@@ -30,6 +33,7 @@ class LpmAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
 
  private:
   PointMatcher<double>::ICP icp_;
+  std::unique_ptr<PointMatcher<double>::DataPointsFilters> input_filters_;
   PointMatcher<double>::DataPoints::Labels feature_labels_;
   PointMatcher<double>::DataPoints::Labels descriptor_labels_;
 };

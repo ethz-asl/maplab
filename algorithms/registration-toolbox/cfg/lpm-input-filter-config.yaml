@@ -1,0 +1,23 @@
+- FixStepSamplingDataPointsFilter:
+    startStep:     9
+- BoundingBoxDataPointsFilter:
+    xMin:          -inf
+    xMax:          inf
+    yMin:          -inf
+    yMax:          inf
+    zMin:          -1.0
+    zMax:          inf
+    removeInside:  0
+- MaxDistDataPointsFilter:
+    maxDist:       50.0
+#- RandomSamplingDataPointsFilter:
+#    prob:         0.2
+- SurfaceNormalDataPointsFilter:
+    knn:           15
+    epsilon:       1.33
+    keepNormals:   1
+    keepDensities: 1
+#- MaxDensityDataPointsFilter:
+#    maxDensity:   50.0
+- SimpleSensorNoiseDataPointsFilter:
+    sensorType:    0
