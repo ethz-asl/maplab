@@ -538,7 +538,7 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
       sensor_id = mission.getOdometry6DoFSensor();
     } else if (sensor_type == vi_map::SensorType::kPointCloudMapSensor) {
       const vi_map::SensorManager& sm = map->getSensorManager();
-      vi_map::PointCloudMapSensor::Ptr pcm_sensor =
+      const vi_map::PointCloudMapSensor::Ptr pcm_sensor =
           vi_map::getSelectedPointCloudMapSensor(sm);
       if (pcm_sensor == nullptr) {
         LOG(WARNING)
@@ -552,7 +552,7 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
           << "[MaplabServerNode] Received map lookup with invalid sensor!";
       return MapLookupStatus::kNoSuchSensor;
     }
-    const aslam::Transformation T_B_S =
+    const aslam::Transformation& T_B_S =
         map->getSensorManager().getSensor_T_B_S(sensor_id);
 
     const aslam::Transformation& T_G_M =
