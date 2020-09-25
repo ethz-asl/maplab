@@ -82,7 +82,7 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
   // Initialize the aligner if we haven't already.
   if (!*aligner_ptr) {
     *aligner_ptr =
-        regbox::BaseController::make(regbox::Aligner::PclGIcp, "ADMC Aligner");
+        regbox::BaseController::make(regbox::Aligner::LpmIcp, "ADMC Aligner");
   }
   CHECK(*aligner_ptr);
 

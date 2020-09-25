@@ -3,6 +3,7 @@ readingDataPointsFilters:
      startStep:              2
   - RandomSamplingDataPointsFilter:
      prob:                   0.4
+  - RemoveNaNDataPointsFilter:
 
 referenceDataPointsFilters:
   - MaxDistDataPointsFilter:
@@ -12,16 +13,16 @@ referenceDataPointsFilters:
 
 matcher:
   KDTreeMatcher:
-    knn:                     3
-    maxDist:                 2.0
-    epsilon:                 1
+    knn:                     1
+    maxDist:                 0.25
+    epsilon:                 0
 
 outlierFilters:
   - TrimmedDistOutlierFilter:
-     ratio:                  0.9
+     ratio:                  0.85
 
 errorMinimizer:
-  PointToPointErrorMinimizer
+  PointToPlaneWithCovErrorMinimizer
 
 transformationCheckers:
   - DifferentialTransformationChecker:

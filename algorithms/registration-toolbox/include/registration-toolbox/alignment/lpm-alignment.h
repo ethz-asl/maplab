@@ -32,6 +32,8 @@ class LpmAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
       PointMatcher<double>::TransformationParameters&& T) const noexcept;
 
  private:
+  bool isValidCovariance(const Eigen::MatrixXd& cov) const;
+
   PointMatcher<double>::ICP icp_;
   std::unique_ptr<PointMatcher<double>::DataPointsFilters> input_filters_;
   PointMatcher<double>::DataPoints::Labels feature_labels_;

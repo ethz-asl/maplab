@@ -10,14 +10,14 @@
     removeInside:  0
 - MaxDistDataPointsFilter:
     maxDist:       50.0
-#- RandomSamplingDataPointsFilter:
-#    prob:         0.2
+- RandomSamplingDataPointsFilter:
+    prob:          0.3
 - SurfaceNormalDataPointsFilter:
     knn:           15
     epsilon:       1.33
     keepNormals:   1
     keepDensities: 1
-#- MaxDensityDataPointsFilter:
-#    maxDensity:   50.0
+- MaxDensityDataPointsFilter:
+    maxDensity:    50.0
 - SimpleSensorNoiseDataPointsFilter:
     sensorType:    0
