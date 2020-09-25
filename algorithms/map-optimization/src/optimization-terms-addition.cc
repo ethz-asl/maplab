@@ -428,7 +428,7 @@ int addVisualTermsForVertices(
         if (vertex.getVisualFrame(frame_idx).hasKeypointMeasurements()) {
           add_visual_constraint_for_vertex = true;
         } else {
-          LOG(WARNING)
+          LOG_FIRST_N(WARNING,1)
               << "Tried to add visual constraints, but the vertex does "
                  "not contain any!";
         }
@@ -438,7 +438,7 @@ int addVisualTermsForVertices(
         if (vertex.getVisualFrame(frame_idx).hasLidarKeypoint3DMeasurements()) {
           add_lidar_constraint_for_vertex = true;
         } else {
-          LOG(WARNING) << "Tried to add lidar constraints, but the vertex does "
+          LOG_FIRST_N(WARNING,1) << "Tried to add lidar constraints, but the vertex does "
                           "not contain any!";
         }
       }
