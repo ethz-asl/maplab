@@ -40,25 +40,13 @@ RegistrationResult LpmAlignment::registerCloudImpl(
   PointMatcher<double>::DataPoints source_points =
       PointMatcher_ros::rosMsgToPointMatcherCloud<double>(source_msg);
 
-  VLOG(1) << target_points.features(0, 0);
-  VLOG(1) << "Number of points in target: " << target_points.getNbPoints();
-  VLOG(1) << "Number of points in source: " << source_points.getNbPoints();
-
   // If we configured input filters, we need to apply them before the
   // registration.
   if (input_filters_ != nullptr) {
-    VLOG(1) << "APPLYING FILTERS!";
     input_filters_->apply(target_points);
     input_filters_->apply(source_points);
   }
 
-  VLOG(1) << "Number of points in target after filtering: "
-          << target_points.getNbPoints();
-  VLOG(1) << "Number of points in source after filtering: "
-          << source_points.getNbPoints();
-
-  aslam::Transformation test;
-  test.setIdentity();
   PointMatcher<double>::TransformationParameters T = icp_.compute(
       source_points, target_points,
       prior_T_target_source.getTransformationMatrix());
