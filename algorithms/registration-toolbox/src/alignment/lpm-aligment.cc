@@ -75,32 +75,20 @@ RegistrationResult LpmAlignment::createResultFromTransformation(
   PclPointCloudPtr<pcl::PointXYZI> reg(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::transformPointCloud(*source, *reg, T.cast<float>());
   result.setRegisteredCloud(reg);
-  // aslam::Transformation T_target_source = convertEigenToKindr(T);
   result.set_T_target_source(T);
-  // result.set_T_target_source_covariance(icp_.errorMinimizer->getCovariance());
-  const Eigen::MatrixXd lpm_cov = icp_.errorMinimizer->getCovariance();
+  const Eigen::MatrixXd& lpm_cov = icp_.errorMinimizer->getCovariance();
   if (isValidCovariance(lpm_cov)) {
-    VLOG(1) << "cov is valid";
     result.set_T_target_source_covariance(lpm_cov);
   } else {
-    VLOG(1) << "cov is invalid";
-    const Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6) * 1e-4;
-    result.set_T_target_source_covariance(cov);
+    const Eigen::MatrixXd fixed_cov = Eigen::MatrixXd::Identity(6, 6) * 1e-4;
+    result.set_T_target_source_covariance(fixed_cov);
   }
   result.hasConverged(!T.hasNaN());
-
-  if (result.hasConverged()) {
-    VLOG(1) << "transform: \n" << result.get_T_target_source();
-    // VLOG(1) << "transform: \n" << ;
-  }
 
   return result;
 }
 
 bool LpmAlignment::isValidCovariance(const Eigen::MatrixXd& cov) const {
-  // const bool is_nan = ((cov.array() == cov.array())).all();
-  // const bool is_nan = cov.hasNaN();
-  // const bool is_finite = ((cov - cov).array() == (cov - cov).array()).all();
   return !cov.hasNaN() && !cov.isZero();
 }
 
