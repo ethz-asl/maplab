@@ -47,11 +47,6 @@ RegistrationResult LpmAlignment::registerCloudImpl(
     input_filters_->apply(source_points);
   }
 
-<<<<<<< HEAD
-=======
-  aslam::Transformation test;
-  test.setIdentity();
->>>>>>> testing
   PointMatcher<double>::TransformationParameters T = icp_.compute(
       source_points, target_points,
       prior_T_target_source.getTransformationMatrix());
