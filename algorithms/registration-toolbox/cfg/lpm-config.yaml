@@ -7,15 +7,15 @@ readingDataPointsFilters:
 
 referenceDataPointsFilters:
   - MaxDistDataPointsFilter:
-      maxDist:               200.0
+      maxDist:               50.0
   - SamplingSurfaceNormalDataPointsFilter:
       knn:                   10
 
 matcher:
   KDTreeMatcher:
-    knn:                     1
-    maxDist:                 0.25
-    epsilon:                 0
+    knn:                     3
+    maxDist:                 2.0
+    epsilon:                 1
 
 outlierFilters:
   - TrimmedDistOutlierFilter:

@@ -13,4 +13,10 @@ DEFINE_string(
 DEFINE_string(
     regbox_lpm_input_filter_config_path, "",
     "Path to the input filter configuration for libpointmatcher.");
+DEFINE_double(
+    regbox_lpm_icp_match_residual_error_threshold_m, 0.1,
+    "Threshold to decide whether the registration was successful.");
+DEFINE_bool(
+    regbox_lpm_use_computed_covariance, false,
+    "If true, the LC edge uses the computed covariance if it is valid.");
 }  // namespace regbox
