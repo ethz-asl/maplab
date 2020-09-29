@@ -12,6 +12,8 @@ DECLARE_double(regbox_pcl_downsample_leaf_size_m);
 // libpointmatcher config
 DECLARE_string(regbox_lpm_config_path);
 DECLARE_string(regbox_lpm_input_filter_config_path);
+DECLARE_double(regbox_lpm_icp_match_residual_error_threshold_m);
+DECLARE_bool(regbox_lpm_use_computed_covariance);
 
 }  // namespace regbox
 

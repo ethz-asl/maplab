@@ -28,7 +28,7 @@ class LpmAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
       const aslam::Transformation& prior_T_target_source) override;
 
   RegistrationResult createResultFromTransformation(
-      const PclPointCloudPtr<pcl::PointXYZI>& source,
+      const PclPointCloudPtr<pcl::PointXYZI>& source, const bool accept_match,
       PointMatcher<double>::TransformationParameters&& T) const noexcept;
 
  private:
