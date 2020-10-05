@@ -1,39 +1,35 @@
 readingDataPointsFilters:
-  - FixStepSamplingDataPointsFilter:
-     startStep:              2
-  - RandomSamplingDataPointsFilter:
-     prob:                   0.4
+  - SamplingSurfaceNormalDataPointsFilter:
+      knn:                   20
+      keepDensities:         1
   - RemoveNaNDataPointsFilter:
 
 referenceDataPointsFilters:
   - MaxDistDataPointsFilter:
       maxDist:               50.0
   - SamplingSurfaceNormalDataPointsFilter:
-      knn:                   10
+      knn:                   20
+      keepDensities:         1
 
 matcher:
   KDTreeMatcher:
-    knn:                     3
-    maxDist:                 2.0
-    epsilon:                 1
+    knn:                     1
+    epsilon:                 0
 
 outlierFilters:
   - TrimmedDistOutlierFilter:
-     ratio:                  0.85
+     ratio:                  0.6
 
 errorMinimizer:
   PointToPlaneWithCovErrorMinimizer
 
 transformationCheckers:
   - DifferentialTransformationChecker:
-      minDiffRotErr:         0.001
-      minDiffTransErr:       0.001
-      smoothLength:          2
+      minDiffRotErr:         0.0001
+      minDiffTransErr:       0.00001
+      smoothLength:          4
   - CounterTransformationChecker:
-      maxIterationCount:     40
-  - BoundTransformationChecker:
-      maxRotationNorm:       0.80
-      maxTranslationNorm:    0.80
+      maxIterationCount:     200
 
 inspector:
 #  VTKFileInspector:
