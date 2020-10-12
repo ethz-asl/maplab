@@ -110,6 +110,11 @@ DEFINE_bool(
     "within and "
     "across missions.");
 
+DEFINE_int32(
+    maplab_server_perform_global_admc_every_nth, -1,
+    "If enabled, the global LiDAR LC search will be performed every nth map "
+    "merging iterations.");
+
 namespace maplab {
 MaplabServerNode::MaplabServerNode()
     : submap_loading_thread_pool_(
@@ -739,6 +744,68 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
   }
 
+  // Full optimization
+  ////////////////////
+  // This does not scale, and never will, so it is important that # we limit
+  // the runtime by setting the --ba_max_time_seconds flag.
+  {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "optimization";
+    }
+    const vi_map::MissionIdSet missions_to_optimize(
+        mission_ids.begin(), mission_ids.end());
+    // We only want to get these once, such that if the gflags get modified
+    // later the optimization settings for the submaps remain the same.
+    map_optimization::ViProblemOptions options =
+        map_optimization::ViProblemOptions::initFromGFlags();
+
+    // Restore previous trust region.
+    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {
+      // Reset the trust region if N submaps have been added in the meantime.
+      const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
+      const uint32_t num_submaps_since_reset =
+          num_submaps_merged - num_submaps_at_last_trust_region_reset;
+      const uint32_t reset_every_n =
+          FLAGS_maplab_server_reset_trust_region_radius_every_nth_submap;
+      if (reset_every_n != 0u && num_submaps_since_reset >= reset_every_n) {
+        optimization_trust_region_radius_ =
+            FLAGS_ba_initial_trust_region_radius;
+        num_submaps_at_last_trust_region_reset = num_submaps_merged;
+      }
+      options.solver_options.initial_trust_region_radius =
+          optimization_trust_region_radius_;
+    }
+
+    map_optimization::VIMapOptimizer optimizer(
+        nullptr /*no plotter for optimization*/,
+        false /*signal handler enabled*/);
+
+    map_optimization::OptimizationProblemResult result;
+    if (!optimizer.optimize(
+            options, missions_to_optimize, map.get(), &result)) {
+      LOG(ERROR) << "[MaplabServerNode] MapMerging - Failure in optimization.";
+    } else {
+      if (!result.iteration_summaries.empty()) {
+        optimization_trust_region_radius_ =
+            result.iteration_summaries.back().trust_region_radius;
+      } else {
+        LOG(ERROR) << "[MaplabServerNode] Unable to extract final trust region "
+                   << "of previous global optimization iteration! Setting to "
+                   << "default value (" << FLAGS_ba_initial_trust_region_radius
+                   << ").";
+        optimization_trust_region_radius_ =
+            FLAGS_ba_initial_trust_region_radius;
+      }
+    }
+  }
+
   // Lidar local constraints/loop closure
   ///////////////////////////////////////
   // Searches for nearby dense map data (e.g. lidar scans) within and across
@@ -749,26 +816,36 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   // not be computed again.
 #if __GNUC__ > 5
   if (FLAGS_maplab_server_enable_lidar_loop_closure) {
-    vi_map::VIMapManager::MapWriteAccess map =
-        map_manager_.getMapWriteAccess(kMergedMapKey);
-    vi_map::MissionIdList mission_ids;
-    map->getAllMissionIds(&mission_ids);
-    {
-      std::lock_guard<std::mutex> merge_status_lock(
-          running_merging_process_mutex_);
-      running_merging_process_ = "lidar loop closure";
+    bool perform_loop_closure = true;
+    if (FLAGS_maplab_server_perform_global_admc_every_nth > 0) {
+      const uint32_t n_processing =
+          num_full_map_merging_processings %
+          FLAGS_maplab_server_perform_global_admc_every_nth;
+      perform_loop_closure = n_processing == 0;
     }
+    if (perform_loop_closure) {
+      vi_map::VIMapManager::MapWriteAccess map =
+          map_manager_.getMapWriteAccess(kMergedMapKey);
+      vi_map::MissionIdList mission_ids;
+      map->getAllMissionIds(&mission_ids);
+      {
+        std::lock_guard<std::mutex> merge_status_lock(
+            running_merging_process_mutex_);
+        running_merging_process_ = "lidar loop closure";
+      }
 
-    VLOG(1) << "gcc: " << __GNUC__;
-    const dense_mapping::Config config = dense_mapping::Config::fromGflags();
-    if (!dense_mapping::addDenseMappingConstraintsToMap(
-            config, mission_ids, map.get())) {
-      LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
-                 << "encountered an error!";
+      VLOG(1) << "gcc: " << __GNUC__;
+      const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+      if (!dense_mapping::addDenseMappingConstraintsToMap(
+              config, mission_ids, map.get())) {
+        LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                   << "encountered an error!";
+      }
     }
   }
 #else
-    LOG(WARNING) << "Dense mapping constraints are experimental on old compilers.";
+  LOG(WARNING)
+      << "Dense mapping constraints are experimental on old compilers.";
 #endif
 
   // Full optimization
@@ -839,6 +916,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         running_merging_process_mutex_);
     running_merging_process_ = "";
   }
+  ++num_full_map_merging_processings;
 }
 
 void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
@@ -1290,6 +1368,60 @@ void MaplabServerNode::runSubmapProcessing(
     vi_map_helpers::evaluateLandmarkQuality(missions_to_process, map.get());
   }
 
+  // Visual Loop Closure
+  //////////////////////
+  if (FLAGS_maplab_server_enable_visual_loop_closure) {
+    const vi_map::MissionIdSet mission_ids(
+        missions_to_process.begin(), missions_to_process.end());
+    {
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] = "visual loop closure";
+    }
+    vi_map::MissionIdSet::const_iterator mission_ids_end = mission_ids.cend();
+    for (vi_map::MissionIdSet::const_iterator it = mission_ids.cbegin();
+         it != mission_ids_end; ++it) {
+      const vi_map::MissionId& mission_id_A = *it;
+      CHECK(mission_id_A.isValid());
+      loop_detector_node::LoopDetectorNode loop_detector;
+      if (plotter_) {
+        loop_detector.instantiateVisualizer();
+      }
+      loop_detector.addMissionToDatabase(mission_id_A, *map);
+      loop_detector.detectLoopClosuresAndMergeLandmarks(
+          mission_id_A, map.get());
+    }
+  }
+
+  // Submap Optimization
+  //////////////////////
+  {
+    {
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] = "optimization";
+    }
+    const vi_map::MissionIdSet missions_to_optimize(
+        missions_to_process.begin(), missions_to_process.end());
+    // We only want to get these once, such that if the gflags get modified
+    // later the optimization settings for the submaps remain the same.
+    map_optimization::ViProblemOptions options =
+        map_optimization::ViProblemOptions::initFromGFlags();
+    map_optimization::VIMapOptimizer optimizer(
+        nullptr /*no plotter for optimization*/,
+        false /*signal handler enabled*/);
+    optimizer.optimize(options, missions_to_optimize, map.get());
+  }
+
+  // Filter outliers from absolute constraints
+  ////////////////////////////////////////////
+  if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
+    {
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] =
+          "abs constraints outlier rejection";
+    }
+    map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
+  }
+
   // Lidar local constraints/loop closure
   ///////////////////////////////////////
   // Searches for nearby dense map data (e.g. lidar scans) within the submap
@@ -1326,17 +1458,6 @@ void MaplabServerNode::runSubmapProcessing(
         nullptr /*no plotter for optimization*/,
         false /*signal handler enabled*/);
     optimizer.optimize(options, missions_to_optimize, map.get());
-  }
-
-  // Filter outliers from absolute constraints
-  ////////////////////////////////////////////
-  if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
-    {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] =
-          "abs constraints outlier rejection";
-    }
-    map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
   }
 
   // Remove processing status of submap
