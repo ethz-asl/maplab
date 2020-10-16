@@ -68,7 +68,12 @@ bool searchForAlignmentCandidatePairs(
   CHECK_NOTNULL(candidate_pairs_ptr)->clear();
 
   MissionToAlignmentCandidatesMap candidates_per_mission;
-  findAllAlignmentCandidates(config, map, mission_ids, &candidates_per_mission);
+  try {
+    findAllAlignmentCandidates(config, map, mission_ids, &candidates_per_mission);
+  } catch(std::exception &e) {
+    LOG(ERROR) << "Finding alignment pairs failed. Aborting.";
+    return false;
+  }
 
   if (config.enable_intra_mission_consecutive_search) {
     if (!searchForConsecutiveAlignmentCandidatePairs(

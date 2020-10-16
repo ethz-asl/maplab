@@ -1,8 +1,11 @@
 #include "maplab-server-node/maplab-server-node.h"
 
-#include <aslam/common/timer.h>
+#if __GNUC__ > 5
 #include <dense-mapping/dense-mapping.h>
+#endif
 #include <depth-integration/depth-integration.h>
+
+#include <aslam/common/timer.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <landmark-triangulation/pose-interpolator.h>
@@ -19,6 +22,7 @@
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/landmark-quality-metrics.h>
+#include <vi-map/sensor-utils.h>
 
 #include <atomic>
 #include <memory>
@@ -242,7 +246,7 @@ void MaplabServerNode::shutdown() {
     if (submap_merging_thread_.joinable()) {
       submap_merging_thread_.join();
     }
-    LOG(INFO) << "[MaplabServerNode] Done.";
+    LOG(INFO) << "[MaplabServerNode] Done stopping MapMerging thread.";
   } catch (std::exception& e) {
     LOG(ERROR) << "Unable to stop map merging thread: " << e.what();
   }
@@ -251,7 +255,7 @@ void MaplabServerNode::shutdown() {
     LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
     submap_loading_thread_pool_.stop();
     submap_loading_thread_pool_.waitForEmptyQueue();
-    LOG(INFO) << "[MaplabServerNode] Done.";
+    LOG(INFO) << "[MaplabServerNode] Done stopping SubmapProcessing threads.";
   } catch (std::exception& e) {
     LOG(ERROR) << "Unable to stop map submap processing threads: " << e.what();
   }
@@ -261,7 +265,7 @@ void MaplabServerNode::shutdown() {
     if (status_thread_.joinable()) {
       status_thread_.join();
     }
-    LOG(INFO) << "[MaplabServerNode] Done.";
+    LOG(INFO) << "[MaplabServerNode] Done stopping Status thread.";
   } catch (std::exception& e) {
     LOG(ERROR) << "Unable to stop status thread: " << e.what();
   }
@@ -537,12 +541,23 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
         return MapLookupStatus::kNoSuchSensor;
       }
       sensor_id = mission.getOdometry6DoFSensor();
+    } else if (sensor_type == vi_map::SensorType::kPointCloudMapSensor) {
+      const vi_map::SensorManager& sm = map->getSensorManager();
+      const vi_map::PointCloudMapSensor::Ptr pcm_sensor =
+          vi_map::getSelectedPointCloudMapSensor(sm);
+      if (pcm_sensor == nullptr) {
+        LOG(WARNING)
+            << "[MaplabServerNode] Received map lookup with the point "
+               "cloud map sensor, but there is no such sensor in the map!";
+        return MapLookupStatus::kNoSuchSensor;
+      }
+      sensor_id = pcm_sensor->getId();
     } else {
       LOG(WARNING)
           << "[MaplabServerNode] Received map lookup with invalid sensor!";
       return MapLookupStatus::kNoSuchSensor;
     }
-    const aslam::Transformation T_B_S =
+    const aslam::Transformation& T_B_S =
         map->getSensorManager().getSensor_T_B_S(sensor_id);
 
     const aslam::Transformation& T_G_M =
@@ -1427,6 +1442,7 @@ void MaplabServerNode::runSubmapProcessing(
   // Searches for nearby dense map data (e.g. lidar scans) within the submap
   // mission and uses point cloud registration algorithms to derive relative
   // constraints. These are added as loop closures between vertices.
+#if __GNUC__ > 5
   if (FLAGS_maplab_server_enable_lidar_loop_closure) {
     {
       std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
@@ -1440,6 +1456,7 @@ void MaplabServerNode::runSubmapProcessing(
                  << "encountered an error!";
     }
   }
+#endif
 
   // Submap Optimization
   //////////////////////
