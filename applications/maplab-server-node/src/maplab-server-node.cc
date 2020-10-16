@@ -1,8 +1,11 @@
 #include "maplab-server-node/maplab-server-node.h"
 
-#include <aslam/common/timer.h>
+#if __GNUC__ > 5
 #include <dense-mapping/dense-mapping.h>
+#endif
 #include <depth-integration/depth-integration.h>
+
+#include <aslam/common/timer.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <landmark-triangulation/pose-interpolator.h>
@@ -237,7 +240,7 @@ void MaplabServerNode::shutdown() {
     if (submap_merging_thread_.joinable()) {
       submap_merging_thread_.join();
     }
-    LOG(INFO) << "[MaplabServerNode] Done.";
+    LOG(INFO) << "[MaplabServerNode] Done stopping MapMerging thread.";
   } catch (std::exception& e) {
     LOG(ERROR) << "Unable to stop map merging thread: " << e.what();
   }
@@ -246,7 +249,7 @@ void MaplabServerNode::shutdown() {
     LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
     submap_loading_thread_pool_.stop();
     submap_loading_thread_pool_.waitForEmptyQueue();
-    LOG(INFO) << "[MaplabServerNode] Done.";
+    LOG(INFO) << "[MaplabServerNode] Done stopping SubmapProcessing threads.";
   } catch (std::exception& e) {
     LOG(ERROR) << "Unable to stop map submap processing threads: " << e.what();
   }
@@ -256,7 +259,7 @@ void MaplabServerNode::shutdown() {
     if (status_thread_.joinable()) {
       status_thread_.join();
     }
-    LOG(INFO) << "[MaplabServerNode] Done.";
+    LOG(INFO) << "[MaplabServerNode] Done stopping Status thread.";
   } catch (std::exception& e) {
     LOG(ERROR) << "Unable to stop status thread: " << e.what();
   }
@@ -768,7 +771,8 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
   }
 #else
-    LOG(WARNING) << "Dense mapping constraints are experimental on old compilers.";
+  LOG(WARNING)
+      << "Dense mapping constraints are experimental on old compilers.";
 #endif
 
   // Full optimization
@@ -1295,6 +1299,7 @@ void MaplabServerNode::runSubmapProcessing(
   // Searches for nearby dense map data (e.g. lidar scans) within the submap
   // mission and uses point cloud registration algorithms to derive relative
   // constraints. These are added as loop closures between vertices.
+#if __GNUC__ > 5
   if (FLAGS_maplab_server_enable_lidar_loop_closure) {
     {
       std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
@@ -1308,6 +1313,7 @@ void MaplabServerNode::runSubmapProcessing(
                  << "encountered an error!";
     }
   }
+#endif
 
   // Submap Optimization
   //////////////////////
