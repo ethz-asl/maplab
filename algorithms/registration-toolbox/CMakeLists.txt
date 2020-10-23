@@ -22,13 +22,15 @@ catkin_simple(ALL_DEPS_REQUIRED)
 #############
 
 cs_add_library(${PROJECT_NAME}
-  src/alignment/lpm-aligment.cc
+  src/alignment/lpm-alignment.cc
+  src/alignment/loam-alignment.cc
   src/common/common.cc
   src/common/registration-factory.cc
   src/common/registration-gflags.cc
   src/common/supported.cc
   src/model/registration-result.cc
   src/lpm-icp-controller.cc
+  src/loam-controller.cc
   src/mock-controller.cc
   src/pcl-gicp-controller.cc
   src/pcl-icp-controller.cc
@@ -37,8 +39,10 @@ cs_add_library(${PROJECT_NAME}
 ##########
 # TESTS #
 ##########
-cs_add_executable(${PROJECT_NAME}_driver test/aligner-driver.cc)
+catkin_add_gtest(${PROJECT_NAME}_driver test/aligner-driver.cc)
 target_link_libraries(${PROJECT_NAME}_driver ${PROJECT_NAME})
+cs_add_executable(loam_driver test/loam-driver.cc)
+target_link_libraries(loam_driver ${PROJECT_NAME})
 catkin_add_gtest(test_registration_toolbox test/test-regbox.cc)
 target_link_libraries(test_registration_toolbox ${PROJECT_NAME})
 

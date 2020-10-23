@@ -6,7 +6,7 @@
 
 namespace regbox {
 
-enum class Aligner : int { PclIcp, PclGIcp, Mock, LpmIcp };
+enum class Aligner : int { PclIcp, PclGIcp, Mock, LpmIcp, Loam };
 
 class SupportedAligner {
  public:

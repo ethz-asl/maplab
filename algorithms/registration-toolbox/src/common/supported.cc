@@ -13,6 +13,8 @@ std::string SupportedAligner::getKeyForAligner(Aligner aligner) {
     return "regbox::MockController";
   } else if (aligner == Aligner::LpmIcp) {
     return "regbox::LpmIcpController";
+  } else if (aligner == Aligner::Loam) {
+    return "regbox::LoamController";
   } else {
     LOG(FATAL) << "Unsupported alignment type given: "
                << static_cast<int>(aligner);
