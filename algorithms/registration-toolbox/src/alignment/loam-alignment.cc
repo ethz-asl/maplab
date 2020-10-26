@@ -20,18 +20,19 @@ RegistrationResult LoamAlignment::registerCloudImpl(
     new pcl::KdTreeFLANN<pcl::PointXYZI>());
   kd_tree_target_edges_->setInputCloud(target_edges_);
   kd_tree_target_surfaces_->setInputCloud(target_surfaces_);
-  int optimization_count = 100;
+
+  const size_t k_optimization_count = 10u;
 
   Eigen::Map<Eigen::Quaterniond> q_w_curr =
         Eigen::Map<Eigen::Quaterniond>(&parameters_[0]);
   Eigen::Map<Eigen::Vector3d> t_w_curr =
       Eigen::Map<Eigen::Vector3d>(&parameters_[0] + 4);
+
   q_w_curr = Eigen::Quaterniond(prior_T_target_source.getEigenQuaternion());
   t_w_curr = prior_T_target_source.getPosition();
 
-  for (int iterCount = 0; iterCount < optimization_count; iterCount++){
-
-    ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
+  for (int iterCount = 0; iterCount < k_optimization_count; iterCount++) {
+    ceres::LossFunction* loss_function = new ceres::HuberLoss(0.1);
     ceres::Problem::Options problem_options;
     ceres::Problem problem(problem_options);
     problem.AddParameterBlock(parameters_, 7, new PoseSE3Parameterization());
@@ -40,28 +41,31 @@ RegistrationResult LoamAlignment::registerCloudImpl(
 
     addEdgeCostFactors(target_edges_, source_edges_,
       estimated_T_target_source, &problem, loss_function);
-    addSurfaceCostFactors(target_surfaces_,source_surfaces_,
-      estimated_T_target_source, &problem, loss_function);
+    addSurfaceCostFactors(
+        target_surfaces_, source_surfaces_, estimated_T_target_source, &problem,
+        loss_function);
 
-    ceres::Solver::Options options;
-    options.linear_solver_type = ceres::DENSE_QR;
-    options.max_num_iterations = 10;
-    options.minimizer_progress_to_stdout = false;
-    options.check_gradients = false;
-    options.gradient_check_relative_precision = 1e-4;
+    ceres::Solver::Options solver_options;
+    solver_options.linear_solver_type = ceres::DENSE_QR;
+    solver_options.max_num_iterations = 5;
+    solver_options.minimizer_progress_to_stdout = false;
+    solver_options.check_gradients = false;
+    solver_options.gradient_check_relative_precision = 1e-4;
     ceres::Solver::Summary summary;
 
-    ceres::Solve(options, &problem, &summary);
+    ceres::Solve(solver_options, &problem, &summary);
   }
 
   const aslam::Transformation T_target_source(q_w_curr, t_w_curr);
 
-  PclPointCloudPtr<pcl::PointXYZI> reg(new pcl::PointCloud<pcl::PointXYZI>);
-  pcl::transformPointCloud(*source, *reg,
-    T_target_source.getTransformationMatrix());
-  const Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6) * 1e-4;
+  PclPointCloudPtr<pcl::PointXYZI> source_registered(
+      new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::transformPointCloud(
+      *source, *source_registered, T_target_source.getTransformationMatrix());
+  const Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(6, 6) * 1e-4;
 
-  return RegistrationResult(reg, cov, T_target_source, true);
+  return RegistrationResult(
+      source_registered, covariance, T_target_source, true);
 }
 
 void LoamAlignment::extractFeaturesFromInputClouds(
@@ -74,9 +78,9 @@ void LoamAlignment::extractFeaturesFromInputClouds(
       new pcl::PointCloud<pcl::PointXYZI>);
 
   for (pcl::PointXYZI point : target->points) {
-    if(point.intensity==0) {
+    if (point.intensity == 0) {
       target_surfaces_->push_back(point);
-    } else if (point.intensity==1) {
+    } else if (point.intensity == 1) {
       target_edges_->push_back(point);
     }
   }
@@ -87,106 +91,103 @@ void LoamAlignment::extractFeaturesFromInputClouds(
       new pcl::PointCloud<pcl::PointXYZI>);
 
   for (pcl::PointXYZI point : source->points) {
-    if(point.intensity==0) {
+    if (point.intensity == 0) {
       source_surfaces_->push_back(point);
-    } else if (point.intensity==1) {
+    } else if (point.intensity == 1) {
       source_edges_->push_back(point);
     }
   }
-
 }
 
 bool EdgeAnalyticCostFunction::Evaluate(
-  double const *const *parameters,
-  double *residuals,
-  double **jacobians) const {
+    double const* const* parameters, double* residuals,
+    double** jacobians) const {
+  CHECK_NOTNULL(parameters);
+  CHECK_NOTNULL(residuals);
 
-    Eigen::Map<const Eigen::Quaterniond> q_last_curr(parameters[0]);
-    Eigen::Map<const Eigen::Vector3d> t_last_curr(parameters[0] + 4);
-    Eigen::Vector3d lp;
-    lp = q_last_curr * curr_point_ + t_last_curr; //new point
-    Eigen::Vector3d nu = (lp - last_point_a_).cross(lp - last_point_b_);
-    Eigen::Vector3d de = last_point_a_ - last_point_b_;
+  Eigen::Map<const Eigen::Quaterniond> q_target_source(parameters[0]);
+  Eigen::Map<const Eigen::Vector3d> t_target_source(parameters[0] + 4);
+  const Eigen::Vector3d point_on_line =
+      q_target_source * curr_point_ + t_target_source;
+  const Eigen::Vector3d cross_product =
+      (point_on_line - last_point_a_).cross(point_on_line - last_point_b_);
+  const Eigen::Vector3d line_direction = last_point_a_ - last_point_b_;
 
-    residuals[0] = nu.x() / de.norm();
-    residuals[1] = nu.y() / de.norm();
-    residuals[2] = nu.z() / de.norm();
+  residuals[0] = cross_product.x() / line_direction.norm();
+  residuals[1] = cross_product.y() / line_direction.norm();
+  residuals[2] = cross_product.z() / line_direction.norm();
 
-    if(jacobians != NULL)
-    {
-      if(jacobians[0] != NULL)
-      {
-        Eigen::Matrix3d skew_lp = skew(lp);
-        Eigen::Matrix<double, 3, 6> dp_by_so3;
-        dp_by_so3.block<3,3>(0,0) = -skew_lp;
-        (dp_by_so3.block<3,3>(0, 3)).setIdentity();
-        Eigen::Map<Eigen::Matrix<double, 3, 7, Eigen::RowMajor>> J_se3(
+  if (jacobians != NULL) {
+    if (jacobians[0] != NULL) {
+      const Eigen::Matrix3d skew_lp = skew(point_on_line);
+      Eigen::Matrix<double, 3, 6> dp_by_so3;
+      dp_by_so3.block<3, 3>(0, 0) = -skew_lp;
+      (dp_by_so3.block<3, 3>(0, 3)).setIdentity();
+      Eigen::Map<Eigen::Matrix<double, 3, 7, Eigen::RowMajor>> J_se3(
           jacobians[0]);
-        J_se3.setZero();
-        Eigen::Vector3d re = last_point_b_ - last_point_a_;
-        Eigen::Matrix3d skew_re = skew(re);
+      J_se3.setZero();
+      const Eigen::Vector3d re = last_point_b_ - last_point_a_;
+      const Eigen::Matrix3d skew_re = skew(re);
 
-        J_se3.block<3,6>(0,0) = skew_re * dp_by_so3/de.norm();
-      }
+      J_se3.block<3, 6>(0, 0) = skew_re * dp_by_so3 / line_direction.norm();
     }
+  }
 
-    return true;
-
+  return true;
 }
 
 bool SurfaceAnalyticCostFunction::Evaluate(
-  double const *const *parameters,
-  double *residuals,
-  double **jacobians) const {
+    double const* const* parameters, double* residuals,
+    double** jacobians) const {
+  CHECK_NOTNULL(parameters);
+  CHECK_NOTNULL(residuals);
+  Eigen::Map<const Eigen::Quaterniond> q_w_curr(parameters[0]);
+  Eigen::Map<const Eigen::Vector3d> t_w_curr(parameters[0] + 4);
+  const Eigen::Vector3d point_w = q_w_curr * curr_point_ + t_w_curr;
 
-    Eigen::Map<const Eigen::Quaterniond> q_w_curr(parameters[0]);
-    Eigen::Map<const Eigen::Vector3d> t_w_curr(parameters[0] + 4);
-    Eigen::Vector3d point_w = q_w_curr * curr_point_ + t_w_curr;
+  residuals[0] = plane_unit_norm_.dot(point_w) + negative_OA_dot_norm_;
 
-    residuals[0] = plane_unit_norm_.dot(point_w) + negative_OA_dot_norm_;
-
-    if(jacobians != NULL) {
-      if(jacobians[0] != NULL) {
-        Eigen::Matrix3d skew_point_w = skew(point_w);
-        Eigen::Matrix<double, 3, 6> dp_by_so3;
-        dp_by_so3.block<3,3>(0,0) = -skew_point_w;
-        (dp_by_so3.block<3,3>(0, 3)).setIdentity();
-        Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> J_se3(
+  if (jacobians != NULL) {
+    if (jacobians[0] != NULL) {
+      Eigen::Matrix3d skew_point_w = skew(point_w);
+      Eigen::Matrix<double, 3, 6> dp_by_so3;
+      dp_by_so3.block<3, 3>(0, 0) = -skew_point_w;
+      (dp_by_so3.block<3, 3>(0, 3)).setIdentity();
+      Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> J_se3(
           jacobians[0]);
-        J_se3.setZero();
-        J_se3.block<1,6>(0,0) = plane_unit_norm_.transpose() * dp_by_so3;
-
-      }
+      J_se3.setZero();
+      J_se3.block<1, 6>(0, 0) = plane_unit_norm_.transpose() * dp_by_so3;
     }
-    return true;
-
+  }
+  return true;
 }
-
 
 bool PoseSE3Parameterization::Plus(
-    const double *x,
-    const double *delta,
-    double *x_plus_delta) const {
-    Eigen::Map<const Eigen::Vector3d> trans(x + 4);
+    const double* x, const double* delta, double* x_plus_delta) const {
+  CHECK_NOTNULL(x);
+  CHECK_NOTNULL(x_plus_delta);
 
-    Eigen::Quaterniond delta_q;
-    Eigen::Vector3d delta_t;
-    getTransformFromSe3(
-      Eigen::Map<const Eigen::Matrix<double,6,1>>(delta), &delta_q, &delta_t);
-    Eigen::Map<const Eigen::Quaterniond> quater(x);
-    Eigen::Map<Eigen::Quaterniond> quater_plus(x_plus_delta);
-    Eigen::Map<Eigen::Vector3d> trans_plus(x_plus_delta + 4);
+  Eigen::Map<const Eigen::Vector3d> trans(x + 4);
 
-    quater_plus = delta_q * quater;
-    trans_plus = delta_q * trans + delta_t;
+  Eigen::Quaterniond delta_q;
+  Eigen::Vector3d delta_t;
+  getTransformFromSe3(
+      Eigen::Map<const Eigen::Matrix<double, 6, 1>>(delta), &delta_q, &delta_t);
+  Eigen::Map<const Eigen::Quaterniond> quater(x);
+  Eigen::Map<Eigen::Quaterniond> quater_plus(x_plus_delta);
+  Eigen::Map<Eigen::Vector3d> trans_plus(x_plus_delta + 4);
 
-    return true;
+  quater_plus = delta_q * quater;
+  trans_plus = delta_q * trans + delta_t;
+
+  return true;
 }
 
-
 bool PoseSE3Parameterization::ComputeJacobian(
-    const double *x,
-    double *jacobian) const {
+    const double* x, double* jacobian) const {
+  CHECK_NOTNULL(x);
+  CHECK_NOTNULL(jacobian);
+
   Eigen::Map<Eigen::Matrix<double, 7, 6, Eigen::RowMajor>> j(jacobian);
   (j.topRows(6)).setIdentity();
   (j.bottomRows(1)).setZero();
@@ -194,31 +195,28 @@ bool PoseSE3Parameterization::ComputeJacobian(
   return true;
 }
 
-
 void PoseSE3Parameterization::getTransformFromSe3(
-    const Eigen::Matrix<double,6,1>& se3,
-    Eigen::Quaterniond* q,
+    const Eigen::Matrix<double, 6, 1>& se3, Eigen::Quaterniond* q,
     Eigen::Vector3d* t) const {
+  CHECK_NOTNULL(q);
+  CHECK_NOTNULL(t);
 
-  Eigen::Vector3d omega(se3.data());
-  Eigen::Vector3d upsilon(se3.data()+3);
-  Eigen::Matrix3d Omega = skew(omega);
+  const Eigen::Vector3d omega(se3.data());
+  const Eigen::Vector3d epsilon(se3.data() + 3);
+  const Eigen::Matrix3d omega_skew = skew(omega);
 
-  double theta = omega.norm();
-  double half_theta = 0.5*theta;
+  const double theta = omega.norm();
 
   double imag_factor;
-  double real_factor = cos(half_theta);
-  if(theta<1e-10)
-  {
-      double theta_sq = theta*theta;
-      double theta_po4 = theta_sq*theta_sq;
-      imag_factor = 0.5-0.0208333*theta_sq+0.000260417*theta_po4;
-  }
-  else
-  {
-      double sin_half_theta = sin(half_theta);
-      imag_factor = sin_half_theta/theta;
+  const double real_factor = cos(0.5 * theta);
+  if (theta < 1e-10) {
+    const double theta_squared = theta * theta;
+    const double theta_squared_squared = theta_squared * theta_squared;
+    imag_factor =
+        0.5 - 0.0208333 * theta_squared + 0.000260417 * theta_squared_squared;
+  } else {
+    const double sin_half_theta = sin(0.5 * theta);
+    imag_factor = sin_half_theta / theta;
   }
 
   *q = Eigen::Quaterniond(real_factor, imag_factor*omega.x(),
@@ -226,15 +224,17 @@ void PoseSE3Parameterization::getTransformFromSe3(
 
 
   Eigen::Matrix3d J;
-  if (theta<1e-10) {
-      J = q->matrix();
+  if (theta < 1e-10) {
+    J = q->matrix();
   } else {
-    Eigen::Matrix3d Omega2 = Omega*Omega;
-    J = (Eigen::Matrix3d::Identity() + (1-cos(theta))/(theta*theta)*Omega + (
-      theta-sin(theta))/(pow(theta,3))*Omega2);
+    const Eigen::Matrix3d omega_skew_squared = omega_skew * omega_skew;
+    J =
+        (Eigen::Matrix3d::Identity() +
+         (1 - cos(theta)) / (theta * theta) * omega_skew +
+         (theta - sin(theta)) / (pow(theta, 3)) * omega_skew_squared);
   }
 
-  *t = J*upsilon;
+  *t = J * epsilon;
 }
 
 void LoamAlignment::addEdgeCostFactors(
@@ -242,62 +242,75 @@ void LoamAlignment::addEdgeCostFactors(
     const PclPointCloudPtr<pcl::PointXYZI>& source_edges,
     const aslam::Transformation& T_target_source,
     ceres::Problem* problem, ceres::LossFunction *loss_function) {
-    int corner_num=0;
+  CHECK_NOTNULL(problem);
+  CHECK_NOTNULL(loss_function);
 
-    PclPointCloudPtr<pcl::PointXYZI> source_edges_transformed(
-        new pcl::PointCloud<pcl::PointXYZI>);
-    pcl::transformPointCloud(*source_edges,*source_edges_transformed,
+  int n_corners = 0;
+
+  PclPointCloudPtr<pcl::PointXYZI> source_edges_transformed(
+      new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::transformPointCloud(
+      *source_edges, *source_edges_transformed,
       T_target_source.getTransformationMatrix());
-    for (int i = 0; i < (int)source_edges->points.size(); i++)
-    {
 
-        std::vector<int> pointSearchInd;
-        std::vector<float> pointSearchSqDis;
-        kd_tree_target_edges_->nearestKSearch(
-          source_edges_transformed->points[i], 5,
-          pointSearchInd, pointSearchSqDis);
-        if (pointSearchSqDis[4] < 1.0)
-        {
-            std::vector<Eigen::Vector3d> nearCorners;
-            Eigen::Vector3d center(0, 0, 0);
-            for (int j = 0; j < 5; j++) {
-              Eigen::Vector3d tmp(target_edges->points[pointSearchInd[j]].x,
-                                  target_edges->points[pointSearchInd[j]].y,
-                                  target_edges->points[pointSearchInd[j]].z);
-              center = center + tmp;
-              nearCorners.push_back(tmp);
-            }
-            center = center / 5.0;
+  for (size_t source_point_idx = 0u;
+       source_point_idx < source_edges->points.size(); source_point_idx++) {
+    std::vector<int> point_search_indices;
+    std::vector<float> point_search_distances_squared;
+    const size_t k_edge_points = 5u;
+    kd_tree_target_edges_->nearestKSearch(
+        source_edges_transformed->points[source_point_idx], k_edge_points,
+        point_search_indices, point_search_distances_squared);
 
-            Eigen::Matrix3d covMat = Eigen::Matrix3d::Zero();
-            for (int j = 0; j < 5; j++) {
-              Eigen::Matrix<double, 3, 1> tmpZeroMean = nearCorners[j] - center;
-              covMat = covMat + tmpZeroMean * tmpZeroMean.transpose();
-            }
+    const float k_max_search_distance_squared = 1.0;
 
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> saes(covMat);
+    if (point_search_distances_squared[k_edge_points - 1u] <
+        k_max_search_distance_squared) {
+      std::vector<Eigen::Vector3d> near_corners;
+      Eigen::Vector3d line_center(0, 0, 0);
+      for (size_t search_result_idx; search_result_idx < k_edge_points;
+           search_result_idx++) {
+        const Eigen::Vector3d target_edge_point =
+            target_edges->points[point_search_indices[search_result_idx]]
+                .getVector3fMap()
+                .cast<double>();
+        line_center += target_edge_point;
+        near_corners.push_back(target_edge_point);
+      }
+      line_center /= static_cast<float>(k_edge_points);
 
-            Eigen::Vector3d unit_direction = saes.eigenvectors().col(2);
-            Eigen::Vector3d curr_point(source_edges->points[i].x,
-              source_edges->points[i].y, source_edges->points[i].z);
-            if (saes.eigenvalues()[2] > 3 * saes.eigenvalues()[1]) {
-              Eigen::Vector3d point_on_line = center;
-              Eigen::Vector3d point_a, point_b;
-              point_a = 0.1 * unit_direction + point_on_line;
-              point_b = -0.1 * unit_direction + point_on_line;
+      Eigen::Matrix3d covariance = Eigen::Matrix3d::Zero();
+      for (size_t search_result_idx; search_result_idx < k_edge_points;
+           search_result_idx++) {
+        const Eigen::Vector3d p_corner_point_to_center =
+            near_corners[search_result_idx] - line_center;
+        covariance = covariance + p_corner_point_to_center *
+                                      p_corner_point_to_center.transpose();
+      }
 
-              ceres::CostFunction *cost_function = new EdgeAnalyticCostFunction(
-                curr_point, point_a, point_b);
-              problem->AddResidualBlock(cost_function, loss_function,
-                parameters_);
-              corner_num++;
-            }
-        }
+      Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> adjoint_solver(covariance);
+
+      const Eigen::Vector3d unit_direction =
+          adjoint_solver.eigenvectors().col(2);
+      const Eigen::Vector3d edge_point = source_edges->points[source_point_idx]
+                                             .getVector3fMap()
+                                             .cast<double>();
+      if (adjoint_solver.eigenvalues()[2] >
+          3 * adjoint_solver.eigenvalues()[1]) {
+        Eigen::Vector3d point_a, point_b;
+        point_a = 0.1 * unit_direction + line_center;
+        point_b = -0.1 * unit_direction + line_center;
+
+        ceres::CostFunction* cost_function =
+            new EdgeAnalyticCostFunction(edge_point, point_a, point_b);
+        problem->AddResidualBlock(cost_function, loss_function, parameters_);
+        n_corners++;
+      }
     }
-    if(corner_num<20){
-        printf("not enough correct edge points");
-    }
-
+  }
+  if (n_corners < 20) {
+    LOG(WARNING) << "Not enough edge points matched in Loam Alignment";
+  }
 }
 
 void LoamAlignment::addSurfaceCostFactors(
@@ -305,75 +318,90 @@ void LoamAlignment::addSurfaceCostFactors(
     const PclPointCloudPtr<pcl::PointXYZI>& source_surfaces,
     const aslam::Transformation& T_target_source,
     ceres::Problem* problem, ceres::LossFunction *loss_function) {
-  int surf_num=0;
+  CHECK_NOTNULL(problem);
+  CHECK_NOTNULL(loss_function);
+
+  size_t n_surfaces = 0;
 
   PclPointCloudPtr<pcl::PointXYZI> source_surfaces_transformed(
       new pcl::PointCloud<pcl::PointXYZI>);
-  pcl::transformPointCloud(*source_surfaces,*source_surfaces_transformed,
-     T_target_source.getTransformationMatrix());
-  for (int i = 0; i < (int)source_surfaces->points.size(); i++)
-  {
-    std::vector<int> pointSearchInd;
-    std::vector<float> pointSearchSqDis;
+  pcl::transformPointCloud(
+      *source_surfaces, *source_surfaces_transformed,
+      T_target_source.getTransformationMatrix());
+
+  for (size_t source_point_idx = 0u;
+       source_point_idx < source_surfaces->points.size(); source_point_idx++) {
+    std::vector<int> point_search_indices;
+    std::vector<float> point_search_distances_squared;
+    const size_t k_plane_points = 5u;
     kd_tree_target_surfaces_->nearestKSearch(
-      source_surfaces_transformed->points[i], 5,
-      pointSearchInd, pointSearchSqDis);
+        source_surfaces_transformed->points[source_point_idx], k_plane_points,
+        point_search_indices, point_search_distances_squared);
 
-    Eigen::Matrix<double, 5, 3> matA0;
-    Eigen::Matrix<double, 5, 1> matB0 = -Eigen::Matrix<double, 5, 1>::Ones();
-    if (pointSearchSqDis[4] < 1.0)
-    {
+    Eigen::Matrix<double, k_plane_points, 3> mat_A;
+    Eigen::Matrix<double, k_plane_points, 1> mat_B =
+        -Eigen::Matrix<double, k_plane_points, 1>::Ones();
 
-      for (int j = 0; j < 5; j++)
-      {
-        matA0(j, 0) = target_surfaces->points[pointSearchInd[j]].x;
-        matA0(j, 1) = target_surfaces->points[pointSearchInd[j]].y;
-        matA0(j, 2) = target_surfaces->points[pointSearchInd[j]].z;
+    const float k_max_search_distance_squared = 1.0;
+
+    if (point_search_distances_squared[k_plane_points - 1u] <
+        k_max_search_distance_squared) {
+      for (size_t search_result_idx = 0u; search_result_idx < k_plane_points;
+           search_result_idx++) {
+        mat_A(search_result_idx, 0) =
+            target_surfaces->points[point_search_indices[search_result_idx]].x;
+        mat_A(search_result_idx, 1) =
+            target_surfaces->points[point_search_indices[search_result_idx]].y;
+        mat_A(search_result_idx, 2) =
+            target_surfaces->points[point_search_indices[search_result_idx]].z;
       }
-      // find the norm of plane
-      Eigen::Vector3d norm = matA0.colPivHouseholderQr().solve(matB0);
-      double negative_OA_dot_norm = 1 / norm.norm();
-      norm.normalize();
+
+      // find the norm of the plane normal vector
+      Eigen::Vector3d normal = mat_A.colPivHouseholderQr().solve(mat_B);
+      const double negative_OA_dot_norm = 1 / normal.norm();
+      normal.normalize();
 
       bool planeValid = true;
-      for (int j = 0; j < 5; j++)
-      {
-        // if OX * n > 0.2, then plane is not fit well
-        if (fabs(norm(0) * target_surfaces->points[pointSearchInd[j]].x +
-                 norm(1) * target_surfaces->points[pointSearchInd[j]].y +
-                 norm(2) * target_surfaces->points[pointSearchInd[j]].z +
-                 negative_OA_dot_norm) > 0.2) {
+      for (size_t search_result_idx = 0u; search_result_idx < k_plane_points;
+           search_result_idx++) {
+        const Eigen::Vector3d target_surface_point =
+            target_surfaces->points[point_search_indices[search_result_idx]]
+                .getVector3fMap()
+                .cast<double>();
+        const float distance_to_plane =
+            fabs(normal.dot(target_surface_point) + negative_OA_dot_norm);
+        const float k_max_distance_to_plane = 0.2;
+        if (distance_to_plane > k_max_distance_to_plane) {
           planeValid = false;
           break;
         }
       }
-      Eigen::Vector3d curr_point(source_surfaces->points[i].x,
-        source_surfaces->points[i].y, source_surfaces->points[i].z);
-      if (planeValid)
-      {
-        ceres::CostFunction *cost_function = new SurfaceAnalyticCostFunction(
-          curr_point, norm, negative_OA_dot_norm);
+
+      Eigen::Vector3d source_point = source_surfaces->points[source_point_idx]
+                                         .getVector3fMap()
+                                         .cast<double>();
+      if (planeValid) {
+        ceres::CostFunction* cost_function = new SurfaceAnalyticCostFunction(
+            source_point, normal, negative_OA_dot_norm);
         problem->AddResidualBlock(cost_function, loss_function, parameters_);
-        surf_num++;
+        n_surfaces++;
       }
     }
-
   }
-  if(surf_num<20){
-      printf("not enough surface points");
+  if (n_surfaces < 20) {
+    LOG(WARNING) << "Not enough surface points matched in Loam Alignment";
   }
 }
 
-Eigen::Matrix<double,3,3> skew(
-    const Eigen::Matrix<double,3,1>& mat_in) {
-  Eigen::Matrix<double,3,3> skew_mat;
+Eigen::Matrix<double, 3, 3> skew(const Eigen::Matrix<double, 3, 1>& mat_in) {
+  Eigen::Matrix<double, 3, 3> skew_mat;
   skew_mat.setZero();
-  skew_mat(0,1) = -mat_in(2);
-  skew_mat(0,2) =  mat_in(1);
-  skew_mat(1,2) = -mat_in(0);
-  skew_mat(1,0) =  mat_in(2);
-  skew_mat(2,0) = -mat_in(1);
-  skew_mat(2,1) =  mat_in(0);
+  skew_mat(0, 1) = -mat_in(2);
+  skew_mat(0, 2) = mat_in(1);
+  skew_mat(1, 2) = -mat_in(0);
+  skew_mat(1, 0) = mat_in(2);
+  skew_mat(2, 0) = -mat_in(1);
+  skew_mat(2, 1) = mat_in(0);
   return skew_mat;
 }
 
