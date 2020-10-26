@@ -245,7 +245,7 @@ void LoamAlignment::addEdgeCostFactors(
   CHECK_NOTNULL(problem);
   CHECK_NOTNULL(loss_function);
 
-  int n_corners = 0;
+  size_t n_corners = 0u;
 
   PclPointCloudPtr<pcl::PointXYZI> source_edges_transformed(
       new pcl::PointCloud<pcl::PointXYZI>);
@@ -268,7 +268,7 @@ void LoamAlignment::addEdgeCostFactors(
         k_max_search_distance_squared) {
       std::vector<Eigen::Vector3d> near_corners;
       Eigen::Vector3d line_center(0, 0, 0);
-      for (size_t search_result_idx; search_result_idx < k_edge_points;
+      for (size_t search_result_idx = 0u; search_result_idx < k_edge_points;
            search_result_idx++) {
         const Eigen::Vector3d target_edge_point =
             target_edges->points[point_search_indices[search_result_idx]]
@@ -280,12 +280,12 @@ void LoamAlignment::addEdgeCostFactors(
       line_center /= static_cast<float>(k_edge_points);
 
       Eigen::Matrix3d covariance = Eigen::Matrix3d::Zero();
-      for (size_t search_result_idx; search_result_idx < k_edge_points;
+      for (size_t search_result_idx = 0u; search_result_idx < k_edge_points;
            search_result_idx++) {
         const Eigen::Vector3d p_corner_point_to_center =
             near_corners[search_result_idx] - line_center;
-        covariance = covariance + p_corner_point_to_center *
-                                      p_corner_point_to_center.transpose();
+        covariance +=
+            p_corner_point_to_center * p_corner_point_to_center.transpose();
       }
 
       Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> adjoint_solver(covariance);
@@ -310,6 +310,7 @@ void LoamAlignment::addEdgeCostFactors(
   }
   if (n_corners < 20) {
     LOG(WARNING) << "Not enough edge points matched in Loam Alignment";
+    LOG(WARNING) << n_corners;
   }
 }
 
@@ -361,7 +362,7 @@ void LoamAlignment::addSurfaceCostFactors(
       const double negative_OA_dot_norm = 1 / normal.norm();
       normal.normalize();
 
-      bool planeValid = true;
+      bool plane_valid = true;
       for (size_t search_result_idx = 0u; search_result_idx < k_plane_points;
            search_result_idx++) {
         const Eigen::Vector3d target_surface_point =
@@ -372,7 +373,7 @@ void LoamAlignment::addSurfaceCostFactors(
             fabs(normal.dot(target_surface_point) + negative_OA_dot_norm);
         const float k_max_distance_to_plane = 0.2;
         if (distance_to_plane > k_max_distance_to_plane) {
-          planeValid = false;
+          plane_valid = false;
           break;
         }
       }
@@ -380,7 +381,7 @@ void LoamAlignment::addSurfaceCostFactors(
       Eigen::Vector3d source_point = source_surfaces->points[source_point_idx]
                                          .getVector3fMap()
                                          .cast<double>();
-      if (planeValid) {
+      if (plane_valid) {
         ceres::CostFunction* cost_function = new SurfaceAnalyticCostFunction(
             source_point, normal, negative_OA_dot_norm);
         problem->AddResidualBlock(cost_function, loss_function, parameters_);
