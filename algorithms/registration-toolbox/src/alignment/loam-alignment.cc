@@ -5,6 +5,18 @@
 #include <pcl/filters/filter.h>
 #include <pcl/filters/passthrough.h>
 
+DEFINE_int32(
+    regbox_loam_optimization_iterations, 10,
+    "Iterations for LOAM Optimization");
+DEFINE_int32(
+    regbox_loam_ceres_iterations, 5, "Iterations per Ceres Optimization");
+DEFINE_double(
+    regbox_loam_max_edge_distance_m, 1.0,
+    "Maximum point distance for edge point matches");
+DEFINE_double(
+    regbox_loam_max_surface_distance_m, 1.0,
+    "Maximum point distance for surface point matches");
+
 namespace regbox {
 
 RegistrationResult LoamAlignment::registerCloudImpl(
@@ -21,7 +33,7 @@ RegistrationResult LoamAlignment::registerCloudImpl(
   kd_tree_target_edges_->setInputCloud(target_edges_);
   kd_tree_target_surfaces_->setInputCloud(target_surfaces_);
 
-  const size_t k_optimization_count = 10u;
+  const size_t k_optimization_count = FLAGS_regbox_loam_optimization_iterations;
 
   Eigen::Map<Eigen::Quaterniond> q_w_curr =
         Eigen::Map<Eigen::Quaterniond>(&parameters_[0]);
@@ -47,7 +59,7 @@ RegistrationResult LoamAlignment::registerCloudImpl(
 
     ceres::Solver::Options solver_options;
     solver_options.linear_solver_type = ceres::DENSE_QR;
-    solver_options.max_num_iterations = 5;
+    solver_options.max_num_iterations = FLAGS_regbox_loam_ceres_iterations;
     solver_options.minimizer_progress_to_stdout = false;
     solver_options.check_gradients = false;
     solver_options.gradient_check_relative_precision = 1e-4;
@@ -119,17 +131,15 @@ bool EdgeAnalyticCostFunction::Evaluate(
 
   if (jacobians != NULL) {
     if (jacobians[0] != NULL) {
-      const Eigen::Matrix3d skew_lp = skew(point_on_line);
+      const Eigen::Matrix3d point_on_line_skew = skew(point_on_line);
       Eigen::Matrix<double, 3, 6> dp_by_so3;
-      dp_by_so3.block<3, 3>(0, 0) = -skew_lp;
+      dp_by_so3.block<3, 3>(0, 0) = -point_on_line_skew;
       (dp_by_so3.block<3, 3>(0, 3)).setIdentity();
       Eigen::Map<Eigen::Matrix<double, 3, 7, Eigen::RowMajor>> J_se3(
           jacobians[0]);
       J_se3.setZero();
-      const Eigen::Vector3d re = last_point_b_ - last_point_a_;
-      const Eigen::Matrix3d skew_re = skew(re);
-
-      J_se3.block<3, 6>(0, 0) = skew_re * dp_by_so3 / line_direction.norm();
+      J_se3.block<3, 6>(0, 0) =
+          skew(-line_direction) * dp_by_so3 / line_direction.norm();
     }
   }
 
@@ -212,6 +222,7 @@ void PoseSE3Parameterization::getTransformFromSe3(
   if (theta < 1e-10) {
     const double theta_squared = theta * theta;
     const double theta_squared_squared = theta_squared * theta_squared;
+    // TODO(patripfr): find out where those numbers come from
     imag_factor =
         0.5 - 0.0208333 * theta_squared + 0.000260417 * theta_squared_squared;
   } else {
@@ -256,16 +267,18 @@ void LoamAlignment::addEdgeCostFactors(
   for (size_t source_point_idx = 0u;
        source_point_idx < source_edges->points.size(); source_point_idx++) {
     std::vector<int> point_search_indices;
-    std::vector<float> point_search_distances_squared;
+    std::vector<float> point_search_distances_squared_m2;
     const size_t k_edge_points = 5u;
     kd_tree_target_edges_->nearestKSearch(
         source_edges_transformed->points[source_point_idx], k_edge_points,
-        point_search_indices, point_search_distances_squared);
+        point_search_indices, point_search_distances_squared_m2);
 
-    const float k_max_search_distance_squared = 1.0;
+    const float k_max_search_distance_squared_m2 =
+        FLAGS_regbox_loam_max_edge_distance_m *
+        FLAGS_regbox_loam_max_edge_distance_m;
 
-    if (point_search_distances_squared[k_edge_points - 1u] <
-        k_max_search_distance_squared) {
+    if (point_search_distances_squared_m2[k_edge_points - 1u] <
+        k_max_search_distance_squared_m2) {
       std::vector<Eigen::Vector3d> near_corners;
       Eigen::Vector3d line_center(0, 0, 0);
       for (size_t search_result_idx = 0u; search_result_idx < k_edge_points;
@@ -333,20 +346,22 @@ void LoamAlignment::addSurfaceCostFactors(
   for (size_t source_point_idx = 0u;
        source_point_idx < source_surfaces->points.size(); source_point_idx++) {
     std::vector<int> point_search_indices;
-    std::vector<float> point_search_distances_squared;
+    std::vector<float> point_search_distances_squared_m2;
     const size_t k_plane_points = 5u;
     kd_tree_target_surfaces_->nearestKSearch(
         source_surfaces_transformed->points[source_point_idx], k_plane_points,
-        point_search_indices, point_search_distances_squared);
+        point_search_indices, point_search_distances_squared_m2);
 
     Eigen::Matrix<double, k_plane_points, 3> mat_A;
     Eigen::Matrix<double, k_plane_points, 1> mat_B =
         -Eigen::Matrix<double, k_plane_points, 1>::Ones();
 
-    const float k_max_search_distance_squared = 1.0;
+    const float k_max_search_distance_squared_m2 =
+        FLAGS_regbox_loam_max_surface_distance_m *
+        FLAGS_regbox_loam_max_surface_distance_m;
 
-    if (point_search_distances_squared[k_plane_points - 1u] <
-        k_max_search_distance_squared) {
+    if (point_search_distances_squared_m2[k_plane_points - 1u] <
+        k_max_search_distance_squared_m2) {
       for (size_t search_result_idx = 0u; search_result_idx < k_plane_points;
            search_result_idx++) {
         mat_A(search_result_idx, 0) =
