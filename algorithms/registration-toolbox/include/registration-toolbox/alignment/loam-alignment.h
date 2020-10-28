@@ -43,14 +43,16 @@ class LoamAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
       const aslam::Transformation& T_target_source, ceres::Problem* problem,
       ceres::LossFunction* loss_function);
 
+  bool calculateSolutionCovariance(
+      ceres::Problem* problem, Eigen::Matrix<float, 7, 7>* covariance);
+
   pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_edges_;
   pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_surfaces_;
   PclPointCloudPtr<pcl::PointXYZI> target_edges_;
   PclPointCloudPtr<pcl::PointXYZI> target_surfaces_;
   PclPointCloudPtr<pcl::PointXYZI> source_surfaces_;
   PclPointCloudPtr<pcl::PointXYZI> source_edges_;
-
-  double parameters_[7] = {0, 0, 0, 1, 0, 0, 0};
+  double parameters_[7];
 };
 
 class SurfaceAnalyticCostFunction : public ceres::SizedCostFunction<1, 7> {

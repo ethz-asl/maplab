@@ -111,6 +111,33 @@ void LoamAlignment::extractFeaturesFromInputClouds(
   }
 }
 
+bool LoamAlignment::calculateSolutionCovariance(
+    // This is still a draft as the covariance is calculated on the
+    // quaternions, but covariance on the euler angles is needed
+    ceres::Problem* problem, Eigen::Matrix<float, 7, 7>* covariance) {
+  CHECK_NOTNULL(problem);
+  CHECK_NOTNULL(covariance);
+
+  ceres::Covariance::Options options;
+  ceres::Covariance ceres_covariance(options);
+
+  std::vector<std::pair<const double*, const double*>> covariance_pairs;
+  covariance_pairs.push_back(
+      std::make_pair(&parameters_[0] + 4, &parameters_[0] + 4));
+  covariance_pairs.push_back(std::make_pair(&parameters_[0], &parameters_[0]));
+
+  if (!ceres_covariance.Compute(covariance_pairs, problem)) {
+    return false;
+  }
+
+  double covariance_q[16];
+  ceres_covariance.GetCovarianceBlock(
+      &parameters_[0] + 4, &parameters_[0] + 4, covariance_q);
+  double covariance_t[9];
+  ceres_covariance.GetCovarianceBlock(
+      &parameters_[0], &parameters_[0], covariance_t);
+}
+
 bool EdgeAnalyticCostFunction::Evaluate(
     double const* const* parameters, double* residuals,
     double** jacobians) const {
