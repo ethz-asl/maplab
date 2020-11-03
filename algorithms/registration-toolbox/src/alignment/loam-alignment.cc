@@ -1,15 +1,16 @@
 #include "registration-toolbox/alignment/loam-alignment.h"
 
 #include <pcl/common/transforms.h>
-#include <pcl_conversions/pcl_conversions.h>
 #include <pcl/filters/filter.h>
 #include <pcl/filters/passthrough.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 DEFINE_int32(
-    regbox_loam_optimization_iterations, 10,
+    regbox_loam_optimization_iterations, 30,
     "Iterations for LOAM Optimization");
 DEFINE_int32(
-    regbox_loam_ceres_iterations, 5, "Iterations per Ceres Optimization");
+    regbox_loam_ceres_iterations, 10, "Iterations per Ceres Optimization");
 DEFINE_double(
     regbox_loam_max_edge_distance_m, 1.0,
     "Maximum point distance for edge point matches");
@@ -30,10 +31,6 @@ RegistrationResult LoamAlignment::registerCloudImpl(
     new pcl::KdTreeFLANN<pcl::PointXYZI>());
   kd_tree_target_surfaces_ = pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr(
     new pcl::KdTreeFLANN<pcl::PointXYZI>());
-  kd_tree_target_edges_->setInputCloud(target_edges_);
-  kd_tree_target_surfaces_->setInputCloud(target_surfaces_);
-
-  const size_t k_optimization_count = FLAGS_regbox_loam_optimization_iterations;
 
   Eigen::Map<Eigen::Quaterniond> q_w_curr =
         Eigen::Map<Eigen::Quaterniond>(&parameters_[0]);
@@ -43,37 +40,58 @@ RegistrationResult LoamAlignment::registerCloudImpl(
   q_w_curr = Eigen::Quaterniond(prior_T_target_source.getEigenQuaternion());
   t_w_curr = prior_T_target_source.getPosition();
 
-  for (int iterCount = 0; iterCount < k_optimization_count; iterCount++) {
-    ceres::LossFunction* loss_function = new ceres::HuberLoss(0.1);
-    ceres::Problem::Options problem_options;
-    ceres::Problem problem(problem_options);
-    problem.AddParameterBlock(parameters_, 7, new PoseSE3Parameterization());
+  if (!(target_edges_->empty() && target_surfaces_->empty())) {
+    std::cout << "edges: " << target_edges_->size() << std::endl;
+    std::cout << "surfaces: " << target_surfaces_->size() << std::endl;
+    kd_tree_target_edges_->setInputCloud(target_edges_);
+    kd_tree_target_surfaces_->setInputCloud(target_surfaces_);
 
-    const aslam::Transformation estimated_T_target_source(q_w_curr, t_w_curr);
+    const size_t k_optimization_count =
+        FLAGS_regbox_loam_optimization_iterations;
+    for (int iterCount = 0; iterCount < k_optimization_count; iterCount++) {
+      ceres::LossFunction* loss_function = new ceres::HuberLoss(0.2);
+      ceres::Problem::Options problem_options;
+      ceres::Problem problem(problem_options);
+      problem.AddParameterBlock(parameters_, 7, new PoseSE3Parameterization());
 
-    addEdgeCostFactors(target_edges_, source_edges_,
-      estimated_T_target_source, &problem, loss_function);
-    addSurfaceCostFactors(
-        target_surfaces_, source_surfaces_, estimated_T_target_source, &problem,
-        loss_function);
+      const aslam::Transformation estimated_T_target_source(q_w_curr, t_w_curr);
 
-    ceres::Solver::Options solver_options;
-    solver_options.linear_solver_type = ceres::DENSE_QR;
-    solver_options.max_num_iterations = FLAGS_regbox_loam_ceres_iterations;
-    solver_options.minimizer_progress_to_stdout = false;
-    solver_options.check_gradients = false;
-    solver_options.gradient_check_relative_precision = 1e-4;
-    ceres::Solver::Summary summary;
+      addEdgeCostFactors(
+          target_edges_, source_edges_, estimated_T_target_source, &problem,
+          loss_function);
+      addSurfaceCostFactors(
+          target_surfaces_, source_surfaces_, estimated_T_target_source,
+          &problem, loss_function);
 
-    ceres::Solve(solver_options, &problem, &summary);
+      ceres::Solver::Options solver_options;
+      solver_options.linear_solver_type = ceres::DENSE_QR;
+      // solver_options.max_num_iterations = FLAGS_regbox_loam_ceres_iterations;
+      solver_options.minimizer_progress_to_stdout = false;
+      solver_options.check_gradients = false;
+      solver_options.gradient_check_relative_precision = 1e-4;
+      ceres::Solver::Summary summary;
+
+      ceres::Solve(solver_options, &problem, &summary);
+    }
   }
 
   const aslam::Transformation T_target_source(q_w_curr, t_w_curr);
 
+  pcl::PointCloud<pcl::PointXYZI> source_features;
+  for (pcl::PointXYZI point : *source_surfaces_) {
+    point.intensity = 0;
+    source_features.push_back(point);
+  }
+  for (pcl::PointXYZI point : *source_edges_) {
+    point.intensity = 1;
+    source_features.push_back(point);
+  }
+
   PclPointCloudPtr<pcl::PointXYZI> source_registered(
       new pcl::PointCloud<pcl::PointXYZI>);
   pcl::transformPointCloud(
-      *source, *source_registered, T_target_source.getTransformationMatrix());
+      source_features, *source_registered,
+      T_target_source.getTransformationMatrix());
   const Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(6, 6) * 1e-4;
 
   return RegistrationResult(
@@ -102,11 +120,276 @@ void LoamAlignment::extractFeaturesFromInputClouds(
   source_edges_ = PclPointCloudPtr<pcl::PointXYZI>(
       new pcl::PointCloud<pcl::PointXYZI>);
 
-  for (pcl::PointXYZI point : source->points) {
-    if (point.intensity == 0) {
-      source_surfaces_->push_back(point);
-    } else if (point.intensity == 1) {
-      source_edges_->push_back(point);
+  extractFeaturesFromSourceCloud(source, source_edges_, source_surfaces_);
+  //
+  pcl::PointCloud<pcl::PointXYZI> source_edges_down_sampled;
+  pcl::VoxelGrid<pcl::PointXYZI> edge_filter;
+  edge_filter.setInputCloud(source_edges_);
+  edge_filter.setLeafSize(0.2, 0.2, 0.2);
+  edge_filter.filter(source_edges_down_sampled);
+  *source_edges_ = source_edges_down_sampled;
+
+  pcl::PointCloud<pcl::PointXYZI> source_surfaces_down_sampled;
+  pcl::VoxelGrid<pcl::PointXYZI> surface_filter;
+  surface_filter.setInputCloud(source_surfaces_);
+  surface_filter.setLeafSize(0.4, 0.4, 0.4);
+  surface_filter.filter(source_surfaces_down_sampled);
+  *source_surfaces_ = source_surfaces_down_sampled;
+  // for (pcl::PointXYZI point : source->points) {
+  //   if (point.intensity == 0) {
+  //     source_surfaces_->push_back(point);
+  //   } else if (point.intensity == 1) {
+  //     source_edges_->push_back(point);
+  //   }
+  // }
+}
+
+void LoamAlignment::extractFeaturesFromSourceCloud(
+    const PclPointCloudPtr<pcl::PointXYZI>& source,
+    PclPointCloudPtr<pcl::PointXYZI> source_edges,
+    PclPointCloudPtr<pcl::PointXYZI> source_surfaces) {
+  std::vector<int> indices;
+
+  int N_SCANS = 128;
+  double upperBound = 46.2f;
+  double lowerBound = -46.2f;
+  double factor = (N_SCANS - 1) / (upperBound - lowerBound);
+  std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> scan_lines;
+
+  for (int idx = 0u; idx < N_SCANS; idx++) {
+    scan_lines.push_back(pcl::PointCloud<pcl::PointXYZI>::Ptr(
+        new pcl::PointCloud<pcl::PointXYZI>()));
+  }
+
+  int min_id = 1000;
+  int max_id = 0;
+  for (int idx = 0u; idx < source->size(); idx++) {
+    int scanID = 0;
+    const double distance = sqrt(
+        source->points[idx].x * source->points[idx].x +
+        source->points[idx].y * source->points[idx].y);
+    if (distance < 0.001 || distance > 120.)
+      continue;
+    if (!std::isfinite(source->points[idx].x) ||
+        !std::isfinite(source->points[idx].y) ||
+        !std::isfinite(source->points[idx].z)) {
+      continue;
+    }
+    double angle = atan(source->points[idx].z / distance) * 180. / M_PI;
+
+    if (N_SCANS == 128) {
+      // // scanID = int(((angle * 180 / M_PI) - lowerBound) * factor + 0.5);
+      // double distance = col_dist.norm();
+      // double angle = atan(col_dist.z() / distance);
+      // scanID = int(((angle) - lowerBound) * factor + 0.5);
+      scanID = source->points[idx].intensity;
+      min_id = std::min(scanID, min_id);
+      max_id = std::max(scanID, max_id);
+    }
+    scan_lines[scanID]->push_back(source->points[idx]);
+  }
+  const int curvature_region = 5;
+  const int feature_regions = 6;
+  for (int line_idx = 0u; line_idx < N_SCANS; line_idx++) {
+    if (scan_lines[line_idx]->points.size() < 131) {
+      continue;
+    }
+
+    std::vector<bool> point_picked(scan_lines[line_idx]->points.size(), false);
+
+    CurvaturePairs cloud_curvatures;
+    int total_points =
+        scan_lines[line_idx]->points.size() - 2 * curvature_region;
+    for (int point_idx = curvature_region;
+         point_idx < scan_lines[line_idx]->points.size() - curvature_region;
+         point_idx++) {
+      if (scan_lines[line_idx]->points[point_idx].getVector3fMap().norm() <
+          0.8) {
+        point_picked[point_idx] = true;
+        for (int k = 1; k <= 5; k++) {
+          point_picked[point_idx + k] = true;
+          point_picked[point_idx - k] = true;
+        }
+      }
+
+      Eigen::Vector3f merged_point = Eigen::Vector3f::Zero();
+      for (int neighbor_idx = -curvature_region;
+           neighbor_idx <= curvature_region; neighbor_idx++) {
+        if (neighbor_idx == 0) {
+          merged_point -= 2. * curvature_region *
+                          scan_lines[line_idx]
+                              ->points[point_idx + neighbor_idx]
+                              .getVector3fMap();
+        } else {
+          merged_point += scan_lines[line_idx]
+                              ->points[point_idx + neighbor_idx]
+                              .getVector3fMap();
+        }
+      }
+
+      CurvaturePair curvature_pair(point_idx, merged_point.norm());
+      cloud_curvatures.push_back(curvature_pair);
+    }
+    int sector_length = total_points / feature_regions;
+
+    for (int region_idx = 0; region_idx < feature_regions; region_idx++) {
+      int sector_start = sector_length * region_idx;
+      int sector_end = sector_length * (region_idx + 1) - 1;
+
+      for (size_t i = sector_start + curvature_region;
+           i < sector_end - curvature_region; i++) {
+        const pcl::PointXYZI& previousPoint =
+            (scan_lines[line_idx]->points[i - 1]);
+        const pcl::PointXYZI& point = (scan_lines[line_idx]->points[i]);
+        const pcl::PointXYZI& nextPoint = (scan_lines[line_idx]->points[i + 1]);
+
+        float diffNext =
+            (nextPoint.getVector3fMap() - point.getVector3fMap()).squaredNorm();
+
+        if (diffNext > 0.1) {
+          float depth1 = point.getVector3fMap().norm();
+          float depth2 = nextPoint.getVector3fMap().norm();
+
+          if (depth1 > depth2) {
+            float weighted_distance =
+                (nextPoint.getVector3fMap() -
+                 (depth2 / depth1) * point.getVector3fMap())
+                    .norm() /
+                depth2;
+
+            if (weighted_distance < 0.1) {
+              for (int j = 0; j < curvature_region; j++) {
+                point_picked[i - curvature_region + j] = true;
+              }
+              continue;
+            }
+          } else {
+            float weighted_distance =
+                (point.getVector3fMap() -
+                 (depth1 / depth2) * nextPoint.getVector3fMap())
+                    .norm() /
+                depth1;
+            if (weighted_distance < 0.1) {
+              for (int j = 0; j < curvature_region; j++) {
+                point_picked[i + 1 + j] = true;
+              }
+            }
+          }
+        }
+
+        float diffPrevious =
+            (point.getVector3fMap() - previousPoint.getVector3fMap())
+                .squaredNorm();
+        float dis = point.getVector3fMap().squaredNorm();
+
+        // this will reject a point if the difference in distance
+        // or depth of point and its neighbors is outside a bound i.e.
+        // rejecting very sharp ramp like points
+        if (diffNext > 0.0002 * dis && diffPrevious > 0.0002 * dis) {
+          point_picked[i] = true;
+        }
+      }
+
+      if (region_idx == feature_regions) {
+        sector_end = total_points - 1;
+      }
+      CurvaturePairs sub_cloud_curvatures(
+          cloud_curvatures.begin() + sector_start,
+          cloud_curvatures.begin() + sector_end);
+
+      extractFeaturesFromSector(
+          scan_lines[line_idx], sub_cloud_curvatures, source_edges,
+          source_surfaces, &point_picked);
+    }
+  }
+}
+
+void LoamAlignment::extractFeaturesFromSector(
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& points_in,
+    const CurvaturePairs& cloud_curvatures,
+    pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
+    pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces,
+    std::vector<bool>* point_picked) {
+  CurvaturePairs cloud_curvatures_sorted = cloud_curvatures;
+  std::sort(
+      cloud_curvatures_sorted.begin(), cloud_curvatures_sorted.end(),
+      [](const CurvaturePair& a, const CurvaturePair& b) {
+        return a.second < b.second;
+      });
+
+  int largest_picked_num = 0;
+
+  int point_info_count = 0;
+  for (int i = cloud_curvatures_sorted.size() - 1; i >= 0; i--) {
+    int ind = cloud_curvatures_sorted[i].first;
+    if (!(*point_picked)[ind]) {
+      if (cloud_curvatures_sorted[i].second <= 0.1) {
+        break;
+      }
+
+      largest_picked_num++;
+      (*point_picked)[ind] = true;
+
+      if (largest_picked_num <= 2) {
+        edges->push_back(points_in->points[ind]);
+        point_info_count++;
+
+        for (int k = 1; k <= 5; k++) {
+          const Eigen::Vector3f point_diff =
+              points_in->points[ind + k].getVector3fMap() -
+              points_in->points[ind + k - 1].getVector3fMap();
+          if (point_diff.norm() > sqrt(0.05)) {
+            break;
+          }
+          (*point_picked)[ind + k] = true;
+        }
+
+        for (int k = -1; k >= -5; k--) {
+          const Eigen::Vector3f point_diff =
+              points_in->points[ind + k].getVector3fMap() -
+              points_in->points[ind + k + 1].getVector3fMap();
+          if (point_diff.norm() > sqrt(0.05)) {
+            break;
+          }
+          (*point_picked)[ind + k] = true;
+        }
+      } else {
+        break;
+      }
+    }
+  }
+
+  int smallest_picked_num = 0;
+
+  for (int i = 0; i <= cloud_curvatures_sorted.size() - 1u; i++) {
+    if (cloud_curvatures_sorted[i].second > 0.1)
+      break;
+    int ind = cloud_curvatures_sorted[i].first;
+    if (smallest_picked_num <= 4) {
+      if (!(*point_picked)[ind]) {
+        surfaces->push_back(points_in->points[ind]);
+        smallest_picked_num++;
+
+        for (int k = 1; k <= 5; k++) {
+          const Eigen::Vector3f point_diff =
+              points_in->points[ind + k].getVector3fMap() -
+              points_in->points[ind + k - 1].getVector3fMap();
+          if (point_diff.norm() > sqrt(0.05)) {
+            break;
+          }
+          (*point_picked)[ind + k] = true;
+        }
+
+        for (int k = -1; k >= -5; k--) {
+          const Eigen::Vector3f point_diff =
+              points_in->points[ind + k].getVector3fMap() -
+              points_in->points[ind + k + 1].getVector3fMap();
+          if (point_diff.norm() > sqrt(0.05)) {
+            break;
+          }
+          (*point_picked)[ind + k] = true;
+        }
+      }
     }
   }
 }

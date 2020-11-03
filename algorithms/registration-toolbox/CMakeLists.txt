@@ -42,7 +42,9 @@ cs_add_library(${PROJECT_NAME}
 catkin_add_gtest(${PROJECT_NAME}_driver test/aligner-driver.cc)
 target_link_libraries(${PROJECT_NAME}_driver ${PROJECT_NAME})
 cs_add_executable(loam_driver test/loam-driver.cc)
+cs_add_executable(loam_map_test test/loam-map-builder.cc)
 target_link_libraries(loam_driver ${PROJECT_NAME})
+target_link_libraries(loam_map_test ${PROJECT_NAME})
 catkin_add_gtest(test_registration_toolbox test/test-regbox.cc)
 target_link_libraries(test_registration_toolbox ${PROJECT_NAME})
 
