@@ -88,8 +88,48 @@ class ExternalFeaturesMeasurement : public Measurement {
       : Measurement(sensor_id) {}
 
   explicit ExternalFeaturesMeasurement(
-      const aslam::SensorId& sensor_id, const int64_t timestamp_nanoseconds)
-      : Measurement(sensor_id, timestamp_nanoseconds) {}
+      const aslam::SensorId& sensor_id, const int64_t timestamp_nanoseconds,
+      uint32_t num_keypoint_measurements, uint32_t descriptor_size,
+      const std::vector<uint32_t>& keypoint_measurements_x,
+      const std::vector<uint32_t>& keypoint_measurements_y,
+      const std::vector<float>& keypoint_measurement_uncertainties,
+      const std::vector<float>& keypoint_orientations,
+      const std::vector<float>& keypoint_scores,
+      const std::vector<float>& keypoint_scales,
+      const std::vector<uint8_t>& descriptors,
+      const std::vector<uint32_t>& track_ids)
+      : Measurement(sensor_id, timestamp_nanoseconds),
+        num_keypoint_measurements_(num_keypoint_measurements),
+        descriptor_size_(descriptor_size),
+        keypoint_measurements_x_(keypoint_measurements_x),
+        keypoint_measurements_y_(keypoint_measurements_y),
+        keypoint_measurement_uncertainties_(keypoint_measurement_uncertainties),
+        keypoint_orientations_(keypoint_orientations),
+        keypoint_scores_(keypoint_scores),
+        keypoint_scales_(keypoint_scales),
+        descriptors_(descriptors),
+        track_ids_(track_ids) {
+    CHECK(keypoint_measurements_x_.size() == num_keypoint_measurements);
+    CHECK(keypoint_measurements_y_.size() == num_keypoint_measurements);
+    CHECK(descriptors_.size() == num_keypoint_measurements * descriptor_size);
+
+    CHECK(
+        keypoint_measurement_uncertainties_.size() == 0 ||
+        keypoint_measurement_uncertainties_.size() ==
+            num_keypoint_measurements);
+    CHECK(
+        keypoint_orientations_.size() == 0 ||
+        keypoint_orientations_.size() == num_keypoint_measurements);
+    CHECK(
+        keypoint_scores_.size() == 0 ||
+        keypoint_scores_.size() == num_keypoint_measurements);
+    CHECK(
+        keypoint_scales_.size() == 0 ||
+        keypoint_scales_.size() == num_keypoint_measurements);
+    CHECK(
+        track_ids_.size() == 0 ||
+        track_ids_.size() == num_keypoint_measurements);
+  }
 
   inline bool isEqual(
       const ExternalFeaturesMeasurement& other,
@@ -113,12 +153,27 @@ class ExternalFeaturesMeasurement : public Measurement {
     return is_equal;
   }
 
+  uint32_t getNumKeypointMeasurements() const {
+    return num_keypoint_measurements_;
+  }
+
  private:
   inline bool isValidImpl() const {
     return true;
   }
 
   inline void setRandomImpl() override {}
+
+  uint32_t num_keypoint_measurements_;
+  uint32_t descriptor_size_;
+  std::vector<uint32_t> keypoint_measurements_x_;
+  std::vector<uint32_t> keypoint_measurements_y_;
+  std::vector<float> keypoint_measurement_uncertainties_;
+  std::vector<float> keypoint_orientations_;
+  std::vector<float> keypoint_scores_;
+  std::vector<float> keypoint_scales_;
+  std::vector<uint8_t> descriptors_;
+  std::vector<uint32_t> track_ids_;
 };
 
 DEFINE_MEAUREMENT_CONTAINERS(ExternalFeaturesMeasurement)

@@ -502,6 +502,8 @@ void DataSourceRostopic::externalFeaturesCallback(
   }
 
   vi_map::ExternalFeaturesMeasurement::Ptr external_features_measurement;
+  external_features_measurement =
+      convertRosFeatureMsgToMaplabExternalFeatures(msg, sensor_id);
 
   invokeExternalFeaturesCallbacks(external_features_measurement);
 }

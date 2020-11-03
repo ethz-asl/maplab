@@ -402,6 +402,23 @@ vi_map::WheelOdometryMeasurement::Ptr convertRosOdometryToMaplabWheelOdometry(
   return wheel_odometry_measurement;
 }
 
+vi_map::ExternalFeaturesMeasurement::Ptr
+convertRosFeatureMsgToMaplabExternalFeatures(
+    const maplab_msgs::FeaturesConstPtr& msg, aslam::SensorId sensor_id) {
+  CHECK(msg);
+  vi_map::ExternalFeaturesMeasurement::Ptr external_features_measurement(
+      new vi_map::ExternalFeaturesMeasurement(
+          sensor_id, rosTimeToNanoseconds(msg->header.stamp)));
+
+  external_features_measurement->setNumKeypointMeasurements(
+      msg->numKeypointMeasurements);
+
+  LOG(INFO) << msg->keypointMeasurementsX.size();
+  LOG(INFO) << msg->keypointMeasurementsY.size();
+
+  return external_features_measurement;
+}
+
 void odometryCovarianceToEigenMatrix(
     geometry_msgs::PoseWithCovariance::_covariance_type&
         odometry_msg_covariance,
