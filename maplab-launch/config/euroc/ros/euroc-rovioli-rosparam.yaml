@@ -6,7 +6,7 @@ external_imu_parameters_rovio: ""
 # VIO
 vio_camera_topic_suffix: image_raw
 vio_nframe_sync_tolerance_ns: 500000
-vio_nframe_sync_max_output_frequency_hz: 20
+vio_nframe_sync_max_output_frequency_hz: 10
 
 # SENSOR SELECTION
 # only needed if there are multiple ncameras/lidars/imus/odometries
