@@ -34,6 +34,7 @@ cs_add_library(${PROJECT_NAME}
   src/mock-controller.cc
   src/pcl-gicp-controller.cc
   src/pcl-icp-controller.cc
+  src/loam-feature-detector.cc
 )
 
 ##########

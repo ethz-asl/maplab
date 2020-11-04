@@ -8,14 +8,15 @@
 #include "registration-toolbox/common/base-controller.h"
 #include "registration-toolbox/common/supported.h"
 #include "registration-toolbox/loam-controller.h"
+#include "registration-toolbox/loam-feature-detector.h"
 
 namespace regbox {
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr map_cloud;
 aslam::Transformation T_map_source;
 auto aligner = regbox::BaseController::make("regbox::LoamController", "Loam");
+auto feature_detector = regbox::LoamFeatureDetector();
 ros::Publisher map_pub;
-int counter = 0;
 void registerCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr& source_cloud) {
   CHECK_NOTNULL(aligner);
 
@@ -53,38 +54,33 @@ void registerCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr& source_cloud) {
   surface_filter.filter(surface_map_down_sampled);
 
   T_map_source = result.get_T_target_source();
-  // *map_cloud = edge_map_down_sampled + surface_map_down_sampled;
-  std::cout << "Registration result: \n" << T_map_source;
+  std::cout << "Registration result: \n" << T_map_source << std::endl;
 
   sensor_msgs::PointCloud2 map_msg;
   pcl::toROSMsg(*map_cloud, map_msg);
   map_msg.header.frame_id = "/loam_map";
   map_pub.publish(map_msg);
-
-  // if (!reg_cloud.empty()) {
-  //   writePointCloud(reg_cloud, result.getRegisteredCloud());
-  // }
-  // if (!transform.empty()) {
-  //   writeTransformToFile(transform, result.get_T_target_source());
-  // }
 }
 
 void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
-  if (counter == 0) {
-    pcl::PointCloud<pcl::PointXYZL> cloud_label;
-    pcl::fromROSMsg(*msg, cloud_label);
-    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_intensity(
-        new pcl::PointCloud<pcl::PointXYZI>);
-    for (pcl::PointXYZL point : cloud_label) {
-      pcl::PointXYZI point_intensity;
-      point_intensity.getVector3fMap() = point.getVector3fMap();
-      point_intensity.intensity = point.label;
-      cloud_intensity->push_back(point_intensity);
-    }
-    registerCloud(cloud_intensity);
-    counter = 0;
+  pcl::PointCloud<pcl::PointXYZL> cloud_label;
+  pcl::fromROSMsg(*msg, cloud_label);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_intensity(
+      new pcl::PointCloud<pcl::PointXYZI>);
+  for (pcl::PointXYZL point : cloud_label) {
+    pcl::PointXYZI point_intensity;
+    point_intensity.getVector3fMap() = point.getVector3fMap();
+    point_intensity.intensity = point.label;
+    cloud_intensity->push_back(point_intensity);
   }
-  // ++counter;
+
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_features(
+      new pcl::PointCloud<pcl::PointXYZI>);
+
+  feature_detector.extractLoamFeaturesFromPointCloud(
+      cloud_intensity, cloud_features);
+
+  registerCloud(cloud_features);
 }
 
 }  // namespace regbox

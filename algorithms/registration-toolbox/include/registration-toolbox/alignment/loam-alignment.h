@@ -1,9 +1,6 @@
 #ifndef REGISTRATION_TOOLBOX_ALIGNMENT_LOAM_ALIGNMENT_H_
 #define REGISTRATION_TOOLBOX_ALIGNMENT_LOAM_ALIGNMENT_H_
 
-#include <utility>
-#include <vector>
-
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 #include <pcl/kdtree/kdtree_flann.h>
@@ -17,8 +14,6 @@ namespace regbox {
 
 template <typename T>
 using PclPointCloudPtr = typename boost::shared_ptr<pcl::PointCloud<T>>;
-using CurvaturePair = typename std::pair<size_t, double>;
-using CurvaturePairs = typename std::vector<std::pair<size_t, double>>;
 
 class LoamAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
  public:
@@ -35,23 +30,6 @@ class LoamAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
       const PclPointCloudPtr<pcl::PointXYZI>& target,
       const PclPointCloudPtr<pcl::PointXYZI>& source);
 
-  void extractLoamFeaturesFromPointCloud(
-      const PclPointCloudPtr<pcl::PointXYZI>& point_cloud,
-      PclPointCloudPtr<pcl::PointXYZI> edges,
-      PclPointCloudPtr<pcl::PointXYZI> surfaces);
-
-  void extractFeaturesFromScanLine(
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
-      pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
-      pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces);
-
-  void extractFeaturesFromFeatureRegion(
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& points_in,
-      const CurvaturePairs& cloud_curvatures,
-      pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
-      pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces,
-      std::vector<bool>* point_picked);
-
   void addEdgeCostFactors(
       const PclPointCloudPtr<pcl::PointXYZI>& target_edges,
       const PclPointCloudPtr<pcl::PointXYZI>& source_edges,
@@ -66,31 +44,6 @@ class LoamAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
 
   bool calculateSolutionCovariance(
       ceres::Problem* problem, Eigen::Matrix<float, 7, 7>* covariance);
-
-  void downSampleFeatures(
-      pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
-      pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces);
-
-  void markUnstablePointsAsPicked(
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
-      std::vector<bool>* point_picked);
-
-  void markCurvatureRegionAsPicked(
-      const int& point_idx, std::vector<bool>* point_picked);
-
-  void markFirstHalfCurvatureRegionAsPicked(
-      const int& point_idx, std::vector<bool>* point_picked);
-  void markSecondHalfCurvatureRegionAsPicked(
-      const int& point_idx, std::vector<bool>* point_picked);
-
-  void markCurvatureRegionAsPicked(
-      const int& point_idx, const double& distance_threshold_m,
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
-      std::vector<bool>* point_picked);
-
-  void calculateCurvatures(
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
-      CurvaturePairs* curvatures);
 
   pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_edges_;
   pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_surfaces_;
