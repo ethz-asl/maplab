@@ -35,12 +35,17 @@ class LoamAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
       const PclPointCloudPtr<pcl::PointXYZI>& target,
       const PclPointCloudPtr<pcl::PointXYZI>& source);
 
-  void extractFeaturesFromSourceCloud(
-      const PclPointCloudPtr<pcl::PointXYZI>& source,
-      PclPointCloudPtr<pcl::PointXYZI> source_edges,
-      PclPointCloudPtr<pcl::PointXYZI> source_surfaces);
+  void extractLoamFeaturesFromPointCloud(
+      const PclPointCloudPtr<pcl::PointXYZI>& point_cloud,
+      PclPointCloudPtr<pcl::PointXYZI> edges,
+      PclPointCloudPtr<pcl::PointXYZI> surfaces);
 
-  void extractFeaturesFromSector(
+  void extractFeaturesFromScanLine(
+      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+      pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
+      pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces);
+
+  void extractFeaturesFromFeatureRegion(
       const pcl::PointCloud<pcl::PointXYZI>::Ptr& points_in,
       const CurvaturePairs& cloud_curvatures,
       pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
@@ -82,6 +87,10 @@ class LoamAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
       const int& point_idx, const double& distance_threshold_m,
       const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
       std::vector<bool>* point_picked);
+
+  void calculateCurvatures(
+      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+      CurvaturePairs* curvatures);
 
   pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_edges_;
   pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_surfaces_;

@@ -71,7 +71,6 @@ void registerCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr& source_cloud) {
 
 void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   if (counter == 0) {
-    std::cout << "cloud received" << std::endl;
     pcl::PointCloud<pcl::PointXYZL> cloud_label;
     pcl::fromROSMsg(*msg, cloud_label);
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_intensity(
