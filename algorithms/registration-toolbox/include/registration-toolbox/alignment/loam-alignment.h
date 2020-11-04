@@ -62,13 +62,26 @@ class LoamAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
   bool calculateSolutionCovariance(
       ceres::Problem* problem, Eigen::Matrix<float, 7, 7>* covariance);
 
-  void markCurvatureRegionPicked(
-      const int& idx, const int& curvature_region,
-      std::vector<bool>* point_picked);
-
   void downSampleFeatures(
       pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
       pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces);
+
+  void markUnstablePointsAsPicked(
+      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+      std::vector<bool>* point_picked);
+
+  void markCurvatureRegionAsPicked(
+      const int& point_idx, std::vector<bool>* point_picked);
+
+  void markFirstHalfCurvatureRegionAsPicked(
+      const int& point_idx, std::vector<bool>* point_picked);
+  void markSecondHalfCurvatureRegionAsPicked(
+      const int& point_idx, std::vector<bool>* point_picked);
+
+  void markCurvatureRegionAsPicked(
+      const int& point_idx, const double& distance_threshold_m,
+      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+      std::vector<bool>* point_picked);
 
   pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_edges_;
   pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_surfaces_;

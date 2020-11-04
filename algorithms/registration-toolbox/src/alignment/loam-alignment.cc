@@ -194,15 +194,6 @@ void LoamAlignment::extractFeaturesFromSourceCloud(
          point_idx < scan_lines[line_idx]->points.size() -
                          FLAGS_regbox_loam_curvature_region;
          point_idx++) {
-      if (scan_lines[line_idx]->points[point_idx].getVector3fMap().norm() <
-          0.8) {
-        point_picked[point_idx] = true;
-        for (int k = 1; k <= 5; k++) {
-          point_picked[point_idx + k] = true;
-          point_picked[point_idx - k] = true;
-        }
-      }
-
       Eigen::Vector3f merged_point =
           2. * FLAGS_regbox_loam_curvature_region *
           scan_lines[line_idx]->points[point_idx].getVector3fMap();
@@ -219,6 +210,8 @@ void LoamAlignment::extractFeaturesFromSourceCloud(
       const CurvaturePair curvature_pair(point_idx, merged_point.squaredNorm());
       cloud_curvatures.push_back(curvature_pair);
     }
+
+    markUnstablePointsAsPicked(scan_lines[line_idx], &point_picked);
 
     const int total_points = scan_lines[line_idx]->points.size() -
                              2 * FLAGS_regbox_loam_curvature_region;
@@ -237,66 +230,6 @@ void LoamAlignment::extractFeaturesFromSourceCloud(
         break;
       }
 
-      for (size_t i = sector_start + FLAGS_regbox_loam_curvature_region;
-           i < sector_end - FLAGS_regbox_loam_curvature_region; i++) {
-        const pcl::PointXYZI& previous_point =
-            (scan_lines[line_idx]->points[i - 1]);
-        const pcl::PointXYZI& point = (scan_lines[line_idx]->points[i]);
-        const pcl::PointXYZI& next_point =
-            (scan_lines[line_idx]->points[i + 1]);
-
-        const float point_to_next_point_distance_m =
-            (next_point.getVector3fMap() - point.getVector3fMap()).norm();
-
-        if (point_to_next_point_distance_m > sqrt(0.1)) {
-          const float point_distance_m = point.getVector3fMap().norm();
-          const float next_point_distance_m =
-              next_point.getVector3fMap().norm();
-
-          if (point_distance_m > next_point_distance_m) {
-            float weighted_distance =
-                (next_point.getVector3fMap() -
-                 (next_point_distance_m / point_distance_m) *
-                     point.getVector3fMap())
-                    .norm() /
-                next_point_distance_m;
-
-            if (weighted_distance < 0.1) {
-              for (int j = 0; j < FLAGS_regbox_loam_curvature_region; j++) {
-                point_picked[i - FLAGS_regbox_loam_curvature_region + j] = true;
-              }
-              continue;
-            }
-          } else {
-            float weighted_distance =
-                (point.getVector3fMap() -
-                 (point_distance_m / next_point_distance_m) *
-                     next_point.getVector3fMap())
-                    .norm() /
-                point_distance_m;
-            if (weighted_distance < 0.1) {
-              for (int j = 0; j < FLAGS_regbox_loam_curvature_region; j++) {
-                point_picked[i + 1 + j] = true;
-              }
-            }
-          }
-        }
-
-        float point_to_previous_point_distance_m =
-            (point.getVector3fMap() - previous_point.getVector3fMap()).norm();
-        float point_distance_m = point.getVector3fMap().norm();
-
-        // this will reject a point if the difference in distance
-        // or depth of point and its neighbors is outside a bound i.e.
-        // rejecting very sharp ramp like points
-        const float point_distance_threshold_m =
-            sqrt(0.0002) * point_distance_m;
-        if (point_to_next_point_distance_m > point_distance_threshold_m &&
-            point_to_previous_point_distance_m > point_distance_threshold_m) {
-          point_picked[i] = true;
-        }
-      }
-
       if (region_idx == FLAGS_regbox_loam_feature_regions) {
         sector_end = total_points - 1;
       }
@@ -309,6 +242,116 @@ void LoamAlignment::extractFeaturesFromSourceCloud(
           scan_lines[line_idx], sub_cloud_curvatures, source_edges,
           source_surfaces, &point_picked);
     }
+  }
+}
+
+void LoamAlignment::markUnstablePointsAsPicked(
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+    std::vector<bool>* point_picked) {
+  for (size_t point_idx = FLAGS_regbox_loam_curvature_region;
+       point_idx < scan_line->size() - FLAGS_regbox_loam_curvature_region;
+       point_idx++) {
+    if (scan_line->points[point_idx].getVector3fMap().norm() < 0.8) {
+      markCurvatureRegionAsPicked(point_idx, point_picked);
+    }
+
+    const pcl::PointXYZI& previous_point = scan_line->points[point_idx - 1];
+    const pcl::PointXYZI& point = scan_line->points[point_idx];
+    const pcl::PointXYZI& next_point = scan_line->points[point_idx + 1];
+
+    const float point_to_next_point_distance_m =
+        (next_point.getVector3fMap() - point.getVector3fMap()).norm();
+
+    const float point_distance_m = point.getVector3fMap().norm();
+    if (point_to_next_point_distance_m > sqrt(0.1)) {
+      const float next_point_distance_m = next_point.getVector3fMap().norm();
+
+      if (point_distance_m > next_point_distance_m) {
+        float weighted_distance = (next_point.getVector3fMap() -
+                                   (next_point_distance_m / point_distance_m) *
+                                       point.getVector3fMap())
+                                      .norm() /
+                                  next_point_distance_m;
+
+        if (weighted_distance < 0.1) {
+          markFirstHalfCurvatureRegionAsPicked(point_idx, point_picked);
+          continue;
+        }
+      } else {
+        float weighted_distance = (point.getVector3fMap() -
+                                   (point_distance_m / next_point_distance_m) *
+                                       next_point.getVector3fMap())
+                                      .norm() /
+                                  point_distance_m;
+
+        if (weighted_distance < 0.1) {
+          markSecondHalfCurvatureRegionAsPicked(point_idx, point_picked);
+        }
+      }
+    }
+
+    float point_to_previous_point_distance_m =
+        (point.getVector3fMap() - previous_point.getVector3fMap()).norm();
+
+    // this will reject a point if the difference in distance
+    // or depth of point and its neighbors is outside a bound i.e.
+    // rejecting very sharp ramp like points
+    const float point_distance_threshold_m = sqrt(0.0002) * point_distance_m;
+    if (point_to_next_point_distance_m > point_distance_threshold_m &&
+        point_to_previous_point_distance_m > point_distance_threshold_m) {
+      (*point_picked)[point_idx] = true;
+    }
+  }
+}
+
+void LoamAlignment::markCurvatureRegionAsPicked(
+    const int& point_idx, std::vector<bool>* point_picked) {
+  for (int neighbor_idx = -FLAGS_regbox_loam_curvature_region;
+       neighbor_idx <= FLAGS_regbox_loam_curvature_region; neighbor_idx++) {
+    (*point_picked)[point_idx + neighbor_idx] = true;
+  }
+}
+
+void LoamAlignment::markCurvatureRegionAsPicked(
+    const int& point_idx, const double& distance_threshold_m,
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+    std::vector<bool>* point_picked) {
+  (*point_picked)[point_idx] = true;
+  for (int neighbor_idx = 1; neighbor_idx <= 5; neighbor_idx++) {
+    const float point_to_neighbor_distance_m =
+        (scan_line->points[point_idx + neighbor_idx].getVector3fMap() -
+         scan_line->points[point_idx + neighbor_idx - 1].getVector3fMap())
+            .norm();
+    if (point_to_neighbor_distance_m > distance_threshold_m) {
+      break;
+    }
+    (*point_picked)[point_idx + neighbor_idx] = true;
+  }
+
+  for (int neighbor_idx = 1; neighbor_idx <= 5; neighbor_idx++) {
+    const float point_to_neighbor_distance_m =
+        (scan_line->points[point_idx - neighbor_idx].getVector3fMap() -
+         scan_line->points[point_idx - neighbor_idx + 1].getVector3fMap())
+            .norm();
+    if (point_to_neighbor_distance_m > distance_threshold_m) {
+      break;
+    }
+    (*point_picked)[point_idx + neighbor_idx] = true;
+  }
+}
+
+void LoamAlignment::markFirstHalfCurvatureRegionAsPicked(
+    const int& point_idx, std::vector<bool>* point_picked) {
+  for (int neighbor_idx = 0; neighbor_idx <= 5; neighbor_idx++) {
+    (*point_picked)[point_idx - neighbor_idx] = true;
+  }
+}
+
+void LoamAlignment::markSecondHalfCurvatureRegionAsPicked(
+    const int& point_idx, std::vector<bool>* point_picked) {
+  (*point_picked)[point_idx] = true;
+  for (int neighbor_idx = 0; neighbor_idx <= 5; neighbor_idx++) {
+    (*point_picked)[point_idx + neighbor_idx] = true;
   }
 }
 
@@ -341,26 +384,7 @@ void LoamAlignment::extractFeaturesFromSector(
       if (largest_picked_num <= 2) {
         edges->push_back(points_in->points[ind]);
         point_info_count++;
-
-        for (int k = 1; k <= 5; k++) {
-          const Eigen::Vector3f point_diff =
-              points_in->points[ind + k].getVector3fMap() -
-              points_in->points[ind + k - 1].getVector3fMap();
-          if (point_diff.norm() > sqrt(0.05)) {
-            break;
-          }
-          (*point_picked)[ind + k] = true;
-        }
-
-        for (int k = -1; k >= -5; k--) {
-          const Eigen::Vector3f point_diff =
-              points_in->points[ind + k].getVector3fMap() -
-              points_in->points[ind + k + 1].getVector3fMap();
-          if (point_diff.norm() > sqrt(0.05)) {
-            break;
-          }
-          (*point_picked)[ind + k] = true;
-        }
+        markCurvatureRegionAsPicked(ind, sqrt(0.05), points_in, point_picked);
       } else {
         break;
       }
@@ -377,26 +401,7 @@ void LoamAlignment::extractFeaturesFromSector(
       if (!(*point_picked)[ind]) {
         surfaces->push_back(points_in->points[ind]);
         smallest_picked_num++;
-
-        for (int k = 1; k <= 5; k++) {
-          const Eigen::Vector3f point_diff =
-              points_in->points[ind + k].getVector3fMap() -
-              points_in->points[ind + k - 1].getVector3fMap();
-          if (point_diff.norm() > sqrt(0.05)) {
-            break;
-          }
-          (*point_picked)[ind + k] = true;
-        }
-
-        for (int k = -1; k >= -5; k--) {
-          const Eigen::Vector3f point_diff =
-              points_in->points[ind + k].getVector3fMap() -
-              points_in->points[ind + k + 1].getVector3fMap();
-          if (point_diff.norm() > sqrt(0.05)) {
-            break;
-          }
-          (*point_picked)[ind + k] = true;
-        }
+        markCurvatureRegionAsPicked(ind, sqrt(0.05), points_in, point_picked);
       }
     }
   }
