@@ -66,6 +66,10 @@ class LoamAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
       const int& idx, const int& curvature_region,
       std::vector<bool>* point_picked);
 
+  void downSampleFeatures(
+      pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
+      pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces);
+
   pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_edges_;
   pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_surfaces_;
   PclPointCloudPtr<pcl::PointXYZI> target_edges_;
