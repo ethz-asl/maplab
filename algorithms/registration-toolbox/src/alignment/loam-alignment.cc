@@ -8,7 +8,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 DEFINE_int32(
-    regbox_loam_optimization_iterations, 30,
+    regbox_loam_optimization_iterations, 60,
     "Iterations for LOAM Optimization");
 DEFINE_int32(
     regbox_loam_ceres_iterations, 10, "Iterations per Ceres Optimization");
@@ -49,7 +49,6 @@ RegistrationResult LoamAlignment::registerCloudImpl(
 
   kd_tree_target_edges_->setInputCloud(target_edges_);
   kd_tree_target_surfaces_->setInputCloud(target_surfaces_);
-
   const size_t k_optimization_count = FLAGS_regbox_loam_optimization_iterations;
   for (int iterCount = 0; iterCount < k_optimization_count; iterCount++) {
     ceres::LossFunction* loss_function = new ceres::HuberLoss(0.2);
@@ -75,7 +74,6 @@ RegistrationResult LoamAlignment::registerCloudImpl(
 
     ceres::Solve(solver_options, &problem, &summary);
   }
-
   const aslam::Transformation T_target_source(q_w_curr, t_w_curr);
 
   PclPointCloudPtr<pcl::PointXYZI> source_registered(

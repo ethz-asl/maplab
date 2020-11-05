@@ -1,6 +1,7 @@
 #include "registration-toolbox/loam-feature-detector.h"
 
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
 
@@ -39,9 +40,12 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
     scan_lines.push_back(pcl::PointCloud<pcl::PointXYZI>::Ptr(
         new pcl::PointCloud<pcl::PointXYZI>));
   }
-
+  int min_line = 1000;
+  int max_line = 0;
   for (int idx = 0u; idx < point_cloud->size(); idx++) {
     const pcl::PointXYZI& point = point_cloud->points[idx];
+    CHECK_GT(N_SCANS, point.intensity);
+    CHECK_GE(point.intensity, 0);
     const double planar_distance = sqrt(point.x * point.x + point.y * point.y);
     if (planar_distance < 0.001 || planar_distance > 120.)
       continue;
@@ -49,9 +53,11 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
         !std::isfinite(point.z)) {
       continue;
     }
-    scan_lines[point.intensity]->push_back(point);
-  }
+    min_line = std::min(static_cast<int>(point.intensity), min_line);
+    max_line = std::max(static_cast<int>(point.intensity), max_line);
 
+    scan_lines[static_cast<int>(point.intensity)]->push_back(point);
+  }
   for (const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line : scan_lines) {
     if (scan_line->size() >= 2 * FLAGS_regbox_loam_curvature_region + 1) {
       extractFeaturesFromScanLine(scan_line, edges, surfaces);
@@ -76,7 +82,6 @@ void LoamFeatureDetector::extractFeaturesFromScanLine(
   markUnstablePointsAsPicked(scan_line, &point_picked);
   CurvaturePairs cloud_curvatures;
   calculateCurvatures(scan_line, &cloud_curvatures);
-
   const int total_points =
       scan_line->size() - 2 * FLAGS_regbox_loam_curvature_region;
 
@@ -101,7 +106,6 @@ void LoamFeatureDetector::extractFeaturesFromScanLine(
     CurvaturePairs sub_cloud_curvatures(
         cloud_curvatures.begin() + sector_start,
         cloud_curvatures.begin() + sector_end);
-
     extractFeaturesFromFeatureRegion(
         scan_line, sub_cloud_curvatures, edges, surfaces, &point_picked);
   }

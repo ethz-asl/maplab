@@ -12,6 +12,7 @@
 
 namespace regbox {
 
+int counter = 0;
 pcl::PointCloud<pcl::PointXYZI>::Ptr map_cloud;
 aslam::Transformation T_map_source;
 auto aligner = regbox::BaseController::make("regbox::LoamController", "Loam");
@@ -19,7 +20,6 @@ auto feature_detector = regbox::LoamFeatureDetector();
 ros::Publisher map_pub;
 void registerCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr& source_cloud) {
   CHECK_NOTNULL(aligner);
-
   const regbox::RegistrationResult result =
       aligner->align(map_cloud, source_cloud, T_map_source);
 
@@ -63,6 +63,10 @@ void registerCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr& source_cloud) {
 }
 
 void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
+  if (counter > 0) {
+    counter = 0;
+    return;
+  }
   pcl::PointCloud<pcl::PointXYZL> cloud_label;
   pcl::fromROSMsg(*msg, cloud_label);
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_intensity(
@@ -73,7 +77,6 @@ void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     point_intensity.intensity = point.label;
     cloud_intensity->push_back(point_intensity);
   }
-
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_features(
       new pcl::PointCloud<pcl::PointXYZI>);
 
@@ -81,6 +84,7 @@ void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
       cloud_intensity, cloud_features);
 
   registerCloud(cloud_features);
+  counter++;
 }
 
 }  // namespace regbox
