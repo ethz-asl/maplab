@@ -3,12 +3,15 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <maplab-common/multi-threaded-progress-bar.h>
+#include <maplab-common/progress-bar.h>
 #include <registration-toolbox/common/base-controller.h>
+#include <registration-toolbox/loam-feature-detector.h>
 #include <registration-toolbox/mock-controller.h>
 #include <registration-toolbox/model/registration-result.h>
 #include <registration-toolbox/pcl-icp-controller.h>
 
 #include "dense-mapping/dense-mapping-parallel-process.h"
+#include "dense-mapping/dense-mapping-search.h"
 
 namespace dense_mapping {
 
@@ -182,7 +185,7 @@ bool computeAlignmentForCandidatePairs(
             << "(" << static_cast<int>(resource_type_B) << ")'.";
       }
 
-      // Reset the aligner if we switch resource types, such that the
+      // Resegt the aligner if we switch resource types, such that the
       // specific implementation for this resource type can chose its own
       // aligner type.
       if (current_resource_type != resource_type_A) {
@@ -283,6 +286,147 @@ bool computeAlignmentForCandidatePairs(
   // have made it into the result vector.
   CHECK_EQ(total_processed_pairs, num_pairs);
   CHECK_LE(aligned_candidate_pairs->size(), total_successful_pairs);
+
+  return true;
+}
+
+bool computeAlignmentForLoamCandidatePairs(
+    const AlignmentConfig& config, const vi_map::VIMap& map,
+    const AlignmentCandidatePairs& candidate_pairs,
+    AlignmentCandidatePairs* aligned_candidate_pairs) {
+  CHECK_NOTNULL(aligned_candidate_pairs);
+
+  const size_t num_pairs = candidate_pairs.size();
+
+  common::ProgressBar progress_bar(num_pairs);
+
+
+  VLOG(1) << "Processing " << num_pairs << " alignment candidates...";
+
+  // Introspection
+  size_t processed_pairs = 0u;
+  size_t successful_alignments = 0u;
+
+  // Move iterator to the start idx, since for an unordered_map we cannot
+  // access it by index directly.
+  auto it = candidate_pairs.cbegin();
+
+  auto aligner = regbox::BaseController::make("regbox::LoamController", "Loam");
+  auto feature_detector = regbox::LoamFeatureDetector();
+  pcl::PointCloud<pcl::PointXYZI>::Ptr aggregated_loam_map;
+  AlignmentCandidate loam_map_base_candidate;
+  // Do the work.
+  backend::ResourceType current_resource_type = backend::ResourceType::kCount;
+  for (size_t idx = 0u; idx < num_pairs && it != candidate_pairs.cend();
+       ++idx, ++it) {
+
+    const AlignmentCandidatePair& pair = *it;
+
+    const backend::ResourceType resource_type_A =
+        pair.candidate_A.resource_type;
+    const backend::ResourceType resource_type_B =
+        pair.candidate_B.resource_type;
+
+    if (resource_type_A != resource_type_B) {
+      LOG(FATAL)
+          << "Alignment of different resource types is not supported, "
+             "type A: '"
+          << backend::ResourceTypeNames[static_cast<int>(resource_type_A)]
+          << "(" << static_cast<int>(resource_type_A) << ")' vs. type B: '"
+          << backend::ResourceTypeNames[static_cast<int>(resource_type_B)]
+          << "(" << static_cast<int>(resource_type_B) << ")'.";
+    }
+
+    // Launch a resource type specific alignment.
+    AlignmentCandidatePair processed_pair;
+    bool aligned_without_error = false;
+    switch (current_resource_type) {
+      case backend::ResourceType::kPointCloudXYZ:
+      // Fall through intended.
+      case backend::ResourceType::kPointCloudXYZI:
+      // Fall through intended.
+      case backend::ResourceType::kPointCloudXYZRGBN:
+        try {
+          // Extract depth resource.
+          resources::PointCloud candidate_resource_A, candidate_resource_B;
+
+          if (aggregated_loam_map->empty()) {
+            if (!retrieveResourceForCandidate(
+              pair.candidate_A, map, &candidate_resource_A)) {
+                LOG(ERROR) << "Unable to retrieve resource for candidate A.";
+                return false;
+            }
+
+            feature_detector.extractLoamFeaturesFromPointCloud(
+              candidate_resource_A, aggregated_loam_map);
+
+            loam_map_base_candidate = pair.candidate_A;
+          }
+
+          if (!retrieveResourceForCandidate(
+                  pair.candidate_B, map, &candidate_resource_B)) {
+            LOG(ERROR) << "Unable to retrieve resource for candidate B.";
+            return false;
+          }
+
+          pcl::PointCloud<pcl::PointXYZI>::Ptr candidate_B_feature_cloud;
+          feature_detector.extractLoamFeaturesFromPointCloud(
+            candidate_resource_B, candidate_B_feature_cloud);
+
+          AlignmentCandidatePair loam_candidate_pair;
+          createCandidatePair(pair.candidate_B, loam_map_base_candidate,
+            &loam_candidate_pair);
+
+          const regbox::RegistrationResult result = aligner->align(
+                      aggregated_loam_map, candidate_B_feature_cloud,
+                      loam_candidate_pair.T_SB_SA_init);
+
+
+          const AlignmentCandidatePair processed_pair =
+            candidatePairFromRegistrationResult(loam_candidate_pair, result);
+          aligned_without_error = processed_pair.success;
+        } catch (const std::exception&) {
+          aligned_without_error = false;
+        }
+        break;
+      default:
+        LOG(FATAL) << "Alignment algorithm between resource types '"
+                   << backend::ResourceTypeNames[static_cast<int>(
+                          current_resource_type)]
+                   << "(" << static_cast<int>(current_resource_type)
+                   << ") is currently NOT implemented'!";
+    }
+
+    // In case there was an error inside the alignment function, we skip
+    // the rest.
+    if (!aligned_without_error) {
+      LOG(WARNING) << "Alignment between LOAM Map and candidate ("
+                   << aslam::time::timeNanosecondsToString(
+                          pair.candidate_B.timestamp_ns)
+                   << ") encountered and error!";
+      progress_bar.update(++processed_pairs);
+      continue;
+    }
+
+    // Some simple sanity checks to overrule the success of the alignment if
+    // necessary,
+    if (alignmentDeviatesTooMuchFromInitialGuess(config, processed_pair)) {
+      processed_pair.success = false;
+    }
+
+    // Only keep pair if successful.
+    if (processed_pair.success) {
+      aligned_candidate_pairs->emplace(processed_pair);
+      ++successful_alignments;
+    }
+
+    progress_bar.update(++processed_pairs);
+  }
+
+  VLOG(1) << "Done.";
+
+  VLOG(1) << "Successfully aligned " << successful_alignments << "/" <<
+  num_pairs << " candidates.";
 
   return true;
 }

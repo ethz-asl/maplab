@@ -47,7 +47,14 @@ bool addDenseMappingConstraintsToMap(
   }
 
   AlignmentCandidatePairs aligned_candidates;
-  if (!computeAlignmentForCandidatePairs(
+  if (FLAGS_dm_candidate_alignment_use_loam_alignment) {
+    if (!computeLoamAlignmentForCandidatePairs(
+            config.alignment_config, *vi_map_ptr, candidates,
+            &aligned_candidates)) {
+      LOG(ERROR) << "Computing the alignment of the candidates failed!";
+      return false;
+    }
+  } else if (!computeAlignmentForCandidatePairs(
           config.alignment_config, *vi_map_ptr, candidates,
           &aligned_candidates)) {
     LOG(ERROR) << "Computing the alignment of the candidates failed!";

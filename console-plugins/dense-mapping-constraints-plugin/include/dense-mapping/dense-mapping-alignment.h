@@ -37,6 +37,17 @@ bool computeAlignmentForCandidatePairsImpl(
     std::shared_ptr<regbox::BaseController>* aligner_ptr,
     AlignmentCandidatePair* aligned_pair);
 
+bool computeLoamAlignmentForCandidatePairs(
+    const AlignmentConfig& config, const vi_map::VIMap& map,
+    const AlignmentCandidatePairs& candidate_pairs,
+    AlignmentCandidatePairs* aligned_candidate_pairs);
+
+template <typename ResourceDataType>
+bool computeLoamAlignmentForCandidatePairsImpl(
+    const vi_map::VIMap& map, const AlignmentCandidatePair& pair,
+    std::shared_ptr<regbox::BaseController>* aligner_ptr,
+    AlignmentCandidatePair* aligned_pair);
+
 }  // namespace dense_mapping
 
 #endif  // DENSE_MAPPING_DENSE_MAPPING_ALIGNMENT_H_
