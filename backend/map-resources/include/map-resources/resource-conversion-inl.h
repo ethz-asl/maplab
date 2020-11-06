@@ -755,10 +755,10 @@ backend::ResourceType getResourceTypeForPointCloud(
     return backend::ResourceType::kPointCloudXYZRGBN;
   } else if (!has_color && !has_normals && has_scalars) {
     return backend::ResourceType::kPointCloudXYZI;
-  } else if (!has_color && !has_normals && !has_scalars) {
-    return backend::ResourceType::kPointCloudXYZ;
   } else if (!has_color && !has_normals && !has_scalars && has_labels) {
     return backend::ResourceType::kPointCloudXYZL;
+  } else if (!has_color && !has_normals && !has_scalars) {
+    return backend::ResourceType::kPointCloudXYZ;
   }
   LOG(FATAL) << "Currently there is no point cloud type implemented as "
              << "resource that has this particular configuration of color("
