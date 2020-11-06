@@ -16,12 +16,13 @@
 	<arg name="arche_root_map_directory" default="/tmp/maplab_node"/>
 
 	<arg name="group_A" default="true"/>
+	<arg name="group_B" default="false"/>
 
 	<!-- ================================== ARCHE_01 ================================================== -->
 	<group if="$(arg group_A)">
 		<arg name="arche_robot_name" default="arche_1"/>
 
-		<node pkg="rosbag" type="play" name="rosbag_$(arg arche_robot_name)" args="$(arg arche_bags_folder)/arche_16_2020-06-30-17-57-19.bag -q -d 2 -s 0 -r $(arg arche_playback_speed)">
+		<node pkg="rosbag" type="play" name="rosbag_$(arg arche_robot_name)" args="$(arg arche_bags_folder)/arche_01_2020-06-29-16-30-34_restamped.bag -q -d 2 -s 0 -r $(arg arche_playback_speed)">
 			<remap from="/alphasense_driver_ros/imu" to="/$(arg arche_robot_name)/imu0"/>
 			<remap from="/alphasense_driver_ros/cam0" to="/$(arg arche_robot_name)/cam0"/>
 			<remap from="/alphasense_driver_ros/cam2" to="/$(arg arche_robot_name)/cam2"/>
@@ -57,7 +58,7 @@
 	</group>
 
 	<!-- ================================== ARCHE_02 ================================================== -->
-	<group if="$(arg group_A)">
+	<group if="$(arg group_B)">
 		<arg name="arche_robot_name" default="arche_2"/>
 
 		<node pkg="rosbag" type="play" name="rosbag_$(arg arche_robot_name)" args="$(arg arche_bags_folder)/arche_05_2020-06-29-17-10-47.bag -q -d 2 -s 0 -r $(arg arche_playback_speed)">
