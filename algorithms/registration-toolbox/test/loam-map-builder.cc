@@ -53,6 +53,8 @@ void registerCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr& source_cloud) {
   surface_filter.setLeafSize(0.4, 0.4, 0.4);
   surface_filter.filter(surface_map_down_sampled);
 
+  *map_cloud = surface_map_down_sampled + edge_map_down_sampled;
+
   T_map_source = result.get_T_target_source();
   std::cout << "Registration result: \n" << T_map_source << std::endl;
 

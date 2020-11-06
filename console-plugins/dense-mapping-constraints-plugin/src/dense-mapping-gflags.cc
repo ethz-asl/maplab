@@ -95,7 +95,8 @@ DEFINE_double(
     dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg, 10,
     "Maximum angular deviation of the alignment from the initial guess.");
 
-DEFINE_bool(dm_candidate_alignment_use_loam_alignment, true,
+DEFINE_bool(
+    dm_candidate_alignment_use_loam_alignment, true,
     "If enabled, LOAM alignment is used");
 
 // CONSTRAINTS

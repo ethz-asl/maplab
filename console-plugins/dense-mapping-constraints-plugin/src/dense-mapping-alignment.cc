@@ -4,6 +4,7 @@
 #include <glog/logging.h>
 #include <maplab-common/multi-threaded-progress-bar.h>
 #include <maplab-common/progress-bar.h>
+#include <pcl/filters/voxel_grid.h>
 #include <registration-toolbox/common/base-controller.h>
 #include <registration-toolbox/loam-feature-detector.h>
 #include <registration-toolbox/mock-controller.h>
@@ -300,7 +301,6 @@ bool computeAlignmentForLoamCandidatePairs(
 
   common::ProgressBar progress_bar(num_pairs);
 
-
   VLOG(1) << "Processing " << num_pairs << " alignment candidates...";
 
   // Introspection
@@ -319,7 +319,6 @@ bool computeAlignmentForLoamCandidatePairs(
   backend::ResourceType current_resource_type = backend::ResourceType::kCount;
   for (size_t idx = 0u; idx < num_pairs && it != candidate_pairs.cend();
        ++idx, ++it) {
-
     const AlignmentCandidatePair& pair = *it;
 
     const backend::ResourceType resource_type_A =
@@ -339,6 +338,8 @@ bool computeAlignmentForLoamCandidatePairs(
 
     // Launch a resource type specific alignment.
     AlignmentCandidatePair processed_pair;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr new_aligned_features(
+        new pcl::PointCloud<pcl::PointXYZI>);
     bool aligned_without_error = false;
     switch (current_resource_type) {
       case backend::ResourceType::kPointCloudXYZ:
@@ -352,13 +353,13 @@ bool computeAlignmentForLoamCandidatePairs(
 
           if (aggregated_loam_map->empty()) {
             if (!retrieveResourceForCandidate(
-              pair.candidate_A, map, &candidate_resource_A)) {
-                LOG(ERROR) << "Unable to retrieve resource for candidate A.";
-                return false;
+                    pair.candidate_A, map, &candidate_resource_A)) {
+              LOG(ERROR) << "Unable to retrieve resource for candidate A.";
+              return false;
             }
 
             feature_detector.extractLoamFeaturesFromPointCloud(
-              candidate_resource_A, aggregated_loam_map);
+                candidate_resource_A, aggregated_loam_map);
 
             loam_map_base_candidate = pair.candidate_A;
           }
@@ -371,19 +372,18 @@ bool computeAlignmentForLoamCandidatePairs(
 
           pcl::PointCloud<pcl::PointXYZI>::Ptr candidate_B_feature_cloud;
           feature_detector.extractLoamFeaturesFromPointCloud(
-            candidate_resource_B, candidate_B_feature_cloud);
+              candidate_resource_B, candidate_B_feature_cloud);
 
           AlignmentCandidatePair loam_candidate_pair;
-          createCandidatePair(pair.candidate_B, loam_map_base_candidate,
-            &loam_candidate_pair);
+          createCandidatePair(
+              pair.candidate_B, loam_map_base_candidate, &loam_candidate_pair);
 
           const regbox::RegistrationResult result = aligner->align(
-                      aggregated_loam_map, candidate_B_feature_cloud,
-                      loam_candidate_pair.T_SB_SA_init);
-
-
-          const AlignmentCandidatePair processed_pair =
-            candidatePairFromRegistrationResult(loam_candidate_pair, result);
+              aggregated_loam_map, candidate_B_feature_cloud,
+              loam_candidate_pair.T_SB_SA_init);
+          *new_aligned_features = *result.getRegisteredCloud();
+          processed_pair =
+              candidatePairFromRegistrationResult(loam_candidate_pair, result);
           aligned_without_error = processed_pair.success;
         } catch (const std::exception&) {
           aligned_without_error = false;
@@ -418,6 +418,34 @@ bool computeAlignmentForLoamCandidatePairs(
     if (processed_pair.success) {
       aligned_candidate_pairs->emplace(processed_pair);
       ++successful_alignments;
+
+      *aggregated_loam_map += *new_aligned_features;
+      pcl::PointCloud<pcl::PointXYZI>::Ptr surface_map(
+          new pcl::PointCloud<pcl::PointXYZI>);
+      pcl::PointCloud<pcl::PointXYZI>::Ptr edge_map(
+          new pcl::PointCloud<pcl::PointXYZI>);
+
+      for (pcl::PointXYZI map_point : *aggregated_loam_map) {
+        if (map_point.intensity == 0) {
+          surface_map->push_back(map_point);
+        } else {
+          edge_map->push_back(map_point);
+        }
+      }
+
+      pcl::PointCloud<pcl::PointXYZI> edge_map_down_sampled;
+      pcl::VoxelGrid<pcl::PointXYZI> edge_filter;
+      edge_filter.setInputCloud(edge_map);
+      edge_filter.setLeafSize(0.2, 0.2, 0.2);
+      edge_filter.filter(edge_map_down_sampled);
+
+      pcl::PointCloud<pcl::PointXYZI> surface_map_down_sampled;
+      pcl::VoxelGrid<pcl::PointXYZI> surface_filter;
+      surface_filter.setInputCloud(surface_map);
+      surface_filter.setLeafSize(0.4, 0.4, 0.4);
+      surface_filter.filter(surface_map_down_sampled);
+
+      *aggregated_loam_map = surface_map_down_sampled + edge_map_down_sampled;
     }
 
     progress_bar.update(++processed_pairs);
@@ -425,8 +453,8 @@ bool computeAlignmentForLoamCandidatePairs(
 
   VLOG(1) << "Done.";
 
-  VLOG(1) << "Successfully aligned " << successful_alignments << "/" <<
-  num_pairs << " candidates.";
+  VLOG(1) << "Successfully aligned " << successful_alignments << "/"
+          << num_pairs << " candidates.";
 
   return true;
 }

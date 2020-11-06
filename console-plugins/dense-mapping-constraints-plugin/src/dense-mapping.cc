@@ -55,8 +55,8 @@ bool addDenseMappingConstraintsToMap(
       return false;
     }
   } else if (!computeAlignmentForCandidatePairs(
-          config.alignment_config, *vi_map_ptr, candidates,
-          &aligned_candidates)) {
+                 config.alignment_config, *vi_map_ptr, candidates,
+                 &aligned_candidates)) {
     LOG(ERROR) << "Computing the alignment of the candidates failed!";
     return false;
   }

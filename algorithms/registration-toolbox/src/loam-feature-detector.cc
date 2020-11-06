@@ -64,6 +64,7 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
     }
   }
   downSampleFeatures(edges, surfaces);
+  feature_cloud->clear();
   for (pcl::PointXYZI point : *edges) {
     point.intensity = 1;
     feature_cloud->push_back(point);
