@@ -73,15 +73,15 @@ maplab_server_enable_lidar_loop_closure:                              true # Def
 # can be a CSV list of values. Meaningful options are:
 # kPointCloudXYZI = 21                    (Attaching raw VLP16/OS-1 lidar scans)
 # kPointCloudXYZL = 24                    (Attaching LOAM features)
-dm_resource_types:                                                    "21,24"
+dm_resource_types:                                                    "21"
 # Size of voxel grid downsampling on the point clouds to derive mapping constraints.
-regbox_pcl_downsample_leaf_size_m:                                    0.1
+regbox_pcl_downsample_leaf_size_m:                                    0.3
 # Enable/disable dense mapping constraint search modes:
 # Add constraints for consecutive point clouds.
 dm_candidate_search_enable_intra_mission_consecutive:                 true # Default true
-dm_candidate_search_consecutive_max_delta_time_s:                     20 # Default 20.0
-dm_candidate_search_consecutive_max_delta_position_m:                 5.0 # Default 5.0
-dm_candidate_search_consecutive_max_delta_rotation_deg:               180 # Default 180
+dm_candidate_search_consecutive_max_delta_time_s:                     10 # Default 20.0
+dm_candidate_search_consecutive_max_delta_position_m:                 2.5 # Default 5.0
+dm_candidate_search_consecutive_max_delta_rotation_deg:               90 # Default 180
 # Add constraints for consecutive nearby point clouds.
 dm_candidate_search_enable_intra_mission_proximity:                   true # Default true
 dm_candidate_search_enable_inter_mission_proximity:                   true # Default true
