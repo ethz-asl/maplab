@@ -353,6 +353,7 @@ void DataSourceRosbag::streamingWorker() {
         *lidar_measurement->getTimestampNanosecondsMutable() +=
             FLAGS_imu_to_lidar_time_offset_ns;
       }
+
       VLOG(3) << "Publish Lidar measurement...";
       invokeLidarCallbacks(lidar_measurement);
     }

@@ -774,7 +774,6 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
       running_merging_process_ = "lidar loop closure";
     }
 
-    VLOG(1) << "gcc: " << __GNUC__;
     const dense_mapping::Config config = dense_mapping::Config::fromGflags();
     if (!dense_mapping::addDenseMappingConstraintsToMap(
             config, mission_ids, map.get())) {

@@ -316,6 +316,7 @@ void DataSourceRostopic::lidarMeasurementCallback(
     *lidar_measurement->getTimestampNanosecondsMutable() +=
         FLAGS_imu_to_lidar_time_offset_ns;
   }
+
   invokeLidarCallbacks(lidar_measurement);
 }
 
