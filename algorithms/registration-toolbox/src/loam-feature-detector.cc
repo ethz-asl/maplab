@@ -27,6 +27,8 @@ namespace regbox {
 void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
     const PclPointCloudPtr<pcl::PointXYZI>& point_cloud,
     PclPointCloudPtr<pcl::PointXYZI> feature_cloud) {
+  CHECK_NOTNULL(point_cloud);
+  CHECK_NOTNULL(feature_cloud);
   PclPointCloudPtr<pcl::PointXYZI> edges(new pcl::PointCloud<pcl::PointXYZI>);
   PclPointCloudPtr<pcl::PointXYZI> surfaces(
       new pcl::PointCloud<pcl::PointXYZI>);
@@ -47,12 +49,13 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
     CHECK_GT(N_SCANS, point.intensity);
     CHECK_GE(point.intensity, 0);
     const double planar_distance = sqrt(point.x * point.x + point.y * point.y);
-    if (planar_distance < 0.001 || planar_distance > 120.)
-      continue;
-    if (!std::isfinite(point.x) || !std::isfinite(point.y) ||
-        !std::isfinite(point.z)) {
-      continue;
-    }
+    // if (planar_distance < 0.001 || planar_distance > 57.)
+    //   continue;
+    // if (point.z == 0) continue;
+    // if (!std::isfinite(point.x) || !std::isfinite(point.y) ||
+    //     !std::isfinite(point.z)) {
+    //   continue;
+    // }
     min_line = std::min(static_cast<int>(point.intensity), min_line);
     max_line = std::max(static_cast<int>(point.intensity), max_line);
 
@@ -172,18 +175,19 @@ void LoamFeatureDetector::markUnstablePointsAsPicked(
   for (size_t point_idx = FLAGS_regbox_loam_curvature_region;
        point_idx < scan_line->size() - FLAGS_regbox_loam_curvature_region;
        point_idx++) {
-    if (scan_line->points[point_idx].getVector3fMap().norm() < 0.8) {
+    const pcl::PointXYZI& point = scan_line->points[point_idx];
+    const float point_distance_m = point.getVector3fMap().norm();
+    if (point_distance_m < 0.8) {
       markCurvatureRegionAsPicked(point_idx, point_picked);
+      continue;
     }
 
     const pcl::PointXYZI& previous_point = scan_line->points[point_idx - 1];
-    const pcl::PointXYZI& point = scan_line->points[point_idx];
     const pcl::PointXYZI& next_point = scan_line->points[point_idx + 1];
 
     const float point_to_next_point_distance_m =
         (next_point.getVector3fMap() - point.getVector3fMap()).norm();
 
-    const float point_distance_m = point.getVector3fMap().norm();
     if (point_to_next_point_distance_m > sqrt(0.1)) {
       const float next_point_distance_m = next_point.getVector3fMap().norm();
 
