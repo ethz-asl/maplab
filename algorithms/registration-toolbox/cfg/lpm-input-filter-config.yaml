@@ -1,9 +1,12 @@
-- MaxDistDataPointsFilter:
-    maxDist:       50.0
-- RandomSamplingDataPointsFilter:
-    prob:          0.65
-- SurfaceNormalDataPointsFilter:
-    knn:           20
-    epsilon:       3.15
-    keepNormals:   1
-    keepDensities: 1
+- BoundingBoxDataPointsFilter:
+   xMin:         -4.0
+   xMax:         4.0
+   yMin:         -4.0
+   yMax:         4.0
+   zMin:         -4.0
+   zMax:         4.0
+   removeInside: 1
+- SamplingSurfaceNormalDataPointsFilter:
+    knn:         10
+- ObservationDirectionDataPointsFilter
+- OrientNormalsDataPointsFilter

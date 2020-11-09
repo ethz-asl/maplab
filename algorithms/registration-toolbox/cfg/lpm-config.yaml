@@ -1,43 +1,45 @@
 readingDataPointsFilters:
-  - SamplingSurfaceNormalDataPointsFilter:
-      knn:                   20
-      keepDensities:         1
-  - RemoveNaNDataPointsFilter:
+  - SurfaceNormalDataPointsFilter:
+        knn:                 20
+        keepDensities:       1
+  - MaxDensityDataPointsFilter:
+       maxDensity:           50
 
 referenceDataPointsFilters:
-  - MaxDistDataPointsFilter:
-      maxDist:               50.0
-  - SamplingSurfaceNormalDataPointsFilter:
+  - SurfaceNormalDataPointsFilter:
       knn:                   20
       keepDensities:         1
+  - RandomSamplingDataPointsFilter:
+      prob:                  0.50
 
 matcher:
   KDTreeMatcher:
     knn:                     1
-    epsilon:                 0
+    epsilon:                 3.16
 
 outlierFilters:
   - TrimmedDistOutlierFilter:
-     ratio:                  0.6
+      ratio:                 0.358818
 
 errorMinimizer:
-  PointToPlaneWithCovErrorMinimizer
+  PointToPlaneErrorMinimizer
 
 transformationCheckers:
+  - CounterTransformationChecker:
+      maxIterationCount:     100
   - DifferentialTransformationChecker:
       minDiffRotErr:         0.0001
-      minDiffTransErr:       0.00001
+      minDiffTransErr:       0.0001
       smoothLength:          4
-  - CounterTransformationChecker:
-      maxIterationCount:     200
 
 inspector:
-#  VTKFileInspector:
-#    dumpDataLinks:          1
-#    dumpReading:            1
-#    dumpReference:          1
-  NullInspector
+  PerformanceInspector
+#  VTKFileInspector
+#     baseFileName :         vissteps
+#     dumpReading :          1
+#     dumpReference :        1
+#     dumpDataLinks :        1
 
 logger:
-#  FileLogger
   NullLogger
+#  FileLogger

@@ -8,7 +8,7 @@
 <launch>
 
 	<arg name="arche_attach_images" default="false"/>
-	<arg name="arche_save_map_every_n_sec" default="15"/>
+	<arg name="arche_save_map_every_n_sec" default="12"/>
 	<arg name="arche_clahe" default="false"/>
 	<arg name="arche_playback_speed" default="1.0"/>
 	<arg name="arche_remove_bad_landmarks" default="true"/>
@@ -54,7 +54,7 @@
 		</node>
 
 		<node name="lidar_throttler_$(arg arche_robot_name)" type="throttle" pkg="topic_tools"
-			args="messages /$(arg arche_robot_name)/points 0.5 /$(arg arche_robot_name)/points_throttled"/>
+			args="messages /$(arg arche_robot_name)/points 1.0 /$(arg arche_robot_name)/points_throttled"/>
 	</group>
 
 	<!-- ================================== ARCHE_02 ================================================== -->

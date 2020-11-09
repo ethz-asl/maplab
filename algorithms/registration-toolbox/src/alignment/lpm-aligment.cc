@@ -6,6 +6,8 @@
 
 #include "registration-toolbox/common/registration-gflags.h"
 
+#include <glog/logging.h>
+
 namespace regbox {
 
 LpmAlignment::LpmAlignment() : input_filters_(nullptr) {
@@ -86,7 +88,7 @@ RegistrationResult LpmAlignment::createResultFromTransformation(
       isValidCovariance(lpm_cov)) {
     result.set_T_target_source_covariance(lpm_cov);
   } else {
-    const Eigen::MatrixXd fixed_cov = Eigen::MatrixXd::Identity(6, 6) * 1e-4;
+    const Eigen::MatrixXd fixed_cov = Eigen::MatrixXd::Identity(6, 6) * 1e-2;
     result.set_T_target_source_covariance(fixed_cov);
   }
   result.hasConverged(accept_match && !T.hasNaN());

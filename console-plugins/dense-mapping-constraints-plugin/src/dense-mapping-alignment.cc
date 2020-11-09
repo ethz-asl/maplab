@@ -203,7 +203,8 @@ bool computeAlignmentForCandidatePairs(
             aligned_without_error =
                 computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
                     map, pair, &aligner_ptr, &processed_pair);
-          } catch (const std::exception&) {
+          } catch (const std::exception& e) {
+            LOG(ERROR) << e.what();
             aligned_without_error = false;
           }
           break;
