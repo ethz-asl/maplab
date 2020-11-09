@@ -68,7 +68,7 @@ lc_edge_min_inlier_count:                                             20 # Defau
 # DENSE MAPPING CONSTRAINTS/LOOP CLOSURES
 #########################################
 # Enable/disable dense mapping constraints based loop closure
-maplab_server_enable_lidar_loop_closure:                              false # Default true
+maplab_server_enable_lidar_loop_closure:                              true # Default false
 # Type of resource that are used to derive the dense mapping constraints, this
 # can be a CSV list of values. Meaningful options are:
 # kPointCloudXYZI = 21                    (Attaching raw VLP16/OS-1 lidar scans)

@@ -32,7 +32,7 @@
 
   <!-- ===================================== MAPLAB NODE =========================================== -->
 
-  <group ns="$(arg robot_name)/maplab_node" if="false">
+  <group ns="$(arg robot_name)/maplab_node">
     <remap from="/$(arg robot_name)/odometry/maplab_odom_T_M_I" to="/$(arg robot_name)/rovioli/maplab_odom_T_M_I" unless="$(eval robot_name == '')"/>
     <remap from="/odometry/maplab_odom_T_M_I" to="/rovioli/maplab_odom_T_M_I" if="$(eval robot_name == '')"/>
 
