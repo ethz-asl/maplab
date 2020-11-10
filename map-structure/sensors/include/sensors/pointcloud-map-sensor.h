@@ -51,6 +51,45 @@ class PointCloudMapSensor final : public aslam::Sensor {
     return static_cast<std::string>(kPointCloudMapSensorIdentifier);
   }
 
+  inline bool hasNumberOfBeans() const {
+    return has_number_of_beams_;
+  }
+
+  inline bool hasUpperFoVAngle() const {
+    return has_upper_fov_angle_;
+  }
+
+  inline bool hasLowerFoVAngle() const {
+    return has_lower_fov_angle_;
+  }
+
+  inline uint16_t getNumberOfBeans() const {
+    return n_beams_;
+  }
+
+  inline uint16_t getUpperFoVAngle() const {
+    return fov_upper_angle_deg_;
+  }
+
+  inline uint16_t getLowerFoVAngle() const {
+    return fov_lower_angle_deg_;
+  }
+
+  inline void setNumberOfBeans(const uint16_t n_beams) {
+    n_beams_ = n_beams;
+    has_number_of_beams_ = true;
+  }
+
+  inline void setUpperFoVAngle(const uint16_t angle_deg) {
+    fov_upper_angle_deg_ = angle_deg;
+    has_upper_fov_angle_ = true;
+  }
+
+  inline void setLowerFoVAngle(const uint16_t angle_deg) {
+    fov_lower_angle_deg_ = angle_deg;
+    has_lower_fov_angle_ = true;
+  }
+
  private:
   bool loadFromYamlNodeImpl(const YAML::Node& sensor_node) override;
   void saveToYamlNodeImpl(YAML::Node* sensor_node) const override;
@@ -65,6 +104,14 @@ class PointCloudMapSensor final : public aslam::Sensor {
       const Sensor& /*other*/, const bool /*verbose*/) const override {
     return true;
   }
+
+  bool has_number_of_beams_;
+  bool has_upper_fov_angle_;
+  bool has_lower_fov_angle_;
+
+  uint16_t n_beams_;
+  uint16_t fov_upper_angle_deg_;
+  uint16_t fov_lower_angle_deg_;
 };
 
 // Stores a point cloud anchored in the sensor frame at a specific time stamp.

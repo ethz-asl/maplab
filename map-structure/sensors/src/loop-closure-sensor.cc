@@ -32,6 +32,7 @@ bool LoopClosureSensor::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
 }
 
 void LoopClosureSensor::saveToYamlNodeImpl(YAML::Node* sensor_node) const {
+  CHECK_NOTNULL(sensor_node);
   if (has_fixed_T_A_B_covariance_) {
     (*sensor_node)[static_cast<std::string>(
         kYamlFieldNameT_A_B_fixed_covariance)] =
