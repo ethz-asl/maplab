@@ -177,7 +177,7 @@ void LoamFeatureDetector::markUnstablePointsAsPicked(
        point_idx++) {
     const pcl::PointXYZI& point = scan_line->points[point_idx];
     const float point_distance_m = point.getVector3fMap().norm();
-    if (point_distance_m < 0.8) {
+    if (point_distance_m < 0.8 || point_distance_m > 60) {
       markCurvatureRegionAsPicked(point_idx, point_picked);
       continue;
     }
