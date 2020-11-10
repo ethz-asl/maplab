@@ -1,5 +1,7 @@
 #include "registration-toolbox/alignment/lpm-alignment.h"
 
+#include <memory>
+
 #include <pcl/common/transforms.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pointmatcher_ros/point_cloud.h>
@@ -7,22 +9,30 @@
 #include "registration-toolbox/common/registration-gflags.h"
 
 #include <glog/logging.h>
+#include <ros/package.h>
 
 namespace regbox {
 
 LpmAlignment::LpmAlignment() : input_filters_(nullptr) {
-  if (FLAGS_regbox_lpm_config_path.empty()) {
-    icp_.setDefault();
-  } else {
-    std::ifstream input_config(FLAGS_regbox_lpm_config_path);
-    icp_.loadFromYaml(input_config);
+  // Load config for ICP.
+  std::string icp_config = FLAGS_regbox_lpm_config_path;
+  if (icp_config.empty()) {
+    icp_config =
+        ros::package::getPath("registration_toolbox") + "/cfg/lpm-config.yaml";
   }
-  if (!FLAGS_regbox_lpm_input_filter_config_path.empty()) {
-    std::ifstream input_filter_config(
-        FLAGS_regbox_lpm_input_filter_config_path);
-    input_filters_.reset(
-        new PointMatcher<double>::DataPointsFilters(input_filter_config));
+  std::ifstream input_config(icp_config);
+  icp_.loadFromYaml(input_config);
+
+  // Load config for pre-alignment filtering.
+  std::string icp_input_filter_config =
+      FLAGS_regbox_lpm_input_filter_config_path;
+  if (icp_input_filter_config.empty()) {
+    icp_input_filter_config = ros::package::getPath("registration_toolbox") +
+                              "/cfg/lpm-input-filter-config.yaml";
   }
+  std::ifstream input_filter_config(icp_input_filter_config);
+  input_filters_.reset(
+      new PointMatcher<double>::DataPointsFilters(input_filter_config));
 }
 
 RegistrationResult LpmAlignment::registerCloudImpl(
