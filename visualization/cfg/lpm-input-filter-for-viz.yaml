@@ -2,12 +2,11 @@
 - SamplingSurfaceNormalDataPointsFilter:
     knn:           20
     ratio:         0.6
-    keepNormals:   1
-    keepDensities: 1
+    keepNormals:   0
+    keepDensities: 0
 - MaxDensityDataPointsFilter:
     maxDensity:    50000
 - ObservationDirectionDataPointsFilter
 - OrientNormalsDataPointsFilter
-- RemoveNaNDataPointsFilter:
 - RandomSamplingDataPointsFilter:
-    prob:          0.4
+    prob:          0.3

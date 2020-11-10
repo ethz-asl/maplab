@@ -79,16 +79,16 @@ regbox_pcl_downsample_leaf_size_m:                                    0.3
 # Enable/disable dense mapping constraint search modes:
 # Add constraints for consecutive point clouds.
 dm_candidate_search_enable_intra_mission_consecutive:                 true # Default true
-dm_candidate_search_consecutive_max_delta_time_s:                     15 # Default 20.0
-dm_candidate_search_consecutive_max_delta_position_m:                 5.5 # Default 5.0
-dm_candidate_search_consecutive_max_delta_rotation_deg:               120 # Default 180
+dm_candidate_search_consecutive_max_delta_time_s:                     25 # Default 20.0
+dm_candidate_search_consecutive_max_delta_position_m:                 6.0 # Default 5.0
+dm_candidate_search_consecutive_max_delta_rotation_deg:               270 # Default 180
 # Add constraints for consecutive nearby point clouds.
 dm_candidate_search_enable_intra_mission_proximity:                   true # Default true
 dm_candidate_search_enable_inter_mission_proximity:                   true # Default true
-dm_candidate_search_proximity_max_delta_position_m:                   2.0 # Default 2.0
-dm_candidate_search_proximity_max_delta_rotation_deg:                 180.0 # Default 180.0
-dm_candidate_search_proximity_min_distance_along_graph_m:             2.0 # Default 1.0
-dm_candidate_search_proximity_take_closest_n_candidates:              5 # Default 3
+dm_candidate_search_proximity_max_delta_position_m:                   6.0 # Default 2.0
+dm_candidate_search_proximity_max_delta_rotation_deg:                 270.0 # Default 180.0
+dm_candidate_search_proximity_min_distance_along_graph_m:             0.5 # Default 1.0
+dm_candidate_search_proximity_take_closest_n_candidates:              15 # Default 3
 # Add constraints between global point cloud matches - NOT IMPLEMENTED YET
 dm_candidate_search_enable_intra_mission_global:                      false # Default true
 dm_candidate_search_enable_inter_mission_global:                      false # Default true
@@ -104,8 +104,6 @@ dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg:       10 # Defau
 dm_constraint_switch_variable_sigma:                                  1e-3 # Default 1e-3
 dense_depth_integrator_use_closest_to_vertex:                         true
 dense_depth_integrator_enable_sigint_breaker:                         false
-regbox_lpm_input_filter_config_path:                                  /home/berlukas/Documents/workspace/darpa/src/darpa_subt_mapping/maplab/algorithms/registration-toolbox/cfg/lpm-input-filter-config.yaml
-regbox_lpm_config_path:                                               /home/berlukas/Documents/workspace/darpa/src/darpa_subt_mapping/maplab/algorithms/registration-toolbox/cfg/lpm-config.yaml
 regbox_lpm_icp_match_residual_error_threshold_m:                      0.1 # Default 0.1
 maplab_server_perform_global_admc_every_nth:                          2
 vis_pointcloud_filter_dense_map_before_publishing:                    false

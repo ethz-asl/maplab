@@ -8,6 +8,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pointmatcher/PointMatcher.h>
 #include <pointmatcher_ros/point_cloud.h>
+#include <ros/package.h>
 #include <ros/ros.h>
 
 namespace visualization {
@@ -33,25 +34,18 @@ void beautifyPointCloud(
   pcl::toROSMsg(*cloud, *cloud_msg);
   PointMatcher<double>::DataPoints cloud_points =
       PointMatcher_ros::rosMsgToPointMatcherCloud<double>(*cloud_msg);
-  // todo(lbern): make fleg
-  std::ifstream input_filter_config(
-      "/home/berlukas/Documents/workspace/darpa/src/darpa_subt_mapping/maplab/"
-      "algorithms/registration-toolbox/cfg/lpm-input-filter-for-viz.yaml");
+  const std::string input_filter_file =
+      ros::package::getPath("visualization") + "/cfg/input-filter-for-viz.yaml";
+  std::ifstream input_filter_config(input_filter_file);
   std::unique_ptr<PointMatcher<double>::DataPointsFilters> input_filters;
   input_filters.reset(
       new PointMatcher<double>::DataPointsFilters(input_filter_config));
   input_filters->apply(cloud_points);
-  /*
-  const std::string map = "map";
-  *cloud_msg = PointMatcher_ros::pointMatcherCloudToRosMsg<double>(
-      cloud_points, map, ros::Time::now());
-      */
 
   const size_t n_points = cloud_points.getNbPoints();
   cloud->clear();
   cloud->resize(n_points);
-  for (size_t idx = 0u; idx < n_points; ++idx) {
-    // points.col(idx).head<3>() =
+  for (std::size_t idx = 0u; idx < n_points; ++idx) {
     cloud->points[idx].getVector3fMap() =
         cloud_points.features.col(idx).head<3>().cast<float>();
   }

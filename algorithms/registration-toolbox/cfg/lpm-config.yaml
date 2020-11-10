@@ -2,6 +2,7 @@ readingDataPointsFilters:
   - SurfaceNormalDataPointsFilter:
         knn:                 20
         keepDensities:       1
+        keepNormals:         1
   - MaxDensityDataPointsFilter:
        maxDensity:           50
 
@@ -9,6 +10,7 @@ referenceDataPointsFilters:
   - SurfaceNormalDataPointsFilter:
       knn:                   20
       keepDensities:         1
+      keepNormals:           1
   - RandomSamplingDataPointsFilter:
       prob:                  0.50
 
