@@ -1,18 +1,20 @@
 readingDataPointsFilters:
-  - SurfaceNormalDataPointsFilter:
-        knn:                 20
-        keepDensities:       1
-        keepNormals:         1
-  - MaxDensityDataPointsFilter:
-       maxDensity:           50
-
-referenceDataPointsFilters:
-  - SurfaceNormalDataPointsFilter:
-      knn:                   20
-      keepDensities:         1
-      keepNormals:           1
+  #- SurfaceNormalDataPointsFilter:
+        #knn:                20
+        #keepDensities:      1
+        #keepNormals:        1
+  #- MaxDensityDataPointsFilter:
+       #maxDensity:          50
   - RandomSamplingDataPointsFilter:
       prob:                  0.50
+
+referenceDataPointsFilters:
+  - SamplingSurfaceNormalDataPointsFilter:
+      knn:                   40
+  #- SurfaceNormalDataPointsFilter:
+      #knn:                  20
+      #keepDensities:        1
+      #keepNormals:          1
 
 matcher:
   KDTreeMatcher:
@@ -21,18 +23,18 @@ matcher:
 
 outlierFilters:
   - TrimmedDistOutlierFilter:
-      ratio:                 0.358818
+      ratio:                 0.858818
 
 errorMinimizer:
   PointToPlaneErrorMinimizer
 
 transformationCheckers:
   - CounterTransformationChecker:
-      maxIterationCount:     100
+      maxIterationCount:     40
   - DifferentialTransformationChecker:
       minDiffRotErr:         0.0001
       minDiffTransErr:       0.0001
-      smoothLength:          4
+      smoothLength:          10
 
 inspector:
   PerformanceInspector

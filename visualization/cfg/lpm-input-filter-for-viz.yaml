@@ -1,4 +1,9 @@
-- SimpleSensorNoiseDataPointsFilter
+- SurfaceNormalDataPointsFilter:
+   knn:            20
+   keepDensities:  1
+   keepNormals:    1
+- SimpleSensorNoiseDataPointsFilter:
+    sensorType:    1
 - SamplingSurfaceNormalDataPointsFilter:
     knn:           20
     ratio:         0.6
@@ -10,3 +15,4 @@
 - OrientNormalsDataPointsFilter
 - RandomSamplingDataPointsFilter:
     prob:          0.3
+- SaliencyFilter

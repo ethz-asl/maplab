@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-  <node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/alice/gonzen_run_5_2019-02-13-17-28-39.bag -q -d 4 -s 0 -r 0.8"/>
+  <node pkg="rosbag" type="play" name="rosbag" args="/home/berlukas/Downloads/asl_koze/asl_koze_table_both_side_with_loop_light_change_medium.bag -q -d 4 -s 0 -r 0.8"/>
 
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 

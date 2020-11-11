@@ -14,7 +14,7 @@
 - ObservationDirectionDataPointsFilter
 - OrientNormalsDataPointsFilter
 - MaxDensityDataPointsFilter:
-    maxDensity:   50000
+    maxDensity:   65000
 - RemoveNaNDataPointsFilter:
 - RandomSamplingDataPointsFilter:
     prob:         0.4

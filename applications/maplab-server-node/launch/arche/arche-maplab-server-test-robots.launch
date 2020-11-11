@@ -8,7 +8,7 @@
 <launch>
 
 	<arg name="arche_attach_images" default="false"/>
-	<arg name="arche_save_map_every_n_sec" default="12"/>
+	<arg name="arche_save_map_every_n_sec" default="10"/>
 	<arg name="arche_clahe" default="false"/>
 	<arg name="arche_playback_speed" default="1.0"/>
 	<arg name="arche_remove_bad_landmarks" default="true"/>

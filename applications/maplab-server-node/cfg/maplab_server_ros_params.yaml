@@ -87,8 +87,8 @@ dm_candidate_search_enable_intra_mission_proximity:                   true # Def
 dm_candidate_search_enable_inter_mission_proximity:                   true # Default true
 dm_candidate_search_proximity_max_delta_position_m:                   6.0 # Default 2.0
 dm_candidate_search_proximity_max_delta_rotation_deg:                 270.0 # Default 180.0
-dm_candidate_search_proximity_min_distance_along_graph_m:             0.5 # Default 1.0
-dm_candidate_search_proximity_take_closest_n_candidates:              15 # Default 3
+dm_candidate_search_proximity_min_distance_along_graph_m:             0.2 # Default 1.0
+dm_candidate_search_proximity_take_closest_n_candidates:              20 # Default 3
 # Add constraints between global point cloud matches - NOT IMPLEMENTED YET
 dm_candidate_search_enable_intra_mission_global:                      false # Default true
 dm_candidate_search_enable_inter_mission_global:                      false # Default true
@@ -96,16 +96,16 @@ dm_candidate_search_enable_inter_mission_global:                      false # De
 # as it is done in the server.
 dm_candidate_selection_recompute_all_constraints:                     false # Default false
 dm_candidate_selection_recompute_invalid_constraints:                 true # Default true
-dm_candidate_selection_min_switch_variable_value:                     0.5 # Default 0.5
+dm_candidate_selection_min_switch_variable_value:                     0.3 # Default 0.5
 # Alignment sanity checks.
-dm_candidate_alignment_max_delta_position_to_initial_guess_m:         0.5 # Default 0.5
-dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg:       10 # Default 10
+dm_candidate_alignment_max_delta_position_to_initial_guess_m:         1.5 # Default 0.5
+dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg:       20 # Default 10
 # Initialization of loop closure constraints
 dm_constraint_switch_variable_sigma:                                  1e-3 # Default 1e-3
 dense_depth_integrator_use_closest_to_vertex:                         true
 dense_depth_integrator_enable_sigint_breaker:                         false
 regbox_lpm_icp_match_residual_error_threshold_m:                      0.1 # Default 0.1
-maplab_server_perform_global_admc_every_nth:                          2
+maplab_server_perform_global_admc_every_nth:                          5
 vis_pointcloud_filter_dense_map_before_publishing:                    false
 vis_pointcloud_filter_beautify_dense_map_before_publishing:           true
 vis_pointcloud_filter_leaf_size_m:                                    0.3

@@ -69,8 +69,9 @@ bool searchForAlignmentCandidatePairs(
 
   MissionToAlignmentCandidatesMap candidates_per_mission;
   try {
-    findAllAlignmentCandidates(config, map, mission_ids, &candidates_per_mission);
-  } catch(std::exception &e) {
+    findAllAlignmentCandidates(
+        config, map, mission_ids, &candidates_per_mission);
+  } catch (std::exception& e) {
     LOG(ERROR) << "Finding alignment pairs failed. Aborting.";
     return false;
   }
@@ -203,7 +204,7 @@ void findAllAlignmentCandidates(
 
           if (timestamp_resource_ns < min_timestamp_ns ||
               timestamp_resource_ns > max_timestamp_ns) {
-            LOG(WARNING)
+            VLOG(3)
                 << "The map contains a resource of type '"
                 << backend::ResourceTypeNames[static_cast<int>(resource_type)]
                 << "(" << static_cast<int>(resource_type) << ")' at "
