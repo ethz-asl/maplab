@@ -1,16 +1,20 @@
 #include "dense-mapping/dense-mapping-alignment.h"
 
+#include <string>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <maplab-common/multi-threaded-progress-bar.h>
 #include <maplab-common/progress-bar.h>
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <registration-toolbox/common/base-controller.h>
 #include <registration-toolbox/loam-feature-detector.h>
 #include <registration-toolbox/mock-controller.h>
 #include <registration-toolbox/model/registration-result.h>
 #include <registration-toolbox/pcl-icp-controller.h>
+#include <visualization/rviz-visualization-sink.h>
 
 #include "dense-mapping/dense-mapping-parallel-process.h"
 #include "dense-mapping/dense-mapping-search.h"
@@ -313,6 +317,7 @@ bool computeLoamAlignmentForCandidatePairs(
   auto feature_detector = regbox::LoamFeatureDetector();
   pcl::PointCloud<pcl::PointXYZI>::Ptr aggregated_loam_map(
       new pcl::PointCloud<pcl::PointXYZI>);
+
   AlignmentCandidate loam_map_base_candidate;
   aslam::Transformation T_map_last_successful_candidate;
   AlignmentCandidate last_successful_candidate;
@@ -548,6 +553,15 @@ bool computeLoamAlignmentForCandidatePairs(
 
       *aggregated_loam_map += map_surface_points_in_current_fov_down_sampled +
                               map_edge_points_in_current_fov_down_sampled;
+      const std::string kLoamMapFrame = "/loam_map";
+      aggregated_loam_map->header.frame_id = kLoamMapFrame;
+      const std::string kLoamMapPointCloudTopic = "/loam_map_points";
+      sensor_msgs::PointCloud2 loam_map_points_msg;
+      pcl::toROSMsg(*aggregated_loam_map, loam_map_points_msg);
+      loam_map_points_msg.header.stamp.fromNSec(
+          candidate_to_last_successful_pair.candidate_A.timestamp_ns);
+      visualization::RVizVisualizationSink::publish(
+          kLoamMapPointCloudTopic, loam_map_points_msg);
     }
 
     progress_bar.update(++processed_pairs);
