@@ -20,4 +20,5 @@
   <depend>map_resources</depend>
   <depend>libpointmatcher</depend>
   <depend>pointmatcher_ros</depend>
+  <depend>visualization</depend>
 </package>

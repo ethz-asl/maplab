@@ -9,8 +9,8 @@
 
 template <typename T>
 using PclPointCloudPtr = typename boost::shared_ptr<pcl::PointCloud<T>>;
-using CurvaturePair = typename std::pair<size_t, double>;
-using CurvaturePairs = typename std::vector<std::pair<size_t, double>>;
+using CurvaturePair = typename std::pair<int, float>;
+using CurvaturePairs = typename std::vector<std::pair<int, float>>;
 
 namespace regbox {
 
@@ -27,13 +27,6 @@ class LoamFeatureDetector {
       const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
       pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
       pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces);
-
-  void extractFeaturesFromFeatureRegion(
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& region_points,
-      const CurvaturePairs& cloud_curvatures,
-      pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
-      pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces,
-      std::vector<bool>* point_picked);
 
   void downSampleFeatures(
       pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
@@ -59,6 +52,7 @@ class LoamFeatureDetector {
   void calculateCurvatures(
       const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
       CurvaturePairs* curvatures);
+  pcl::PointCloud<pcl::PointXYZI> pickedpoints_;
 };
 
 }  // namespace regbox
