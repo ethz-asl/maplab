@@ -50,6 +50,45 @@ class Lidar final : public aslam::Sensor {
     return static_cast<std::string>(kLidarIdentifier);
   }
 
+  inline bool hasNumberOfBeans() const {
+    return has_number_of_beams_;
+  }
+
+  inline bool hasUpperFoVAngle() const {
+    return has_upper_fov_angle_;
+  }
+
+  inline bool hasLowerFoVAngle() const {
+    return has_lower_fov_angle_;
+  }
+
+  inline uint16_t getNumberOfBeans() const {
+    return n_beams_;
+  }
+
+  inline float getUpperFoVAngle() const {
+    return fov_upper_angle_deg_;
+  }
+
+  inline float getLowerFoVAngle() const {
+    return fov_lower_angle_deg_;
+  }
+
+  inline void setNumberOfBeans(const uint16_t n_beams) {
+    n_beams_ = n_beams;
+    has_number_of_beams_ = true;
+  }
+
+  inline void setUpperFoVAngle(const float angle_deg) {
+    fov_upper_angle_deg_ = angle_deg;
+    has_upper_fov_angle_ = true;
+  }
+
+  inline void setLowerFoVAngle(const float angle_deg) {
+    fov_lower_angle_deg_ = angle_deg;
+    has_lower_fov_angle_ = true;
+  }
+
  private:
   bool loadFromYamlNodeImpl(const YAML::Node& sensor_node) override;
   void saveToYamlNodeImpl(YAML::Node* sensor_node) const override;
@@ -64,6 +103,14 @@ class Lidar final : public aslam::Sensor {
       const Sensor& /*other*/, const bool /*verbose*/) const override {
     return true;
   }
+
+  bool has_number_of_beams_ = false;
+  bool has_upper_fov_angle_ = false;
+  bool has_lower_fov_angle_ = false;
+
+  uint16_t n_beams_;
+  float fov_upper_angle_deg_;
+  float fov_lower_angle_deg_;
 };
 
 template <typename PointCloudType>
@@ -150,6 +197,10 @@ DEFINE_MEAUREMENT_CONTAINERS(MaplabLidarMeasurement);
 DEFINE_MEAUREMENT_CONTAINERS(PclLidarMeasurement);
 DEFINE_MEAUREMENT_CONTAINERS(RosLidarMeasurement);
 DEFINE_MEAUREMENT_CONTAINERS(OusterLidarMeasurement);
+
+constexpr char kYamlFieldNameNumberOfBeams[] = "beams";
+constexpr char kYamlFieldNameFoVUpperAngle[] = "fov_upper";
+constexpr char kYamlFieldNameFoVLowerAngle[] = "fov_lower";
 
 }  // namespace vi_map
 
