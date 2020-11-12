@@ -66,11 +66,11 @@ class Lidar final : public aslam::Sensor {
     return n_beams_;
   }
 
-  inline uint16_t getUpperFoVAngle() const {
+  inline float getUpperFoVAngle() const {
     return fov_upper_angle_deg_;
   }
 
-  inline uint16_t getLowerFoVAngle() const {
+  inline float getLowerFoVAngle() const {
     return fov_lower_angle_deg_;
   }
 
@@ -79,12 +79,12 @@ class Lidar final : public aslam::Sensor {
     has_number_of_beams_ = true;
   }
 
-  inline void setUpperFoVAngle(const uint16_t angle_deg) {
+  inline void setUpperFoVAngle(const float angle_deg) {
     fov_upper_angle_deg_ = angle_deg;
     has_upper_fov_angle_ = true;
   }
 
-  inline void setLowerFoVAngle(const uint16_t angle_deg) {
+  inline void setLowerFoVAngle(const float angle_deg) {
     fov_lower_angle_deg_ = angle_deg;
     has_lower_fov_angle_ = true;
   }
@@ -109,8 +109,8 @@ class Lidar final : public aslam::Sensor {
   bool has_lower_fov_angle_ = false;
 
   uint16_t n_beams_;
-  uint16_t fov_upper_angle_deg_;
-  uint16_t fov_lower_angle_deg_;
+  float fov_upper_angle_deg_;
+  float fov_lower_angle_deg_;
 };
 
 template <typename PointCloudType>

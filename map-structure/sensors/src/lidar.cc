@@ -51,11 +51,11 @@ void Lidar::saveToYamlNodeImpl(YAML::Node* sensor_node) const {
   }
   if (has_upper_fov_angle_) {
     (*sensor_node)[static_cast<std::string>(kYamlFieldNameFoVUpperAngle)] =
-        YAML::convert<uint16_t>::encode(fov_upper_angle_deg_);
+        YAML::convert<float>::encode(fov_upper_angle_deg_);
   }
   if (has_lower_fov_angle_) {
     (*sensor_node)[static_cast<std::string>(kYamlFieldNameFoVLowerAngle)] =
-        YAML::convert<uint16_t>::encode(fov_lower_angle_deg_);
+        YAML::convert<float>::encode(fov_lower_angle_deg_);
   }
 }
 
