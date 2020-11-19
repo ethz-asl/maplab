@@ -10,7 +10,7 @@ readingDataPointsFilters:
 
 referenceDataPointsFilters:
   - SamplingSurfaceNormalDataPointsFilter:
-      knn:                   40
+      knn:                   10
   #- SurfaceNormalDataPointsFilter:
       #knn:                  20
       #keepDensities:        1
@@ -30,11 +30,11 @@ errorMinimizer:
 
 transformationCheckers:
   - CounterTransformationChecker:
-      maxIterationCount:     40
+      maxIterationCount:     25
   - DifferentialTransformationChecker:
       minDiffRotErr:         0.0001
       minDiffTransErr:       0.0001
-      smoothLength:          10
+      smoothLength:          7
 
 inspector:
   PerformanceInspector

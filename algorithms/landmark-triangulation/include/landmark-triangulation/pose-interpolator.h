@@ -43,7 +43,7 @@ class PoseInterpolator {
   // imu_timestamps.  Timestamps do not need to be sorted, but must lie within
   // the minimum and maximum timestamp of the mission's IMU measurements.
   // Extrapolating outside this range is not supported.
-  void getPosesAtTime(
+  bool getPosesAtTime(
       const vi_map::VIMap& map, vi_map::MissionId mission_id,
       const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps,
       aslam::TransformationVector* poses) const;

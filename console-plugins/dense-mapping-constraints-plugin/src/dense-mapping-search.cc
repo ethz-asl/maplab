@@ -247,8 +247,12 @@ void findAllAlignmentCandidates(
 
         // Interpolate poses for every resource.
         aslam::TransformationVector T_M_B_vector;
-        pose_interpolator.getPosesAtTime(
+        const bool interpolation_succeeded = pose_interpolator.getPosesAtTime(
             map, mission_id, resource_timestamps, &T_M_B_vector);
+        if (!interpolation_succeeded) {
+          VLOG(1) << "Interpolation failed skipping";
+          continue;
+        }
         CHECK_EQ(
             static_cast<int>(T_M_B_vector.size()), resource_timestamps.size());
         CHECK_EQ(T_M_B_vector.size(), num_used_resources);

@@ -1,8 +1,8 @@
 - SurfaceNormalDataPointsFilter:
-   knn:           20
+   knn:           10
    keepDensities: 1
    keepNormals:   1
-- SimpleSensorNoiseDataPointsFilter
+#- SimpleSensorNoiseDataPointsFilter
 - BoundingBoxDataPointsFilter:
    xMin:          -4.0
    xMax:          4.0
@@ -11,10 +11,10 @@
    zMin:          -4.0
    zMax:          4.0
    removeInside:  1
-- ObservationDirectionDataPointsFilter
-- OrientNormalsDataPointsFilter
-- MaxDensityDataPointsFilter:
-    maxDensity:   65000
+#- ObservationDirectionDataPointsFilter
+#- OrientNormalsDataPointsFilter
+#- MaxDensityDataPointsFilter:
+    #maxDensity:  65000
 - RemoveNaNDataPointsFilter:
 - RandomSamplingDataPointsFilter:
     prob:         0.4
