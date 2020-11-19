@@ -157,9 +157,9 @@ void MaplabServerNode::start() {
 
   LOG(INFO) << "[MaplabServerNode] launching MapMerging thread...";
 
-  submap_merging_thread_ = std::thread([this]() {
+  bool received_first_submap = false;
+  submap_merging_thread_ = std::thread([this, &received_first_submap]() {
     // Loop until shutdown is requested.
-    bool received_first_submap = false;
     while (!shut_down_requested_.load()) {
       timing::TimerImpl map_merging_timer("map-merging");
 
@@ -221,6 +221,14 @@ void MaplabServerNode::start() {
     }
   });
 
+  map_publishing_thread_ = std::thread([this, received_first_submap]() {
+    while (!shut_down_requested_.load()) {
+      publishDenseMap();
+      std::this_thread::sleep_for(
+          std::chrono::seconds(kSecondsToSleepBetweenMapPublishing));
+    }
+  });
+
   LOG(INFO) << "[MaplabServerNode] launching Status thread...";
 
   status_thread_ = std::thread([this]() {
@@ -268,6 +276,16 @@ void MaplabServerNode::shutdown() {
     LOG(INFO) << "[MaplabServerNode] Done stopping Status thread.";
   } catch (std::exception& e) {
     LOG(ERROR) << "Unable to stop status thread: " << e.what();
+  }
+
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping Map Publishing thread...";
+    if (map_publishing_thread_.joinable()) {
+      map_publishing_thread_.join();
+    }
+    LOG(INFO) << "[MaplabServerNode] Done stopping Map Publishing thread.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop Map Publishing thread: " << e.what();
   }
 
   is_running_ = false;
@@ -782,7 +800,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         map_optimization::ViProblemOptions::initFromGFlags();
 
     // Restore previous trust region.
-    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {
+    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  // NOLINT
       // Reset the trust region if N submaps have been added in the meantime.
       const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
       const uint32_t num_submaps_since_reset =
@@ -885,7 +903,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         map_optimization::ViProblemOptions::initFromGFlags();
 
     // Restore previous trust region.
-    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {
+    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  // NOLINT
       // Reset the trust region if N submaps have been added in the meantime.
       const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
       const uint32_t num_submaps_since_reset =
@@ -1726,11 +1744,9 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
               empty_robot_mission_id_list, *merged_map);
         }
       }
-
     }  // Limits the scope of the lock on the robot to mission id bookkeeping
 
     num_missions_in_merged_map_after_deletion = merged_map->numMissions();
-
   }  // Limits the scope of the lock on the merged map, such that it can
      // be deleted down below.
 

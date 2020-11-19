@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <aslam/common/thread-pool.h>
@@ -48,7 +49,7 @@ struct SubmapProcess {
 
 class MaplabServerNode final {
  public:
-  explicit MaplabServerNode();
+  MaplabServerNode();
 
   ~MaplabServerNode();
 
@@ -161,6 +162,8 @@ class MaplabServerNode final {
   // Fast status loop that reads current the thread status from merging and
   // submap thread and summarizes it.
   std::thread status_thread_;
+  // Publish current optimized map at fixed interval
+  std::thread map_publishing_thread_;
 
   // Map management
   /////////////////
@@ -229,6 +232,7 @@ class MaplabServerNode final {
   bool is_running_ = false;
   const int kSecondsToSleepBetweenAttempts = 1;
   const int kSecondsToSleepBetweenStatus = 1;
+  const int kSecondsToSleepBetweenMapPublishing = 10;
 
   // Exclusively accessed by the merging thread, to keep track of how often it
   // should save the map.
