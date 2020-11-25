@@ -76,6 +76,7 @@ class VIMission : public Mission {
   void setLoopClosureSensor(const aslam::SensorId& loop_closure_id);
   void setAbsolute6DoFSensor(const aslam::SensorId& absolute_6dof_id);
   void setWheelOdometrySensor(const aslam::SensorId& absolute_6dof_id);
+  void setRobotName(const std::string& robot_name);
 
   // NOTE: These functions will check-fail if there is no such sensor associated
   // with the mission. Use the hasNCamera and related functions below to check
@@ -87,6 +88,7 @@ class VIMission : public Mission {
   const aslam::SensorId& getLoopClosureSensor() const;
   const aslam::SensorId& getAbsolute6DoFSensor() const;
   const aslam::SensorId& getWheelOdometrySensor() const;
+  const std::string& getRobotName() const;
 
   bool hasNCamera() const;
   bool hasImu() const;
@@ -95,6 +97,7 @@ class VIMission : public Mission {
   bool hasLoopClosureSensor() const;
   bool hasAbsolute6DoFSensor() const;
   bool hasWheelOdometrySensor() const;
+  bool hasRobotName() const;
 
   void serialize(vi_map::proto::Mission* proto) const;
   void deserialize(
@@ -193,6 +196,7 @@ class VIMission : public Mission {
   // A value used to order missions.
   int ordering_;
 
+  std::string robot_name_;
   aslam::SensorId ncamera_id_;
   aslam::SensorId imu_id_;
   aslam::SensorId lidar_id_;

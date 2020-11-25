@@ -26,7 +26,8 @@ class ViwlsGraphRvizPlotter {
   void visualizeMap(
       const vi_map::VIMap& map, bool publish_baseframes, bool publish_vertices,
       bool publish_edges, bool publish_landmarks,
-      bool publish_absolute_6dof_constraints) const;
+      bool publish_absolute_6dof_constraints,
+      bool publish_reprojected_depth_resource_per_robot = false) const;
   void visualizeMap(const vi_map::VIMap& map) const;
 
   void visualizeMissions(

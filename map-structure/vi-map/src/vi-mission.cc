@@ -29,7 +29,8 @@ VIMission::VIMission(const VIMission& other)
       absolute_6dof_id_(other.absolute_6dof_id_),
       wheel_odometry_id_(other.wheel_odometry_id_),
       type_to_resource_id_map_(other.type_to_resource_id_map_),
-      sensor_resources_(other.sensor_resources_) {}
+      sensor_resources_(other.sensor_resources_),
+      robot_name_(other.robot_name_) {}
 
 int VIMission::getOrdering() const {
   return ordering_;
@@ -73,6 +74,11 @@ void VIMission::setWheelOdometrySensor(
     const aslam::SensorId& wheel_odometry_id) {
   CHECK(wheel_odometry_id.isValid());
   wheel_odometry_id_ = wheel_odometry_id;
+}
+
+void VIMission::setRobotName(const std::string& robot_name) {
+  CHECK(!robot_name.empty());
+  robot_name_ = robot_name;
 }
 
 const aslam::SensorId& VIMission::getNCameraId() const {
@@ -124,6 +130,11 @@ const aslam::SensorId& VIMission::getWheelOdometrySensor() const {
   return wheel_odometry_id_;
 }
 
+const std::string& VIMission::getRobotName() const {
+  CHECK(!robot_name_.empty());
+  return robot_name_;
+}
+
 bool VIMission::hasNCamera() const {
   return ncamera_id_.isValid();
 }
@@ -144,6 +155,9 @@ bool VIMission::hasAbsolute6DoFSensor() const {
 }
 bool VIMission::hasWheelOdometrySensor() const {
   return wheel_odometry_id_.isValid();
+}
+bool VIMission::hasRobotName() const {
+  return !robot_name_.empty();
 }
 
 void VIMission::serialize(vi_map::proto::Mission* proto) const {

@@ -221,14 +221,6 @@ void MaplabServerNode::start() {
     }
   });
 
-  map_publishing_thread_ = std::thread([this, received_first_submap]() {
-    while (!shut_down_requested_.load()) {
-      publishDenseMap();
-      std::this_thread::sleep_for(
-          std::chrono::seconds(kSecondsToSleepBetweenMapPublishing));
-    }
-  });
-
   LOG(INFO) << "[MaplabServerNode] launching Status thread...";
 
   status_thread_ = std::thread([this]() {
@@ -276,16 +268,6 @@ void MaplabServerNode::shutdown() {
     LOG(INFO) << "[MaplabServerNode] Done stopping Status thread.";
   } catch (std::exception& e) {
     LOG(ERROR) << "Unable to stop status thread: " << e.what();
-  }
-
-  try {
-    LOG(INFO) << "[MaplabServerNode] Stopping Map Publishing thread...";
-    if (map_publishing_thread_.joinable()) {
-      map_publishing_thread_.join();
-    }
-    LOG(INFO) << "[MaplabServerNode] Done stopping Map Publishing thread.";
-  } catch (std::exception& e) {
-    LOG(ERROR) << "Unable to stop Map Publishing thread: " << e.what();
   }
 
   is_running_ = false;
@@ -817,8 +799,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
 
     map_optimization::VIMapOptimizer optimizer(
-        nullptr /*no plotter for optimization*/,
-        false /*signal handler enabled*/);
+        plotter_.get(), false /*signal handler enabled*/);
 
     map_optimization::OptimizationProblemResult result;
     if (!optimizer.optimize(
@@ -920,7 +901,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
 
     map_optimization::VIMapOptimizer optimizer(
-        nullptr /*no plotter for optimization*/,
+        plotter_.get() /*no plotter for optimization*/,
         false /*signal handler enabled*/);
 
     map_optimization::OptimizationProblemResult result;
@@ -1290,8 +1271,8 @@ void MaplabServerNode::printAndPublishServerStatus() {
 
 void MaplabServerNode::updateRobotInfoBasedOnSubmap(
     const SubmapProcess& submap_process) {
-  vi_map::VIMapManager::MapReadAccess map =
-      map_manager_.getMapReadAccess(submap_process.map_key);
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager_.getMapWriteAccess(submap_process.map_key);
 
   vi_map::MissionIdList mission_ids;
   map->getAllMissionIds(&mission_ids);
@@ -1338,8 +1319,17 @@ void MaplabServerNode::updateRobotInfoBasedOnSubmap(
           }
         }
 
-        mission_id_to_robot_map_[submap_mission_id] = submap_process.robot_name;
+        if (!map->hasMission(submap_mission_id)) {
+          LOG(ERROR) << "[MaplabServerNode] Submap with key "
+                     << submap_process.map_key
+                     << " does not have requested mission "
+                     << submap_mission_id;
+        }
 
+        vi_map::VIMission& mission = map->getMission(submap_mission_id);
+        mission.setRobotName(submap_process.robot_name);
+
+        mission_id_to_robot_map_[submap_mission_id] = submap_process.robot_name;
         robot_info.T_G_M_submaps_input[last_vertex_timestamp_ns] = T_G_M_submap;
         robot_info.T_M_B_submaps_input[last_vertex_timestamp_ns] =
             T_M_B_last_vertex;
@@ -1439,8 +1429,7 @@ void MaplabServerNode::runSubmapProcessing(
     map_optimization::ViProblemOptions options =
         map_optimization::ViProblemOptions::initFromGFlags();
     map_optimization::VIMapOptimizer optimizer(
-        nullptr /*no plotter for optimization*/,
-        false /*signal handler enabled*/);
+        nullptr, false /*signal handler enabled*/);
     optimizer.optimize(options, missions_to_optimize, map.get());
   }
 
@@ -1522,6 +1511,7 @@ void MaplabServerNode::publishDenseMap() {
     std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
     for (const auto& kv : mission_id_to_robot_map_) {
       if (map->hasMission(kv.first)) {
+        LOG(WARNING) << "MISSION: " << kv.first;
         robot_to_mission_id_map[kv.second].push_back(kv.first);
       }
     }

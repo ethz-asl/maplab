@@ -93,6 +93,13 @@ DEFINE_bool(
     "If true, the RViz publisher waits for a subscriber before publishing the "
     "traversal edges of a mission.");
 
+DEFINE_int32(
+    vis_dense_map_resource_type, 21,
+    "Type of resources that are used to compose the dense map, options are ["
+    "kRawDepthMap = 8, kOptimizedDepthMap = 9, kPointCloudXYZ = 16, "
+    "kPointCloudXYZRGBN = 17, kVoxbloxOccupancyMap = 20, kPointCloudXYZI = "
+    "21]");
+
 namespace visualization {
 const std::string ViwlsGraphRvizPlotter::kBaseframeTopic =
     visualization::kViMapTopicHead + "_baseframe";
@@ -1061,20 +1068,37 @@ void ViwlsGraphRvizPlotter::visualizeMap(const vi_map::VIMap& map) const {
   constexpr bool kPlotEdges = true;
   constexpr bool kPlotLandmarks = true;
   constexpr bool kPlotAbsolute6DoFConstraints = true;
+  constexpr bool kPlotReprojectedDepthResourcePerRobot = true;
   visualizeMap(
       map, kPlotBaseframes, kPlotVertices, kPlotEdges, kPlotLandmarks,
-      kPlotAbsolute6DoFConstraints);
+      kPlotAbsolute6DoFConstraints, kPlotReprojectedDepthResourcePerRobot);
 }
 
 void ViwlsGraphRvizPlotter::visualizeMap(
     const vi_map::VIMap& map, bool publish_baseframes, bool publish_vertices,
     bool publish_edges, bool publish_landmarks,
-    bool publish_absolute_6dof_constraints) const {
+    bool publish_absolute_6dof_constraints,
+    bool publish_reprojected_depth_resource_per_robot) const {
   vi_map::MissionIdList all_missions;
   map.getAllMissionIds(&all_missions);
   visualizeMissions(
       map, all_missions, publish_baseframes, publish_vertices, publish_edges,
       publish_landmarks, publish_absolute_6dof_constraints);
+
+  if (publish_reprojected_depth_resource_per_robot) {
+    std::unordered_map<std::string, vi_map::MissionIdList>
+        robot_to_mission_id_map;
+    for (const auto& mission_id : all_missions) {
+      const vi_map::VIMission& mission = map.getMission(mission_id);
+      if (mission.hasRobotName()) {
+        robot_to_mission_id_map[mission.getRobotName()].push_back(mission_id);
+      }
+    }
+
+    visualization::visualizeReprojectedDepthResourcePerRobot(
+        static_cast<backend::ResourceType>(FLAGS_vis_dense_map_resource_type),
+        robot_to_mission_id_map, map);
+  }
 }
 
 void ViwlsGraphRvizPlotter::visualizeMissions(
