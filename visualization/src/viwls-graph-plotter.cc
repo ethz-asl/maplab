@@ -93,13 +93,6 @@ DEFINE_bool(
     "If true, the RViz publisher waits for a subscriber before publishing the "
     "traversal edges of a mission.");
 
-DEFINE_int32(
-    vis_dense_map_resource_type, 21,
-    "Type of resources that are used to compose the dense map, options are ["
-    "kRawDepthMap = 8, kOptimizedDepthMap = 9, kPointCloudXYZ = 16, "
-    "kPointCloudXYZRGBN = 17, kVoxbloxOccupancyMap = 20, kPointCloudXYZI = "
-    "21]");
-
 namespace visualization {
 const std::string ViwlsGraphRvizPlotter::kBaseframeTopic =
     visualization::kViMapTopicHead + "_baseframe";
@@ -1096,7 +1089,6 @@ void ViwlsGraphRvizPlotter::visualizeMap(
     }
 
     visualization::visualizeReprojectedDepthResourcePerRobot(
-        static_cast<backend::ResourceType>(FLAGS_vis_dense_map_resource_type),
         robot_to_mission_id_map, map);
   }
 }

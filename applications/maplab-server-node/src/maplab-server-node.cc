@@ -60,13 +60,6 @@ DEFINE_bool(
     "If enabled, the first mission to be added to the global map will server "
     "as the anchor and it's baseframe will be set to know.");
 
-DEFINE_int32(
-    maplab_server_dense_map_resource_type, 21,
-    "Type of resources that are used to compose the dense map, options are ["
-    "kRawDepthMap = 8, kOptimizedDepthMap = 9, kPointCloudXYZ = 16, "
-    "kPointCloudXYZRGBN = 17, kVoxbloxOccupancyMap = 20, kPointCloudXYZI = "
-    "21]");
-
 DEFINE_bool(
     maplab_server_stationary_submaps_fix_with_lc_edge, false,
     "If enabled, a simple check will be performed to determine if a submap is "
@@ -1517,8 +1510,6 @@ void MaplabServerNode::publishDenseMap() {
     }
   }
   visualization::visualizeReprojectedDepthResourcePerRobot(
-      static_cast<backend::ResourceType>(
-          FLAGS_maplab_server_dense_map_resource_type),
       robot_to_mission_id_map, *map);
 }
 
@@ -1729,8 +1720,6 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
               empty_robot_mission_id_list;
           empty_robot_mission_id_list[robot_name] = vi_map::MissionIdList();
           visualization::visualizeReprojectedDepthResourcePerRobot(
-              static_cast<backend::ResourceType>(
-                  FLAGS_maplab_server_dense_map_resource_type),
               empty_robot_mission_id_list, *merged_map);
         }
       }

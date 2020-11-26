@@ -78,6 +78,13 @@ DEFINE_bool(
     vis_pointcloud_filter_beautify_dense_map_before_publishing, false,
     "If point cloud filtering is enabled, beautifies the point cloud.");
 
+DEFINE_int32(
+    vis_dense_map_resource_type, 21,
+    "Type of resources that are used to compose the dense map, options are ["
+    "kRawDepthMap = 8, kOptimizedDepthMap = 9, kPointCloudXYZ = 16, "
+    "kPointCloudXYZRGBN = 17, kVoxbloxOccupancyMap = 20, kPointCloudXYZI = "
+    "21]");
+
 namespace visualization {
 
 template <typename T_input, typename T_output>
@@ -438,6 +445,15 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
       mission_ids, input_resource_type,
       FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
       integration_function);
+}
+
+void visualizeReprojectedDepthResourcePerRobot(
+    const std::unordered_map<std::string, vi_map::MissionIdList>
+        robot_name_to_mission_ids_map,
+    const vi_map::VIMap& vi_map) {
+  visualizeReprojectedDepthResourcePerRobot(
+      static_cast<backend::ResourceType>(FLAGS_vis_dense_map_resource_type),
+      robot_name_to_mission_ids_map, vi_map);
 }
 
 void visualizeReprojectedDepthResourcePerRobot(
