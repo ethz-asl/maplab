@@ -34,7 +34,8 @@ static std::unordered_set<backend::ResourceType, backend::ResourceTypeHash>
         backend::ResourceType::kPointCloudXYZ,
         backend::ResourceType::kPointCloudXYZI,
         backend::ResourceType::kPointCloudXYZRGBN,
-        backend::ResourceType::kPointCloudXYZL};
+        backend::ResourceType::kPointCloudXYZL,
+        backend::ResourceType::kPointCloudXYZIRT};
 
 // Depth map integration function.
 typedef std::function<void(

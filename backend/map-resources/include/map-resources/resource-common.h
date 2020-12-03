@@ -56,6 +56,7 @@ enum class ResourceType : int {
   kObjectInstanceBoundingBoxes = 22,
   kObjectInstanceMasks = 23,
   kPointCloudXYZL = 24,
+  kPointCloudXYZIRT = 25,
   kCount
 };
 
@@ -88,7 +89,8 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeNames = {
      /*kPointCloudXYZI*/ "point_cloud_w_intensity",
      /*kObjectInstanceBoundingBoxes*/ "object_instance_bounding_boxes",
      /*kObjectInstanceMasks*/ "object_instance_masks",
-     /*kPointCloudXYZL*/ "labeled_point_cloud"}};
+     /*kPointCloudXYZL*/ "labeled_point_cloud",
+     /*kPointCloudXYZIRT*/ "point_cloud_w_intensity_ring_time"}};
 
 // NOTE: [ADD_RESOURCE_TYPE] Add suffix.
 const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
@@ -116,7 +118,8 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
      /*kPointCloudXYZI*/ ".ply",
      /*kObjectInstanceBoundingBoxes*/ ".obj_instance_bboxes.proto",
      /*kObjectInstanceMasks*/ ".obj_instance_mask.ppm",
-     /*kPointCloudXYZL*/ ".ply"}};
+     /*kPointCloudXYZL*/ ".ply",
+     /*kPointCloudXYZIRT*/ ".ply"}};
 
 struct ResourceTypeHash {
   template <typename T>
