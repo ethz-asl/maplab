@@ -58,17 +58,39 @@ void DataSourceRostopic::registerSubscribers(
        ros_topics.camera_topic_cam_index_map) {
     CHECK(!topic_camidx.first.empty()) << "Camera " << topic_camidx.second
                                        << " is subscribed to an empty topic!";
+    const std::string kCompressedTopicEnding = "/compressed";
+    bool is_compressed = false;
+    if (topic_camidx.first.size() >= kCompressedTopicEnding.size()) {
+      is_compressed =
+          (topic_camidx.first.compare(
+               topic_camidx.first.size() - kCompressedTopicEnding.size() - 1u,
+               kCompressedTopicEnding.size(), kCompressedTopicEnding) == 0);
+    }
+    if (is_compressed) {
+      boost::function<void(const sensor_msgs::CompressedImageConstPtr&)>
+          image_callback = boost::bind(
+              &DataSourceRostopic::compressedImageCallback, this, _1,
+              topic_camidx.second);
+      //
+      // constexpr size_t kRosSubscriberQueueSizeImage = 20u;
+      // image_transport::Subscriber image_sub = image_transport_.subscribe(
+      //     topic_camidx.first, kRosSubscriberQueueSizeImage, image_callback);
+      // sub_images_.push_back(image_sub);
+      // VLOG(1) << "[MaplabNode-DataSource] Camera " << topic_camidx.second
+      //         << " is subscribed to topic: '" << topic_camidx.first << "'";
+    } else {
+      boost::function<void(const sensor_msgs::ImageConstPtr&)> image_callback =
+          boost::bind(
+              &DataSourceRostopic::imageCallback, this, _1,
+              topic_camidx.second);
 
-    boost::function<void(const sensor_msgs::ImageConstPtr&)> image_callback =
-        boost::bind(
-            &DataSourceRostopic::imageCallback, this, _1, topic_camidx.second);
-
-    constexpr size_t kRosSubscriberQueueSizeImage = 20u;
-    image_transport::Subscriber image_sub = image_transport_.subscribe(
-        topic_camidx.first, kRosSubscriberQueueSizeImage, image_callback);
-    sub_images_.push_back(image_sub);
-    VLOG(1) << "[MaplabNode-DataSource] Camera " << topic_camidx.second
-            << " is subscribed to topic: '" << topic_camidx.first << "'";
+      constexpr size_t kRosSubscriberQueueSizeImage = 20u;
+      image_transport::Subscriber image_sub = image_transport_.subscribe(
+          topic_camidx.first, kRosSubscriberQueueSizeImage, image_callback);
+      sub_images_.push_back(image_sub);
+      VLOG(1) << "[MaplabNode-DataSource] Camera " << topic_camidx.second
+              << " is subscribed to topic: '" << topic_camidx.first << "'";
+    }
   }
 
   // IMU subscriber.
@@ -221,6 +243,39 @@ void DataSourceRostopic::registerSubscribers(
 
 void DataSourceRostopic::imageCallback(
     const sensor_msgs::ImageConstPtr& image_message, size_t camera_idx) {
+  if (shutdown_requested_) {
+    return;
+  }
+
+  vio::ImageMeasurement::Ptr image_measurement =
+      convertRosImageToMaplabImage(image_message, camera_idx);
+  CHECK(image_measurement);
+
+  // Apply the IMU to camera time shift.
+  if (FLAGS_imu_to_camera_time_offset_ns != 0) {
+    image_measurement->timestamp += FLAGS_imu_to_camera_time_offset_ns;
+  }
+
+  // Check for strictly increasing image timestamps.
+  CHECK_LT(camera_idx, last_image_timestamp_ns_.size());
+  if (aslam::time::isValidTime(last_image_timestamp_ns_[camera_idx]) &&
+      last_image_timestamp_ns_[camera_idx] >= image_measurement->timestamp) {
+    LOG(WARNING) << "[MaplabNode-DataSource] Image message (cam " << camera_idx
+                 << ") is not strictly "
+                 << "increasing! Current timestamp: "
+                 << image_measurement->timestamp << "ns vs last timestamp: "
+                 << last_image_timestamp_ns_[camera_idx] << "ns.";
+    return;
+  } else {
+    last_image_timestamp_ns_[camera_idx] = image_measurement->timestamp;
+  }
+
+  invokeImageCallbacks(image_measurement);
+}
+
+void DataSourceRostopic::compressedImageCallback(
+    const sensor_msgs::CompressedImageConstPtr& image_message,
+    size_t camera_idx) {
   if (shutdown_requested_) {
     return;
   }

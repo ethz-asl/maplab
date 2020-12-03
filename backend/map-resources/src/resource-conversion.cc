@@ -672,6 +672,27 @@ void getLabelFromPointCloud(
 // }
 
 template <>
+void addRingToPointCloud(
+    const uint32_t ring, const size_t index,
+    resources::PointCloud* point_cloud) {
+  CHECK_NOTNULL(point_cloud);
+  DCHECK_LT(index, point_cloud->rings.size());
+  point_cloud->rings[index] = ring;
+}
+
+template <>
+void addRingToPointCloud(
+    const uint32_t ring, const size_t index,
+    sensor_msgs::PointCloud2* point_cloud) {
+  sensor_msgs::PointCloud2Iterator<uint32_t> it_ring(
+      *point_cloud, kPointCloud2LabelV1);
+
+  it_ring += index;
+
+  *it_ring = ring;
+}
+
+template <>
 void getRingFromPointCloud(
     const resources::PointCloud& point_cloud, const size_t index,
     uint32_t* ring) {
@@ -686,7 +707,7 @@ void getRingFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     uint32_t* ring) {
   CHECK_NOTNULL(ring);
-  sensor_msgs::PointField field = getLabelField(point_cloud);
+  sensor_msgs::PointField field = getRingField(point_cloud);
   CHECK(!field.name.empty());
 
   PointCloud2ConstIteratorVariant var =
@@ -719,7 +740,7 @@ void getTimeFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     float* time_s) {
   CHECK_NOTNULL(time_s);
-  sensor_msgs::PointField field = getLabelField(point_cloud);
+  sensor_msgs::PointField field = getTimeField(point_cloud);
   CHECK(!field.name.empty());
 
   PointCloud2ConstIteratorVariant var =

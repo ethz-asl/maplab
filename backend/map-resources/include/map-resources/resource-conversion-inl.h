@@ -854,8 +854,8 @@ bool convertPointCloudType(
 
     if (input_has_times && output_has_times) {
       float time_s;
-      getLabelFromPointCloud(input_cloud, point_idx, &time_s);
-      addLabelToPointCloud(time_s, point_idx, output_cloud);
+      getRingFromPointCloud(input_cloud, point_idx, &time_s);
+      addRingToPointCloud(time_s, point_idx, output_cloud);
     }
   }
 
