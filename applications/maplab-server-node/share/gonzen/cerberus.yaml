@@ -22,7 +22,7 @@ sensors:
   #topic:                              /point_cloud_filter/velodyne/point_cloud_filtered
 
   - id:                                    56dea1629b916c2d86b9c56d657ed339
-    sensor_type:                           LIDAR
+    sensor_type:                           POINTCLOUD_MAP
     description:                           "anymal_cerberus VLP16"
     topic:                                 /anymal_cerberus/points
 

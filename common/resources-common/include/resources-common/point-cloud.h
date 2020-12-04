@@ -127,7 +127,7 @@ struct PointCloud {
     return (rings.size() == xyz.size() / 3u) && !rings.empty();
   }
 
-  inline bool has_times() const {
+  inline bool hasTimes() const {
     return (times.size() == xyz.size() / 3u) && !times.empty();
   }
 

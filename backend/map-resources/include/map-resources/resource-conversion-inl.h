@@ -425,7 +425,7 @@ template <typename PointCloudType>
 void getRingFromPointCloud(
     const PointCloudType& /*point_cloud*/, const uint32_t /*ring*/,
     float* /*scalar*/) {
-  LOG(FATAL) << "This point cloud either does not support rings"
+  LOG(FATAL) << "This point cloud either does not support rings "
              << "or it is not implemented!";
 }
 template <>
@@ -445,7 +445,7 @@ template <typename PointCloudType>
 void getTimeFromPointCloud(
     const PointCloudType& /*point_cloud*/, const float /*time_s*/,
     float* /*scalar*/) {
-  LOG(FATAL) << "This point cloud either does not support times"
+  LOG(FATAL) << "This point cloud either does not support times "
              << "or it is not implemented!";
 }
 template <>
@@ -802,14 +802,12 @@ template <typename InputPointCloud, typename OutputPointCloud>
 bool convertPointCloudType(
     const InputPointCloud& input_cloud, OutputPointCloud* output_cloud) {
   CHECK_NOTNULL(output_cloud);
-
   const bool input_has_normals = hasNormalsInformation(input_cloud);
   const bool input_has_scalars = hasScalarInformation(input_cloud);
   const bool input_has_color = hasColorInformation(input_cloud);
   const bool input_has_labels = hasLabelInformation(input_cloud);
   const bool input_has_rings = hasRingInformation(input_cloud);
   const bool input_has_times = hasTimeInformation(input_cloud);
-
   const size_t num_points = getPointCloudSize(input_cloud);
 
   resizePointCloud(
@@ -854,8 +852,8 @@ bool convertPointCloudType(
 
     if (input_has_times && output_has_times) {
       float time_s;
-      getRingFromPointCloud(input_cloud, point_idx, &time_s);
-      addRingToPointCloud(time_s, point_idx, output_cloud);
+      getTimeFromPointCloud(input_cloud, point_idx, &time_s);
+      addTimeToPointCloud(time_s, point_idx, output_cloud);
     }
   }
 
@@ -874,18 +872,18 @@ backend::ResourceType getResourceTypeForPointCloud(
   const bool has_color = hasColorInformation(point_cloud);
   const bool has_labels = hasLabelInformation(point_cloud);
   const bool has_rings = hasRingInformation(point_cloud);
-  const bool has_times = hasRingInformation(point_cloud);
+  const bool has_times = hasTimeInformation(point_cloud);
 
   if (has_color && has_normals && !has_scalars) {
     return backend::ResourceType::kPointCloudXYZRGBN;
-  } else if (!has_color && !has_normals && has_scalars) {
-    return backend::ResourceType::kPointCloudXYZI;
-  } else if (!has_color && !has_normals && !has_scalars && has_labels) {
-    return backend::ResourceType::kPointCloudXYZL;
   } else if (
       !has_color && !has_normals && has_scalars && !has_labels && has_rings &&
       has_times) {
     return backend::ResourceType::kPointCloudXYZIRT;
+  } else if (!has_color && !has_normals && has_scalars) {
+    return backend::ResourceType::kPointCloudXYZI;
+  } else if (!has_color && !has_normals && !has_scalars && has_labels) {
+    return backend::ResourceType::kPointCloudXYZL;
   } else if (!has_color && !has_normals && !has_scalars) {
     return backend::ResourceType::kPointCloudXYZ;
   }

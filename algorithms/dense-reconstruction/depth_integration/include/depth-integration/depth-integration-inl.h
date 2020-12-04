@@ -190,6 +190,8 @@ void integrateAllFrameDepthResourcesOfType(
           }
           case backend::ResourceType::kPointCloudXYZI:
           // Fall through intended.
+          case backend::ResourceType::kPointCloudXYZIRT:
+          // Fall through intended.
           case backend::ResourceType::kPointCloudXYZ:
           // Fall through intended.
           case backend::ResourceType::kPointCloudXYZRGBN: {
@@ -482,6 +484,8 @@ void integrateAllSensorDepthResourcesOfType(
             continue;
           }
           case backend::ResourceType::kPointCloudXYZI:
+          // Fall through intended.
+          case backend::ResourceType::kPointCloudXYZIRT:
           // Fall through intended.
           case backend::ResourceType::kPointCloudXYZ:
           // Fall through intended.

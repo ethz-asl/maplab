@@ -480,6 +480,9 @@ void visualizeReprojectedDepthResourcePerRobot(
           input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G);
     }
 
+    if (accumulated_point_cloud_G.empty()) {
+      return;
+    }
     // Publish accumulated point cloud in global frame.
     sensor_msgs::PointCloud2 ros_point_cloud_G;
     if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {

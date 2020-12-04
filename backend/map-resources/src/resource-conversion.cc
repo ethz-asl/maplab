@@ -725,6 +725,35 @@ void getRingFromPointCloud(
 //   *ring = point.ring;
 // }
 
+// void addRingToPointCloud(
+//     const uint32_t ring, const size_t index,
+//     pcl::PointCloud<pcl::PointXYZIRT>* point_cloud) {
+//   DCHECK_LT(index, point_cloud->points.size());
+//   pcl::PointXYZL& point = point_cloud->points[index];
+//   point.ring = ring;
+// }
+
+template <>
+void addTimeToPointCloud(
+    const float time_s, const size_t index,
+    resources::PointCloud* point_cloud) {
+  CHECK_NOTNULL(point_cloud);
+  DCHECK_LT(index, point_cloud->times.size());
+  point_cloud->times[index] = time_s;
+}
+
+template <>
+void addTimeToPointCloud(
+    const float time_s, const size_t index,
+    sensor_msgs::PointCloud2* point_cloud) {
+  sensor_msgs::PointCloud2Iterator<float> it_time(
+      *point_cloud, kPointCloud2LabelV1);
+
+  it_time += index;
+
+  *it_time = time_s;
+}
+
 template <>
 void getTimeFromPointCloud(
     const resources::PointCloud& point_cloud, const size_t index,

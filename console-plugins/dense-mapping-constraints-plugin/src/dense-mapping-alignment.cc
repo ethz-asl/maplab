@@ -198,6 +198,8 @@ bool computeAlignmentForCandidatePairs(
         // Fall through intended.
         case backend::ResourceType::kPointCloudXYZI:
         // Fall through intended.
+        case backend::ResourceType::kPointCloudXYZIRT:
+        // Fall through intended.
         case backend::ResourceType::kPointCloudXYZRGBN:
           try {
             aligned_without_error =

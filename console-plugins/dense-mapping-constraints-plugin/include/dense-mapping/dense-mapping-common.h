@@ -17,12 +17,11 @@ typedef Eigen::Matrix<double, 3, Eigen::Dynamic> PositionMatrix;
 typedef Eigen::Matrix<int64_t, 1, Eigen::Dynamic> TimestampNsVector;
 
 static std::unordered_set<backend::ResourceType, backend::ResourceTypeHash>
-    kSupportedResourceTypes{
-        backend::ResourceType::kPointCloudXYZ,
-        backend::ResourceType::kPointCloudXYZI,
-        backend::ResourceType::kPointCloudXYZRGBN,
-        backend::ResourceType::kPointCloudXYZL
-    };
+    kSupportedResourceTypes{backend::ResourceType::kPointCloudXYZ,
+                            backend::ResourceType::kPointCloudXYZI,
+                            backend::ResourceType::kPointCloudXYZRGBN,
+                            backend::ResourceType::kPointCloudXYZL,
+                            backend::ResourceType::kPointCloudXYZIRT};
 
 struct AlignmentCandidate {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
