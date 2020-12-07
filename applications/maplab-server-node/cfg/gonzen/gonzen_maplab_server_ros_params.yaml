@@ -141,7 +141,7 @@ dense_depth_integrator_visualize_only_with_known_baseframe:           true
 # kRawDepthMap = 8                        (Attaching lidar scans as depth maps)
 # kPointCloudXYZI = 21                    (Attaching raw VLP16/OS-1 lidar scans)
 # kPointCloudXYZL = 24                    (Attaching LOAM features)
-maplab_server_dense_map_resource_type:                                21
+maplab_server_dense_map_resource_type:                                25
 # This will only publish the closest point cloud of each vertex, this way,
 # keyframing has also an effect on the dense map and large errors in case
 # of inaccurate imu data are prevented.

@@ -10,7 +10,7 @@
 	<arg name="gonzen_attach_images" default="false"/>
 	<arg name="gonzen_save_map_every_n_sec" default="10"/>
 	<arg name="gonzen_clahe" default="false"/>
-	<arg name="gonzen_playback_speed" default="1.0"/>
+	<arg name="gonzen_playback_speed" default="0.5"/>
 	<arg name="gonzen_remove_bad_landmarks" default="true"/>
 	<arg name="gonzen_bags_folder" default="/home/paddy/Downloads"/>
 	<arg name="gonzen_root_map_directory" default="/tmp/maplab_node"/>
@@ -22,7 +22,7 @@
 	<group if="$(arg group_A)">
 		<arg name="gonzen_robot_name" default="anymal_cerberus"/>
 
-		<node pkg="rosbag" type="play" name="rosbag_$(arg gonzen_robot_name)" args="$(arg gonzen_bags_folder)/mission_01.bag -q -d 2 -s 15 -r $(arg gonzen_playback_speed)">
+		<node pkg="rosbag" type="play" name="rosbag_$(arg gonzen_robot_name)" args="$(arg gonzen_bags_folder)/mission_01.bag -q -d 2 -s 0 -r $(arg gonzen_playback_speed)">
 			<remap from="/alphasense_driver_ros/imu" to="/$(arg gonzen_robot_name)/imu0"/>
 			<remap from="/alphasense_driver_ros/cam0" to="/$(arg gonzen_robot_name)/cam0"/>
 			<remap from="/alphasense_driver_ros/cam2/compressed" to="/$(arg gonzen_robot_name)/cam2/compressed"/>

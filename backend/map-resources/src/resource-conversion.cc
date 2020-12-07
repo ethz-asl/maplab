@@ -663,14 +663,6 @@ void getLabelFromPointCloud(
   *label = point.label;
 }
 
-// void addRingToPointCloud(
-//     const uint32_t ring, const size_t index,
-//     pcl::PointCloud<pcl::PointXYZIRT>* point_cloud) {
-//   DCHECK_LT(index, point_cloud->points.size());
-//   pcl::PointXYZL& point = point_cloud->points[index];
-//   point.ring = ring;
-// }
-
 template <>
 void addRingToPointCloud(
     const uint32_t ring, const size_t index,
@@ -714,24 +706,6 @@ void getRingFromPointCloud(
       getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
   *ring = boost::apply_visitor(label_visitor.setIndex(index), var);
 }
-//
-// template <>
-// void getRingFromPointCloud(
-//     const pcl::PointCloud<pcl::PointXYZIRT>& point_cloud, const size_t index,
-//     uint32_t* ring) {
-//   CHECK_NOTNULL(ring);
-//   DCHECK_GT(point_cloud.size(), index);
-//   const pcl::PointXYZL& point = point_cloud.points[index];
-//   *ring = point.ring;
-// }
-
-// void addRingToPointCloud(
-//     const uint32_t ring, const size_t index,
-//     pcl::PointCloud<pcl::PointXYZIRT>* point_cloud) {
-//   DCHECK_LT(index, point_cloud->points.size());
-//   pcl::PointXYZL& point = point_cloud->points[index];
-//   point.ring = ring;
-// }
 
 template <>
 void addTimeToPointCloud(
@@ -776,16 +750,6 @@ void getTimeFromPointCloud(
       getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
   *time_s = boost::apply_visitor(label_visitor.setIndex(index), var);
 }
-
-// template <>
-// void getTimeFromPointCloud(
-//     const pcl::PointCloud<pcl::PointXYZIRT>& point_cloud, const size_t index,
-//     float* time_s) {
-//   CHECK_NOTNULL(time_s);
-//   DCHECK_GT(point_cloud.size(), index);
-//   const pcl::PointXYZL& point = point_cloud.points[index];
-//   *time_s = point.time;
-// }
 
 template <>
 void resizePointCloud(
@@ -1065,12 +1029,6 @@ bool hasRingInformation(const resources::PointCloud& point_cloud) {
   return !point_cloud.rings.empty();
 }
 
-// template <>
-// bool hasRingInformation(
-//     const pcl::PointCloud<pcl::PointXYZIRT>& /*point_cloud*/) {
-//   return true;
-// }
-
 template <>
 bool hasTimeInformation(const sensor_msgs::PointCloud2& point_cloud) {
   return !getTimeField(point_cloud).name.empty();
@@ -1080,11 +1038,5 @@ template <>
 bool hasTimeInformation(const resources::PointCloud& point_cloud) {
   return !point_cloud.times.empty();
 }
-
-// template <>
-// bool hasTimeInformation(
-//     const pcl::PointCloud<pcl::PointXYZIRT>& /*point_cloud*/) {
-//   return true;
-// }
 
 }  // namespace backend

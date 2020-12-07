@@ -110,79 +110,79 @@ sensors:
             - [0.01052363, -0.99992788, -0.00578731, 0.0233054]
             - [0.0, 0.0, 0.0, 1.0]
 
-      # - camera:
-      #     id:                              9ce7b5000f15adb3c0da8ac6b730ff01
-      #     sensor_type:                     CAMERA
-      #     description:                     0.4MP Mono Camera Forward Right
-      #     topic:                           /anymal_cerberus/cam1/compressed
-      #     compressed:                      true
-      #     line-delay-nanoseconds:          0
-      #     image_height:                    540
-      #     image_width:                     720
-      #     type:                            pinhole
-      #     intrinsics:
-      #       rows:                          4
-      #       cols:                          1
-      #       data:
-      #         - 351.94912904
-      #         - 352.13332849
-      #         - 340.8127132
-      #         - 263.6041843
-      #     distortion:
-      #       type:                          equidistant
-      #       parameters:
-      #         rows:                        4
-      #         cols:                        1
-      #         data:
-      #           - -0.0407174
-      #           - 0.00227925
-      #           - -0.00359037
-      #           - 0.00079265
-      #   T_B_C:
-      #     rows:                            4
-      #     cols:                            4
-      #     data:
-      #       - [-0.99999832, 0.00009429, -0.00183252, -0.05455132]
-      #       - [ 0.00183307, 0.00615819, -0.99997936, -0.07351055]
-      #       - [-0.000083, -0.99998103, -0.00615836, 0.02318442]
-      #       - [0.0, 0.0, 0.0, 1.0]
-      #
-      # - camera:
-      #     id:                              7d29adfe55cdda108a1c29ca7f79e43b
-      #     sensor_type:                     CAMERA
-      #     topic:                           /anymal_cerberus/cam2/compressed
-      #     compressed:                      true
-      #     description:                     0.4MP Mono Camera Upwards Left
-      #     line-delay-nanoseconds:          0
-      #     image_height:                    540
-      #     image_width:                     720
-      #     type:                            pinhole
-      #     intrinsics:
-      #       rows:                          4
-      #       cols:                          1
-      #       data:
-      #         - 351.43800731
-      #         - 351.74101718
-      #         - 363.01675523
-      #         - 274.56685171
-      #     distortion:
-      #       type:                          equidistant
-      #       parameters:
-      #         rows:                        4
-      #         cols:                        1
-      #         data:
-      #           - -0.0393666
-      #           - -0.00139878
-      #           - -0.00034303
-      #           - -0.00014354
-      #   T_B_C:
-      #     rows:                            4
-      #     cols:                            4
-      #     data:
-      #       - [-0.99996006, -0.00580396, 0.0067964, 0.04429731]
-      #       - [0.00580378, -0.99998316, -0.00004593, -0.05276805]
-      #       - [0.00679655, -0.00000648, 0.9999769, 0.05834653]
-      #       - [0.0, 0.0, 0.0, 1.0]
+      - camera:
+          id:                              9ce7b5000f15adb3c0da8ac6b730ff01
+          sensor_type:                     CAMERA
+          description:                     0.4MP Mono Camera Forward Right
+          topic:                           /anymal_cerberus/cam1/compressed
+          compressed:                      true
+          line-delay-nanoseconds:          0
+          image_height:                    540
+          image_width:                     720
+          type:                            pinhole
+          intrinsics:
+            rows:                          4
+            cols:                          1
+            data:
+              - 351.94912904
+              - 352.13332849
+              - 340.8127132
+              - 263.6041843
+          distortion:
+            type:                          equidistant
+            parameters:
+              rows:                        4
+              cols:                        1
+              data:
+                - -0.0407174
+                - 0.00227925
+                - -0.00359037
+                - 0.00079265
+        T_B_C:
+          rows:                            4
+          cols:                            4
+          data:
+            - [-0.99999832, 0.00009429, -0.00183252, -0.05455132]
+            - [ 0.00183307, 0.00615819, -0.99997936, -0.07351055]
+            - [-0.000083, -0.99998103, -0.00615836, 0.02318442]
+            - [0.0, 0.0, 0.0, 1.0]
+
+      - camera:
+          id:                              7d29adfe55cdda108a1c29ca7f79e43b
+          sensor_type:                     CAMERA
+          topic:                           /anymal_cerberus/cam2/compressed
+          compressed:                      true
+          description:                     0.4MP Mono Camera Upwards Left
+          line-delay-nanoseconds:          0
+          image_height:                    540
+          image_width:                     720
+          type:                            pinhole
+          intrinsics:
+            rows:                          4
+            cols:                          1
+            data:
+              - 351.43800731
+              - 351.74101718
+              - 363.01675523
+              - 274.56685171
+          distortion:
+            type:                          equidistant
+            parameters:
+              rows:                        4
+              cols:                        1
+              data:
+                - -0.0393666
+                - -0.00139878
+                - -0.00034303
+                - -0.00014354
+        T_B_C:
+          rows:                            4
+          cols:                            4
+          data:
+            - [-0.99996006, -0.00580396, 0.0067964, 0.04429731]
+            - [0.00580378, -0.99998316, -0.00004593, -0.05276805]
+            - [0.00679655, -0.00000648, 0.9999769, 0.05834653]
+            - [0.0, 0.0, 0.0, 1.0]
 
 extrinsics:
   - sensor_id:                             56dea1629b916c2d86b9c56d657ed339

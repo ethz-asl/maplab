@@ -42,10 +42,6 @@ DEFINE_bool(
 
 DEFINE_double(image_resize_factor, 1.0, "Factor to resize images.");
 
-DEFINE_string(
-    compressed_image_encoding, "bgr8",
-    "Sets the encoding of the compressed images.");
-
 namespace maplab {
 
 void addRosImuMeasurementToImuMeasurementBatch(
@@ -118,92 +114,6 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
       } else {
         // Try automatic conversion for all the other encodings.
         cv_ptr = cv_bridge::toCvShare(
-            image_message, sensor_msgs::image_encodings::MONO8);
-      }
-      CHECK(cv_ptr);
-
-      if (FLAGS_image_apply_clahe_histogram_equalization) {
-        cv::Mat processed_image;
-        applyHistogramEqualization(cv_ptr->image, &processed_image);
-        image_measurement->image = processed_image;
-      } else {
-        image_measurement->image = cv_ptr->image.clone();
-      }
-    }
-  } catch (const cv_bridge::Exception& e) {  // NOLINT
-    LOG(FATAL) << "cv_bridge exception: " << e.what();
-  }
-  CHECK(cv_ptr);
-
-  if (fabs(FLAGS_image_resize_factor - 1.0) > 1e-6) {
-    const int newcols =
-        round(image_measurement->image.cols * FLAGS_image_resize_factor);
-    const int newrows =
-        round(image_measurement->image.rows * FLAGS_image_resize_factor);
-
-    cv::resize(
-        image_measurement->image, image_measurement->image,
-        cv::Size(newcols, newrows));
-  }
-
-  image_measurement->timestamp =
-      rosTimeToNanoseconds(image_message->header.stamp);
-  image_measurement->camera_index = camera_idx;
-  return image_measurement;
-}
-
-vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
-    const sensor_msgs::CompressedImageConstPtr& image_message,
-    size_t camera_idx) {
-  CHECK(image_message);
-  cv_bridge::CvImageConstPtr cv_ptr;
-  vio::ImageMeasurement::Ptr image_measurement(new vio::ImageMeasurement);
-
-  try {
-    // 16bit images are treated differently, we will apply histogram
-    // equalization first and then convert them to MONO8;
-    if (FLAGS_compressed_image_encoding ==
-        sensor_msgs::image_encodings::MONO16) {
-      cv_ptr = cv_bridge::toCvCopy(
-          image_message, sensor_msgs::image_encodings::MONO16);
-      CHECK(cv_ptr);
-
-      cv::Mat processed_image;
-      if (FLAGS_image_apply_clahe_histogram_equalization) {
-        applyHistogramEqualization(cv_ptr->image, &processed_image);
-      } else {
-        processed_image = cv_ptr->image;
-      }
-      processed_image.convertTo(
-          image_measurement->image, CV_8U,
-          FLAGS_image_16_bit_to_8_bit_scale_factor,
-          FLAGS_image_16_bit_to_8_bit_shift);
-    } else {
-      if (FLAGS_compressed_image_encoding ==
-          sensor_msgs::image_encodings::TYPE_8UC1) {
-        // NOTE: we assume all 8UC1 type images are monochrome images.
-        cv_ptr = cv_bridge::toCvCopy(
-            image_message, sensor_msgs::image_encodings::TYPE_8UC1);
-      } else if (
-          FLAGS_compressed_image_encoding ==
-          sensor_msgs::image_encodings::TYPE_8UC3) {
-        // We assume it is a BGR image.
-        cv_bridge::CvImageConstPtr cv_tmp_ptr = cv_bridge::toCvCopy(
-            image_message, sensor_msgs::image_encodings::TYPE_8UC3);
-
-        // Convert image and add it to the cv bridge struct, such that the
-        // remaining part of the function can stay the same.
-        cv_bridge::CvImage* converted_image = new cv_bridge::CvImage;
-        converted_image->encoding = "mono8";
-        converted_image->header = image_message->header;
-        // We assume the color format is BGR.
-        cv::cvtColor(
-            cv_tmp_ptr->image, converted_image->image, cv::COLOR_BGR2GRAY);
-        // The cv bridge takes ownership of the image ptr.
-        cv_ptr.reset(converted_image);
-      } else {
-        // Try automatic conversion for all the other encodings.
-        cv_ptr = cv_bridge::toCvCopy(
             image_message, sensor_msgs::image_encodings::MONO8);
       }
       CHECK(cv_ptr);

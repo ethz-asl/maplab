@@ -58,10 +58,6 @@ void addRosImuMeasurementToImuMeasurementBatch(
 vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
     const sensor_msgs::ImageConstPtr& image_message, size_t camera_idx);
 
-vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
-    const sensor_msgs::CompressedImageConstPtr& image_message,
-    size_t camera_idx);
-
 vi_map::RosLidarMeasurement::Ptr convertRosCloudToMaplabCloud(
     const sensor_msgs::PointCloud2ConstPtr& cloud_msg,
     const aslam::SensorId& sensor_id);
