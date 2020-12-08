@@ -410,7 +410,7 @@ void PoseInterpolator::getImuDataInRange(
   }
 }
 
-void PoseInterpolator::getPosesAtTime(
+bool PoseInterpolator::getPosesAtTime(
     const vi_map::VIMap& map, vi_map::MissionId mission_id,
     const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& pose_timestamps,
     aslam::TransformationVector* poses_M_I) const {
@@ -434,19 +434,27 @@ void PoseInterpolator::getPosesAtTime(
   // measurement on a vertex' outgoing IMU edge.
   std::vector<VertexInformation> vertices_and_time;
   buildVertexToTimeList(map, mission_id, &vertices_and_time);
-  CHECK_GT(vertices_and_time.size(), 1u)
-      << "The Viwls edges of mission " << mission_id
-      << " include none at all or only a single IMU "
-      << "measurement. Interpolation is not possible!";
+  if (vertices_and_time.empty()) {
+    LOG(WARNING) << "The Viwls edges of mission " << mission_id
+                 << " include none at all or only a single IMU "
+                 << "measurement. Interpolation is not possible!";
+    return false;
+  }
 
-  int64_t smallest_time = vertices_and_time.front().timestamp_ns;
-  int64_t largest_time = vertices_and_time.back().timestamp_ns_end;
-  CHECK_GE(timestamps.front(), smallest_time)
-      << "Requested sample out of bounds! First available time is "
-      << smallest_time << " but " << timestamps.front() << " was requested.";
-  CHECK_LE(timestamps.back(), largest_time)
-      << "Requested sample out of bounds! Last available time is "
-      << largest_time << " but " << timestamps.back() << " was requested.";
+  const int64_t smallest_time = vertices_and_time.front().timestamp_ns;
+  const int64_t largest_time = vertices_and_time.back().timestamp_ns_end;
+  if (timestamps.front() < smallest_time) {
+    LOG(WARNING) << "Requested sample out of bounds! First available time is "
+                 << smallest_time << " but " << timestamps.front()
+                 << " was requested.";
+    return false;
+  }
+  if (timestamps.back() > largest_time) {
+    LOG(WARNING) << "Requested sample out of bounds! Last available time is "
+                 << largest_time << " but " << timestamps.back()
+                 << " was requested.";
+    return false;
+  }
   VLOGF(4) << "Interpolation range is valid: (" << timestamps.front()
            << " >= " << smallest_time << ") and (" << timestamps.back()
            << " <= " << largest_time << ")";
@@ -491,6 +499,7 @@ void PoseInterpolator::getPosesAtTime(
     poses_M_I->emplace_back(
         state_linearization_point.q_M_I, state_linearization_point.p_M_I);
   }
+  return true;
 }
 
 void PoseInterpolator::getMissionTimeRange(
@@ -565,7 +574,7 @@ void PoseInterpolator::getPosesEveryNSeconds(
     (*pose_times)(0, i) = mission_start_ns + i * timestep_ns;
   }
   CHECK_LE((*pose_times)(0, pose_count - 1), mission_end_ns);
-  return getPosesAtTime(vi_map, mission_id, *pose_times, poses);
+  getPosesAtTime(vi_map, mission_id, *pose_times, poses);
 }
 
 }  // namespace landmark_triangulation

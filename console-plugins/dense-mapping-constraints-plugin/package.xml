@@ -20,5 +20,6 @@
   <depend>maplab_test_data</depend>
   <depend>registration_toolbox</depend>
   <depend>vi_map</depend>
+  <depend>vi_mapping_test_app</depend>
   <depend>visualization</depend>
 </package>

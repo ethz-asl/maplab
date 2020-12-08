@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+
+<!-- Requires:
+  - ethz-asl/maplab (develop)
+  - ethz-asl/transfolder
+-->
+
+<launch>
+
+	<arg name="gonzen_attach_images" default="false"/>
+	<arg name="gonzen_save_map_every_n_sec" default="10"/>
+	<arg name="gonzen_clahe" default="false"/>
+	<arg name="gonzen_playback_speed" default="0.5"/>
+	<arg name="gonzen_remove_bad_landmarks" default="true"/>
+	<arg name="gonzen_bags_folder" default="/home/paddy/Downloads"/>
+	<arg name="gonzen_root_map_directory" default="/tmp/maplab_node"/>
+
+	<arg name="group_A" default="true"/>
+	<arg name="group_B" default="false"/>
+
+	<!-- ================================== gonzen_01 ================================================== -->
+	<group if="$(arg group_A)">
+		<arg name="gonzen_robot_name" default="anymal_cerberus"/>
+
+		<node pkg="rosbag" type="play" name="rosbag_$(arg gonzen_robot_name)" args="$(arg gonzen_bags_folder)/mission_01.bag -q -d 2 -s 0 -r $(arg gonzen_playback_speed)">
+			<remap from="/alphasense_driver_ros/imu" to="/$(arg gonzen_robot_name)/imu0"/>
+			<remap from="/alphasense_driver_ros/cam0" to="/$(arg gonzen_robot_name)/cam0"/>
+			<remap from="/alphasense_driver_ros/cam2/compressed" to="/$(arg gonzen_robot_name)/cam2/compressed"/>
+			<remap from="/alphasense_driver_ros/cam1/compressed" to="/$(arg gonzen_robot_name)/cam1/compressed"/>
+			<remap from="/RTK_GPS/pose" to="/$(arg gonzen_robot_name)/pose"/>
+			<remap from="/point_cloud_filter/lidar/point_cloud_filtered" to="/$(arg gonzen_robot_name)/points"/>
+			<remap from="/msf_loam_alphasense_imu/msf_core/maplab_odometry" to="/$(arg gonzen_robot_name)/odometry/maplab_odom_T_M_I"/>
+		</node>
+
+		<include file="$(find maplab_node)/launch/maplab_node_gonzen.launch">
+			<arg name="robot_name" default="$(arg gonzen_robot_name)"/>
+			<arg name="maplab_sensor_calibration_file" default="$(find maplab_server_node)/share/gonzen/cerberus.yaml"/>
+			<arg name="maplab_save_map_every_n_sec" default="$(arg gonzen_save_map_every_n_sec)"/>
+			<arg name="maplab_keyframe_when_saving" default="true"/>
+			<arg name="maplab_image_topic_suffix" default=""/>
+			<arg name="maplab_attach_images" default="$(arg gonzen_attach_images)"/>
+			<arg name="maplab_attach_point_clouds" default="false"/>
+			<arg name="maplab_attach_point_cloud_maps" default="true"/>
+			<arg name="maplab_map_folder" default="$(arg gonzen_root_map_directory)/$(arg gonzen_robot_name)/"/>
+			<arg name="maplab_apply_clahe" default="$(arg gonzen_clahe)"/>
+			<arg name="maplab_remove_bad_landmarks" default="$(arg gonzen_remove_bad_landmarks)"/>
+		</include>
+
+		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg gonzen_robot_name)_sender" output="screen" args="-alsologtostderr">
+			<param name="new_subfolder_notification_topic_name" value="/$(arg gonzen_robot_name)/maplab_node/map_update_notification"/>
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer"/>
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status"/>
+
+			<param name="root_directory" value="$(arg gonzen_root_map_directory)"/>
+			<param name="robot_name" value="$(arg gonzen_robot_name)"/>
+		</node>
+
+		<node name="lidar_throttler_$(arg gonzen_robot_name)" type="throttle" pkg="topic_tools"
+			args="messages /$(arg gonzen_robot_name)/points 1.0 /$(arg gonzen_robot_name)/points_throttled"/>
+	</group>
+
+	<!-- ================================== gonzen_02 ================================================== -->
+	<group if="$(arg group_B)">
+		<arg name="gonzen_robot_name" default="gonzen_2"/>
+
+		<node pkg="rosbag" type="play" name="rosbag_$(arg gonzen_robot_name)" args="$(arg gonzen_bags_folder)/gonzen_05_2020-06-29-17-10-47.bag -q -d 2 -s 0 -r $(arg gonzen_playback_speed)">
+			<remap from="/alphasense_driver_ros/imu" to="/$(arg gonzen_robot_name)/imu0"/>
+			<remap from="/alphasense_driver_ros/cam0" to="/$(arg gonzen_robot_name)/cam0"/>
+			<remap from="/alphasense_driver_ros/cam2" to="/$(arg gonzen_robot_name)/cam2"/>
+			<remap from="/RTK_GPS/pose" to="/$(arg gonzen_robot_name)/pose"/>
+			<remap from="/point_cloud_filter/lidar/point_cloud_filtered" to="/$(arg gonzen_robot_name)/points"/>
+		</node>
+
+		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
+			<arg name="robot_name" default="$(arg gonzen_robot_name)"/>
+			<arg name="maplab_sensor_calibration_file" default="$(find maplab_server_node)/share/gonzen/gonzen-2.yaml"/>
+			<arg name="maplab_save_map_every_n_sec" default="$(arg gonzen_save_map_every_n_sec)"/>
+			<arg name="maplab_keyframe_when_saving" default="true"/>
+			<arg name="maplab_image_topic_suffix" default=""/>
+			<arg name="maplab_attach_images" default="$(arg gonzen_attach_images)"/>
+			<arg name="maplab_attach_point_clouds" default="false"/>
+			<arg name="maplab_attach_point_cloud_maps" default="true"/>
+			<arg name="maplab_map_folder" default="$(arg gonzen_root_map_directory)/$(arg gonzen_robot_name)/"/>
+			<arg name="maplab_apply_clahe" default="$(arg gonzen_clahe)"/>
+			<arg name="maplab_remove_bad_landmarks" default="$(arg gonzen_remove_bad_landmarks)"/>
+		</include>
+
+		<node type="sender_node" pkg="transfolder" name="transfolder_$(arg gonzen_robot_name)_sender" output="screen" args="-alsologtostderr">
+			<param name="new_subfolder_notification_topic_name" value="/$(arg gonzen_robot_name)/maplab_node/map_update_notification"/>
+			<param name="file_transfer_topic_name" value="/transfolder/file_transfer"/>
+			<param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status"/>
+
+			<param name="root_directory" value="$(arg gonzen_root_map_directory)"/>
+			<param name="robot_name" value="$(arg gonzen_robot_name)"/>
+		</node>
+		<node name="lidar_throttler_$(arg gonzen_robot_name)" type="throttle" pkg="topic_tools"
+			args="messages /$(arg gonzen_robot_name)/points 0.1 /$(arg gonzen_robot_name)/points_throttled"/>
+	</group>
+
+</launch>

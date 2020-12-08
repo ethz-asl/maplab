@@ -74,6 +74,10 @@ DEFINE_double(
     "If point cloud filtering is enabled, defines the leaf size of the voxel "
     "grid filter. ");
 
+DEFINE_bool(
+    vis_pointcloud_filter_beautify_dense_map_before_publishing, false,
+    "If point cloud filtering is enabled, beautifies the point cloud.");
+
 namespace visualization {
 
 template <typename T_input, typename T_output>
@@ -86,6 +90,18 @@ static void applyVoxelGridFilter(
   backend::convertPointCloudType(cloud_in, &(*pcl_cloud));
   voxelGridPointCloud(FLAGS_vis_pointcloud_filter_leaf_size_m, pcl_cloud);
   backend::convertPointCloudType((*pcl_cloud), cloud_filtered);
+}
+
+template <typename T_input>
+static void applyBeautification(
+    const T_input& cloud_in, sensor_msgs::PointCloud2* cloud_filtered) {
+  pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
+      new pcl::PointCloud<pcl::PointXYZI>);
+  CHECK_NOTNULL(pcl_cloud);
+
+  backend::convertPointCloudType(cloud_in, &(*pcl_cloud));
+  beautifyPointCloud(pcl_cloud, cloud_filtered);
+  backend::convertPointCloudType(*pcl_cloud, cloud_filtered);
 }
 
 bool visualizeCvMatResources(
@@ -305,7 +321,11 @@ void visualizeReprojectedDepthResource(
           }
           if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
             applyVoxelGridFilter(ros_point_cloud_S, &ros_point_cloud_S);
+          } else if (
+              FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
+            applyBeautification(points_S, &ros_point_cloud_S);
           }
+
           publishPointCloudInLocalFrameWithTf(T_G_S, &ros_point_cloud_S);
         } else {
           resources::PointCloud points_G;
@@ -318,6 +338,9 @@ void visualizeReprojectedDepthResource(
           sensor_msgs::PointCloud2 ros_point_cloud_G;
           if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
             applyVoxelGridFilter(points_G, &ros_point_cloud_G);
+          } else if (
+              FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
+            applyBeautification(points_G, &ros_point_cloud_G);
           } else {
             backend::convertPointCloudType(points_G, &ros_point_cloud_G);
           }
@@ -346,6 +369,8 @@ void visualizeReprojectedDepthResource(
   sensor_msgs::PointCloud2 ros_point_cloud_G;
   if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
     applyVoxelGridFilter(accumulated_point_cloud_G, &ros_point_cloud_G);
+  } else if (FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
+    applyBeautification(accumulated_point_cloud_G, &ros_point_cloud_G);
   } else {
     backend::convertPointCloudType(
         accumulated_point_cloud_G, &ros_point_cloud_G);
@@ -455,10 +480,16 @@ void visualizeReprojectedDepthResourcePerRobot(
           input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G);
     }
 
+    if (accumulated_point_cloud_G.empty()) {
+      return;
+    }
     // Publish accumulated point cloud in global frame.
     sensor_msgs::PointCloud2 ros_point_cloud_G;
     if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
       applyVoxelGridFilter(accumulated_point_cloud_G, &ros_point_cloud_G);
+    } else if (
+        FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
+      applyBeautification(accumulated_point_cloud_G, &ros_point_cloud_G);
     } else {
       backend::convertPointCloudType(
           accumulated_point_cloud_G, &ros_point_cloud_G);

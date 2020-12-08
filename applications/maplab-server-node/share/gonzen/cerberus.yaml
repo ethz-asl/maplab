@@ -1,0 +1,250 @@
+sensors:
+  - id:                                    9bba1718950e74c8b1f52c9762eebc9d
+    sensor_type:                           IMU
+    description:                           "Bosch BMI085 IMU"
+    topic:                                 /anymal_cerberus/imu0
+    sigmas:
+      acc_bias_random_walk_noise_density:  0.0043
+      acc_noise_density:                   0.019
+      gyro_bias_random_walk_noise_density: 0.000266
+      gyro_noise_density:                  0.019
+    saturation_accel_max_mps2:             150
+    saturation_gyro_max_radps:             7.5
+    gravity_magnitude_mps2:                9.808083883386614
+
+  # NOTE:                              The not-throttled LiDAR currently isn't used. Thus, we comment it out
+  #       to avoid wasting computing power by subscribing to it.
+  #       We do however leave it, s.t. it can quickly be enabled if needed
+  #       during the competition.
+  #- id:                                 7251e4eaa03d05ea07b3222fefa85757
+  #sensor_type:                        LIDAR
+  #description:                        "Anymal - VLP 16"
+  #topic:                              /point_cloud_filter/velodyne/point_cloud_filtered
+
+  - id:                                    56dea1629b916c2d86b9c56d657ed339
+    sensor_type:                           POINTCLOUD_MAP
+    description:                           "anymal_cerberus VLP16"
+    topic:                                 /anymal_cerberus/points
+
+  - id:                                    3e103bc4434dbaa484e09b04854d5429
+    sensor_type:                           ODOMETRY_6DOF
+    topic:                                 /anymal_cerberus/odometry/maplab_odom_T_M_I
+    description:                           "Odometry: LOAM + MSF in IMU Frame"
+    T_St_Stp1_fixed_covariance:
+      rows:                                6
+      cols:                                6
+      data:
+        - [0.001, 0.0,  0.0,  0.0,   0.0,   0.0]
+        - [0.0,  0.001, 0.0,  0.0,   0.0,   0.0]
+        - [0.0,  0.0,  0.001, 0.0,   0.0,   0.0]
+        - [0.0,  0.0,  0.0,  0.1,  0.0,   0.0]
+        - [0.0,  0.0,  0.0,  0.0,   0.1,  0.0]
+        - [0.0,  0.0,  0.0,  0.0,   0.0,   0.005]
+
+    # NOTE:                                For april tag detection, the sensor frame of these
+    #       constraints is the camera.
+  - id:                                    12cada10711396c1a202f58cc421c82f
+    sensor_type:                           ABSOLUTE_6DOF
+    description:                           "Absolute pose constraints from AprilTags"
+    topic:                                 /anymal/absolute_reference
+    T_G_S_fixed_covariance:
+      rows:                                6
+      cols:                                6
+      data:
+        - [0.25, 0.0,  0.0,  0.0,        0.0,        0.0]
+        - [0.0,  0.25, 0.0,  0.0,        0.0,        0.0]
+        - [0.0,  0.0,  0.25, 0.0,        0.0,        0.0]
+        - [0.0,  0.0,  0.0,  0.008,      0.0,        0.0]
+        - [0.0,  0.0,  0.0,  0.0,        0.008,      0.0]
+        - [0.0,  0.0,  0.0,  0.0,        0.0,        0.001]
+
+  - id:                                    697b563325d1533fdc0c0acb18d90283
+    sensor_type:                           NCAMERA
+    topic:                                 ""
+    description:                           NCAMERA containing Blackfly S 1.6MP Color
+    T_G_B_fixed_covariance:
+      rows:                                6
+      cols:                                6
+      data:
+        - [0.1,0,0,0,0,0]
+        - [0,0.1,0,0,0,0]
+        - [0,0,0.1,0,0,0]
+        - [0,0,0,0.01,0,0]
+        - [0,0,0,0,0.01,0]
+        - [0,0,0,0,0,0.01]
+    cameras:
+      - camera:
+          id:                              7d29adfe55cdda108a1c29ca7f79e42b
+          sensor_type:                     CAMERA
+          topic:                           /anymal_cerberus/cam0
+          compressed:                      false
+          description:                     0.4MP Mono Camera Forward Left
+          line-delay-nanoseconds:          0
+          image_height:                    540
+          image_width:                     720
+          type:                            pinhole
+          intrinsics:
+            rows:                          4
+            cols:                          1
+            data:
+              - 351.38136718
+              - 351.60187548
+              - 375.54984188
+              - 278.89667909
+          distortion:
+            type:                          equidistant
+            parameters:
+              rows:                        4
+              cols:                        1
+              data:
+                - -0.04284556
+                - 0.00297632
+                - -0.00345788
+                - 0.00062212
+        T_B_C:
+          rows:                            4
+          cols:                            4
+          data:
+            - [-0.9999113, -0.01047585, -0.00822511, 0.04496145]
+            - [0.00816389, 0.00587336, -0.99994943, -0.07371112]
+            - [0.01052363, -0.99992788, -0.00578731, 0.0233054]
+            - [0.0, 0.0, 0.0, 1.0]
+
+      - camera:
+          id:                              9ce7b5000f15adb3c0da8ac6b730ff01
+          sensor_type:                     CAMERA
+          description:                     0.4MP Mono Camera Forward Right
+          topic:                           /anymal_cerberus/cam1/compressed
+          compressed:                      true
+          line-delay-nanoseconds:          0
+          image_height:                    540
+          image_width:                     720
+          type:                            pinhole
+          intrinsics:
+            rows:                          4
+            cols:                          1
+            data:
+              - 351.94912904
+              - 352.13332849
+              - 340.8127132
+              - 263.6041843
+          distortion:
+            type:                          equidistant
+            parameters:
+              rows:                        4
+              cols:                        1
+              data:
+                - -0.0407174
+                - 0.00227925
+                - -0.00359037
+                - 0.00079265
+        T_B_C:
+          rows:                            4
+          cols:                            4
+          data:
+            - [-0.99999832, 0.00009429, -0.00183252, -0.05455132]
+            - [ 0.00183307, 0.00615819, -0.99997936, -0.07351055]
+            - [-0.000083, -0.99998103, -0.00615836, 0.02318442]
+            - [0.0, 0.0, 0.0, 1.0]
+
+      - camera:
+          id:                              7d29adfe55cdda108a1c29ca7f79e43b
+          sensor_type:                     CAMERA
+          topic:                           /anymal_cerberus/cam2/compressed
+          compressed:                      true
+          description:                     0.4MP Mono Camera Upwards Left
+          line-delay-nanoseconds:          0
+          image_height:                    540
+          image_width:                     720
+          type:                            pinhole
+          intrinsics:
+            rows:                          4
+            cols:                          1
+            data:
+              - 351.43800731
+              - 351.74101718
+              - 363.01675523
+              - 274.56685171
+          distortion:
+            type:                          equidistant
+            parameters:
+              rows:                        4
+              cols:                        1
+              data:
+                - -0.0393666
+                - -0.00139878
+                - -0.00034303
+                - -0.00014354
+        T_B_C:
+          rows:                            4
+          cols:                            4
+          data:
+            - [-0.99996006, -0.00580396, 0.0067964, 0.04429731]
+            - [0.00580378, -0.99998316, -0.00004593, -0.05276805]
+            - [0.00679655, -0.00000648, 0.9999769, 0.05834653]
+            - [0.0, 0.0, 0.0, 1.0]
+
+extrinsics:
+  - sensor_id:                             56dea1629b916c2d86b9c56d657ed339
+    base_sensor_id:                        9bba1718950e74c8b1f52c9762eebc9d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1, 0, 0, 0.005303]    # From CAD for now,
+        - [0, 1, 0, 0.037340]   # will be updated as soon as lidar-cam calib is done
+        - [0, 0, 1, 0.063319]
+        - [0, 0, 0, 1]
+  - sensor_id:                             7251e4eaa03d05ea07b3222fefa85757
+    base_sensor_id:                        9bba1718950e74c8b1f52c9762eebc9d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1.0, 0.0, 0.0, -0.005303]
+        - [0.0, 0.0, -1.0, -0.037340]
+        - [0.0, 1.0, 0.0, -0.063319]
+        - [0, 0, 0, 1]
+
+  - sensor_id:                             697b563325d1533fdc0c0acb18d90283
+    base_sensor_id:                        9bba1718950e74c8b1f52c9762eebc9d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1, 0, 0, 0]
+        - [0, 1, 0, 0]
+        - [0, 0, 1, 0]
+        - [0, 0, 0, 1]
+
+  - sensor_id:                             9bba1718950e74c8b1f52c9762eebc9d
+    base_sensor_id:                        9bba1718950e74c8b1f52c9762eebc9d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1, 0, 0, 0]
+        - [0, 1, 0, 0]
+        - [0, 0, 1, 0]
+        - [0, 0, 0, 1]
+
+  - sensor_id:                             3e103bc4434dbaa484e09b04854d5429
+    base_sensor_id:                        9bba1718950e74c8b1f52c9762eebc9d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1, 0, 0, 0]
+        - [0, 1, 0, 0]
+        - [0, 0, 1, 0]
+        - [0, 0, 0, 1]
+  - sensor_id:                             12cada10711396c1a202f58cc421c82f
+    base_sensor_id:                        9bba1718950e74c8b1f52c9762eebc9d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [-0.99997428, -0.00461093, 0.00549433, 0.04563641]
+        - [-0.00553968, 0.00988012, -0.99993585, -0.07348082]
+        - [ 0.00455635, -0.99994056, -0.00990541, 0.02311059]
+        - [0.0, 0.0, 0.0, 1.0]

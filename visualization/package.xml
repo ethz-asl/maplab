@@ -37,4 +37,6 @@
   <depend>visualization_msgs</depend>
   <depend>voxblox_msgs</depend>
   <depend>voxblox</depend>
+  <depend>libpointmatcher</depend>
+  <depend>pointmatcher_ros</depend>
 </package>

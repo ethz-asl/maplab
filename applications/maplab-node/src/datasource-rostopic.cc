@@ -58,17 +58,44 @@ void DataSourceRostopic::registerSubscribers(
        ros_topics.camera_topic_cam_index_map) {
     CHECK(!topic_camidx.first.empty()) << "Camera " << topic_camidx.second
                                        << " is subscribed to an empty topic!";
+    const std::string kCompressedTopicEnding = "/compressed/";
+    bool is_compressed = false;
+    if (topic_camidx.first.size() >= kCompressedTopicEnding.size()) {
+      is_compressed =
+          (topic_camidx.first.substr(
+               topic_camidx.first.size() - kCompressedTopicEnding.size()) ==
+           kCompressedTopicEnding);
+    }
+    if (is_compressed) {
+      boost::function<void(const sensor_msgs::ImageConstPtr&)> image_callback =
+          boost::bind(
+              &DataSourceRostopic::imageCallback, this, _1,
+              topic_camidx.second);
 
-    boost::function<void(const sensor_msgs::ImageConstPtr&)> image_callback =
-        boost::bind(
-            &DataSourceRostopic::imageCallback, this, _1, topic_camidx.second);
+      constexpr size_t kRosSubscriberQueueSizeImage = 20u;
+      const image_transport::TransportHints compressed_hints("compressed");
+      image_transport::Subscriber image_sub = image_transport_.subscribe(
+          topic_camidx.first.substr(
+              0,
+              topic_camidx.first.size() - (kCompressedTopicEnding.size() - 1u)),
+          kRosSubscriberQueueSizeImage, image_callback, ros::VoidPtr(),
+          compressed_hints);
+      sub_images_.push_back(image_sub);
+      VLOG(1) << "[MaplabNode-DataSource] Camera " << topic_camidx.second
+              << " is subscribed to topic: '" << topic_camidx.first << "'";
+    } else {
+      boost::function<void(const sensor_msgs::ImageConstPtr&)> image_callback =
+          boost::bind(
+              &DataSourceRostopic::imageCallback, this, _1,
+              topic_camidx.second);
 
-    constexpr size_t kRosSubscriberQueueSizeImage = 20u;
-    image_transport::Subscriber image_sub = image_transport_.subscribe(
-        topic_camidx.first, kRosSubscriberQueueSizeImage, image_callback);
-    sub_images_.push_back(image_sub);
-    VLOG(1) << "[MaplabNode-DataSource] Camera " << topic_camidx.second
-            << " is subscribed to topic: '" << topic_camidx.first << "'";
+      constexpr size_t kRosSubscriberQueueSizeImage = 20u;
+      image_transport::Subscriber image_sub = image_transport_.subscribe(
+          topic_camidx.first, kRosSubscriberQueueSizeImage, image_callback);
+      sub_images_.push_back(image_sub);
+      VLOG(1) << "[MaplabNode-DataSource] Camera " << topic_camidx.second
+              << " is subscribed to topic: '" << topic_camidx.first << "'";
+    }
   }
 
   // IMU subscriber.
@@ -316,6 +343,7 @@ void DataSourceRostopic::lidarMeasurementCallback(
     *lidar_measurement->getTimestampNanosecondsMutable() +=
         FLAGS_imu_to_lidar_time_offset_ns;
   }
+
   invokeLidarCallbacks(lidar_measurement);
 }
 

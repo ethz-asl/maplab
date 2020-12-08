@@ -55,11 +55,14 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
 
   bool is_converged = true;
   PclPointCloudPtr<T_point> transformed(new pcl::PointCloud<T_point>);
-  aligner_.setMaximumIterations(150);
-  aligner_.setTransformationEpsilon(1e-9);
+  aligner_.setMaximumIterations(300);
+  aligner_.setRANSACIterations(1);
+  aligner_.setTransformationEpsilon(0.00001);
   aligner_.setEuclideanFitnessEpsilon(1);
-  aligner_.setRANSACOutlierRejectionThreshold(1.6);
-  aligner_.setMaxCorrespondenceDistance(0.08);
+  aligner_.setRANSACOutlierRejectionThreshold(0.05);
+  aligner_.setMaxCorrespondenceDistance(0.05);
+  aligner_.setUseReciprocalCorrespondences(false);
+
   try {
     const Eigen::Matrix4f prior =
         prior_T_target_source.getTransformationMatrix().cast<float>();
@@ -72,7 +75,7 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
     is_converged = false;  // just a procaution.
   }
   const Eigen::Matrix4f T = aligner_.getFinalTransformation();
-  const Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6) * 1e-4;
+  const Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6) * 1;
   return RegistrationResult(
       transformed, cov, this->convertEigenToKindr(T.cast<double>()),
       aligner_.hasConverged() & is_converged);
