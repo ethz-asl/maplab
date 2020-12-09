@@ -135,10 +135,6 @@ template <>
 void addRingToPointCloud(
     const uint32_t ring, const size_t index,
     sensor_msgs::PointCloud2* point_cloud);
-template <>
-void addRingToPointCloud(
-    const uint32_t ring, const size_t index,
-    pcl::PointCloud<pcl::PointXYZL>* point_cloud);
 
 template <>
 void addTimeToPointCloud(
@@ -147,10 +143,6 @@ template <>
 void addTimeToPointCloud(
     const float time, const size_t index,
     sensor_msgs::PointCloud2* point_cloud);
-template <>
-void addTimeToPointCloud(
-    const float time, const size_t index,
-    pcl::PointCloud<pcl::PointXYZL>* point_cloud);
 
 template <>
 void addPointToPointCloud(
@@ -249,8 +241,6 @@ template <>
 bool hasRingInformation(const sensor_msgs::PointCloud2& point_cloud);
 template <>
 bool hasRingInformation(const resources::PointCloud& point_cloud);
-template <>
-bool hasRingInformation(const pcl::PointCloud<pcl::PointXYZL>& point_cloud);
 
 template <typename PointCloudType>
 bool hasTimeInformation(const PointCloudType& /*point_cloud*/) {
@@ -260,8 +250,6 @@ template <>
 bool hasTimeInformation(const sensor_msgs::PointCloud2& point_cloud);
 template <>
 bool hasTimeInformation(const resources::PointCloud& point_cloud);
-template <>
-bool hasTimeInformation(const pcl::PointCloud<pcl::PointXYZL>& point_cloud);
 
 template <>
 void resizePointCloud(
@@ -436,10 +424,6 @@ template <>
 void getRingFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     uint32_t* ring);
-template <>
-void getRingFromPointCloud(
-    const pcl::PointCloud<pcl::PointXYZL>& point_cloud, const size_t index,
-    uint32_t* ring);
 
 template <typename PointCloudType>
 void getTimeFromPointCloud(
@@ -455,10 +439,6 @@ void getTimeFromPointCloud(
 template <>
 void getTimeFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
-    float* time_s);
-template <>
-void getTimeFromPointCloud(
-    const pcl::PointCloud<pcl::PointXYZL>& point_cloud, const size_t index,
     float* time_s);
 
 template <typename PointCloudType>
