@@ -39,11 +39,15 @@ LpmAlignment::LpmAlignment() : input_filters_(nullptr) {
 RegistrationResult LpmAlignment::registerCloudImpl(
     const resources::PointCloud& target, const resources::PointCloud& source,
     const aslam::Transformation& prior_T_target_source) {
-  sensor_msgs::PointCloud2 target_msg;
-  backend::convertPointCloudType(target, &target_msg);
-  sensor_msgs::PointCloud2 source_msg;
-  backend::convertPointCloudType(source, &source_msg);
+  pcl::PointCloud<pcl::PointXYZI> target_pcl;
+  backend::convertPointCloudType(target, &target_pcl);
+  pcl::PointCloud<pcl::PointXYZI> source_pcl;
+  backend::convertPointCloudType(source, &source_pcl);
 
+  sensor_msgs::PointCloud2 target_msg;
+  backend::convertPointCloudType(target_pcl, &target_msg);
+  sensor_msgs::PointCloud2 source_msg;
+  backend::convertPointCloudType(source_pcl, &source_msg);
   PointMatcher<double>::DataPoints target_points =
       PointMatcher_ros::rosMsgToPointMatcherCloud<double>(target_msg);
   PointMatcher<double>::DataPoints source_points =

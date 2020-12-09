@@ -24,6 +24,24 @@ Config Config::fromGflags() {
   return config;
 }
 
+Config Config::forLoam() {
+  Config config;
+
+  config.use_loam_alignment = true;
+  config.search_config = SearchConfig::fromGflags();
+  config.search_config.enable_intra_mission_consecutive_search = true;
+  config.search_config.consecutive_search_max_delta_time_s = 0.15;
+  config.search_config.enable_intra_mission_proximity_search = false;
+  config.search_config.enable_inter_mission_proximity_search = false;
+  config.search_config.enable_intra_mission_global_search = false;
+  config.search_config.enable_inter_mission_global_search = false;
+  config.selection_config = SelectionConfig::fromGflags();
+  config.alignment_config = AlignmentConfig::fromGflags();
+  config.constraints_config = ConstraintsConfig::fromGflags();
+
+  return config;
+}
+
 bool addDenseMappingConstraintsToMap(
     const Config& config, const vi_map::MissionIdList& mission_ids,
     vi_map::VIMap* vi_map_ptr) {
@@ -47,7 +65,7 @@ bool addDenseMappingConstraintsToMap(
   }
 
   AlignmentCandidatePairs aligned_candidates;
-  if (FLAGS_dm_candidate_alignment_use_loam_alignment) {
+  if (config.use_loam_alignment) {
     if (!computeLoamAlignmentForCandidatePairs(
             config.alignment_config, *vi_map_ptr, candidates,
             &aligned_candidates)) {

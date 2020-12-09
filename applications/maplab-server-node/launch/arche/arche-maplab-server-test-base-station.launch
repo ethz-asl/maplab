@@ -10,7 +10,7 @@ Requires:
 
 	<!-- MAPLAB SERVER -->
 	<group ns="maplab_server">
-		<node name="maplab_server_node" pkg="maplab_server_node" type="maplab_server_node" output="screen" clear_params="true">
+		<node name="maplab_server_node" pkg="maplab_server_node" type="maplab_server_node" output="screen" clear_params="true" args="-alsologtostderr">
 			<rosparam command="load" file="$(find maplab_server_node)/cfg/maplab_server_ros_params.yaml"/>
 
 			<!-- Overwrite map update topic -->

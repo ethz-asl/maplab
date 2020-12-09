@@ -1,6 +1,7 @@
 #include "maplab-server-node/maplab-server-node.h"
 
 #if __GNUC__ > 5
+#include <dense-mapping/dense-mapping-gflags.h>
 #include <dense-mapping/dense-mapping.h>
 #endif
 #include <depth-integration/depth-integration.h>
@@ -1449,7 +1450,13 @@ void MaplabServerNode::runSubmapProcessing(
       running_submap_process_[submap_process.map_hash] = "lidar loop closure";
     }
 
-    const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+    dense_mapping::Config config;
+    if (dense_mapping::FLAGS_dm_candidate_alignment_use_loam_alignment) {
+      config = dense_mapping::Config::forLoam();
+    } else {
+      config = dense_mapping::Config::fromGflags();
+    }
+
     if (!dense_mapping::addDenseMappingConstraintsToMap(
             config, missions_to_process, map.get())) {
       LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "

@@ -14,11 +14,12 @@ namespace dense_mapping {
 
 struct Config {
   static Config fromGflags();
-
+  static Config forLoam();
   SearchConfig search_config;
   SelectionConfig selection_config;
   AlignmentConfig alignment_config;
   ConstraintsConfig constraints_config;
+  bool use_loam_alignment = false;
 };
 
 bool addDenseMappingConstraintsToMap(

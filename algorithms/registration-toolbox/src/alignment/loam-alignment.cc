@@ -356,8 +356,8 @@ void LoamAlignment::addEdgeCostFactors(
     }
   }
   if (n_corners < 20) {
-    LOG(WARNING) << "Not enough edge points matched in Loam Alignment";
-    LOG(WARNING) << n_corners;
+    // LOG(WARNING) << "Not enough edge points matched in Loam Alignment";
+    // LOG(WARNING) << n_corners;
   }
 }
 
@@ -439,7 +439,7 @@ void LoamAlignment::addSurfaceCostFactors(
     }
   }
   if (n_surfaces < 20) {
-    LOG(WARNING) << "Not enough surface points matched in Loam Alignment";
+    // LOG(WARNING) << "Not enough surface points matched in Loam Alignment";
   }
 }
 
