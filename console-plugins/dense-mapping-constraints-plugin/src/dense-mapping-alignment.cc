@@ -470,7 +470,7 @@ bool computeLoamAlignmentForCandidatePairs(
       pcl::PointCloud<pcl::PointXYZL>::Ptr aggregated_loam_map_pcl(
           new pcl::PointCloud<pcl::PointXYZL>);
       backend::convertPointCloudType(
-          aggregated_loam_map, &aggregated_loam_map_pcl);
+          aggregated_loam_map, &(*aggregated_loam_map_pcl));
       ++successful_alignments;
       last_successful_candidate = loam_pair.candidate_A;
       T_map_last_successful_candidate = loam_pair.T_SB_SA_final;
@@ -545,7 +545,7 @@ bool computeLoamAlignmentForCandidatePairs(
       visualization::RVizVisualizationSink::publish(
           kLoamMapPointCloudTopic, loam_map_points_msg);
       backend::convertPointCloudType(
-          aggregated_loam_map_pcl, &aggregated_loam_map);
+          *aggregated_loam_map_pcl, &aggregated_loam_map);
     }
 
     progress_bar.update(++processed_pairs);
