@@ -2,6 +2,7 @@
 #define REGISTRATION_TOOLBOX_ALIGNMENT_PCL_ALIGNMENT_H_
 
 #include <glog/logging.h>
+#include <map-resources/resource-conversion.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/registration/gicp.h>
 #include <pcl/registration/icp.h>
@@ -15,7 +16,7 @@ template <typename T>
 using PclPointCloudPtr = typename boost::shared_ptr<pcl::PointCloud<T>>;
 
 template <typename T_alignment, typename T_point>
-class PclAlignment : public BaseAlignment<PclPointCloudPtr<T_point>> {
+class PclAlignment : public BaseAlignment<resources::PointCloud> {
  public:
   PclAlignment() {
     CHECK_GT(FLAGS_regbox_pcl_downsample_leaf_size_m, 0);
@@ -28,8 +29,7 @@ class PclAlignment : public BaseAlignment<PclPointCloudPtr<T_point>> {
 
  protected:
   RegistrationResult registerCloudImpl(
-      const PclPointCloudPtr<T_point>& target,
-      const PclPointCloudPtr<T_point>& source,
+      const resources::PointCloud& target, const resources::PointCloud& source,
       const aslam::Transformation& prior_T_target_source) override;
 
  private:
@@ -39,18 +39,20 @@ class PclAlignment : public BaseAlignment<PclPointCloudPtr<T_point>> {
 
 template <typename T_alignment, typename T_point>
 RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
-    const PclPointCloudPtr<T_point>& target,
-    const PclPointCloudPtr<T_point>& source,
+    const resources::PointCloud& target, const resources::PointCloud& source,
     const aslam::Transformation& prior_T_target_source) {
-  CHECK_NOTNULL(target);
-  CHECK_NOTNULL(source);
+  PclPointCloudPtr<T_point> target_pcl(new pcl::PointCloud<T_point>);
+  PclPointCloudPtr<T_point> source_pcl(new pcl::PointCloud<T_point>);
+
+  backend::convertPointCloudType(source, source_pcl.get());
+  backend::convertPointCloudType(target, target_pcl.get());
 
   PclPointCloudPtr<T_point> target_ds(new pcl::PointCloud<T_point>);
   PclPointCloudPtr<T_point> source_ds(new pcl::PointCloud<T_point>);
 
-  voxel_grid_.setInputCloud(target);
+  voxel_grid_.setInputCloud(target_pcl);
   voxel_grid_.filter(*target_ds);
-  voxel_grid_.setInputCloud(source);
+  voxel_grid_.setInputCloud(source_pcl);
   voxel_grid_.filter(*source_ds);
 
   bool is_converged = true;
@@ -76,9 +78,11 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
   }
   const Eigen::Matrix4f T = aligner_.getFinalTransformation();
   const Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6) * 1;
+  resources::PointCloud source_registered = source;
+  const auto T_kindr = this->convertEigenToKindr(T.cast<double>());
+  source_registered.applyTransformation(T_kindr);
   return RegistrationResult(
-      transformed, cov, this->convertEigenToKindr(T.cast<double>()),
-      aligner_.hasConverged() & is_converged);
+      source_registered, cov, T_kindr, aligner_.hasConverged() & is_converged);
 }
 
 using IcpAlignment = PclAlignment<

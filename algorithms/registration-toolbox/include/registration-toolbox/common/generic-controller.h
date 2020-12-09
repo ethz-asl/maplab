@@ -31,18 +31,6 @@ class GenericController {
       const T_input& target, const T_input& source,
       const aslam::Transformation& prior_T_target_source);
 
-  // Partial specialization of the align method as overload.
-  template <typename T_point>
-  RegistrationResult align(
-      const boost::shared_ptr<pcl::PointCloud<T_point>>& target_pc,
-      const boost::shared_ptr<pcl::PointCloud<T_point>>& source_pc,
-      const aslam::Transformation& prior_T_target_source) {
-    CHECK_NOTNULL(target_pc);
-    CHECK_NOTNULL(source_pc);
-    return alignment_->registerCloud(
-        target_pc, source_pc, prior_T_target_source);
-  }
-
   T_align& getAlignment() {
     CHECK_NOTNULL(alignment_);
     return *alignment_;
@@ -71,13 +59,7 @@ template <typename T_input>
 RegistrationResult GenericController<T_align>::align(
     const T_input& target, const T_input& source,
     const aslam::Transformation& prior_T_target_source) {
-  pcl::PointCloud<pcl::PointXYZI>::Ptr source_pc(
-      new pcl::PointCloud<pcl::PointXYZI>);
-  pcl::PointCloud<pcl::PointXYZI>::Ptr target_pc(
-      new pcl::PointCloud<pcl::PointXYZI>);
-  backend::convertPointCloudType(source, source_pc.get());
-  backend::convertPointCloudType(target, target_pc.get());
-  return align(target_pc, source_pc, prior_T_target_source);
+  return alignment_->registerCloud(target, source, prior_T_target_source);
 }
 
 }  // namespace regbox

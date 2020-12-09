@@ -3,6 +3,7 @@
 #include <utility>
 #include <vector>
 
+#include <map-resources/resource-conversion.h>
 #include <pcl/common/transforms.h>
 #include <pcl/filters/filter.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -22,16 +23,21 @@ DEFINE_double(
 namespace regbox {
 
 RegistrationResult LoamAlignment::registerCloudImpl(
-    const PclPointCloudPtr<pcl::PointXYZI>& target,
-    const PclPointCloudPtr<pcl::PointXYZI>& source,
+    const resources::PointCloud& target, const resources::PointCloud& source,
     const aslam::Transformation& prior_T_target_source) {
+  pcl::PointCloud<pcl::PointXYZL>::Ptr source_pc(
+      new pcl::PointCloud<pcl::PointXYZL>);
+  pcl::PointCloud<pcl::PointXYZL>::Ptr target_pc(
+      new pcl::PointCloud<pcl::PointXYZL>);
+  backend::convertPointCloudType(source, source_pc.get());
+  backend::convertPointCloudType(target, target_pc.get());
 
-  extractFeaturesFromInputClouds(target, source);
+  extractFeaturesFromInputClouds(target_pc, source_pc);
 
-  kd_tree_target_edges_ = pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr(
-    new pcl::KdTreeFLANN<pcl::PointXYZI>());
-  kd_tree_target_surfaces_ = pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr(
-    new pcl::KdTreeFLANN<pcl::PointXYZI>());
+  kd_tree_target_edges_ = pcl::KdTreeFLANN<pcl::PointXYZL>::Ptr(
+      new pcl::KdTreeFLANN<pcl::PointXYZL>());
+  kd_tree_target_surfaces_ = pcl::KdTreeFLANN<pcl::PointXYZL>::Ptr(
+      new pcl::KdTreeFLANN<pcl::PointXYZL>());
 
   Eigen::Map<Eigen::Quaterniond> q_w_curr =
         Eigen::Map<Eigen::Quaterniond>(&parameters_[0]);
@@ -76,41 +82,37 @@ RegistrationResult LoamAlignment::registerCloudImpl(
   }
   const aslam::Transformation T_target_source(q_w_curr, t_w_curr);
 
-  PclPointCloudPtr<pcl::PointXYZI> source_registered(
-      new pcl::PointCloud<pcl::PointXYZI>);
-
-  pcl::transformPointCloud(
-      *source, *source_registered, T_target_source.getTransformationMatrix());
+  resources::PointCloud source_registered = source;
+  source_registered.applyTransformation(T_target_source);
 
   return RegistrationResult(
       source_registered, covariance, T_target_source, true);
 }
 
 void LoamAlignment::extractFeaturesFromInputClouds(
-    const PclPointCloudPtr<pcl::PointXYZI>& target,
-    const PclPointCloudPtr<pcl::PointXYZI>& source) {
-
-  target_surfaces_ = PclPointCloudPtr<pcl::PointXYZI>(
-      new pcl::PointCloud<pcl::PointXYZI>);
-  target_edges_ = PclPointCloudPtr<pcl::PointXYZI>(
-      new pcl::PointCloud<pcl::PointXYZI>);
+    const PclPointCloudPtr<pcl::PointXYZL>& target,
+    const PclPointCloudPtr<pcl::PointXYZL>& source) {
+  target_surfaces_ =
+      PclPointCloudPtr<pcl::PointXYZL>(new pcl::PointCloud<pcl::PointXYZL>);
+  target_edges_ =
+      PclPointCloudPtr<pcl::PointXYZL>(new pcl::PointCloud<pcl::PointXYZL>);
   source_surfaces_ =
-      PclPointCloudPtr<pcl::PointXYZI>(new pcl::PointCloud<pcl::PointXYZI>);
+      PclPointCloudPtr<pcl::PointXYZL>(new pcl::PointCloud<pcl::PointXYZL>);
   source_edges_ =
-      PclPointCloudPtr<pcl::PointXYZI>(new pcl::PointCloud<pcl::PointXYZI>);
+      PclPointCloudPtr<pcl::PointXYZL>(new pcl::PointCloud<pcl::PointXYZL>);
 
-  for (pcl::PointXYZI point : target->points) {
-    if (point.intensity == 0) {
+  for (pcl::PointXYZL point : target->points) {
+    if (point.label == 0) {
       target_surfaces_->push_back(point);
-    } else if (point.intensity == 1) {
+    } else if (point.label == 1) {
       target_edges_->push_back(point);
     }
   }
 
-  for (pcl::PointXYZI point : source->points) {
-    if (point.intensity == 0) {
+  for (pcl::PointXYZL point : source->points) {
+    if (point.label == 0) {
       source_surfaces_->push_back(point);
-    } else if (point.intensity == 1) {
+    } else if (point.label == 1) {
       source_edges_->push_back(point);
     }
   }
@@ -281,17 +283,17 @@ void PoseSE3Parameterization::getTransformFromSe3(
 }
 
 void LoamAlignment::addEdgeCostFactors(
-    const PclPointCloudPtr<pcl::PointXYZI>& target_edges,
-    const PclPointCloudPtr<pcl::PointXYZI>& source_edges,
-    const aslam::Transformation& T_target_source,
-    ceres::Problem* problem, ceres::LossFunction *loss_function) {
+    const PclPointCloudPtr<pcl::PointXYZL>& target_edges,
+    const PclPointCloudPtr<pcl::PointXYZL>& source_edges,
+    const aslam::Transformation& T_target_source, ceres::Problem* problem,
+    ceres::LossFunction* loss_function) {
   CHECK_NOTNULL(problem);
   CHECK_NOTNULL(loss_function);
 
   size_t n_corners = 0u;
 
-  PclPointCloudPtr<pcl::PointXYZI> source_edges_transformed(
-      new pcl::PointCloud<pcl::PointXYZI>);
+  PclPointCloudPtr<pcl::PointXYZL> source_edges_transformed(
+      new pcl::PointCloud<pcl::PointXYZL>);
   pcl::transformPointCloud(
       *source_edges, *source_edges_transformed,
       T_target_source.getTransformationMatrix());
@@ -360,17 +362,17 @@ void LoamAlignment::addEdgeCostFactors(
 }
 
 void LoamAlignment::addSurfaceCostFactors(
-    const PclPointCloudPtr<pcl::PointXYZI>& target_surfaces,
-    const PclPointCloudPtr<pcl::PointXYZI>& source_surfaces,
-    const aslam::Transformation& T_target_source,
-    ceres::Problem* problem, ceres::LossFunction *loss_function) {
+    const PclPointCloudPtr<pcl::PointXYZL>& target_surfaces,
+    const PclPointCloudPtr<pcl::PointXYZL>& source_surfaces,
+    const aslam::Transformation& T_target_source, ceres::Problem* problem,
+    ceres::LossFunction* loss_function) {
   CHECK_NOTNULL(problem);
   CHECK_NOTNULL(loss_function);
 
   size_t n_surfaces = 0;
 
-  PclPointCloudPtr<pcl::PointXYZI> source_surfaces_transformed(
-      new pcl::PointCloud<pcl::PointXYZI>);
+  PclPointCloudPtr<pcl::PointXYZL> source_surfaces_transformed(
+      new pcl::PointCloud<pcl::PointXYZL>);
   pcl::transformPointCloud(
       *source_surfaces, *source_surfaces_transformed,
       T_target_source.getTransformationMatrix());

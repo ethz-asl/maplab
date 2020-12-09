@@ -15,42 +15,41 @@ namespace regbox {
 template <typename T>
 using PclPointCloudPtr = typename boost::shared_ptr<pcl::PointCloud<T>>;
 
-class LoamAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
+class LoamAlignment : public BaseAlignment<resources::PointCloud> {
  public:
   virtual ~LoamAlignment() = default;
 
  protected:
   RegistrationResult registerCloudImpl(
-      const PclPointCloudPtr<pcl::PointXYZI>& target,
-      const PclPointCloudPtr<pcl::PointXYZI>& source,
+      const resources::PointCloud& target, const resources::PointCloud& source,
       const aslam::Transformation& prior_T_target_source) override;
 
  private:
   void extractFeaturesFromInputClouds(
-      const PclPointCloudPtr<pcl::PointXYZI>& target,
-      const PclPointCloudPtr<pcl::PointXYZI>& source);
+      const PclPointCloudPtr<pcl::PointXYZL>& target,
+      const PclPointCloudPtr<pcl::PointXYZL>& source);
 
   void addEdgeCostFactors(
-      const PclPointCloudPtr<pcl::PointXYZI>& target_edges,
-      const PclPointCloudPtr<pcl::PointXYZI>& source_edges,
+      const PclPointCloudPtr<pcl::PointXYZL>& target_edges,
+      const PclPointCloudPtr<pcl::PointXYZL>& source_edges,
       const aslam::Transformation& T_target_source, ceres::Problem* problem,
       ceres::LossFunction* loss_function);
 
   void addSurfaceCostFactors(
-      const PclPointCloudPtr<pcl::PointXYZI>& target_surfaces,
-      const PclPointCloudPtr<pcl::PointXYZI>& source_surfaces,
+      const PclPointCloudPtr<pcl::PointXYZL>& target_surfaces,
+      const PclPointCloudPtr<pcl::PointXYZL>& source_surfaces,
       const aslam::Transformation& T_target_source, ceres::Problem* problem,
       ceres::LossFunction* loss_function);
 
   bool calculateSolutionCovariance(
       ceres::Problem* problem, Eigen::Matrix<float, 7, 7>* covariance);
 
-  pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_edges_;
-  pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kd_tree_target_surfaces_;
-  PclPointCloudPtr<pcl::PointXYZI> target_edges_;
-  PclPointCloudPtr<pcl::PointXYZI> target_surfaces_;
-  PclPointCloudPtr<pcl::PointXYZI> source_surfaces_;
-  PclPointCloudPtr<pcl::PointXYZI> source_edges_;
+  pcl::KdTreeFLANN<pcl::PointXYZL>::Ptr kd_tree_target_edges_;
+  pcl::KdTreeFLANN<pcl::PointXYZL>::Ptr kd_tree_target_surfaces_;
+  PclPointCloudPtr<pcl::PointXYZL> target_edges_;
+  PclPointCloudPtr<pcl::PointXYZL> target_surfaces_;
+  PclPointCloudPtr<pcl::PointXYZL> source_surfaces_;
+  PclPointCloudPtr<pcl::PointXYZL> source_edges_;
   double parameters_[7];
 };
 

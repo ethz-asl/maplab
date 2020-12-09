@@ -37,8 +37,6 @@ template <typename T_depth_input>
 RegistrationResult BaseAlignment<T_depth_input>::registerCloud(
     const T_depth_input& target, const T_depth_input& source,
     const aslam::Transformation& prior_T_target_source) {
-  CHECK_NOTNULL(target);
-  CHECK_NOTNULL(source);
   return registerCloudImpl(target, source, prior_T_target_source);
 }
 

@@ -3,7 +3,7 @@
 namespace regbox {
 
 RegistrationResult::RegistrationResult(
-    const pcl::PointCloud<pcl::PointXYZI>::Ptr& reg,
+    const resources::PointCloud& reg,
     const aslam::TransformationCovariance& T_target_source_covariance,
     const aslam::Transformation& T_target_source, const bool has_converged)
     : registered_(reg),
@@ -11,14 +11,14 @@ RegistrationResult::RegistrationResult(
       T_target_source_(T_target_source),
       has_converged_(has_converged) {}
 
-void RegistrationResult::setRegisteredCloud(
-    const pcl::PointCloud<pcl::PointXYZI>::Ptr& reg) {
+void RegistrationResult::setRegisteredCloud(const resources::PointCloud& reg) {
   registered_ = reg;
 }
 
-pcl::PointCloud<pcl::PointXYZI>::Ptr RegistrationResult::getRegisteredCloud()
-    const noexcept {
-  return registered_;
+void RegistrationResult::getRegisteredCloud(resources::PointCloud* reg) const
+    noexcept {
+  CHECK_NOTNULL(reg);
+  *reg = registered_;
 }
 
 void RegistrationResult::set_T_target_source_covariance(

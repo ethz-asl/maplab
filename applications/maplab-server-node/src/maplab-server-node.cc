@@ -466,9 +466,7 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
   }
   vi_map::MissionId submap_mission_id;
   {
-    console - plugins / dense - mapping - constraints -
-        plugin / package.xml std::lock_guard<std::mutex> lock(
-                     robot_to_mission_id_map_mutex_);
+    std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
     if (robot_to_mission_id_map_.count(robot_name) == 0u) {
       LOG(WARNING) << "[MaplabServerNode] Received map lookup with invalid "
                       "robot name: "
@@ -784,7 +782,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         map_optimization::ViProblemOptions::initFromGFlags();
 
     // Restore previous trust region.
-    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  // NOLINT
+    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  //NOLINT
       // Reset the trust region if N submaps have been added in the meantime.
       const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
       const uint32_t num_submaps_since_reset =
@@ -887,7 +885,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         map_optimization::ViProblemOptions::initFromGFlags();
 
     // Restore previous trust region.
-    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  // NOLINT
+    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  //NOLINT
       // Reset the trust region if N submaps have been added in the meantime.
       const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
       const uint32_t num_submaps_since_reset =
@@ -1729,7 +1727,6 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
         }
       }
     }  // Limits the scope of the lock on the robot to mission id bookkeeping
-
     num_missions_in_merged_map_after_deletion = merged_map->numMissions();
   }  // Limits the scope of the lock on the merged map, such that it can
      // be deleted down below.

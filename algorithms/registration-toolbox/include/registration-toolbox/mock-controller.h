@@ -11,10 +11,6 @@ class MockController : public BaseController::Registrar<MockController> {
  public:
   explicit MockController(std::string&& name) {}
   RegistrationResult align(
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& target,
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& source,
-      const aslam::Transformation& prior_T_target_source) override;
-  RegistrationResult align(
       const resources::PointCloud& target, const resources::PointCloud& source,
       const aslam::Transformation& prior_T_target_source) override;
 };

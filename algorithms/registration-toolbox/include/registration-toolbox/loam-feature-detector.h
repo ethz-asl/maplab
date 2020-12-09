@@ -6,6 +6,7 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <resources-common/point-cloud.h>
 
 template <typename T>
 using PclPointCloudPtr = typename boost::shared_ptr<pcl::PointCloud<T>>;
@@ -19,21 +20,21 @@ class LoamFeatureDetector {
   ~LoamFeatureDetector() = default;
 
   void extractLoamFeaturesFromPointCloud(
-      const PclPointCloudPtr<pcl::PointXYZI>& point_cloud,
-      PclPointCloudPtr<pcl::PointXYZI> feature_cloud);
+      const resources::PointCloud& point_cloud,
+      resources::PointCloud* feature_cloud);
 
  private:
   void extractFeaturesFromScanLine(
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
-      pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
-      pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces);
+      const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
+      pcl::PointCloud<pcl::PointXYZ>::Ptr edges,
+      pcl::PointCloud<pcl::PointXYZ>::Ptr surfaces);
 
   void downSampleFeatures(
-      pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
-      pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces);
+      pcl::PointCloud<pcl::PointXYZ>::Ptr edges,
+      pcl::PointCloud<pcl::PointXYZ>::Ptr surfaces);
 
   void markUnstablePointsAsPicked(
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+      const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
       std::vector<bool>* point_picked);
 
   void markCurvatureRegionAsPicked(
@@ -46,13 +47,13 @@ class LoamFeatureDetector {
 
   void markCurvatureRegionAsPicked(
       const int& point_idx, const double& distance_threshold_m,
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+      const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
       std::vector<bool>* point_picked);
 
   void calculateCurvatures(
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+      const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
       CurvaturePairs* curvatures);
-  pcl::PointCloud<pcl::PointXYZI> pickedpoints_;
+  pcl::PointCloud<pcl::PointXYZ> pickedpoints_;
 };
 
 }  // namespace regbox

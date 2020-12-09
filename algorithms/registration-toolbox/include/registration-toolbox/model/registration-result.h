@@ -3,8 +3,7 @@
 
 #include <Eigen/Dense>
 #include <aslam/common/pose-types.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
+#include <resources-common/point-cloud.h>
 
 namespace regbox {
 
@@ -14,12 +13,12 @@ class RegistrationResult {
 
   RegistrationResult() = default;
   explicit RegistrationResult(
-      const pcl::PointCloud<pcl::PointXYZI>::Ptr& reg,
+      const resources::PointCloud& reg,
       const aslam::TransformationCovariance& T_target_source_covariance,
       const aslam::Transformation& T_target_source, const bool has_converged);
 
-  void setRegisteredCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr& reg);
-  pcl::PointCloud<pcl::PointXYZI>::Ptr getRegisteredCloud() const noexcept;
+  void setRegisteredCloud(const resources::PointCloud& reg);
+  void getRegisteredCloud(resources::PointCloud* reg) const noexcept;
 
   void set_T_target_source_covariance(
       const aslam::TransformationCovariance& T_target_source_covariance);
@@ -34,7 +33,7 @@ class RegistrationResult {
   void hasConverged(const bool converged);
 
  private:
-  pcl::PointCloud<pcl::PointXYZI>::Ptr registered_;
+  resources::PointCloud registered_;
   aslam::TransformationCovariance T_target_source_covariance_;
   aslam::Transformation T_target_source_;
   int64_t ts_target_ns_;

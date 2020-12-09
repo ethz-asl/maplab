@@ -13,22 +13,18 @@
 
 namespace regbox {
 
-template <typename T>
-using PclPointCloudPtr = typename boost::shared_ptr<pcl::PointCloud<T>>;
-
-class LpmAlignment : public BaseAlignment<PclPointCloudPtr<pcl::PointXYZI>> {
+class LpmAlignment : public BaseAlignment<resources::PointCloud> {
  public:
   LpmAlignment();
   virtual ~LpmAlignment() = default;
 
  protected:
   RegistrationResult registerCloudImpl(
-      const PclPointCloudPtr<pcl::PointXYZI>& target,
-      const PclPointCloudPtr<pcl::PointXYZI>& source,
+      const resources::PointCloud& target, const resources::PointCloud& source,
       const aslam::Transformation& prior_T_target_source) override;
 
   RegistrationResult createResultFromTransformation(
-      const PclPointCloudPtr<pcl::PointXYZI>& source, const bool accept_match,
+      const resources::PointCloud& source, const bool accept_match,
       PointMatcher<double>::TransformationParameters&& T) const noexcept;
 
  private:

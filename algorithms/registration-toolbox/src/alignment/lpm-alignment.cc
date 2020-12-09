@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include <map-resources/resource-conversion.h>
 #include <pcl/common/transforms.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pointmatcher_ros/point_cloud.h>
@@ -36,16 +37,12 @@ LpmAlignment::LpmAlignment() : input_filters_(nullptr) {
 }
 
 RegistrationResult LpmAlignment::registerCloudImpl(
-    const PclPointCloudPtr<pcl::PointXYZI>& target,
-    const PclPointCloudPtr<pcl::PointXYZI>& source,
+    const resources::PointCloud& target, const resources::PointCloud& source,
     const aslam::Transformation& prior_T_target_source) {
-  CHECK_NOTNULL(target);
-  CHECK_NOTNULL(source);
-
   sensor_msgs::PointCloud2 target_msg;
-  pcl::toROSMsg(*target, target_msg);
+  backend::convertPointCloudType(target, &target_msg);
   sensor_msgs::PointCloud2 source_msg;
-  pcl::toROSMsg(*source, source_msg);
+  backend::convertPointCloudType(source, &source_msg);
 
   PointMatcher<double>::DataPoints target_points =
       PointMatcher_ros::rosMsgToPointMatcherCloud<double>(target_msg);
@@ -84,12 +81,12 @@ RegistrationResult LpmAlignment::registerCloudImpl(
 }
 
 RegistrationResult LpmAlignment::createResultFromTransformation(
-    const PclPointCloudPtr<pcl::PointXYZI>& source, const bool accept_match,
+    const resources::PointCloud& source, const bool accept_match,
     PointMatcher<double>::TransformationParameters&& T) const noexcept {
   RegistrationResult result;
 
   // TODO(lbern): fleg for applying transform.
-  PclPointCloudPtr<pcl::PointXYZI> reg(new pcl::PointCloud<pcl::PointXYZI>);
+  resources::PointCloud reg;
   // pcl::transformPointCloud(*source, *reg, T.cast<float>());
   result.setRegisteredCloud(reg);
   result.set_T_target_source(T);

@@ -31,44 +31,45 @@ DEFINE_double(
 namespace regbox {
 
 void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
-    const PclPointCloudPtr<pcl::PointXYZI>& point_cloud,
-    PclPointCloudPtr<pcl::PointXYZI> feature_cloud) {
-  CHECK_NOTNULL(point_cloud);
+    const resources::PointCloud& point_cloud,
+    resources::PointCloud* feature_cloud) {
+  CHECK(point_cloud.hasRings());
   CHECK_NOTNULL(feature_cloud);
-  PclPointCloudPtr<pcl::PointXYZI> edges(new pcl::PointCloud<pcl::PointXYZI>);
-  PclPointCloudPtr<pcl::PointXYZI> surfaces(
-      new pcl::PointCloud<pcl::PointXYZI>);
+
+  PclPointCloudPtr<pcl::PointXYZ> edges(new pcl::PointCloud<pcl::PointXYZ>);
+  PclPointCloudPtr<pcl::PointXYZ> surfaces(new pcl::PointCloud<pcl::PointXYZ>);
 
   std::vector<int> indices;
 
-  const int N_SCANS = 128;
-  std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> scan_lines;
+  std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> scan_lines;
   pickedpoints_.clear();
-  for (int i = 0; i < N_SCANS; i++) {
-    scan_lines.push_back(pcl::PointCloud<pcl::PointXYZI>::Ptr(
-        new pcl::PointCloud<pcl::PointXYZI>));
+
+  pcl::PointCloud<pcl::PointXYZ> loam_input;
+  uint32_t max_ring =
+      *std::max_element(point_cloud.rings.begin(), point_cloud.rings.end());
+
+  for (size_t idx = 0u; idx <= max_ring; idx++) {
+    scan_lines.push_back(
+        PclPointCloudPtr<pcl::PointXYZ>(new pcl::PointCloud<pcl::PointXYZ>));
   }
 
-  pcl::PointCloud<pcl::PointXYZI> loam_input;
-  for (int idx = 0u; idx < point_cloud->size(); idx++) {
-    const pcl::PointXYZI& point = (*point_cloud)[idx];
-    CHECK_GT(N_SCANS, point.intensity);
-    CHECK_GE(point.intensity, 0);
+  for (int idx = 0u; idx < point_cloud.size(); idx++) {
+    CHECK_GE(point_cloud.rings[idx], 0);
+    pcl::PointXYZ point;
+    point.x = point_cloud.xyz[3u * idx + 0];
+    point.y = point_cloud.xyz[3u * idx + 1];
+    point.z = point_cloud.xyz[3u * idx + 2];
     const double planar_distance = sqrt(point.x * point.x + point.y * point.y);
-    if (planar_distance < 0.001 || planar_distance > 57.)
-      continue;
-    if (point.getVector3fMap().norm() < 1.)
-      continue;
     if (abs(point.z) < 0.001)
       continue;
     if (!std::isfinite(point.x) || !std::isfinite(point.y) ||
         !std::isfinite(point.z)) {
       continue;
     }
-    scan_lines[static_cast<int>(point.intensity)]->push_back(point);
+    scan_lines[static_cast<size_t>(point_cloud.rings[idx])]->push_back(point);
     loam_input.push_back(point);
   }
-  for (const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line : scan_lines) {
+  for (const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line : scan_lines) {
     if (scan_line->size() >= 2 * FLAGS_regbox_loam_curvature_region + 1) {
       extractFeaturesFromScanLine(scan_line, edges, surfaces);
     }
@@ -90,7 +91,7 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
   visualization::RVizVisualizationSink::publish(
       kLoamUnstablePointCloudTopic, loam_unstable_points_msg);
 
-  pcl::PointCloud<pcl::PointXYZI> edge_points = *edges;
+  pcl::PointCloud<pcl::PointXYZ> edge_points = *edges;
   edge_points.header.frame_id = kLoamFeatureFrame;
   sensor_msgs::PointCloud2 loam_edge_points_msg;
   pcl::toROSMsg(edge_points, loam_edge_points_msg);
@@ -99,29 +100,32 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
       kLoamEdgePointCloudTopic, loam_edge_points_msg);
 
   downSampleFeatures(edges, surfaces);
-  feature_cloud->clear();
-  for (pcl::PointXYZI point : *edges) {
-    point.intensity = 1;
-    feature_cloud->push_back(point);
+  *feature_cloud = resources::PointCloud();
+  for (pcl::PointXYZ point : *edges) {
+    feature_cloud->xyz.push_back(point.x);
+    feature_cloud->xyz.push_back(point.y);
+    feature_cloud->xyz.push_back(point.z);
+    feature_cloud->labels.push_back(1u);
   }
-  for (pcl::PointXYZI point : *surfaces) {
-    point.intensity = 0;
-    feature_cloud->push_back(point);
+  for (pcl::PointXYZ point : *surfaces) {
+    feature_cloud->xyz.push_back(point.x);
+    feature_cloud->xyz.push_back(point.y);
+    feature_cloud->xyz.push_back(point.z);
+    feature_cloud->labels.push_back(0u);
   }
 }
 
 void LoamFeatureDetector::extractFeaturesFromScanLine(
-    const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
-    pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
-    pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces) {
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
+    pcl::PointCloud<pcl::PointXYZ>::Ptr edges,
+    pcl::PointCloud<pcl::PointXYZ>::Ptr surfaces) {
   std::vector<bool> point_picked(scan_line->size(), false);
   markUnstablePointsAsPicked(scan_line, &point_picked);
   CurvaturePairs cloud_curvatures;
   calculateCurvatures(scan_line, &cloud_curvatures);
   for (size_t idx = 0u; idx < cloud_curvatures.size(); ++idx) {
     if (point_picked[cloud_curvatures[idx].first]) {
-      pcl::PointXYZI point = (*scan_line)[cloud_curvatures[idx].first];
-      point.intensity = cloud_curvatures[idx].second;
+      pcl::PointXYZ point = (*scan_line)[cloud_curvatures[idx].first];
       pickedpoints_.push_back(point);
     }
   }
@@ -176,13 +180,13 @@ void LoamFeatureDetector::extractFeaturesFromScanLine(
 }
 
 void LoamFeatureDetector::markUnstablePointsAsPicked(
-    const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
     std::vector<bool>* point_picked) {
   for (int point_idx = FLAGS_regbox_loam_curvature_region;
        point_idx < scan_line->size() - FLAGS_regbox_loam_curvature_region;
        point_idx++) {
-    const pcl::PointXYZI& point = (*scan_line)[point_idx];
-    const pcl::PointXYZI& previous_point = (*scan_line)[point_idx - 1];
+    const pcl::PointXYZ& point = (*scan_line)[point_idx];
+    const pcl::PointXYZ& previous_point = (*scan_line)[point_idx - 1];
     float alpha = acos(
         point.getVector3fMap().dot(previous_point.getVector3fMap()) /
         (point.getVector3fMap().norm() *
@@ -192,7 +196,7 @@ void LoamFeatureDetector::markUnstablePointsAsPicked(
     }
     const float point_distance_m = point.getVector3fMap().norm();
 
-    const pcl::PointXYZI& next_point = (*scan_line)[point_idx + 1];
+    const pcl::PointXYZ& next_point = (*scan_line)[point_idx + 1];
 
     const float point_to_next_point_distance_m =
         (next_point.getVector3fMap() - point.getVector3fMap()).norm();
@@ -254,7 +258,7 @@ void LoamFeatureDetector::markCurvatureRegionAsPicked(
 
 void LoamFeatureDetector::markCurvatureRegionAsPicked(
     const int& point_idx, const double& distance_threshold_m,
-    const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
     std::vector<bool>* point_picked) {
   (*point_picked)[point_idx] = true;
   for (int neighbor_idx = 1; neighbor_idx <= FLAGS_regbox_loam_curvature_region;
@@ -300,9 +304,9 @@ void LoamFeatureDetector::markSecondHalfCurvatureRegionAsPicked(
 }
 
 void LoamFeatureDetector::downSampleFeatures(
-    pcl::PointCloud<pcl::PointXYZI>::Ptr edges,
-    pcl::PointCloud<pcl::PointXYZI>::Ptr surfaces) {
-  pcl::VoxelGrid<pcl::PointXYZI> edge_filter;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr edges,
+    pcl::PointCloud<pcl::PointXYZ>::Ptr surfaces) {
+  pcl::VoxelGrid<pcl::PointXYZ> edge_filter;
   edge_filter.setInputCloud(edges);
   edge_filter.setLeafSize(
       FLAGS_regbox_loam_edge_filter_size_m,
@@ -310,7 +314,7 @@ void LoamFeatureDetector::downSampleFeatures(
       FLAGS_regbox_loam_edge_filter_size_m);
   edge_filter.filter(*edges);
 
-  pcl::VoxelGrid<pcl::PointXYZI> surface_filter;
+  pcl::VoxelGrid<pcl::PointXYZ> surface_filter;
   surface_filter.setInputCloud(surfaces);
   surface_filter.setLeafSize(
       FLAGS_regbox_loam_surface_filter_size_m,
@@ -320,7 +324,7 @@ void LoamFeatureDetector::downSampleFeatures(
 }
 
 void LoamFeatureDetector::calculateCurvatures(
-    const pcl::PointCloud<pcl::PointXYZI>::Ptr& scan_line,
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
     CurvaturePairs* curvatures) {
   for (int point_idx = FLAGS_regbox_loam_curvature_region;
        point_idx < (*scan_line).size() - FLAGS_regbox_loam_curvature_region;
