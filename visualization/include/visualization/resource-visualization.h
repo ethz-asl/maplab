@@ -49,6 +49,9 @@ DECLARE_int32(vis_pointcloud_visualize_every_nth);
 
 DECLARE_string(vis_pointcloud_export_accumulated_pc_to_ply_path);
 
+DECLARE_string(vis_pointcloud_mission_id);
+DECLARE_string(vis_pointcloud_mission_id_topic);
+
 namespace visualization {
 
   bool visualizeCvMatResources(
@@ -65,6 +68,11 @@ namespace visualization {
           const std::unordered_map<std::string, vi_map::MissionIdList>
           robot_name_to_mission_ids_map,
           const vi_map::VIMap& vi_map);
+
+  void visualizeReprojectedDepthResourceFromMission(
+          const backend::ResourceType type,
+          const vi_map::MissionIdList& mission_ids,
+          const vi_map::VIMap& map);
 
   void getOpenCvWindowsForNCamera(
           const aslam::NCamera& n_camera,
