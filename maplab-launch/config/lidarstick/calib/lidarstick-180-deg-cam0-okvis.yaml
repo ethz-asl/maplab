@@ -1,26 +1,15 @@
 %YAML:1.0
 cameras:
      - {T_SC:
-            [-0.9999641621045086, -0.0070026295913249385, 0.004757907674077553, -0.16210012684230665,
-              0.004779879776070842, -0.00312430862659371, 0.9999836955895492, 0.04699334402275922,
-             -0.006987650245587189, 0.9999706005050412, 0.0031576683855106015, 0.05573138381457567,
+            [-0.9999237459683411, -0.00887049095954965, -0.008591661002224566, -0.03422715855358821,
+             -0.008578055805414566, -0.0015706688514416207, 0.9999619742560005, 0.05631226626235311,
+             -0.008883648306849611, 0.9999594228714962, 0.0014944575151368982, 0.05622655837534756,
               0.0, 0.0, 0.0, 1.0],
         image_dimension:          [720, 540],
-        distortion_coefficients:  [0.005297224609545764, -0.002056917493785131, 0.00399665025864434, -0.001542989667889886],
+        distortion_coefficients:  [0.005164682895585011, -0.00014747591274677765, -0.0013655429586935683, 5.805801080659683e-06],
         distortion_type:          equidistant,
-        focal_length:             [318.3884836637401, 318.3155591743098],
-        principal_point:          [359.7920158885187, 274.6524854825948]}
-     - {T_SC:
-            [-0.9998799801805014, -0.006455918177665462, -0.01408354908125734, -0.03564392840560837,
-            -0.01404346691982178, -0.006212441369011223, 0.9998820863527402, 0.04578551805201717,
-            -0.006542650159741623, 0.9999598625408523, 0.006121032279554073, 0.05665531205066083,
-            0, 0, 0, 1],
-        image_dimension:          [720, 540],
-        distortion_coefficients:  [0.008389637685753994, -0.008026623555813853, 0.008468894266232789, -0.002661689249690012],
-        distortion_type:          equidistant,
-        focal_length:             [318.5615029627294, 318.5508828567644],
-        principal_point:          [356.1322561401549, 280.2661824389335]}
-
+        focal_length:             [290.639512387635, 290.49023471411374],
+        principal_point:          [364.7735578713057, 279.0607406253249]}
 
 camera_params:
     camera_rate:                  20 # just to manage the expectations of when there should be frames arriving
@@ -67,7 +56,7 @@ detection_options:
     maxNoKeypoints:               400  # restrict to a maximum of this many keypoints per image (strongest ones)
 
 # delay of images [s]:
-imageDelay:                       0.02286183558348338  # in case you are using a custom setup, you will have to calibrate this. 0 for the VISensor.
+imageDelay:                       -0.019779092  # in case you are using a custom setup, you will have to calibrate this. 0 for the VISensor.
 
 # display debug images?
 displayImages:                    true  # displays debug video and keyframe matches. May be slow.

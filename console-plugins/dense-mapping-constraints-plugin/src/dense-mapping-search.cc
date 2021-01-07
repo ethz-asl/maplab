@@ -69,8 +69,9 @@ bool searchForAlignmentCandidatePairs(
 
   MissionToAlignmentCandidatesMap candidates_per_mission;
   try {
-    findAllAlignmentCandidates(config, map, mission_ids, &candidates_per_mission);
-  } catch(std::exception &e) {
+    findAllAlignmentCandidates(
+        config, map, mission_ids, &candidates_per_mission);
+  } catch (std::exception& e) {
     LOG(ERROR) << "Finding alignment pairs failed. Aborting.";
     return false;
   }
@@ -203,7 +204,7 @@ void findAllAlignmentCandidates(
 
           if (timestamp_resource_ns < min_timestamp_ns ||
               timestamp_resource_ns > max_timestamp_ns) {
-            LOG(WARNING)
+            VLOG(3)
                 << "The map contains a resource of type '"
                 << backend::ResourceTypeNames[static_cast<int>(resource_type)]
                 << "(" << static_cast<int>(resource_type) << ")' at "
@@ -246,8 +247,12 @@ void findAllAlignmentCandidates(
 
         // Interpolate poses for every resource.
         aslam::TransformationVector T_M_B_vector;
-        pose_interpolator.getPosesAtTime(
+        const bool interpolation_succeeded = pose_interpolator.getPosesAtTime(
             map, mission_id, resource_timestamps, &T_M_B_vector);
+        if (!interpolation_succeeded) {
+          VLOG(1) << "Interpolation failed skipping";
+          continue;
+        }
         CHECK_EQ(
             static_cast<int>(T_M_B_vector.size()), resource_timestamps.size());
         CHECK_EQ(T_M_B_vector.size(), num_used_resources);

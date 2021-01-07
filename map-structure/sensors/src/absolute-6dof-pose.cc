@@ -31,6 +31,7 @@ bool Absolute6DoF::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
 }
 
 void Absolute6DoF::saveToYamlNodeImpl(YAML::Node* sensor_node) const {
+  CHECK_NOTNULL(sensor_node);
   if (has_fixed_T_G_S_covariance_) {
     (*sensor_node)[static_cast<std::string>(
         kYamlFieldNameT_G_S_fixed_covariance)] =

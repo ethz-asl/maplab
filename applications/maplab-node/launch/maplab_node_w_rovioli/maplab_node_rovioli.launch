@@ -107,4 +107,16 @@
       <arg name="vio_camera_topic_suffix" default="$(arg maplab_image_topic_suffix)" />
     </include>
 	</group>
+
+  <include file="$(find maplab_node)/launch/maplab_node_w_rovioli/rovioli.launch">
+    <arg name="rovioli_sensor_calibration_file" default="$(arg maplab_sensor_calibration_file)"/>
+    <arg name="robot_name" default="$(arg robot_name)"/>
+    <arg name="rovioli_imu_to_camera_time_offset_ns" default="$(arg maplab_imu_to_camera_time_offset_ns)"/>
+    <arg name="rovioli_apply_clahe" default="false"/>
+    <arg name="rovioli_world_frame" default="darpa"/>
+    <arg name="rovioli_verbosity" default="$(arg maplab_verbosity)"/>
+    <arg name="rovioli_image_topic_suffix" default="$(arg maplab_image_topic_suffix)"/>
+    <arg name="rovioli_visualize" default="true"/>
+    <arg name="rovioli_enable_health_checking" default="false"/>
+  </include>
 </launch>
