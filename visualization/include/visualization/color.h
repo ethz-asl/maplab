@@ -21,6 +21,7 @@ struct Color {
 
 static constexpr size_t kNumColors = 256u;
 
+#if defined(DOXYGEN_SHOULD_SKIP_THIS)
 static constexpr Color kCommonRed(255u, 0u, 0u);
 static constexpr Color kCommonBlue(0u, 0u, 255u);
 static constexpr Color kCommonDarkBlue(0u, 0u, 155u);
@@ -47,6 +48,7 @@ static const cv::Scalar kCvCyan(255.0, 255.0, 0.0);
 static const cv::Scalar kCvYellow(0.0, 255.0, 255.0);
 static const cv::Scalar kCvWhite(255.0, 255.0, 255.0);
 static const cv::Scalar kCvBlack(0.0, 0.0, 0.0);
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 inline void convertStringToColor(
     const std::string& color_string, visualization::Color* color) {
