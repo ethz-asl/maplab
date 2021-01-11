@@ -21,6 +21,7 @@ static std::unordered_set<backend::ResourceType, backend::ResourceTypeHash>
         backend::ResourceType::kPointCloudXYZ,
         backend::ResourceType::kPointCloudXYZI,
         backend::ResourceType::kPointCloudXYZRGBN,
+        backend::ResourceType::kPointCloudXYZL
     };
 
 struct AlignmentCandidate {

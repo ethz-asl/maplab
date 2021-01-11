@@ -1,8 +1,8 @@
-#include "rovioli/ros-helpers.h"
 #include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
+#include "rovioli/ros-helpers.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -34,6 +34,8 @@ DEFINE_double(
     rovioli_image_16_bit_to_8_bit_shift, 0,
     "Shift applied to the scaled values when converting 16bit images to 8bit "
     "images.");
+
+DEFINE_double(rovioli_image_resize_factor, 1.0, "Factor to resize images.");
 
 namespace rovioli {
 vio::ImuMeasurement::Ptr convertRosImuToMaplabImu(
@@ -89,7 +91,24 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
         // NOTE: we assume all 8UC1 type images are monochrome images.
         cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::TYPE_8UC1);
+      } else if (
+          image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
+        // We assume it is a BGR image.
+        cv_bridge::CvImageConstPtr cv_tmp_ptr = cv_bridge::toCvShare(
+            image_message, sensor_msgs::image_encodings::TYPE_8UC3);
+
+        // Convert image and add it to the cv bridge struct, such that the
+        // remaining part of the function can stay the same.
+        cv_bridge::CvImage* converted_image = new cv_bridge::CvImage;
+        converted_image->encoding = "mono8";
+        converted_image->header = image_message->header;
+        // We assume the color format is BGR.
+        cv::cvtColor(
+            cv_tmp_ptr->image, converted_image->image, cv::COLOR_BGR2GRAY);
+        // The cv bridge takes ownership of the image ptr.
+        cv_ptr.reset(converted_image);
       } else {
+        // Try automatic conversion for all the other encodings.
         cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::MONO8);
       }
@@ -107,6 +126,17 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
     LOG(FATAL) << "cv_bridge exception: " << e.what();
   }
   CHECK(cv_ptr);
+
+  if (fabs(FLAGS_rovioli_image_resize_factor - 1.0) > 1e-6) {
+    const int newcols = round(
+        image_measurement->image.cols * FLAGS_rovioli_image_resize_factor);
+    const int newrows = round(
+        image_measurement->image.rows * FLAGS_rovioli_image_resize_factor);
+
+    cv::resize(
+        image_measurement->image, image_measurement->image,
+        cv::Size(newcols, newrows));
+  }
 
   image_measurement->timestamp =
       rosTimeToNanoseconds(image_message->header.stamp);

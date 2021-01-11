@@ -69,9 +69,8 @@ RovioFlow::RovioFlow(
     const int maplab_camera_idx = std::stoi(camera_id_str);
     CHECK_GE(maplab_camera_idx, 0);
     CHECK_LT(maplab_camera_idx, static_cast<int>(num_cameras));
-    CHECK(
-        maplab_to_rovio_cam_indices_mapping_.insert(
-            maplab_camera_idx, rovio_camera_index))
+    CHECK(maplab_to_rovio_cam_indices_mapping_.insert(
+        maplab_camera_idx, rovio_camera_index))
         << "--rovio_active_camera_indices contains duplicates.";
 
     active_cameras.emplace_back(
@@ -190,10 +189,8 @@ void RovioFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
   publish_rovio_estimates_ =
       flow->registerPublisher<message_flow_topics::ROVIO_ESTIMATES>();
   CHECK(rovio_interface_);
-  rovio_interface_->registerStateUpdateCallback(
-      std::bind(
-          &RovioFlow::processAndPublishRovioUpdate, this,
-          std::placeholders::_1));
+  rovio_interface_->registerStateUpdateCallback(std::bind(
+      &RovioFlow::processAndPublishRovioUpdate, this, std::placeholders::_1));
 }
 
 void RovioFlow::processAndPublishRovioUpdate(const rovio::RovioState& state) {
@@ -244,10 +241,9 @@ void RovioFlow::processAndPublishRovioUpdate(const rovio::RovioState& state) {
         state.get_qCM(rovio_cam_idx).inverted().toImplementation(),
         state.get_MrMC(rovio_cam_idx));
     common::ensurePositiveQuaternion(&T_B_C.getRotation());
-    CHECK(
-        rovio_estimate->maplab_camera_index_to_T_C_B
-            .emplace(*maplab_cam_idx, T_B_C.inverse())
-            .second);
+    CHECK(rovio_estimate->maplab_camera_index_to_T_C_B
+              .emplace(*maplab_cam_idx, T_B_C.inverse())
+              .second);
   }
 
   // Optional localizations.

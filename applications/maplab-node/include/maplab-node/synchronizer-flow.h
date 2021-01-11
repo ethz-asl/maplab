@@ -37,13 +37,21 @@ class SynchronizerFlow {
 
     message_flow_->registerSubscriber<message_flow_topics::IMU_MEASUREMENTS>(
         kSubscriberNodeName, delivery_method_,
-        [this](const vio::ImuMeasurement::ConstPtr& imu) {
+        [this](const vio::BatchedImuMeasurements::ConstPtr& imu) {
           CHECK(imu);
-          // TODO(schneith): This seems inefficient. Should we batch IMU
-          // measurements on the datasource side?
+          const size_t num_measurements = imu->batch.size();
+          Eigen::Matrix<int64_t, 1, Eigen::Dynamic> timestamps_nanoseconds(
+              1, num_measurements);
+          Eigen::Matrix<double, 6, Eigen::Dynamic> imu_measurements(
+              6, num_measurements);
+          for (size_t idx = 0u; idx < num_measurements; ++idx) {
+            const vio::ImuMeasurement& measurement = imu->batch[idx];
+            timestamps_nanoseconds(idx) = measurement.timestamp;
+            imu_measurements.col(idx) = measurement.imu_data;
+          }
+
           this->synchronizer_.processImuMeasurements(
-              (Eigen::Matrix<int64_t, 1, 1>() << imu->timestamp).finished(),
-              imu->imu_data);
+              timestamps_nanoseconds, imu_measurements);
         });
   }
 
@@ -167,9 +175,7 @@ class SynchronizerFlow {
         kSubscriberNodeName, delivery_method_,
         [this](const vio::ImageMeasurement::ConstPtr& image) {
           CHECK(image);
-          this->synchronizer_.processCameraImage(
-              image->camera_index, image->image, image->timestamp,
-              image->encoding);
+          this->synchronizer_.processCameraImage(image);
         });
     synchronizer_.registerSynchronizedNFrameCallback(
         message_flow_

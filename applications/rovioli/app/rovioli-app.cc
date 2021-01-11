@@ -1,5 +1,6 @@
 #include <memory>
 
+#include <aslam/cameras/ncamera.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <localization-summary-map/localization-summary-map-creation.h>
@@ -39,6 +40,7 @@ DEFINE_bool(
     optimize_map_to_localization_map, false,
     "Optimize and process the map into a localization map before "
     "saving it.");
+DECLARE_double(rovioli_image_resize_factor);
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -60,10 +62,36 @@ int main(int argc, char** argv) {
     LOG(FATAL) << "[ROVIOLI] Failed to read the sensor calibration from '"
                << FLAGS_sensor_calibration_file << "'!";
   }
-  CHECK(vi_map::getSelectedNCamera(sensor_manager))
-      << "[ROVIOLI] The sensor calibration does not contain a NCamera!";
+
   CHECK(vi_map::getSelectedImu(sensor_manager))
       << "[ROVIOLI] The sensor calibration does not contain an IMU!";
+
+  aslam::NCamera::Ptr mapping_ncamera =
+      vi_map::getSelectedNCamera(sensor_manager);
+  CHECK(mapping_ncamera)
+      << "[ROVIOLI] The sensor calibration does not contain a NCamera!";
+
+  if (fabs(FLAGS_rovioli_image_resize_factor - 1.0) > 1e-6) {
+    for (size_t i = 0; i < mapping_ncamera->getNumCameras(); i++) {
+      // The intrinsics of the camera can just be multiplied with the resize
+      // factor. Distortion parameters are agnostic to the image size.
+      aslam::Camera::Ptr camera = mapping_ncamera->getCameraShared(i);
+      camera->setParameters(
+          camera->getParameters() * FLAGS_rovioli_image_resize_factor);
+      camera->setImageWidth(
+          round(camera->imageWidth() * FLAGS_rovioli_image_resize_factor));
+      camera->setImageHeight(
+          round(camera->imageHeight() * FLAGS_rovioli_image_resize_factor));
+      camera->setDescription(
+          camera->getDescription() + " - resized " +
+          std::to_string(FLAGS_rovioli_image_resize_factor));
+
+      // The parameters have changed so we need to generate a new sensor id.
+      aslam::SensorId camera_id;
+      generateId(&camera_id);
+      camera->setId(camera_id);
+    }
+  }
 
   // Optionally load localization map.
   std::unique_ptr<summary_map::LocalizationSummaryMap> localization_map;

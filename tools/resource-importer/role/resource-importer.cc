@@ -179,7 +179,10 @@ int main(int argc, char* argv[]) {
         }
       }
     }
-    CHECK(sensor_id.isValid());
+    CHECK(sensor_id.isValid())
+        << "Could not find a sensor that has a topic corresponding to the "
+           "provided resource topic: "
+        << FLAGS_resource_topic << ".";
 
     // Add sensor to the maps sensor manager.
     map.getSensorManager().merge(sensor_manager);

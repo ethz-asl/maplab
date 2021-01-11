@@ -1,12 +1,12 @@
 [submodule "tools/maplab_test_data"]
 	path = tools/maplab-test-data
-	url = https://github.com/ethz-asl/maplab_test_data.git
+	url = git@github.com:ethz-asl/maplab_test_data.git
 [submodule "aslam_cv2"]
 	path = aslam_cv2
-	url = https://github.com/ethz-asl/aslam_cv2.git
+	url = git@github.com:ethz-asl/aslam_cv2.git
 [submodule "tools/evaluation_tools"]
 	path = tools/evaluation_tools
-	url = https://github.com/ethz-asl/evaluation_tools.git
+	url = git@github.com:ethz-asl/evaluation_tools.git
 [submodule "dependencies/3rdparty/protobuf_catkin"]
 	path = dependencies/3rdparty/protobuf_catkin
 	url = git@github.com:ethz-asl/protobuf_catkin.git
@@ -97,3 +97,9 @@
 [submodule "dependencies/internal/maplab_msgs"]
 	path = dependencies/internal/maplab_msgs
 	url = git@github.com:ethz-asl/maplab_msgs.git
+[submodule "dependencies/3rdparty/pointmatcher-ros"]
+	path = dependencies/3rdparty/pointmatcher-ros
+	url = git@github.com:ANYbotics/pointmatcher-ros.git
+[submodule "dependencies/internal/libpointmatcher"]
+	path = dependencies/internal/libpointmatcher
+	url = git@github.com:ethz-asl/libpointmatcher.git

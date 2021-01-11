@@ -1,9 +1,0 @@
-submap_commands:
-  - "lc"
-  - "optvi --ba_num_iterations=20 --ba_enable_signal_handler=false"
-
-global_map_commands:
-  - "lc"
-  - "optvi --ba_num_iterations=3 --ba_enable_signal_handler=false"
-  - "elq --vi_map_landmark_quality_min_observers=2"
-  - "rbl"

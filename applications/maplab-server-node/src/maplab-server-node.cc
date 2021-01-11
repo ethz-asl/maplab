@@ -1,5 +1,10 @@
 #include "maplab-server-node/maplab-server-node.h"
 
+#if __GNUC__ > 5
+#include <dense-mapping/dense-mapping.h>
+#endif
+#include <depth-integration/depth-integration.h>
+
 #include <aslam/common/timer.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -45,15 +50,14 @@ DEFINE_int32(
     "Create a backup of the current map every n seconds. 0 = no backups.");
 
 DEFINE_bool(
-    maplab_server_enable_default_submap_processing, true,
-    "If enabled, the submap processing commands are ignored and a default set "
-    "of commands is executed on the submaps. These commands are landmark "
-    "quality evaluation and optimization.");
-
-DEFINE_bool(
     maplab_server_remove_outliers_in_absolute_pose_constraints, true,
     "If enabled, the submap processing will after optimization run "
     "RANSAC LSQ on the absolute pose constraints to remove outliers.");
+
+DEFINE_bool(
+    maplab_server_set_first_robot_map_baseframe_to_known, true,
+    "If enabled, the first mission to be added to the global map will server "
+    "as the anchor and it's baseframe will be set to know.");
 
 DEFINE_int32(
     maplab_server_dense_map_resource_type, 21,
@@ -78,18 +82,50 @@ DEFINE_double(
     "Maximum angle [rad] between first vertex and every other vertex in a "
     "submap to consider it stationary.");
 
+DEFINE_int32(
+    maplab_server_reset_trust_region_radius_every_nth_submap, 0,
+    "If > 0, resets the trust region radius to the default initial value every "
+    "N submap that is merged into the global map.");
+
+DEFINE_bool(
+    maplab_server_reset_trust_region_radius_if_new_robot, true,
+    "If enabled and a new robot has started streaming to the maplab server we "
+    "reset the trust region radius to the default initial value.");
+
+DEFINE_bool(
+    maplab_server_preserve_trust_region_radius_across_merging_iterations, true,
+    "If enabled, the trust regions of the last iteration is used as initial "
+    "trust region for the next time the global optimization is run.");
+
+DEFINE_bool(
+    maplab_server_enable_visual_loop_closure, true,
+    "If enabled, visual loop closure is used to derrive constraints within and "
+    "across missions.");
+
+DEFINE_bool(
+    maplab_server_enable_visual_loop_closure_based_map_anchoring, true,
+    "If enabled, visual loop closure is used to rigidly align missions with "
+    "unkown baseframe to missions anchored missions.");
+
+DEFINE_bool(
+    maplab_server_enable_lidar_loop_closure, true,
+    "If enabled, lidar loop closure & mapping is used to derrive constraints "
+    "within and "
+    "across missions.");
+
 namespace maplab {
-MaplabServerNode::MaplabServerNode(const MaplabServerNodeConfig& config)
-    : config_(config),
-      submap_loading_thread_pool_(
+MaplabServerNode::MaplabServerNode()
+    : submap_loading_thread_pool_(
           FLAGS_maplab_server_submap_loading_thread_pool_size),
-      base_console_("base_console", 0 /*argc*/, nullptr /*argv*/),
       plotter_(nullptr),
-      is_running_(false),
       shut_down_requested_(false),
       merging_thread_busy_(false),
+      running_merging_process_(""),
+      duration_last_merging_loop_s_(0.0),
+      optimization_trust_region_radius_(FLAGS_ba_initial_trust_region_radius),
+      total_num_merged_submaps_(0u),
       time_of_last_map_backup_s_(0.0),
-      duration_last_merging_loop_s_(0.0) {
+      is_running_(false) {
   if (!FLAGS_ros_free) {
     visualization::RVizVisualizationSink::init();
     plotter_.reset(new visualization::ViwlsGraphRvizPlotter);
@@ -97,7 +133,9 @@ MaplabServerNode::MaplabServerNode(const MaplabServerNodeConfig& config)
 }
 
 MaplabServerNode::~MaplabServerNode() {
-  shutdown();
+  if (is_running_) {
+    shutdown();
+  }
 }
 
 void MaplabServerNode::start() {
@@ -156,9 +194,9 @@ void MaplabServerNode::start() {
 
       if (received_first_submap) {
         VLOG(3) << "[MaplabServerNode] MapMerging - processing global map "
-                << "commands on map with key '" << kMergedMapKey << "'";
+                << "with key '" << kMergedMapKey << "'";
 
-        runOneIterationOfMapMergingCommands();
+        runOneIterationOfMapMergingAlgorithms();
 
         publishDenseMap();
 
@@ -193,29 +231,38 @@ void MaplabServerNode::start() {
 }
 
 void MaplabServerNode::shutdown() {
-  if (shut_down_requested_.load()) {
-    // Already shut down.
-    return;
-  }
-
   std::lock_guard<std::mutex> lock(mutex_);
   LOG(INFO) << "[MaplabServerNode] Shutting down...";
   shut_down_requested_.store(true);
 
-  LOG(INFO) << "[MaplabServerNode] Stopping MapMerging thread...";
-  if (submap_merging_thread_.joinable()) {
-    submap_merging_thread_.join();
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping MapMerging thread...";
+    if (submap_merging_thread_.joinable()) {
+      submap_merging_thread_.join();
+    }
+    LOG(INFO) << "[MaplabServerNode] Done stopping MapMerging thread.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop map merging thread: " << e.what();
   }
-  LOG(INFO) << "[MaplabServerNode] Done.";
 
-  LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
-  submap_loading_thread_pool_.stop();
-  submap_loading_thread_pool_.waitForEmptyQueue();
-  LOG(INFO) << "[MaplabServerNode] Done.";
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping SubmapProcessing threads...";
+    submap_loading_thread_pool_.stop();
+    submap_loading_thread_pool_.waitForEmptyQueue();
+    LOG(INFO) << "[MaplabServerNode] Done stopping SubmapProcessing threads.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop map submap processing threads: " << e.what();
+  }
 
-  LOG(INFO) << "[MaplabServerNode] Stopping Status thread...";
-  status_thread_.join();
-  LOG(INFO) << "[MaplabServerNode] Done.";
+  try {
+    LOG(INFO) << "[MaplabServerNode] Stopping Status thread...";
+    if (status_thread_.joinable()) {
+      status_thread_.join();
+    }
+    LOG(INFO) << "[MaplabServerNode] Done stopping Status thread.";
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Unable to stop status thread: " << e.what();
+  }
 
   is_running_ = false;
 }
@@ -299,8 +346,9 @@ bool MaplabServerNode::loadAndProcessSubmap(
                 << "processing submap from '" << submap_process.path << "'...";
 
         {
-          std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-          submap_commands_[submap_process.map_hash] = "loading";
+          std::lock_guard<std::mutex> status_lock(
+              running_submap_process_mutex_);
+          running_submap_process_[submap_process.map_hash] = "loading";
         }
 
         // TODO(mfehr): Make this more robust: in case of a submap failing to
@@ -333,8 +381,9 @@ bool MaplabServerNode::loadAndProcessSubmap(
                           "blacklisted submap, skip processing...";
 
           {
-            std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-            submap_commands_[submap_process.map_hash] = "blacklisted";
+            std::lock_guard<std::mutex> status_lock(
+                running_submap_process_mutex_);
+            running_submap_process_[submap_process.map_hash] = "blacklisted";
           }
 
           // We skip the processing part, the merging thread will then discard
@@ -343,9 +392,9 @@ bool MaplabServerNode::loadAndProcessSubmap(
           return true;
         }
 
-        extractLatestUnoptimizedPoseFromSubmap(submap_process);
+        updateRobotInfoBasedOnSubmap(submap_process);
 
-        runSubmapProcessingCommands(submap_process);
+        runSubmapProcessing(submap_process);
 
         submap_process.is_processed = true;
 
@@ -380,12 +429,10 @@ bool MaplabServerNode::saveMap() {
 
 void MaplabServerNode::visualizeMap() {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (plotter_ != nullptr) {
+  if (plotter_) {
     if (map_manager_.hasMap(kMergedMapKey)) {
-      LOG(INFO) << "[MaplabServerNode] Visualizing map...";
-      const vi_map::VIMapManager map_manager;
       vi_map::VIMapManager::MapReadAccess map =
-          map_manager.getMapReadAccess(kMergedMapKey);
+          map_manager_.getMapReadAccess(kMergedMapKey);
       plotter_->visualizeMap(*map);
     } else {
       LOG(WARNING) << "[MaplabServerNode] Could not visualize merged map, as "
@@ -403,6 +450,8 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
     Eigen::Vector3d* p_G, Eigen::Vector3d* sensor_p_G) const {
   CHECK_NOTNULL(p_G);
   CHECK_NOTNULL(sensor_p_G);
+
+  std::lock_guard<std::mutex> lock(mutex_);
 
   if (robot_name.empty()) {
     LOG(WARNING)
@@ -422,7 +471,8 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
     const RobotMissionInformation& robot_info =
         robot_to_mission_id_map_.at(robot_name);
 
-    submap_mission_id = robot_info.mission_ids.front();
+    submap_mission_id =
+        robot_info.mission_ids_with_baseframe_status.front().first;
 
     if (!submap_mission_id.isValid()) {
       LOG(ERROR)
@@ -544,36 +594,250 @@ void MaplabServerNode::registerPoseCorrectionPublisherCallback(
         const aslam::Transformation&)>
         callback) {
   CHECK(callback);
+  std::lock_guard<std::mutex> lock(mutex_);
   pose_correction_publisher_callback_ = callback;
 }
 
-void MaplabServerNode::runOneIterationOfMapMergingCommands() {
-  // Copy console to process the global map.
-  MapLabConsole console(
-      base_console_, "global_map_console", false /*disable plotter*/);
+void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
+  // Declare missions anchored if absolute pose constraints are present
+  /////////////////////////////////////////////////////////////////////
+  // All missions with absolute pose constraints will automatically be set to
+  // anchored, since they contain a global reference.
+  {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
 
-  // Select submap.
-  console.setSelectedMapKey(kMergedMapKey);
-
-  for (const std::string& command : config_.global_map_commands) {
     {
-      std::lock_guard<std::mutex> merge_command_lock(
-          current_merge_command_mutex_);
-      current_merge_command_ = command;
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "absolute constraint based map anchoring";
     }
-    VLOG(1) << "[MaplabServerNode] Running: " << command;
-    if (console.RunCommand(command) != common::kSuccess) {
-      LOG(WARNING)
-          << "[MaplabServerNode] MapMerging - Command did not succeed: '"
-          << command << "'.";
-    } else {
-      VLOG(3) << "[MaplabServerNode] MapMerging console command successful.";
+    map_anchoring::setMissionBaseframeToKnownIfHasAbs6DoFConstraints(map.get());
+  }
+
+  // Vision based map anchoring
+  /////////////////////////////
+  // Use visual loop closure to rigidly align any missions with unkown baseframe
+  // to the set of missions with known base frame. This allows anchoring of the
+  // map even without external absolute pose constraints. It also has a chance
+  // to solve the kidnapped robot problem, most likely caused by a robot
+  // re-initializing it's mapping session while away from whatever source of
+  // external absolute pose constraints (e.g. AprilTags). The visual
+  // colocalization will fail/not do anything if:
+  //   - No visual loop closures are found
+  //   - Several visual loop closures are found but there are too many wrong
+  //     ones (very rare) or due to a deformation of the missions they cannot
+  //     agree on a rigid transformation that would be consistent with the
+  //     majority of them.
+  if (FLAGS_maplab_server_enable_visual_loop_closure_based_map_anchoring) {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "vision based map anchoring";
+    }
+
+    if (map_anchoring::anchorAllMissions(map.get(), plotter_.get())) {
+      LOG(INFO) << "[MaplabServerNode] MapMerging - Unable to anchor maps "
+                << "based on vision, or there was nothing left to do.";
     }
   }
+
+  // Update the baseframe information for the status thread.
   {
-    std::lock_guard<std::mutex> merge_command_lock(
-        current_merge_command_mutex_);
-    current_merge_command_ = "";
+    vi_map::VIMapManager::MapReadAccess map =
+        map_manager_.getMapReadAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "update map anchoring info";
+    }
+
+    std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+    for (const vi_map::MissionId& mission_id : mission_ids) {
+      const bool baseframe_is_known =
+          map->getMissionBaseFrameForMission(mission_id).is_T_G_M_known();
+      const std::string& robot_name = mission_id_to_robot_map_[mission_id];
+
+      bool found = false;
+      if (!robot_name.empty()) {
+        RobotMissionInformation& robot_info =
+            robot_to_mission_id_map_[robot_name];
+        for (auto& mission_id_with_baseframe_status :
+             robot_info.mission_ids_with_baseframe_status) {
+          if (mission_id_with_baseframe_status.first == mission_id) {
+            mission_id_with_baseframe_status.second = baseframe_is_known;
+            found = true;
+            break;
+          }
+        }
+      }
+      LOG_IF(ERROR, !found)
+          << "[MaplabServerNode] There is no mission id to robot mapping for "
+          << "mission " << mission_id
+          << "! This should be available once the mission reaches "
+          << "the merged map";
+    }
+  }
+
+  // Visual loop closure
+  //////////////////////
+  // Merges landmarks when a successful loop closure is found. Does NOT add a
+  // loop closure edge, but the loop closure is enforced through the
+  // reprojection error of the landmarks. This is safer, more accurate, but
+  // also weaker, and will likely not close very large loops.
+  if (FLAGS_maplab_server_enable_visual_loop_closure) {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "visual loop closure";
+    }
+    vi_map::MissionIdList::const_iterator mission_ids_end = mission_ids.cend();
+    for (vi_map::MissionIdList::const_iterator it = mission_ids.cbegin();
+         it != mission_ids_end; ++it) {
+      const vi_map::MissionId& mission_id_A = *it;
+
+      const bool baseframe_A_is_known =
+          map->getMissionBaseFrameForMission(mission_id_A).is_T_G_M_known();
+
+      CHECK(mission_id_A.isValid());
+      loop_detector_node::LoopDetectorNode loop_detector;
+      if (plotter_) {
+        loop_detector.instantiateVisualizer();
+      }
+      loop_detector.addMissionToDatabase(mission_id_A, *map);
+      for (vi_map::MissionIdList::const_iterator jt = it; jt != mission_ids_end;
+           ++jt) {
+        const vi_map::MissionId& mission_id_B = *jt;
+
+        const bool baseframe_B_is_known =
+            map->getMissionBaseFrameForMission(mission_id_B).is_T_G_M_known();
+
+        // Don't merge landmarks across missions unless their baseframe is
+        // already known. Leave the alignment to the map anchoring first.
+        // Otherwise the loop closure will deform the map and rigid baseframe
+        // alignment is not possible anymore.
+        if (mission_id_A != mission_id_B) {
+          if (!(baseframe_A_is_known && baseframe_B_is_known)) {
+            continue;
+          }
+        }
+
+        loop_detector.detectLoopClosuresAndMergeLandmarks(*jt, map.get());
+      }
+    }
+  }
+
+  // Lidar local constraints/loop closure
+  ///////////////////////////////////////
+  // Searches for nearby dense map data (e.g. lidar scans) within and across
+  // missions and uses point cloud registration algorithms to derive relative
+  // constraints. These are added as loop closures between vertices. When
+  // iteratively executing this command, as is done here, the candidate pairs
+  // that already posess a valid (switch variable is healthy) loop closure will
+  // not be computed again.
+#if __GNUC__ > 5
+  if (FLAGS_maplab_server_enable_lidar_loop_closure) {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "lidar loop closure";
+    }
+
+    const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+    if (!dense_mapping::addDenseMappingConstraintsToMap(
+            config, mission_ids, map.get())) {
+      LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                 << "encountered an error!";
+    }
+  }
+#endif
+
+  // Full optimization
+  ////////////////////
+  // This does not scale, and never will, so it is important that # we limit
+  // the runtime by setting the --ba_max_time_seconds flag.
+  {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "optimization";
+    }
+    const vi_map::MissionIdSet missions_to_optimize(
+        mission_ids.begin(), mission_ids.end());
+    // We only want to get these once, such that if the gflags get modified
+    // later the optimization settings for the submaps remain the same.
+    map_optimization::ViProblemOptions options =
+        map_optimization::ViProblemOptions::initFromGFlags();
+
+    // Restore previous trust region.
+    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {
+      // Reset the trust region if N submaps have been added in the meantime.
+      const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
+      const uint32_t num_submaps_since_reset =
+          num_submaps_merged - num_submaps_at_last_trust_region_reset;
+      const uint32_t reset_every_n =
+          FLAGS_maplab_server_reset_trust_region_radius_every_nth_submap;
+      if (reset_every_n != 0u && num_submaps_since_reset >= reset_every_n) {
+        optimization_trust_region_radius_ =
+            FLAGS_ba_initial_trust_region_radius;
+        num_submaps_at_last_trust_region_reset = num_submaps_merged;
+      }
+      options.solver_options.initial_trust_region_radius =
+          optimization_trust_region_radius_;
+    }
+
+    map_optimization::VIMapOptimizer optimizer(
+        nullptr /*no plotter for optimization*/,
+        false /*signal handler enabled*/);
+
+    map_optimization::OptimizationProblemResult result;
+    if (!optimizer.optimize(
+            options, missions_to_optimize, map.get(), &result)) {
+      LOG(ERROR) << "[MaplabServerNode] MapMerging - Failure in optimization.";
+    } else {
+      if (!result.iteration_summaries.empty()) {
+        optimization_trust_region_radius_ =
+            result.iteration_summaries.back().trust_region_radius;
+      } else {
+        LOG(ERROR) << "[MaplabServerNode] Unable to extract final trust region "
+                   << "of previous global optimization iteration! Setting to "
+                   << "default value (" << FLAGS_ba_initial_trust_region_radius
+                   << ").";
+        optimization_trust_region_radius_ =
+            FLAGS_ba_initial_trust_region_radius;
+      }
+    }
+  }
+
+  // Reset merging thread status.
+  {
+    std::lock_guard<std::mutex> merge_status_lock(
+        running_merging_process_mutex_);
+    running_merging_process_ = "";
   }
 }
 
@@ -670,9 +934,9 @@ void MaplabServerNode::saveMapEveryInterval() {
       FLAGS_maplab_server_backup_interval_s > 0) {
     LOG(INFO) << "[MaplabServerNode] MapMerging - saving map as backup.";
     {
-      std::lock_guard<std::mutex> merge_command_lock(
-          current_merge_command_mutex_);
-      current_merge_command_ = "save map";
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "save map";
     }
     saveMap();
 
@@ -728,8 +992,8 @@ bool MaplabServerNode::appendAvailableSubmaps() {
 
       // Erase submap processing status.
       {
-        std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-        submap_commands_.erase(submap_process.map_hash);
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_.erase(submap_process.map_hash);
       }
 
       // Unlock and delete the submap process struct.
@@ -744,9 +1008,9 @@ bool MaplabServerNode::appendAvailableSubmaps() {
     // If we don't have a merged map yet, simply rename the submap into
     // the merged map.
     {
-      std::lock_guard<std::mutex> merge_command_lock(
-          current_merge_command_mutex_);
-      current_merge_command_ = "merging submap";
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "merging submap";
     }
 
     if (!map_manager_.hasMap(kMergedMapKey)) {
@@ -754,6 +1018,23 @@ bool MaplabServerNode::appendAvailableSubmaps() {
                  "used to initalize merged map with key '"
               << kMergedMapKey << "'.";
       map_manager_.renameMap(submap_process.map_key, kMergedMapKey);
+
+      // If enabled, set first mission baseframe to known.
+      if (FLAGS_maplab_server_set_first_robot_map_baseframe_to_known) {
+        vi_map::VIMapManager::MapWriteAccess map =
+            map_manager_.getMapWriteAccess(kMergedMapKey);
+        vi_map::MissionIdList mission_ids;
+        map->getAllMissionIds(&mission_ids);
+        if (mission_ids.size() == 1u) {
+          map->getMissionBaseFrameForMission(mission_ids[0])
+              .set_is_T_G_M_known(true /*set to known*/);
+        } else {
+          LOG(ERROR)
+              << "The first submap does not have exactly one mission, but "
+              << mission_ids.size() << "! Something went wrong!";
+        }
+      }
+
       found_new_submaps = true;
     } else {
       LOG(INFO) << "[MaplabServerNode] MapMerging - merge submap '"
@@ -778,6 +1059,8 @@ bool MaplabServerNode::appendAvailableSubmaps() {
 
     // Remove the struct from the list of processed submaps.
     submap_processing_queue_.pop_front();
+
+    ++total_num_merged_submaps_;
   }
 
   return found_new_submaps;
@@ -786,10 +1069,10 @@ bool MaplabServerNode::appendAvailableSubmaps() {
 void MaplabServerNode::printAndPublishServerStatus() {
   std::stringstream ss;
 
-  ss << "\n=============================================================="
-        "=="
-     << "==\n";
-  ss << "[MaplabServerNode] Status:\n";
+  ss << "\n"
+     << "==================================================================\n";
+  ss << "=                   MaplabServerNode Status                      =\n";
+  ss << "==================================================================\n";
   {
     std::lock_guard<std::mutex> lock(submap_processing_queue_mutex_);
     if (submap_processing_queue_.empty()) {
@@ -842,24 +1125,29 @@ void MaplabServerNode::printAndPublishServerStatus() {
      << submap_loading_thread_pool_.numActiveThreads() << "/"
      << FLAGS_maplab_server_submap_loading_thread_pool_size << "\n";
   {
-    std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-    for (const std::pair<const size_t, std::string>& comm : submap_commands_) {
+    std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+    for (const std::pair<const size_t, std::string>& comm :
+         running_submap_process_) {
       ss << "   - submap " << std::to_string(comm.first)
-         << " - command: " << comm.second << "\n";
+         << " - process: " << comm.second << "\n";
     }
   }
 
   ss << " - Active merging thread: ";
   if (merging_thread_busy_.load()) {
     ss << "yes\n";
-    std::lock_guard<std::mutex> merge_command_lock(
-        current_merge_command_mutex_);
-    ss << "   - current command: " << current_merge_command_ << "\n";
+    std::lock_guard<std::mutex> merge_status_lock(
+        running_merging_process_mutex_);
+    ss << "   - process: " << running_merging_process_ << "\n";
   } else {
     ss << "no\n";
   }
   ss << "   - duration of last iteration: "
      << duration_last_merging_loop_s_.load() << "s\n";
+  ss << "   - optimization tr radius:     "
+     << optimization_trust_region_radius_.load() << "\n";
+  ss << "   - num merged submaps:         " << total_num_merged_submaps_.load()
+     << "\n";
   ss << "================================================================"
      << "==\n";
   {
@@ -869,8 +1157,12 @@ void MaplabServerNode::printAndPublishServerStatus() {
          robot_to_mission_id_map_) {
       const RobotMissionInformation& robot_info = pair.second;
       ss << "\n - " << pair.first;
-      for (const vi_map::MissionId& mission_id : robot_info.mission_ids) {
-        ss << "\n\t - " << mission_id;
+      for (const std::pair<vi_map::MissionId, bool>&
+               mission_id_with_baseframe_status :
+           robot_info.mission_ids_with_baseframe_status) {
+        ss << "\n\t - " << mission_id_with_baseframe_status.first
+           << " - known baseframe: " << std::boolalpha
+           << mission_id_with_baseframe_status.second;
       }
     }
   }
@@ -885,7 +1177,7 @@ void MaplabServerNode::printAndPublishServerStatus() {
   }
 }
 
-void MaplabServerNode::extractLatestUnoptimizedPoseFromSubmap(
+void MaplabServerNode::updateRobotInfoBasedOnSubmap(
     const SubmapProcess& submap_process) {
   vi_map::VIMapManager::MapReadAccess map =
       map_manager_.getMapReadAccess(submap_process.map_key);
@@ -914,10 +1206,25 @@ void MaplabServerNode::extractLatestUnoptimizedPoseFromSubmap(
         RobotMissionInformation& robot_info =
             robot_to_mission_id_map_[submap_process.robot_name];
 
-        if (robot_info.mission_ids.empty()) {
-          robot_info.mission_ids.push_front(submap_mission_id);
-        } else if (robot_info.mission_ids.front() != submap_mission_id) {
-          robot_info.mission_ids.push_front(submap_mission_id);
+        bool new_robot = false;
+        if (robot_info.mission_ids_with_baseframe_status.empty()) {
+          robot_info.mission_ids_with_baseframe_status.emplace_front(
+              submap_mission_id, false);
+          new_robot = true;
+        } else if (
+            robot_info.mission_ids_with_baseframe_status.front().first !=
+            submap_mission_id) {
+          robot_info.mission_ids_with_baseframe_status.emplace_front(
+              submap_mission_id, false);
+          new_robot = true;
+        }
+        // Reset trust region of optimization if a new robot has started
+        // streaming.
+        if (new_robot) {
+          if (FLAGS_maplab_server_reset_trust_region_radius_if_new_robot) {
+            optimization_trust_region_radius_ =
+                FLAGS_ba_initial_trust_region_radius;
+          }
         }
 
         mission_id_to_robot_map_[submap_mission_id] = submap_process.robot_name;
@@ -941,39 +1248,38 @@ void MaplabServerNode::extractLatestUnoptimizedPoseFromSubmap(
   }
 }
 
-void MaplabServerNode::runSubmapProcessingCommands(
+void MaplabServerNode::runSubmapProcessing(
     const SubmapProcess& submap_process) {
-  if (FLAGS_maplab_server_enable_default_submap_processing) {
-    // We only want to get these once, such that if the gflags get modified
-    // later the optimization settings for the submaps remain the same.
-    static map_optimization::ViProblemOptions options =
-        map_optimization::ViProblemOptions::initFromGFlags();
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager_.getMapWriteAccess(submap_process.map_key);
+  vi_map::MissionIdList missions_to_process;
+  map->getAllMissionIds(&missions_to_process);
+  CHECK_EQ(missions_to_process.size(), 1u);
+  const vi_map::MissionId& submap_mission_id = missions_to_process[0];
 
-    vi_map::VIMapManager map_manager;
-    vi_map::VIMapManager::MapWriteAccess map =
-        map_manager.getMapWriteAccess(submap_process.map_key);
-    vi_map::MissionIdList missions_to_optimize_list;
-    map->getAllMissionIds(&missions_to_optimize_list);
-
-    // Stationary submap fixing.
-    if (FLAGS_maplab_server_stationary_submaps_fix_with_lc_edge) {
-      std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-      submap_commands_[submap_process.map_hash] =
-          "add_lc_edge_for_stationary_submaps";
-      vi_map_helpers::VIMapManipulation manipulation(map.get());
-      if (manipulation.constrainStationarySubmapWithLoopClosureEdge(
-              FLAGS_maplab_stationary_submaps_max_translation_m,
-              FLAGS_maplab_stationary_submaps_max_rotation_rad)) {
-        LOG(WARNING) << "[MaplabServerNode] Submap '" << submap_process.map_key
-                     << "'is stationary, adding additional constraint between "
-                     << "first and last vertex!";
-      }
+  // Stationary submap fixing
+  ///////////////////////////
+  if (FLAGS_maplab_server_stationary_submaps_fix_with_lc_edge) {
+    std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+    running_submap_process_[submap_process.map_hash] =
+        "add_lc_edge_for_stationary_submaps";
+    vi_map_helpers::VIMapManipulation manipulation(map.get());
+    if (manipulation.constrainStationarySubmapWithLoopClosureEdge(
+            FLAGS_maplab_stationary_submaps_max_translation_m,
+            FLAGS_maplab_stationary_submaps_max_rotation_rad)) {
+      LOG(WARNING) << "[MaplabServerNode] Submap '" << submap_process.map_key
+                   << "'is stationary, adding additional constraint between "
+                   << "first and last vertex!";
     }
+  }
 
-    // ELQ
+  // Evaluate landmark quality
+  ////////////////////////////
+  {
     {
-      std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-      submap_commands_[submap_process.map_hash] = "elq";
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] =
+          "landmark quality evaluation";
     }
     if (FLAGS_vi_map_landmark_quality_min_observers > 2) {
       LOG(WARNING) << "[MaplabServerNode] Minimum required landmark observers "
@@ -981,70 +1287,72 @@ void MaplabServerNode::runSubmapProcessingCommands(
                    << FLAGS_vi_map_landmark_quality_min_observers
                    << ",  this might be too stricht if keyframing is enabled.";
     }
-    vi_map_helpers::evaluateLandmarkQuality(
-        missions_to_optimize_list, map.get());
+    vi_map_helpers::evaluateLandmarkQuality(missions_to_process, map.get());
+  }
 
-    // OPTVI
+  // Lidar local constraints/loop closure
+  ///////////////////////////////////////
+  // Searches for nearby dense map data (e.g. lidar scans) within the submap
+  // mission and uses point cloud registration algorithms to derive relative
+  // constraints. These are added as loop closures between vertices.
+#if __GNUC__ > 5
+  if (FLAGS_maplab_server_enable_lidar_loop_closure) {
     {
-      std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-      submap_commands_[submap_process.map_hash] = "optvi";
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] = "lidar loop closure";
     }
-    const vi_map::MissionIdSet missions_to_optimize(
-        missions_to_optimize_list.begin(), missions_to_optimize_list.end());
-    map_optimization::VIMapOptimizer optimizer(
-        nullptr /*no plotter*/, false /*signal handler enabled*/);
-    optimizer.optimize(options, missions_to_optimize, map.get());
 
-    if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
-      std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-      submap_commands_[submap_process.map_hash] =
-          "remove_abs_constraint_outlier";
-      map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
-    }
-  } else {
-    // Copy console to process the global map.
-    const std::string console_name =
-        "submap_processing_console_" + submap_process.map_key;
-    MapLabConsole console(
-        base_console_, console_name, false /*disable plotter*/);
-
-    // Select submap.
-    console.setSelectedMapKey(submap_process.map_key);
-
-    for (const std::string& command : config_.submap_commands) {
-      {
-        std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-        submap_commands_[submap_process.map_hash] = command;
-      }
-      VLOG(3) << "[MaplabServerNode] SubmapProcessing console command: "
-              << command;
-      if (console.RunCommand(command) != common::kSuccess) {
-        LOG(ERROR) << "[MaplabServerNode] SubmapProcessing - failed to run "
-                      "command: '"
-                   << command << "' on submap '" << submap_process.map_key
-                   << "'.";
-      } else {
-        VLOG(3) << "[MaplabServerNode] SubmapProcessing console command "
-                   "successful.";
-      }
-
-      if (shut_down_requested_.load()) {
-        LOG(WARNING) << "[MaplabServerNode] SubmapProcessing - shutdown was "
-                        "requested, aborting processing of submap with key '"
-                     << submap_process.map_key << "'...";
-        break;
-      }
+    const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+    if (!dense_mapping::addDenseMappingConstraintsToMap(
+            config, missions_to_process, map.get())) {
+      LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                 << "encountered an error!";
     }
   }
+  #endif
+
+  // Submap Optimization
+  //////////////////////
   {
-    std::lock_guard<std::mutex> command_lock(submap_commands_mutex_);
-    submap_commands_.erase(submap_process.map_hash);
+    {
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] = "optimization";
+    }
+    const vi_map::MissionIdSet missions_to_optimize(
+        missions_to_process.begin(), missions_to_process.end());
+    // We only want to get these once, such that if the gflags get modified
+    // later the optimization settings for the submaps remain the same.
+    map_optimization::ViProblemOptions options =
+        map_optimization::ViProblemOptions::initFromGFlags();
+    map_optimization::VIMapOptimizer optimizer(
+        nullptr /*no plotter for optimization*/,
+        false /*signal handler enabled*/);
+    optimizer.optimize(options, missions_to_optimize, map.get());
+  }
+
+  // Filter outliers from absolute constraints
+  ////////////////////////////////////////////
+  if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
+    {
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] =
+          "abs constraints outlier rejection";
+    }
+    map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
+  }
+
+  // Remove processing status of submap
+  {
+    std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+    running_submap_process_.erase(submap_process.map_hash);
   }
 }
 
 void MaplabServerNode::registerStatusCallback(
     std::function<void(const std::string&)> callback) {
   CHECK(callback);
+  std::lock_guard<std::mutex> lock(mutex_);
+
   status_publisher_callback_ = callback;
 }
 
@@ -1059,7 +1367,9 @@ void MaplabServerNode::publishDenseMap() {
   {
     std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
     for (const auto& kv : mission_id_to_robot_map_) {
-      robot_to_mission_id_map[kv.second].push_back(kv.first);
+      if (map->hasMission(kv.first)) {
+        robot_to_mission_id_map[kv.second].push_back(kv.first);
+      }
     }
   }
   visualization::visualizeReprojectedDepthResourcePerRobot(
@@ -1071,6 +1381,8 @@ void MaplabServerNode::publishDenseMap() {
 bool MaplabServerNode::deleteMission(
     const std::string& partial_mission_id_string, std::string* status_message) {
   CHECK_NOTNULL(status_message);
+
+  std::lock_guard<std::mutex> lock(mutex_);
 
   std::stringstream ss;
 
@@ -1140,6 +1452,7 @@ bool MaplabServerNode::deleteMission(
 bool MaplabServerNode::deleteAllRobotMissions(
     const std::string& robot_name, std::string* status_message) {
   CHECK_NOTNULL(status_message);
+  std::lock_guard<std::mutex> lock(mutex_);
 
   std::stringstream ss;
 
@@ -1253,15 +1566,19 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
         // Check robot to robot mission info.
         RobotMissionInformation& robot_mission_info =
             robot_to_mission_id_map_[robot_name];
-        auto it = std::remove(
-            robot_mission_info.mission_ids.begin(),
-            robot_mission_info.mission_ids.end(), blacklisted_mission_id);
-        robot_mission_info.mission_ids.erase(
-            it, robot_mission_info.mission_ids.end());
+        auto it = robot_mission_info.mission_ids_with_baseframe_status.begin();
+        while (it !=
+               robot_mission_info.mission_ids_with_baseframe_status.end()) {
+          if (it->first == blacklisted_mission_id) {
+            it = robot_mission_info.mission_ids_with_baseframe_status.erase(it);
+            continue;
+          }
+          ++it;
+        }
 
         // If this was the only/last mission of that robot, remove the entry and
         // also publish an empty point cloud to the dense map topic.
-        if (robot_mission_info.mission_ids.empty()) {
+        if (robot_mission_info.mission_ids_with_baseframe_status.empty()) {
           robot_to_mission_id_map_.erase(robot_name);
 
           std::unordered_map<std::string, vi_map::MissionIdList>
@@ -1291,6 +1608,41 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
     // Return false to reset the 'received_first_submap' variable.
     return false;
   }
+  return true;
+}
+
+bool MaplabServerNode::getDenseMapInRange(
+    const backend::ResourceType resource_type, const Eigen::Vector3d& center_G,
+    const double radius_m, resources::PointCloud* point_cloud_G) {
+  CHECK_NOTNULL(point_cloud_G);
+
+  std::lock_guard<std::mutex> lock(mutex_);
+
+  depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
+      [&point_cloud_G](
+          const aslam::Transformation& T_G_S,
+          const resources::PointCloud& points_S) {
+        point_cloud_G->appendTransformed(points_S, T_G_S);
+      };
+
+  // Select within a radius.
+  depth_integration::ResourceSelectionFunction get_resources_in_radius =
+      [&radius_m, &center_G](
+          const int64_t /*timestamp_ns*/,
+          const aslam::Transformation& T_G_S) -> bool {
+    return (T_G_S.getPosition() - center_G).norm() < radius_m;
+  };
+
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager_.getMapReadAccess(kMergedMapKey);
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+
+  depth_integration::integrateAllDepthResourcesOfType(
+      mission_ids, resource_type,
+      false /*use_undistorted_camera_for_depth_maps*/, *map,
+      integration_function, get_resources_in_radius);
+
   return true;
 }
 

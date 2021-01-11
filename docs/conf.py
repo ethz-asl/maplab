@@ -49,7 +49,7 @@ html_context = {
     'display_github': True,
     'github_repo': 'maplab',
     'github_user': 'ethz-asl',
-    'github_version': 'develop-docs',
+    'github_version': 'develop',
     'conf_py_path': '/docs/',
 }
 
