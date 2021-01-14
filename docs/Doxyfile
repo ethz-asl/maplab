@@ -2024,7 +2024,7 @@ ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
 
 # If the EXPAND_ONLY_PREDEF and MACRO_EXPANSION tags are both set to YES then
-# the macro expansion is limited to the macros specified with the and
+# the macro expansion is limited to the macros specified with the PREDEFINED and
 # EXPAND_AS_DEFINED tags.
 # The default value is: NO.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
