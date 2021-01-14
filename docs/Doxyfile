@@ -2062,6 +2062,11 @@ INCLUDE_FILE_PATTERNS  =
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
 PREDEFINED = EIGEN_MAKE_ALIGNED_OPERATOR_NEW=""
+PREDEFINED += POINT_CLOUD_REGISTER_POINT_STRUCT=""
+PREDEFINED += MAPLAB_POINTER_TYPEDEFS=""
+PREDEFINED += __atribute__=""
+PREDEFINED += DOXYGEN_SHOULD_SKIP_THIS
+
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The
