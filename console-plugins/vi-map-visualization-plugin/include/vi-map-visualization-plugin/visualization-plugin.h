@@ -32,6 +32,7 @@ class VisualizationPlugin : public common::ConsolePluginBase {
   int visualizeLandmarkObserverRays() const;
   int visualizeReprojectedDepthResource(backend::ResourceType type);
   int visualizeReprojectedDepthResourceFromMission(backend::ResourceType type);
+  int visualizeReprojectedDepthResourceSequentially(backend::ResourceType type);
 
   int getAllMissionIds(
       const vi_map::VIMapManager::MapReadAccess& map,

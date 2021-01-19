@@ -52,7 +52,16 @@ DECLARE_string(vis_pointcloud_export_accumulated_pc_to_ply_path);
 DECLARE_string(vis_pointcloud_mission_id);
 DECLARE_string(vis_pointcloud_mission_id_topic);
 
+DECLARE_int32(vis_pointcloud_sequential_speedup);
+
 namespace visualization {
+
+  struct SequentialPointCloud {
+    resources::PointCloud point_cloud;
+    LineSegment edge;
+    Pose pose;
+    uint16_t mission;
+  };
 
   bool visualizeCvMatResources(
           const vi_map::VIMap& map, backend::ResourceType type);
@@ -70,6 +79,11 @@ namespace visualization {
           const vi_map::VIMap& vi_map);
 
   void visualizeReprojectedDepthResourceFromMission(
+          const backend::ResourceType type,
+          const vi_map::MissionIdList& mission_ids,
+          const vi_map::VIMap& map);
+
+  void visualizeReprojectedDepthResourceSequentially(
           const backend::ResourceType type,
           const vi_map::MissionIdList& mission_ids,
           const vi_map::VIMap& map);
