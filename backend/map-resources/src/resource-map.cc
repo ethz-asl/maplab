@@ -76,19 +76,16 @@ void ResourceMap::mergeFromMap(const ResourceMap& source_map) {
       const auto& insert_status = resource_info_map_[resource_type].emplace(
           resource_info_map_value.first, resource_info);
 
-      if (insert_status.second)
-        LOG(WARNING)
-            << "ResourceId collision: Failed to add resource "
-            << resource_info_map_value.first.hexString()
-            << " to merged map, since it already exists! Existing resource's "
-            << "folder idx: " << insert_status.first->second.folder_idx
-            << " new folder_idx: " << resource_info.folder_idx;
+      CHECK(insert_status.second)
+          << "ResourceId collision: Failed to add resource "
+          << resource_info_map_value.first.hexString()
+          << " to merged map, since it already exists! Existing resource's "
+          << "folder idx: " << insert_status.first->second.folder_idx
+          << " new folder_idx: " << resource_info.folder_idx;
     }
-    /*
     CHECK_EQ(
         resource_info_map_[resource_type].size(),
         size_before + source_map.resource_info_map_[resource_type].size());
-        */
   }
 }
 
