@@ -588,7 +588,7 @@ void visualizeReprojectedDepthResourceFromMission(
   srand(time(NULL));
 
   for (const vi_map::MissionId& mission_id : mission_ids) {
-    const std::string& mission_string = mission_id.printString();
+    const std::string& mission_string = mission_id.shortHex();
     if (mission_string != FLAGS_vis_pointcloud_mission_id) {
       continue;
     }
