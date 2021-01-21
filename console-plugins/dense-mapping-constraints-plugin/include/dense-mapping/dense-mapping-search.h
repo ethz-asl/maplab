@@ -58,6 +58,11 @@ bool searchForProximityBasedAlignmentCandidatePairs(
     const MissionToAlignmentCandidatesMap& candidates_per_mission,
     AlignmentCandidatePairs* candidate_pairs_ptr);
 
+bool searchForLoamAlignmentCandidatePairs(
+    const SearchConfig& config, const vi_map::MissionIdList& mission_ids,
+    const MissionToAlignmentCandidatesMap& candidates_per_mission,
+    AlignmentCandidatePairs* candidate_pairs_ptr);
+
 bool searchForProximityBasedAlignmentCandidatePairsBetweenTwoMissions(
     const SearchConfig& config, const vi_map::MissionId& mission_A,
     const vi_map::MissionId& mission_B,

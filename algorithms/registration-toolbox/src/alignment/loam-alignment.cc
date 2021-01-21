@@ -9,7 +9,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 DEFINE_int32(
-    regbox_loam_optimization_iterations, 60,
+    regbox_loam_optimization_iterations, 30,
     "Iterations for LOAM Optimization");
 DEFINE_int32(
     regbox_loam_ceres_iterations, 10, "Iterations per Ceres Optimization");
@@ -73,9 +73,11 @@ RegistrationResult LoamAlignment::registerCloudImpl(
 
     ceres::Solver::Options solver_options;
     solver_options.linear_solver_type = ceres::DENSE_QR;
+    solver_options.max_num_iterations = 5;
     solver_options.minimizer_progress_to_stdout = false;
     solver_options.check_gradients = false;
     solver_options.gradient_check_relative_precision = 1e-4;
+    solver_options.logging_type = ceres::SILENT;
     ceres::Solver::Summary summary;
 
     ceres::Solve(solver_options, &problem, &summary);

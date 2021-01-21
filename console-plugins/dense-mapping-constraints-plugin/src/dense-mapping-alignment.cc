@@ -53,6 +53,12 @@ bool alignmentDeviatesTooMuchFromInitialGuess(
           config.maximum_deviation_from_initial_guess_delta_rotation_deg ||
       delta_position_m >
           config.maximum_deviation_from_initial_guess_delta_position_m;
+  if (too_far_from_initial_guess) {
+    LOG(INFO) << "Rotation: " << delta_rotation_deg
+              << " Position: " << delta_position_m;
+    LOG(INFO) << "Expected: " << pair.T_SB_SA_init.getPosition();
+    LOG(INFO) << "Calculated: " << pair.T_SB_SA_final.getPosition();
+  }
   return too_far_from_initial_guess;
 }
 
@@ -311,7 +317,7 @@ bool computeLoamAlignmentForCandidatePairs(
 
   common::ProgressBar progress_bar(num_pairs);
 
-  LOG(INFO) << "Processing " << num_pairs << " alignment candidates...";
+  LOG(WARNING) << "Processing " << num_pairs << " alignment candidates...";
   VLOG(1) << "Processing " << num_pairs << " alignment candidates...";
 
   // Introspection
@@ -339,10 +345,13 @@ bool computeLoamAlignmentForCandidatePairs(
       [](const AlignmentCandidatePair& a, const AlignmentCandidatePair& b) {
         return a.candidate_A.timestamp_ns < b.candidate_A.timestamp_ns;
       });
+
+  size_t loam_maps = 0u;
   for (auto it = temporally_ordered_pairs.cbegin();
        it != temporally_ordered_pairs.cend(); ++it) {
-    const AlignmentCandidatePair& pair = *it;
+    LOG(WARNING) << "loam maps: " << successful_alignments;
 
+    const AlignmentCandidatePair& pair = *it;
     const backend::ResourceType resource_type_A =
         pair.candidate_A.resource_type;
     const backend::ResourceType resource_type_B =
@@ -381,7 +390,8 @@ bool computeLoamAlignmentForCandidatePairs(
 
             feature_detector.extractLoamFeaturesFromPointCloud(
                 candidate_resource_A, &aggregated_loam_map);
-
+            if (aggregated_loam_map.empty())
+              return false;
             loam_map_base_candidate = pair.candidate_A;
             last_successful_candidate = loam_map_base_candidate;
           }
@@ -395,7 +405,8 @@ bool computeLoamAlignmentForCandidatePairs(
           resources::PointCloud candidate_B_feature_cloud;
           feature_detector.extractLoamFeaturesFromPointCloud(
               candidate_resource_B, &candidate_B_feature_cloud);
-
+          if (candidate_B_feature_cloud.empty())
+            return false;
           AlignmentCandidatePair loam_candidate_pair;
           createCandidatePair(
               pair.candidate_B, loam_map_base_candidate, &loam_candidate_pair);
@@ -403,9 +414,14 @@ bool computeLoamAlignmentForCandidatePairs(
           createCandidatePair(
               pair.candidate_B, last_successful_candidate,
               &candidate_to_last_successful_pair);
+          // LOG(INFO)<<"map init:
+          // "<<loam_candidate_pair.T_SB_SA_init.getPosition();
           loam_candidate_pair.T_SB_SA_init =
               T_map_last_successful_candidate *
               candidate_to_last_successful_pair.T_SB_SA_init;
+          // loam_candidate_pair.T_SB_SA_init =
+          //     T_map_last_successful_candidate.getRotation().inverse() *
+          //     candidate_to_last_successful_pair.T_SB_SA_init;
 
           const regbox::RegistrationResult result = aligner->align(
               aggregated_loam_map, candidate_B_feature_cloud,
@@ -413,16 +429,21 @@ bool computeLoamAlignmentForCandidatePairs(
           result.getRegisteredCloud(&new_aligned_features);
           const aslam::Transformation T_map_candidate_aligned =
               result.get_T_target_source();
-
           loam_pair =
               candidatePairFromRegistrationResult(loam_candidate_pair, result);
+          // LOG(INFO) << "initally: " << loam_pair.T_SB_SA_init.getPosition();
+          // LOG(INFO) << "loam gave: " <<
+          // loam_pair.T_SB_SA_final.getPosition();
 
           candidate_to_last_successful_pair.T_SB_SA_final =
               T_map_last_successful_candidate.inverse() *
               T_map_candidate_aligned;
+          candidate_to_last_successful_pair.T_SB_SA_final =
+              candidate_to_last_successful_pair.T_SB_SA_final.inverse();
           candidate_to_last_successful_pair.success = loam_pair.success;
           aligned_without_error = loam_pair.success;
         } catch (const std::exception&) {
+          LOG(INFO) << "exception";
           aligned_without_error = false;
         }
         break;
@@ -438,32 +459,36 @@ bool computeLoamAlignmentForCandidatePairs(
 
     // In case there was an error inside the alignment function, we skip
     // the rest.
-    if (!aligned_without_error) {
-      LOG(WARNING) << "Alignment between LOAM Map and candidate ("
-                   << aslam::time::timeNanosecondsToString(
-                          pair.candidate_B.timestamp_ns)
-                   << ") encountered and error!";
-      progress_bar.update(++processed_pairs);
-      continue;
-    }
+    // if (!aligned_without_error) {
+    //   LOG(WARNING) << "Alignment between LOAM Map and candidate ("
+    //                << aslam::time::timeNanosecondsToString(
+    //                       pair.candidate_B.timestamp_ns)
+    //                << ") encountered and error!";
+    //   progress_bar.update(++processed_pairs);
+    //   continue;
+    // }
 
     // Some simple sanity checks to overrule the success of the alignment if
     // necessary,
-    if (alignmentDeviatesTooMuchFromInitialGuess(
-            config, candidate_to_last_successful_pair)) {
-      LOG(WARNING) << "Alignment between candidat for time "
-                   << candidate_to_last_successful_pair.candidate_A.timestamp_ns
-                   << " and candidates for time "
-                   << candidate_to_last_successful_pair.candidate_B.timestamp_ns
-                   << std::endl;
-
-      candidate_to_last_successful_pair.success = false;
-      loam_pair.success = false;
-    }
+    // if (alignmentDeviatesTooMuchFromInitialGuess(
+    //         config, candidate_to_last_successful_pair)) {
+    //   LOG(WARNING) << "Alignment between candidat for time "
+    //                <<
+    //                candidate_to_last_successful_pair.candidate_A.timestamp_ns
+    //                << " and candidates for time "
+    //                <<
+    //                candidate_to_last_successful_pair.candidate_B.timestamp_ns
+    //                << std::endl;
+    //
+    //   candidate_to_last_successful_pair.success = false;
+    //   loam_pair.success = false;
+    // }
 
     // Only keep pair if successful.
+
+    loam_pair.success = true;
     if (loam_pair.success) {
-      aligned_candidate_pairs->emplace(loam_pair);
+      aligned_candidate_pairs->insert(loam_pair);
       pcl::PointCloud<pcl::PointXYZL> new_aligned_features_pcl;
       backend::convertPointCloudType(
           new_aligned_features, &new_aligned_features_pcl);
@@ -481,7 +506,7 @@ bool computeLoamAlignmentForCandidatePairs(
       float max_x = -std::numeric_limits<float>::max();
       float max_y = -std::numeric_limits<float>::max();
       float max_z = -std::numeric_limits<float>::max();
-      for (pcl::PointXYZL new_feature_point : new_aligned_features_pcl) {
+      for (const pcl::PointXYZL& new_feature_point : new_aligned_features_pcl) {
         min_x = std::min(min_x, new_feature_point.x);
         min_y = std::min(min_y, new_feature_point.y);
         min_z = std::min(min_z, new_feature_point.z);
@@ -502,6 +527,7 @@ bool computeLoamAlignmentForCandidatePairs(
         map_points_outside_current_fov.push_back(
             (*aggregated_loam_map_pcl)[idx]);
       }
+
       *aggregated_loam_map_pcl = map_points_outside_current_fov;
 
       map_points_in_current_fov += new_aligned_features_pcl;
@@ -509,7 +535,7 @@ bool computeLoamAlignmentForCandidatePairs(
           new pcl::PointCloud<pcl::PointXYZL>);
       pcl::PointCloud<pcl::PointXYZL>::Ptr map_edge_points_in_current_fov(
           new pcl::PointCloud<pcl::PointXYZL>);
-      for (pcl::PointXYZL map_point_in_fov : map_points_in_current_fov) {
+      for (const pcl::PointXYZL& map_point_in_fov : map_points_in_current_fov) {
         if (map_point_in_fov.label == 0) {
           map_surface_points_in_current_fov->push_back(map_point_in_fov);
         } else {
@@ -520,7 +546,6 @@ bool computeLoamAlignmentForCandidatePairs(
       pcl::PointCloud<pcl::PointXYZL>
           map_edge_points_in_current_fov_down_sampled;
       pcl::VoxelGrid<pcl::PointXYZL> edge_filter;
-
       edge_filter.setInputCloud(map_edge_points_in_current_fov);
       edge_filter.setLeafSize(0.2, 0.2, 0.2);
       edge_filter.filter(map_edge_points_in_current_fov_down_sampled);
@@ -547,7 +572,6 @@ bool computeLoamAlignmentForCandidatePairs(
       backend::convertPointCloudType(
           *aggregated_loam_map_pcl, &aggregated_loam_map);
     }
-
     progress_bar.update(++processed_pairs);
   }
 

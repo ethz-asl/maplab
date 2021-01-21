@@ -76,6 +76,15 @@ bool searchForAlignmentCandidatePairs(
     return false;
   }
 
+  if (FLAGS_dm_candidate_alignment_use_loam_alignment) {
+    if (!searchForLoamAlignmentCandidatePairs(
+            config, mission_ids, candidates_per_mission, candidate_pairs_ptr)) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
   if (config.enable_intra_mission_consecutive_search) {
     if (!searchForConsecutiveAlignmentCandidatePairs(
             config, mission_ids, candidates_per_mission, candidate_pairs_ptr)) {
@@ -172,6 +181,7 @@ void findAllAlignmentCandidates(
       }
 
       // Iterate over all sensors that have this resource type.
+      LOG(WARNING) << "FOUND " << resources_of_type_ptr->size();
       for (const auto& sensor_to_resource_buffer_map : *resources_of_type_ptr) {
         const aslam::SensorId& sensor_id = sensor_to_resource_buffer_map.first;
         const backend::TemporalResourceIdBuffer& resource_buffer =
@@ -199,6 +209,7 @@ void findAllAlignmentCandidates(
         // Get a mapping from resource to closest vertex.
         std::map<int64_t, pose_graph::VertexId, std::less<int64_t>>
             resource_timestamp_to_closest_vertex_id_map;
+        LOG(WARNING) << "found: " << resource_buffer.size();
         for (const auto& stamped_resource : resource_buffer) {
           const int64_t timestamp_resource_ns = stamped_resource.first;
 
@@ -356,6 +367,88 @@ void addCandidatePair(
   candidate_pairs_ptr->emplace(pair);
 }
 
+bool searchForLoamAlignmentCandidatePairs(
+    const SearchConfig& config, const vi_map::MissionIdList& mission_ids,
+    const MissionToAlignmentCandidatesMap& candidates_per_mission,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK_NOTNULL(candidate_pairs_ptr);
+
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    if (candidates_per_mission.count(mission_id) == 0u) {
+      continue;
+    }
+
+    VLOG(1) << "Searching for LOAM candidates in mission " << mission_id;
+
+    const AlignmentCandidateList& candidates =
+        candidates_per_mission.at(mission_id);
+
+    const size_t num_candidates = candidates.size();
+    if (num_candidates < 2u) {
+      return true;
+    }
+
+    const AlignmentCandidate* candidate_A = nullptr;
+    const AlignmentCandidate* candidate_B = nullptr;
+
+    size_t current_idx = 0u;
+    while (current_idx < num_candidates) {
+      // If we have not set a first candidate yet, we need to do now and move
+      // on.
+      if (candidate_A == nullptr) {
+        CHECK_LT(current_idx, num_candidates);
+        candidate_A = &(candidates[current_idx]);
+        candidate_B = nullptr;
+        VLOG(5) << aslam::time::timeNanosecondsToString(
+                       candidate_A->timestamp_ns)
+                << " - none (init)";
+
+        ++current_idx;
+        continue;
+      }
+
+      // Fetch current candidate for B.
+      CHECK_LT(current_idx, num_candidates);
+      const AlignmentCandidate* current_candidate = &(candidates[current_idx]);
+
+      // Now we should have two candidates to compare.
+      CHECK_NOTNULL(current_candidate);
+      CHECK_NOTNULL(candidate_A);
+
+      VLOG(5) << aslam::time::timeNanosecondsToString(candidate_A->timestamp_ns)
+              << " - "
+              << aslam::time::timeNanosecondsToString(
+                     current_candidate->timestamp_ns);
+
+      // For consecutive constraints we don't want to mix sensors, since we
+      // expect the candidates to be in temporal order for each sensor. The
+      // candidate list however will include all sensor data for a single
+      // sensor/type in temporal order, but not across sensor/type.
+      if (candidate_A->sensor_id != current_candidate->sensor_id ||
+          candidate_A->resource_type != current_candidate->resource_type) {
+        candidate_A = current_candidate;
+        candidate_B = nullptr;
+
+        ++current_idx;
+        continue;
+      }
+      CHECK_LT(candidate_A->timestamp_ns, current_candidate->timestamp_ns);
+      candidate_B = current_candidate;
+      // If we alread had a candidate B, we take the two candidates and
+      // create a candidate pair and move on.
+      addCandidatePair(*candidate_A, *candidate_B, candidate_pairs_ptr);
+      candidate_A = candidate_B;
+      candidate_B = nullptr;
+      CHECK_NOTNULL(candidate_A);
+
+      ++current_idx;
+      continue;
+    }
+  }
+  LOG(WARNING) << "FOUND CANDIDATES FOR LOAM: " << candidate_pairs_ptr->size();
+  return true;
+}
+
 bool searchForConsecutiveAlignmentCandidatePairs(
     const SearchConfig& config, const vi_map::MissionIdList& mission_ids,
     const MissionToAlignmentCandidatesMap& candidates_per_mission,
@@ -426,6 +519,16 @@ bool searchForConsecutiveAlignmentCandidatePairs(
       // If the current B candidate tripped any of the criteria, we need to take
       // the previous B candidate, unless we don't have one, in which case we
       // move on.
+      LOG(WARNING) << "temporally: "
+                   << candidatesAreTemporallyTooFar(
+                          config, *candidate_A, *current_candidate);
+      LOG(WARNING) << "spatially: "
+                   << candidatesAreSpatiallyTooFar(
+                          config, *candidate_A, *current_candidate);
+      LOG(WARNING) << "tdiff: "
+                   << aslam::time::timeNanosecondsToString(std::abs(
+                          candidate_A->timestamp_ns -
+                          current_candidate->timestamp_ns));
       if (candidatesAreTemporallyTooFar(
               config, *candidate_A, *current_candidate) ||
           candidatesAreSpatiallyTooFar(

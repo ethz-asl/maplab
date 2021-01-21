@@ -7,7 +7,7 @@ namespace dense_mapping {
 
 // CANDIDATE SEARCH
 DEFINE_string(
-    dm_resource_types, "16,17,21,24",
+    dm_resource_types, "16,17,21,24,25",
     "Defines the resource types that are used to derive the dense mapping "
     "constraints. Provide a CSV string with the resource type numbers.");
 

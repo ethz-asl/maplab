@@ -30,7 +30,10 @@ Config Config::forLoam() {
   config.use_loam_alignment = true;
   config.search_config = SearchConfig::fromGflags();
   config.search_config.enable_intra_mission_consecutive_search = true;
-  config.search_config.consecutive_search_max_delta_time_s = 0.15;
+  config.search_config.consecutive_search_max_delta_time_s =
+      FLAGS_dm_candidate_search_consecutive_max_delta_time_s;
+  config.search_config.consecutive_search_max_delta_position_m = 0.5;
+  config.search_config.consecutive_search_max_delta_rotation_deg = 30;
   config.search_config.enable_intra_mission_proximity_search = false;
   config.search_config.enable_inter_mission_proximity_search = false;
   config.search_config.enable_intra_mission_global_search = false;
@@ -49,13 +52,11 @@ bool addDenseMappingConstraintsToMap(
   CHECK(!mission_ids.empty());
 
   AlignmentCandidatePairs candidates;
-
   if (!searchForAlignmentCandidatePairs(
           config.search_config, *vi_map_ptr, mission_ids, &candidates)) {
     LOG(ERROR) << "The search for alignment candidate pairs failed!";
     return false;
   }
-
   if (!selectAlignmentCandidatePairs(
           config.selection_config, vi_map_ptr, &candidates)) {
     LOG(ERROR)
@@ -78,7 +79,6 @@ bool addDenseMappingConstraintsToMap(
     LOG(ERROR) << "Computing the alignment of the candidates failed!";
     return false;
   }
-
   if (!applyConstraintsToMap(
           config.constraints_config, aligned_candidates, vi_map_ptr)) {
     LOG(ERROR)

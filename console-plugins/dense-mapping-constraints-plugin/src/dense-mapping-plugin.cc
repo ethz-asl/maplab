@@ -67,7 +67,11 @@ int DenseMappingPlugin::addDenseMappingConstraints() const {
     return common::kStupidUserError;
   }
 
-  const Config config = Config::fromGflags();
+  Config config = Config::fromGflags();
+  if (FLAGS_dm_candidate_alignment_use_loam_alignment) {
+    LOG(INFO) << "LOAM";
+    config = Config::forLoam();
+  }
   timing::TimerImpl timer("add_dense_mapping_constraints");
   if (!addDenseMappingConstraintsToMap(config, mission_ids, map.get())) {
     LOG(ERROR) << "Failed to add dense mapping constraints to map.";
