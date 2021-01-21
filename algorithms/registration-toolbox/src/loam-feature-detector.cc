@@ -78,38 +78,15 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
     }
   }
 
-  // const std::string kLoamFeatureFrame = "/os_lidar";
-  // const std::string kLoamInputPointCloudTopic = "/loam_input_points";
-  // sensor_msgs::PointCloud2 loam_input_points_msg;
-  // pcl::toROSMsg(loam_input, loam_input_points_msg);
-  // loam_input_points_msg.header.frame_id = kLoamFeatureFrame;
-  // visualization::RVizVisualizationSink::publish(
-  //     kLoamInputPointCloudTopic, loam_input_points_msg);
-  //
-  // // const std::string kLoamFeatureFrame = "/os_lidar";
-  // pickedpoints_.header.frame_id = kLoamFeatureFrame;
-  // const std::string kLoamUnstablePointCloudTopic = "/loam_unstable_points";
-  // sensor_msgs::PointCloud2 loam_unstable_points_msg;
-  // pcl::toROSMsg(pickedpoints_, loam_unstable_points_msg);
-  // visualization::RVizVisualizationSink::publish(
-  //     kLoamUnstablePointCloudTopic, loam_unstable_points_msg);
-  //
-  // pcl::PointCloud<pcl::PointXYZ> edge_points = *edges;
-  // edge_points.header.frame_id = kLoamFeatureFrame;
-  // sensor_msgs::PointCloud2 loam_edge_points_msg;
-  // pcl::toROSMsg(edge_points, loam_edge_points_msg);
-  // const std::string kLoamEdgePointCloudTopic = "/loam_edge_points";
-  // visualization::RVizVisualizationSink::publish(
-  //     kLoamEdgePointCloudTopic, loam_edge_points_msg);
   downSampleFeatures(edges, surfaces);
   *feature_cloud = resources::PointCloud();
-  for (pcl::PointXYZ point : *edges) {
+  for (const pcl::PointXYZ& point : *edges) {
     feature_cloud->xyz.push_back(point.x);
     feature_cloud->xyz.push_back(point.y);
     feature_cloud->xyz.push_back(point.z);
     feature_cloud->labels.push_back(1u);
   }
-  for (pcl::PointXYZ point : *surfaces) {
+  for (const pcl::PointXYZ& point : *surfaces) {
     feature_cloud->xyz.push_back(point.x);
     feature_cloud->xyz.push_back(point.y);
     feature_cloud->xyz.push_back(point.z);

@@ -181,7 +181,6 @@ void findAllAlignmentCandidates(
       }
 
       // Iterate over all sensors that have this resource type.
-      LOG(WARNING) << "FOUND " << resources_of_type_ptr->size();
       for (const auto& sensor_to_resource_buffer_map : *resources_of_type_ptr) {
         const aslam::SensorId& sensor_id = sensor_to_resource_buffer_map.first;
         const backend::TemporalResourceIdBuffer& resource_buffer =
@@ -209,7 +208,6 @@ void findAllAlignmentCandidates(
         // Get a mapping from resource to closest vertex.
         std::map<int64_t, pose_graph::VertexId, std::less<int64_t>>
             resource_timestamp_to_closest_vertex_id_map;
-        LOG(WARNING) << "found: " << resource_buffer.size();
         for (const auto& stamped_resource : resource_buffer) {
           const int64_t timestamp_resource_ns = stamped_resource.first;
 
@@ -445,7 +443,7 @@ bool searchForLoamAlignmentCandidatePairs(
       continue;
     }
   }
-  LOG(WARNING) << "FOUND CANDIDATES FOR LOAM: " << candidate_pairs_ptr->size();
+  VLOG(1) << "Found " << candidate_pairs_ptr->size() << "candidates for LOAM";
   return true;
 }
 
@@ -519,16 +517,6 @@ bool searchForConsecutiveAlignmentCandidatePairs(
       // If the current B candidate tripped any of the criteria, we need to take
       // the previous B candidate, unless we don't have one, in which case we
       // move on.
-      LOG(WARNING) << "temporally: "
-                   << candidatesAreTemporallyTooFar(
-                          config, *candidate_A, *current_candidate);
-      LOG(WARNING) << "spatially: "
-                   << candidatesAreSpatiallyTooFar(
-                          config, *candidate_A, *current_candidate);
-      LOG(WARNING) << "tdiff: "
-                   << aslam::time::timeNanosecondsToString(std::abs(
-                          candidate_A->timestamp_ns -
-                          current_candidate->timestamp_ns));
       if (candidatesAreTemporallyTooFar(
               config, *candidate_A, *current_candidate) ||
           candidatesAreSpatiallyTooFar(

@@ -317,7 +317,6 @@ bool computeLoamAlignmentForCandidatePairs(
 
   common::ProgressBar progress_bar(num_pairs);
 
-  LOG(WARNING) << "Processing " << num_pairs << " alignment candidates...";
   VLOG(1) << "Processing " << num_pairs << " alignment candidates...";
 
   // Introspection
@@ -346,11 +345,8 @@ bool computeLoamAlignmentForCandidatePairs(
         return a.candidate_A.timestamp_ns < b.candidate_A.timestamp_ns;
       });
 
-  size_t loam_maps = 0u;
   for (auto it = temporally_ordered_pairs.cbegin();
        it != temporally_ordered_pairs.cend(); ++it) {
-    LOG(WARNING) << "loam maps: " << successful_alignments;
-
     const AlignmentCandidatePair& pair = *it;
     const backend::ResourceType resource_type_A =
         pair.candidate_A.resource_type;
@@ -401,7 +397,6 @@ bool computeLoamAlignmentForCandidatePairs(
             LOG(ERROR) << "Unable to retrieve resource for candidate B.";
             return false;
           }
-
           resources::PointCloud candidate_B_feature_cloud;
           feature_detector.extractLoamFeaturesFromPointCloud(
               candidate_resource_B, &candidate_B_feature_cloud);
@@ -414,36 +409,29 @@ bool computeLoamAlignmentForCandidatePairs(
           createCandidatePair(
               pair.candidate_B, last_successful_candidate,
               &candidate_to_last_successful_pair);
-          // LOG(INFO)<<"map init:
-          // "<<loam_candidate_pair.T_SB_SA_init.getPosition();
+
           loam_candidate_pair.T_SB_SA_init =
               T_map_last_successful_candidate *
               candidate_to_last_successful_pair.T_SB_SA_init;
-          // loam_candidate_pair.T_SB_SA_init =
-          //     T_map_last_successful_candidate.getRotation().inverse() *
-          //     candidate_to_last_successful_pair.T_SB_SA_init;
 
           const regbox::RegistrationResult result = aligner->align(
               aggregated_loam_map, candidate_B_feature_cloud,
               loam_candidate_pair.T_SB_SA_init);
           result.getRegisteredCloud(&new_aligned_features);
+
           const aslam::Transformation T_map_candidate_aligned =
               result.get_T_target_source();
+
           loam_pair =
               candidatePairFromRegistrationResult(loam_candidate_pair, result);
-          // LOG(INFO) << "initally: " << loam_pair.T_SB_SA_init.getPosition();
-          // LOG(INFO) << "loam gave: " <<
-          // loam_pair.T_SB_SA_final.getPosition();
 
           candidate_to_last_successful_pair.T_SB_SA_final =
               T_map_last_successful_candidate.inverse() *
               T_map_candidate_aligned;
-          candidate_to_last_successful_pair.T_SB_SA_final =
-              candidate_to_last_successful_pair.T_SB_SA_final.inverse();
+
           candidate_to_last_successful_pair.success = loam_pair.success;
           aligned_without_error = loam_pair.success;
         } catch (const std::exception&) {
-          LOG(INFO) << "exception";
           aligned_without_error = false;
         }
         break;
@@ -459,30 +447,28 @@ bool computeLoamAlignmentForCandidatePairs(
 
     // In case there was an error inside the alignment function, we skip
     // the rest.
-    // if (!aligned_without_error) {
-    //   LOG(WARNING) << "Alignment between LOAM Map and candidate ("
-    //                << aslam::time::timeNanosecondsToString(
-    //                       pair.candidate_B.timestamp_ns)
-    //                << ") encountered and error!";
-    //   progress_bar.update(++processed_pairs);
-    //   continue;
-    // }
+    if (!aligned_without_error) {
+      LOG(WARNING) << "Alignment between LOAM Map and candidate ("
+                   << aslam::time::timeNanosecondsToString(
+                          pair.candidate_B.timestamp_ns)
+                   << ") encountered and error!";
+      progress_bar.update(++processed_pairs);
+      continue;
+    }
 
     // Some simple sanity checks to overrule the success of the alignment if
     // necessary,
-    // if (alignmentDeviatesTooMuchFromInitialGuess(
-    //         config, candidate_to_last_successful_pair)) {
-    //   LOG(WARNING) << "Alignment between candidat for time "
-    //                <<
-    //                candidate_to_last_successful_pair.candidate_A.timestamp_ns
-    //                << " and candidates for time "
-    //                <<
-    //                candidate_to_last_successful_pair.candidate_B.timestamp_ns
-    //                << std::endl;
-    //
-    //   candidate_to_last_successful_pair.success = false;
-    //   loam_pair.success = false;
-    // }
+    if (alignmentDeviatesTooMuchFromInitialGuess(
+            config, candidate_to_last_successful_pair)) {
+      LOG(WARNING) << "Alignment between candidat for time "
+                   << candidate_to_last_successful_pair.candidate_A.timestamp_ns
+                   << " and candidates for time "
+                   << candidate_to_last_successful_pair.candidate_B.timestamp_ns
+                   << std::endl;
+
+      candidate_to_last_successful_pair.success = false;
+      loam_pair.success = false;
+    }
 
     // Only keep pair if successful.
 

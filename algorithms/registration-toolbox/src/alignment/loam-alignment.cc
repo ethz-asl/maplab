@@ -9,10 +9,10 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 DEFINE_int32(
-    regbox_loam_optimization_iterations, 30,
+    regbox_loam_optimization_iterations, 15,
     "Iterations for LOAM Optimization");
 DEFINE_int32(
-    regbox_loam_ceres_iterations, 10, "Iterations per Ceres Optimization");
+    regbox_loam_ceres_iterations, 5, "Iterations per Ceres Optimization");
 DEFINE_double(
     regbox_loam_max_edge_distance_m, 1.0,
     "Maximum point distance for edge point matches");
@@ -73,7 +73,7 @@ RegistrationResult LoamAlignment::registerCloudImpl(
 
     ceres::Solver::Options solver_options;
     solver_options.linear_solver_type = ceres::DENSE_QR;
-    solver_options.max_num_iterations = 5;
+    solver_options.max_num_iterations = FLAGS_regbox_loam_ceres_iterations;
     solver_options.minimizer_progress_to_stdout = false;
     solver_options.check_gradients = false;
     solver_options.gradient_check_relative_precision = 1e-4;
@@ -103,7 +103,7 @@ void LoamAlignment::extractFeaturesFromInputClouds(
   source_edges_ =
       PclPointCloudPtr<pcl::PointXYZL>(new pcl::PointCloud<pcl::PointXYZL>);
 
-  for (pcl::PointXYZL point : target->points) {
+  for (const pcl::PointXYZL& point : target->points) {
     if (point.label == 0) {
       target_surfaces_->push_back(point);
     } else if (point.label == 1) {
@@ -111,7 +111,7 @@ void LoamAlignment::extractFeaturesFromInputClouds(
     }
   }
 
-  for (pcl::PointXYZL point : source->points) {
+  for (const pcl::PointXYZL& point : source->points) {
     if (point.label == 0) {
       source_surfaces_->push_back(point);
     } else if (point.label == 1) {
