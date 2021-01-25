@@ -128,10 +128,6 @@ void Synchronizer::initializeNCameraSynchronization(
 
 void Synchronizer::processCameraImage(
     const vio::ImageMeasurement::ConstPtr& image_measurement) {
-  CHECK(visual_pipeline_) << "[MaplabNode-Synchronizer] The visual pipeline, "
-                             "which turns individual images "
-                          << "into NFrames, has not been initialized yet!";
-
   CHECK(image_measurement);
 
   const int64_t current_time_ns = aslam::time::nanoSecondsSinceEpoch();
@@ -390,7 +386,7 @@ void Synchronizer::releaseCameraImages(
         << " into visual processing pipeline... (blocking if pipeline is full)";
     if (!visual_pipeline_->processImageBlockingIfFull(
             image_measurement->camera_index, image_measurement->image,
-            image_measurement->timestamp,
+            image_measurement->timestamp, image_measurement->encoding,
             FLAGS_vio_nframe_sync_max_queue_size)) {
       LOG(ERROR)
           << "[MaplabNode-Synchronizer] Failed to process an image of camera "
