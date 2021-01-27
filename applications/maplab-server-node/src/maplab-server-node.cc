@@ -1477,6 +1477,23 @@ void MaplabServerNode::runSubmapProcessing(
     optimizer.optimize(options, missions_to_optimize, map.get());
   }
 
+  // Sparse Graph Generation
+  //////////////////////////
+  {
+    {
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] =
+          "sparse graph generation";
+    }
+    const vi_map::MissionId& mission_id = missions_to_process.front();
+    pose_graph::VertexIdList all_vertices_in_mission;
+    map.get()->getAllVertexIdsInMissionAlongGraph(
+        mission_id, &all_vertices_in_mission);
+    const pose_graph::VertexId& first_vertex_id =
+        all_vertices_in_mission.front();
+    const pose_graph::VertexId& last_vertex_id = all_vertices_in_mission.back();
+  }
+
   // Remove processing status of submap
   {
     std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
