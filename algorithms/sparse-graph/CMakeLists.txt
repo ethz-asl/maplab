@@ -22,11 +22,15 @@ catkin_simple(ALL_DEPS_REQUIRED)
 #############
 
 cs_add_library(${PROJECT_NAME}
+  src/sparse-graph.cc
+  src/mission-graph.cc
 )
 
 ##########
 # TESTS #
 ##########
+catkin_add_gtest(test_sparse_graph test/test-sparse-graph.cc)
+target_link_libraries(test_sparse_graph ${PROJECT_NAME})
 
 ##########
 # EXPORT #
