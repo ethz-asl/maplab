@@ -7,6 +7,7 @@ namespace spg {
 
 class RepresentativeNode {
  public:
+  RepresentativeNode() = default;
   explicit RepresentativeNode(
       const aslam::Transformation& pose,
       const pose_graph::VertexIdList& vertices);
@@ -15,8 +16,8 @@ class RepresentativeNode {
   const pose_graph::VertexIdList& getVertices() const noexcept;
 
  private:
-  const aslam::Transformation& pose_;
-  const pose_graph::VertexIdList& vertices_;
+  aslam::Transformation pose_;
+  pose_graph::VertexIdList vertices_;
 };
 
 }  // namespace spg
