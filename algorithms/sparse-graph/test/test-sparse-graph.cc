@@ -3,7 +3,7 @@
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
 
-namespace regbox {
+namespace spg {
 
 class SparseGraphTest : public ::testing::Test {
  protected:
@@ -60,6 +60,6 @@ TEST_F(SparseGraphTest, TestMissionMapMultipleStorage) {
   EXPECT_EQ(2 * n_vertices, graph.getMissionGraphSize(map_key));
 }
 
-}  // namespace regbox
+}  // namespace spg
 
 MAPLAB_UNITTEST_ENTRYPOINT
