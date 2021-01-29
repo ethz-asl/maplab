@@ -27,6 +27,7 @@ RepresentativeNode AvgPartitioner::getRepresentativesForSubmap(
 
     average_position += vertex.get_p_M_I();
 
+    // This only works well if the rotations are relatively close to each other.
     Eigen::Quaterniond q = vertex.get_T_M_I().getRotation().toImplementation();
     const float weight = 1.0f / static_cast<float>(i + 1);
     average_quaternion = average_quaternion.slerp(weight, q);

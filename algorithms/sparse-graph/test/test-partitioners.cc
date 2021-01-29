@@ -76,6 +76,12 @@ class PartitionerTest : public ::testing::Test {
     T_M_I0.getPosition() << 1, 2, 3;
     T_M_I1.getPosition() << 4, 5, 6;
     T_M_I2.getPosition() << 7, 8, 9;
+    T_M_I0.getRotation() =
+        kindr::minimal::RotationQuaternion(Eigen::Quaterniond(1, 0, 0, 0));
+    T_M_I1.getRotation() = kindr::minimal::RotationQuaternion(
+        Eigen::Quaterniond(0.9970644, 0.0454372, 0.0416356, 0.0454372));
+    T_M_I2.getRotation() = kindr::minimal::RotationQuaternion(
+        Eigen::Quaterniond(0.9879654, 0.0940609, 0.0789265, 0.0940609));
     const pose_graph::VertexId vertex_id_0 =
         generator.createVertex(mission_id, T_M_I0);
     const pose_graph::VertexId vertex_id_1 =
@@ -124,11 +130,11 @@ TEST_F(PartitionerTest, TestMultipleSetAveragePartitioner) {
   AvgPartitioner avg_partitioner(map);
   auto node_and_vertex = createMultipleTest(&map, &avg_partitioner);
   aslam::Transformation T_node = node_and_vertex.first.getPose();
-  aslam::Transformation T_expected = node_and_vertex.second[1];
+  aslam::Transformation T_expected = node_and_vertex.second[1];  // center
 
   EXPECT_NEAR_EIGEN(T_node.getPosition(), T_expected.getPosition(), 1e-5);
   EXPECT_NEAR_KINDR_QUATERNION(
-      T_node.getRotation(), T_expected.getRotation(), 1e-5);
+      T_node.getRotation(), T_expected.getRotation(), 1e-2);
 }
 
 }  // namespace spg
