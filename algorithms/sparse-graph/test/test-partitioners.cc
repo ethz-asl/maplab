@@ -62,6 +62,36 @@ class PartitionerTest : public ::testing::Test {
         partitioner->getRepresentativesForSubmap({vertex_id_0}),
         std::move(T_M_I0));
   }
+
+  std::pair<RepresentativeNode, std::vector<aslam::Transformation>>
+  createMultipleTest(vi_map::VIMap* map, BasePartitioner* partitioner) {
+    CHECK_NOTNULL(partitioner);
+    CHECK_NOTNULL(map);
+    vi_map::VIMapGenerator generator(*map, 42u);
+    const vi_map::MissionId mission_id = generator.createMission();
+    CHECK(mission_id.isValid());
+    aslam::Transformation T_M_I0;
+    aslam::Transformation T_M_I1;
+    aslam::Transformation T_M_I2;
+    T_M_I0.getPosition() << 1, 2, 3;
+    T_M_I1.getPosition() << 4, 5, 6;
+    T_M_I2.getPosition() << 7, 8, 9;
+    const pose_graph::VertexId vertex_id_0 =
+        generator.createVertex(mission_id, T_M_I0);
+    const pose_graph::VertexId vertex_id_1 =
+        generator.createVertex(mission_id, T_M_I1);
+    const pose_graph::VertexId vertex_id_2 =
+        generator.createVertex(mission_id, T_M_I2);
+    CHECK(vertex_id_0.isValid());
+    CHECK(vertex_id_1.isValid());
+    CHECK(vertex_id_2.isValid());
+
+    generator.generateMap();
+    return std::make_pair(
+        partitioner->getRepresentativesForSubmap(
+            {vertex_id_0, vertex_id_1, vertex_id_2}),
+        std::vector<aslam::Transformation>({T_M_I0, T_M_I1, T_M_I2}));
+  }
 };
 
 TEST_F(PartitionerTest, TestEmptySetAveragePartitioner) {
@@ -83,6 +113,18 @@ TEST_F(PartitionerTest, TestSingleSetAveragePartitioner) {
   auto node_and_vertex = createSingleTest(&map, &avg_partitioner);
   aslam::Transformation T_node = node_and_vertex.first.getPose();
   aslam::Transformation T_expected = node_and_vertex.second;
+
+  EXPECT_NEAR_EIGEN(T_node.getPosition(), T_expected.getPosition(), 1e-5);
+  EXPECT_NEAR_KINDR_QUATERNION(
+      T_node.getRotation(), T_expected.getRotation(), 1e-5);
+}
+
+TEST_F(PartitionerTest, TestMultipleSetAveragePartitioner) {
+  vi_map::VIMap map;
+  AvgPartitioner avg_partitioner(map);
+  auto node_and_vertex = createMultipleTest(&map, &avg_partitioner);
+  aslam::Transformation T_node = node_and_vertex.first.getPose();
+  aslam::Transformation T_expected = node_and_vertex.second[1];
 
   EXPECT_NEAR_EIGEN(T_node.getPosition(), T_expected.getPosition(), 1e-5);
   EXPECT_NEAR_KINDR_QUATERNION(
