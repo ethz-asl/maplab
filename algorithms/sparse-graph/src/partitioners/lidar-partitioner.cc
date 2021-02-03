@@ -40,21 +40,22 @@ void LidarPartitioner::initializeSensorMapping() {
   }
 }
 
-RepresentativeNode LidarPartitioner::getRepresentativesForSubmap(
-    const pose_graph::VertexIdList& vertices) {
+RepresentativeNodeVector LidarPartitioner::getRepresentativesForSubmap(
+    const pose_graph::VertexIdList& vertices, const uint64_t submap_id) {
   if (mission_to_lidar_sensor_map_.empty()) {
     LOG(ERROR)
         << "Initialization of the mission id to sensor map failed. Aborting.";
-    return RepresentativeNode();
+    return {};
   }
   const std::size_t n_vertices = vertices.size();
   if (n_vertices == 0) {
     LOG(ERROR) << "Received an empty vertex list. Aborting.";
-    return RepresentativeNode();
+    return {};
   }
 
   constexpr int64_t tolerance_ns = 1e8;  // 100ms
   const landmark_triangulation::PoseInterpolator pose_interpolator;
+  std::vector<int64_t> processed_lidar_scans;
   for (std::size_t i = 0u; i < n_vertices; ++i) {
     const vi_map::Vertex& vertex = map_.getVertex(vertices[i]);
     const vi_map::MissionId& mission_id = vertex.getMissionId();
@@ -78,12 +79,14 @@ RepresentativeNode LidarPartitioner::getRepresentativesForSubmap(
     pose_interpolator.getPosesAtTime(
         map_, mission_id, timestamps_ns, &T_M_B_vector);
     CHECK_EQ(static_cast<int>(T_M_B_vector.size()), timestamps_ns.cols());
+
+    processed_lidar_scans.emplace_back(ts_pc_ns);
   }
 
   // Return averaged transformation with the used vertices.
   // aslam::Transformation averaged_T(average_quaternion, average_position);
   // return RepresentativeNode(averaged_T, vertices);
-  return RepresentativeNode();
+  return {RepresentativeNode()};
 }
 
 }  // namespace spg

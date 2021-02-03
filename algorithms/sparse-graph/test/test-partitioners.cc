@@ -30,7 +30,7 @@ class PartitionerTest : public ::testing::Test {
     return all_vertices;
   }
 
-  RepresentativeNode createEmptyTest(
+  RepresentativeNodeVector createEmptyTest(
       vi_map::VIMap* map, BasePartitioner* partitioner) {
     CHECK_NOTNULL(partitioner);
     CHECK_NOTNULL(map);
@@ -40,7 +40,8 @@ class PartitionerTest : public ::testing::Test {
     CHECK(mission_id.isValid());
     generator.generateMap();
 
-    return partitioner->getRepresentativesForSubmap({});
+    const uint64_t submap_id = 0u;
+    return partitioner->getRepresentativesForSubmap({}, submap_id);
   }
 
   std::pair<RepresentativeNode, aslam::Transformation> createSingleTest(
@@ -58,12 +59,16 @@ class PartitionerTest : public ::testing::Test {
         generator.createVertex(mission_id, T_M_I0);
     CHECK(vertex_id_0.isValid());
     generator.generateMap();
-    return std::make_pair(
-        partitioner->getRepresentativesForSubmap({vertex_id_0}),
-        std::move(T_M_I0));
+
+    const uint64_t submap_id = 0u;
+    RepresentativeNodeVector nodes =
+        partitioner->getRepresentativesForSubmap({vertex_id_0}, submap_id);
+    CHECK_EQ(nodes.size(), 1);
+
+    return std::make_pair(std::move(nodes[0]), std::move(T_M_I0));
   }
 
-  std::pair<RepresentativeNode, std::vector<aslam::Transformation>>
+  std::pair<RepresentativeNodeVector, std::vector<aslam::Transformation>>
   createMultipleTest(vi_map::VIMap* map, BasePartitioner* partitioner) {
     CHECK_NOTNULL(partitioner);
     CHECK_NOTNULL(map);
@@ -93,9 +98,10 @@ class PartitionerTest : public ::testing::Test {
     CHECK(vertex_id_2.isValid());
 
     generator.generateMap();
+    const uint64_t submap_id = 0u;
     return std::make_pair(
         partitioner->getRepresentativesForSubmap(
-            {vertex_id_0, vertex_id_1, vertex_id_2}),
+            {vertex_id_0, vertex_id_1, vertex_id_2}, submap_id),
         std::vector<aslam::Transformation>({T_M_I0, T_M_I1, T_M_I2}));
   }
 };
@@ -103,14 +109,9 @@ class PartitionerTest : public ::testing::Test {
 TEST_F(PartitionerTest, TestEmptySetAveragePartitioner) {
   vi_map::VIMap map;
   AvgPartitioner avg_partitioner(map);
-  RepresentativeNode node = createEmptyTest(&map, &avg_partitioner);
+  RepresentativeNodeVector node = createEmptyTest(&map, &avg_partitioner);
   aslam::Transformation T_expected;
-  T_expected.setIdentity();
-
-  aslam::Transformation T_node = node.getPose();
-  EXPECT_NEAR_EIGEN(T_node.getPosition(), T_expected.getPosition(), 1e-5);
-  EXPECT_NEAR_KINDR_QUATERNION(
-      T_node.getRotation(), T_expected.getRotation(), 1e-5);
+  EXPECT_TRUE(node.empty());
 }
 
 TEST_F(PartitionerTest, TestSingleSetAveragePartitioner) {
@@ -129,7 +130,10 @@ TEST_F(PartitionerTest, TestMultipleSetAveragePartitioner) {
   vi_map::VIMap map;
   AvgPartitioner avg_partitioner(map);
   auto node_and_vertex = createMultipleTest(&map, &avg_partitioner);
-  aslam::Transformation T_node = node_and_vertex.first.getPose();
+  RepresentativeNodeVector nodes = node_and_vertex.first;
+  EXPECT_FALSE(nodes.empty());
+
+  aslam::Transformation T_node = nodes[0].getPose();
   aslam::Transformation T_expected = node_and_vertex.second[1];  // center
 
   EXPECT_NEAR_EIGEN(T_node.getPosition(), T_expected.getPosition(), 1e-5);

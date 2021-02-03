@@ -3,22 +3,29 @@
 
 #include <vi-map/vi-map.h>
 
+#include <vector>
+
 namespace spg {
 
 class RepresentativeNode {
  public:
   RepresentativeNode() = default;
   explicit RepresentativeNode(
-      const aslam::Transformation& pose,
-      const pose_graph::VertexIdList& vertices);
+      const aslam::Transformation& pose, const int64_t timestamp_ns,
+      const uint64_t submap_id);
 
   const aslam::Transformation& getPose() const noexcept;
   const pose_graph::VertexIdList& getVertices() const noexcept;
+  uint64_t getAssociatedSubmapId() const noexcept;
+  int64_t getTimestampNanoseconds() const noexcept;
 
  private:
   aslam::Transformation pose_;
-  pose_graph::VertexIdList vertices_;
+  int64_t timestamp_ns_;
+  uint64_t submap_id_;
 };
+
+using RepresentativeNodeVector = std::vector<RepresentativeNode>;
 
 }  // namespace spg
 

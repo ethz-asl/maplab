@@ -1,6 +1,7 @@
 #ifndef SPARSE_GRAPH_SPARSE_GRAPH_H_
 #define SPARSE_GRAPH_SPARSE_GRAPH_H_
 
+#include <atomic>
 #include <map>
 #include <string>
 #include <vector>
@@ -24,6 +25,7 @@ class SparseGraph {
  private:
   const vi_map::VIMap& map_;
   std::map<std::string, MissionGraph> mission_graphs_;
+  std::atomic<uint64_t> submap_id_;
 };
 
 }  // namespace spg

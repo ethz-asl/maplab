@@ -15,8 +15,8 @@ class BasePartitioner {
 
   virtual ~BasePartitioner() = default;
 
-  virtual RepresentativeNode getRepresentativesForSubmap(
-      const pose_graph::VertexIdList& vertices) = 0;
+  virtual RepresentativeNodeVector getRepresentativesForSubmap(
+      const pose_graph::VertexIdList& vertices, const uint64_t submap_id) = 0;
 
  protected:
   const vi_map::VIMap& map_;

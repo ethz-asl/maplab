@@ -11,8 +11,9 @@ class LidarPartitioner : public BasePartitioner {
  public:
   explicit LidarPartitioner(const vi_map::VIMap& map);
   virtual ~LidarPartitioner() = default;
-  RepresentativeNode getRepresentativesForSubmap(
-      const pose_graph::VertexIdList& vertices) override;
+  RepresentativeNodeVector getRepresentativesForSubmap(
+      const pose_graph::VertexIdList& vertices,
+      const uint64_t submap_id) override;
 
  private:
   void initializeSensorMapping();

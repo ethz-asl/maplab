@@ -4,11 +4,12 @@
 
 namespace spg {
 
-SparseGraph::SparseGraph(const vi_map::VIMap& map) : map_(map) {}
+SparseGraph::SparseGraph(const vi_map::VIMap& map)
+    : map_(map), submap_id_(0u) {}
 
 void SparseGraph::addVerticesToMissionGraph(
     const std::string& map_key, const pose_graph::VertexIdList& vertices) {
-  mission_graphs_[map_key].addNewVertices(vertices);
+  mission_graphs_[map_key].addNewVertices(submap_id_++, vertices);
 }
 
 void SparseGraph::compute() {}

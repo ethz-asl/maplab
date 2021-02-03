@@ -9,8 +9,9 @@ class AvgPartitioner : public BasePartitioner {
  public:
   explicit AvgPartitioner(const vi_map::VIMap& map);
   virtual ~AvgPartitioner() = default;
-  RepresentativeNode getRepresentativesForSubmap(
-      const pose_graph::VertexIdList& vertices) override;
+  RepresentativeNodeVector getRepresentativesForSubmap(
+      const pose_graph::VertexIdList& vertices,
+      const uint64_t submap_id) override;
 };
 
 }  // namespace spg
