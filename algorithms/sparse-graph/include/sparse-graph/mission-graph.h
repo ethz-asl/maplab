@@ -1,10 +1,13 @@
 #ifndef SPARSE_GRAPH_MISSION_GRAPH_H_
 #define SPARSE_GRAPH_MISSION_GRAPH_H_
 
-#include <vi-map/vi-map.h>
-
 #include <unordered_map>
 #include <vector>
+
+#include <vi-map/vi-map.h>
+
+#include "sparse-graph/common/representative-node.h"
+#include "sparse-graph/partitioners/base-partitioner.h"
 
 namespace spg {
 
@@ -12,7 +15,10 @@ class MissionGraph {
  public:
   MissionGraph();
   void addNewVertices(
-      const uint64_t submap_id, const pose_graph::VertexIdList& vertices);
+      const uint32_t submap_id, const pose_graph::VertexIdList& vertices);
+
+  RepresentativeNodeVector computeSparseGraph(
+      BasePartitioner* partitioner) const;
 
   size_t size() const noexcept;
 

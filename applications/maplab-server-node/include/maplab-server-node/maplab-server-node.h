@@ -8,11 +8,13 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <aslam/common/thread-pool.h>
 #include <map-manager/map-manager.h>
 #include <resources-common/point-cloud.h>
+#include <sparse-graph/sparse-graph.h>
 #include <vi-map/vi-map.h>
 #include <visualization/resource-visualization.h>
 #include <visualization/viwls-graph-plotter.h>
@@ -243,6 +245,8 @@ class MaplabServerNode final {
 
   // Number of full map merging processings
   uint32_t num_full_map_merging_processings = 0u;
+
+  spg::SparseGraph sparsified_graph_;
 };
 
 }  // namespace maplab

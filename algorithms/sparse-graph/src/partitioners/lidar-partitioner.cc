@@ -53,10 +53,14 @@ RepresentativeNodeVector LidarPartitioner::getRepresentativesForSubmap(
     return {};
   }
 
-  constexpr int64_t tolerance_ns = 1e8;  // 100ms
+  constexpr int64_t tolerance_ns = 3.5e8;  // 350ms
   const landmark_triangulation::PoseInterpolator pose_interpolator;
   RepresentativeNodeVector processed_lidar_scans;
   for (std::size_t i = 0u; i < n_vertices; ++i) {
+    if (!map_.hasVertex(vertices[i])) {
+      LOG(ERROR) << "Vertex " << vertices[i] << " not found.";
+      continue;
+    }
     const vi_map::Vertex& vertex = map_.getVertex(vertices[i]);
     const vi_map::MissionId& mission_id = vertex.getMissionId();
     const vi_map::VIMission& mission = map_.getMission(mission_id);
@@ -70,23 +74,32 @@ RepresentativeNodeVector LidarPartitioner::getRepresentativesForSubmap(
         mission, point_cloud_resource_type_,
         mission_to_lidar_sensor_map_[mission_id], ts_vertex_ns, tolerance_ns,
         &pc, &ts_pc_ns);
+    if (ts_pc_ns == -1) {
+      continue;
+    }
 
-    // Interpolate LiDAR pose.
+    // Interpolate pose at the LiDAR scan location.
     Eigen::Matrix<int64_t, 1, Eigen::Dynamic> timestamps_ns =
         Eigen::Matrix<int64_t, 1, 1>::Constant(ts_pc_ns);
 
     aslam::TransformationVector T_M_B_vector;
     pose_interpolator.getPosesAtTime(
         map_, mission_id, timestamps_ns, &T_M_B_vector);
-    CHECK_EQ(static_cast<int>(T_M_B_vector.size()), timestamps_ns.cols());
+    if (T_M_B_vector.size() == 0) {
+      LOG(ERROR) << "Unable to interpolate pose.";
+      continue;
+    }
 
-    // processed_lidar_scans.emplace_back(ts_pc_ns);
+    // Insert a new representative node if it is not already present.
+    RepresentativeNode current_node(T_M_B_vector[0], ts_pc_ns, submap_id);
+    if (std::find(
+            processed_lidar_scans.cbegin(), processed_lidar_scans.cend(),
+            current_node) == processed_lidar_scans.cend()) {
+      processed_lidar_scans.emplace_back(std::move(current_node));
+    }
   }
 
-  // Return averaged transformation with the used vertices.
-  // aslam::Transformation averaged_T(average_quaternion, average_position);
-  // return RepresentativeNode(averaged_T, vertices);
-  return {RepresentativeNode()};
+  return processed_lidar_scans;
 }
 
 }  // namespace spg

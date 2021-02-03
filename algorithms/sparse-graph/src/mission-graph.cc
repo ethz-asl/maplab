@@ -5,7 +5,7 @@ namespace spg {
 MissionGraph::MissionGraph() {}
 
 void MissionGraph::addNewVertices(
-    const uint64_t submap_id, const pose_graph::VertexIdList& vertices) {
+    const uint32_t submap_id, const pose_graph::VertexIdList& vertices) {
   all_vertex_partitions_[submap_id] = vertices;
 }
 
@@ -15,6 +15,17 @@ std::size_t MissionGraph::size() const noexcept {
     accum_size += id_and_vertices.second.size();
   }
   return accum_size;
+}
+RepresentativeNodeVector MissionGraph::computeSparseGraph(
+    BasePartitioner* partitioner) const {
+  CHECK_NOTNULL(partitioner);
+  RepresentativeNodeVector subgraph;
+  for (const auto& id_and_vertices : all_vertex_partitions_) {
+    RepresentativeNodeVector nodes = partitioner->getRepresentativesForSubmap(
+        id_and_vertices.second, id_and_vertices.first);
+    subgraph.insert(subgraph.end(), nodes.begin(), nodes.end());
+  }
+  return subgraph;
 }
 
 }  // namespace spg

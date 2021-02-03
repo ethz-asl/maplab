@@ -18,6 +18,7 @@
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
 #include <signal.h>
+#include <sparse-graph/partitioners/lidar-partitioner.h>
 #include <vi-map-basic-plugin/vi-map-basic-plugin.h>
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
@@ -759,68 +760,6 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
   }
 
-  // Full optimization
-  ////////////////////
-  // This does not scale, and never will, so it is important that # we limit
-  // the runtime by setting the --ba_max_time_seconds flag.
-  {
-    vi_map::VIMapManager::MapWriteAccess map =
-        map_manager_.getMapWriteAccess(kMergedMapKey);
-    vi_map::MissionIdList mission_ids;
-    map->getAllMissionIds(&mission_ids);
-
-    {
-      std::lock_guard<std::mutex> merge_status_lock(
-          running_merging_process_mutex_);
-      running_merging_process_ = "optimization";
-    }
-    const vi_map::MissionIdSet missions_to_optimize(
-        mission_ids.begin(), mission_ids.end());
-    // We only want to get these once, such that if the gflags get modified
-    // later the optimization settings for the submaps remain the same.
-    map_optimization::ViProblemOptions options =
-        map_optimization::ViProblemOptions::initFromGFlags();
-
-    // Restore previous trust region.
-    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {
-      // Reset the trust region if N submaps have been added in the meantime.
-      const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
-      const uint32_t num_submaps_since_reset =
-          num_submaps_merged - num_submaps_at_last_trust_region_reset;
-      const uint32_t reset_every_n =
-          FLAGS_maplab_server_reset_trust_region_radius_every_nth_submap;
-      if (reset_every_n != 0u && num_submaps_since_reset >= reset_every_n) {
-        optimization_trust_region_radius_ =
-            FLAGS_ba_initial_trust_region_radius;
-        num_submaps_at_last_trust_region_reset = num_submaps_merged;
-      }
-      options.solver_options.initial_trust_region_radius =
-          optimization_trust_region_radius_;
-    }
-
-    map_optimization::VIMapOptimizer optimizer(
-        nullptr /*no plotter for optimization*/,
-        false /*signal handler enabled*/);
-
-    map_optimization::OptimizationProblemResult result;
-    if (!optimizer.optimize(
-            options, missions_to_optimize, map.get(), &result)) {
-      LOG(ERROR) << "[MaplabServerNode] MapMerging - Failure in optimization.";
-    } else {
-      if (!result.iteration_summaries.empty()) {
-        optimization_trust_region_radius_ =
-            result.iteration_summaries.back().trust_region_radius;
-      } else {
-        LOG(ERROR) << "[MaplabServerNode] Unable to extract final trust region "
-                   << "of previous global optimization iteration! Setting to "
-                   << "default value (" << FLAGS_ba_initial_trust_region_radius
-                   << ").";
-        optimization_trust_region_radius_ =
-            FLAGS_ba_initial_trust_region_radius;
-      }
-    }
-  }
-
   // Lidar local constraints/loop closure
   ///////////////////////////////////////
   // Searches for nearby dense map data (e.g. lidar scans) within and across
@@ -930,6 +869,22 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         running_merging_process_mutex_);
     running_merging_process_ = "";
   }
+
+  /// Sparse Graph Update.
+  {
+    vi_map::VIMapManager::MapReadAccess map =
+        map_manager_.getMapReadAccess(kMergedMapKey);
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "Publish sparse graph.";
+    }
+    const vi_map::VIMap* cmap = CHECK_NOTNULL(map.get());
+    spg::LidarPartitioner lidar_partitioner(*cmap);
+    sparsified_graph_.compute(cmap, &lidar_partitioner);
+    sparsified_graph_.publishLatestGraph();
+  }
+
   ++num_full_map_merging_processings;
 }
 
@@ -1161,7 +1116,7 @@ bool MaplabServerNode::appendAvailableSubmaps() {
 void MaplabServerNode::printAndPublishServerStatus() {
   std::stringstream ss;
 
-  ss << "\033c";
+  // ss << "\033c";
   ss << "\n"
      << "==================================================================\n";
   ss << "=                   MaplabServerNode Status                      =\n";
@@ -1406,26 +1361,6 @@ void MaplabServerNode::runSubmapProcessing(
           mission_id_A, map.get());
     }
   }
-
-  // Submap Optimization
-  //////////////////////
-  {
-    {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] = "optimization";
-    }
-    const vi_map::MissionIdSet missions_to_optimize(
-        missions_to_process.begin(), missions_to_process.end());
-    // We only want to get these once, such that if the gflags get modified
-    // later the optimization settings for the submaps remain the same.
-    map_optimization::ViProblemOptions options =
-        map_optimization::ViProblemOptions::initFromGFlags();
-    map_optimization::VIMapOptimizer optimizer(
-        nullptr /*no plotter for optimization*/,
-        false /*signal handler enabled*/);
-    optimizer.optimize(options, missions_to_optimize, map.get());
-  }
-
   // Filter outliers from absolute constraints
   ////////////////////////////////////////////
   if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
@@ -1489,9 +1424,8 @@ void MaplabServerNode::runSubmapProcessing(
     pose_graph::VertexIdList all_vertices_in_mission;
     map.get()->getAllVertexIdsInMissionAlongGraph(
         mission_id, &all_vertices_in_mission);
-    const pose_graph::VertexId& first_vertex_id =
-        all_vertices_in_mission.front();
-    const pose_graph::VertexId& last_vertex_id = all_vertices_in_mission.back();
+    sparsified_graph_.addVerticesToMissionGraph(
+        submap_process.robot_name, all_vertices_in_mission);
   }
 
   // Remove processing status of submap
@@ -1743,11 +1677,9 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
               empty_robot_mission_id_list, *merged_map);
         }
       }
-
     }  // Limits the scope of the lock on the robot to mission id bookkeeping
 
     num_missions_in_merged_map_after_deletion = merged_map->numMissions();
-
   }  // Limits the scope of the lock on the merged map, such that it can
      // be deleted down below.
 

@@ -12,11 +12,11 @@ class RepresentativeNode {
   RepresentativeNode() = default;
   explicit RepresentativeNode(
       const aslam::Transformation& pose, const int64_t timestamp_ns,
-      const uint64_t submap_id);
+      const uint32_t submap_id);
 
   const aslam::Transformation& getPose() const noexcept;
   const pose_graph::VertexIdList& getVertices() const noexcept;
-  uint64_t getAssociatedSubmapId() const noexcept;
+  uint32_t getAssociatedSubmapId() const noexcept;
   int64_t getTimestampNanoseconds() const noexcept;
 
   bool isEqualTo(const RepresentativeNode& rhs) const noexcept;
@@ -26,7 +26,7 @@ class RepresentativeNode {
  private:
   aslam::Transformation pose_;
   int64_t timestamp_ns_;
-  uint64_t submap_id_;
+  uint32_t submap_id_;
 };
 
 bool operator==(const RepresentativeNode& lhs, const RepresentativeNode& rhs);
