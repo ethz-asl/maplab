@@ -16,5 +16,6 @@
   <depend>resources_common</depend>
   <depend>aslam_cv_common</depend>
   <depend>map_resources</depend>
+  <depend>landmark_triangulation</depend>
   <depend>vi_map</depend>
 </package>

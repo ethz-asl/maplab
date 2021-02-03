@@ -18,6 +18,8 @@ class LidarPartitioner : public BasePartitioner {
   void initializeSensorMapping();
 
   const backend::ResourceType point_cloud_resource_type_;
+  typedef std::unordered_map<aslam::SensorId, backend::TemporalResourceIdBuffer>
+      SensorsToResourceMap;
   std::unordered_map<vi_map::MissionId, aslam::SensorId>
       mission_to_lidar_sensor_map_;
 };

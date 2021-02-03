@@ -25,6 +25,7 @@ cs_add_library(${PROJECT_NAME}
   src/sparse-graph.cc
   src/mission-graph.cc
   src/partitioners/avg-partitioner.cc
+  src/partitioners/lidar-partitioner.cc
   src/common/representative-node.cc
 )
 
