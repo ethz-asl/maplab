@@ -24,11 +24,27 @@ bool RepresentativeNode::isEqualTo(const RepresentativeNode& rhs) const
   return submap_id_ == rhs.submap_id_ && timestamp_ns_ == rhs.timestamp_ns_;
 }
 
+bool RepresentativeNode::isEarlierThan(const RepresentativeNode& rhs) const
+    noexcept {
+  return timestamp_ns_ < rhs.timestamp_ns_;
+}
+bool RepresentativeNode::isLaterThan(const RepresentativeNode& rhs) const
+    noexcept {
+  return timestamp_ns_ > rhs.timestamp_ns_;
+}
+
 bool operator==(const RepresentativeNode& lhs, const RepresentativeNode& rhs) {
   return lhs.isEqualTo(rhs);
 }
 bool operator!=(const RepresentativeNode& lhs, const RepresentativeNode& rhs) {
   return !lhs.isEqualTo(rhs);
+}
+
+bool operator<(const RepresentativeNode& lhs, const RepresentativeNode& rhs) {
+  return lhs.isEarlierThan(rhs);
+}
+bool operator>(const RepresentativeNode& lhs, const RepresentativeNode& rhs) {
+  return lhs.isLaterThan(rhs);
 }
 
 }  // namespace spg

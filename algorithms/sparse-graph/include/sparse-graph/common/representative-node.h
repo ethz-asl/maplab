@@ -20,6 +20,8 @@ class RepresentativeNode {
   int64_t getTimestampNanoseconds() const noexcept;
 
   bool isEqualTo(const RepresentativeNode& rhs) const noexcept;
+  bool isEarlierThan(const RepresentativeNode& rhs) const noexcept;
+  bool isLaterThan(const RepresentativeNode& rhs) const noexcept;
 
  private:
   aslam::Transformation pose_;
@@ -29,6 +31,8 @@ class RepresentativeNode {
 
 bool operator==(const RepresentativeNode& lhs, const RepresentativeNode& rhs);
 bool operator!=(const RepresentativeNode& lhs, const RepresentativeNode& rhs);
+bool operator<(const RepresentativeNode& lhs, const RepresentativeNode& rhs);
+bool operator>(const RepresentativeNode& lhs, const RepresentativeNode& rhs);
 
 using RepresentativeNodeVector = std::vector<RepresentativeNode>;
 
