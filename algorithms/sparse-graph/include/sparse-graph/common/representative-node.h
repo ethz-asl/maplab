@@ -19,11 +19,16 @@ class RepresentativeNode {
   uint64_t getAssociatedSubmapId() const noexcept;
   int64_t getTimestampNanoseconds() const noexcept;
 
+  bool isEqualTo(const RepresentativeNode& rhs) const noexcept;
+
  private:
   aslam::Transformation pose_;
   int64_t timestamp_ns_;
   uint64_t submap_id_;
 };
+
+bool operator==(const RepresentativeNode& lhs, const RepresentativeNode& rhs);
+bool operator!=(const RepresentativeNode& lhs, const RepresentativeNode& rhs);
 
 using RepresentativeNodeVector = std::vector<RepresentativeNode>;
 

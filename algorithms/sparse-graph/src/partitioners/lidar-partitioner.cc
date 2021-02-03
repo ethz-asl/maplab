@@ -55,7 +55,7 @@ RepresentativeNodeVector LidarPartitioner::getRepresentativesForSubmap(
 
   constexpr int64_t tolerance_ns = 1e8;  // 100ms
   const landmark_triangulation::PoseInterpolator pose_interpolator;
-  std::vector<int64_t> processed_lidar_scans;
+  RepresentativeNodeVector processed_lidar_scans;
   for (std::size_t i = 0u; i < n_vertices; ++i) {
     const vi_map::Vertex& vertex = map_.getVertex(vertices[i]);
     const vi_map::MissionId& mission_id = vertex.getMissionId();
@@ -80,7 +80,7 @@ RepresentativeNodeVector LidarPartitioner::getRepresentativesForSubmap(
         map_, mission_id, timestamps_ns, &T_M_B_vector);
     CHECK_EQ(static_cast<int>(T_M_B_vector.size()), timestamps_ns.cols());
 
-    processed_lidar_scans.emplace_back(ts_pc_ns);
+    // processed_lidar_scans.emplace_back(ts_pc_ns);
   }
 
   // Return averaged transformation with the used vertices.
