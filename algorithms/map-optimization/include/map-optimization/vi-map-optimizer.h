@@ -2,6 +2,7 @@
 #define MAP_OPTIMIZATION_VI_MAP_OPTIMIZER_H_
 
 #include <string>
+#include <vector>
 
 #include <ceres/ceres.h>
 #include <map-optimization/outlier-rejection-solver.h>
@@ -32,6 +33,11 @@ class VIMapOptimizer {
   bool optimize(
       const map_optimization::ViProblemOptions& options,
       const vi_map::MissionIdSet& missions_to_optimize, vi_map::VIMap* map);
+
+  std::vector<Eigen::MatrixXd> getCovarianceForVertices(
+      const map_optimization::ViProblemOptions& options,
+      const vi_map::MissionIdSet& missions_to_optimize,
+      const pose_graph::VertexIdList& vertices, vi_map::VIMap* map);
 
  private:
   const visualization::ViwlsGraphRvizPlotter* plotter_;

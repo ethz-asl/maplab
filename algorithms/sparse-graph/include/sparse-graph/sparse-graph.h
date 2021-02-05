@@ -23,10 +23,14 @@ class SparseGraph {
       const std::string& map_key, const pose_graph::VertexIdList& vertices);
   void compute(const vi_map::VIMap* map, BasePartitioner* partitioner);
   void publishLatestGraph();
+  void publishLatestGraphWithCovs(const std::vector<Eigen::MatrixXd>& covs);
   std::size_t getMissionGraphSize(const std::string& map_key) const noexcept;
+  pose_graph::VertexIdList getSparsifiedVertices() const noexcept;
 
  private:
   ros::Time createRosTimestamp(const int64_t ts_ns) const;
+  bool findMissionGraphForId(
+      const uint32_t submap_id, const MissionGraph** mission_graph) const;
 
   std::map<std::string, MissionGraph> mission_graphs_;
   std::atomic<uint32_t> submap_id_;

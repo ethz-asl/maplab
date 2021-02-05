@@ -863,26 +863,49 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
   }
 
-  // Reset merging thread status.
-  {
-    std::lock_guard<std::mutex> merge_status_lock(
-        running_merging_process_mutex_);
-    running_merging_process_ = "";
-  }
-
   /// Sparse Graph Update.
   {
-    vi_map::VIMapManager::MapReadAccess map =
+    vi_map::VIMapManager::MapReadAccess map_read =
         map_manager_.getMapReadAccess(kMergedMapKey);
     {
       std::lock_guard<std::mutex> merge_status_lock(
           running_merging_process_mutex_);
       running_merging_process_ = "Publish sparse graph.";
     }
-    const vi_map::VIMap* cmap = CHECK_NOTNULL(map.get());
+    const vi_map::VIMap* cmap = CHECK_NOTNULL(map_read.get());
     spg::LidarPartitioner lidar_partitioner(*cmap);
+
+    // Sparsify the graph and get latest estimations.
     sparsified_graph_.compute(cmap, &lidar_partitioner);
+
+    // Compute covariances for each sparsified pose.
+    map_optimization::VIMapOptimizer optimizer(
+        nullptr /*no plotter for optimization*/,
+        false /*signal handler enabled*/);
+
+    vi_map::VIMapManager::MapWriteAccess map_write =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map_write->getAllMissionIds(&mission_ids);
+
+    const vi_map::MissionIdSet missions_to_optimize(
+        mission_ids.begin(), mission_ids.end());
+    map_optimization::ViProblemOptions options =
+        map_optimization::ViProblemOptions::initFromGFlags();
+
+    pose_graph::VertexIdList all_vertices =
+        sparsified_graph_.getSparsifiedVertices();
+    std::vector<Eigen::MatrixXd> covs = optimizer.getCovarianceForVertices(
+        options, missions_to_optimize, all_vertices, map_write.get());
+
     sparsified_graph_.publishLatestGraph();
+  }
+
+  // Reset merging thread status.
+  {
+    std::lock_guard<std::mutex> merge_status_lock(
+        running_merging_process_mutex_);
+    running_merging_process_ = "";
   }
 
   ++num_full_map_merging_processings;

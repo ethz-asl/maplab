@@ -47,6 +47,9 @@ void SparseGraph::publishLatestGraph() {
       "global_sparse_graph", graph_msg);
 }
 
+void SparseGraph::publishLatestGraphWithCovs(
+    const std::vector<Eigen::MatrixXd>& covs) {}
+
 std::size_t SparseGraph::getMissionGraphSize(const std::string& map_key) const
     noexcept {
   auto mission_it = mission_graphs_.find(map_key);
@@ -65,6 +68,41 @@ ros::Time SparseGraph::createRosTimestamp(const int64_t ts_ns) const {
   const uint32_t ros_timestamp_nsec =
       timestamp_u64 - (ros_timestamp_sec * kNanosecondsPerSecond);
   return ros::Time(ros_timestamp_sec, ros_timestamp_nsec);
+}
+
+bool SparseGraph::findMissionGraphForId(
+    const uint32_t submap_id, const MissionGraph** mission_graph) const {
+  CHECK_NOTNULL(mission_graph);
+  *mission_graph = nullptr;
+  for (const auto& name_and_mission_graph : mission_graphs_) {
+    if (name_and_mission_graph.second.containsSubmap(submap_id)) {
+      *mission_graph = &name_and_mission_graph.second;
+      return true;
+    }
+  }
+  return false;
+}
+
+pose_graph::VertexIdList SparseGraph::getSparsifiedVertices() const noexcept {
+  if (sparse_graph_.empty()) {
+    return {};
+  }
+
+  pose_graph::VertexIdList all_vertices;
+  for (const auto& node : sparse_graph_) {
+    const uint32_t id = node.getAssociatedSubmapId();
+    const MissionGraph* mission_graph;
+    if (!findMissionGraphForId(id, &mission_graph)) {
+      LOG(WARNING) << "Found no mission graph for id = " << id;
+      continue;
+    }
+    CHECK_NOTNULL(mission_graph);
+    const pose_graph::VertexIdList& mission_vertices =
+        mission_graph->getVerticesForId(id);
+    all_vertices.insert(
+        all_vertices.end(), mission_vertices.cbegin(), mission_vertices.cend());
+  }
+  return all_vertices;
 }
 
 }  // namespace spg

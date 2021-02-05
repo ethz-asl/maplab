@@ -20,10 +20,15 @@ class MissionGraph {
   RepresentativeNodeVector computeSparseGraph(
       BasePartitioner* partitioner) const;
 
+  const pose_graph::VertexIdList& getVerticesForId(
+      const uint32_t submap_id) const noexcept;
+
+  bool containsSubmap(const uint32_t submap_id) const noexcept;
+
   size_t size() const noexcept;
 
  private:
-  std::unordered_map<uint64_t, pose_graph::VertexIdList> all_vertex_partitions_;
+  std::unordered_map<uint32_t, pose_graph::VertexIdList> all_vertex_partitions_;
 };
 
 }  // namespace spg
