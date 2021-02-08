@@ -19,6 +19,18 @@ int64_t RepresentativeNode::getTimestampNanoseconds() const noexcept {
   return timestamp_ns_;
 }
 
+double& RepresentativeNode::getResidual() {
+  return residual_;
+}
+
+double RepresentativeNode::getResidual() const noexcept {
+  return residual_;
+}
+
+void RepresentativeNode::setResidual(const double res) {
+  residual_ = res;
+}
+
 bool RepresentativeNode::isEqualTo(const RepresentativeNode& rhs) const
     noexcept {
   return submap_id_ == rhs.submap_id_ && timestamp_ns_ == rhs.timestamp_ns_;

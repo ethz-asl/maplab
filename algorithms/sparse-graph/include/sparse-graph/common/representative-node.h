@@ -19,6 +19,10 @@ class RepresentativeNode {
   uint32_t getAssociatedSubmapId() const noexcept;
   int64_t getTimestampNanoseconds() const noexcept;
 
+  double& getResidual();
+  double getResidual() const noexcept;
+  void setResidual(const double res);
+
   bool isEqualTo(const RepresentativeNode& rhs) const noexcept;
   bool isEarlierThan(const RepresentativeNode& rhs) const noexcept;
   bool isLaterThan(const RepresentativeNode& rhs) const noexcept;
@@ -27,6 +31,7 @@ class RepresentativeNode {
   aslam::Transformation pose_;
   int64_t timestamp_ns_;
   uint32_t submap_id_;
+  double residual_;
 };
 
 bool operator==(const RepresentativeNode& lhs, const RepresentativeNode& rhs);

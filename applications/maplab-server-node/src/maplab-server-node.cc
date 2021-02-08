@@ -902,8 +902,9 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         mission_ids.begin(), mission_ids.end());
     map_optimization::ViProblemOptions options =
         map_optimization::ViProblemOptions::initFromGFlags();
-    std::vector<Eigen::MatrixXd> covs = optimizer.getCovarianceForVertices(
+    std::vector<double> residuals = optimizer.getResidualsForVertices(
         options, missions_to_optimize, all_vertices, map_write.get());
+    sparsified_graph_.attachResiduals(std::move(residuals));
   }
 
   {

@@ -27,6 +27,8 @@ class SparseGraph {
   std::size_t getMissionGraphSize(const std::string& map_key) const noexcept;
   pose_graph::VertexIdList getSparsifiedVertices() const noexcept;
 
+  void attachResiduals(std::vector<double>&& residuals);
+
  private:
   ros::Time createRosTimestamp(const int64_t ts_ns) const;
   bool findMissionGraphForId(
@@ -34,7 +36,7 @@ class SparseGraph {
 
   std::map<std::string, MissionGraph> mission_graphs_;
   std::atomic<uint32_t> submap_id_;
-  std::set<RepresentativeNode> sparse_graph_;
+  std::vector<RepresentativeNode> sparse_graph_;
 };
 
 }  // namespace spg

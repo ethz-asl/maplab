@@ -39,7 +39,7 @@ class VIMapOptimizer {
       const pose_graph::VertexIdList& vertices, vi_map::VIMap* map,
       OptimizationProblemResult* result);
 
-  std::vector<Eigen::MatrixXd> getCovarianceForVertices(
+  std::vector<double> getResidualsForVertices(
       const map_optimization::ViProblemOptions& options,
       const vi_map::MissionIdSet& missions_to_optimize,
       const pose_graph::VertexIdList& vertices, vi_map::VIMap* map);

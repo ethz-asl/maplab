@@ -25,7 +25,7 @@ void SparseGraph::compute(
   for (const auto& mission_graph : mission_graphs_) {
     RepresentativeNodeVector mission =
         mission_graph.second.computeSparseGraph(partitioner);
-    sparse_graph_.insert(mission.begin(), mission.end());
+    sparse_graph_.insert(sparse_graph_.end(), mission.begin(), mission.end());
   }
 }
 
@@ -110,6 +110,23 @@ pose_graph::VertexIdList SparseGraph::getSparsifiedVertices() const noexcept {
         all_vertices.end(), mission_vertices.cbegin(), mission_vertices.cend());
   }
   return all_vertices;
+}
+
+void SparseGraph::attachResiduals(std::vector<double>&& residuals) {
+  const std::size_t n_residuals = residuals.size();
+  if (n_residuals != sparse_graph_.size()) {
+    LOG(ERROR) << "Unable to attach residuals. "
+               << "Graph and input data size don't match.";
+    return;
+  }
+  std::size_t res_idx = 0u;
+  for (RepresentativeNode& node : sparse_graph_) {
+    if (res_idx >= n_residuals) {
+      continue;
+    }
+    node.setResidual(residuals[res_idx]);
+    ++res_idx;
+  }
 }
 
 }  // namespace spg
