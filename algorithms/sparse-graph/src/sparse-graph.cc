@@ -48,7 +48,14 @@ void SparseGraph::publishLatestGraph() {
 }
 
 void SparseGraph::publishLatestGraphWithCovs(
-    const std::vector<Eigen::MatrixXd>& covs) {}
+    const std::vector<Eigen::MatrixXd>& covs) {
+  if (covs.empty()) {
+    return;
+  }
+
+  VLOG(1) << "Received " << covs.size() << " covariances, last one:\n"
+          << covs.back() << "\n";
+}
 
 std::size_t SparseGraph::getMissionGraphSize(const std::string& map_key) const
     noexcept {

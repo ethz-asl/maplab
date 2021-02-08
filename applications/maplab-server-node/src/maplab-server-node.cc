@@ -870,18 +870,28 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     {
       std::lock_guard<std::mutex> merge_status_lock(
           running_merging_process_mutex_);
-      running_merging_process_ = "Publish sparse graph.";
+      running_merging_process_ = "Computing sparse graph.";
     }
+    // Sparsify the graph and get latest estimations.
     const vi_map::VIMap* cmap = CHECK_NOTNULL(map_read.get());
     spg::LidarPartitioner lidar_partitioner(*cmap);
 
     // Sparsify the graph and get latest estimations.
     sparsified_graph_.compute(cmap, &lidar_partitioner);
+  }
+
+  {
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "Compute sparse uncertainty";
+    }
+
+    pose_graph::VertexIdList all_vertices =
+        sparsified_graph_.getSparsifiedVertices();
 
     // Compute covariances for each sparsified pose.
-    map_optimization::VIMapOptimizer optimizer(
-        nullptr /*no plotter for optimization*/,
-        false /*signal handler enabled*/);
+    map_optimization::VIMapOptimizer optimizer(nullptr, false);
 
     vi_map::VIMapManager::MapWriteAccess map_write =
         map_manager_.getMapWriteAccess(kMergedMapKey);
@@ -892,12 +902,16 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         mission_ids.begin(), mission_ids.end());
     map_optimization::ViProblemOptions options =
         map_optimization::ViProblemOptions::initFromGFlags();
-
-    pose_graph::VertexIdList all_vertices =
-        sparsified_graph_.getSparsifiedVertices();
     std::vector<Eigen::MatrixXd> covs = optimizer.getCovarianceForVertices(
         options, missions_to_optimize, all_vertices, map_write.get());
+  }
 
+  {
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "Publish sparse graph";
+    }
     sparsified_graph_.publishLatestGraph();
   }
 
@@ -1103,7 +1117,7 @@ bool MaplabServerNode::appendAvailableSubmaps() {
               << "The first submap does not have exactly one mission, but "
               << mission_ids.size() << "! Something went wrong!";
         }
-      }
+      }  // namespace maplab
 
       found_new_submaps = true;
     } else {
@@ -1141,9 +1155,12 @@ void MaplabServerNode::printAndPublishServerStatus() {
 
   // ss << "\033c";
   ss << "\n"
-     << "==================================================================\n";
-  ss << "=                   MaplabServerNode Status                      =\n";
-  ss << "==================================================================\n";
+     << "=================================================================="
+        "\n";
+  ss << "=                   MaplabServerNode Status                      "
+        "=\n";
+  ss << "=================================================================="
+        "\n";
   {
     std::lock_guard<std::mutex> lock(submap_processing_queue_mutex_);
     if (submap_processing_queue_.empty()) {
@@ -1686,8 +1703,8 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
           ++it;
         }
 
-        // If this was the only/last mission of that robot, remove the entry and
-        // also publish an empty point cloud to the dense map topic.
+        // If this was the only/last mission of that robot, remove the entry
+        // and also publish an empty point cloud to the dense map topic.
         if (robot_mission_info.mission_ids_with_baseframe_status.empty()) {
           robot_to_mission_id_map_.erase(robot_name);
 
@@ -1706,8 +1723,8 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
   }  // Limits the scope of the lock on the merged map, such that it can
      // be deleted down below.
 
-  // If we deleted all of the missions, we need to reset the state of the merged
-  // map.
+  // If we deleted all of the missions, we need to reset the state of the
+  // merged map.
   if (num_missions_in_merged_map_after_deletion == 0u) {
     LOG(INFO) << "[MaplabServerNode] Merged map is empty after deleting "
               << "mission, delete merged map as well.";

@@ -33,6 +33,11 @@ class VIMapOptimizer {
   bool optimize(
       const map_optimization::ViProblemOptions& options,
       const vi_map::MissionIdSet& missions_to_optimize, vi_map::VIMap* map);
+  bool optimizeWithCov(
+      const map_optimization::ViProblemOptions& options,
+      const vi_map::MissionIdSet& missions_to_optimize,
+      const pose_graph::VertexIdList& vertices, vi_map::VIMap* map,
+      OptimizationProblemResult* result);
 
   std::vector<Eigen::MatrixXd> getCovarianceForVertices(
       const map_optimization::ViProblemOptions& options,
