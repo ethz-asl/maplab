@@ -100,6 +100,6 @@
 [submodule "dependencies/3rdparty/pointmatcher-ros"]
 	path = dependencies/3rdparty/pointmatcher-ros
 	url = git@github.com:ANYbotics/pointmatcher-ros.git
-[submodule "dependencies/internal/libpointmatcher"]
-	path = dependencies/internal/libpointmatcher
+[submodule "dependencies/3rdparty/libpointmatcher"]
+	path = dependencies/3rdparty/libpointmatcher
 	url = git@github.com:ANYbotics/libpointmatcher.git
