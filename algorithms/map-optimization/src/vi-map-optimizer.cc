@@ -168,10 +168,11 @@ bool VIMapOptimizer::optimizeWithCov(
   return true;
 }
 
-std::vector<double> VIMapOptimizer::getResidualsForVertices(
+std::map<uint32_t, double> VIMapOptimizer::getResidualsForVertices(
     const map_optimization::ViProblemOptions& options,
     const vi_map::MissionIdSet& missions_to_optimize,
-    const pose_graph::VertexIdList& vertices, vi_map::VIMap* map) {
+    const std::map<uint32_t, pose_graph::VertexIdList>& vertices,
+    vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
   if (missions_to_optimize.empty()) {
     LOG(WARNING) << "Nothing to optimize.";
@@ -195,27 +196,31 @@ std::vector<double> VIMapOptimizer::getResidualsForVertices(
       optimization_problem->getProblemInformationMutable()->residual_blocks;
 
   // Iterate over the sparse graph.
-  std::vector<double> vertex_costs;
-  for (const pose_graph::VertexId& v : vertices) {
-    if (!map->hasVertex(v)) {
-      continue;
-    }
-    // Retrieve the observed landmark ids for the current vertex.
-    const vi_map::Vertex& ba_vertex = map->getVertex(v);
-    vi_map::LandmarkIdList observed_landmarks;
-    ba_vertex.getStoredLandmarkIdList(&observed_landmarks);
-
-    // Retrieve the residual block id for all observed landmarks.
+  std::map<uint32_t, double> vertex_costs;
+  for (const auto& id_and_v : vertices) {
+    const uint32_t id = id_and_v.first;
     std::vector<ceres::ResidualBlockId> to_eval;
-    for (const vi_map::LandmarkId& l : observed_landmarks) {
-      auto range = landmark_id_cost_func_map.equal_range(l);
-      for (auto it = range.first; it != range.second; ++it) {
-        ceres::CostFunction* cost_f = it->second;
-        CHECK_NOTNULL(cost_f);
-        CHECK_GT(residual_map.count(cost_f), 0);
+    for (const auto& v : id_and_v.second) {
+      if (!map->hasVertex(v)) {
+        continue;
+      }
+      // Retrieve the observed landmark ids for the current vertex.
+      const vi_map::Vertex& ba_vertex = map->getVertex(v);
+      vi_map::LandmarkIdList observed_landmarks;
+      ba_vertex.getStoredLandmarkIdList(&observed_landmarks);
 
-        if (residual_map[cost_f].active_) {  // Consider only active landmarks.
-          to_eval.emplace_back(residual_map[cost_f].latest_residual_block_id);
+      // Retrieve the residual block id for all observed landmarks.
+      for (const vi_map::LandmarkId& l : observed_landmarks) {
+        auto range = landmark_id_cost_func_map.equal_range(l);
+        for (auto it = range.first; it != range.second; ++it) {
+          ceres::CostFunction* cost_f = it->second;
+          CHECK_NOTNULL(cost_f);
+          CHECK_GT(residual_map.count(cost_f), 0);
+
+          // Consider only active landmarks.
+          if (residual_map[cost_f].active_) {
+            to_eval.emplace_back(residual_map[cost_f].latest_residual_block_id);
+          }
         }
       }
     }
@@ -225,12 +230,15 @@ std::vector<double> VIMapOptimizer::getResidualsForVertices(
 
     double total_cost = 0.0;
     std::vector<double> evaluated_residuals;
-    problem.Evaluate(
-        eval_options, &total_cost, &evaluated_residuals, nullptr, nullptr);
+    if (!problem.Evaluate(
+            eval_options, &total_cost, &evaluated_residuals, nullptr,
+            nullptr)) {
+      LOG(ERROR) << "Unable to retrieve the residuals from the problem.";
+    }
 
     const double cost_for_v = std::accumulate(
         evaluated_residuals.begin(), evaluated_residuals.end(), 0.0);
-    vertex_costs.emplace_back(cost_for_v);
+    vertex_costs[id] = cost_for_v;
   }
 
   return vertex_costs;

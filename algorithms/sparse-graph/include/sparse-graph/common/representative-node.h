@@ -15,7 +15,6 @@ class RepresentativeNode {
       const uint32_t submap_id);
 
   const aslam::Transformation& getPose() const noexcept;
-  const pose_graph::VertexIdList& getVertices() const noexcept;
   uint32_t getAssociatedSubmapId() const noexcept;
   int64_t getTimestampNanoseconds() const noexcept;
 
@@ -27,11 +26,14 @@ class RepresentativeNode {
   bool isEarlierThan(const RepresentativeNode& rhs) const noexcept;
   bool isLaterThan(const RepresentativeNode& rhs) const noexcept;
 
+  bool isActive() const noexcept;
+
  private:
   aslam::Transformation pose_;
   int64_t timestamp_ns_;
   uint32_t submap_id_;
   double residual_;
+  bool is_active_ = false;
 };
 
 bool operator==(const RepresentativeNode& lhs, const RepresentativeNode& rhs);

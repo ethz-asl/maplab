@@ -5,7 +5,10 @@ namespace spg {
 RepresentativeNode::RepresentativeNode(
     const aslam::Transformation& pose, const int64_t timestamp_ns,
     const uint32_t submap_id)
-    : pose_(pose), timestamp_ns_(timestamp_ns), submap_id_(submap_id) {}
+    : pose_(pose),
+      timestamp_ns_(timestamp_ns),
+      submap_id_(submap_id),
+      is_active_(true) {}
 
 const aslam::Transformation& RepresentativeNode::getPose() const noexcept {
   return pose_;
@@ -43,6 +46,10 @@ bool RepresentativeNode::isEarlierThan(const RepresentativeNode& rhs) const
 bool RepresentativeNode::isLaterThan(const RepresentativeNode& rhs) const
     noexcept {
   return timestamp_ns_ > rhs.timestamp_ns_;
+}
+
+bool RepresentativeNode::isActive() const noexcept {
+  return is_active_;
 }
 
 bool operator==(const RepresentativeNode& lhs, const RepresentativeNode& rhs) {

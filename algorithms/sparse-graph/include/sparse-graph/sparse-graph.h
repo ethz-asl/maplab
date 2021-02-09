@@ -25,9 +25,12 @@ class SparseGraph {
   void publishLatestGraph();
   void publishLatestGraphWithCovs(const std::vector<Eigen::MatrixXd>& covs);
   std::size_t getMissionGraphSize(const std::string& map_key) const noexcept;
-  pose_graph::VertexIdList getSparsifiedVertices() const noexcept;
+  std::map<uint32_t, pose_graph::VertexIdList> getAllVerticesPerSubmap() const
+      noexcept;
+  pose_graph::VertexIdList getAllMissionVertices() const noexcept;
 
-  void attachResiduals(std::vector<double>&& residuals);
+  void attachResiduals(std::map<uint32_t, double>&& residuals);
+  void writeResultsToFile();
 
  private:
   ros::Time createRosTimestamp(const int64_t ts_ns) const;

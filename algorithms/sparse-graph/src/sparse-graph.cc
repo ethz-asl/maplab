@@ -1,5 +1,7 @@
 #include "sparse-graph/sparse-graph.h"
 
+#include <fstream>
+
 #include <geometry_msgs/PoseStamped.h>
 #include <glog/logging.h>
 #include <nav_msgs/Path.h>
@@ -27,6 +29,7 @@ void SparseGraph::compute(
         mission_graph.second.computeSparseGraph(partitioner);
     sparse_graph_.insert(sparse_graph_.end(), mission.begin(), mission.end());
   }
+  std::sort(sparse_graph_.begin(), sparse_graph_.end());
 }
 
 void SparseGraph::publishLatestGraph() {
@@ -36,6 +39,9 @@ void SparseGraph::publishLatestGraph() {
 
   ros::Time ts_ros;
   for (const RepresentativeNode& node : sparse_graph_) {
+    if (!node.isActive()) {
+      continue;
+    }
     ts_ros = createRosTimestamp(node.getTimestampNanoseconds());
     geometry_msgs::PoseStamped node_msg;
     tf::poseStampedKindrToMsg(node.getPose(), ts_ros, mission_frame, &node_msg);
@@ -90,7 +96,58 @@ bool SparseGraph::findMissionGraphForId(
   return false;
 }
 
-pose_graph::VertexIdList SparseGraph::getSparsifiedVertices() const noexcept {
+void SparseGraph::writeResultsToFile() {
+  ros::Time ts_ros;
+  const std::string graph_out_path = "/tmp/cdpgo_graph.csv";
+  const std::string signal_out_path = "/tmp/cdpgo_signal.csv";
+  std::ofstream fs_graph(graph_out_path, std::ofstream::trunc);
+  std::ofstream fs_signal(signal_out_path, std::ofstream::trunc);
+  CHECK(fs_signal.good() && fs_graph.good());
+
+  static std::string kHeader = "# ts qw qx qy qz x y z\n";
+  static const Eigen::IOFormat CSVFormat(
+      Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
+
+  fs_graph << kHeader;
+  for (const RepresentativeNode& node : sparse_graph_) {
+    if (!node.isActive()) {
+      continue;
+    }
+
+    // write graph to disk.
+    fs_graph << node.getTimestampNanoseconds() << ", "
+             << node.getPose().asVector().transpose().format(CSVFormat) << "\n";
+
+    // write signal to disk.
+    fs_signal << node.getResidual() << "\n";
+  }
+  fs_signal.close();
+  fs_graph.close();
+}
+
+std::map<uint32_t, pose_graph::VertexIdList>
+SparseGraph::getAllVerticesPerSubmap() const noexcept {
+  if (sparse_graph_.empty()) {
+    return {};
+  }
+
+  std::map<uint32_t, pose_graph::VertexIdList> all_vertices;
+  for (const auto& node : sparse_graph_) {
+    const uint32_t id = node.getAssociatedSubmapId();
+    if (all_vertices.find(id) != all_vertices.end()) {
+      continue;
+    }
+    const MissionGraph* mission_graph;
+    if (!findMissionGraphForId(id, &mission_graph)) {
+      LOG(WARNING) << "Found no mission graph for id = " << id;
+      continue;
+    }
+    CHECK_NOTNULL(mission_graph);
+    all_vertices[id] = mission_graph->getVerticesForId(id);
+  }
+  return all_vertices;
+}
+pose_graph::VertexIdList SparseGraph::getAllMissionVertices() const noexcept {
   if (sparse_graph_.empty()) {
     return {};
   }
@@ -112,20 +169,16 @@ pose_graph::VertexIdList SparseGraph::getSparsifiedVertices() const noexcept {
   return all_vertices;
 }
 
-void SparseGraph::attachResiduals(std::vector<double>&& residuals) {
+void SparseGraph::attachResiduals(std::map<uint32_t, double>&& residuals) {
   const std::size_t n_residuals = residuals.size();
-  if (n_residuals != sparse_graph_.size()) {
-    LOG(ERROR) << "Unable to attach residuals. "
-               << "Graph and input data size don't match.";
-    return;
-  }
-  std::size_t res_idx = 0u;
   for (RepresentativeNode& node : sparse_graph_) {
-    if (res_idx >= n_residuals) {
+    const uint32_t id = node.getAssociatedSubmapId();
+    if (residuals.find(id) == residuals.end()) {
+      LOG(ERROR) << "Sparse graph contains different submap IDs!";
       continue;
     }
-    node.setResidual(residuals[res_idx]);
-    ++res_idx;
+
+    node.setResidual(residuals[id]);
   }
 }
 

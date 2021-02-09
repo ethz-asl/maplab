@@ -39,10 +39,11 @@ class VIMapOptimizer {
       const pose_graph::VertexIdList& vertices, vi_map::VIMap* map,
       OptimizationProblemResult* result);
 
-  std::vector<double> getResidualsForVertices(
+  std::map<uint32_t, double> getResidualsForVertices(
       const map_optimization::ViProblemOptions& options,
       const vi_map::MissionIdSet& missions_to_optimize,
-      const pose_graph::VertexIdList& vertices, vi_map::VIMap* map);
+      const std::map<uint32_t, pose_graph::VertexIdList>& vertices,
+      vi_map::VIMap* map);
 
  private:
   const visualization::ViwlsGraphRvizPlotter* plotter_;

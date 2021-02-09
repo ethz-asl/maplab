@@ -887,8 +887,8 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
       running_merging_process_ = "Compute sparse uncertainty";
     }
 
-    pose_graph::VertexIdList all_vertices =
-        sparsified_graph_.getSparsifiedVertices();
+    std::map<uint32_t, pose_graph::VertexIdList> all_vertices =
+        sparsified_graph_.getAllVerticesPerSubmap();
 
     // Compute covariances for each sparsified pose.
     map_optimization::VIMapOptimizer optimizer(nullptr, false);
@@ -902,8 +902,10 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         mission_ids.begin(), mission_ids.end());
     map_optimization::ViProblemOptions options =
         map_optimization::ViProblemOptions::initFromGFlags();
-    std::vector<double> residuals = optimizer.getResidualsForVertices(
+
+    std::map<uint32_t, double> residuals = optimizer.getResidualsForVertices(
         options, missions_to_optimize, all_vertices, map_write.get());
+    LOG(ERROR) << "All vertices: " << all_vertices.size();
     sparsified_graph_.attachResiduals(std::move(residuals));
   }
 
@@ -914,6 +916,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
       running_merging_process_ = "Publish sparse graph";
     }
     sparsified_graph_.publishLatestGraph();
+    sparsified_graph_.writeResultsToFile();
   }
 
   // Reset merging thread status.
