@@ -91,6 +91,17 @@ bool searchGloballyForAlignmentCandidatePairsBetweenTwoMissions(
     const AlignmentCandidateList& candidates_B,
     AlignmentCandidatePairs* candidate_pairs_ptr);
 
+bool candidatesAreTemporallyTooFar(
+    const SearchConfig& config, const AlignmentCandidate& candidate_A,
+    const AlignmentCandidate& candidate_B);
+bool candidatesAreSpatiallyTooFar(
+    const SearchConfig& config, const AlignmentCandidate& candidate_A,
+    const AlignmentCandidate& candidate_B);
+void addCandidatePair(
+    const AlignmentCandidate& candidate_A,
+    const AlignmentCandidate& candidate_B,
+    AlignmentCandidatePairs* candidate_pairs_ptr);
+
 }  // namespace dense_mapping
 
 #endif  // DENSE_MAPPING_DENSE_MAPPING_SEARCH_H_

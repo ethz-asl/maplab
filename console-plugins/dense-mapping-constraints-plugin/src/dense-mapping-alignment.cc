@@ -53,12 +53,6 @@ bool alignmentDeviatesTooMuchFromInitialGuess(
           config.maximum_deviation_from_initial_guess_delta_rotation_deg ||
       delta_position_m >
           config.maximum_deviation_from_initial_guess_delta_position_m;
-  if (too_far_from_initial_guess) {
-    LOG(INFO) << "Rotation: " << delta_rotation_deg
-              << " Position: " << delta_position_m;
-    LOG(INFO) << "Expected: " << pair.T_SB_SA_init.getPosition();
-    LOG(INFO) << "Calculated: " << pair.T_SB_SA_final.getPosition();
-  }
   return too_far_from_initial_guess;
 }
 

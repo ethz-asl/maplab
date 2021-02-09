@@ -168,7 +168,7 @@ inline void serialize(
     const pose::Transformation& transformation,
     google::protobuf::RepeatedField<Scalar>* proto) {
   CHECK_NOTNULL(proto);
-  CHECK_NEAR(1.0, transformation.getRotation().toImplementation().norm(), 1e-8);
+  CHECK_NEAR(1.0, transformation.getRotation().toImplementation().norm(), 1e-4);
   proto->Resize(7u, Scalar());
   Eigen::Map<Eigen::Matrix<Scalar, 7, 1>> map(proto->mutable_data());
   map << transformation.getRotation().toImplementation().coeffs(),

@@ -73,7 +73,7 @@ maplab_server_enable_lidar_loop_closure:                              true # Def
 # can be a CSV list of values. Meaningful options are:
 # kPointCloudXYZI = 21                    (Attaching raw VLP16/OS-1 lidar scans)
 # kPointCloudXYZL = 24                    (Attaching LOAM features)
-dm_resource_types:                                                    "21"
+dm_resource_types:                                                    "25"
 # Size of voxel grid downsampling on the point clouds to derive mapping constraints.
 regbox_pcl_downsample_leaf_size_m:                                    0.3
 # Enable/disable dense mapping constraint search modes:

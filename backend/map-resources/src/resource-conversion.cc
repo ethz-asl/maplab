@@ -677,7 +677,7 @@ void addRingToPointCloud(
     const uint32_t ring, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
   sensor_msgs::PointCloud2Iterator<uint32_t> it_ring(
-      *point_cloud, kPointCloud2LabelV1);
+      *point_cloud, kPointCloud2Ring);
 
   it_ring += index;
 
@@ -721,7 +721,7 @@ void addTimeToPointCloud(
     const float time_s, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
   sensor_msgs::PointCloud2Iterator<float> it_time(
-      *point_cloud, kPointCloud2LabelV1);
+      *point_cloud, kPointCloud2Time);
 
   it_time += index;
 

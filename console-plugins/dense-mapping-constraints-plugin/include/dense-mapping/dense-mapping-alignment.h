@@ -26,6 +26,18 @@ struct AlignmentConfig {
   double maximum_deviation_from_initial_guess_delta_rotation_deg;
 };
 
+bool alignmentDeviatesTooMuchFromInitialGuess(
+    const AlignmentConfig& config, const AlignmentCandidatePair& pair);
+
+template <typename ResourceDataType>
+bool retrieveResourceForCandidate(
+    const AlignmentCandidate candidate, const vi_map::VIMap& map,
+    ResourceDataType* candidate_resource);
+
+static AlignmentCandidatePair candidatePairFromRegistrationResult(
+    const AlignmentCandidatePair& pair,
+    const regbox::RegistrationResult& registration_result);
+
 bool computeAlignmentForCandidatePairs(
     const AlignmentConfig& config, const vi_map::VIMap& map,
     const AlignmentCandidatePairs& candidate_pairs,

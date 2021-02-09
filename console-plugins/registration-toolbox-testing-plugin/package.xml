@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>registration_toolbox_testing_plugin</name>
+  <version>0.0.1</version>
+  <description>The registration_toolbox_testing package</description>
+  <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>aslam_cv_common</depend>
+  <depend>console_common</depend>
+  <depend>dense_mapping_constraints_plugin</depend>
+  <depend>depth_integration</depend>
+  <depend>gflags_catkin</depend>
+  <depend>glog_catkin</depend>
+  <depend>map_manager</depend>
+  <depend>map_resources</depend>
+  <depend>maplab_common</depend>
+  <depend>vi_map</depend>
+  <depend>visualization</depend>
+  <depend>registration_toolbox</depend>
+</package>

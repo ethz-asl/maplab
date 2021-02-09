@@ -12,7 +12,7 @@
 	<arg name="gonzen_clahe" default="false"/>
 	<arg name="gonzen_playback_speed" default="0.5"/>
 	<arg name="gonzen_remove_bad_landmarks" default="true"/>
-	<arg name="gonzen_bags_folder" default="/home/paddy/Downloads"/>
+	<arg name="gonzen_bags_folder" default="/home/paddy/Downloads/mission_1"/>
 	<arg name="gonzen_root_map_directory" default="/tmp/maplab_node"/>
 
 	<arg name="group_A" default="true"/>

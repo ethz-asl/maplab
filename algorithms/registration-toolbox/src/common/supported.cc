@@ -9,6 +9,8 @@ std::string SupportedAligner::getKeyForAligner(Aligner aligner) {
     return "regbox::PclIcpController";
   } else if (aligner == Aligner::PclGIcp) {
     return "regbox::PclGeneralizedIcpController";
+  } else if (aligner == Aligner::PclVGIcp) {
+    return "regbox::PclVoxelizedGeneralizedIcpController";
   } else if (aligner == Aligner::Mock) {
     return "regbox::MockController";
   } else if (aligner == Aligner::LpmIcp) {

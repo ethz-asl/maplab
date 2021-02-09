@@ -1162,7 +1162,7 @@ bool MaplabServerNode::appendAvailableSubmaps() {
 void MaplabServerNode::printAndPublishServerStatus() {
   std::stringstream ss;
 
-  ss << "\033c";
+  // ss << "\033c";
   ss << "\n"
      << "==================================================================\n";
   ss << "=                   MaplabServerNode Status                      =\n";

@@ -8,6 +8,11 @@ namespace regbox {
 
 // Point cloud preprocessing.
 DECLARE_double(regbox_pcl_downsample_leaf_size_m);
+DECLARE_int32(regbox_pcl_max_iterations);
+DECLARE_double(regbox_pcl_transformation_epsilon);
+DECLARE_bool(regbox_pcl_downsample);
+DECLARE_int32(regbox_pcl_gicp_n_neighbors);
+DECLARE_double(regbox_pcl_vgicp_leaf_size_m);
 
 // libpointmatcher config
 DECLARE_string(regbox_lpm_config_path);

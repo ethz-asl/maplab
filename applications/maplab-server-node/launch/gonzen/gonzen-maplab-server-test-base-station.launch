@@ -11,7 +11,7 @@ Requires:
 	<!-- MAPLAB SERVER -->
 	<group ns="maplab_server">
 		<node name="maplab_server_node" pkg="maplab_server_node" type="maplab_server_node" output="screen" clear_params="true" args="-alsologtostderr">
-			<rosparam command="load" file="$(find maplab_server_node)/cfg/gonzen/gonzen_maplab_server_ros_params.yaml"/>
+			<rosparam command="load" file="$(find darpa_subt_launch)/cfg/ros/maplab_server_darpa_rosparam.yaml"/>
 
 			<!-- Overwrite map update topic -->
 			<param name="maplab_server_map_update_topic" value="/transfolder_receiver/folder_received"/>
