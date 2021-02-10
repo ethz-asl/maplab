@@ -25,6 +25,7 @@ cs_add_library(${PROJECT_NAME}
   src/sparse-graph.cc
   src/mission-graph.cc
   src/partitioners/avg-partitioner.cc
+  src/partitioners/all-partitioner.cc
   src/partitioners/lidar-partitioner.cc
   src/common/representative-node.cc
 )
@@ -36,7 +37,7 @@ catkin_add_gtest(test_sparse_graph test/test-sparse-graph.cc)
 target_link_libraries(test_sparse_graph ${PROJECT_NAME})
 catkin_add_gtest(test_partitioners test/test-partitioners.cc)
 target_link_libraries(test_partitioners ${PROJECT_NAME})
-catkin_add_gtest(test_representative_nodes test/test-representative-node.cc) 
+catkin_add_gtest(test_representative_nodes test/test-representative-node.cc)
 target_link_libraries(test_representative_nodes ${PROJECT_NAME})
 
 ##########

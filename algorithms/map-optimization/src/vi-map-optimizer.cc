@@ -10,6 +10,7 @@
 #include <maplab-common/progress-bar.h>
 #include <visualization/viwls-graph-plotter.h>
 
+#include <algorithm>
 #include <functional>
 #include <numeric>
 #include <string>
@@ -211,6 +212,10 @@ std::map<uint32_t, double> VIMapOptimizer::getResidualsForVertices(
 
       // Retrieve the residual block id for all observed landmarks.
       for (const vi_map::LandmarkId& l : observed_landmarks) {
+        if (map->getLandmark(l).getQuality() !=
+            vi_map::Landmark::Quality::kGood) {
+          continue;
+        }
         auto range = landmark_id_cost_func_map.equal_range(l);
         for (auto it = range.first; it != range.second; ++it) {
           ceres::CostFunction* cost_f = it->second;
@@ -225,6 +230,8 @@ std::map<uint32_t, double> VIMapOptimizer::getResidualsForVertices(
       }
     }
 
+    // Get rid of any duplicated entries in the evaluation vector.
+    to_eval.erase(std::unique(to_eval.begin(), to_eval.end()), to_eval.end());
     ceres::Problem::EvaluateOptions eval_options;
     eval_options.residual_blocks = to_eval;
 
@@ -236,9 +243,12 @@ std::map<uint32_t, double> VIMapOptimizer::getResidualsForVertices(
       LOG(ERROR) << "Unable to retrieve the residuals from the problem.";
     }
 
+    auto abs_val = [](double val, double sum) { return sum + std::fabs(val); };
     const double cost_for_v = std::accumulate(
-        evaluated_residuals.begin(), evaluated_residuals.end(), 0.0);
-    vertex_costs[id] = cost_for_v;
+        evaluated_residuals.begin(), evaluated_residuals.end(), 0.0, abs_val);
+    vertex_costs[id] =
+        cost_for_v / static_cast<double>(evaluated_residuals.size());
+    // vertex_costs[id] = total_cost;
   }
 
   return vertex_costs;
