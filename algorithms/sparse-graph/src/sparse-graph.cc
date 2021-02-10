@@ -7,6 +7,7 @@
 #include <nav_msgs/Path.h>
 
 #include <minkindr_conversions/kindr_msg.h>
+#include <vi-map-helpers/vi-map-nearest-neighbor-lookup.h>
 #include <visualization/common-rviz-visualization.h>
 #include <visualization/rviz-visualization-sink.h>
 
@@ -71,6 +72,58 @@ std::size_t SparseGraph::getMissionGraphSize(const std::string& map_key) const
     return 0;
   }
   return mission_it->second.size();
+}
+
+void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
+  if (sparse_graph_.empty()) {
+    return;
+  }
+}
+
+void SparseGraph::computeDistanceWeights(const vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+
+  const std::size_t n_nodes = sparse_graph_.size();
+  Eigen::MatrixXd weighted_adjacency = Eigen::MatrixXd::Zero(n_nodes, n_nodes);
+
+  vi_map_helpers::VIMapNearestNeighborLookupVertexId nn_query_database(*map);
+  const double search_radius = 5.0;
+
+  for (std::size_t i = 0u; i < n_nodes; ++i) {
+    const RepresentativeNode& node = sparse_graph_.at(i);
+    const aslam::Transformation& T_G_I = node.getPose();
+
+    pose_graph::VertexIdSet vertex_ids_within_search_radius;
+    nn_query_database.getAllDataItemsWithinRadius(
+        T_G_I.getPosition(), search_radius, &vertex_ids_within_search_radius);
+
+    /*
+    TODO(lbern): continue
+    for (const pose_graph::VertexId& v : vertex_ids_within_search_radius) {
+    }*/
+  }
+}
+
+void SparseGraph::findVertexInGraph(const pose_graph::VertexId& v) const {
+  std::vector<std::size_t> sparse_graph_ids;
+  const std::size_t n_nodes = sparse_graph_.size();
+  for (std::size_t i = 0u; i < n_nodes; ++i) {
+    const RepresentativeNode& node = sparse_graph_.at(i);
+    const uint32_t id = node.getAssociatedSubmapId();
+
+    // Find submap for the id.
+    const MissionGraph* mission_graph;
+    if (!findMissionGraphForId(id, &mission_graph)) {
+      LOG(WARNING) << "Found no mission graph for id = " << id;
+      continue;
+    }
+    CHECK_NOTNULL(mission_graph);
+
+    if (!mission_graph->containsVertex(id, v)) {
+      LOG(WARNING) << "Found no vertex in mission graph for id = " << v;
+      continue;
+    }
+  }
 }
 
 ros::Time SparseGraph::createRosTimestamp(const int64_t ts_ns) const {

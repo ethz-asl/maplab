@@ -52,6 +52,25 @@ bool RepresentativeNode::isActive() const noexcept {
   return is_active_;
 }
 
+std::vector<uint32_t> RepresentativeNode::getLocalIndex() const noexcept {
+  return local_index_;
+}
+
+void RepresentativeNode::setLocalIndex(
+    const std::vector<uint32_t>& local_index) {
+  local_index_ = local_index;
+}
+
+void RepresentativeNode::setLocalIndex(std::vector<uint32_t>&& local_index) {
+  local_index_ = local_index;
+}
+
+bool RepresentativeNode::containsLocalIndex(const uint32_t local_index) const
+    noexcept {
+  auto it = std::find(local_index_.cbegin(), local_index_.cend(), local_index);
+  return it != local_index_.end();
+}
+
 bool operator==(const RepresentativeNode& lhs, const RepresentativeNode& rhs) {
   return lhs.isEqualTo(rhs);
 }

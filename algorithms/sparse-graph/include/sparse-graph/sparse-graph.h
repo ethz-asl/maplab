@@ -32,10 +32,15 @@ class SparseGraph {
   void attachResiduals(std::map<uint32_t, double>&& residuals);
   void writeResultsToFile();
 
+  void computeAdjacencyMatrix(const vi_map::VIMap* map);
+
  private:
   ros::Time createRosTimestamp(const int64_t ts_ns) const;
   bool findMissionGraphForId(
       const uint32_t submap_id, const MissionGraph** mission_graph) const;
+
+  void computeDistanceWeights(const vi_map::VIMap* map);
+  void findVertexInGraph(const pose_graph::VertexId& v) const;
 
   std::map<std::string, MissionGraph> mission_graphs_;
   std::atomic<uint32_t> submap_id_;

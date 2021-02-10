@@ -22,6 +22,12 @@ class MissionGraph {
 
   const pose_graph::VertexIdList& getVerticesForId(
       const uint32_t submap_id) const noexcept;
+  std::size_t getNumberOfVerticesForId(const uint32_t submap_id) const noexcept;
+
+  uint32_t getLocalVertexId(
+      const uint32_t submap_id, const pose_graph::VertexId& v) const noexcept;
+  bool containsVertex(
+      const uint32_t submap_id, const pose_graph::VertexId& v) const noexcept;
 
   bool containsSubmap(const uint32_t submap_id) const noexcept;
 

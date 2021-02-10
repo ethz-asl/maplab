@@ -19,6 +19,7 @@
   <depend>map_resources</depend>
   <depend>landmark_triangulation</depend>
   <depend>vi_map</depend>
+  <depend>vi_map_helpers</depend>
   <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>minkindr_conversions</depend>

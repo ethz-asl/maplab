@@ -26,6 +26,7 @@ RepresentativeNodeVector AllPartitioner::getRepresentativesForSubmap(
     // Insert a new representative node if it is not already present.
     RepresentativeNode current_node(
         vertex.get_T_M_I(), ts_vertex_ns, submap_id);
+    current_node.setLocalIndex({static_cast<uint32_t>(i)});
     if (std::find(all_vertices.cbegin(), all_vertices.cend(), current_node) ==
         all_vertices.cend()) {
       all_vertices.emplace_back(current_node);

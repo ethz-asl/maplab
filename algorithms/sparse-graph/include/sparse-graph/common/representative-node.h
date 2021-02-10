@@ -28,12 +28,18 @@ class RepresentativeNode {
 
   bool isActive() const noexcept;
 
+  std::vector<uint32_t> getLocalIndex() const noexcept;
+  void setLocalIndex(const std::vector<uint32_t>& local_index);
+  void setLocalIndex(std::vector<uint32_t>&& local_index);
+  bool containsLocalIndex(const uint32_t local_index) const noexcept;
+
  private:
   aslam::Transformation pose_;
   int64_t timestamp_ns_;
   uint32_t submap_id_;
   double residual_;
   bool is_active_ = false;
+  std::vector<uint32_t> local_index_;
 };
 
 bool operator==(const RepresentativeNode& lhs, const RepresentativeNode& rhs);

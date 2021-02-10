@@ -34,6 +34,28 @@ const pose_graph::VertexIdList& MissionGraph::getVerticesForId(
   return all_vertex_partitions_.at(submap_id);
 }
 
+std::size_t MissionGraph::getNumberOfVerticesForId(
+    const uint32_t submap_id) const noexcept {
+  CHECK(containsSubmap(submap_id));
+  return all_vertex_partitions_.at(submap_id).size();
+}
+
+uint32_t MissionGraph::getLocalVertexId(
+    const uint32_t submap_id, const pose_graph::VertexId& v) const noexcept {
+  CHECK(containsSubmap(submap_id));
+  const pose_graph::VertexIdList& vertices = getVerticesForId(submap_id);
+  auto it = std::find(vertices.begin(), vertices.end(), v);
+  if (it == vertices.end()) {
+    return vertices.size();
+  }
+  return std::distance(vertices.begin(), it);
+}
+
+bool MissionGraph::containsVertex(
+    const uint32_t submap_id, const pose_graph::VertexId& v) const noexcept {
+  return getLocalVertexId(submap_id, v) < getNumberOfVerticesForId(submap_id);
+}
+
 bool MissionGraph::containsSubmap(const uint32_t submap_id) const noexcept {
   return all_vertex_partitions_.find(submap_id) != all_vertex_partitions_.end();
 }
