@@ -33,6 +33,7 @@ DECLARE_double(dm_candidate_selection_min_switch_variable_value);
 // ALIGNMENT
 DECLARE_double(dm_candidate_alignment_max_delta_position_to_initial_guess_m);
 DECLARE_double(dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg);
+DECLARE_string(dm_candidate_alignment_type);
 
 // CONSTRAINTS
 DECLARE_double(dm_constraint_switch_variable_value);

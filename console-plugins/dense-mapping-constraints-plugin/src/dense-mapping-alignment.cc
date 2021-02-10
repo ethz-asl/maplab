@@ -81,8 +81,19 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
 
   // Initialize the aligner if we haven't already.
   if (!*aligner_ptr) {
-    *aligner_ptr =
-        regbox::BaseController::make(regbox::Aligner::LpmIcp, "ADMC Aligner");
+    if (FLAGS_dm_candidate_alignment_type == "PclIcp") {
+      *aligner_ptr = regbox::BaseController::make(regbox::Aligner
+                                                  : PclIcp, "ADMC Aligner");
+    } else if (FLAGS_dm_candidate_alignment_type == "PclGIcp") {
+      *aligner_ptr = regbox::BaseController::make(regbox::Aligner
+                                                  : PclGIcp, "ADMC Aligner");
+    } else if (FLAGS_dm_candidate_alignment_type == "LpmIcp") {
+      *aligner_ptr = regbox::BaseController::make(regbox::Aligner
+                                                  : LpmIcp, "ADMC Aligner");
+    } else {
+      LOG(FATAL) << "Selected alignment for dense mapping constraints is not "
+                    "supported";
+    }
   }
   CHECK(*aligner_ptr);
 
