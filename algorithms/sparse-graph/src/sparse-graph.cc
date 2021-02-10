@@ -74,13 +74,16 @@ std::size_t SparseGraph::getMissionGraphSize(const std::string& map_key) const
   return mission_it->second.size();
 }
 
-void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
+Eigen::MatrixXd SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
   if (sparse_graph_.empty()) {
-    return;
+    return Eigen::MatrixXd{};
   }
+  Eigen::MatrixXd W_d = computeDistanceWeights(map);
+
+  return W_d;
 }
 
-void SparseGraph::computeDistanceWeights(const vi_map::VIMap* map) {
+Eigen::MatrixXd SparseGraph::computeDistanceWeights(const vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
 
   const std::size_t n_nodes = sparse_graph_.size();
@@ -89,6 +92,7 @@ void SparseGraph::computeDistanceWeights(const vi_map::VIMap* map) {
   vi_map_helpers::VIMapNearestNeighborLookupVertexId nn_query_database(*map);
   const double search_radius = 5.0;
 
+  // Iterate over the sparse graph.
   for (std::size_t i = 0u; i < n_nodes; ++i) {
     const RepresentativeNode& node = sparse_graph_.at(i);
     const aslam::Transformation& T_G_I = node.getPose();
@@ -97,14 +101,25 @@ void SparseGraph::computeDistanceWeights(const vi_map::VIMap* map) {
     nn_query_database.getAllDataItemsWithinRadius(
         T_G_I.getPosition(), search_radius, &vertex_ids_within_search_radius);
 
-    /*
-    TODO(lbern): continue
+    // Iterate over the closest neighbors.
     for (const pose_graph::VertexId& v : vertex_ids_within_search_radius) {
-    }*/
+      const std::vector<std::size_t> ids = findVertexInGraph(v);
+
+      // Compute the weighted adjacency for each vertex.
+      for (const std::size_t j : ids) {
+        const double w_d = computeDistanceBetweenNodes(i, j);
+
+        // Set the weight in the adjacency matrix.
+        weighted_adjacency(i, j) = w_d;
+        weighted_adjacency(j, i) = w_d;  // Symmetric matrix (undirected).
+      }
+    }
   }
+  return weighted_adjacency;
 }
 
-void SparseGraph::findVertexInGraph(const pose_graph::VertexId& v) const {
+std::vector<std::size_t> SparseGraph::findVertexInGraph(
+    const pose_graph::VertexId& v) const {
   std::vector<std::size_t> sparse_graph_ids;
   const std::size_t n_nodes = sparse_graph_.size();
   for (std::size_t i = 0u; i < n_nodes; ++i) {
@@ -123,7 +138,30 @@ void SparseGraph::findVertexInGraph(const pose_graph::VertexId& v) const {
       LOG(WARNING) << "Found no vertex in mission graph for id = " << v;
       continue;
     }
+
+    const uint32_t local_id = mission_graph->getLocalVertexId(id, v);
+    if (!node.containsLocalIndex(local_id)) {
+      continue;
+    }
+    sparse_graph_ids.emplace_back(i);
   }
+  return sparse_graph_ids;
+}
+
+double SparseGraph::computeDistanceBetweenNodes(
+    const std::size_t i, const std::size_t j) const noexcept {
+  const std::size_t n_nodes = sparse_graph_.size();
+  if (i > n_nodes || j > n_nodes) {
+    return 0.0;
+  }
+  const double sigma = 1.0;
+  const RepresentativeNode& node_i = sparse_graph_.at(i);
+  const RepresentativeNode& node_j = sparse_graph_.at(j);
+  const double distance =
+      (node_i.getPose().getPosition() - node_j.getPose().getPosition())
+          .lpNorm<2>();
+
+  return std::exp(-distance / (2.0 * sigma * sigma));
 }
 
 ros::Time SparseGraph::createRosTimestamp(const int64_t ts_ns) const {
