@@ -32,7 +32,7 @@ class SparseGraph {
   void attachResiduals(std::map<uint32_t, double>&& residuals);
   void writeResultsToFile();
 
-  Eigen::MatrixXd computeAdjacencyMatrix(const vi_map::VIMap* map);
+  void computeAdjacencyMatrix(const vi_map::VIMap* map);
 
  private:
   ros::Time createRosTimestamp(const int64_t ts_ns) const;
@@ -53,6 +53,7 @@ class SparseGraph {
   std::map<std::string, MissionGraph> mission_graphs_;
   std::atomic<uint32_t> submap_id_;
   std::vector<RepresentativeNode> sparse_graph_;
+  Eigen::MatrixXd adjacency_matrix_;
 };
 
 }  // namespace spg

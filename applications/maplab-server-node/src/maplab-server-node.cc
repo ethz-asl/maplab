@@ -18,6 +18,7 @@
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
 #include <signal.h>
+#include <sparse-graph/partitioners/all-partitioner.h>
 #include <sparse-graph/partitioners/lidar-partitioner.h>
 #include <vi-map-basic-plugin/vi-map-basic-plugin.h>
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
@@ -874,10 +875,11 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
     // Sparsify the graph and get latest estimations.
     const vi_map::VIMap* cmap = CHECK_NOTNULL(map_read.get());
-    spg::LidarPartitioner lidar_partitioner(*cmap);
+    spg::AllPartitioner partitioner(*cmap);
 
     // Sparsify the graph and get latest estimations.
-    sparsified_graph_.compute(cmap, &lidar_partitioner);
+    sparsified_graph_.compute(cmap, &partitioner);
+    sparsified_graph_.computeAdjacencyMatrix(cmap);
   }
 
   {

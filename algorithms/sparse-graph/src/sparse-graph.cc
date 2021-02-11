@@ -31,7 +31,9 @@ void SparseGraph::compute(
         mission_graph.second.computeSparseGraph(partitioner);
     sparse_graph_.insert(sparse_graph_.end(), mission.begin(), mission.end());
   }
+  LOG(ERROR) << "computed graph with " << sparse_graph_.size() << " vertices";
   std::sort(sparse_graph_.begin(), sparse_graph_.end());
+  LOG(ERROR) << "sorted graph with " << sparse_graph_.size() << " vertices";
 }
 
 void SparseGraph::publishLatestGraph() {
@@ -75,14 +77,17 @@ std::size_t SparseGraph::getMissionGraphSize(const std::string& map_key) const
   return mission_it->second.size();
 }
 
-Eigen::MatrixXd SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
+void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
+  LOG(ERROR) << "sparse graph has " << sparse_graph_.size() << " nodes";
   CHECK_NOTNULL(map);
   if (sparse_graph_.empty()) {
-    return Eigen::MatrixXd{};
+    return;
   }
 
   const std::size_t n_nodes = sparse_graph_.size();
-  Eigen::MatrixXd weighted_adjacency = Eigen::MatrixXd::Zero(n_nodes, n_nodes);
+  LOG(ERROR) << "setting adj matrix with " << n_nodes << " nodes";
+  adjacency_matrix_ = Eigen::MatrixXd::Zero(n_nodes, n_nodes);
+  LOG(ERROR) << "done";
 
   vi_map_helpers::VIMapNearestNeighborLookupVertexId nn_query_database(*map);
   const double search_radius = 5.0;
@@ -107,12 +112,13 @@ Eigen::MatrixXd SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
 
         // Set the weights for the adjacency
         // which is a symmetric and undirected adjacency matrix.
-        weighted_adjacency(i, j) = w_d + w_c;
-        weighted_adjacency(j, i) = weighted_adjacency(i, j);
+        LOG(ERROR) << "setting adj at " << i << ", " << j << "with: " << w_d
+                   << " and " << w_c;
+        adjacency_matrix_(i, j) = w_d + w_c;
+        adjacency_matrix_(j, i) = adjacency_matrix_(i, j);
       }
     }
   }
-  return weighted_adjacency;
 }
 
 std::vector<std::size_t> SparseGraph::findVertexInGraph(
@@ -132,7 +138,6 @@ std::vector<std::size_t> SparseGraph::findVertexInGraph(
     CHECK_NOTNULL(mission_graph);
 
     if (!mission_graph->containsVertex(id, v)) {
-      LOG(WARNING) << "Found no vertex in mission graph for id = " << v;
       continue;
     }
 
@@ -193,7 +198,7 @@ double SparseGraph::computeCoObservability(
     }
   }
   LOG(ERROR) << "Accumulated coobs: " << accumulated_coobs;
-  const double lambda = 0.4;
+  const double lambda = 0.03;
 
   return 1 - std::pow(std::exp(-lambda), accumulated_coobs);
 }
@@ -225,14 +230,17 @@ void SparseGraph::writeResultsToFile() {
   ros::Time ts_ros;
   const std::string graph_out_path = "/tmp/cdpgo_graph.csv";
   const std::string signal_out_path = "/tmp/cdpgo_signal.csv";
+  const std::string adj_out_path = "/tmp/cdpgo_adj.csv";
   std::ofstream fs_graph(graph_out_path, std::ofstream::trunc);
   std::ofstream fs_signal(signal_out_path, std::ofstream::trunc);
-  CHECK(fs_signal.good() && fs_graph.good());
+  std::ofstream fs_adj(signal_out_path, std::ofstream::trunc);
+  CHECK(fs_signal.good() && fs_graph.good() && fs_adj.good());
 
   static std::string kHeader = "# ts qw qx qy qz x y z\n";
   static const Eigen::IOFormat CSVFormat(
       Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
 
+  // Write the sparse graph and corresponding signal to disk.
   fs_graph << kHeader;
   for (const RepresentativeNode& node : sparse_graph_) {
     if (!node.isActive()) {
@@ -246,8 +254,13 @@ void SparseGraph::writeResultsToFile() {
     // write signal to disk.
     fs_signal << node.getResidual() << "\n";
   }
+
+  // Write the weighted adjacency matrix to disk.
+  fs_adj << adjacency_matrix_;
+
   fs_signal.close();
   fs_graph.close();
+  fs_adj.close();
 }
 
 std::map<uint32_t, pose_graph::VertexIdList>
