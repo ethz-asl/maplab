@@ -8,6 +8,7 @@
 
 #include <minkindr_conversions/kindr_msg.h>
 #include <vi-map-helpers/vi-map-nearest-neighbor-lookup.h>
+#include <vi-map-helpers/vi-map-queries.h>
 #include <visualization/common-rviz-visualization.h>
 #include <visualization/rviz-visualization-sink.h>
 
@@ -75,16 +76,10 @@ std::size_t SparseGraph::getMissionGraphSize(const std::string& map_key) const
 }
 
 Eigen::MatrixXd SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
   if (sparse_graph_.empty()) {
     return Eigen::MatrixXd{};
   }
-  Eigen::MatrixXd W_d = computeDistanceWeights(map);
-
-  return W_d;
-}
-
-Eigen::MatrixXd SparseGraph::computeDistanceWeights(const vi_map::VIMap* map) {
-  CHECK_NOTNULL(map);
 
   const std::size_t n_nodes = sparse_graph_.size();
   Eigen::MatrixXd weighted_adjacency = Eigen::MatrixXd::Zero(n_nodes, n_nodes);
@@ -108,10 +103,12 @@ Eigen::MatrixXd SparseGraph::computeDistanceWeights(const vi_map::VIMap* map) {
       // Compute the weighted adjacency for each vertex.
       for (const std::size_t j : ids) {
         const double w_d = computeDistanceBetweenNodes(i, j);
+        const double w_c = computeCoObservability(map, i, j);
 
-        // Set the weight in the adjacency matrix.
-        weighted_adjacency(i, j) = w_d;
-        weighted_adjacency(j, i) = w_d;  // Symmetric matrix (undirected).
+        // Set the weights for the adjacency
+        // which is a symmetric and undirected adjacency matrix.
+        weighted_adjacency(i, j) = w_d + w_c;
+        weighted_adjacency(j, i) = weighted_adjacency(i, j);
       }
     }
   }
@@ -148,6 +145,14 @@ std::vector<std::size_t> SparseGraph::findVertexInGraph(
   return sparse_graph_ids;
 }
 
+pose_graph::VertexId SparseGraph::retrieveVertex(
+    const uint32_t submap_id, const uint32_t local_id) const {
+  const MissionGraph* mission_graph;
+  findMissionGraphForId(submap_id, &mission_graph);
+  CHECK_NOTNULL(mission_graph);
+  return mission_graph->getVertex(submap_id, local_id);
+}
+
 double SparseGraph::computeDistanceBetweenNodes(
     const std::size_t i, const std::size_t j) const noexcept {
   const std::size_t n_nodes = sparse_graph_.size();
@@ -162,6 +167,35 @@ double SparseGraph::computeDistanceBetweenNodes(
           .lpNorm<2>();
 
   return std::exp(-distance / (2.0 * sigma * sigma));
+}
+double SparseGraph::computeCoObservability(
+    const vi_map ::VIMap* map, const std::size_t i, const std::size_t j) const
+    noexcept {
+  CHECK_NOTNULL(map);
+  const std::size_t n_nodes = sparse_graph_.size();
+  if (i > n_nodes || j > n_nodes) {
+    return 0.0;
+  }
+  const RepresentativeNode& node_i = sparse_graph_.at(i);
+  const RepresentativeNode& node_j = sparse_graph_.at(j);
+  const vi_map_helpers::VIMapQueries queries(*map);
+
+  // Iterate over all possible local indices.
+  const uint32_t submap_id_i = node_i.getAssociatedSubmapId();
+  const uint32_t submap_id_j = node_j.getAssociatedSubmapId();
+  double accumulated_coobs = 0.0;
+  for (const uint32_t i_local_idx : node_i.getLocalIndex()) {
+    pose_graph::VertexId v_i = retrieveVertex(submap_id_i, i_local_idx);
+    for (const uint32_t j_local_idx : node_j.getLocalIndex()) {
+      pose_graph::VertexId v_j = retrieveVertex(submap_id_j, j_local_idx);
+      const int n_obs = queries.getNumberOfCommonLandmarks(v_i, v_j);
+      accumulated_coobs += static_cast<double>(n_obs);
+    }
+  }
+  LOG(ERROR) << "Accumulated coobs: " << accumulated_coobs;
+  const double lambda = 0.4;
+
+  return 1 - std::pow(std::exp(-lambda), accumulated_coobs);
 }
 
 ros::Time SparseGraph::createRosTimestamp(const int64_t ts_ns) const {

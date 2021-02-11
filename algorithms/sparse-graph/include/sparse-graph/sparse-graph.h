@@ -39,12 +39,16 @@ class SparseGraph {
   bool findMissionGraphForId(
       const uint32_t submap_id, const MissionGraph** mission_graph) const;
 
-  Eigen::MatrixXd computeDistanceWeights(const vi_map::VIMap* map);
   std::vector<std::size_t> findVertexInGraph(
       const pose_graph::VertexId& v) const;
+  pose_graph::VertexId retrieveVertex(
+      const uint32_t submap_id, const uint32_t local_id) const;
 
   double computeDistanceBetweenNodes(
       const std::size_t i, const std::size_t j) const noexcept;
+  double computeCoObservability(
+      const vi_map::VIMap* map, const std::size_t i, const std::size_t j) const
+      noexcept;
 
   std::map<std::string, MissionGraph> mission_graphs_;
   std::atomic<uint32_t> submap_id_;

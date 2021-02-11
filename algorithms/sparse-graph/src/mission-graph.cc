@@ -40,6 +40,14 @@ std::size_t MissionGraph::getNumberOfVerticesForId(
   return all_vertex_partitions_.at(submap_id).size();
 }
 
+const pose_graph::VertexId MissionGraph::getVertex(
+    const uint32_t submap_id, const uint32_t local_id) const noexcept {
+  CHECK(containsSubmap(submap_id));
+  pose_graph::VertexIdList vertices = all_vertex_partitions_.at(submap_id);
+  CHECK(local_id < vertices.size());
+  return vertices.at(local_id);
+}
+
 uint32_t MissionGraph::getLocalVertexId(
     const uint32_t submap_id, const pose_graph::VertexId& v) const noexcept {
   CHECK(containsSubmap(submap_id));
