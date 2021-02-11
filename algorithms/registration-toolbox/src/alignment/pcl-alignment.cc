@@ -1,3 +1,5 @@
+#define PCL_NO_PRECOMPILE
+
 #include "registration-toolbox/alignment/pcl-alignment.h"
 
 namespace regbox {
@@ -13,5 +15,4 @@ PclAlignment<
       FLAGS_regbox_pcl_downsample_leaf_size_m);
   aligner_.setCorrespondenceRandomness(FLAGS_regbox_pcl_gicp_n_neighbors);
 }
-
 }  // namespace regbox
