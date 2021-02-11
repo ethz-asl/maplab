@@ -1,5 +1,7 @@
 #include "sparse-graph/mission-graph.h"
 
+#include <limits>
+
 namespace spg {
 
 MissionGraph::MissionGraph() {}
@@ -36,7 +38,9 @@ const pose_graph::VertexIdList& MissionGraph::getVerticesForId(
 
 std::size_t MissionGraph::getNumberOfVerticesForId(
     const uint32_t submap_id) const noexcept {
-  CHECK(containsSubmap(submap_id));
+  if (!containsSubmap(submap_id)) {
+    return 0u;
+  }
   return all_vertex_partitions_.at(submap_id).size();
 }
 
@@ -50,7 +54,10 @@ const pose_graph::VertexId MissionGraph::getVertex(
 
 uint32_t MissionGraph::getLocalVertexId(
     const uint32_t submap_id, const pose_graph::VertexId& v) const noexcept {
-  CHECK(containsSubmap(submap_id));
+  const std::size_t n_vertices = getNumberOfVerticesForId(submap_id);
+  if (n_vertices == 0) {
+    return std::numeric_limits<uint32_t>::max();
+  }
   const pose_graph::VertexIdList& vertices = getVerticesForId(submap_id);
   auto it = std::find(vertices.begin(), vertices.end(), v);
   if (it == vertices.end()) {
@@ -61,7 +68,8 @@ uint32_t MissionGraph::getLocalVertexId(
 
 bool MissionGraph::containsVertex(
     const uint32_t submap_id, const pose_graph::VertexId& v) const noexcept {
-  return getLocalVertexId(submap_id, v) < getNumberOfVerticesForId(submap_id);
+  const std::size_t n_vertices = getNumberOfVerticesForId(submap_id);
+  return n_vertices > 0u && getLocalVertexId(submap_id, v) < n_vertices;
 }
 
 bool MissionGraph::containsSubmap(const uint32_t submap_id) const noexcept {
