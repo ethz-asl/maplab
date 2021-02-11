@@ -107,6 +107,9 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
 
       // Compute the weighted adjacency for each vertex.
       for (const std::size_t j : ids) {
+        if (i == j) {
+          continue;
+        }
         const double w_d = computeDistanceBetweenNodes(i, j);
         const double w_c = computeCoObservability(map, i, j);
 
@@ -233,7 +236,7 @@ void SparseGraph::writeResultsToFile() {
   const std::string adj_out_path = "/tmp/cdpgo_adj.csv";
   std::ofstream fs_graph(graph_out_path, std::ofstream::trunc);
   std::ofstream fs_signal(signal_out_path, std::ofstream::trunc);
-  std::ofstream fs_adj(signal_out_path, std::ofstream::trunc);
+  std::ofstream fs_adj(adj_out_path, std::ofstream::trunc);
   CHECK(fs_signal.good() && fs_graph.good() && fs_adj.good());
 
   static std::string kHeader = "# ts qw qx qy qz x y z\n";
