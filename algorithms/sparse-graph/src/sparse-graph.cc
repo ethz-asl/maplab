@@ -84,7 +84,7 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
 
   adjacency_matrix_ = Eigen::MatrixXd::Zero(n_nodes, n_nodes);
   vi_map_helpers::VIMapNearestNeighborLookupVertexId nn_query_database(*map);
-  const double search_radius = 2.0;
+  const double search_radius = 10.0;
 
   // Iterate over the sparse graph.
   for (std::size_t i = 0u; i < n_nodes; ++i) {
@@ -106,6 +106,9 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
         }
         const double w_d = computeDistanceBetweenNodes(i, j);
         const double w_c = computeCoObservability(map, i, j);
+
+        CHECK(w_d >= 0.0);
+        CHECK(w_c >= 0.0);
 
         // Set the weights for the adjacency
         // which is a symmetric and undirected adjacency matrix.
