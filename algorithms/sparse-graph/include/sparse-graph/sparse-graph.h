@@ -50,6 +50,9 @@ class SparseGraph {
       const vi_map::VIMap* map, const std::size_t i, const std::size_t j) const
       noexcept;
 
+  std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>>
+  computeLoopClosureEdgeMap(const vi_map::VIMap* map);
+
   std::map<std::string, MissionGraph> mission_graphs_;
   std::atomic<uint32_t> submap_id_;
   std::vector<RepresentativeNode> sparse_graph_;

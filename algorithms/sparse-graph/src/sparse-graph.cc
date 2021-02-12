@@ -119,6 +119,30 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
   }
 }
 
+std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>>
+SparseGraph::computeLoopClosureEdgeMap(const vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+  std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>> lc_edges;
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    pose_graph::EdgeIdList edges;
+    map->getAllEdgeIdsInMissionAlongGraph(
+        mission_id, pose_graph::Edge::EdgeType::kLoopClosure, &edges);
+    for (const pose_graph::EdgeId& edge_id : edges) {
+      CHECK(edge_id.isValid());
+
+      CHECK(map->hasEdge(edge_id));
+      const vi_map::LoopClosureEdge& edge =
+          map->getEdgeAs<vi_map::LoopClosureEdge>(edge_id);
+
+      lc_edges[edge.from()].emplace_back(edge.to());
+      lc_edges[edge.to()].emplace_back(edge.from());
+    }
+  }
+  return lc_edges;
+}
+
 std::vector<std::size_t> SparseGraph::findVertexInGraph(
     const pose_graph::VertexId& v) const {
   std::vector<std::size_t> sparse_graph_ids;
@@ -305,7 +329,6 @@ pose_graph::VertexIdList SparseGraph::getAllMissionVertices() const noexcept {
 }
 
 void SparseGraph::attachResiduals(std::map<uint32_t, double>&& residuals) {
-  const std::size_t n_residuals = residuals.size();
   for (RepresentativeNode& node : sparse_graph_) {
     const uint32_t id = node.getAssociatedSubmapId();
     if (residuals.find(id) == residuals.end()) {
