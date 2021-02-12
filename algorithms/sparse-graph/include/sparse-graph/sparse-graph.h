@@ -50,6 +50,11 @@ class SparseGraph {
       const vi_map::VIMap* map, const std::size_t i, const std::size_t j) const
       noexcept;
 
+  double computeLoopClosureEdgeWeight(
+      const std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>>&
+          lc_edges,
+      const std::size_t i, const std::size_t j) const noexcept;
+
   std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>>
   computeLoopClosureEdgeMap(const vi_map::VIMap* map);
 

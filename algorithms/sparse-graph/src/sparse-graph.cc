@@ -82,9 +82,14 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
     return;
   }
 
+  // Create nearest neighbor database for retrieval.
   adjacency_matrix_ = Eigen::MatrixXd::Zero(n_nodes, n_nodes);
   vi_map_helpers::VIMapNearestNeighborLookupVertexId nn_query_database(*map);
-  const double search_radius = 10.0;
+  const double search_radius = 6.0;
+
+  // Create LC edge map.
+  std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>> lc_edges =
+      computeLoopClosureEdgeMap(map);
 
   // Iterate over the sparse graph.
   for (std::size_t i = 0u; i < n_nodes; ++i) {
@@ -195,6 +200,7 @@ double SparseGraph::computeDistanceBetweenNodes(
 
   return std::exp(-distance / (2.0 * sigma * sigma));
 }
+
 double SparseGraph::computeCoObservability(
     const vi_map ::VIMap* map, const std::size_t i, const std::size_t j) const
     noexcept {
@@ -222,6 +228,54 @@ double SparseGraph::computeCoObservability(
   const double lambda = 0.03;
 
   return 1 - std::pow(std::exp(-lambda), accumulated_coobs);
+}
+
+double SparseGraph::computeLoopClosureEdgeWeight(
+    const std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>>&
+        lc_edges,
+    const std::size_t i, const std::size_t j) const noexcept {
+  if (lc_edges.empty()) {
+    return 0.0;
+  }
+  const std::size_t n_nodes = sparse_graph_.size();
+  if (i > n_nodes || j > n_nodes) {
+    return 0.0;
+  }
+  const RepresentativeNode& node_i = sparse_graph_.at(i);
+  const RepresentativeNode& node_j = sparse_graph_.at(j);
+  bool found_lc = false;
+  const uint32_t submap_id_i = node_i.getAssociatedSubmapId();
+  const uint32_t submap_id_j = node_j.getAssociatedSubmapId();
+  for (const uint32_t i_local_idx : node_i.getLocalIndex()) {
+    pose_graph::VertexId v_i = retrieveVertex(submap_id_i, i_local_idx);
+    if (lc_edges.find(v_i) == lc_edges.end()) {
+      continue;
+    }
+
+    // Vertex v_i definitely has LC edges.
+    // Check where the point to.
+    const std::vector<pose_graph::VertexId>& lc_edges_to = lc_edges.at(v_i);
+    for (const uint32_t j_local_idx : node_j.getLocalIndex()) {
+      pose_graph::VertexId v_j = retrieveVertex(submap_id_j, j_local_idx);
+      if (std::find(lc_edges_to.begin(), lc_edges_to.end(), v_j) ==
+          lc_edges_to.end()) {
+        continue;
+      }
+      found_lc = true;
+    }
+  }
+  if (!found_lc) {
+    return 0.0;
+  }
+
+  // Compute the distance between the nodes.
+  const double max_dist = 10.0;
+  const double distance = std::min(
+      (node_i.getPose().getPosition() - node_j.getPose().getPosition())
+          .lpNorm<2>(),
+      max_dist);
+  const double eta = 0.01;
+  return 1 - std::pow(distance, 2.0) * eta;
 }
 
 ros::Time SparseGraph::createRosTimestamp(const int64_t ts_ns) const {
