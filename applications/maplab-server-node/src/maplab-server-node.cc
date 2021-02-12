@@ -907,7 +907,6 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
 
     std::map<uint32_t, double> residuals = optimizer.getResidualsForVertices(
         options, missions_to_optimize, all_vertices, map_write.get());
-    LOG(ERROR) << "All vertices: " << all_vertices.size();
     sparsified_graph_.attachResiduals(std::move(residuals));
   }
 

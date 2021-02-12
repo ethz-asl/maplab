@@ -2,11 +2,12 @@
 
 #include <fstream>
 
-#include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/Point.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <glog/logging.h>
 #include <nav_msgs/Path.h>
 
+#include <maplab_msgs/Graph.h>
 #include <maplab_msgs/Trajectory.h>
 #include <maplab_msgs/TrajectoryNode.h>
 #include <minkindr_conversions/kindr_msg.h>
@@ -39,8 +40,10 @@ void SparseGraph::compute(
 
 void SparseGraph::publishLatestGraph() {
   publishGraphForVisualization();
+  publishGraphForBuilding();
+  publishTrajecotryForEvaluation();
 
-  pub_seq_++;
+  ++pub_seq_;
 }
 
 std::size_t SparseGraph::getMissionGraphSize(const std::string& map_key) const
@@ -385,11 +388,35 @@ std::string SparseGraph::getKeyForSubmapId(const uint32_t submap_id) const {
 }
 
 void SparseGraph::publishGraphForBuilding() const {
+  maplab_msgs::Graph graph_msg;
+  ros::Time ts_ros;
   for (const RepresentativeNode& node : sparse_graph_) {
     if (!node.isActive()) {
       continue;
     }
+    ts_ros = createRosTimestamp(node.getTimestampNanoseconds());
+    const aslam::Transformation pose = node.getPose();
+    const Eigen::Vector3d position = pose.getPosition();
+
+    geometry_msgs::Point pose_msg;
+    pose_msg.x = position[0];
+    pose_msg.y = position[1];
+    pose_msg.z = position[2];
+
+    graph_msg.coords.emplace_back(pose_msg);
   }
+  const uint32_t rows = adjacency_matrix_.rows();
+  const uint32_t cols = adjacency_matrix_.cols();
+  for (uint32_t i = 0u; i < rows; ++i) {
+    for (uint32_t j = 0u; j < cols; ++j) {
+      graph_msg.adjacency_matrix.emplace_back(adjacency_matrix_(i, j));
+    }
+  }
+
+  graph_msg.header.stamp = ts_ros;
+  graph_msg.header.seq = pub_seq_;
+  visualization::RVizVisualizationSink::publish(
+      "sparse_graph/graph", graph_msg);
 }
 
 void SparseGraph::publishTrajecotryForEvaluation() const {
