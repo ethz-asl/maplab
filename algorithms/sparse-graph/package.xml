@@ -24,4 +24,5 @@
   <depend>geometry_msgs</depend>
   <depend>minkindr_conversions</depend>
   <depend>visualization</depend>
+  <depend>maplab_msgs</depend>
 </package>

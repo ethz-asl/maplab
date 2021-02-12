@@ -2,10 +2,13 @@
 
 #include <fstream>
 
+#include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <glog/logging.h>
 #include <nav_msgs/Path.h>
 
+#include <maplab_msgs/Trajectory.h>
+#include <maplab_msgs/TrajectoryNode.h>
 #include <minkindr_conversions/kindr_msg.h>
 #include <vi-map-helpers/vi-map-nearest-neighbor-lookup.h>
 #include <vi-map-helpers/vi-map-queries.h>
@@ -14,7 +17,7 @@
 
 namespace spg {
 
-SparseGraph::SparseGraph() : submap_id_(0u) {}
+SparseGraph::SparseGraph() : submap_id_(0u), pub_seq_(0u) {}
 
 void SparseGraph::addVerticesToMissionGraph(
     const std::string& map_key, const pose_graph::VertexIdList& vertices) {
@@ -35,34 +38,9 @@ void SparseGraph::compute(
 }
 
 void SparseGraph::publishLatestGraph() {
-  const std::string& mission_frame = "darpa";
-  nav_msgs::Path graph_msg;
-  graph_msg.header.frame_id = mission_frame;
+  publishGraphForVisualization();
 
-  ros::Time ts_ros;
-  for (const RepresentativeNode& node : sparse_graph_) {
-    if (!node.isActive()) {
-      continue;
-    }
-    ts_ros = createRosTimestamp(node.getTimestampNanoseconds());
-    geometry_msgs::PoseStamped node_msg;
-    tf::poseStampedKindrToMsg(node.getPose(), ts_ros, mission_frame, &node_msg);
-    node_msg.header.seq = node.getAssociatedSubmapId();
-    graph_msg.poses.emplace_back(node_msg);
-  }
-  graph_msg.header.stamp = ts_ros;
-  visualization::RVizVisualizationSink::publish(
-      "global_sparse_graph", graph_msg);
-}
-
-void SparseGraph::publishLatestGraphWithCovs(
-    const std::vector<Eigen::MatrixXd>& covs) {
-  if (covs.empty()) {
-    return;
-  }
-
-  VLOG(1) << "Received " << covs.size() << " covariances, last one:\n"
-          << covs.back() << "\n";
+  pub_seq_++;
 }
 
 std::size_t SparseGraph::getMissionGraphSize(const std::string& map_key) const
@@ -395,6 +373,76 @@ void SparseGraph::attachResiduals(std::map<uint32_t, double>&& residuals) {
 
     node.setResidual(residuals[id]);
   }
+}
+
+std::string SparseGraph::getKeyForSubmapId(const uint32_t submap_id) const {
+  for (const auto& name_and_mission_graph : mission_graphs_) {
+    if (name_and_mission_graph.second.containsSubmap(submap_id)) {
+      return name_and_mission_graph.first;
+    }
+  }
+  return "";
+}
+
+void SparseGraph::publishGraphForBuilding() const {
+  for (const RepresentativeNode& node : sparse_graph_) {
+    if (!node.isActive()) {
+      continue;
+    }
+  }
+}
+
+void SparseGraph::publishTrajecotryForEvaluation() const {
+  const std::string& mission_frame = "darpa";
+  maplab_msgs::Trajectory traj_msg;
+  ros::Time ts_ros;
+  for (const RepresentativeNode& node : sparse_graph_) {
+    if (!node.isActive()) {
+      continue;
+    }
+    const uint32_t submap_id = node.getAssociatedSubmapId();
+    const std::string name = getKeyForSubmapId(submap_id);
+    const double residual = node.getResidual();
+    const aslam::Transformation pose = node.getPose();
+    ts_ros = createRosTimestamp(node.getTimestampNanoseconds());
+
+    geometry_msgs::PoseStamped pose_msg;
+    tf::poseStampedKindrToMsg(node.getPose(), ts_ros, mission_frame, &pose_msg);
+
+    maplab_msgs::TrajectoryNode node_msg;
+    node_msg.id = submap_id;
+    node_msg.robot_name = name;
+    node_msg.signal = residual;
+    node_msg.pose = pose_msg;
+    traj_msg.nodes.emplace_back(node_msg);
+  }
+
+  traj_msg.header.stamp = ts_ros;
+  traj_msg.header.seq = pub_seq_;
+  visualization::RVizVisualizationSink::publish(
+      "sparse_graph/trajectory", traj_msg);
+}
+
+void SparseGraph::publishGraphForVisualization() const {
+  const std::string& mission_frame = "darpa";
+  nav_msgs::Path graph_msg;
+  graph_msg.header.frame_id = mission_frame;
+
+  ros::Time ts_ros;
+  for (const RepresentativeNode& node : sparse_graph_) {
+    if (!node.isActive()) {
+      continue;
+    }
+    ts_ros = createRosTimestamp(node.getTimestampNanoseconds());
+    geometry_msgs::PoseStamped node_msg;
+    tf::poseStampedKindrToMsg(node.getPose(), ts_ros, mission_frame, &node_msg);
+    node_msg.header.seq = node.getAssociatedSubmapId();
+    graph_msg.poses.emplace_back(node_msg);
+  }
+  graph_msg.header.stamp = ts_ros;
+  graph_msg.header.seq = pub_seq_;
+  visualization::RVizVisualizationSink::publish(
+      "sparse_graph/viz_graph", graph_msg);
 }
 
 }  // namespace spg

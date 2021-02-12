@@ -22,8 +22,8 @@ class SparseGraph {
   void addVerticesToMissionGraph(
       const std::string& map_key, const pose_graph::VertexIdList& vertices);
   void compute(const vi_map::VIMap* map, BasePartitioner* partitioner);
+  void computeAdjacencyMatrix(const vi_map::VIMap* map);
   void publishLatestGraph();
-  void publishLatestGraphWithCovs(const std::vector<Eigen::MatrixXd>& covs);
   std::size_t getMissionGraphSize(const std::string& map_key) const noexcept;
   std::map<uint32_t, pose_graph::VertexIdList> getAllVerticesPerSubmap() const
       noexcept;
@@ -31,8 +31,6 @@ class SparseGraph {
 
   void attachResiduals(std::map<uint32_t, double>&& residuals);
   void writeResultsToFile();
-
-  void computeAdjacencyMatrix(const vi_map::VIMap* map);
 
  private:
   ros::Time createRosTimestamp(const int64_t ts_ns) const;
@@ -55,13 +53,20 @@ class SparseGraph {
           lc_edges,
       const std::size_t i, const std::size_t j) const noexcept;
 
+  std::string getKeyForSubmapId(const uint32_t submap_id) const;
+
   std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>>
   computeLoopClosureEdgeMap(const vi_map::VIMap* map);
+
+  void publishGraphForBuilding() const;
+  void publishTrajecotryForEvaluation() const;
+  void publishGraphForVisualization() const;
 
   std::map<std::string, MissionGraph> mission_graphs_;
   std::atomic<uint32_t> submap_id_;
   std::vector<RepresentativeNode> sparse_graph_;
   Eigen::MatrixXd adjacency_matrix_;
+  std::atomic<uint32_t> pub_seq_;
 };
 
 }  // namespace spg
