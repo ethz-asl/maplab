@@ -111,13 +111,16 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
         }
         const double w_d = computeDistanceBetweenNodes(i, j);
         const double w_c = computeCoObservability(map, i, j);
+        const double w_l = computeLoopClosureEdgeWeight(lc_edges, i, j);
 
-        CHECK(w_d >= 0.0);
-        CHECK(w_c >= 0.0);
+        // Ensure that the weights are normalized.
+        CHECK(w_d >= 0.0 && w_d <= 1.0);
+        CHECK(w_c >= 0.0 && w_c <= 1.0);
+        CHECK(w_l >= 0.0 && w_l <= 1.0);
 
         // Set the weights for the adjacency
         // which is a symmetric and undirected adjacency matrix.
-        adjacency_matrix_(i, j) = w_d + w_c;
+        adjacency_matrix_(i, j) = w_d + w_c + w_l;
         adjacency_matrix_(j, i) = adjacency_matrix_(i, j);
       }
     }
