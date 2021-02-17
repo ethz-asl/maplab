@@ -397,11 +397,14 @@ void SparseGraph::publishGraphForBuilding() const {
     ts_ros = createRosTimestamp(node.getTimestampNanoseconds());
     const aslam::Transformation pose = node.getPose();
     const Eigen::Vector3d position = pose.getPosition();
+    const uint32_t submap_id = node.getAssociatedSubmapId();
 
     geometry_msgs::Point pose_msg;
     pose_msg.x = position[0];
     pose_msg.y = position[1];
     pose_msg.z = position[2];
+
+    graph_msg.submap_indices.emplace_back(submap_id);
 
     graph_msg.coords.emplace_back(pose_msg);
   }
