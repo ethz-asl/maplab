@@ -85,6 +85,10 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
     VLOG(3) << "PCL registration error: " << e.what();
     is_converged = false;  // just a procaution.
   }
+
+  const double fitness_score = aligner_.getFitnessScore(
+      FLAGS_regbox_pcl_fitness_max_considered_distance_m);
+  is_converged &= fitness_score <= FLAGS_regbox_pcl_max_fitness_score_m;
   const Eigen::Matrix4f T = aligner_.getFinalTransformation();
   const Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6) * 1;
   return RegistrationResult(

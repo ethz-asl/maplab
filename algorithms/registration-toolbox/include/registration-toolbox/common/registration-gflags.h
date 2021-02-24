@@ -11,6 +11,8 @@ DECLARE_double(regbox_pcl_downsample_leaf_size_m);
 DECLARE_bool(regbox_pcl_use_downsampling);
 DECLARE_int32(regbox_pcl_gicp_n_neighbors);
 DECLARE_int32(regbox_pcl_max_iterations);
+DECLARE_double(regbox_pcl_fitness_max_considered_distance_m);
+DECLARE_double(regbox_pcl_max_fitness_score_m);
 
 // libpointmatcher config
 DECLARE_string(regbox_lpm_config_path);
