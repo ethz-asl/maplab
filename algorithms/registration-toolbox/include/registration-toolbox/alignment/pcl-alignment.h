@@ -45,6 +45,9 @@ PclAlignment<T_alignment, T_point>::PclAlignment() {
       FLAGS_regbox_pcl_downsample_leaf_size_m,
       FLAGS_regbox_pcl_downsample_leaf_size_m,
       FLAGS_regbox_pcl_downsample_leaf_size_m);
+
+  CHECK_GT(FLAGS_regbox_pcl_max_iterations, 0);
+  aligner_.setMaximumIterations(FLAGS_regbox_pcl_max_iterations);
 }
 
 template <typename T_alignment, typename T_point>
@@ -72,7 +75,6 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
 
   bool is_converged = true;
   PclPointCloudPtr<T_point> transformed(new pcl::PointCloud<T_point>);
-  aligner_.setMaximumIterations(FLAGS_regbox_pcl_max_iterations);
 
   try {
     const Eigen::Matrix4f prior =
@@ -86,6 +88,8 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
     is_converged = false;  // just a procaution.
   }
 
+  CHECK_GT(FLAGS_regbox_pcl_fitness_max_considered_distance_m, 0);
+  CHECK_GT(FLAGS_regbox_pcl_max_fitness_score_m, 0);
   const double fitness_score = aligner_.getFitnessScore(
       FLAGS_regbox_pcl_fitness_max_considered_distance_m);
   is_converged &= fitness_score <= FLAGS_regbox_pcl_max_fitness_score_m;
@@ -100,6 +104,9 @@ template <typename T_alignment, typename T_point>
 void PclAlignment<T_alignment, T_point>::downSamplePointCloud(
     const PclPointCloudPtr<T_point>& cloud,
     const PclPointCloudPtr<T_point>& cloud_ds) {
+  CHECK_NOTNULL(cloud);
+  CHECK_NOTNULL(cloud_ds);
+
   const float inverse_grid_size = 1. / FLAGS_regbox_pcl_downsample_leaf_size_m;
 
   // Since the PCL VoxelGrid checks if all voxels inside the bounding box of the
