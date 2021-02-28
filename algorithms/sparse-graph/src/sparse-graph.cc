@@ -370,7 +370,7 @@ void SparseGraph::attachResiduals(std::map<uint32_t, double>&& residuals) {
   for (RepresentativeNode& node : sparse_graph_) {
     const uint32_t id = node.getAssociatedSubmapId();
     if (residuals.find(id) == residuals.end()) {
-      LOG(ERROR) << "Sparse graph contains different submap IDs!";
+      // LOG(ERROR) << "Sparse graph contains different submap IDs!";
       continue;
     }
 

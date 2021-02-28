@@ -11,8 +11,10 @@
 #include <visualization/viwls-graph-plotter.h>
 
 #include <algorithm>
+#include <fstream>
 #include <functional>
 #include <numeric>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -169,6 +171,34 @@ bool VIMapOptimizer::optimizeWithCov(
   return true;
 }
 
+static void CRSMatrix2EigenMatrix(
+    const ceres::CRSMatrix& crs_matrix, Eigen::MatrixXd& eigen_matrix) {
+  eigen_matrix =
+      Eigen::MatrixXd::Zero(crs_matrix.num_rows, crs_matrix.num_cols);
+  for (auto row = 0; row < crs_matrix.num_rows; row++) {
+    int start = crs_matrix.rows[row];
+    int end = crs_matrix.rows[row + 1] - 1;
+    for (auto i = start; i <= end; i++) {
+      int col = crs_matrix.cols[i];
+      eigen_matrix(row, col) = double(crs_matrix.values[i]);
+    }
+  }
+}
+
+static void CRSMatrix2EigenSparseMatrix(
+    const ceres::CRSMatrix& crs_matrix,
+    Eigen::SparseMatrix<double, Eigen::RowMajor>& eigen_matrix) {
+  eigen_matrix.resize(crs_matrix.num_rows, crs_matrix.num_cols);
+  for (auto row = 0; row < crs_matrix.num_rows; row++) {
+    const uint32_t start = crs_matrix.rows[row];
+    const uint32_t end = crs_matrix.rows[row + 1] - 1;
+    for (auto i = start; i <= end; ++i) {
+      const uint32_t col = crs_matrix.cols[i];
+      eigen_matrix.coeffRef(row, col) = double(crs_matrix.values[i]);
+    }
+  }
+}
+
 std::map<uint32_t, double> VIMapOptimizer::getResidualsForVertices(
     const map_optimization::ViProblemOptions& options,
     const vi_map::MissionIdSet& missions_to_optimize,
@@ -198,9 +228,9 @@ std::map<uint32_t, double> VIMapOptimizer::getResidualsForVertices(
 
   // Iterate over the sparse graph.
   std::map<uint32_t, double> vertex_costs;
+  std::vector<ceres::ResidualBlockId> to_eval;
   for (const auto& id_and_v : vertices) {
     const uint32_t id = id_and_v.first;
-    std::vector<ceres::ResidualBlockId> to_eval;
     for (const auto& v : id_and_v.second) {
       if (!map->hasVertex(v)) {
         continue;
@@ -229,27 +259,54 @@ std::map<uint32_t, double> VIMapOptimizer::getResidualsForVertices(
         }
       }
     }
-
-    // Get rid of any duplicated entries in the evaluation vector.
-    to_eval.erase(std::unique(to_eval.begin(), to_eval.end()), to_eval.end());
-    ceres::Problem::EvaluateOptions eval_options;
-    eval_options.residual_blocks = to_eval;
-
-    double total_cost = 0.0;
-    std::vector<double> evaluated_residuals;
-    if (!problem.Evaluate(
-            eval_options, &total_cost, &evaluated_residuals, nullptr,
-            nullptr)) {
-      LOG(ERROR) << "Unable to retrieve the residuals from the problem.";
-    }
-
-    auto abs_val = [](double val, double sum) { return sum + std::fabs(val); };
-    const double cost_for_v = std::accumulate(
-        evaluated_residuals.begin(), evaluated_residuals.end(), 0.0, abs_val);
-    vertex_costs[id] =
-        cost_for_v / static_cast<double>(evaluated_residuals.size());
-    // vertex_costs[id] = total_cost;
   }
+  return vertex_costs;
+  if (to_eval.empty()) {
+    return vertex_costs;
+  }
+
+  // Get rid of any duplicated entries in the evaluation vector.
+  ceres::CRSMatrix jacobian;
+  to_eval.erase(std::unique(to_eval.begin(), to_eval.end()), to_eval.end());
+  ceres::Problem::EvaluateOptions eval_options;
+  eval_options.residual_blocks = to_eval;
+
+  double total_cost = 0.0;
+  std::vector<double> evaluated_residuals;
+  if (!problem.Evaluate(
+          eval_options, &total_cost, &evaluated_residuals, nullptr,
+          &jacobian)) {
+    LOG(ERROR) << "Unable to retrieve the residuals from the problem.";
+  }
+
+  LOG(ERROR) << "Evaluation happened for : " << to_eval.size() << " nodes.";
+  // Eigen::MatrixXd mat_J;
+  Eigen::SparseMatrix<double, Eigen::RowMajor> mat_J;
+  CRSMatrix2EigenSparseMatrix(jacobian, mat_J);
+  mat_J = mat_J.transpose() * mat_J;
+  LOG(ERROR) << "Size of the information is: " << mat_J.rows() << "x"
+             << mat_J.cols();
+  /*
+  {
+    const static Eigen::IOFormat CSVFormat(
+        Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+    static uint32_t counter = 0u;
+    std::stringstream ss;
+    ss << "/tmp/test" << counter++ << ".csv";
+    std::ofstream file(ss.str());
+    Eigen::MatrixXd matrix(mat_J);
+    if (file.is_open()) {
+      file << matrix.format(CSVFormat);
+      file.close();
+    }
+  }*/
+
+  // auto abs_val = [](double val, double sum) { return sum + std::fabs(val); };
+  // const double cost_for_v = std::accumulate(
+  // evaluated_residuals.begin(), evaluated_residuals.end(), 0.0, abs_val);
+  // vertex_costs[id] =
+  // cost_for_v / static_cast<double>(evaluated_residuals.size());
+  // vertex_costs[id] = total_cost;
 
   return vertex_costs;
 }
