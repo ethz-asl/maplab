@@ -3,11 +3,17 @@
 
 #include <cstdio>
 #include <fstream>  // NOLINT
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <Eigen/Core>
 #include <aslam/common/pose-types.h>
+#include <draco/compression/encode.h>
+#include <draco/io/file_utils.h>
+#include <draco/io/point_cloud_io.h>
+#include <draco/point_cloud/point_cloud_builder.h>
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/parallel-process.h>
 #include <maplab-common/threading-helpers.h>
@@ -264,6 +270,11 @@ struct PointCloud {
   inline void writeToFile(const std::string& file_path) const {
     CHECK(common::createPathToFile(file_path));
 
+    // if(FLAGS_use_compressed_pointcloud) {
+    writeToFileCompressed(file_path);
+    return;
+    // }
+
     std::filebuf filebuf;
     filebuf.open(file_path, std::ios::out | std::ios::binary);
     CHECK(filebuf.is_open());
@@ -301,53 +312,182 @@ struct PointCloud {
     filebuf.close();
   }
 
+  inline void writeToFileCompressed(const std::string& file_path) const {
+    CHECK(common::createPathToFile(file_path));
+    draco::PointCloudBuilder builder;
+    builder.Start(size());
+    int position_att_id = builder.AddAttribute(
+        draco::GeometryAttribute::POSITION, 3, draco::DT_FLOAT32);
+    builder.SetAttributeValuesForAllPoints(position_att_id, xyz.data(), 0);
+
+    if (!normals.empty()) {
+      int normals_att_id = builder.AddAttribute(
+          draco::GeometryAttribute::NORMAL, 3, draco::DT_FLOAT32);
+      builder.SetAttributeValuesForAllPoints(normals_att_id, normals.data(), 0);
+    }
+    if (!colors.empty()) {
+      int colors_att_id = builder.AddAttribute(
+          draco::GeometryAttribute::COLOR, 3, draco::DT_UINT8);
+      builder.SetAttributeValuesForAllPoints(colors_att_id, colors.data(), 0);
+    }
+
+    std::unique_ptr<draco::PointCloud> draco_pointcloud =
+        builder.Finalize(false);
+
+    std::filebuf filebuf;
+    filebuf.open(file_path, std::ios::out | std::ios::binary);
+    CHECK(filebuf.is_open());
+    std::ostream output_stream(&filebuf);
+    draco::WritePointCloudIntoStream(draco_pointcloud.get(), output_stream);
+  }
+
   inline bool loadFromFile(const std::string& file_path) {
     if (!common::fileExists(file_path)) {
       VLOG(1) << "Point cloud file does not exist! Path: " << file_path;
       return false;
     }
 
-    std::ifstream stream_ply(file_path);
-    if (stream_ply.is_open()) {
-      tinyply::PlyFile ply_file(stream_ply);
-      const int xyz_point_count = ply_file.request_properties_from_element(
-          "vertex", {"x", "y", "z"}, xyz);
-      const int colors_count = ply_file.request_properties_from_element(
-          "vertex", {"nx", "ny", "nz"}, normals);
-      const int normals_count = ply_file.request_properties_from_element(
-          "vertex", {"red", "green", "blue"}, colors);
-      const int scalar_count = ply_file.request_properties_from_element(
-          "vertex", {"scalar"}, scalars);
-      const int label_count =
-          ply_file.request_properties_from_element("vertex", {"label"}, labels);
-      if (xyz_point_count > 0) {
-        if (colors_count > 0) {
-          // If colors are present, their count should match the point count.
-          CHECK_EQ(xyz_point_count, colors_count);
-        }
-        if (normals_count > 0) {
-          // If normals are present, their count should match the point count.
-          CHECK_EQ(xyz_point_count, normals_count);
-        }
+    CHECK_GT(file_path.size(), 4u);
 
-        if (scalar_count > 0) {
-          // If a value attribute is present, its count should match the point
-          // count.
-          CHECK_EQ(xyz_point_count, scalar_count);
-        }
-
-        if (label_count > 0) {
-          // If a label attribute is present, its count should match the point
-          // count.
-          CHECK_EQ(xyz_point_count, label_count);
-        }
-
-        ply_file.read(stream_ply);
+    if (file_path.substr(file_path.size() - 4u) == ".drc") {
+      std::ifstream input_file(file_path, std::ios::binary);
+      if (!input_file) {
+        LOG(ERROR) << "Failed opening the input file.";
+        return false;
       }
-      stream_ply.close();
-      return true;
+
+      // Read the file stream into a buffer.
+      std::streampos file_size = 0;
+      input_file.seekg(0, std::ios::end);
+      file_size = input_file.tellg() - file_size;
+      input_file.seekg(0, std::ios::beg);
+      std::vector<char> data(file_size);
+      input_file.read(data.data(), file_size);
+
+      if (data.empty()) {
+        LOG(ERROR) << "Empty input file.";
+        return false;
+      }
+
+      // Create a draco decoding buffer. Note that no data is copied in this
+      // step.
+      draco::DecoderBuffer buffer;
+      buffer.Init(data.data(), data.size());
+
+      // Decode the input data into a geometry.
+      std::unique_ptr<draco::PointCloud> pc;
+
+      auto type_statusor = draco::Decoder::GetEncodedGeometryType(&buffer);
+      if (!type_statusor.ok()) {
+        LOG(ERROR) << "Draco geometry type is unknown.";
+        return false;
+      }
+      const draco::EncodedGeometryType geom_type = type_statusor.value();
+      if (geom_type != draco::POINT_CLOUD) {
+        LOG(ERROR) << "Draco Geometry Type " << geom_type
+                   << " is not supported";
+        return false;
+      }
+
+      draco::Decoder decoder;
+      auto statusor = decoder.DecodePointCloudFromBuffer(&buffer);
+      if (!statusor.ok()) {
+        LOG(ERROR) << "Draco decoding failed.";
+        return false;
+      }
+      pc = std::move(statusor).value();
+      CHECK_NOTNULL(pc);
+
+      // number of all attributes of point cloud
+      int32_t number_of_attributes = pc->num_attributes();
+
+      // number of points in pointcloud
+      draco::PointIndex::ValueType number_of_points = pc->num_points();
+      // for each attribute
+      for (uint32_t att_id = 0; att_id < number_of_attributes; att_id++) {
+        // get attribute
+        const draco::PointAttribute* attribute = pc->attribute(att_id);
+
+        // check if attribute is valid
+        if (!attribute->IsValid()) {
+          LOG(ERROR) << "Attribute of Draco pointcloud is not valid!";
+          continue;
+        }
+
+        if (attribute->attribute_type() == draco::GeometryAttribute::POSITION) {
+          xyz.resize(3 * number_of_points);
+          for (draco::PointIndex::ValueType point_index = 0;
+               point_index < number_of_points; point_index++) {
+            float* out_data = &xyz[3 * point_index];
+            CHECK_NOTNULL(out_data);
+            attribute->GetValue(
+                draco::AttributeValueIndex(point_index), out_data);
+          }
+        } else if (
+            attribute->attribute_type() == draco::GeometryAttribute::NORMAL) {
+          normals.resize(3 * number_of_points);
+          for (draco::PointIndex::ValueType point_index = 0;
+               point_index < number_of_points; point_index++) {
+            float* out_data = &normals[3 * point_index];
+            CHECK_NOTNULL(out_data);
+            attribute->GetValue(
+                draco::AttributeValueIndex(point_index), out_data);
+          }
+        } else if (
+            attribute->attribute_type() == draco::GeometryAttribute::COLOR) {
+          colors.resize(3 * number_of_points);
+          for (draco::PointIndex::ValueType point_index = 0;
+               point_index < number_of_points; point_index++) {
+            unsigned char* out_data = &colors[3 * point_index];
+            CHECK_NOTNULL(out_data);
+            attribute->GetValue(
+                draco::AttributeValueIndex(point_index), out_data);
+          }
+        }
+      }
+    } else {
+      std::ifstream stream_ply(file_path);
+      if (stream_ply.is_open()) {
+        tinyply::PlyFile ply_file(stream_ply);
+        const int xyz_point_count = ply_file.request_properties_from_element(
+            "vertex", {"x", "y", "z"}, xyz);
+        const int colors_count = ply_file.request_properties_from_element(
+            "vertex", {"nx", "ny", "nz"}, normals);
+        const int normals_count = ply_file.request_properties_from_element(
+            "vertex", {"red", "green", "blue"}, colors);
+        const int scalar_count = ply_file.request_properties_from_element(
+            "vertex", {"scalar"}, scalars);
+        const int label_count = ply_file.request_properties_from_element(
+            "vertex", {"label"}, labels);
+        if (xyz_point_count > 0) {
+          if (colors_count > 0) {
+            // If colors are present, their count should match the point count.
+            CHECK_EQ(xyz_point_count, colors_count);
+          }
+          if (normals_count > 0) {
+            // If normals are present, their count should match the point count.
+            CHECK_EQ(xyz_point_count, normals_count);
+          }
+
+          if (scalar_count > 0) {
+            // If a value attribute is present, its count should match the point
+            // count.
+            CHECK_EQ(xyz_point_count, scalar_count);
+          }
+
+          if (label_count > 0) {
+            // If a label attribute is present, its count should match the point
+            // count.
+            CHECK_EQ(xyz_point_count, label_count);
+          }
+
+          ply_file.read(stream_ply);
+        }
+        stream_ply.close();
+        return true;
+      }
+      return false;
     }
-    return false;
   }
 
   inline bool colorizePointCloud(
