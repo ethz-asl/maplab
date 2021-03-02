@@ -330,10 +330,38 @@ struct PointCloud {
           draco::GeometryAttribute::COLOR, 3, draco::DT_UINT8);
       builder.SetAttributeValuesForAllPoints(colors_att_id, colors.data(), 0);
     }
+    int scalars_att_id;
+    if (!scalars.empty()) {
+      scalars_att_id = builder.AddAttribute(
+          draco::GeometryAttribute::GENERIC, 1, draco::DT_FLOAT32);
+      builder.SetAttributeValuesForAllPoints(scalars_att_id, scalars.data(), 0);
+    }
+    int labels_att_id;
+    if (!labels.empty()) {
+      labels_att_id = builder.AddAttribute(
+          draco::GeometryAttribute::GENERIC, 1, draco::DT_UINT32);
+      builder.SetAttributeValuesForAllPoints(labels_att_id, labels.data(), 0);
+    }
 
     std::unique_ptr<draco::PointCloud> draco_pointcloud =
         builder.Finalize(false);
-
+    CHECK_NOTNULL(draco_pointcloud);
+    if (!scalars.empty()) {
+      std::unique_ptr<draco::AttributeMetadata> scalars_metadata =
+          std::unique_ptr<draco::AttributeMetadata>(
+              new draco::AttributeMetadata());
+      scalars_metadata->AddEntryString("name", "scalars");
+      draco_pointcloud->AddAttributeMetadata(
+          scalars_att_id, std::move(scalars_metadata));
+    }
+    if (!labels.empty()) {
+      std::unique_ptr<draco::AttributeMetadata> labels_metadata =
+          std::unique_ptr<draco::AttributeMetadata>(
+              new draco::AttributeMetadata());
+      labels_metadata->AddEntryString("name", "labels");
+      draco_pointcloud->AddAttributeMetadata(
+          labels_att_id, std::move(labels_metadata));
+    }
     std::filebuf filebuf;
     filebuf.open(file_path, std::ios::out | std::ios::binary);
     CHECK(filebuf.is_open());
@@ -442,6 +470,30 @@ struct PointCloud {
             CHECK_NOTNULL(out_data);
             attribute->GetValue(
                 draco::AttributeValueIndex(point_index), out_data);
+          }
+        } else {
+          auto metadata = pc->GetAttributeMetadataByAttributeId(att_id);
+          CHECK_NOTNULL(metadata);
+          std::string attribute_name;
+          metadata->GetEntryString("name", &attribute_name);
+          if (attribute_name == "scalars") {
+            scalars.resize(number_of_points);
+            for (draco::PointIndex::ValueType point_index = 0;
+                 point_index < number_of_points; point_index++) {
+              float* out_data = &scalars[point_index];
+              CHECK_NOTNULL(out_data);
+              attribute->GetValue(
+                  draco::AttributeValueIndex(point_index), out_data);
+            }
+          } else if (attribute_name == "labels") {
+            labels.resize(number_of_points);
+            for (draco::PointIndex::ValueType point_index = 0;
+                 point_index < number_of_points; point_index++) {
+              uint32_t* out_data = &labels[point_index];
+              CHECK_NOTNULL(out_data);
+              attribute->GetValue(
+                  draco::AttributeValueIndex(point_index), out_data);
+            }
           }
         }
       }
