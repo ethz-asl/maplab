@@ -1778,6 +1778,28 @@ bool MaplabServerNode::getDenseMapInRange(
 
 MaplabServerNode::VerificationStatus MaplabServerNode::verifySubmap(
     const uint32_t submap_id) {
+  if (!FLAGS_maplab_server_enable_lidar_loop_closure) {
+    return VerificationStatus::kFailure;
+  }
+
+  /*
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager_.getMapWriteAccess(kMergedMapKey);
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+  {
+    std::lock_guard<std::mutex> merge_status_lock(
+        running_merging_process_mutex_);
+    running_merging_process_ = "lidar loop closure";
+  }
+
+  const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+  if (!dense_mapping::addDenseMappingConstraintsToMap(
+          config, mission_ids, map.get())) {
+    LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+               << "encountered an error!";
+  }
+  */
   return VerificationStatus::kSuccess;
 }
 

@@ -65,4 +65,12 @@ bool addDenseMappingConstraintsToMap(
   return true;
 }
 
+bool removeDenseMappingConstraintsFromSubmap(
+    const pose_graph::VertexIdList& vertex_ids, vi_map::VIMap* vi_map_ptr) {
+  CHECK_NOTNULL(vi_map_ptr);
+  CHECK(!vertex_ids.empty());
+
+  return true;
+}
+
 }  // namespace dense_mapping

@@ -99,6 +99,7 @@ class MaplabServerNode final {
       resources::PointCloud* point_cloud_G);
 
   enum class VerificationStatus : int {
+    kFailure = -1,
     kSuccess = 0,
     kNoSuchMission = 1,
   };
