@@ -18,6 +18,7 @@
 #include <maplab-common/parallel-process.h>
 #include <maplab-common/threading-helpers.h>
 
+#include "resources-common/resources-gflags.h"
 #include "resources-common/tinyply/tinyply.h"
 
 namespace resources {
@@ -270,10 +271,10 @@ struct PointCloud {
   inline void writeToFile(const std::string& file_path) const {
     CHECK(common::createPathToFile(file_path));
 
-    // if(FLAGS_use_compressed_pointcloud) {
-    writeToFileCompressed(file_path);
-    return;
-    // }
+    if (FLAGS_resources_compress_pointclouds) {
+      writeToFileCompressed(file_path);
+      return;
+    }
 
     std::filebuf filebuf;
     filebuf.open(file_path, std::ios::out | std::ios::binary);
@@ -366,7 +367,18 @@ struct PointCloud {
     filebuf.open(file_path, std::ios::out | std::ios::binary);
     CHECK(filebuf.is_open());
     std::ostream output_stream(&filebuf);
-    draco::WritePointCloudIntoStream(draco_pointcloud.get(), output_stream);
+    draco::PointCloudEncodingMethod method =
+        draco::POINT_CLOUD_KD_TREE_ENCODING;
+    draco::EncoderOptions options =
+        draco::EncoderOptions::CreateDefaultOptions();
+    options.SetSpeed(
+        FLAGS_resources_pointcloud_compression_speed,
+        FLAGS_resources_pointcloud_compression_speed);
+    options.SetGlobalInt(
+        "quantization_bits",
+        FLAGS_resources_pointcloud_compression_quantization_bits);
+    draco::WritePointCloudIntoStream(
+        draco_pointcloud.get(), output_stream, method, options);
   }
 
   inline bool loadFromFile(const std::string& file_path) {
@@ -397,12 +409,9 @@ struct PointCloud {
         return false;
       }
 
-      // Create a draco decoding buffer. Note that no data is copied in this
-      // step.
       draco::DecoderBuffer buffer;
       buffer.Init(data.data(), data.size());
 
-      // Decode the input data into a geometry.
       std::unique_ptr<draco::PointCloud> pc;
 
       auto type_statusor = draco::Decoder::GetEncodedGeometryType(&buffer);
@@ -426,17 +435,13 @@ struct PointCloud {
       pc = std::move(statusor).value();
       CHECK_NOTNULL(pc);
 
-      // number of all attributes of point cloud
       int32_t number_of_attributes = pc->num_attributes();
 
-      // number of points in pointcloud
       draco::PointIndex::ValueType number_of_points = pc->num_points();
       // for each attribute
       for (uint32_t att_id = 0; att_id < number_of_attributes; att_id++) {
-        // get attribute
         const draco::PointAttribute* attribute = pc->attribute(att_id);
 
-        // check if attribute is valid
         if (!attribute->IsValid()) {
           LOG(ERROR) << "Attribute of Draco pointcloud is not valid!";
           continue;

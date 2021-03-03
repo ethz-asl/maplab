@@ -18,7 +18,10 @@ include_directories(include
 
 link_directories(${draco_LIBRARY_DIR})
 
-cs_add_library(libtinyply  src/tinyply/tinyply.cc)
+cs_add_library(libtinyply
+  src/tinyply/tinyply.cc)
+cs_add_library(${PROJECT_NAME}
+  src/resources-gflags.cc)
 ############
 ## EXPORT ##
 ############
