@@ -194,8 +194,6 @@ TEST_F(DenseMappingTest, TestEdgeRemoval) {
   vi_map::VIMap* map_ptr = CHECK_NOTNULL(test_app_.getMapMutable());
   const Config config = Config::fromGflags();
 
-  // Initial loop closures in map. These were created by the stationary submap
-  // logic.
   EXPECT_EQ(getNumLoopClosureEdges(*map_ptr), 0);
   vi_map::MissionIdList mission_ids;
   map_ptr->getAllMissionIds(&mission_ids);

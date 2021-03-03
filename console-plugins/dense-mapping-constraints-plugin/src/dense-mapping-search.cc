@@ -291,6 +291,61 @@ void findAllAlignmentCandidates(
   }
 }
 
+static Eigen::Vector3d computeSubmapCenter(
+    const pose_graph::VertexIdList& vertex_ids, const vi_map::VIMap& map) {
+  Eigen::Vector3d average_position = Eigen::Vector3d::Zero();
+  const std::size_t n_vertices = vertex_ids.size();
+  if (n_vertices == 0) {
+    return average_position;
+  }
+
+  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+    const vi_map::Vertex& vertex = map.getVertex(vertex_id);
+    average_position += vertex.get_p_M_I();
+  }
+  average_position /= n_vertices;
+  return average_position;
+}
+
+static void filterCandidatesBySubmap(
+    const Eigen::Vector3d& center_position,
+    MissionToAlignmentCandidatesMap* candidates_per_mission_ptr) {
+  CHECK(candidates_per_mission_ptr);
+}
+
+bool findAlignmentCandidatesForSubmap(
+    const SearchConfig& config, const vi_map::VIMap& map,
+    const vi_map::MissionIdList& mission_ids,
+    const pose_graph::VertexIdList& vertices_in_submap,
+    MissionToAlignmentCandidatesMap* candidates_per_mission_ptr) {
+  CHECK_NOTNULL(candidates_per_mission_ptr);
+  try {
+    findAllAlignmentCandidates(
+        config, map, mission_ids, candidates_per_mission_ptr);
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Finding alignment pairs failed. Aborting.";
+    return false;
+  }
+  const Eigen::Vector3d center_position =
+      computeSubmapCenter(vertices_in_submap, map);
+
+  return true;
+}
+
+bool searchForSubmapAlignmentCandidatePairs(
+    const SearchConfig& config, const vi_map::VIMap& map,
+    const vi_map::MissionIdList& mission_ids,
+    const pose_graph::VertexIdList& vertices_in_submap,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK_NOTNULL(candidate_pairs_ptr);
+  MissionToAlignmentCandidatesMap candidates_per_mission;
+  if (!findAlignmentCandidatesForSubmap(
+          config, map, mission_ids, vertices_in_submap,
+          &candidates_per_mission)) {
+    return false;
+  }
+}
+
 bool candidatesAreTemporallyTooFar(
     const SearchConfig& config, const AlignmentCandidate& candidate_A,
     const AlignmentCandidate& candidate_B) {
