@@ -1776,4 +1776,9 @@ bool MaplabServerNode::getDenseMapInRange(
   return true;
 }
 
+MaplabServerNode::VerificationStatus MaplabServerNode::verifySubmap(
+    const uint32_t submap_id) {
+  return VerificationStatus::kSuccess;
+}
+
 }  // namespace maplab

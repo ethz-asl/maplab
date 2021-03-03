@@ -98,6 +98,12 @@ class MaplabServerNode final {
       const Eigen::Vector3d& center_G, const double radius_m,
       resources::PointCloud* point_cloud_G);
 
+  enum class VerificationStatus : int {
+    kSuccess = 0,
+    kNoSuchMission = 1,
+  };
+  VerificationStatus verifySubmap(const uint32_t submap_id);
+
   void visualizeMap();
 
   void registerPoseCorrectionPublisherCallback(
