@@ -363,9 +363,9 @@ bool MaplabServerRosNode::verificationCallback(
 
   // Reverify the submaps
   for (const uint32_t submap_id : submap_ids) {
-    // const int result submap_status =
-    /// static_cast<int>(maplab_server_node_->verifySubmap(submap_id));
-    // response.status.emplace_back(submap_status)
+    const int submap_status =
+        static_cast<int>(maplab_server_node_->verifySubmap(submap_id));
+    response.status_response.status.emplace_back(submap_status);
   }
 
   return true;
