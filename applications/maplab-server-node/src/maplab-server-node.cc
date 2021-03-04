@@ -1778,7 +1778,29 @@ bool MaplabServerNode::getDenseMapInRange(
 
 MaplabServerNode::VerificationStatus MaplabServerNode::verifySubmap(
     const uint32_t submap_id) {
+  // The verification only supports LiDAR loop closures.
   if (!FLAGS_maplab_server_enable_lidar_loop_closure) {
+    return VerificationStatus::kFailure;
+  }
+
+  // Retrieve the vertices of the submap.
+  const pose_graph::VertexIdList submap_ids =
+      sparsified_graph_.getVerticesForSubmap(submap_id);
+  if (submap_ids.empty()) {
+    return VerificationStatus::kFailure;
+  }
+
+  // Get all mission IDs.
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager_.getMapWriteAccess(kMergedMapKey);
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+
+  const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+  if (!dense_mapping::verifyDenseMappingConstraintsFromSubmap(
+          config, mission_ids, submap_ids, map.get())) {
+    LOG(ERROR) << "[MaplabServerNode] Removing dense mapping constraints "
+               << "encountered an error!";
     return VerificationStatus::kFailure;
   }
 

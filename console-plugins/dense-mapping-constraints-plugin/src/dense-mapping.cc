@@ -65,10 +65,27 @@ bool addDenseMappingConstraintsToMap(
   return true;
 }
 
-bool removeDenseMappingConstraintsFromSubmap(
+bool verifyDenseMappingConstraintsFromSubmap(
+    const Config& config, const vi_map::MissionIdList& mission_ids,
     const pose_graph::VertexIdList& vertex_ids, vi_map::VIMap* vi_map_ptr) {
   CHECK_NOTNULL(vi_map_ptr);
   CHECK(!vertex_ids.empty());
+  CHECK(!mission_ids.empty());
+
+  if (!removeAllConstraintsFromVertices(vertex_ids, vi_map_ptr)) {
+    LOG(ERROR) << "Removing initial constraints from the submap failed!";
+    // Do not return as we still could add more constraints.
+  }
+
+  /*
+  AlignmentCandidatePairs candidates;
+  if (!searchForSubmapAlignmentCandidatePairs(
+          config.search_config, *vi_map_ptr, mission_ids, vertex_ids,
+          &candidates)) {
+    LOG(ERROR) << "The search for alignment candidate pairs failed!";
+    return false;
+  }
+  */
 
   return true;
 }

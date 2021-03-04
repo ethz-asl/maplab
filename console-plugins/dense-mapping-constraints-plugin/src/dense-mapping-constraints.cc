@@ -127,7 +127,7 @@ bool applyConstraintsToMap(
   return true;
 }
 
-bool removeConstraintsFromVertex(
+static uint32_t removeConstraintsFromVertex(
     const pose_graph::VertexId& vertex_id, vi_map::VIMap* map_ptr) {
   CHECK_NOTNULL(map_ptr);
   const vi_map::Vertex& vertex = map_ptr->getVertex(vertex_id);
@@ -145,8 +145,18 @@ bool removeConstraintsFromVertex(
       ++num_removed;
     }
   }
-  VLOG(1) << "Removed " << num_removed << " dense mapping constraints.";
-  return num_removed > 0u;
+  return num_removed;
+}
+
+bool removeAllConstraintsFromVertices(
+    const pose_graph::VertexIdList& vertex_ids, vi_map::VIMap* map_ptr) {
+  CHECK_NOTNULL(map_ptr);
+  uint32_t total_removed = 0u;
+  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+    total_removed += removeConstraintsFromVertex(vertex_id, map_ptr);
+  }
+  VLOG(1) << "Removed " << total_removed << " dense mapping constraints.";
+  return total_removed > 0;
 }
 
 }  // namespace dense_mapping

@@ -344,6 +344,20 @@ SparseGraph::getAllVerticesPerSubmap() const noexcept {
   }
   return all_vertices;
 }
+
+pose_graph::VertexIdList SparseGraph::getVerticesForSubmap(
+    const uint32_t submap_id) const noexcept {
+  if (sparse_graph_.empty()) {
+    return pose_graph::VertexIdList();
+  }
+  std::map<uint32_t, pose_graph::VertexIdList> id_vertex_map =
+      getAllVerticesPerSubmap();
+  if (id_vertex_map.find(submap_id) == id_vertex_map.cend()) {
+    return pose_graph::VertexIdList();
+  }
+  return id_vertex_map[submap_id];
+}
+
 pose_graph::VertexIdList SparseGraph::getAllMissionVertices() const noexcept {
   if (sparse_graph_.empty()) {
     return {};

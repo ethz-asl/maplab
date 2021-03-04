@@ -27,6 +27,8 @@ class SparseGraph {
   std::size_t getMissionGraphSize(const std::string& map_key) const noexcept;
   std::map<uint32_t, pose_graph::VertexIdList> getAllVerticesPerSubmap() const
       noexcept;
+  pose_graph::VertexIdList getVerticesForSubmap(const uint32_t submap_id) const
+      noexcept;
   pose_graph::VertexIdList getAllMissionVertices() const noexcept;
 
   void attachResiduals(std::map<uint32_t, double>&& residuals);
