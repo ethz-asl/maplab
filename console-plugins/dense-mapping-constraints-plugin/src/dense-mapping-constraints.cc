@@ -155,7 +155,7 @@ bool removeAllConstraintsFromVertices(
   for (const pose_graph::VertexId& vertex_id : vertex_ids) {
     total_removed += removeConstraintsFromVertex(vertex_id, map_ptr);
   }
-  VLOG(1) << "Removed " << total_removed << " dense mapping constraints.";
+  LOG(INFO) << "Removed " << total_removed << " dense mapping constraints.";
   return total_removed > 0;
 }
 
