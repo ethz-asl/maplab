@@ -86,8 +86,10 @@ static void applyVoxelGridFilter(
   pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
       new pcl::PointCloud<pcl::PointXYZI>);
   CHECK_NOTNULL(pcl_cloud);
-
   backend::convertPointCloudType(cloud_in, &(*pcl_cloud));
+  if (pcl_cloud->empty()) {
+    return;
+  }
   voxelGridPointCloud(FLAGS_vis_pointcloud_filter_leaf_size_m, pcl_cloud);
   backend::convertPointCloudType((*pcl_cloud), cloud_filtered);
 }
@@ -100,6 +102,9 @@ static void applyBeautification(
   CHECK_NOTNULL(pcl_cloud);
 
   backend::convertPointCloudType(cloud_in, &(*pcl_cloud));
+  if (pcl_cloud->empty()) {
+    return;
+  }
   beautifyPointCloud(pcl_cloud, cloud_filtered);
   backend::convertPointCloudType(*pcl_cloud, cloud_filtered);
 }
@@ -282,6 +287,12 @@ void visualizeReprojectedDepthResource(
 
         ++point_cloud_counter;
 
+        if (accumulated_point_cloud_G.empty()) {
+          LOG(WARNING) << "Accumulated reprojected depth resource "
+                       << "is empty, not publishing.";
+          return;
+        }
+
         // If we just accumulate, transform to global frame and append.
         if (FLAGS_vis_pointcloud_accumulated_before_publishing) {
           const size_t previous_size = accumulated_point_cloud_G.size();
@@ -322,7 +333,7 @@ void visualizeReprojectedDepthResource(
           if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
             applyVoxelGridFilter(ros_point_cloud_S, &ros_point_cloud_S);
           } else if (
-              FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
+              FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {  // NOLINT
             applyBeautification(points_S, &ros_point_cloud_S);
           }
 
@@ -339,7 +350,7 @@ void visualizeReprojectedDepthResource(
           if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
             applyVoxelGridFilter(points_G, &ros_point_cloud_G);
           } else if (
-              FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
+              FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {  // NOLINT
             applyBeautification(points_G, &ros_point_cloud_G);
           } else {
             backend::convertPointCloudType(points_G, &ros_point_cloud_G);
@@ -478,6 +489,12 @@ void visualizeReprojectedDepthResourcePerRobot(
       }
       createAndAppendAccumulatedPointCloudMessageForMission(
           input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G);
+    }
+
+    if (accumulated_point_cloud_G.empty()) {
+      LOG(WARNING) << "Accumulated reprojected depth resource of robot "
+                   << robot_name << " is empty, not publishing.";
+      continue;
     }
 
     // Publish accumulated point cloud in global frame.
