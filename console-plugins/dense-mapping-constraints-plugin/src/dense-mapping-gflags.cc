@@ -94,6 +94,9 @@ DEFINE_double(
 DEFINE_double(
     dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg, 10,
     "Maximum angular deviation of the alignment from the initial guess.");
+DEFINE_string(
+    dm_candidate_alignment_type, "PclGIcp",
+    "Alignment type that is used for the pointcloud registration");
 
 // CONSTRAINTS
 DEFINE_double(
