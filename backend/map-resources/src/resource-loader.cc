@@ -3,11 +3,12 @@
 #include <cstdio>
 #include <fstream>  // NOLINT
 #include <map-resources/resource_object_instance_bbox.pb.h>
+#include <maplab-common/eigen-proto.h>
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/proto-serialization-helper.h>
-#include <maplab-common/eigen-proto.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <resources-common/resources-gflags.h>
 #include <voxblox/io/layer_io.h>
 
 namespace backend {
@@ -69,8 +70,17 @@ void ResourceLoader::getResourceFilePath(
   common::concatenateFolderAndFileName(
       folder, ResourceTypeNames[static_cast<size_t>(type)], file_path);
 
-  const std::string filename =
-      id.hexString() + ResourceTypeFileSuffix[static_cast<size_t>(type)];
+  std::string suffix;
+  if ((type == backend::ResourceType::kPointCloudXYZ ||
+       type == backend::ResourceType::kPointCloudXYZRGBN ||
+       type == backend::ResourceType::kPointCloudXYZI ||
+       type == backend::ResourceType::kPointCloudXYZL) &&
+      resources::FLAGS_resources_compress_pointclouds) {
+    suffix = ".drc";
+  } else {
+    suffix = ResourceTypeFileSuffix[static_cast<size_t>(type)];
+  }
+  const std::string filename = id.hexString() + suffix;
   common::concatenateFolderAndFileName(*file_path, filename, file_path);
 }
 
