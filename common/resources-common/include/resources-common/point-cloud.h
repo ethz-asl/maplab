@@ -21,6 +21,9 @@ namespace resources {
 
 typedef Eigen::Matrix<uint8_t, 4, 1> RgbaColor;
 
+static const std::string kPointCloudSuffix = ".ply";
+static const std::string kCompressedPointCloudSuffix = ".drc";
+
 struct PointCloud {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -316,10 +319,9 @@ struct PointCloud {
       VLOG(1) << "Point cloud file does not exist! Path: " << file_path;
       return false;
     }
-
-    CHECK_GT(file_path.size(), 4u);
-
-    if (file_path.substr(file_path.size() - 4u) == ".drc") {
+    CHECK_GE(file_path.size(), 4);
+    const std::string suffix = file_path.substr(file_path.size() - 4);
+    if (suffix == kCompressedPointCloudSuffix) {
       return loadFromCompressedFile(file_path);
     } else {
       std::ifstream stream_ply(file_path);

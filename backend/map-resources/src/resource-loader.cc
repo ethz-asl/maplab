@@ -8,7 +8,6 @@
 #include <maplab-common/proto-serialization-helper.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <resources-common/resources-gflags.h>
 #include <voxblox/io/layer_io.h>
 
 namespace backend {
@@ -61,6 +60,36 @@ void ResourceLoader::deleteResourceFile(
   CHECK_EQ(std::remove(file_path.c_str()), 0);
 }
 
+template <>
+void ResourceLoader::getResource(
+    const ResourceId& id, const ResourceType& type, const std::string& folder,
+    resources::PointCloud* resource) const {
+  CHECK(!folder.empty());
+  CHECK_NOTNULL(resource);
+  if (cache_.getResource<resources::PointCloud>(id, type, resource)) {
+    return;
+  } else {
+    std::string file_path_default;
+    // First try to load file with currently set compression option suffix
+    getPointCloudResourceFilePath(
+        id, type, folder, FLAGS_resources_compress_pointclouds,
+        &file_path_default);
+    if (!loadResourceFromFile(file_path_default, type, resource)) {
+      // Otherwise try to load file with the other suffix
+      std::string file_path_non_default;
+      getPointCloudResourceFilePath(
+          id, type, folder, !FLAGS_resources_compress_pointclouds,
+          &file_path_non_default);
+      CHECK(loadResourceFromFile(file_path_non_default, type, resource))
+          << "Failed to load " << ResourceTypeNames[static_cast<size_t>(type)]
+          << " resource with id " << id.hexString()
+          << " from file: " << file_path_default << " or "
+          << file_path_non_default;
+    }
+    cache_.putResource<resources::PointCloud>(id, type, *resource);
+  }
+}
+
 void ResourceLoader::getResourceFilePath(
     const ResourceId& id, const ResourceType& type, const std::string& folder,
     std::string* file_path) const {
@@ -70,24 +99,55 @@ void ResourceLoader::getResourceFilePath(
   common::concatenateFolderAndFileName(
       folder, ResourceTypeNames[static_cast<size_t>(type)], file_path);
 
-  std::string suffix;
-  if ((type == backend::ResourceType::kPointCloudXYZ ||
-       type == backend::ResourceType::kPointCloudXYZRGBN ||
-       type == backend::ResourceType::kPointCloudXYZI ||
-       type == backend::ResourceType::kPointCloudXYZL) &&
-      resources::FLAGS_resources_compress_pointclouds) {
-    suffix = ".drc";
-  } else {
-    suffix = ResourceTypeFileSuffix[static_cast<size_t>(type)];
-  }
+  const std::string filename =
+      id.hexString() + resource_types_file_suffixes_[static_cast<size_t>(type)];
+  common::concatenateFolderAndFileName(*file_path, filename, file_path);
+}
+
+void ResourceLoader::getPointCloudResourceFilePath(
+    const ResourceId& id, const ResourceType& type, const std::string& folder,
+    const bool compressed, std::string* file_path) const {
+  CHECK(!folder.empty());
+  CHECK_NOTNULL(file_path)->clear();
+
+  common::concatenateFolderAndFileName(
+      folder, ResourceTypeNames[static_cast<size_t>(type)], file_path);
+
+  const std::string suffix = compressed ? resources::kCompressedPointCloudSuffix
+                                        : resources::kPointCloudSuffix;
   const std::string filename = id.hexString() + suffix;
   common::concatenateFolderAndFileName(*file_path, filename, file_path);
+}
+
+void ResourceLoader::getResourceTypeFileSuffix(
+    const ResourceType& type, std::string* file_suffix) {
+  CHECK_NOTNULL(file_suffix);
+  CHECK_GT(kNumResourceTypes, static_cast<size_t>(type));
+  *file_suffix = resource_types_file_suffixes_[static_cast<size_t>(type)];
 }
 
 bool ResourceLoader::resourceFileExists(
     const ResourceId& id, const ResourceType& type,
     const std::string& folder) const {
   CHECK(!folder.empty());
+
+  if (isResourceTypePointCloud(type)) {
+    std::string file_path_default;
+    // First try to load file with currently set compression option suffix
+    getPointCloudResourceFilePath(
+        id, type, folder, FLAGS_resources_compress_pointclouds,
+        &file_path_default);
+    bool file_exists = common::fileExists(file_path_default);
+    if (!file_exists) {
+      // Otherwise try to load file with the other suffix
+      std::string file_path_non_default;
+      getPointCloudResourceFilePath(
+          id, type, folder, !FLAGS_resources_compress_pointclouds,
+          &file_path_non_default);
+      file_exists = common::fileExists(file_path_non_default);
+    }
+    return file_exists;
+  }
   std::string file_path;
   getResourceFilePath(id, type, folder, &file_path);
   return common::fileExists(file_path);
