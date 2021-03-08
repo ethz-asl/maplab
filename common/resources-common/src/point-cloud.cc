@@ -1,5 +1,7 @@
 #include "resources-common/point-cloud.h"
 
+#include <numeric>
+
 #include <draco/compression/encode.h>
 #include <draco/io/file_utils.h>
 #include <draco/io/point_cloud_io.h>
@@ -14,17 +16,18 @@ void PointCloud::writeToFileCompressed(const std::string& file_path) const {
   CHECK_GE(31, FLAGS_resources_pointcloud_compression_quantization_bits);
   draco::PointCloudBuilder builder;
   builder.Start(size());
-  int position_att_id = builder.AddAttribute(
+
+  const int position_att_id = builder.AddAttribute(
       draco::GeometryAttribute::POSITION, 3, draco::DT_FLOAT32);
   builder.SetAttributeValuesForAllPoints(position_att_id, xyz.data(), 0);
 
   if (!normals.empty()) {
-    int normals_att_id = builder.AddAttribute(
+    const int normals_att_id = builder.AddAttribute(
         draco::GeometryAttribute::NORMAL, 3, draco::DT_FLOAT32);
     builder.SetAttributeValuesForAllPoints(normals_att_id, normals.data(), 0);
   }
   if (!colors.empty()) {
-    int colors_att_id = builder.AddAttribute(
+    const int colors_att_id = builder.AddAttribute(
         draco::GeometryAttribute::COLOR, 3, draco::DT_UINT8);
     builder.SetAttributeValuesForAllPoints(colors_att_id, colors.data(), 0);
   }
@@ -41,8 +44,28 @@ void PointCloud::writeToFileCompressed(const std::string& file_path) const {
     builder.SetAttributeValuesForAllPoints(labels_att_id, labels.data(), 0);
   }
 
+  // Draco encoding does not maintain point order.
+  // Save point index in additional field entry.
+  int index_att_id;
+  if (FLAGS_resources_pointcloud_compression_add_indices) {
+    std::vector<uint32_t> indices(size());
+    std::iota(indices.begin(), indices.end(), 0);
+    index_att_id = builder.AddAttribute(
+        draco::GeometryAttribute::GENERIC, 1, draco::DT_UINT32);
+    builder.SetAttributeValuesForAllPoints(index_att_id, indices.data(), 0);
+  }
+
   std::unique_ptr<draco::PointCloud> draco_pointcloud = builder.Finalize(false);
   CHECK_NOTNULL(draco_pointcloud);
+
+  if (FLAGS_resources_pointcloud_compression_add_indices) {
+    std::unique_ptr<draco::AttributeMetadata> index_metadata =
+        std::unique_ptr<draco::AttributeMetadata>(
+            new draco::AttributeMetadata());
+    index_metadata->AddEntryString("name", "index");
+    draco_pointcloud->AddAttributeMetadata(
+        index_att_id, std::move(index_metadata));
+  }
   if (!scalars.empty()) {
     std::unique_ptr<draco::AttributeMetadata> scalars_metadata =
         std::unique_ptr<draco::AttributeMetadata>(
@@ -120,10 +143,30 @@ bool PointCloud::loadFromCompressedFile(const std::string& file_path) {
   pc = std::move(statusor).value();
   CHECK_NOTNULL(pc);
 
-  int32_t number_of_attributes = pc->num_attributes();
-
+  LOG(WARNING) << "lolo";
   draco::PointIndex::ValueType number_of_points = pc->num_points();
-  // for each attribute
+  std::vector<uint32_t> indices(number_of_points);
+  int index_attribute_id = pc->GetAttributeIdByMetadataEntry("name", "index");
+  LOG(WARNING) << "huhu";
+  LOG(WARNING) << index_attribute_id;
+  if (index_attribute_id >= 0) {
+    const draco::PointAttribute* index_attribute =
+        pc->attribute(index_attribute_id);
+    CHECK_NOTNULL(index_attribute);
+    for (draco::PointIndex::ValueType point_index = 0;
+         point_index < number_of_points; point_index++) {
+      uint32_t* out_data = &indices[point_index];
+      index_attribute->GetValue(
+          draco::AttributeValueIndex(point_index), out_data);
+      CHECK_GE(number_of_points - 1u, *out_data);
+    }
+    LOG(WARNING) << "lasdf";
+  } else {
+    LOG(WARNING) << "hhugs";
+    std::iota(indices.begin(), indices.end(), 0);
+  }
+  LOG(INFO) << "easy";
+  const int32_t number_of_attributes = pc->num_attributes();
   for (uint32_t att_id = 0; att_id < number_of_attributes; att_id++) {
     const draco::PointAttribute* attribute = pc->attribute(att_id);
 
@@ -136,7 +179,7 @@ bool PointCloud::loadFromCompressedFile(const std::string& file_path) {
       xyz.resize(3 * number_of_points);
       for (draco::PointIndex::ValueType point_index = 0;
            point_index < number_of_points; point_index++) {
-        float* out_data = &xyz[3 * point_index];
+        float* out_data = &xyz[3 * indices[point_index]];
         CHECK_NOTNULL(out_data);
         attribute->GetValue(draco::AttributeValueIndex(point_index), out_data);
       }
@@ -145,7 +188,7 @@ bool PointCloud::loadFromCompressedFile(const std::string& file_path) {
       normals.resize(3 * number_of_points);
       for (draco::PointIndex::ValueType point_index = 0;
            point_index < number_of_points; point_index++) {
-        float* out_data = &normals[3 * point_index];
+        float* out_data = &normals[3 * indices[point_index]];
         CHECK_NOTNULL(out_data);
         attribute->GetValue(draco::AttributeValueIndex(point_index), out_data);
       }
@@ -153,7 +196,7 @@ bool PointCloud::loadFromCompressedFile(const std::string& file_path) {
       colors.resize(3 * number_of_points);
       for (draco::PointIndex::ValueType point_index = 0;
            point_index < number_of_points; point_index++) {
-        unsigned char* out_data = &colors[3 * point_index];
+        unsigned char* out_data = &colors[3 * indices[point_index]];
         CHECK_NOTNULL(out_data);
         attribute->GetValue(draco::AttributeValueIndex(point_index), out_data);
       }
@@ -166,7 +209,7 @@ bool PointCloud::loadFromCompressedFile(const std::string& file_path) {
         scalars.resize(number_of_points);
         for (draco::PointIndex::ValueType point_index = 0;
              point_index < number_of_points; point_index++) {
-          float* out_data = &scalars[point_index];
+          float* out_data = &scalars[indices[point_index]];
           CHECK_NOTNULL(out_data);
           attribute->GetValue(
               draco::AttributeValueIndex(point_index), out_data);
@@ -175,7 +218,7 @@ bool PointCloud::loadFromCompressedFile(const std::string& file_path) {
         labels.resize(number_of_points);
         for (draco::PointIndex::ValueType point_index = 0;
              point_index < number_of_points; point_index++) {
-          uint32_t* out_data = &labels[point_index];
+          uint32_t* out_data = &labels[indices[point_index]];
           CHECK_NOTNULL(out_data);
           attribute->GetValue(
               draco::AttributeValueIndex(point_index), out_data);

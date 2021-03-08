@@ -6,6 +6,7 @@
 
 // Point cloud compression.
 DECLARE_bool(resources_compress_pointclouds);
+DECLARE_bool(resources_pointcloud_compression_add_indices);
 DECLARE_int32(resources_pointcloud_compression_speed);
 DECLARE_int32(resources_pointcloud_compression_quantization_bits);
 
