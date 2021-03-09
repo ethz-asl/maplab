@@ -542,16 +542,13 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
       }
       sensor_id = mission.getOdometry6DoFSensor();
     } else if (sensor_type == vi_map::SensorType::kPointCloudMapSensor) {
-      const vi_map::SensorManager& sm = map->getSensorManager();
-      const vi_map::PointCloudMapSensor::Ptr pcm_sensor =
-          vi_map::getSelectedPointCloudMapSensor(sm);
-      if (pcm_sensor == nullptr) {
-        LOG(WARNING)
-            << "[MaplabServerNode] Received map lookup with the point "
-               "cloud map sensor, but there is no such sensor in the map!";
+      if (!mission.hasPointCloudMap()) {
+        LOG(WARNING) << "[MaplabServerNode] Received map lookup with "
+                     << "PointCloudMap sensor, but there is no such sensor"
+                     << "in the map!";
         return MapLookupStatus::kNoSuchSensor;
       }
-      sensor_id = pcm_sensor->getId();
+      sensor_id = mission.getPointCloudMapSensorId();
     } else {
       LOG(WARNING)
           << "[MaplabServerNode] Received map lookup with invalid sensor!";
@@ -782,7 +779,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         map_optimization::ViProblemOptions::initFromGFlags();
 
     // Restore previous trust region.
-    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {
+    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  // NOLINT
       // Reset the trust region if N submaps have been added in the meantime.
       const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
       const uint32_t num_submaps_since_reset =
@@ -885,7 +882,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         map_optimization::ViProblemOptions::initFromGFlags();
 
     // Restore previous trust region.
-    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {
+    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  // NOLINT
       // Reset the trust region if N submaps have been added in the meantime.
       const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
       const uint32_t num_submaps_since_reset =
@@ -1726,11 +1723,9 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
               empty_robot_mission_id_list, *merged_map);
         }
       }
-
     }  // Limits the scope of the lock on the robot to mission id bookkeeping
 
     num_missions_in_merged_map_after_deletion = merged_map->numMissions();
-
   }  // Limits the scope of the lock on the merged map, such that it can
      // be deleted down below.
 
