@@ -65,6 +65,16 @@ bool addDenseMappingConstraintsToMap(
   return true;
 }
 
+static Config getVerificationConfiguration(const Config& config) {
+  Config verify_config(config);
+  verify_config.search_config.consecutive_search_max_delta_position_m *= 2.0;
+  verify_config.search_config.consecutive_search_max_delta_rotation_deg *= 2.0;
+  verify_config.search_config.proximity_search_max_delta_position_m *= 2.0;
+  verify_config.search_config.proximity_search_max_delta_rotation_deg *= 2.0;
+  verify_config.search_config.proximity_search_take_closest_n_candidates *= 2;
+  return verify_config;
+}
+
 bool verifyDenseMappingConstraintsFromSubmap(
     const Config& config, const vi_map::MissionIdList& mission_ids,
     const pose_graph::VertexIdList& vertex_ids, vi_map::VIMap* vi_map_ptr) {
@@ -77,15 +87,38 @@ bool verifyDenseMappingConstraintsFromSubmap(
     // Do not return as we still could add more constraints.
   }
 
-  /*
+  Config verify_config = getVerificationConfiguration(config);
   AlignmentCandidatePairs candidates;
   if (!searchForSubmapAlignmentCandidatePairs(
-          config.search_config, *vi_map_ptr, mission_ids, vertex_ids,
+          verify_config.search_config, *vi_map_ptr, mission_ids, vertex_ids,
           &candidates)) {
     LOG(ERROR) << "The search for alignment candidate pairs failed!";
     return false;
   }
-  */
+
+  if (!selectAlignmentCandidatePairs(
+          verify_config.selection_config, vi_map_ptr, &candidates)) {
+    LOG(ERROR)
+        << "The selection and filtering of the alignment candidate pairs "
+        << "failed!";
+    return false;
+  }
+
+  AlignmentCandidatePairs aligned_candidates;
+  if (!computeAlignmentForCandidatePairs(
+          verify_config.alignment_config, *vi_map_ptr, candidates,
+          &aligned_candidates)) {
+    LOG(ERROR) << "Computing the alignment of the candidates failed!";
+    return false;
+  }
+
+  if (!applyConstraintsToMap(
+          verify_config.constraints_config, aligned_candidates, vi_map_ptr)) {
+    LOG(ERROR)
+        << "Applying the successful alignments as constraints to the map "
+        << "failed.";
+    return false;
+  }
 
   return true;
 }
