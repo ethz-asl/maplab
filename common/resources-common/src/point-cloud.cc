@@ -143,12 +143,9 @@ bool PointCloud::loadFromCompressedFile(const std::string& file_path) {
   pc = std::move(statusor).value();
   CHECK_NOTNULL(pc);
 
-  LOG(WARNING) << "lolo";
   draco::PointIndex::ValueType number_of_points = pc->num_points();
   std::vector<uint32_t> indices(number_of_points);
   int index_attribute_id = pc->GetAttributeIdByMetadataEntry("name", "index");
-  LOG(WARNING) << "huhu";
-  LOG(WARNING) << index_attribute_id;
   if (index_attribute_id >= 0) {
     const draco::PointAttribute* index_attribute =
         pc->attribute(index_attribute_id);
@@ -160,12 +157,9 @@ bool PointCloud::loadFromCompressedFile(const std::string& file_path) {
           draco::AttributeValueIndex(point_index), out_data);
       CHECK_GE(number_of_points - 1u, *out_data);
     }
-    LOG(WARNING) << "lasdf";
   } else {
-    LOG(WARNING) << "hhugs";
     std::iota(indices.begin(), indices.end(), 0);
   }
-  LOG(INFO) << "easy";
   const int32_t number_of_attributes = pc->num_attributes();
   for (uint32_t att_id = 0; att_id < number_of_attributes; att_id++) {
     const draco::PointAttribute* attribute = pc->attribute(att_id);
