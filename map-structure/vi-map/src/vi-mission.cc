@@ -24,6 +24,7 @@ VIMission::VIMission(const VIMission& other)
       ncamera_id_(other.ncamera_id_),
       imu_id_(other.imu_id_),
       lidar_id_(other.lidar_id_),
+      pointcloud_map_id_(other.pointcloud_map_id_),
       odometry_6dof_id_(other.odometry_6dof_id_),
       loop_closure_id_(other.loop_closure_id_),
       absolute_6dof_id_(other.absolute_6dof_id_),
@@ -52,6 +53,11 @@ void VIMission::setImuId(const aslam::SensorId& imu_id) {
 void VIMission::setLidarId(const aslam::SensorId& lidar_id) {
   CHECK(lidar_id.isValid());
   lidar_id_ = lidar_id;
+}
+
+void VIMission::setPointCloudMapId(const aslam::SensorId& pointcloud_map_id) {
+  CHECK(pointcloud_map_id.isValid());
+  pointcloud_map_id_ = pointcloud_map_id;
 }
 
 void VIMission::setOdometry6DoFSensor(const aslam::SensorId& odometry_6dof_id) {
@@ -96,6 +102,13 @@ const aslam::SensorId& VIMission::getLidarId() const {
   return lidar_id_;
 }
 
+const aslam::SensorId& VIMission::getPointCloudMapSensorId() const {
+  CHECK(pointcloud_map_id_.isValid())
+      << "There is no valid PointCloudMap ID associated with mission "
+      << mission_id_.shortHex() << "!";
+  return pointcloud_map_id_;
+}
+
 const aslam::SensorId& VIMission::getOdometry6DoFSensor() const {
   CHECK(odometry_6dof_id_.isValid())
       << "There is no valid Odometry 6DoF Sensor ID associated with mission "
@@ -132,6 +145,9 @@ bool VIMission::hasImu() const {
 }
 bool VIMission::hasLidar() const {
   return lidar_id_.isValid();
+}
+bool VIMission::hasPointCloudMap() const {
+  return pointcloud_map_id_.isValid();
 }
 bool VIMission::hasOdometry6DoFSensor() const {
   return odometry_6dof_id_.isValid();
@@ -184,6 +200,9 @@ void VIMission::serialize(vi_map::proto::Mission* proto) const {
   }
   if (lidar_id_.isValid()) {
     lidar_id_.serialize(proto->mutable_lidar_id());
+  }
+  if (pointcloud_map_id_.isValid()) {
+    pointcloud_map_id_.serialize(proto->mutable_pointcloud_map_id());
   }
   if (odometry_6dof_id_.isValid()) {
     odometry_6dof_id_.serialize(proto->mutable_odometry_6dof_id());
@@ -277,6 +296,9 @@ void VIMission::deserialize(
   }
   if (proto.has_lidar_id()) {
     lidar_id_.deserialize(proto.lidar_id());
+  }
+  if (proto.has_pointcloud_map_id()) {
+    pointcloud_map_id_.deserialize(proto.pointcloud_map_id());
   }
   if (proto.has_odometry_6dof_id()) {
     odometry_6dof_id_.deserialize(proto.odometry_6dof_id());

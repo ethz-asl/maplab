@@ -50,7 +50,7 @@ class Lidar final : public aslam::Sensor {
     return static_cast<std::string>(kLidarIdentifier);
   }
 
-  inline bool hasNumberOfBeans() const {
+  inline bool hasNumberOfBeams() const {
     return has_number_of_beams_;
   }
 
@@ -62,7 +62,7 @@ class Lidar final : public aslam::Sensor {
     return has_lower_fov_angle_;
   }
 
-  inline uint16_t getNumberOfBeans() const {
+  inline uint16_t getNumberOfBeams() const {
     return n_beams_;
   }
 
@@ -74,7 +74,7 @@ class Lidar final : public aslam::Sensor {
     return fov_lower_angle_deg_;
   }
 
-  inline void setNumberOfBeans(const uint16_t n_beams) {
+  inline void setNumberOfBeams(const uint16_t n_beams) {
     n_beams_ = n_beams;
     has_number_of_beams_ = true;
   }
