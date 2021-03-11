@@ -1195,12 +1195,12 @@ TEST_F(ResourceLoaderTest, TestPointCloudCompression) {
   FLAGS_resources_compress_pointclouds = true;
   FLAGS_resources_pointcloud_compression_add_indices = true;
   FLAGS_resources_pointcloud_compression_speed = 0;
-  FLAGS_resources_pointcloud_compression_quantization_bits = 31;
+  FLAGS_resources_pointcloud_compression_quantization_bits = 30;
 
-  ResourceLoader loader;
   resources::PointCloud ply_cloud;
   loadPointcloud(
       kTestDataBaseFolder + "pcl_resource_xyz_rgb_normal.ply", &ply_cloud);
+  ResourceLoader loader;
   loader.saveResourceToFile(
       draco_cloud_filename, backend::ResourceType::kPointCloudXYZRGBN,
       ply_cloud);

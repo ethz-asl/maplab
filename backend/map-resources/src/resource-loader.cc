@@ -66,7 +66,10 @@ void ResourceLoader::getResource(
     resources::PointCloud* resource) const {
   CHECK(!folder.empty());
   CHECK_NOTNULL(resource);
-  CHECK(isResourceTypePointCloud(type));
+  CHECK(isResourceTypePointCloud(type))
+      << "Failed to load " << ResourceTypeNames[static_cast<size_t>(type)]
+      << " resource with id " << id.hexString() << " since it is not a "
+      << "pointcloud.";
   if (cache_.getResource<resources::PointCloud>(id, type, resource)) {
     return;
   } else {

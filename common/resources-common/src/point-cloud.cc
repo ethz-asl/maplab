@@ -13,7 +13,7 @@ void PointCloud::writeToFileCompressed(const std::string& file_path) const {
   CHECK_GE(FLAGS_resources_pointcloud_compression_speed, 0);
   CHECK_GE(10, FLAGS_resources_pointcloud_compression_speed);
   CHECK_GE(FLAGS_resources_pointcloud_compression_quantization_bits, 1);
-  CHECK_GE(31, FLAGS_resources_pointcloud_compression_quantization_bits);
+  CHECK_GE(30, FLAGS_resources_pointcloud_compression_quantization_bits);
   draco::PointCloudBuilder builder;
   builder.Start(size());
 
