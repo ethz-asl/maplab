@@ -1208,8 +1208,21 @@ TEST_F(ResourceLoaderTest, TestPointCloudCompression) {
   loader.loadResourceFromFile(
       draco_cloud_filename, backend::ResourceType::kPointCloudXYZRGBN,
       &draco_cloud);
-
+  if (common::fileExists(draco_cloud_filename)) {
+    common::deleteFile(draco_cloud_filename);
+  }
   EXPECT_EQ(ply_cloud.size(), draco_cloud.size());
+  for (size_t idx = 0u; idx < ply_cloud.size(); idx++) {
+    EXPECT_NEAR(ply_cloud.xyz[idx], draco_cloud.xyz[idx], 5e-3);
+    EXPECT_NEAR(ply_cloud.xyz[idx + 1], draco_cloud.xyz[idx + 1], 5e-3);
+    EXPECT_NEAR(ply_cloud.xyz[idx + 2], draco_cloud.xyz[idx + 2], 5e-3);
+    EXPECT_NEAR(ply_cloud.normals[idx], draco_cloud.normals[idx], 5e-3);
+    EXPECT_NEAR(ply_cloud.normals[idx + 1], draco_cloud.normals[idx + 1], 5e-3);
+    EXPECT_NEAR(ply_cloud.normals[idx + 2], draco_cloud.normals[idx + 2], 5e-3);
+    EXPECT_NEAR(ply_cloud.colors[idx], draco_cloud.colors[idx], 5e-3);
+    EXPECT_NEAR(ply_cloud.colors[idx + 1], draco_cloud.colors[idx + 1], 5e-3);
+    EXPECT_NEAR(ply_cloud.colors[idx + 2], draco_cloud.colors[idx + 2], 5e-3);
+  }
 }
 
 }  // namespace backend
