@@ -1223,6 +1223,7 @@ TEST_F(ResourceLoaderTest, TestPointCloudCompression) {
     EXPECT_NEAR(ply_cloud.colors[idx + 1], draco_cloud.colors[idx + 1], 5e-3);
     EXPECT_NEAR(ply_cloud.colors[idx + 2], draco_cloud.colors[idx + 2], 5e-3);
   }
+  FLAGS_resources_compress_pointclouds = initial_compression_state;
 }
 
 }  // namespace backend
