@@ -1182,6 +1182,35 @@ TEST_F(ResourceLoaderTest, TestResourceCache) {
       loader.getCacheStatistic().getNumMiss(ResourceType::kText),
       2u + max_num_cache_entries_per_type + 2u);
 }
+TEST_F(ResourceLoaderTest, TestPointCloudCompression) {
+  constexpr bool kIsMapFolder = false;
+  createResourceTemplates(
+      "TestPointCloudCompression", kTestMapFolderA, kIsMapFolder, &templates_);
+  const std::string draco_cloud_filename =
+      kTestDataBaseFolder + "TestPointCloudCompression/compressed_cloud.drc";
+  if (common::fileExists(draco_cloud_filename)) {
+    common::deleteFile(draco_cloud_filename);
+  }
+  const bool initial_compression_state = FLAGS_resources_compress_pointclouds;
+  FLAGS_resources_compress_pointclouds = true;
+  FLAGS_resources_pointcloud_compression_add_indices = true;
+  FLAGS_resources_pointcloud_compression_speed = 0;
+  FLAGS_resources_pointcloud_compression_quantization_bits = 31;
+
+  ResourceLoader loader;
+  resources::PointCloud ply_cloud;
+  loadPointcloud(
+      kTestDataBaseFolder + "pcl_resource_xyz_rgb_normal.ply", &ply_cloud);
+  loader.saveResourceToFile(
+      draco_cloud_filename, backend::ResourceType::kPointCloudXYZRGBN,
+      ply_cloud);
+  resources::PointCloud draco_cloud;
+  loader.loadResourceFromFile(
+      draco_cloud_filename, backend::ResourceType::kPointCloudXYZRGBN,
+      &draco_cloud);
+
+  EXPECT_EQ(ply_cloud.size(), draco_cloud.size());
+}
 
 }  // namespace backend
 
