@@ -25,4 +25,5 @@
   <depend>minkindr_conversions</depend>
   <depend>visualization</depend>
   <depend>maplab_msgs</depend>
+  <depend>depth_integration</depend>
 </package>

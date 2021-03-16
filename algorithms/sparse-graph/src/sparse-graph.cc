@@ -16,6 +16,9 @@
 #include <visualization/common-rviz-visualization.h>
 #include <visualization/rviz-visualization-sink.h>
 
+#include "sparse-graph/common/utils.h"
+#include "sparse-graph/dense-map-builder.h"
+
 namespace spg {
 
 SparseGraph::SparseGraph() : submap_id_(0u), pub_seq_(0u) {}
@@ -38,10 +41,13 @@ void SparseGraph::compute(
   std::sort(sparse_graph_.begin(), sparse_graph_.end());
 }
 
-void SparseGraph::publishLatestGraph() {
+void SparseGraph::publishLatestGraph(const vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+
   publishGraphForVisualization();
   publishGraphForBuilding();
   publishTrajecotryForEvaluation();
+  publishNewSubmaps(map);
 
   ++pub_seq_;
 }
@@ -262,16 +268,6 @@ double SparseGraph::computeLoopClosureEdgeWeight(
   return 1 - std::pow(distance, 2.0) * eta;
 }
 
-ros::Time SparseGraph::createRosTimestamp(const int64_t ts_ns) const {
-  CHECK_GE(ts_ns, 0);
-  static constexpr uint32_t kNanosecondsPerSecond = 1e9;
-  const uint64_t timestamp_u64 = static_cast<uint64_t>(ts_ns);
-  const uint32_t ros_timestamp_sec = timestamp_u64 / kNanosecondsPerSecond;
-  const uint32_t ros_timestamp_nsec =
-      timestamp_u64 - (ros_timestamp_sec * kNanosecondsPerSecond);
-  return ros::Time(ros_timestamp_sec, ros_timestamp_nsec);
-}
-
 bool SparseGraph::findMissionGraphForId(
     const uint32_t submap_id, const MissionGraph** mission_graph) const {
   CHECK_NOTNULL(mission_graph);
@@ -408,7 +404,7 @@ void SparseGraph::publishGraphForBuilding() const {
     if (!node.isActive()) {
       continue;
     }
-    ts_ros = createRosTimestamp(node.getTimestampNanoseconds());
+    ts_ros = Utils::CreateRosTimestamp(node.getTimestampNanoseconds());
     const aslam::Transformation pose = node.getPose();
     const Eigen::Vector3d position = pose.getPosition();
     const uint32_t submap_id = node.getAssociatedSubmapId();
@@ -448,7 +444,7 @@ void SparseGraph::publishTrajecotryForEvaluation() const {
     const std::string name = getKeyForSubmapId(submap_id);
     const double residual = node.getResidual();
     const aslam::Transformation pose = node.getPose();
-    ts_ros = createRosTimestamp(node.getTimestampNanoseconds());
+    ts_ros = Utils::CreateRosTimestamp(node.getTimestampNanoseconds());
 
     geometry_msgs::PoseStamped pose_msg;
     tf::poseStampedKindrToMsg(node.getPose(), ts_ros, mission_frame, &pose_msg);
@@ -477,7 +473,7 @@ void SparseGraph::publishGraphForVisualization() const {
     if (!node.isActive()) {
       continue;
     }
-    ts_ros = createRosTimestamp(node.getTimestampNanoseconds());
+    ts_ros = Utils::CreateRosTimestamp(node.getTimestampNanoseconds());
     geometry_msgs::PoseStamped node_msg;
     tf::poseStampedKindrToMsg(node.getPose(), ts_ros, mission_frame, &node_msg);
     node_msg.header.seq = node.getAssociatedSubmapId();
@@ -489,7 +485,8 @@ void SparseGraph::publishGraphForVisualization() const {
       "sparse_graph/viz_graph", graph_msg);
 }
 
-void SparseGraph::publishNewSubmaps() {
+void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
   if (sparse_graph_.empty()) {
     return;
   }
@@ -503,7 +500,7 @@ void SparseGraph::publishNewSubmaps() {
       if (wasSubmapPublished(submap_id)) {
         continue;
       }
-      if (publishSubmap(submap_id, mission)) {
+      if (publishSubmap(map, submap_id, mission)) {
         pub_submap_ids.emplace_back(submap_id);
       }
     }
@@ -511,11 +508,17 @@ void SparseGraph::publishNewSubmaps() {
 }
 
 bool SparseGraph::publishSubmap(
-    const uint32_t submap_id, const MissionGraph& mission) const {
+    const vi_map::VIMap* map, const uint32_t submap_id,
+    const MissionGraph& mission) const {
+  CHECK_NOTNULL(map);
   if (submap_id < pub_seq_) {
     LOG(ERROR) << "Trying to publish a submap that doesn't exist.";
     return false;
   }
+  pose_graph::VertexIdList vertex_ids = mission.getVerticesForId(submap_id);
+  DenseMapBuilder map_builder(map);
+  std::vector<maplab_msgs::DenseNode> dense_nodes =
+      map_builder.buildMapFromVertices(vertex_ids);
 
   return true;
 }

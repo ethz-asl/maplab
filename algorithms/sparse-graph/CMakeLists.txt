@@ -29,6 +29,7 @@ cs_add_library(${PROJECT_NAME}
   src/partitioners/all-partitioner.cc
   src/partitioners/lidar-partitioner.cc
   src/common/representative-node.cc
+  src/common/utils.cc
 )
 
 ##########
