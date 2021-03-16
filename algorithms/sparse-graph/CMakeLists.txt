@@ -24,6 +24,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 cs_add_library(${PROJECT_NAME}
   src/sparse-graph.cc
   src/mission-graph.cc
+  src/dense-map-builder.cc
   src/partitioners/avg-partitioner.cc
   src/partitioners/all-partitioner.cc
   src/partitioners/lidar-partitioner.cc

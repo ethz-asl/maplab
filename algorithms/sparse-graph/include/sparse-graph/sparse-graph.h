@@ -33,6 +33,7 @@ class SparseGraph {
 
   void attachResiduals(std::map<uint32_t, double>&& residuals);
   void writeResultsToFile();
+  void publishNewSubmaps();
 
  private:
   ros::Time createRosTimestamp(const int64_t ts_ns) const;
@@ -60,6 +61,10 @@ class SparseGraph {
   std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>>
   computeLoopClosureEdgeMap(const vi_map::VIMap* map);
 
+  bool wasSubmapPublished(const uint32_t submap_id) const;
+  bool publishSubmap(
+      const uint32_t submap_id, const MissionGraph& mission) const;
+
   void publishGraphForBuilding() const;
   void publishTrajecotryForEvaluation() const;
   void publishGraphForVisualization() const;
@@ -69,6 +74,7 @@ class SparseGraph {
   std::vector<RepresentativeNode> sparse_graph_;
   Eigen::MatrixXd adjacency_matrix_;
   std::atomic<uint32_t> pub_seq_;
+  std::vector<uint32_t> pub_submap_ids;
 };
 
 }  // namespace spg

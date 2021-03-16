@@ -489,4 +489,41 @@ void SparseGraph::publishGraphForVisualization() const {
       "sparse_graph/viz_graph", graph_msg);
 }
 
+void SparseGraph::publishNewSubmaps() {
+  if (sparse_graph_.empty()) {
+    return;
+  }
+  // Iterate over all missions.
+  for (const auto& mission_graph : mission_graphs_) {
+    const std::string& robot_name = mission_graph.first;
+    const MissionGraph& mission = mission_graph.second;
+    const std::vector<uint32_t> submap_ids = mission.getAllSubmapIds();
+    // Iterate over all submap ids within a mission
+    for (const uint32_t submap_id : submap_ids) {
+      if (wasSubmapPublished(submap_id)) {
+        continue;
+      }
+      if (publishSubmap(submap_id, mission)) {
+        pub_submap_ids.emplace_back(submap_id);
+      }
+    }
+  }
+}
+
+bool SparseGraph::publishSubmap(
+    const uint32_t submap_id, const MissionGraph& mission) const {
+  if (submap_id < pub_seq_) {
+    LOG(ERROR) << "Trying to publish a submap that doesn't exist.";
+    return false;
+  }
+
+  return true;
+}
+
+bool SparseGraph::wasSubmapPublished(const uint32_t submap_id) const {
+  const auto it =
+      std::find(pub_submap_ids.cbegin(), pub_submap_ids.cend(), submap_id);
+  return it != pub_submap_ids.cend();
+}
+
 }  // namespace spg

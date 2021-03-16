@@ -76,4 +76,12 @@ bool MissionGraph::containsSubmap(const uint32_t submap_id) const noexcept {
   return all_vertex_partitions_.find(submap_id) != all_vertex_partitions_.end();
 }
 
+std::vector<uint32_t> MissionGraph::getAllSubmapIds() const {
+  std::vector<uint32_t> ids;
+  for (const auto& id_and_vertices : all_vertex_partitions_) {
+    ids.emplace_back(id_and_vertices.first);
+  }
+  return ids;
+}
+
 }  // namespace spg
