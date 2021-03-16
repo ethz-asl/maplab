@@ -916,7 +916,12 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
           running_merging_process_mutex_);
       running_merging_process_ = "Publish sparse graph";
     }
-    sparsified_graph_.publishLatestGraph();
+
+    vi_map::VIMapManager::MapReadAccess map_read =
+        map_manager_.getMapReadAccess(kMergedMapKey);
+    const vi_map::VIMap* cmap = CHECK_NOTNULL(map_read.get());
+
+    sparsified_graph_.publishLatestGraph(cmap);
     sparsified_graph_.writeResultsToFile();
   }
 

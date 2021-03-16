@@ -513,8 +513,9 @@ bool SparseGraph::publishSubmap(
     const vi_map::VIMap* map, const uint32_t submap_id,
     const MissionGraph& mission, const std::string& robot_name) const {
   CHECK_NOTNULL(map);
-  if (submap_id < pub_seq_) {
-    LOG(ERROR) << "Trying to publish a submap that doesn't exist.";
+  if (submap_id >= submap_id_) {
+    LOG(ERROR) << "Trying to publish a submap that doesn't exist (" << submap_id
+               << " vs. " << std::to_string(submap_id_) << ").";
     return false;
   }
   pose_graph::VertexIdList vertex_ids = mission.getVerticesForId(submap_id);
