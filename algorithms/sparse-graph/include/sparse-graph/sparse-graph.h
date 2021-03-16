@@ -36,7 +36,8 @@ class SparseGraph {
 
  private:
   bool findMissionGraphForId(
-      const uint32_t submap_id, const MissionGraph** mission_graph) const;
+      const uint32_t submap_id, const MissionGraph** mission_graph,
+      std::string* robot_name = nullptr) const;
 
   std::vector<std::size_t> findVertexInGraph(
       const pose_graph::VertexId& v) const;

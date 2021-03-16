@@ -39,12 +39,21 @@ std::vector<maplab_msgs::DenseNode> DenseMapBuilder::buildMapFromVertices(
       };
 
   const std::vector<int64_t> all_ts_ns = getTimestampsFromVertices(vertices);
+  const int64_t eps_ns = 5000000;  // 5ms
+  auto comp = [](const int64_t lhs, const int64_t rhs) {
+    return std::abs(lhs - rhs) <= eps_ns;
+  };
   depth_integration::ResourceSelectionFunction get_resources_at_ts =
-      [&all_ts_ns](
-          const int64_t ts_ns, const aslam::Transformation &
-          /*T_G_S*/) -> bool {
-    const auto it = std::find(all_ts_ns.cbegin(), all_ts_ns.cend(), ts_ns);
-    return it != all_ts_ns.cend();
+      [&all_ts_ns, &comp](
+          const int64_t ts_ns, const aslam::Transformation&) -> bool {
+    for (const int64_t& ts : all_ts_ns) {
+      if (comp(ts, ts_ns)) {
+        return true;
+      } else {
+        LOG(ERROR) << "ts: " << ts << " ts_ns: " << ts_ns;
+      }
+    }
+    return false;
   };
 
   const vi_map::MissionIdList mission_ids = getMissionIdsFromVertices(vertices);

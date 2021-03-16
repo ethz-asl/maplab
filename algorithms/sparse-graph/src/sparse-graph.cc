@@ -271,12 +271,16 @@ double SparseGraph::computeLoopClosureEdgeWeight(
 }
 
 bool SparseGraph::findMissionGraphForId(
-    const uint32_t submap_id, const MissionGraph** mission_graph) const {
+    const uint32_t submap_id, const MissionGraph** mission_graph,
+    std::string* robot_name) const {
   CHECK_NOTNULL(mission_graph);
   *mission_graph = nullptr;
   for (const auto& name_and_mission_graph : mission_graphs_) {
     if (name_and_mission_graph.second.containsSubmap(submap_id)) {
       *mission_graph = &name_and_mission_graph.second;
+      if (robot_name != nullptr) {
+        *robot_name = name_and_mission_graph.first;
+      }
       return true;
     }
   }
@@ -492,6 +496,27 @@ void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
   if (sparse_graph_.empty()) {
     return;
   }
+  for (const RepresentativeNode& node : sparse_graph_) {
+    const uint32_t submap_id = node.getAssociatedSubmapId();
+    if (wasSubmapPublished(submap_id)) {
+      continue;
+    }
+
+    // Retrieve the mission graph.
+    const MissionGraph* mission_graph;
+    std::string robot_name;
+    if (!findMissionGraphForId(submap_id, &mission_graph, &robot_name)) {
+      LOG(WARNING) << "Found no mission graph for id = " << submap_id;
+      continue;
+    }
+    CHECK_NOTNULL(mission_graph);
+
+    if (publishSubmap(map, submap_id, *mission_graph, robot_name)) {
+      pub_submap_ids.emplace_back(submap_id);
+    }
+  }
+
+  /*
   // Iterate over all missions.
   for (const auto& mission_graph : mission_graphs_) {
     const std::string& robot_name = mission_graph.first;
@@ -502,11 +527,8 @@ void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
       if (wasSubmapPublished(submap_id)) {
         continue;
       }
-      if (publishSubmap(map, submap_id, mission, robot_name)) {
-        pub_submap_ids.emplace_back(submap_id);
-      }
     }
-  }
+  }*/
 }
 
 bool SparseGraph::publishSubmap(
@@ -522,6 +544,10 @@ bool SparseGraph::publishSubmap(
   DenseMapBuilder map_builder(map);
   std::vector<maplab_msgs::DenseNode> dense_nodes =
       map_builder.buildMapFromVertices(vertex_ids);
+  if (dense_nodes.empty()) {
+    LOG(ERROR) << "Dense nodes are empty";
+    return false;
+  }
   maplab_msgs::Submap submap_msg;
   submap_msg.header.seq = pub_seq_;
   submap_msg.header.stamp = ros::Time::now();
