@@ -3,7 +3,9 @@
 
 #include <cstdio>
 #include <fstream>  // NOLINT
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <Eigen/Core>
@@ -12,11 +14,15 @@
 #include <maplab-common/parallel-process.h>
 #include <maplab-common/threading-helpers.h>
 
+#include "resources-common/resources-gflags.h"
 #include "resources-common/tinyply/tinyply.h"
 
 namespace resources {
 
 typedef Eigen::Matrix<uint8_t, 4, 1> RgbaColor;
+
+static const std::string kPointCloudSuffix = ".ply";
+static const std::string kCompressedPointCloudSuffix = ".drc";
 
 struct PointCloud {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -261,8 +267,15 @@ struct PointCloud {
     return is_same;
   }
 
+  void writeToFileCompressed(const std::string& file_path) const;
+
   inline void writeToFile(const std::string& file_path) const {
     CHECK(common::createPathToFile(file_path));
+
+    if (FLAGS_resources_compress_pointclouds) {
+      writeToFileCompressed(file_path);
+      return;
+    }
 
     std::filebuf filebuf;
     filebuf.open(file_path, std::ios::out | std::ios::binary);
@@ -306,49 +319,56 @@ struct PointCloud {
       VLOG(1) << "Point cloud file does not exist! Path: " << file_path;
       return false;
     }
+    CHECK_GE(file_path.size(), 4);
+    const std::string suffix = file_path.substr(file_path.size() - 4);
+    if (suffix == kCompressedPointCloudSuffix) {
+      return loadFromCompressedFile(file_path);
+    } else {
+      std::ifstream stream_ply(file_path);
+      if (stream_ply.is_open()) {
+        tinyply::PlyFile ply_file(stream_ply);
+        const int xyz_point_count = ply_file.request_properties_from_element(
+            "vertex", {"x", "y", "z"}, xyz);
+        const int colors_count = ply_file.request_properties_from_element(
+            "vertex", {"nx", "ny", "nz"}, normals);
+        const int normals_count = ply_file.request_properties_from_element(
+            "vertex", {"red", "green", "blue"}, colors);
+        const int scalar_count = ply_file.request_properties_from_element(
+            "vertex", {"scalar"}, scalars);
+        const int label_count = ply_file.request_properties_from_element(
+            "vertex", {"label"}, labels);
+        if (xyz_point_count > 0) {
+          if (colors_count > 0) {
+            // If colors are present, their count should match the point count.
+            CHECK_EQ(xyz_point_count, colors_count);
+          }
+          if (normals_count > 0) {
+            // If normals are present, their count should match the point count.
+            CHECK_EQ(xyz_point_count, normals_count);
+          }
 
-    std::ifstream stream_ply(file_path);
-    if (stream_ply.is_open()) {
-      tinyply::PlyFile ply_file(stream_ply);
-      const int xyz_point_count = ply_file.request_properties_from_element(
-          "vertex", {"x", "y", "z"}, xyz);
-      const int colors_count = ply_file.request_properties_from_element(
-          "vertex", {"nx", "ny", "nz"}, normals);
-      const int normals_count = ply_file.request_properties_from_element(
-          "vertex", {"red", "green", "blue"}, colors);
-      const int scalar_count = ply_file.request_properties_from_element(
-          "vertex", {"scalar"}, scalars);
-      const int label_count =
-          ply_file.request_properties_from_element("vertex", {"label"}, labels);
-      if (xyz_point_count > 0) {
-        if (colors_count > 0) {
-          // If colors are present, their count should match the point count.
-          CHECK_EQ(xyz_point_count, colors_count);
-        }
-        if (normals_count > 0) {
-          // If normals are present, their count should match the point count.
-          CHECK_EQ(xyz_point_count, normals_count);
-        }
+          if (scalar_count > 0) {
+            // If a value attribute is present, its count should match the point
+            // count.
+            CHECK_EQ(xyz_point_count, scalar_count);
+          }
 
-        if (scalar_count > 0) {
-          // If a value attribute is present, its count should match the point
-          // count.
-          CHECK_EQ(xyz_point_count, scalar_count);
-        }
+          if (label_count > 0) {
+            // If a label attribute is present, its count should match the point
+            // count.
+            CHECK_EQ(xyz_point_count, label_count);
+          }
 
-        if (label_count > 0) {
-          // If a label attribute is present, its count should match the point
-          // count.
-          CHECK_EQ(xyz_point_count, label_count);
+          ply_file.read(stream_ply);
         }
-
-        ply_file.read(stream_ply);
+        stream_ply.close();
+        return true;
       }
-      stream_ply.close();
-      return true;
+      return false;
     }
-    return false;
   }
+
+  bool loadFromCompressedFile(const std::string& file_path);
 
   inline bool colorizePointCloud(
       const size_t start_point_idx, const size_t end_point_idx, const uint8_t r,

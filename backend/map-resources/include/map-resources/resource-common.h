@@ -12,6 +12,7 @@
 #include <boost/variant.hpp>
 #include <opencv2/core.hpp>
 #include <resources-common/point-cloud.h>
+#include <resources-common/resources-gflags.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
 #include <voxblox/core/esdf_map.h>
@@ -62,6 +63,8 @@ enum class ResourceType : int {
 static constexpr size_t kNumResourceTypes =
     static_cast<size_t>(ResourceType::kCount);
 
+bool isResourceTypePointCloud(const ResourceType& type);
+
 // NOTE: [ADD_RESOURCE_TYPE] Add name.
 const std::array<std::string, kNumResourceTypes> ResourceTypeNames = {
     {/*kRawImage*/ "raw_images",
@@ -91,32 +94,7 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeNames = {
      /*kPointCloudXYZL*/ "labeled_point_cloud"}};
 
 // NOTE: [ADD_RESOURCE_TYPE] Add suffix.
-const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
-    {/*kRawImage*/ ".pgm",
-     /*kUndistortedImage*/ ".pgm",
-     /*kRectifiedImage*/ ".pgm",
-     /*kImageForDepthMap*/ ".pgm",
-     /*kRawColorImage*/ ".ppm",
-     /*kUndistortedColorImage*/ ".ppm",
-     /*kRectifiedColorImage*/ ".ppm",
-     /*kColorImageForDepthMap*/ ".ppm",
-     /*kRawDepthMap*/ ".pgm",
-     /*kOptimizedDepthMap*/ ".pgm",
-     /*kDisparityMap*/ ".pgm",
-     /*kText*/ ".txt",
-     /*kPmvsReconstructionPath*/ ".txt",
-     /*kTsdfGridPath*/ ".txt",
-     /*kEsdfGridPath*/ ".txt",
-     /*kOccupancyGridPath*/ ".txt",
-     /*kPointCloudXYZ*/ ".ply",
-     /*kPointCloudXYZRGBN*/ ".ply",
-     /*kVoxbloxTsdfMap*/ ".tsdf.voxblox",
-     /*kVoxbloxEsdfMap*/ ".esdf.voxblox",
-     /*kVoxbloxOccupancyMap*/ ".occupancy.voxblox",
-     /*kPointCloudXYZI*/ ".ply",
-     /*kObjectInstanceBoundingBoxes*/ ".obj_instance_bboxes.proto",
-     /*kObjectInstanceMasks*/ ".obj_instance_mask.ppm",
-     /*kPointCloudXYZL*/ ".ply"}};
+std::array<std::string, kNumResourceTypes> getResourceTypesFileSuffixes();
 
 struct ResourceTypeHash {
   template <typename T>

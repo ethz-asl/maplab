@@ -695,6 +695,13 @@ std::string VIMap::printMapStatistics(
     // TODO(mfehr): ADD ALL LIDAR Sensor SPECIFIC STUFF
   }
 
+  // Print PointCloudMap sensor/constraint info if present
+  if (mission.hasPointCloudMap()) {
+    aslam::SensorId pointcloud_map_id = mission.getPointCloudMapSensorId();
+    stats_text << std::endl;
+    print_aligned("PointCloudMap Sensor: ", pointcloud_map_id.hexString(), 1);
+  }
+
   stats_text << std::endl;
   print_aligned("General:", "", 1);
   const size_t num_vertices = numVerticesInMission(mission_id);
@@ -1014,8 +1021,14 @@ void VIMap::associateMissionSensors(
     } else if (
         static_cast<SensorType>(sensor_of_type.first) ==
         SensorType::kPointCloudMapSensor) {
-      // NOTE: this sensor type does not need to be associated with the VIMap,
-      // as it is only used to store sensor resources anyways.
+      CHECK(!mission.hasPointCloudMap())
+          << "There shouldn't be a PointCloudMap"
+          << "sensor associated yet with this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_point_cloud_map_sensor_id,
+          "selected_point_cloud_map_sensor_id", "PointCloudMap",
+          sensor_of_type.second);
+      mission.setPointCloudMapId(sensor_id);
     } else {
       LOG(FATAL)
           << "Trying to associate an unknown sensor type with the VIMap! Type: "
@@ -1039,6 +1052,9 @@ void VIMap::getAllAssociatedMissionSensorIds(
   }
   if (mission.hasLidar()) {
     sensor_ids->insert(mission.getLidarId());
+  }
+  if (mission.hasPointCloudMap()) {
+    sensor_ids->insert(mission.getPointCloudMapSensorId());
   }
   if (mission.hasOdometry6DoFSensor()) {
     sensor_ids->insert(mission.getOdometry6DoFSensor());
@@ -1093,6 +1109,18 @@ vi_map::Lidar::Ptr VIMap::getMissionLidarPtr(
     const vi_map::MissionId& id) const {
   return sensor_manager_.getSensorPtr<vi_map::Lidar>(
       getMission(id).getLidarId());
+}
+
+const vi_map::PointCloudMapSensor& VIMap::getMissionPointCloudMapSensor(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensor<vi_map::PointCloudMapSensor>(
+      getMission(id).getPointCloudMapSensorId());
+}
+
+vi_map::PointCloudMapSensor::Ptr VIMap::getMissionPointCloudMapSensorPtr(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensorPtr<vi_map::PointCloudMapSensor>(
+      getMission(id).getPointCloudMapSensorId());
 }
 
 const vi_map::Odometry6DoF& VIMap::getMissionOdometry6DoFSensor(
@@ -1576,6 +1604,25 @@ const vi_map::MissionId VIMap::duplicateMission(
 
     CHECK(mission_ptr);
     mission_ptr->setLidarId(new_sensor_id);
+  }
+
+  if (source_mission.hasPointCloudMap()) {
+    const aslam::SensorId source_sensor_id =
+        source_mission.getPointCloudMapSensorId();
+
+    vi_map::PointCloudMapSensor* cloned_pointcloud_map = CHECK_NOTNULL(
+        getMissionPointCloudMapSensor(source_mission_id).cloneWithNewIds());
+    const aslam::SensorId new_sensor_id = cloned_pointcloud_map->getId();
+    const aslam::Transformation& T_B_S =
+        getSensorManager().getSensor_T_B_S(source_sensor_id);
+    const aslam::SensorId& base_sensor_id =
+        getSensorManager().getBaseSensorId(source_sensor_id);
+    getSensorManager().addSensor<vi_map::PointCloudMapSensor>(
+        vi_map::PointCloudMapSensor::UniquePtr(cloned_pointcloud_map),
+        base_sensor_id, T_B_S);
+
+    CHECK(mission_ptr);
+    mission_ptr->setPointCloudMapId(new_sensor_id);
   }
 
   if (source_mission.hasOdometry6DoFSensor()) {
@@ -2466,13 +2513,9 @@ bool VIMap::checkResourceConsistency() const {
                 }
                 break;
               case backend::ResourceType::kPointCloudXYZ:
-                if (!checkResource<resources::PointCloud>(resource_id, type)) {
-                  LOG(ERROR) << "Resource " << resource_id
-                             << " is in an inconsistent state!";
-                  consistent = false;
-                }
-                break;
               case backend::ResourceType::kPointCloudXYZRGBN:
+              case backend::ResourceType::kPointCloudXYZI:
+              case backend::ResourceType::kPointCloudXYZL:
                 if (!checkResource<resources::PointCloud>(resource_id, type)) {
                   LOG(ERROR) << "Resource " << resource_id
                              << " is in an inconsistent state!";
