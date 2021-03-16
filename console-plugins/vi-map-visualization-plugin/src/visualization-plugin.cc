@@ -109,6 +109,23 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
       "Publish all xyz + intensity point clouds.", common::Processing::Sync);
 
   addCommand(
+      {"visualize_xyzi_pointclouds_from_mission"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResourceFromMission(
+            backend::ResourceType::kPointCloudXYZI);
+      },
+      "Publish all xyz + intensity point clouds.", common::Processing::Sync);
+
+  addCommand(
+      {"visualize_xyzi_pointclouds_sequentially"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResourceSequentially(
+            backend::ResourceType::kPointCloudXYZI);
+      },
+      "Incrementally builds and visualiezs the dense maps.",
+      common::Processing::Sync);
+
+  addCommand(
       {"visualize_xyzrgbn_pointclouds"},
       [this]() -> int {
         return visualizeReprojectedDepthResource(
@@ -251,6 +268,44 @@ int VisualizationPlugin::visualizeReprojectedDepthResource(
   getAllMissionIds(map, &mission_ids);
 
   visualization::visualizeReprojectedDepthResource(type, mission_ids, *map);
+
+  return common::kSuccess;
+}
+
+int VisualizationPlugin::visualizeReprojectedDepthResourceFromMission(
+    backend::ResourceType type) {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+  vi_map::VIMapManager map_manager;
+  const vi_map::VIMapManager::MapReadAccess map =
+      map_manager.getMapReadAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids;
+  getAllMissionIds(map, &mission_ids);
+
+  visualization::visualizeReprojectedDepthResourceFromMission(
+      type, mission_ids, *map);
+
+  return common::kSuccess;
+}
+
+int VisualizationPlugin::visualizeReprojectedDepthResourceSequentially(
+    backend::ResourceType type) {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+  vi_map::VIMapManager map_manager;
+  const vi_map::VIMapManager::MapReadAccess map =
+      map_manager.getMapReadAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids;
+  getAllMissionIds(map, &mission_ids);
+
+  visualization::visualizeReprojectedDepthResourceSequentially(
+      type, mission_ids, *map);
 
   return common::kSuccess;
 }
