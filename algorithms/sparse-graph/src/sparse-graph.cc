@@ -511,7 +511,7 @@ void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
     }
     CHECK_NOTNULL(mission_graph);
 
-    if (publishSubmap(map, submap_id, *mission_graph, robot_name)) {
+    if (publishSubmap(map, node, *mission_graph, robot_name)) {
       pub_submap_ids.emplace_back(submap_id);
     }
   }
@@ -532,9 +532,10 @@ void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
 }
 
 bool SparseGraph::publishSubmap(
-    const vi_map::VIMap* map, const uint32_t submap_id,
+    const vi_map::VIMap* map, const RepresentativeNode& node,
     const MissionGraph& mission, const std::string& robot_name) const {
   CHECK_NOTNULL(map);
+  const uint32_t submap_id = node.getAssociatedSubmapId();
   if (submap_id >= submap_id_) {
     LOG(ERROR) << "Trying to publish a submap that doesn't exist (" << submap_id
                << " vs. " << std::to_string(submap_id_) << ").";
