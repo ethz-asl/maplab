@@ -7,7 +7,9 @@
 #include <glog/logging.h>
 #include <nav_msgs/Path.h>
 
+#include <maplab_msgs/DenseNode.h>
 #include <maplab_msgs/Graph.h>
+#include <maplab_msgs/Submap.h>
 #include <maplab_msgs/Trajectory.h>
 #include <maplab_msgs/TrajectoryNode.h>
 #include <minkindr_conversions/kindr_msg.h>
@@ -500,7 +502,7 @@ void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
       if (wasSubmapPublished(submap_id)) {
         continue;
       }
-      if (publishSubmap(map, submap_id, mission)) {
+      if (publishSubmap(map, submap_id, mission, robot_name)) {
         pub_submap_ids.emplace_back(submap_id);
       }
     }
@@ -509,7 +511,7 @@ void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
 
 bool SparseGraph::publishSubmap(
     const vi_map::VIMap* map, const uint32_t submap_id,
-    const MissionGraph& mission) const {
+    const MissionGraph& mission, const std::string& robot_name) const {
   CHECK_NOTNULL(map);
   if (submap_id < pub_seq_) {
     LOG(ERROR) << "Trying to publish a submap that doesn't exist.";
@@ -519,6 +521,15 @@ bool SparseGraph::publishSubmap(
   DenseMapBuilder map_builder(map);
   std::vector<maplab_msgs::DenseNode> dense_nodes =
       map_builder.buildMapFromVertices(vertex_ids);
+  maplab_msgs::Submap submap_msg;
+  submap_msg.header.seq = pub_seq_;
+  submap_msg.header.stamp = ros::Time::now();
+  submap_msg.robot_name = robot_name;
+  submap_msg.id = submap_id;
+  submap_msg.nodes = dense_nodes;
+
+  visualization::RVizVisualizationSink::publish(
+      "sparse_graph/submap", submap_msg);
 
   return true;
 }

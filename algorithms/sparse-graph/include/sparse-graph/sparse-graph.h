@@ -62,7 +62,7 @@ class SparseGraph {
   bool wasSubmapPublished(const uint32_t submap_id) const;
   bool publishSubmap(
       const vi_map::VIMap* map, const uint32_t submap_id,
-      const MissionGraph& mission) const;
+      const MissionGraph& mission, const std::string& robot_name) const;
 
   void publishGraphForBuilding() const;
   void publishTrajecotryForEvaluation() const;
