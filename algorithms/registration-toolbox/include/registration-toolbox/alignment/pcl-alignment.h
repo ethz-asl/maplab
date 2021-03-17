@@ -104,12 +104,9 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
         transformed, cov, this->convertEigenToKindr(T),
         aligner_.hasConverged() & is_converged);
   } else {
-    is_converged = false;
     LOG(ERROR)
         << "PCL registration gave invalid rotation matrix, returning prior.";
-    return RegistrationResult(
-        transformed, cov, prior_T_target_source,
-        aligner_.hasConverged() & is_converged);
+    return RegistrationResult(transformed, cov, prior_T_target_source, false);
   }
 }
 
