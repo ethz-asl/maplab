@@ -515,20 +515,6 @@ void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
       pub_submap_ids.emplace_back(submap_id);
     }
   }
-
-  /*
-  // Iterate over all missions.
-  for (const auto& mission_graph : mission_graphs_) {
-    const std::string& robot_name = mission_graph.first;
-    const MissionGraph& mission = mission_graph.second;
-    const std::vector<uint32_t> submap_ids = mission.getAllSubmapIds();
-    // Iterate over all submap ids within a mission
-    for (const uint32_t submap_id : submap_ids) {
-      if (wasSubmapPublished(submap_id)) {
-        continue;
-      }
-    }
-  }*/
 }
 
 bool SparseGraph::publishSubmap(
@@ -541,12 +527,16 @@ bool SparseGraph::publishSubmap(
                << " vs. " << std::to_string(submap_id_) << ").";
     return false;
   }
-  pose_graph::VertexIdList vertex_ids = mission.getVerticesForId(submap_id);
+  // Build the dense submap.
   DenseMapBuilder map_builder(map);
+  pose_graph::VertexIdList vertex_ids = mission.getVerticesForId(submap_id);
+  vi_map::MissionId mission_id = mission.getMissionIdForSubmap(map, submap_id);
+  std::vector<RepresentativeNode> nodes = getNodesForSubmap(submap_id);
+
   std::vector<maplab_msgs::DenseNode> dense_nodes =
-      map_builder.buildMapFromVertices(vertex_ids);
+      map_builder.buildMapFromNodes(nodes, mission_id);
   if (dense_nodes.empty()) {
-    LOG(ERROR) << "Dense nodes are empty";
+    // LOG(ERROR) << "Dense nodes are empty";
     return false;
   }
   maplab_msgs::Submap submap_msg;
@@ -566,6 +556,26 @@ bool SparseGraph::wasSubmapPublished(const uint32_t submap_id) const {
   const auto it =
       std::find(pub_submap_ids.cbegin(), pub_submap_ids.cend(), submap_id);
   return it != pub_submap_ids.cend();
+}
+
+std::vector<RepresentativeNode> SparseGraph::getNodesForSubmap(
+    const uint32_t submap_id) const {
+  std::vector<RepresentativeNode> nodes;
+  if (submap_id >= submap_id_) {
+    LOG(ERROR) << "Trying to operate on a submap that doesn't exist ("
+               << submap_id << " vs. " << std::to_string(submap_id_) << ").";
+    return nodes;
+  }
+
+  // Select the nodes that share the same submap id.
+  auto comp = [&submap_id](const RepresentativeNode& node) {
+    return node.getAssociatedSubmapId() == submap_id;
+  };
+  std::copy_if(
+      sparse_graph_.cbegin(), sparse_graph_.cend(), std::back_inserter(nodes),
+      comp);
+
+  return nodes;
 }
 
 }  // namespace spg

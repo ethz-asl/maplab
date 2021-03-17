@@ -5,6 +5,8 @@
 
 #include <maplab_msgs/DenseNode.h>
 
+#include "sparse-graph/common/representative-node.h"
+
 namespace spg {
 
 class DenseMapBuilder {
@@ -13,9 +15,20 @@ class DenseMapBuilder {
   std::vector<maplab_msgs::DenseNode> buildMapFromVertices(
       const pose_graph::VertexIdList& vertices);
 
+  std::vector<maplab_msgs::DenseNode> buildMapFromNodes(
+      const std::vector<RepresentativeNode>& nodes,
+      const vi_map::MissionId& mission_id);
+
+  std::vector<maplab_msgs::DenseNode> buildMap(
+      const std::vector<int64_t>& timestamps,
+      const vi_map::MissionIdList& mission_ids);
+
  private:
   std::vector<int64_t> getTimestampsFromVertices(
       const pose_graph::VertexIdList& vertices);
+  std::vector<int64_t> getTimestampsFromNodes(
+      const std::vector<RepresentativeNode>& nodes);
+
   vi_map::MissionIdList getMissionIdsFromVertices(
       const pose_graph::VertexIdList& vertices);
 

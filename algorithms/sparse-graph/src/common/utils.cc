@@ -13,5 +13,24 @@ ros::Time Utils::CreateRosTimestamp(const int64_t ts_ns) {
       timestamp_u64 - (ros_timestamp_sec * kNanosecondsPerSecond);
   return ros::Time(ros_timestamp_sec, ros_timestamp_nsec);
 }
+vi_map::MissionIdList Utils::GetMissionIds(
+    const vi_map::VIMap* map, const pose_graph::VertexIdList& vertices) {
+  CHECK_NOTNULL(map);
+  vi_map::MissionIdList mission_ids;
+  for (const pose_graph::VertexId vertex_id : vertices) {
+    if (!map->hasVertex(vertex_id)) {
+      LOG(ERROR) << "Vertex " << vertex_id << " not found.";
+      continue;
+    }
+    const vi_map::Vertex& vertex = map->getVertex(vertex_id);
+    const vi_map::MissionId& mission_id = vertex.getMissionId();
+    const auto it =
+        std::find(mission_ids.cbegin(), mission_ids.cend(), mission_id);
+    if (it == mission_ids.cend()) {
+      mission_ids.emplace_back(mission_id);
+    }
+  }
+  return mission_ids;
+}
 
 }  // namespace spg

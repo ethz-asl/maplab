@@ -56,7 +56,6 @@ RepresentativeNodeVector LidarPartitioner::getRepresentativesForSubmap(
   constexpr int64_t tolerance_ns = 3.5e8;  // 350ms
   const landmark_triangulation::PoseInterpolator pose_interpolator;
   RepresentativeNodeVector processed_lidar_scans;
-  processed_lidar_scans.resize(n_vertices);
   for (std::size_t i = 0u; i < n_vertices; ++i) {
     if (!map_.hasVertex(vertices[i])) {
       LOG(ERROR) << "Vertex " << vertices[i] << " not found.";
@@ -93,10 +92,11 @@ RepresentativeNodeVector LidarPartitioner::getRepresentativesForSubmap(
 
     // Insert a new representative node if it is not already present.
     RepresentativeNode current_node(T_M_B_vector[0], ts_pc_ns, submap_id);
+    current_node.setPointCloud(pc);
     if (std::find(
             processed_lidar_scans.cbegin(), processed_lidar_scans.cend(),
             current_node) == processed_lidar_scans.cend()) {
-      processed_lidar_scans[i] = std::move(current_node);
+      processed_lidar_scans.emplace_back(std::move(current_node));
     }
   }
 

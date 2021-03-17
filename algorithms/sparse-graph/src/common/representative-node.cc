@@ -71,6 +71,17 @@ bool RepresentativeNode::containsLocalIndex(const uint32_t local_index) const
   return it != local_index_.end();
 }
 
+bool RepresentativeNode::hasPointCloud() const noexcept {
+  return !point_cloud_.xyz.empty();
+}
+void RepresentativeNode::setPointCloud(const resources::PointCloud& pc) {
+  point_cloud_ = pc;
+}
+
+resources::PointCloud RepresentativeNode::getPointCloud() const noexcept {
+  return point_cloud_;
+}
+
 bool operator==(const RepresentativeNode& lhs, const RepresentativeNode& rhs) {
   return lhs.isEqualTo(rhs);
 }

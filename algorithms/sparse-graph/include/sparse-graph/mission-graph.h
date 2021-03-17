@@ -36,6 +36,9 @@ class MissionGraph {
   size_t size() const noexcept;
   std::vector<uint32_t> getAllSubmapIds() const;
 
+  vi_map::MissionId getMissionIdForSubmap(
+      const vi_map::VIMap* map, const uint32_t submap_id) const;
+
  private:
   std::unordered_map<uint32_t, pose_graph::VertexIdList> all_vertex_partitions_;
 };

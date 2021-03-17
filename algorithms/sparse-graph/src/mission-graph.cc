@@ -2,6 +2,8 @@
 
 #include <limits>
 
+#include "sparse-graph/common/utils.h"
+
 namespace spg {
 
 MissionGraph::MissionGraph() {}
@@ -82,6 +84,15 @@ std::vector<uint32_t> MissionGraph::getAllSubmapIds() const {
     ids.emplace_back(id_and_vertices.first);
   }
   return ids;
+}
+
+vi_map::MissionId MissionGraph::getMissionIdForSubmap(
+    const vi_map::VIMap* map, const uint32_t submap_id) const {
+  CHECK_NOTNULL(map);
+  const pose_graph::VertexIdList vertices = getVerticesForId(submap_id);
+  vi_map::MissionIdList mission_ids = Utils::GetMissionIds(map, vertices);
+  CHECK_EQ(mission_ids.size(), 1u);
+  return mission_ids[0];
 }
 
 }  // namespace spg

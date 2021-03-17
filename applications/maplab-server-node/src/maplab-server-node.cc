@@ -875,7 +875,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
     // Sparsify the graph and get latest estimations.
     const vi_map::VIMap* cmap = CHECK_NOTNULL(map_read.get());
-    spg::AllPartitioner partitioner(*cmap);
+    spg::LidarPartitioner partitioner(*cmap);
 
     // Sparsify the graph and get latest estimations.
     sparsified_graph_.compute(cmap, &partitioner);

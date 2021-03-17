@@ -5,6 +5,8 @@
 
 #include <vector>
 
+#include <resources-common/point-cloud.h>
+
 namespace spg {
 
 class RepresentativeNode {
@@ -33,6 +35,10 @@ class RepresentativeNode {
   void setLocalIndex(std::vector<uint32_t>&& local_index);
   bool containsLocalIndex(const uint32_t local_index) const noexcept;
 
+  bool hasPointCloud() const noexcept;
+  void setPointCloud(const resources::PointCloud& pc);
+  resources::PointCloud getPointCloud() const noexcept;
+
  private:
   aslam::Transformation pose_;
   int64_t timestamp_ns_;
@@ -40,6 +46,7 @@ class RepresentativeNode {
   double residual_;
   bool is_active_ = false;
   std::vector<uint32_t> local_index_;
+  resources::PointCloud point_cloud_;
 };
 
 bool operator==(const RepresentativeNode& lhs, const RepresentativeNode& rhs);
