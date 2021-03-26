@@ -75,7 +75,8 @@ bool MissionGraph::containsVertex(
 }
 
 bool MissionGraph::containsSubmap(const uint32_t submap_id) const noexcept {
-  return all_vertex_partitions_.find(submap_id) != all_vertex_partitions_.end();
+  return all_vertex_partitions_.find(submap_id) !=
+         all_vertex_partitions_.cend();
 }
 
 std::vector<uint32_t> MissionGraph::getAllSubmapIds() const {
