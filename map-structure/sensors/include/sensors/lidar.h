@@ -146,10 +146,10 @@ typedef LidarMeasurement<pcl::PointCloud<pcl::OusterPointType>>
     OusterLidarMeasurement;
 typedef LidarMeasurement<sensor_msgs::PointCloud2> RosLidarMeasurement;
 
-DEFINE_MEAUREMENT_CONTAINERS(MaplabLidarMeasurement);
-DEFINE_MEAUREMENT_CONTAINERS(PclLidarMeasurement);
-DEFINE_MEAUREMENT_CONTAINERS(RosLidarMeasurement);
-DEFINE_MEAUREMENT_CONTAINERS(OusterLidarMeasurement);
+DEFINE_MEASUREMENT_CONTAINERS(MaplabLidarMeasurement);
+DEFINE_MEASUREMENT_CONTAINERS(PclLidarMeasurement);
+DEFINE_MEASUREMENT_CONTAINERS(RosLidarMeasurement);
+DEFINE_MEASUREMENT_CONTAINERS(OusterLidarMeasurement);
 
 }  // namespace vi_map
 

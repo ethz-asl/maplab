@@ -168,7 +168,7 @@ class WheelOdometryMeasurement : public Measurement {
   bool has_T_St_Stp1_fixed_covariance_;
 };
 
-DEFINE_MEAUREMENT_CONTAINERS(WheelOdometryMeasurement)
+DEFINE_MEASUREMENT_CONTAINERS(WheelOdometryMeasurement)
 }  // namespace vi_map
 
 DEFINE_MEASUREMENT_HASH(WheelOdometryMeasurement)
