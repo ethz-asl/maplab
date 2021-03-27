@@ -82,22 +82,17 @@ class ExternalFeaturesMeasurement : public Measurement {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MAPLAB_POINTER_TYPEDEFS(ExternalFeaturesMeasurement);
 
-  ExternalFeaturesMeasurement() {}
-
-  explicit ExternalFeaturesMeasurement(const aslam::SensorId& sensor_id)
-      : Measurement(sensor_id) {}
-
   explicit ExternalFeaturesMeasurement(
       const aslam::SensorId& sensor_id, const int64_t timestamp_nanoseconds,
       uint32_t num_keypoint_measurements, uint32_t descriptor_size,
-      const std::vector<uint32_t>& keypoint_measurements_x,
-      const std::vector<uint32_t>& keypoint_measurements_y,
-      const std::vector<float>& keypoint_measurement_uncertainties,
-      const std::vector<float>& keypoint_orientations,
-      const std::vector<float>& keypoint_scores,
-      const std::vector<float>& keypoint_scales,
+      const std::vector<double>& keypoint_measurements_x,
+      const std::vector<double>& keypoint_measurements_y,
+      const std::vector<double>& keypoint_measurement_uncertainties,
+      const std::vector<double>& keypoint_orientations,
+      const std::vector<double>& keypoint_scores,
+      const std::vector<double>& keypoint_scales,
       const std::vector<uint8_t>& descriptors,
-      const std::vector<uint32_t>& track_ids)
+      const std::vector<int32_t>& track_ids)
       : Measurement(sensor_id, timestamp_nanoseconds),
         num_keypoint_measurements_(num_keypoint_measurements),
         descriptor_size_(descriptor_size),
@@ -166,17 +161,17 @@ class ExternalFeaturesMeasurement : public Measurement {
 
   uint32_t num_keypoint_measurements_;
   uint32_t descriptor_size_;
-  std::vector<uint32_t> keypoint_measurements_x_;
-  std::vector<uint32_t> keypoint_measurements_y_;
-  std::vector<float> keypoint_measurement_uncertainties_;
-  std::vector<float> keypoint_orientations_;
-  std::vector<float> keypoint_scores_;
-  std::vector<float> keypoint_scales_;
+  std::vector<double> keypoint_measurements_x_;
+  std::vector<double> keypoint_measurements_y_;
+  std::vector<double> keypoint_measurement_uncertainties_;
+  std::vector<double> keypoint_orientations_;
+  std::vector<double> keypoint_scores_;
+  std::vector<double> keypoint_scales_;
   std::vector<uint8_t> descriptors_;
-  std::vector<uint32_t> track_ids_;
+  std::vector<int32_t> track_ids_;
 };
 
-DEFINE_MEAUREMENT_CONTAINERS(ExternalFeaturesMeasurement)
+DEFINE_MEASUREMENT_CONTAINERS(ExternalFeaturesMeasurement)
 
 }  // namespace vi_map
 
