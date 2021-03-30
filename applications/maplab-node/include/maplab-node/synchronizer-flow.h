@@ -132,10 +132,10 @@ class SynchronizerFlow {
         ->registerSubscriber<message_flow_topics::LOOP_CLOSURE_CONSTRAINTS>(
             kSubscriberNodeName, delivery_method_,
             [this](const vi_map::LoopClosureMeasurement::ConstPtr&
-                       loop_closure_measuerment) {
-              CHECK(loop_closure_measuerment);
+                       loop_closure_measurement) {
+              CHECK(loop_closure_measurement);
               this->synchronizer_.processLoopClosureMeasurement(
-                  loop_closure_measuerment);
+                  loop_closure_measurement);
             });
     synchronizer_.registerLoopClosureMeasurementCallback(
         message_flow_
@@ -154,10 +154,10 @@ class SynchronizerFlow {
     message_flow_->registerSubscriber<message_flow_topics::POINTCLOUD_MAP>(
         kSubscriberNodeName, delivery_method_,
         [this](const vi_map::RosPointCloudMapSensorMeasurement::ConstPtr&
-                   pointcloud_map_measuerment) {
-          CHECK(pointcloud_map_measuerment);
+                   pointcloud_map_measurement) {
+          CHECK(pointcloud_map_measurement);
           this->synchronizer_.processPointCloudMapMeasurement(
-              pointcloud_map_measuerment);
+              pointcloud_map_measurement);
         });
     synchronizer_.registerPointCloudMapSensorMeasurementCallback(
         message_flow_
@@ -180,6 +180,27 @@ class SynchronizerFlow {
     synchronizer_.registerSynchronizedNFrameCallback(
         message_flow_
             ->registerPublisher<message_flow_topics::SYNCED_NFRAMES>());
+  }
+
+  void initializeExternalFeaturesData(
+      const aslam::SensorIdSet& external_feature_sensor_ids) {
+    CHECK_NOTNULL(message_flow_);
+
+    synchronizer_.initializeExternalFeaturesSynchronization(
+        external_feature_sensor_ids);
+    synchronizer_.expectExternalFeaturesData();
+
+    message_flow_->registerSubscriber<message_flow_topics::EXTERNAL_FEATURES>(
+        kSubscriberNodeName, delivery_method_,
+        [this](const vi_map::ExternalFeaturesMeasurement::ConstPtr&
+                   external_features_measurement) {
+          CHECK(external_features_measurement);
+          this->synchronizer_.processExternalFeatureMeasurement(
+              external_features_measurement);
+        });
+    /*synchronizer_.registerSynchronizedNFrameCallback(
+        message_flow_
+            ->registerPublisher<message_flow_topics::SYNCED_NFRAMES>());*/
   }
 
   void attachToMessageFlow(message_flow::MessageFlow* const flow) {

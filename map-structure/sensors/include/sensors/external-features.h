@@ -52,6 +52,30 @@ class ExternalFeatures final : public aslam::Sensor {
     return target_sensor_id_;
   }
 
+  const aslam::SensorId& getTargetNCameraId() const {
+    CHECK(target_ncamera_id_.isValid())
+        << "No associated ncamera id set, setTargetNCameraId "
+           "has to be called before getTargetNCameraId.";
+    return target_ncamera_id_;
+  }
+
+  void setTargetNCameraId(const aslam::SensorId& target_ncamera_id) {
+    CHECK(target_ncamera_id.isValid());
+    target_ncamera_id_ = target_ncamera_id;
+  }
+
+  size_t getTargetCameraIndex() const {
+    CHECK(target_camera_index_set_)
+        << "No associated camera index set, setTargetCameraIndex "
+           "has to be called before getTargetCameraIndex.";
+    return target_camera_index_;
+  }
+
+  void setTargetCameraIndex(size_t target_camera_index) {
+    target_camera_index_ = target_camera_index;
+    target_camera_index_set_ = true;
+  }
+
  private:
   bool loadFromYamlNodeImpl(const YAML::Node& sensor_node) override;
   void saveToYamlNodeImpl(YAML::Node* sensor_node) const override;
@@ -68,6 +92,10 @@ class ExternalFeatures final : public aslam::Sensor {
   }
 
   aslam::SensorId target_sensor_id_;
+  aslam::SensorId target_ncamera_id_;
+  size_t target_camera_index_;
+  bool target_camera_index_set_;
+
   bool has_uncertainties_;
   bool has_orientations_;
   bool has_scores_;

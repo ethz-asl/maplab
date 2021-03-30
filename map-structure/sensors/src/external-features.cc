@@ -7,11 +7,12 @@ namespace vi_map {
 
 constexpr char kYamlFieldNameTargetSensor[] = "target_sensor";
 
-ExternalFeatures::ExternalFeatures() : Sensor() {}
+ExternalFeatures::ExternalFeatures()
+    : Sensor(), target_camera_index_set_(false) {}
 
 ExternalFeatures::ExternalFeatures(
     const aslam::SensorId& sensor_id, const std::string& topic)
-    : Sensor(sensor_id, topic) {}
+    : Sensor(sensor_id, topic), target_camera_index_set_(false) {}
 
 bool ExternalFeatures::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
   std::string id_as_string;

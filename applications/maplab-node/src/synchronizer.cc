@@ -126,6 +126,37 @@ void Synchronizer::initializeNCameraSynchronization(
   }
 }
 
+void Synchronizer::initializeExternalFeaturesSynchronization(
+    const aslam::SensorIdSet& external_feature_sensor_ids) {
+  // Initialize temporal buffer per external feature sensor.
+  {
+    std::lock_guard<std::mutex> lock(external_features_buffer_mutex_);
+
+    for (const aslam::SensorId sensor_id : external_feature_sensor_ids) {
+      CHECK(sensor_id.isValid());
+      const size_t external_feature_sensor_index =
+          external_features_id_to_index_map_.size();
+      external_features_id_to_index_map_.emplace(
+          sensor_id, external_feature_sensor_index);
+    }
+
+    external_features_buffer_.resize(external_feature_sensor_ids.size());
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(
+        mutex_times_last_external_feature_messages_received_or_checked_ns_);
+    times_last_external_feature_messages_received_or_checked_ns_.assign(
+        external_feature_sensor_ids.size(), aslam::time::getInvalidTime());
+  }
+
+  if (statistics_) {
+    // TODO(smauq): Initialize statistics
+    // statistics_->initializeExternalFeaturesStats(
+    //     external_feature_sensor_ids.size());
+  }
+}
+
 void Synchronizer::processCameraImage(
     const vio::ImageMeasurement::ConstPtr& image_measurement) {
   CHECK(image_measurement);
@@ -331,6 +362,60 @@ void Synchronizer::processOdometryMeasurement(
   T_M_B_buffer_.bufferOdometryEstimate(odometry_copy);
 
   releaseData();
+}
+
+void Synchronizer::processExternalFeatureMeasurement(
+    const vi_map::ExternalFeaturesMeasurement::ConstPtr&
+        external_features_measurement) {
+  CHECK(external_features_measurement);
+
+  const int64_t timestamp_ns =
+      external_features_measurement->getTimestampNanoseconds();
+  VLOG(5) << "[MaplabNode-Synchronizer] processExternalFeatureMeasurement "
+          << aslam::time::timeNanosecondsToString(timestamp_ns);
+
+  size_t buffer_index;
+  {
+    std::lock_guard<std::mutex> lock(external_features_buffer_mutex_);
+    buffer_index = common::getChecked(
+        external_features_id_to_index_map_,
+        external_features_measurement->getSensorId());
+  }
+
+  const int64_t current_time_ns = aslam::time::nanoSecondsSinceEpoch();
+
+  {
+    std::lock_guard<std::mutex> lock(
+        mutex_times_last_external_feature_messages_received_or_checked_ns_);
+    times_last_external_feature_messages_received_or_checked_ns_[buffer_index] =
+        current_time_ns;
+  }
+
+  if (statistics_) {
+    // TODO(smauq): Finish statistics
+    /*CHECK_LT(
+        image_measurement->camera_index,
+        static_cast<int>(statistics_->cam_latency_stats.size()));
+
+    const int64_t latency_ns = current_time_ns - image_measurement->timestamp;
+    LOG_IF(WARNING, latency_ns < 0)
+        << "[MaplabNode-Synchronizer] Received image message (cam "
+        << image_measurement->camera_index << ") from the "
+        << "future! msg time "
+        << aslam::time::timeNanosecondsToString(image_measurement->timestamp)
+        << " current time: "
+        << aslam::time::timeNanosecondsToString(current_time_ns)
+        << " latency: " << latency_ns << "ns";
+
+    statistics_->cam_latency_stats[image_measurement->camera_index].AddSample(
+        static_cast<double>(latency_ns));*/
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(external_features_buffer_mutex_);
+    external_features_buffer_[buffer_index].addValue(
+        timestamp_ns, external_features_measurement);
+  }
 }
 
 void Synchronizer::releaseCameraImages(
@@ -818,6 +903,18 @@ void Synchronizer::expectWheelOdometryData() {
 void Synchronizer::expectPointCloudMapData() {
   time_last_pointcloud_map_message_received_or_checked_ns_.store(
       aslam::time::nanoSecondsSinceEpoch());
+}
+
+void Synchronizer::expectExternalFeaturesData() {
+  {
+    std::lock_guard<std::mutex> lock(
+        mutex_times_last_external_feature_messages_received_or_checked_ns_);
+    const int64_t time_since_last_epoch = aslam::time::nanoSecondsSinceEpoch();
+    std::fill(
+        times_last_external_feature_messages_received_or_checked_ns_.begin(),
+        times_last_external_feature_messages_received_or_checked_ns_.end(),
+        time_since_last_epoch);
+  }
 }
 
 void Synchronizer::checkIfMessagesAreIncomingWorker() {

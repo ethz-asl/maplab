@@ -92,6 +92,37 @@ MaplabNode::MaplabNode(
     }
   }
 
+  // Check and associate external feature sensors to cameras in the main ncamera
+  aslam::SensorIdSet all_external_feature_sensor_ids;
+  sensor_manager_->getAllSensorIdsOfType(
+      vi_map::SensorType::kExternalFeatures, &all_external_feature_sensor_ids);
+  if (all_external_feature_sensor_ids.size() > 0) {
+    CHECK(mapping_ncamera) << "[MaplabNode] External features require a "
+                              "NCamera to add the features to.";
+
+    for (const aslam::SensorId sensor_id : all_external_feature_sensor_ids) {
+      vi_map::ExternalFeatures::Ptr external_features_sensor =
+          sensor_manager_->getSensorPtr<vi_map::ExternalFeatures>(sensor_id);
+
+      bool camera_exists = false;
+      for (size_t i = 0; i < mapping_ncamera->getNumCameras(); i++) {
+        if (mapping_ncamera->getCamera(i).getId() ==
+            external_features_sensor->getTargetSensorId()) {
+          camera_exists = true;
+          external_features_sensor->setTargetNCameraId(
+              mapping_ncamera->getId());
+          external_features_sensor->setTargetCameraIndex(i);
+          break;
+        }
+      }
+
+      CHECK(camera_exists)
+          << "[MaplabNode] External features enabled, but target sensor "
+          << external_features_sensor->getTargetSensorId() << " not found "
+          << "for the selected NCamera " << mapping_ncamera->getId() << ".";
+    }
+  }
+
   // === SYNCHRONIZER ===
   synchronizer_flow_.reset(new SynchronizerFlow(*sensor_manager_));
   synchronizer_flow_->attachToMessageFlow(message_flow_);
@@ -201,32 +232,22 @@ void MaplabNode::initializeExternalFeatures() {
     aslam::NCamera::Ptr mapping_ncamera =
         vi_map::getSelectedNCamera(*sensor_manager_);
     CHECK(mapping_ncamera) << "[MaplabNode] External features require a "
-                              "NCamera to add the features to";
+                              "NCamera to add the features to.";
 
     for (const aslam::SensorId sensor_id : all_external_feature_sensor_ids) {
       vi_map::ExternalFeatures::Ptr external_features_sensor =
           sensor_manager_->getSensorPtr<vi_map::ExternalFeatures>(sensor_id);
 
-      bool camera_exists = false;
-      for (size_t i = 0; i < mapping_ncamera->getNumCameras(); i++) {
-        if (mapping_ncamera->getCamera(i).getId() ==
-            external_features_sensor->getTargetSensorId()) {
-          camera_exists = true;
-        }
-      }
-
-      CHECK(camera_exists)
-          << "[MaplabNode] External features enabled, but target sensor "
-          << external_features_sensor->getTargetSensorId() << " not found.";
+      // tracker_flow_.reset(new FeatureTrackingFlow(
+      //    mapping_ncamera, synchronizer_flow_->T_M_B_buffer()));
+      // tracker_flow_->attachToMessageFlow(message_flow_);
 
       LOG(INFO) << "[MaplabNode] External features ENABLED for sensor "
                 << external_features_sensor->getTargetSensorId();
     }
-    // synchronizer_flow_->initializeVisualData(mapping_ncamera);
-    // tracker_flow_.reset(new FeatureTrackingFlow(
-    //    mapping_ncamera, synchronizer_flow_->T_M_B_buffer()));
-    // tracker_flow_->attachToMessageFlow(message_flow_);
-    // LOG(INFO) << "[MaplabNode] Visual-inertial mapping is ENABLED!";
+
+    synchronizer_flow_->initializeExternalFeaturesData(
+        all_external_feature_sensor_ids);
   }
 }
 

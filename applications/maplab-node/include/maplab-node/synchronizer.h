@@ -11,6 +11,7 @@
 #include <aslam/pipeline/visual-npipeline.h>
 #include <opencv2/core/core.hpp>
 #include <sensors/absolute-6dof-pose.h>
+#include <sensors/external-features.h>
 #include <sensors/odometry-6dof-pose.h>
 #include <sensors/pointcloud-map-sensor.h>
 #include <sensors/wheel-odometry-sensor.h>
@@ -36,6 +37,8 @@ class Synchronizer {
 
   void initializeNCameraSynchronization(
       const aslam::NCamera::Ptr& camera_system);
+  void initializeExternalFeaturesSynchronization(
+      const aslam::SensorIdSet& external_feature_sensor_ids);
 
   void processImuMeasurements(
       const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& timestamps_nanoseconds,
@@ -55,6 +58,9 @@ class Synchronizer {
   void processPointCloudMapMeasurement(
       const vi_map::RosPointCloudMapSensorMeasurement::ConstPtr&
           pointcloud_map);
+  void processExternalFeatureMeasurement(
+      const vi_map::ExternalFeaturesMeasurement::ConstPtr&
+          external_features_measurement);
 
   // These functions make sure the synchronizer is aware that data of this type
   // is incomming and it will raise a warning if no data is received for more
@@ -67,6 +73,7 @@ class Synchronizer {
   void expectWheelOdometryData();
   void expectLoopClosureData();
   void expectPointCloudMapData();
+  void expectExternalFeaturesData();
 
   // Release the buffered data based on the availability of the odometry pose.
   void releaseData();
@@ -172,6 +179,14 @@ class Synchronizer {
   common::TemporalBuffer<vi_map::RosPointCloudMapSensorMeasurement::ConstPtr>
       pointcloud_map_buffer_;
 
+  // Buffer to store the external features before they are released.
+  mutable std::mutex external_features_buffer_mutex_;
+  std::unordered_map<aslam::SensorId, size_t> external_features_id_to_index_map_;
+  Aligned<
+      std::vector,
+      common::TemporalBuffer<vi_map::ExternalFeaturesMeasurement::ConstPtr>>
+      external_features_buffer_;
+
   // Number of already skipped images.
   size_t image_skip_counter_;
   // Number of already skipped frames.
@@ -219,6 +234,11 @@ class Synchronizer {
   // need to be bundled for release
   std::mutex mutex_times_last_camera_messages_received_or_checked_ns_;
   std::vector<int64_t> times_last_camera_messages_received_or_checked_ns_;
+
+  // For the external features we keep track of each individual sensor
+  std::mutex mutex_times_last_external_feature_messages_received_or_checked_ns_;
+  std::vector<int64_t>
+      times_last_external_feature_messages_received_or_checked_ns_;
 
   std::vector<std::function<void(const vio::SynchronizedNFrame::Ptr&)>>
       nframe_callbacks_;
