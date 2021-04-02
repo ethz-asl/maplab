@@ -725,6 +725,51 @@ void Synchronizer::releasePointCloudMapData(
   }
 }
 
+void Synchronizer::releaseExternalFeatures(
+    const int64_t oldest_timestamp_ns, const int64_t newest_timestamp_ns) {
+  CHECK_GE(newest_timestamp_ns, oldest_timestamp_ns);
+  Aligned<std::vector, vi_map::ExternalFeaturesMeasurement::ConstPtr>
+      all_external_features_measurements;
+  {
+    std::lock_guard<std::mutex> lock(external_features_buffer_mutex_);
+    for (auto& buffer : external_features_buffer_) {
+      // Drop these external feature messages, since there is no odometry data
+      // anymore for them.
+      // TODO(smauq): enable this only when tracking is needed, otherwise we are
+      // fine, since we don't need odometry to attach the messages to the graph
+      /*const size_t dropped_external_features =
+          buffer.removeItemsBefore(oldest_timestamp_ns);
+      LOG_IF(WARNING, dropped_external_features != 0u)
+          << "[MaplabNode-Synchronizer] Could not find an odometry "
+          << "transformation for " << dropped_external_features
+          << " external features because it was already dropped from the "
+          << "buffer! This might be okay during initialization.";
+      external_features_skip_counter_ += dropped_external_features;*/
+
+      Aligned<std::vector, vi_map::ExternalFeaturesMeasurement::ConstPtr>
+          extracted_external_features_measurements;
+      buffer.extractItemsBeforeIncluding(
+          newest_timestamp_ns, &extracted_external_features_measurements);
+      all_external_features_measurements.insert(
+          all_external_features_measurements.end(),
+          extracted_external_features_measurements.begin(),
+          extracted_external_features_measurements.end());
+    }
+  }
+
+  for (const vi_map::ExternalFeaturesMeasurement::ConstPtr
+           external_features_measurement : all_external_features_measurements) {
+    CHECK(external_features_measurement);
+    std::lock_guard<std::mutex> callback_lock(
+        external_features_callback_mutex_);
+    for (const std::function<void(
+             const vi_map::ExternalFeaturesMeasurement::ConstPtr&)>&
+             callback : external_features_callbacks_) {
+      callback(external_features_measurement);
+    }
+  }
+}
+
 void Synchronizer::releaseData() {
   int64_t oldest_timestamp_ns;
   int64_t newest_timestamp_ns;
@@ -836,6 +881,14 @@ void Synchronizer::registerPointCloudMapSensorMeasurementCallback(
   std::lock_guard<std::mutex> lock(pointcloud_map_callback_mutex_);
   CHECK(callback);
   pointcloud_map_callbacks_.push_back(callback);
+}
+
+void Synchronizer::registerExternalFeaturesMeasurementCallback(
+    const std::function<
+        void(const vi_map::ExternalFeaturesMeasurement::ConstPtr&)>& callback) {
+  std::lock_guard<std::mutex> lock(external_features_callback_mutex_);
+  CHECK(callback);
+  external_features_callbacks_.emplace_back(callback);
 }
 
 void Synchronizer::shutdown() {

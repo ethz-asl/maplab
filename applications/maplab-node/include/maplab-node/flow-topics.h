@@ -67,6 +67,8 @@ MESSAGE_FLOW_TOPIC(
 // an existing camera inside an ncamera.
 MESSAGE_FLOW_TOPIC(
     EXTERNAL_FEATURES, vi_map::ExternalFeaturesMeasurement::ConstPtr);
+MESSAGE_FLOW_TOPIC(
+    SYNCED_EXTERNAL_FEATURES, vi_map::ExternalFeaturesMeasurement::ConstPtr);
 
 // Output of the localizer.
 MESSAGE_FLOW_TOPIC(LOCALIZATION_RESULT, common::LocalizationResult::ConstPtr);

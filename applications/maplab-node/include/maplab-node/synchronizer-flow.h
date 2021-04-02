@@ -198,9 +198,9 @@ class SynchronizerFlow {
           this->synchronizer_.processExternalFeatureMeasurement(
               external_features_measurement);
         });
-    /*synchronizer_.registerSynchronizedNFrameCallback(
-        message_flow_
-            ->registerPublisher<message_flow_topics::SYNCED_NFRAMES>());*/
+    synchronizer_.registerExternalFeaturesMeasurementCallback(
+        message_flow_->registerPublisher<
+            message_flow_topics::SYNCED_EXTERNAL_FEATURES>());
   }
 
   void attachToMessageFlow(message_flow::MessageFlow* const flow) {

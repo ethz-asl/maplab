@@ -89,6 +89,8 @@ class Synchronizer {
       const int64_t oldest_timestamp_ns, const int64_t newest_timestamp_ns);
   void releasePointCloudMapData(
       const int64_t oldest_timestamp_ns, const int64_t newest_timestamp_ns);
+  void releaseExternalFeatures(
+      const int64_t oldest_timestamp_ns, const int64_t newest_timestamp_ns);
 
   void registerSynchronizedNFrameCallback(
       const std::function<void(const vio::SynchronizedNFrame::Ptr&)>& callback);
@@ -117,6 +119,10 @@ class Synchronizer {
       const std::function<
           void(const vi_map::RosPointCloudMapSensorMeasurement::ConstPtr&)>&
           callback);
+
+  void registerExternalFeaturesMeasurementCallback(
+      const std::function<void(
+          const vi_map::ExternalFeaturesMeasurement::ConstPtr&)>& callback);
 
   void start();
   void shutdown();
@@ -181,7 +187,8 @@ class Synchronizer {
 
   // Buffer to store the external features before they are released.
   mutable std::mutex external_features_buffer_mutex_;
-  std::unordered_map<aslam::SensorId, size_t> external_features_id_to_index_map_;
+  std::unordered_map<aslam::SensorId, size_t>
+      external_features_id_to_index_map_;
   Aligned<
       std::vector,
       common::TemporalBuffer<vi_map::ExternalFeaturesMeasurement::ConstPtr>>
@@ -211,6 +218,8 @@ class Synchronizer {
   size_t loop_closure_skip_counter_;
   // Number of already skipped pointcloud map measurements.
   size_t pointcloud_map_skip_counter_;
+  // Number of already skipped pointcloud map measurements.
+  size_t external_features_skip_counter_;
 
   std::atomic<bool> shutdown_;
   std::condition_variable cv_shutdown_;
@@ -270,6 +279,11 @@ class Synchronizer {
       const vi_map::RosPointCloudMapSensorMeasurement::ConstPtr&)>>
       pointcloud_map_callbacks_;
   std::mutex pointcloud_map_callback_mutex_;
+
+  std::vector<
+      std::function<void(const vi_map::ExternalFeaturesMeasurement::ConstPtr&)>>
+      external_features_callbacks_;
+  std::mutex external_features_callback_mutex_;
 
   std::unique_ptr<SynchronizerStatistics> statistics_;
 };
