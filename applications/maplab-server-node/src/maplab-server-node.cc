@@ -459,6 +459,12 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
 
   std::lock_guard<std::mutex> lock(mutex_);
 
+  if (!map_manager_.hasMap(kMergedMapKey)) {
+    LOG(WARNING)
+        << "[MaplabServerNode] Received map lookup but merged map does not "
+           "exist yet!";
+    return MapLookupStatus::kPoseNotAvailableYet;
+  }
   if (robot_name.empty()) {
     LOG(WARNING)
         << "[MaplabServerNode] Received map lookup with empty robot name!";
