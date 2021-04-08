@@ -883,31 +883,33 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   }
 
   {
-    {
-      std::lock_guard<std::mutex> merge_status_lock(
-          running_merging_process_mutex_);
-      running_merging_process_ = "Compute sparse uncertainty";
-    }
+      /*
+      {
+        std::lock_guard<std::mutex> merge_status_lock(
+            running_merging_process_mutex_);
+        running_merging_process_ = "Compute sparse uncertainty";
+      }
 
-    std::map<uint32_t, pose_graph::VertexIdList> all_vertices =
-        sparsified_graph_.getAllVerticesPerSubmap();
+      std::map<uint32_t, pose_graph::VertexIdList> all_vertices =
+          sparsified_graph_.getAllVerticesPerSubmap();
 
-    // Compute covariances for each sparsified pose.
-    map_optimization::VIMapOptimizer optimizer(nullptr, false);
+      // Compute covariances for each sparsified pose.
+      map_optimization::VIMapOptimizer optimizer(nullptr, false);
 
-    vi_map::VIMapManager::MapWriteAccess map_write =
-        map_manager_.getMapWriteAccess(kMergedMapKey);
-    vi_map::MissionIdList mission_ids;
-    map_write->getAllMissionIds(&mission_ids);
+      vi_map::VIMapManager::MapWriteAccess map_write =
+          map_manager_.getMapWriteAccess(kMergedMapKey);
+      vi_map::MissionIdList mission_ids;
+      map_write->getAllMissionIds(&mission_ids);
 
-    const vi_map::MissionIdSet missions_to_optimize(
-        mission_ids.begin(), mission_ids.end());
-    map_optimization::ViProblemOptions options =
-        map_optimization::ViProblemOptions::initFromGFlags();
+      const vi_map::MissionIdSet missions_to_optimize(
+          mission_ids.begin(), mission_ids.end());
+      map_optimization::ViProblemOptions options =
+          map_optimization::ViProblemOptions::initFromGFlags();
 
-    std::map<uint32_t, double> residuals = optimizer.getResidualsForVertices(
-        options, missions_to_optimize, all_vertices, map_write.get());
-    sparsified_graph_.attachResiduals(std::move(residuals));
+      std::map<uint32_t, double> residuals = optimizer.getResidualsForVertices(
+          options, missions_to_optimize, all_vertices, map_write.get());
+      sparsified_graph_.attachResiduals(std::move(residuals));
+      */
   }
 
   {

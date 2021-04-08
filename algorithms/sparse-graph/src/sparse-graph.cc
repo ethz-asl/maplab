@@ -496,11 +496,12 @@ void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
   if (sparse_graph_.empty()) {
     return;
   }
+  pub_submap_ids.clear();
   for (const RepresentativeNode& node : sparse_graph_) {
     const uint32_t submap_id = node.getAssociatedSubmapId();
-    // if (wasSubmapPublished(submap_id)) {
-    // continue;
-    //}
+    if (wasSubmapPublished(submap_id)) {
+      continue;
+    }
 
     // Retrieve the mission graph.
     const MissionGraph* mission_graph;

@@ -300,12 +300,6 @@ void visualizeReprojectedDepthResource(
 
         ++point_cloud_counter;
 
-        if (accumulated_point_cloud_G.empty()) {
-          LOG(WARNING) << "Accumulated reprojected depth resource "
-                       << "is empty, not publishing.";
-          return;
-        }
-
         // If we just accumulate, transform to global frame and append.
         if (FLAGS_vis_pointcloud_accumulated_before_publishing) {
           const size_t previous_size = accumulated_point_cloud_G.size();
