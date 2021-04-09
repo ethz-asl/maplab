@@ -93,11 +93,21 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
   const double fitness_score = aligner_.getFitnessScore(
       FLAGS_regbox_pcl_fitness_max_considered_distance_m);
   is_converged &= fitness_score <= FLAGS_regbox_pcl_max_fitness_score_m;
-  const Eigen::Matrix4f T = aligner_.getFinalTransformation();
-  const Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6) * 1;
-  return RegistrationResult(
-      transformed, cov, this->convertEigenToKindr(T.cast<double>()),
-      aligner_.hasConverged() & is_converged);
+  const Eigen::Matrix4f T_f = aligner_.getFinalTransformation();
+  const Eigen::Matrix4d T = T_f.cast<double>();
+  const Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6) * 1e-2;
+
+  if (T.topLeftCorner<3, 3>().normalized().squaredNorm() <=
+      static_cast<double>(1) +
+          kindr::minimal::EPS<double>::normalization_value()) {
+    return RegistrationResult(
+        transformed, cov, this->convertEigenToKindr(T),
+        aligner_.hasConverged() & is_converged);
+  } else {
+    LOG(ERROR)
+        << "PCL registration gave invalid rotation matrix, returning prior.";
+    return RegistrationResult(transformed, cov, prior_T_target_source, false);
+  }
 }
 
 template <typename T_alignment, typename T_point>
