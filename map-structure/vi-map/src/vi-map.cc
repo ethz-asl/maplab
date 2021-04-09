@@ -2971,10 +2971,17 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
 
           // If the same vertex in the submap owns a new landmark, we
           // transfer it to the base map using the storing vertex.
+          // If the storing vertex is the first vertex of the submap,
+          // we need to add it to the last vertex of the basemap.
           base_last_vertex.setObservedLandmarkId(
               frame_idx, observation_idx, submap_landmark_id);
+          const pose_graph::VertexId& new_landmark_vertex_id =
+              (storing_vertex_id_submap == first_submap_vertex_id)
+                  ? last_base_vertex_id
+                  : storing_vertex_id_submap;
+          CHECK(!landmark_index.hasLandmark(submap_landmark_id));
           landmark_index.addLandmarkAndVertexReference(
-              submap_landmark_id, storing_vertex_id_submap);
+              submap_landmark_id, new_landmark_vertex_id);
 
           // If the first vertex of the submap stores the landmark we also add
           // it to the last vertex of the base map. Otherwise the landmark is
