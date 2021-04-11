@@ -40,8 +40,6 @@
 #include "vi-map/mission.h"
 #include "vi-map/pose-graph.h"
 #include "vi-map/sensor-manager.h"
-#include "vi-map/structure-loopclosure-edge.h"
-#include "vi-map/trajectory-edge.h"
 #include "vi-map/transformation-edge.h"
 #include "vi-map/unique-id.h"
 #include "vi-map/vertex.h"
