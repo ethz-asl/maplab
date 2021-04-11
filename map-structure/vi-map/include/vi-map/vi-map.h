@@ -35,7 +35,6 @@
 #include "vi-map/cklam-edge.h"
 #include "vi-map/landmark-index.h"
 #include "vi-map/landmark.h"
-#include "vi-map/laser-edge.h"
 #include "vi-map/loopclosure-edge.h"
 #include "vi-map/mission-baseframe.h"
 #include "vi-map/mission.h"

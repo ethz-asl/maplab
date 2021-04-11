@@ -13,7 +13,6 @@ SET(VI_MAP_SOURCE src/check-map-consistency.cc
                   src/landmark-quality-metrics.cc
                   src/landmark-store.cc
                   src/landmark.cc
-                  src/laser-edge.cc
                   src/loopclosure-edge.cc
                   src/mission-baseframe.cc
                   src/mission.cc

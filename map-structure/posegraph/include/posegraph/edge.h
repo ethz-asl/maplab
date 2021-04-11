@@ -26,7 +26,6 @@ class Edge {
     kViwls = 2,
     kStructureLoopClosure = 3,
     k6DoFGps = 4,
-    kLaser = 5,
     kTrajectory = 6,
     kCklamImuLandmark = 7,
     kWheelOdometry = 8

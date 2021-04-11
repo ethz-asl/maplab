@@ -3,7 +3,6 @@
 #include <aslam/common/memory.h>
 
 #include "vi-map/cklam-edge.h"
-#include "vi-map/laser-edge.h"
 #include "vi-map/loopclosure-edge.h"
 #include "vi-map/structure-loopclosure-edge.h"
 #include "vi-map/trajectory-edge.h"
@@ -53,10 +52,6 @@ void Edge::serialize(vi_map::proto::Edge* proto) const {
     const vi_map::TransformationEdge& derived_edge =
         static_cast<const vi_map::TransformationEdge&>(*this);
     derived_edge.serialize(proto->mutable_transformation());
-  } else if (getType() == pose_graph::Edge::EdgeType::kLaser) {
-    const vi_map::LaserEdge& derived_edge =
-        static_cast<const vi_map::LaserEdge&>(*this);
-    derived_edge.serialize(proto->mutable_laser());
   } else if (getType() == pose_graph::Edge::EdgeType::kTrajectory) {
     const vi_map::TrajectoryEdge& derived_edge =
         static_cast<const vi_map::TrajectoryEdge&>(*this);
@@ -95,10 +90,6 @@ Edge::UniquePtr Edge::deserialize(
         new vi_map::TransformationEdge(vi_map::Edge::EdgeType::k6DoFGps));
     edge->deserialize(edge_id, proto.transformation());
     return Edge::UniquePtr(edge);
-  } else if (proto.has_laser()) {
-    vi_map::LaserEdge* edge(new vi_map::LaserEdge());
-    edge->deserialize(edge_id, proto.laser());
-    return Edge::UniquePtr(edge);
   } else if (proto.has_trajectory()) {
     vi_map::TrajectoryEdge* edge(new vi_map::TrajectoryEdge());
     edge->deserialize(edge_id, proto.trajectory());
@@ -130,10 +121,6 @@ void Edge::copyEdgeInto(Edge** new_edge) const {
     }
     case pose_graph::Edge::EdgeType::kStructureLoopClosure: {
       copyEdge<StructureLoopclosureEdge>(new_edge);
-      break;
-    }
-    case pose_graph::Edge::EdgeType::kLaser: {
-      copyEdge<LaserEdge>(new_edge);
       break;
     }
     case pose_graph::Edge::EdgeType::kTrajectory: {
