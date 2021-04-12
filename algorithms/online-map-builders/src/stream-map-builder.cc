@@ -463,7 +463,7 @@ void StreamMapBuilder::bufferAbsolute6DoFConstraint(
   CHECK(absolute_6dof_constraint->isValid())
       << "[StreamMapBuilder] Absolute 6DoF constraint invalid!";
 
-  absolute_6dof_measurment_buffer_.addValue(
+  absolute_6dof_measurement_buffer_.addValue(
       absolute_6dof_constraint->getTimestampNanoseconds(),
       absolute_6dof_constraint);
 }
@@ -515,17 +515,28 @@ void StreamMapBuilder::bufferWheelOdometryConstraint(
       wheel_odometry_constraint);
 }
 
+void StreamMapBuilder::bufferExternalFeaturesMeasurement(
+    const vi_map::ExternalFeaturesMeasurement::ConstPtr&
+        external_features_measurement) {
+  CHECK_NOTNULL(map_);
+  CHECK(external_features_measurement);
+  CHECK(external_features_measurement->isValid())
+      << "[StreamMapBuilder] External features measurement invalid!";
+
+  external_features_measurement_temporal_buffer_.addValue(
+      external_features_measurement->getTimestampNanoseconds(),
+      external_features_measurement);
+}
+
 void StreamMapBuilder::notifyBuffers() {
   notifyAbsolute6DoFConstraintBuffer();
   notifyLoopClosureConstraintBuffer();
-
-  if (constMap()->getMission(mission_id_).hasWheelOdometrySensor()) {
-    notifyWheelOdometryConstraintBuffer();
-  }
+  notifyWheelOdometryConstraintBuffer();
+  notifyExternalFeaturesMeasurementBuffer();
 }
 
 void StreamMapBuilder::notifyAbsolute6DoFConstraintBuffer() {
-  if (map_->numVertices() < 2u || absolute_6dof_measurment_buffer_.empty()) {
+  if (map_->numVertices() < 2u || absolute_6dof_measurement_buffer_.empty()) {
     return;
   }
 
@@ -535,7 +546,8 @@ void StreamMapBuilder::notifyAbsolute6DoFConstraintBuffer() {
   CHECK(aslam::time::isValidTime(oldest_vertex_time_ns));
 
   const size_t dropped_constraints =
-      absolute_6dof_measurment_buffer_.removeItemsBefore(oldest_vertex_time_ns);
+      absolute_6dof_measurement_buffer_.removeItemsBefore(
+          oldest_vertex_time_ns);
   if (dropped_constraints > 0u) {
     LOG(WARNING) << "[StreamMapBuilder] Dropped " << dropped_constraints
                  << " absolute 6DoF constraints, because they are before the "
@@ -543,11 +555,12 @@ void StreamMapBuilder::notifyAbsolute6DoFConstraintBuffer() {
   }
 
   std::vector<vi_map::Absolute6DoFMeasurement::Ptr> constraints;
-  absolute_6dof_measurment_buffer_.getValuesFromIncludingToIncluding(
+  absolute_6dof_measurement_buffer_.getValuesFromIncludingToIncluding(
       oldest_vertex_time_ns, newest_vertex_time_ns, &constraints);
 
   const size_t processed_constraints =
-      absolute_6dof_measurment_buffer_.removeItemsBefore(newest_vertex_time_ns);
+      absolute_6dof_measurement_buffer_.removeItemsBefore(
+          newest_vertex_time_ns);
 
   VLOG(3) << "[StreamMapBuilder] Processing " << processed_constraints
           << " absolute 6DoF constraints.";
@@ -686,7 +699,7 @@ void StreamMapBuilder::notifyLoopClosureConstraintBuffer() {
   if (loop_closure_measurement_buffer_.size() > 0u) {
     VLOG(3) << "[StreamMapBuilder] Left "
             << loop_closure_measurement_buffer_.size()
-            << " loop closure constraints in the buffer, because they "
+            << " loop closure constraints in the buffer, because they are "
             << "newer than the latest vertex in the map.";
   }
   VLOG(3) << "[StreamMapBuilder] Attaching or updating "
@@ -859,8 +872,6 @@ void StreamMapBuilder::notifyLoopClosureConstraintBuffer() {
 void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
   if ((map_->numVertices() < 1u ||
        wheel_odometry_measurement_temporal_buffer_.empty())) {
-    VLOG(3) << "[StreamMapBuilder] No wheel odometry measurements in buffer "
-            << "yet; not adding wheel odom edge.";
     return;
   }
 
@@ -990,6 +1001,13 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
     }
   }
   VLOG(2) << "[StreamMapBuilder] Added " << counter << " wheel odometry edges.";
+}
+
+void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
+  if (map_->numVertices() < 1u ||
+      external_features_measurement_temporal_buffer_.empty()) {
+    return;
+  }
 }
 
 }  // namespace online_map_builders
