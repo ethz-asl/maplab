@@ -1004,9 +1004,82 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
 }
 
 void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
-  if (map_->numVertices() < 1u ||
+  if (map_->numVertices() < 2u ||
       external_features_measurement_temporal_buffer_.empty()) {
     return;
+  }
+
+  const int64_t newest_vertex_time_ns = newest_vertex_timestamp_ns_.load();
+  const int64_t oldest_vertex_time_ns = oldest_vertex_timestamp_ns_.load();
+  CHECK(aslam::time::isValidTime(newest_vertex_time_ns));
+  CHECK(aslam::time::isValidTime(oldest_vertex_time_ns));
+
+  const size_t dropped_constraints =
+      external_features_measurement_temporal_buffer_.removeItemsBefore(
+          oldest_vertex_time_ns);
+  if (dropped_constraints > 0u) {
+    LOG(WARNING) << "[StreamMapBuilder] Dropped " << dropped_constraints
+                 << " external feature measurements, because they are before "
+                 << "the first vertex of the map.";
+  }
+
+  std::vector<vi_map::ExternalFeaturesMeasurement::ConstPtr> measurements;
+  external_features_measurement_temporal_buffer_
+      .getValuesFromIncludingToIncluding(
+          oldest_vertex_time_ns, newest_vertex_time_ns, &measurements);
+
+  const size_t processed_measurements =
+      external_features_measurement_temporal_buffer_.removeItemsBefore(
+          newest_vertex_time_ns);
+
+  VLOG(3) << "[StreamMapBuilder] Processing " << processed_measurements
+          << " external feature measurements.";
+
+  for (const vi_map::ExternalFeaturesMeasurement::ConstPtr measurement_ptr :
+       measurements) {
+    CHECK(measurement_ptr);
+    CHECK_LE(measurement_ptr->getTimestampNanoseconds(), newest_vertex_time_ns);
+    CHECK_GE(measurement_ptr->getTimestampNanoseconds(), oldest_vertex_time_ns);
+    const vi_map::ExternalFeaturesMeasurement& external_features_measurement =
+        *measurement_ptr;
+
+    const aslam::SensorId external_features_sensor_id =
+        external_features_measurement.getSensorId();
+    const vi_map::ExternalFeatures& external_features_sensor =
+        map_->getSensorManager().getSensor<vi_map::ExternalFeatures>(
+            external_features_sensor_id);
+
+    const aslam::SensorId& ncamera_sensor_id =
+        external_features_sensor.getTargetNCameraId();
+    const size_t target_camera_index =
+        external_features_sensor.getTargetCameraIndex();
+
+    const int64_t timestamp_ns_measurement =
+        external_features_measurement.getTimestampNanoseconds();
+
+    constexpr int64_t kMaxInterpolationTimeNs = aslam::time::milliseconds(500);
+    pose_graph::VertexId closest_vertex_id;
+    uint64_t delta_ns = 0u;
+    if (!queries_.getClosestVertexIdByTimestamp(
+            timestamp_ns_measurement, kMaxInterpolationTimeNs,
+            &closest_vertex_id, &delta_ns)) {
+      LOG(WARNING)
+          << "[StreamMapBuilder] Could not attach external features "
+          << "measurement, because the timestamp is not close enough to "
+          << "a vertex in the pose graph (delta = " << delta_ns << "ns > "
+          << kMaxInterpolationTimeNs
+          << "ns)! timestamp_ns: " << timestamp_ns_measurement << ".";
+      continue;
+    }
+
+    // TODO(smauq): attach measurement here
+
+    vi_map::Vertex& closest_vertex = map_->getVertex(closest_vertex_id);
+
+    VLOG(3) << "[StreamMapBuilder] Attached a new external features "
+            << "measurement for vertex " << closest_vertex_id << ", which now "
+            << "has " << closest_vertex.getNumAbsolute6DoFMeasurements()
+            << " such constraints.";
   }
 }
 
