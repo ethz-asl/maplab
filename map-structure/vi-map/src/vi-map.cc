@@ -2965,7 +2965,6 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
           submap_to_base_landmark_id_map[submap_landmark_id] = base_landmark_id;
           remapped_landmark_base_ids.insert(base_landmark_id);
           remapped_landmark_submap_ids.insert(submap_landmark_id);
-          LOG(INFO) << "valid";
         } else {
           CHECK(
               !base_last_vertex.getLandmarks().hasLandmark(submap_landmark_id));
@@ -2981,7 +2980,6 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
                   ? last_base_vertex_id
                   : storing_vertex_id_submap;
           CHECK(!landmark_index.hasLandmark(submap_landmark_id));
-          LOG(INFO) << "add1";
           landmark_index.addLandmarkAndVertexReference(
               submap_landmark_id, new_landmark_vertex_id);
 
@@ -3060,7 +3058,6 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
       vi_map::Landmark submap_landmark =
           submap_first_vertex.getLandmarks().getLandmark(owned_landmark_id);
       base_last_vertex.getLandmarks().addLandmark(submap_landmark);
-      LOG(INFO) << "add2";
       landmark_index.addLandmarkAndVertexReference(
           owned_landmark_id, last_base_vertex_id);
     }
@@ -3096,27 +3093,21 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
         // If this landmark has been remapped to a landmark in the base map we
         // can delete it or if it doesn't have any observations. Otherwise we
         // need to update the global landmark index of the base map.
+        const bool has_observations = vertex_copy->getLandmarks()
+                                          .getLandmark(owned_landmark_id)
+                                          .hasObservations();
         if (remapped_landmark_submap_ids.count(owned_landmark_id) > 0u ||
-            !vertex_copy->getLandmarks()
-                 .getLandmark(owned_landmark_id)
-                 .hasObservations()) {
-          if (vertex_copy->getLandmarks()
-                  .getLandmark(owned_landmark_id)
-                  .hasObservations()) {
-            vertex_copy->updateIdInObservedLandmarkIdList(
-                owned_landmark_id,
-                submap_to_base_landmark_id_map[owned_landmark_id]);
-          } else {
+            !has_observations) {
+          vertex_copy->getLandmarks().removeLandmark(owned_landmark_id);
+          if (!has_observations) {
             LandmarkId invalid;
             vertex_copy->updateIdInObservedLandmarkIdList(
                 owned_landmark_id, invalid);
           }
-          LOG(INFO) << "update1";
-          vertex_copy->getLandmarks().removeLandmark(owned_landmark_id);
+
           // Check if the landmark is already included which can happen if the
           // landmark was added as an observation from a previous vertex.
         } else if (!landmark_index.hasLandmark(owned_landmark_id)) {
-          LOG(INFO) << "add3";
           landmark_index.addLandmarkAndVertexReference(
               owned_landmark_id, submap_vertex_id);
         }
@@ -3161,7 +3152,6 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
             // occurences of the landmark in the observer list, which is why
             // we needed to make sure only every landmark is executing this
             // loop once.
-            LOG(INFO) << "update2";
             vertex_copy->updateIdInObservedLandmarkIdList(
                 submap_landmark_id, corresponding_base_landmark_id);
             CHECK_EQ(
@@ -3177,7 +3167,8 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
           // Should have been deleted already when it was detected in the
           // first vertex of the submap.
           CHECK(!vertex_copy->hasStoredLandmark(submap_landmark_id));
-        } else if (!landmark_index.hasLandmark(submap_landmark_id)) {
+          // } else if (!landmark_index.hasLandmark(submap_landmark_id)) {
+        } else {
           corresponding_base_landmark_id = submap_landmark_id;
 
           CHECK(submap.landmark_index.hasLandmark(submap_landmark_id));
@@ -3186,20 +3177,19 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
           CHECK(submap.hasVertex(storing_vertex_id));
           CHECK(submap.getVertex(storing_vertex_id)
                     .hasStoredLandmark(submap_landmark_id));
-        } else {
-          storing_vertex_id =
-              landmark_index.getStoringVertexId(submap_landmark_id);
-          corresponding_base_landmark_id = submap_landmark_id;
         }
+        // else {
+        //   storing_vertex_id =
+        //       landmark_index.getStoringVertexId(submap_landmark_id);
+        //   corresponding_base_landmark_id = submap_landmark_id;
+        // }
         CHECK(storing_vertex_id.isValid());
         CHECK(corresponding_base_landmark_id.isValid());
 
         if (landmark_index.hasLandmark(corresponding_base_landmark_id)) {
-          LOG(INFO) << "update6";
           landmark_index.updateVertexOfLandmark(
               corresponding_base_landmark_id, storing_vertex_id);
         } else {
-          LOG(INFO) << "add4";
           landmark_index.addLandmarkAndVertexReference(
               corresponding_base_landmark_id, storing_vertex_id);
         }
