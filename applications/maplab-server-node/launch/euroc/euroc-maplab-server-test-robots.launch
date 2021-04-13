@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 
-<!-- Requires: 
+<!-- Requires:
   - ethz-asl/maplab (develop)
-  - ethz-asl/transfolder 
+  - ethz-asl/transfolder
 -->
 
 <launch>
@@ -66,7 +66,7 @@
 			<arg name="maplab_save_map_every_n_sec" default="$(arg euroc_save_map_every_n_sec)"/>
 			<arg name="maplab_keyframe_when_saving" default="true"/>
 			<arg name="maplab_image_topic_suffix" default="image_raw"/>
-			<arg name="maplab_attach_images" default="$(arg euroc_attach_images)"/>
+			<arg name="maplab_attach_tracking_images" default="$(arg euroc_attach_images)"/>
 			<arg name="maplab_map_folder" default="$(arg euroc_root_map_directory)/$(arg euroc_robot_name)/"/>
 			<arg name="maplab_apply_clahe" default="$(arg euroc_clahe)"/>
 			<arg name="maplab_remove_bad_landmarks" default="$(arg euroc_remove_bad_landmarks)"/>
@@ -98,7 +98,7 @@
 			<arg name="maplab_save_map_every_n_sec" default="$(arg euroc_save_map_every_n_sec)"/>
 			<arg name="maplab_keyframe_when_saving" default="true"/>
 			<arg name="maplab_image_topic_suffix" default="image_raw"/>
-			<arg name="maplab_attach_images" default="$(arg euroc_attach_images)"/>
+			<arg name="maplab_attach_tracking_images" default="$(arg euroc_attach_images)"/>
 			<arg name="maplab_map_folder" default="$(arg euroc_root_map_directory)/$(arg euroc_robot_name)/"/>
 			<arg name="maplab_apply_clahe" default="$(arg euroc_clahe)"/>
 			<arg name="maplab_remove_bad_landmarks" default="$(arg euroc_remove_bad_landmarks)"/>
@@ -130,7 +130,7 @@
 			<arg name="maplab_save_map_every_n_sec" default="$(arg euroc_save_map_every_n_sec)"/>
 			<arg name="maplab_keyframe_when_saving" default="true"/>
 			<arg name="maplab_image_topic_suffix" default="image_raw"/>
-			<arg name="maplab_attach_images" default="$(arg euroc_attach_images)"/>
+			<arg name="maplab_attach_tracking_images" default="$(arg euroc_attach_images)"/>
 			<arg name="maplab_map_folder" default="$(arg euroc_root_map_directory)/$(arg euroc_robot_name)/"/>
 			<arg name="maplab_apply_clahe" default="$(arg euroc_clahe)"/>
 			<arg name="maplab_remove_bad_landmarks" default="$(arg euroc_remove_bad_landmarks)"/>
@@ -162,7 +162,7 @@
 			<arg name="maplab_save_map_every_n_sec" default="$(arg euroc_save_map_every_n_sec)"/>
 			<arg name="maplab_keyframe_when_saving" default="true"/>
 			<arg name="maplab_image_topic_suffix" default="image_raw"/>
-			<arg name="maplab_attach_images" default="$(arg euroc_attach_images)"/>
+			<arg name="maplab_attach_tracking_images" default="$(arg euroc_attach_images)"/>
 			<arg name="maplab_map_folder" default="$(arg euroc_root_map_directory)/$(arg euroc_robot_name)/"/>
 			<arg name="maplab_apply_clahe" default="$(arg euroc_clahe)"/>
 			<arg name="maplab_remove_bad_landmarks" default="$(arg euroc_remove_bad_landmarks)"/>

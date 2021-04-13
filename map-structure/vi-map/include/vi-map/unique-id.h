@@ -15,6 +15,7 @@ namespace vi_map {
 UNIQUE_ID_DEFINE_ID(MissionId);
 UNIQUE_ID_DEFINE_ID(MissionBaseFrameId);
 UNIQUE_ID_DEFINE_ID(LandmarkId);
+UNIQUE_ID_DEFINE_ID(SemanticLandmarkId);
 UNIQUE_ID_DEFINE_ID(ResourceId);
 
 struct VisualFrameIdentifier {
@@ -75,6 +76,32 @@ struct KeypointIdentifier {
 };
 typedef std::vector<KeypointIdentifier> KeypointIdentifierList;
 
+struct SemanticObjectIdentifier {
+  VisualFrameIdentifier frame_id;
+  size_t measurement_index;
+  static constexpr size_t kInvalidMeasurementIndex =
+      std::numeric_limits<size_t>::max();
+
+  inline SemanticObjectIdentifier() : measurement_index(kInvalidMeasurementIndex) {}
+
+  inline SemanticObjectIdentifier(
+      const VisualFrameIdentifier& _frame_id, const size_t _measurement_index)
+      : frame_id(_frame_id), measurement_index(_measurement_index) {}
+
+  inline SemanticObjectIdentifier(
+      const pose_graph::VertexId& _vertex_id, const size_t _frame_index,
+      const size_t _measurement_index)
+      : frame_id(_vertex_id, _frame_index), measurement_index(_measurement_index) {}
+
+  inline bool operator==(const SemanticObjectIdentifier& other) const {
+    return frame_id == other.frame_id && measurement_index == other.measurement_index;
+  }
+  inline bool isValid() const {
+    return frame_id.isValid() && measurement_index != kInvalidMeasurementIndex;
+  }
+};
+typedef std::vector<SemanticObjectIdentifier> SemanticObjectIdentifierList;
+
 // Converts a CSV string with ID hex strings into a vector of IDs. If the CSV
 // string is empty it returns true and an empty vector. If one of the CSV
 // entries is not a valid ID, it returns false and an empty vector.
@@ -111,6 +138,7 @@ bool csvIdStringToIdList(const std::string& csv_ids, std::vector<Id>* id_list) {
 }  // namespace vi_map
 
 UNIQUE_ID_DEFINE_ID_HASH(vi_map::LandmarkId);
+UNIQUE_ID_DEFINE_ID_HASH(vi_map::SemanticLandmarkId);
 UNIQUE_ID_DEFINE_ID_HASH(vi_map::MissionId);
 UNIQUE_ID_DEFINE_ID_HASH(vi_map::MissionBaseFrameId);
 UNIQUE_ID_DEFINE_ID_HASH(vi_map::ResourceId);
@@ -129,6 +157,14 @@ struct hash<vi_map::KeypointIdentifier> {
   std::size_t operator()(const vi_map::KeypointIdentifier& identifier) const {
     return std::hash<vi_map::VisualFrameIdentifier>()(identifier.frame_id) ^
            std::hash<size_t>()(identifier.keypoint_index);
+  }
+};
+
+template <>
+struct hash<vi_map::SemanticObjectIdentifier> {
+  std::size_t operator()(const vi_map::SemanticObjectIdentifier& identifier) const {
+    return std::hash<vi_map::VisualFrameIdentifier>()(identifier.frame_id) ^
+           std::hash<size_t>()(identifier.measurement_index);
   }
 };
 

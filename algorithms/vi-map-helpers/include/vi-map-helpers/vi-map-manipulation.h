@@ -19,7 +19,8 @@ namespace vi_map_helpers {
 class VIMapManipulation {
  public:
   typedef std::unordered_map<int, vi_map::LandmarkId> TrackIndexToLandmarkIdMap;
-
+  typedef std::unordered_map<int, vi_map::SemanticLandmarkId>
+      TrackIndexToSemanticLandmarkIdMap;
   explicit VIMapManipulation(vi_map::VIMap* map);
 
   // =====================
@@ -82,6 +83,20 @@ class VIMapManipulation {
   void initializeLandmarksFromUnusedFeatureTracksOfVertex(
       const pose_graph::VertexId& vertex_id,
       TrackIndexToLandmarkIdMap* trackid_landmarkid_map);
+
+  // For each track id in each vertex, will either add a new semantic landmark
+  // or a backlink to an existing semantic landmark, if the semantic landmark
+  // id can be looked up. Since it's typically expected that semantic landmarks
+  // are stored at the first observation, you should pass in the vertices
+  // in order.
+  size_t initializeSemanticLandmarksFromUnusedFeatureTracksOfMission(
+      const vi_map::MissionId& mission_id);
+  void initializeSemanticLandmarksFromUnusedFeatureTracksOfOrderedVertices(
+      const pose_graph::VertexIdList& ordered_vertex_ids,
+      TrackIndexToSemanticLandmarkIdMap* trackid_semanticlandmarkid_map);
+  void initializeSemanticLandmarksFromUnusedFeatureTracksOfVertex(
+      const pose_graph::VertexId& vertex_id,
+      TrackIndexToSemanticLandmarkIdMap* trackid_semanticlandmarkid_map);
 
   // Releases image from the vertices that are older than
   // image_removal_age_threshold frames. Used by online odometry pipelines.

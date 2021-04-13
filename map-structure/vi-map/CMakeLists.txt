@@ -17,6 +17,9 @@ SET(VI_MAP_SOURCE src/check-map-consistency.cc
                   src/mission-baseframe.cc
                   src/mission.cc
                   src/pose-graph.cc
+                  src/semantic-landmark.cc
+                  src/semantic-landmark-quality-metrics.cc
+                  src/semantic-landmark-store.cc
                   src/sensor-manager.cc
                   src/sensor-utils.cc
                   src/test/vi-map-generator.cc
@@ -47,8 +50,12 @@ catkin_add_gtest(test_landmark
 target_link_libraries(test_landmark ${PROJECT_NAME})
 
 catkin_add_gtest(test_map_consistency_check_test
-  test/test_map_consistency_check.cc)
+test/test_map_consistency_check.cc)
 target_link_libraries(test_map_consistency_check_test ${PROJECT_NAME})
+
+catkin_add_gtest(test_semantic_landmark
+  test/test_semantic_landmark.cc)
+target_link_libraries(test_semantic_landmark ${PROJECT_NAME})
 
 catkin_add_gtest(test_map_get_vertex_ids_in_mission_test
   test/test_map_get_vertex_ids_in_mission_test.cc)

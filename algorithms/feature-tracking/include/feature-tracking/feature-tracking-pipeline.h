@@ -17,12 +17,12 @@
 namespace aslam {
 class FeatureTrackerLk;
 class VisualNFrame;
-}
+}  // namespace aslam
 
 namespace vi_map {
 class VIMap;
 class MissionId;
-}
+}  // namespace vi_map
 
 namespace aslam_cv_visualization {
 class VisualNFrameFeatureTrackVisualizer;
@@ -70,6 +70,11 @@ class FeatureTrackingPipeline {
   // Loads the raw-images specified in the resources table of the given map and
   // assigns them to the frames of the nframe of the given vertex.
   void assignRawImagesToNFrame(
+      const pose_graph::VertexId& vertex_id, vi_map::VIMap* map) const;
+
+  // Loads the color-images specified in the resources table of the given map
+  // and assigns them to the frames of the nframe of the given vertex.
+  void assignColorImagesToNFrame(
       const pose_graph::VertexId& vertex_id, vi_map::VIMap* map) const;
 
   // Looks for terminated feature tracks, triangulates them and adds them to the

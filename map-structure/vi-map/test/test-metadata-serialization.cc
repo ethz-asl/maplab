@@ -22,6 +22,8 @@ class MetadataSerializationTest : public ::testing::Test {
     metadata_.emplace(VIMapFileType::kEdges, "edges0");
     metadata_.emplace(VIMapFileType::kEdges, "edges1");
     metadata_.emplace(VIMapFileType::kEdges, "edges2");
+    metadata_.emplace(VIMapFileType::kLandmarkIndex, "landmarkindex0");
+    metadata_.emplace(VIMapFileType::kSemanticLandmarkIndex, "semanticlandmarkindex0");
 
     // Create inverse map.
     for (const VIMapMetadata::value_type& entry : metadata_) {

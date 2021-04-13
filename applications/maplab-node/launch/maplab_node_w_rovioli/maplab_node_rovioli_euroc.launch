@@ -19,7 +19,7 @@
 	  <arg name="maplab_save_map_every_n_sec" default="0"/>
 		<arg name="maplab_keyframe_when_saving" default="false"/>
 
-	  <arg name="maplab_attach_images" default="false"/>
+	  <arg name="maplab_attach_tracking_images" default="false"/>
 	  <arg name="maplab_attach_point_clouds" default="false"/>
 	  <arg name="maplab_attach_point_cloud_maps" default="false"/>
 

@@ -165,7 +165,7 @@ int main(int argc, char* argv[]) {
                        .getTopic();
       }
       if (sensor_manager.getSensorType(any_sensor_id) ==
-          aslam::SensorType::kNCamera) {
+          vi_map::SensorType::kNCamera) {
         const aslam::NCamera n_camera =
             sensor_manager.getSensor<aslam::NCamera>(any_sensor_id);
         for (size_t idx = 0; idx < n_camera.getNumCameras(); ++idx) {

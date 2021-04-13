@@ -34,6 +34,7 @@ DEFINE_int32(vis_color_salt, 1, "Salt to multiply the hash with for coloring.");
 
 DEFINE_double(vis_scale, 1, "Scale for visualizing edges and landmarks.");
 
+// landmark related
 DEFINE_int32(vis_landmark_gray_level, 170, "Gray level for landmark color.");
 DEFINE_bool(
     vis_check_landmark_constrained, true,
@@ -71,6 +72,45 @@ DEFINE_double(
     vis_color_by_height_period_m, 3., "The period for coloring by height.");
 DEFINE_double(
     vis_color_by_height_offset_m, 0., "The offset for coloring by height.");
+// semantic landmark related
+DEFINE_int32(
+    vis_semantic_landmark_gray_level, 170,
+    "Gray level for semantic landmark color.");
+DEFINE_bool(
+    vis_check_semantic_landmark_constrained, true,
+    "Whether to only plot well-constrained semantic landmarks or all semantic "
+    "landmarks.");
+DEFINE_bool(
+    vis_color_semantic_landmarks_by_number_of_observations, false,
+    "Whether to color semantic landmarks by number of observers.");
+DEFINE_bool(
+    vis_color_semantic_landmarks_by_observer_datasets, false,
+    "Whether to color semantic landmarks by number of observer_datasets.");
+DEFINE_int32(
+    vis_semantic_landmarks_max_observers, 5,
+    "Maximum number of observers to use for coloring scale in "
+    " --color_by_observers and --color_by_observer_datasets.");
+DEFINE_int32(
+    vis_semantic_landmarks_min_observers, 1,
+    "Minimum number of observers to use for coloring scale in "
+    " --color_by_observer_datasets.");
+DEFINE_bool(
+    vis_color_semantic_landmarks_by_time, false,
+    "Whether to color semantic landmarks by time.");
+DEFINE_bool(
+    vis_color_semantic_landmarks_by_first_observer_frame, false,
+    "Whether to color semantic landmarks by their first observer.");
+DEFINE_double(
+    vis_offset_semantic_landmarks_by_first_observer_frame_m, 0,
+    "Separates semantic landmarks by first observer frame with the given "
+    "offset along "
+    "the x axis.");
+DEFINE_double(
+    vis_color_semantic_landmarks_by_time_period_seconds, 60,
+    "The period for time coloring in seconds.");
+DEFINE_bool(
+    vis_color_semantic_landmarks_by_height, false,
+    "Whether to color semantic landmarks by height.");
 
 DEFINE_bool(
     vis_lc_edge_covariances, false,
@@ -86,6 +126,10 @@ DEFINE_double(vis_offset_z_m, 0.0, "Offset in z for RViz visualization");
 DEFINE_int32(
     vis_landmarks_min_number_of_observer_missions, 1,
     "Minimum number of observer missions for a landmark to be "
+    "visualized.");
+DEFINE_int32(
+    vis_semantic_landmarks_min_number_of_observer_missions, 1,
+    "Minimum number of observer missions for a semantic landmark to be "
     "visualized.");
 
 DEFINE_bool(
@@ -107,6 +151,8 @@ const std::string ViwlsGraphRvizPlotter::kLandmarkNormalsTopic =
 const std::string ViwlsGraphRvizPlotter::kLandmarkPairsTopic = "landmark_pairs";
 const std::string ViwlsGraphRvizPlotter::kLandmarkTopic =
     visualization::kViMapTopicHead + "_landmarks";
+const std::string ViwlsGraphRvizPlotter::kSemanticLandmarkTopic =
+    visualization::kViMapTopicHead + "_semantic_landmarks";
 const std::string ViwlsGraphRvizPlotter::kLoopclosureTopic = "loop_closures";
 const std::string ViwlsGraphRvizPlotter::kMeshTopic = "meshes";
 const std::string ViwlsGraphRvizPlotter::kSensorExtrinsicsTopic =
@@ -677,7 +723,7 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
   visualization::Palette palette =
       FLAGS_vis_color_landmarks_by_number_of_observations
           ? visualization::GetPalette(
-                visualization::Palette::PaletteTypes::kLinearRed)
+                visualization::Palette::PaletteTypes::kLinearGreen)
           : visualization::GetPalette(
                 visualization::Palette::PaletteTypes::kFalseColor1);
 
@@ -694,7 +740,8 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
                                             .getTimestampNanoseconds());
 
   VLOG_IF(2, FLAGS_vis_color_landmarks_by_number_of_observations == true)
-      << "The more observations a landmark has the more red it is. Make "
+      << "The more observations a semantic landmark has the more green it is. "
+         "Make "
       << "sure you have set the "
       << "'-vis_color_landmarks_by_number_of_observations' flag appropriately.";
 
@@ -810,6 +857,216 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
         } else {
           sphere.color.red = sphere.color.green = sphere.color.blue =
               FLAGS_vis_landmark_gray_level;
+        }
+      } else {
+        sphere.color = color;
+      }
+      spheres->push_back(sphere);
+    }
+  }
+}
+
+void ViwlsGraphRvizPlotter::publishSemanticLandmarks(
+    const vi_map::VIMap& map, const vi_map::MissionIdList& missions) const {
+  visualization::SphereVector spheres;
+  appendSemanticLandmarksToSphereVector(map, missions, &spheres);
+
+  visualization::publishSpheresAsPointCloud(
+      spheres, FLAGS_tf_map_frame, kSemanticLandmarkTopic);
+}
+
+void ViwlsGraphRvizPlotter::publishSemanticLandmarks(
+    const Eigen::Matrix3Xd& p_G_landmarks) const {
+  visualization::Color color;
+  color.red = 200;
+  color.green = 200;
+  color.blue = 200;
+
+  publishSemanticLandmarks(p_G_landmarks, color, kSemanticLandmarkTopic);
+}
+
+void ViwlsGraphRvizPlotter::publishSemanticLandmarks(
+    const Eigen::Matrix3Xd& p_G_landmarks, const visualization::Color& color,
+    const std::string& topic) const {
+  const double kAlpha = 1.;
+  if (!topic.empty()) {
+    visualization::publish3DPointsAsPointCloud(
+        p_G_landmarks, color, kAlpha, FLAGS_tf_map_frame, topic);
+  } else {
+    visualization::publish3DPointsAsPointCloud(
+        p_G_landmarks, color, kAlpha, FLAGS_tf_map_frame, kLandmarkTopic);
+  }
+}
+
+void ViwlsGraphRvizPlotter::appendSemanticLandmarksToSphereVector(
+    const vi_map::VIMap& map, const vi_map::MissionIdList& missions,
+    visualization::SphereVector* spheres) const {
+  CHECK_NOTNULL(spheres);
+
+  visualization::Color color;
+  color.red = FLAGS_vis_semantic_landmark_gray_level;
+  color.green = FLAGS_vis_semantic_landmark_gray_level;
+  color.blue = FLAGS_vis_semantic_landmark_gray_level;
+
+  for (const vi_map::MissionId& mission_id : missions) {
+    pose_graph::VertexIdList vertices;
+    map.getAllVertexIdsInMission(mission_id, &vertices);
+
+    appendSemanticLandmarksToSphereVector(map, vertices, color, spheres);
+  }
+}
+
+void ViwlsGraphRvizPlotter::appendSemanticLandmarksToSphereVector(
+    const vi_map::VIMap& map, const pose_graph::VertexIdList& storing_vertices,
+    const visualization::Color& color,
+    visualization::SphereVector* spheres) const {
+  CHECK_NOTNULL(spheres);
+
+  const int kFrameSalt = 300;
+
+  visualization::Palette palette =
+      FLAGS_vis_color_semantic_landmarks_by_number_of_observations
+          ? visualization::GetPalette(
+                visualization::Palette::PaletteTypes::kLinearGreen)
+          : visualization::GetPalette(
+                visualization::Palette::PaletteTypes::kFalseColor2);
+
+  if (storing_vertices.empty()) {
+    return;
+  }
+
+  const vi_map::MissionId& mission_id =
+      map.getVertex(*storing_vertices.begin()).getMissionId();
+  const vi_map::VIMission& mission = map.getMission(mission_id);
+  const size_t start_timestamp_seconds =
+      aslam::time::nanoSecondsToSeconds(map.getVertex(*storing_vertices.begin())
+                                            .getVisualFrame(0)
+                                            .getTimestampNanoseconds());
+
+  VLOG_IF(
+      2, FLAGS_vis_color_semantic_landmarks_by_number_of_observations == true)
+      << "The more observations a semantic landmark has the more green it is. "
+         "Make "
+      << "sure you have set the "
+      << "'-vis_color_semantic_landmarks_by_number_of_observations' flag "
+         "appropriately.";
+
+  for (const pose_graph::VertexId& vertex_id : storing_vertices) {
+    const vi_map::Vertex& vertex = map.getVertex(vertex_id);
+    CHECK_EQ(vertex.getMissionId(), mission_id)
+        << "All vertices should belong "
+        << "to the same mission with id " << mission_id.hexString();
+    const vi_map::MissionBaseFrame& baseframe =
+        map.getMissionBaseFrame(mission.getBaseFrameId());
+
+    const vi_map::SemanticLandmarkStore& semantic_landmark_store =
+        vertex.getSemanticLandmarks();
+    for (const vi_map::SemanticLandmark& landmark : semantic_landmark_store) {
+      if (FLAGS_vis_check_semantic_landmark_constrained &&
+          landmark.getQuality() == vi_map::SemanticLandmark::Quality::kBad) {
+        continue;
+      }
+      if (FLAGS_vis_semantic_landmarks_min_number_of_observer_missions > 1) {
+        vi_map::MissionIdSet observer_missions;
+        map.getObserverMissionsForSemanticLandmark(
+            landmark.id(), &observer_missions);
+        if (observer_missions.size() <
+            static_cast<size_t>(
+                FLAGS_vis_semantic_landmarks_min_number_of_observer_missions)) {
+          continue;
+        }
+      }
+      visualization::Sphere sphere;
+      Eigen::Vector3d LM_p_fi =
+          vertex.getSemanticLandmark_p_LM_fi(landmark.id()) - origin_;
+
+      sphere.position =
+          baseframe.transformPointInMissionFrameToGlobalFrame(LM_p_fi);
+      sphere.radius = 0.03;
+      sphere.alpha = 0.8;
+
+      if (FLAGS_vis_offset_semantic_landmarks_by_first_observer_frame_m > 0) {
+        const vi_map::SemanticObjectIdentifierList& observations =
+            landmark.getObservations();
+        CHECK(!observations.empty());
+        const vi_map::SemanticObjectIdentifier& observation = observations[0];
+        sphere.position.x() +=
+            observation.frame_id.frame_index *
+            FLAGS_vis_offset_semantic_landmarks_by_first_observer_frame_m;
+      }
+
+      if (FLAGS_vis_color_semantic_landmarks_by_number_of_observations) {
+        CHECK_GT(FLAGS_vis_semantic_landmarks_max_observers, 0);
+        sphere.color = getPaletteColor(
+            std::min<double>(
+                landmark.numberOfObservations() * 1.0 /
+                    FLAGS_vis_semantic_landmarks_max_observers,
+                1.0),
+            palette);
+      } else if (FLAGS_vis_color_semantic_landmarks_by_observer_datasets) {
+        CHECK_GT(FLAGS_vis_semantic_landmarks_max_observers, 0);
+        CHECK_GT(FLAGS_vis_semantic_landmarks_min_observers, 0);
+        const size_t num_observer_missions =
+            map.numSemanticLandmarkObserverMissions(landmark.id());
+        if (static_cast<int>(num_observer_missions) <
+            FLAGS_vis_semantic_landmarks_min_observers) {
+          continue;
+        }
+        sphere.color = getPaletteColor(
+            std::min<double>(
+                static_cast<double>(num_observer_missions) /
+                    FLAGS_vis_semantic_landmarks_max_observers,
+                1.0),
+            palette);
+        VLOG_IF(
+            2,
+            num_observer_missions >
+                static_cast<size_t>(FLAGS_vis_semantic_landmarks_max_observers))
+            << "Semantic Landmark is observed by more missions ("
+            << num_observer_missions << ") than what is specified with the "
+            << "'viz_max_observers' flag ("
+            << FLAGS_vis_semantic_landmarks_max_observers
+            << "). This likely leads to undesired plotting results.";
+      } else if (FLAGS_vis_color_semantic_landmarks_by_time) {
+        const size_t timestamp_seconds = aslam::time::nanoSecondsToSeconds(
+            vertex.getVisualFrame(0).getTimestampNanoseconds());
+        const size_t color_index =
+            FLAGS_vis_color_salt *
+            static_cast<size_t>(floor(
+                (timestamp_seconds - start_timestamp_seconds) /
+                FLAGS_vis_color_semantic_landmarks_by_time_period_seconds));
+        sphere.color = getPaletteColor(color_index, palette);
+      } else if (FLAGS_vis_color_semantic_landmarks_by_first_observer_frame) {
+        const vi_map::SemanticObjectIdentifierList& observations =
+            landmark.getObservations();
+        CHECK(!observations.empty());
+        const vi_map::SemanticObjectIdentifier& observation = observations[0];
+        sphere.color = getPaletteColor(
+            static_cast<size_t>(
+                ((observation.frame_id.frame_index + 1) * kFrameSalt *
+                 FLAGS_vis_color_salt)),
+            palette);
+      } else if (FLAGS_vis_color_semantic_landmarks_by_height) {
+        const size_t color_index =
+            FLAGS_vis_color_salt *
+            static_cast<size_t>(
+                (sphere.position(2) + FLAGS_vis_color_by_height_offset_m) /
+                FLAGS_vis_color_by_height_period_m);
+        sphere.color = getPaletteColor(color_index, palette);
+      } else if (FLAGS_vis_color_by_mission) {
+        const vi_map::VIMission& mission =
+            map.getMission(vertex.getMissionId());
+        const bool is_T_G_M_known =
+            map.getMissionBaseFrame(mission.getBaseFrameId()).is_T_G_M_known();
+        if (FLAGS_vis_color_mission_with_unknown_baseframe_transformation ||
+            is_T_G_M_known) {
+          const size_t index =
+              (vertex.getMissionId().hashToSizeT() * FLAGS_vis_color_salt) %
+              visualization::kNumColors;
+          sphere.color = getPaletteColor(index, palette);
+        } else {
+          sphere.color.red = sphere.color.green = sphere.color.blue =
+              FLAGS_vis_semantic_landmark_gray_level;
         }
       } else {
         sphere.color = color;
@@ -1061,32 +1318,51 @@ void ViwlsGraphRvizPlotter::visualizeMap(const vi_map::VIMap& map) const {
   constexpr bool kPlotEdges = true;
   constexpr bool kPlotLandmarks = true;
   constexpr bool kPlotAbsolute6DoFConstraints = true;
+  constexpr bool kPlotSemanticLandmarks = true;
   visualizeMap(
       map, kPlotBaseframes, kPlotVertices, kPlotEdges, kPlotLandmarks,
-      kPlotAbsolute6DoFConstraints);
+      kPlotAbsolute6DoFConstraints, kPlotSemanticLandmarks);
+}
+
+void ViwlsGraphRvizPlotter::visualizeMap(
+    const vi_map::VIMap& map, bool publish_baseframes, bool publish_vertices,
+    bool publish_edges, bool publish_landmarks) const {
+  vi_map::MissionIdList all_missions;
+  map.getAllMissionIds(&all_missions);
+  bool publish_absolute_6dof_constraints = false;
+  bool publish_semantic_landmarks = false;
+  visualizeMissions(
+      map, all_missions, publish_baseframes, publish_vertices, publish_edges,
+      publish_landmarks, publish_absolute_6dof_constraints,
+      publish_semantic_landmarks);
 }
 
 void ViwlsGraphRvizPlotter::visualizeMap(
     const vi_map::VIMap& map, bool publish_baseframes, bool publish_vertices,
     bool publish_edges, bool publish_landmarks,
-    bool publish_absolute_6dof_constraints) const {
+    bool publish_absolute_6dof_constraints,
+    bool publish_semantic_landmarks) const {
   vi_map::MissionIdList all_missions;
   map.getAllMissionIds(&all_missions);
   visualizeMissions(
       map, all_missions, publish_baseframes, publish_vertices, publish_edges,
-      publish_landmarks, publish_absolute_6dof_constraints);
+      publish_landmarks, publish_absolute_6dof_constraints,
+      publish_semantic_landmarks);
 }
 
 void ViwlsGraphRvizPlotter::visualizeMissions(
     const vi_map::VIMap& map, const vi_map::MissionIdList& mission_ids,
     bool publish_baseframes, bool publish_vertices, bool publish_edges,
-    bool publish_landmarks, bool publish_absolute_6dof_constraints) const {
+    bool publish_landmarks, bool publish_absolute_6dof_constraints,
+    bool publish_semantic_landmarks) const {
   if (mission_ids.empty()) {
     LOG(ERROR) << "No missions in database.";
     return;
   }
 
   Aligned<std::vector, visualization::SphereVector> mission_spheres(
+      mission_ids.size());
+  Aligned<std::vector, visualization::SphereVector> mission_semantic_spheres(
       mission_ids.size());
 
   // For memory saving reasons we publish one mission at a time.
@@ -1113,6 +1389,12 @@ void ViwlsGraphRvizPlotter::visualizeMissions(
             appendLandmarksToSphereVector(
                 map, {mission_id}, &mission_spheres[item]);
           }
+          if (publish_semantic_landmarks) {
+            // The semantic landmarks have to be published together since rviz
+            // displays just one point cloud at a time.
+            appendSemanticLandmarksToSphereVector(
+                map, {mission_id}, &mission_semantic_spheres[item]);
+          }
         }
       };
 
@@ -1121,12 +1403,22 @@ void ViwlsGraphRvizPlotter::visualizeMissions(
   common::ParallelProcess(
       mission_ids.size(), visualizer, kAlwaysParallelize, num_threads);
 
+  // for landmarks
   visualization::SphereVector all_spheres;
   for (const visualization::SphereVector& spheres : mission_spheres) {
     all_spheres.insert(all_spheres.end(), spheres.begin(), spheres.end());
   }
   visualization::publishSpheresAsPointCloud(
       all_spheres, FLAGS_tf_map_frame, kLandmarkTopic);
+
+  // for semantic landmarks
+  visualization::SphereVector all_semantic_spheres;
+  for (const visualization::SphereVector& spheres : mission_semantic_spheres) {
+    all_semantic_spheres.insert(
+        all_semantic_spheres.end(), spheres.begin(), spheres.end());
+  }
+  visualization::publishSpheresAsPointCloud(
+      all_semantic_spheres, FLAGS_tf_map_frame, kSemanticLandmarkTopic);
 }
 
 void ViwlsGraphRvizPlotter::plotSlidingWindowLocalizationResult(

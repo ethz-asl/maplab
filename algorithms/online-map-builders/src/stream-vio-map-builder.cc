@@ -11,7 +11,7 @@
 #include <vio-common/vio-update.h>
 
 DEFINE_bool(
-    vio_map_builder_save_image_as_resources, false,
+    vio_map_builder_save_tracking_image_as_resources, false,
     "Store the images associated with the visual frames to the map resource "
     "folder.");
 
@@ -168,7 +168,7 @@ pose_graph::VertexId StreamVioMapBuilder::addViwlsVertex(
   map_->addVertex(vi_map::Vertex::UniquePtr(map_vertex));
 
   // Optionally dump the image to disk.
-  if (FLAGS_vio_map_builder_save_image_as_resources) {
+  if (FLAGS_vio_map_builder_save_tracking_image_as_resources) {
     CHECK(map_->hasMapFolder())
         << "Cannot store resources to a map that has no associated map folder, "
         << "please set the map folder in the VIMap constructor or by using "

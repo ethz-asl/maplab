@@ -44,7 +44,8 @@
 
 
 	<!-- ATTACHING RESOURCES TO MAP -->
-	<arg name="map_builder_save_image_as_resources" default="false"/>
+	<arg name="map_builder_save_tracking_image_as_resources" default="false"/>
+	<arg name="map_builder_save_color_image_as_resources" default="false"/>
 	<arg name="map_builder_save_point_clouds_as_resources" default="false"/>
 	<arg name="map_builder_save_point_clouds_as_range_image_camera_id" default=""/>
 	<arg name="map_builder_save_point_clouds_as_range_image_including_intensity_image" default="true"/>
@@ -114,7 +115,8 @@
 		<param name="map_split_map_into_submaps_when_saving_periodically" value="$(arg map_split_map_into_submaps_when_saving_periodically)"/>
 
 		<!-- ATTACHING RESOURCES TO MAP -->
-		<param name="map_builder_save_image_as_resources" value="$(arg map_builder_save_image_as_resources)"/>
+		<param name="map_builder_save_tracking_image_as_resources" value="$(arg map_builder_save_tracking_image_as_resources)"/>
+		<param name="map_builder_save_color_image_as_resources" value="$(arg map_builder_save_color_image_as_resources)"/>
 		<param name="map_builder_save_point_clouds_as_resources" value="$(arg map_builder_save_point_clouds_as_resources)"/>
 		<param name="map_builder_save_point_clouds_as_range_image_camera_id" value="$(arg map_builder_save_point_clouds_as_range_image_camera_id)"/>
 		<param name="map_builder_save_point_clouds_as_range_image_including_intensity_image" value="$(arg map_builder_save_point_clouds_as_range_image_including_intensity_image)"/>

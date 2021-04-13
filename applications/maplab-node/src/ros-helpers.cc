@@ -39,6 +39,7 @@ DEFINE_double(
 DEFINE_bool(
     set_imu_bias_to_zero, false,
     "Setting IMU biases for odometry estimation to zero.");
+DECLARE_bool(map_builder_save_color_image_as_resources);
 
 DEFINE_double(image_resize_factor, 1.0, "Factor to resize images.");
 
@@ -60,11 +61,37 @@ void applyHistogramEqualization(
     const cv::Mat& input_image, cv::Mat* output_image) {
   CHECK_NOTNULL(output_image);
   CHECK(!input_image.empty());
+  if (input_image.channels() == 1u) {
+    static cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(
+        FLAGS_image_clahe_clip_limit,
+        cv::Size(FLAGS_image_clahe_grid_size, FLAGS_image_clahe_grid_size));
+    clahe->apply(input_image, *output_image);
+  } else if (input_image.channels() == 3u) {
+    cv::Mat lab_image;
+    cv::cvtColor(input_image, lab_image, CV_BGR2Lab);
 
-  static cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(
-      FLAGS_image_clahe_clip_limit,
-      cv::Size(FLAGS_image_clahe_grid_size, FLAGS_image_clahe_grid_size));
-  clahe->apply(input_image, *output_image);
+    // Extract the L channel
+    std::vector<cv::Mat> lab_planes(3);
+    cv::split(
+        lab_image, lab_planes);  // now we have the L image in lab_planes[0]
+
+    // apply the CLAHE algorithm to the L channel
+    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(
+        FLAGS_image_clahe_clip_limit,
+        cv::Size(FLAGS_image_clahe_grid_size, FLAGS_image_clahe_grid_size));
+    cv::Mat dst;
+    clahe->apply(lab_planes[0], dst);
+
+    // Merge the the color planes back into an Lab image
+    dst.copyTo(lab_planes[0]);
+    cv::merge(lab_planes, lab_image);
+
+    // convert back to RGB
+    cv::cvtColor(lab_image, *output_image, CV_Lab2BGR);
+  } else {
+    LOG(FATAL) << "Number of image channels unrecongized: "
+               << input_image.channels();
+  }
 }
 
 vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
@@ -90,31 +117,41 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
           image_measurement->image, CV_8U,
           FLAGS_image_16_bit_to_8_bit_scale_factor,
           FLAGS_image_16_bit_to_8_bit_shift);
+      image_measurement->encoding = sensor_msgs::image_encodings::MONO8;
     } else {
       if (image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC1) {
         // NOTE: we assume all 8UC1 type images are monochrome images.
         cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::TYPE_8UC1);
+        image_measurement->encoding = sensor_msgs::image_encodings::MONO8;
       } else if (
           image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
-        // We assume it is a BGR image.
-        cv_bridge::CvImageConstPtr cv_tmp_ptr = cv_bridge::toCvShare(
-            image_message, sensor_msgs::image_encodings::TYPE_8UC3);
+        if (FLAGS_map_builder_save_color_image_as_resources) {
+          // Keep image as it was.
+          cv_ptr = cv_bridge::toCvShare(image_message);
+          image_measurement->encoding = image_message->encoding;
+        } else {
+          // We assume it is a BGR image.
+          cv_bridge::CvImageConstPtr cv_tmp_ptr = cv_bridge::toCvShare(
+              image_message, sensor_msgs::image_encodings::TYPE_8UC3);
+          // Convert image and add it to the cv bridge struct, such that the
+          // remaining part of the function can stay the same.
+          cv_bridge::CvImage* converted_image = new cv_bridge::CvImage;
+          converted_image->encoding = "mono8";
+          converted_image->header = image_message->header;
+          // We assume the color format is BGR.
+          cv::cvtColor(
+              cv_tmp_ptr->image, converted_image->image, cv::COLOR_BGR2GRAY);
 
-        // Convert image and add it to the cv bridge struct, such that the
-        // remaining part of the function can stay the same.
-        cv_bridge::CvImage* converted_image = new cv_bridge::CvImage;
-        converted_image->encoding = "mono8";
-        converted_image->header = image_message->header;
-        // We assume the color format is BGR.
-        cv::cvtColor(
-            cv_tmp_ptr->image, converted_image->image, cv::COLOR_BGR2GRAY);
-        // The cv bridge takes ownership of the image ptr.
-        cv_ptr.reset(converted_image);
+          // The cv bridge takes ownership of the image ptr.
+          cv_ptr.reset(converted_image);
+          image_measurement->encoding = sensor_msgs::image_encodings::MONO8;
+        }
       } else {
         // Try automatic conversion for all the other encodings.
         cv_ptr = cv_bridge::toCvShare(
             image_message, sensor_msgs::image_encodings::MONO8);
+        image_measurement->encoding = sensor_msgs::image_encodings::MONO8;
       }
       CHECK(cv_ptr);
 

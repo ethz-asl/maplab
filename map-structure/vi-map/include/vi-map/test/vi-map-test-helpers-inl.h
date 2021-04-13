@@ -14,6 +14,7 @@ void generateMap(const size_t number_of_vertices, vi_map::VIMap* map) {
 
   // Generate a map.
   constexpr int kMapGeneratorSeed = 10;
+  constexpr int kClassId = 5;
   vi_map::VIMapGenerator map_generator(*map, kMapGeneratorSeed);
   const vi_map::MissionId mission_id = map_generator.createMission();
 
@@ -39,21 +40,39 @@ void generateMap(const size_t number_of_vertices, vi_map::VIMap* map) {
     map_generator.createLandmark(
         map_landmark_p_G_fi, vertex_id,
         {vertex_id_1, vertex_id_2, vertex_id_3});
+    map_generator.createSemanticLandmark(
+        map_landmark_p_G_fi, kClassId, vertex_id,
+        {vertex_id_1, vertex_id_2, vertex_id_3});
   }
 
   Eigen::Vector3d map_landmark_p_G_fi;
   map_landmark_p_G_fi << 1, 2, 3;
+  // default landmarks
   map_generator.createLandmark(
       map_landmark_p_G_fi, vertex_id_1, {vertex_id_2, vertex_id_3});
   map_generator.createLandmark(
       map_landmark_p_G_fi, vertex_id_2, {vertex_id_1, vertex_id_3});
   map_generator.createLandmark(
       map_landmark_p_G_fi, vertex_id_3, {vertex_id_1, vertex_id_2});
+  // semantic landmarks
+  map_generator.createSemanticLandmark(
+      map_landmark_p_G_fi, kClassId, vertex_id_1, {vertex_id_2, vertex_id_3});
+  map_generator.createSemanticLandmark(
+      map_landmark_p_G_fi, kClassId, vertex_id_2, {vertex_id_1, vertex_id_3});
+  map_generator.createSemanticLandmark(
+      map_landmark_p_G_fi, kClassId, vertex_id_3, {vertex_id_1, vertex_id_2});
+
   map_landmark_p_G_fi << 4, 2, 3;
+  // default landmarks
   map_generator.createLandmark(
       map_landmark_p_G_fi, vertex_id_2, {vertex_id_1, vertex_id_3});
   map_generator.createLandmark(
       map_landmark_p_G_fi, vertex_id_3, {vertex_id_1, vertex_id_2});
+  // semantic landmarks
+  map_generator.createSemanticLandmark(
+      map_landmark_p_G_fi, kClassId, vertex_id_2, {vertex_id_1, vertex_id_3});
+  map_generator.createSemanticLandmark(
+      map_landmark_p_G_fi, kClassId, vertex_id_3, {vertex_id_1, vertex_id_2});
 
   map_generator.generateMap<EdgeType>();
 

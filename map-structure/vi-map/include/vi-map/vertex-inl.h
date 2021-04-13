@@ -135,6 +135,18 @@ inline void Vertex::setLandmarks(const LandmarkStore& landmark_store) {
   landmarks_ = landmark_store;
 }
 
+inline SemanticLandmarkStore& Vertex::getSemanticLandmarks() {
+  return semantic_landmarks_;
+}
+
+inline const SemanticLandmarkStore& Vertex::getSemanticLandmarks() const {
+  return semantic_landmarks_;
+}
+
+inline void Vertex::setSemanticLandmarks(const SemanticLandmarkStore& semantic_landmark_store) {
+  semantic_landmarks_ = semantic_landmark_store;
+}
+
 inline void Vertex::forEachUnassociatedKeypoint(
     const unsigned int frame_idx,
     const std::function<void(const int keypoint_index)>& action) const {

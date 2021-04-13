@@ -25,6 +25,7 @@ class RemoveMissionTest : public ::testing::Test {
     ASSERT_LT(0u, map_.numMissions());
     ASSERT_LT(0u, map_.numVertices());
     ASSERT_LT(0u, map_.numLandmarks());
+    ASSERT_LT(0u, map_.numSemanticLandmarks());
     ASSERT_LT(0u, sensor_manager_->getNumSensors());
     ASSERT_LT(
         0u, sensor_manager_->getNumSensorsOfType(vi_map::SensorType::kNCamera));
@@ -66,6 +67,7 @@ TEST_F(RemoveMissionTest, RemoveFromSingleMissionMap) {
   // EXPECT_EQ(
   //     0u,
   //     sensor_manager_->getNumSensorsOfType(vi_map::SensorType::kNCamera));
+  EXPECT_EQ(0u, map_.numSemanticLandmarks());
 }
 
 TEST_F(RemoveMissionTest, RemoveFromMultiMissionMap) {

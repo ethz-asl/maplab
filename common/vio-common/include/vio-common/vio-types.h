@@ -15,6 +15,7 @@
 #include <maplab-common/localization-result.h>
 #include <maplab-common/macros.h>
 #include <opencv2/core/core.hpp>
+#include <sensor_msgs/image_encodings.h>
 
 namespace vio {
 
@@ -90,9 +91,10 @@ struct ImageMeasurement {
   int64_t timestamp;
   int camera_index;
   cv::Mat image;
+  std::string encoding;
 
   ImageMeasurement()
-      : timestamp(aslam::time::getInvalidTime()), camera_index(-1) {}
+      : timestamp(aslam::time::getInvalidTime()), camera_index(-1), encoding(sensor_msgs::image_encodings::MONO8) {}
 };
 
 // [accel, gyro] = [m/s^2, rad/s]

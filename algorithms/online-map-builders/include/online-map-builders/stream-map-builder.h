@@ -27,7 +27,8 @@ DECLARE_bool(map_builder_save_point_clouds_as_resources);
 DECLARE_bool(map_builder_save_point_cloud_maps_as_resources);
 DECLARE_bool(
     map_builder_save_point_clouds_as_range_image_including_intensity_image);
-DECLARE_bool(map_builder_save_image_as_resources);
+DECLARE_bool(map_builder_save_tracking_image_as_resources);
+DECLARE_bool(map_builder_save_color_image_as_resources);
 DECLARE_bool(map_builder_visualize_lidar_depth_maps_in_ocv_window);
 
 namespace aslam {

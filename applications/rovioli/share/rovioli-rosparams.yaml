@@ -34,7 +34,8 @@ rovioli_run_map_builder: true
 save_map_folder: rovioli_map
 overwrite_existing_map: false
 optimize_map_to_localization_map: false
-map_builder_save_image_as_resources: false
+map_builder_save_tracking_image_as_resources: false
+map_builder_save_color_image_as_resources: false
 
 # VISUAL LOCALIZATION
 vio_localization_map_folder: ""

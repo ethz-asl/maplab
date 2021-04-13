@@ -1378,25 +1378,26 @@ int VIMapBasicPlugin::removeMissionInteractive() {
     constexpr bool kPlotEdges = true;
     constexpr bool kPlotLandmarks = true;
     constexpr bool kPlotAbsolute6DoFConstraints = true;
+    constexpr bool kPlotSemanticLandmarks = true;
     FLAGS_vis_color_by_mission = false;
     getPlotter().visualizeMap(
         *map, kPlotBaseframes, kPlotVertices, kPlotEdges, kPlotLandmarks,
-        kPlotAbsolute6DoFConstraints);
+        kPlotAbsolute6DoFConstraints, kPlotSemanticLandmarks);
 
     const double initial_vis_scale = FLAGS_vis_scale;
     FLAGS_vis_color_by_mission = true;
     FLAGS_vis_scale = 3.0 * initial_vis_scale;
     getPlotter().visualizeMissions(
         *map, {mission_id}, kPlotBaseframes, kPlotVertices, kPlotEdges,
-        kPlotLandmarks, kPlotAbsolute6DoFConstraints);
+        kPlotLandmarks, kPlotAbsolute6DoFConstraints, kPlotSemanticLandmarks);
 
     // Restore the initial visualization scale for the rest of the missions.
     FLAGS_vis_scale = initial_vis_scale;
 
     FLAGS_vis_color_by_mission = false;
     getPlotter().visualizeMap(
-        *map, false, false, false, kPlotLandmarks,
-        kPlotAbsolute6DoFConstraints);
+        *map, false, false, false, kPlotLandmarks, kPlotAbsolute6DoFConstraints,
+        kPlotSemanticLandmarks);
 
     bool got_meaningful_answer = false;
     do {

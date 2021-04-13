@@ -14,7 +14,7 @@
 #include <vi-map/vi-mission.h>
 
 DECLARE_bool(map_builder_save_point_clouds_as_resources);
-DECLARE_bool(map_builder_save_image_as_resources);
+DECLARE_bool(map_builder_save_tracking_image_as_resources);
 
 namespace aslam {
 class NCamera;

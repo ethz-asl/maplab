@@ -1,4 +1,4 @@
-  #ifndef SENSORS_SENSOR_TYPES_H_
+#ifndef SENSORS_SENSOR_TYPES_H_
 #define SENSORS_SENSOR_TYPES_H_
 
 #include <string>

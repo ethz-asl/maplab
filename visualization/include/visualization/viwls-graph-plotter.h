@@ -26,13 +26,20 @@ class ViwlsGraphRvizPlotter {
   void visualizeMap(
       const vi_map::VIMap& map, bool publish_baseframes, bool publish_vertices,
       bool publish_edges, bool publish_landmarks,
-      bool publish_absolute_6dof_constraints) const;
+      bool publish_absolute_6dof_constraints,
+      bool publish_semantic_landmarks) const;
+
+  // kept for backward compatibility
+  void visualizeMap(
+      const vi_map::VIMap& map, bool publish_baseframes, bool publish_vertices,
+      bool publish_edges, bool publish_landmarks) const;
   void visualizeMap(const vi_map::VIMap& map) const;
 
   void visualizeMissions(
       const vi_map::VIMap& map, const vi_map::MissionIdList& mission_ids,
       bool publish_baseframes, bool publish_vertices, bool publish_edges,
-      bool publish_landmarks, bool publish_absolute_6dof_constraints) const;
+      bool publish_landmarks, bool publish_absolute_6dof_constraints,
+      bool publish_semantic_landmarks) const;
 
   void plotSlidingWindowLocalizationResult(
       const aslam::Transformation& T_G_B, size_t marker_id) const;
@@ -96,6 +103,21 @@ class ViwlsGraphRvizPlotter {
       const pose_graph::VertexIdList& storing_vertices,
       const visualization::Color& color,
       visualization::SphereVector* spheres) const;
+  void publishSemanticLandmarks(
+      const vi_map::VIMap& map, const vi_map::MissionIdList& missions) const;
+  void publishSemanticLandmarks(const Eigen::Matrix3Xd& W_landmarks) const;
+  // If the topic is empty uses the default landmark topic instead.
+  void publishSemanticLandmarks(
+      const Eigen::Matrix3Xd& W_landmarks, const visualization::Color& color,
+      const std::string& topic) const;
+  void appendSemanticLandmarksToSphereVector(
+      const vi_map::VIMap& map, const vi_map::MissionIdList& missions,
+      visualization::SphereVector* spheres) const;
+  void appendSemanticLandmarksToSphereVector(
+      const vi_map::VIMap& map,
+      const pose_graph::VertexIdList& storing_vertices,
+      const visualization::Color& color,
+      visualization::SphereVector* spheres) const;
 
   void publishPosesInGlobalFrame(
       const aslam::TransformationVector& transformations) const;
@@ -121,6 +143,7 @@ class ViwlsGraphRvizPlotter {
   static const std::string kLandmarkNormalsTopic;
   static const std::string kLandmarkPairsTopic;
   static const std::string kLandmarkTopic;
+  static const std::string kSemanticLandmarkTopic;
   static const std::string kLoopclosureTopic;
   static const std::string kMeshTopic;
   static const std::string kSensorExtrinsicsTopic;

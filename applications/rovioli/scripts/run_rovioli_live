@@ -12,6 +12,6 @@ rosrun rovioli rovioli \
   --datasource_type="rostopic" \
   --optimize_map_to_localization_map=false \
   --vio_localization_map_folder=$LOCALIZATION_MAP_INPUT \
-  --map_builder_save_image_as_resources=false \
+  --map_builder_save_tracking_image_as_resources=false \
   --save_map_folder=$LOCALIZATION_MAP_OUTPUT $REST
   

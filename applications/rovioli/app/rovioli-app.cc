@@ -137,7 +137,8 @@ int main(int argc, char** argv) {
       message_flow::MessageFlow::create<message_flow::MessageDispatcherFifo>(
           common::getNumHardwareThreads()));
 
-  if (FLAGS_map_builder_save_image_as_resources &&
+  if ((FLAGS_map_builder_save_tracking_image_as_resources ||
+       FLAGS_map_builder_save_color_image_as_resources) &&
       FLAGS_save_map_folder.empty()) {
     LOG(FATAL) << "If you would like to save the resources, "
                << "please also set a map folder with: --save_map_folder";

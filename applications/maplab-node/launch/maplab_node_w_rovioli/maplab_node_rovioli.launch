@@ -24,7 +24,8 @@
   <arg name="maplab_keyframe_when_saving" default="false"/>
   <arg name="maplab_remove_bad_landmarks" default="false"/>
 
-  <arg name="maplab_attach_images" default="false"/>
+  <arg name="maplab_attach_tracking_images" default="false"/>
+  <arg name="maplab_attach_color_images" default="false"/>
   <arg name="maplab_attach_point_clouds" default="false"/>
   <arg name="maplab_attach_point_cloud_maps" default="false"/>
 
@@ -55,7 +56,8 @@
           <arg name="save_map_folder" default=""/>
           <arg name="overwrite_existing_map" default="false"/>
           <arg name="optimize_map_to_localization_map" default="false"/>
-          <arg name="map_builder_save_image_as_resources" default="false"/>
+          <arg name="map_builder_save_tracking_image_as_resources" default="false"/>
+          <arg name="map_builder_save_color_image_as_resources" default="false"/>
 
           <!-- VISUAL LOCALIZATION (DISABLED) -->
           <arg name="vio_localization_map_folder" default="$(arg maplab_rovioli_localization_map_folder)"/>
@@ -125,7 +127,8 @@
   		<arg name="map_split_map_into_submaps_when_saving_periodically" default="true"/>
 
   		<!-- ATTACHING RESOURCES TO MAP -->
-  		<arg name="map_builder_save_image_as_resources" default="$(arg maplab_attach_images)"/>
+  		<arg name="map_builder_save_tracking_image_as_resources" default="$(arg maplab_attach_tracking_images)"/>
+      <arg name="map_builder_save_color_image_as_resources" default="$(arg maplab_attach_color_images)"/>
   		<arg name="map_builder_save_point_clouds_as_resources" default="$(arg maplab_attach_point_clouds)"/>
       <arg name="map_builder_save_point_clouds_as_range_image_camera_id" default="$(arg maplab_point_cloud_to_depth_map_conversion_camera_id)"/>
       <arg name="map_builder_save_point_clouds_as_range_image_including_intensity_image" default="$(arg maplab_point_cloud_to_depth_map_conversion_include_intensity_image)"/>

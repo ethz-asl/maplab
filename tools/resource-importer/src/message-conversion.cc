@@ -16,6 +16,8 @@
 #include <cv_bridge/cv_bridge.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <glog/logging.h>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <pcl/conversions.h>
 #include <pcl/point_types.h>
@@ -74,12 +76,12 @@ void convertColorImageMessage(
 
   cv_bridge::CvImageConstPtr cv_ptr;
   try {
-    if (image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
-      cv_ptr = cv_bridge::toCvShare(
-          image_message, sensor_msgs::image_encodings::TYPE_8UC3);
+    if (image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3 ||
+        image_message->encoding == sensor_msgs::image_encodings::BGRA8 ||
+        image_message->encoding == sensor_msgs::image_encodings::BGR8) {
+      cv_ptr = cv_bridge::toCvShare(image_message, image_message->encoding);
     } else {
-      cv_ptr = cv_bridge::toCvShare(
-          image_message, sensor_msgs::image_encodings::BGR8);
+      LOG(FATAL) << image_message->encoding << " cannot be converted.";
     }
   } catch (const cv_bridge::Exception& e) {  // NOLINT
     LOG(FATAL) << "cv_bridge exception: " << e.what();
@@ -87,6 +89,9 @@ void convertColorImageMessage(
   CHECK(cv_ptr);
 
   *image = cv_ptr->image.clone();
+  if (image_message->encoding == sensor_msgs::image_encodings::BGRA8) {
+    cv::cvtColor(*image, *image, cv::COLOR_BGRA2BGR);
+  }
 }
 
 void convertCameraInfo(
