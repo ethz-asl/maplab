@@ -825,6 +825,19 @@ void Synchronizer::releaseData() {
           time_last_pointcloud_map_message_received_or_checked_ns_.load())) {
     releasePointCloudMapData(oldest_timestamp_ns, newest_timestamp_ns);
   }
+
+  // Release (or drop) external feature measurements
+  {
+    std::lock_guard<std::mutex> lock(
+        mutex_times_last_external_feature_messages_received_or_checked_ns_);
+    const bool any_times_valid = std::any_of(
+        times_last_external_feature_messages_received_or_checked_ns_.begin(),
+        times_last_external_feature_messages_received_or_checked_ns_.end(),
+        [](int64_t time_ns) { return aslam::time::isValidTime(time_ns); });
+    if (any_times_valid) {
+      releaseExternalFeatures(oldest_timestamp_ns, newest_timestamp_ns);
+    }
+  }
 }
 
 void Synchronizer::registerSynchronizedNFrameCallback(
