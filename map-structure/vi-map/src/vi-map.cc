@@ -3167,7 +3167,6 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
           // Should have been deleted already when it was detected in the
           // first vertex of the submap.
           CHECK(!vertex_copy->hasStoredLandmark(submap_landmark_id));
-          // } else if (!landmark_index.hasLandmark(submap_landmark_id)) {
         } else {
           corresponding_base_landmark_id = submap_landmark_id;
 
@@ -3178,11 +3177,6 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
           CHECK(submap.getVertex(storing_vertex_id)
                     .hasStoredLandmark(submap_landmark_id));
         }
-        // else {
-        //   storing_vertex_id =
-        //       landmark_index.getStoringVertexId(submap_landmark_id);
-        //   corresponding_base_landmark_id = submap_landmark_id;
-        // }
         CHECK(storing_vertex_id.isValid());
         CHECK(corresponding_base_landmark_id.isValid());
 

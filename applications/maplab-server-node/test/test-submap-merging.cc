@@ -47,6 +47,9 @@ static constexpr unsigned int kNumOfLandmarks = 200;
 static constexpr unsigned int kNumOfDuplicateLandmarks = 50;
 static constexpr unsigned int kNumOfMapVertices = 5;
 static constexpr unsigned int kNumOfQueryVertices = 1;
+static constexpr unsigned int kNumOfInvalidLastBaseVertexObservation = 5;
+static constexpr unsigned int kNumOfInvalidFirstSubmapVertexObservation = 5;
+static constexpr unsigned int kNumOfAdditionalSubmapLandmarks = 100;
 
 static constexpr int kVisualFrameIndex = 0;
 
@@ -97,6 +100,9 @@ class LoopClosureHandlerTest : public ::testing::Test {
   void populatePosegraph();
   void populateSubmap();
   void generateAndProjectLandmarksToMapKeyframes();
+  void setFirstNObservationsInvalid(
+      const pose_graph::VertexId vertex_id,
+      const size_t num_invalid_observations, vi_map::VIMap* map);
   unsigned int addKeypointToVertex(
       const Eigen::Vector3d& G_p_fi, const vi_map::LandmarkId& landmark_id,
       vi_map::Vertex* vertex_ptr);
@@ -111,7 +117,8 @@ class LoopClosureHandlerTest : public ::testing::Test {
       vi_map::Vertex* vertex_ptr);
   void addDuplicateLandmarksToQueryKeyframes();
 
-  bool testLandmarkConsistency();
+  bool testLandmarkConsistency(const size_t n_expected_landmarks);
+  void generateAndProjectLandmarksToSubmapVertex(vi_map::Vertex* vertex);
   vi_map::VIMap map_;
   vi_map::PoseGraph& posegraph_;
   vi_map::LandmarkIndex& landmark_index_;
@@ -353,6 +360,20 @@ void LoopClosureHandlerTest::generateAndProjectLandmarksToMapKeyframes() {
   }
 }
 
+void LoopClosureHandlerTest::generateAndProjectLandmarksToSubmapVertex(
+    vi_map::Vertex* vertex) {
+  for (unsigned int i = 0; i < kNumOfAdditionalSubmapLandmarks; ++i) {
+    Eigen::Vector3d G_p_fi(5.25, 0, 10);
+    G_p_fi += Eigen::Vector3d(dis_(gen_), dis_(gen_), dis_(gen_));
+
+    vi_map::LandmarkId landmark_id;
+    aslam::generateId(&landmark_id);
+
+    addLandmarkToSubmapVertex(G_p_fi, landmark_id, vertex);
+    addKeypointToSubmapVertex(G_p_fi, landmark_id, vertex);
+  }
+}
+
 void LoopClosureHandlerTest::addLandmarkToVertex(
     const Eigen::Vector3d& G_p_fi, const vi_map::LandmarkId& landmark_id,
     vi_map::Vertex* vertex_ptr) {
@@ -584,15 +605,45 @@ void LoopClosureHandlerTest::addDuplicateLandmarksToQueryKeyframes() {
   }
 }
 
-bool LoopClosureHandlerTest::testLandmarkConsistency() {
+void LoopClosureHandlerTest::setFirstNObservationsInvalid(
+    const pose_graph::VertexId vertex_id, const size_t num_invalid_observations,
+    vi_map::VIMap* map) {
+  CHECK(map->hasVertex(vertex_id));
+  vi_map::Vertex& vertex = map->getVertex(vertex_id);
+  vi_map::LandmarkIdList observed_landmark_ids;
+  vertex.getAllObservedLandmarkIds(&observed_landmark_ids);
+  std::unordered_set<vi_map::LandmarkId> unique_landmark_ids(
+      observed_landmark_ids.begin(), observed_landmark_ids.end());
+  size_t num_invalid_ids;
+  for (const vi_map::LandmarkId& landmark_id : unique_landmark_ids) {
+    const pose_graph::VertexId& storing_vertex_id =
+        map->landmark_index.getStoringVertexId(landmark_id);
+    vi_map::Vertex& storing_vertex = map->getVertex(storing_vertex_id);
+    vi_map::Landmark& landmark =
+        storing_vertex.getLandmarks().getLandmark(landmark_id);
+    landmark.removeAllObservationsOfVertex(vertex_id);
+    if (landmark.getObservations().empty()) {
+      map->landmark_index.removeLandmark(landmark_id);
+      storing_vertex.getLandmarks().removeLandmark(landmark_id);
+    }
+    vi_map::LandmarkId invalid_id;
+    vertex.updateIdInObservedLandmarkIdList(landmark_id, invalid_id);
+    num_invalid_ids++;
+    if (num_invalid_ids == num_invalid_observations) {
+      break;
+    }
+  }
+}
+
+bool LoopClosureHandlerTest::testLandmarkConsistency(
+    const size_t n_expected_landmarks) {
   std::vector<vi_map::LandmarkId> landmark_ids;
   landmark_index_.getAllLandmarkIds(&landmark_ids);
-  LOG(INFO) << landmark_ids.size();
   vi_map::LandmarkIdList all_landmarks_map;
   map_.getAllLandmarkIds(&all_landmarks_map);
 
   CHECK_EQ(all_landmarks_map.size(), landmark_ids.size());
-  CHECK_EQ(landmark_ids.size(), kNumOfLandmarks);
+  CHECK_EQ(landmark_ids.size(), n_expected_landmarks);
   // Test if all landmarks in landmark_index exist in vertices in the map
   for (vi_map::LandmarkId landmark_id : landmark_ids) {
     CHECK(landmark_index_.hasLandmark(landmark_id));
@@ -601,6 +652,24 @@ bool LoopClosureHandlerTest::testLandmarkConsistency() {
     CHECK(map_.hasVertex(vertex_id));
     const vi_map::Vertex& vertex = map_.getVertex(vertex_id);
     CHECK(vertex.getLandmarks().hasLandmark(landmark_id));
+    vi_map::Landmark landmark = vertex.getLandmarks().getLandmark(landmark_id);
+    vi_map::KeypointIdentifierList keypoint_identifiers =
+        landmark.getObservations();
+
+    // Test if all observations of landmark are also present in
+    // vertex observations
+    for (vi_map::KeypointIdentifier keypoint_identifier :
+         keypoint_identifiers) {
+      pose_graph::VertexId observing_vertex_id =
+          keypoint_identifier.frame_id.vertex_id;
+      CHECK(map_.hasVertex(observing_vertex_id));
+      const vi_map::Vertex& observing_vertex =
+          map_.getVertex(observing_vertex_id);
+      CHECK(
+          observing_vertex.getObservedLandmarkId(
+              keypoint_identifier.frame_id.frame_index,
+              keypoint_identifier.keypoint_index) == landmark_id);
+    }
   }
   pose_graph::VertexIdList all_vertex_ids;
   map_.getAllVertexIds(&all_vertex_ids);
@@ -709,7 +778,7 @@ TEST_F(LoopClosureHandlerTest, LoopClosureHandlingTest) {
   }
 }
 
-TEST_F(LoopClosureHandlerTest, SubmapMergingTest) {
+TEST_F(LoopClosureHandlerTest, SubmapMergingMergedLandmarksTest) {
   int num_inliers;
   double inlier_ratio;
   static constexpr bool kMergeLandmarks = true;
@@ -737,38 +806,113 @@ TEST_F(LoopClosureHandlerTest, SubmapMergingTest) {
 
   populateSubmap();
   map_.mergeAllSubmapsFromMap(submap_);
-  CHECK(testLandmarkConsistency());
+  CHECK(testLandmarkConsistency(kNumOfLandmarks));
+}
 
-  // for (const ExpectedLandmarkMergeTriple& expected_merge :
-  //      expected_landmark_merges_) {
-  //   vi_map::Vertex& query_vertex = map_.getVertex(expected_merge.vertex_id);
-  //
-  //   EXPECT_EQ(
-  //       expected_merge.new_landmark_id,
-  //       query_vertex.getObservedLandmarkId(
-  //               kVisualFrameIndex, expected_merge.idx));
-  // }
-  //
-  // // Check if deleted landmarks are really removed from global landmark to
-  // // vertex map.
-  // for (const LandmarkToLandmarkMap::value_type& old_landmark_to_landmark :
-  //      duplicate_landmark_to_landmark_map_) {
-  //   EXPECT_FALSE(hasLandmark(old_landmark_to_landmark.first));
-  // }
-  //
-  // // Also check if all the landmarks are still available.
-  // for (unsigned int i = 0; i < kNumOfMapVertices + kNumOfQueryVertices; ++i)
-  // {
-  //   vi_map::Vertex& vertex = map_.getVertex(vertex_ids_[i]);
-  //   const int num_of_landmarks =
-  //       vertex.observedLandmarkIdsSize(kVisualFrameIndex);
-  //   for (int j = 0; j < num_of_landmarks; ++j) {
-  //     vi_map::LandmarkId landmark_id =
-  //         vertex.getObservedLandmarkId(kVisualFrameIndex, j);
-  //
-  //     EXPECT_TRUE(hasLandmark(landmark_id));
-  //   }
-  // }
+TEST_F(LoopClosureHandlerTest, SubmapMergingInvalidBasemapObservationsTest) {
+  int num_inliers;
+  double inlier_ratio;
+  static constexpr bool kMergeLandmarks = true;
+  static constexpr bool kAddLoopClosureEdegs = false;
+  FLAGS_lc_ransac_pixel_sigma = 0.8;
+
+  std::mutex map_mutex;
+  for (const vi_map::LoopClosureConstraint& constraint : constraints_) {
+    pose::Transformation G_T_I;
+    vi_map::LoopClosureConstraint inlier_constraints;
+    loop_closure_handler::LoopClosureHandler::MergedLandmark3dPositionVector
+        landmark_pairs_merged;
+    constexpr pose_graph::VertexId* kVertexIdClosestToStructureMatches =
+        nullptr;
+    handler_->handleLoopClosure(
+        constraint, kMergeLandmarks, kAddLoopClosureEdegs, &num_inliers,
+        &inlier_ratio, &G_T_I, &inlier_constraints, &landmark_pairs_merged,
+        kVertexIdClosestToStructureMatches, &map_mutex);
+
+    EXPECT_GT(num_inliers, 0);
+    EXPECT_GT(inlier_ratio, 0);
+
+    EXPECT_EQ(kNumOfDuplicateLandmarks, expected_landmark_merges_.size());
+  }
+
+  populateSubmap();
+  pose_graph::VertexId last_base_vertex_id =
+      vertex_ids_[vertex_ids_.size() - 1u];
+  setFirstNObservationsInvalid(
+      last_base_vertex_id, kNumOfInvalidLastBaseVertexObservation, &map_);
+  map_.mergeAllSubmapsFromMap(submap_);
+  CHECK(testLandmarkConsistency(
+      kNumOfLandmarks + kNumOfInvalidLastBaseVertexObservation));
+}
+
+TEST_F(LoopClosureHandlerTest, SubmapMergingAllInvalidBasemapObservationsTest) {
+  populateSubmap();
+  pose_graph::VertexId last_base_vertex_id =
+      vertex_ids_[vertex_ids_.size() - 1u];
+  vi_map::LandmarkIdList all_observations_last_base_vertex;
+  map_.getVertex(last_base_vertex_id)
+      .getAllObservedLandmarkIds(&all_observations_last_base_vertex);
+  size_t n_last_base_vertex_observations =
+      all_observations_last_base_vertex.size();
+  setFirstNObservationsInvalid(
+      last_base_vertex_id, n_last_base_vertex_observations, &map_);
+  map_.mergeAllSubmapsFromMap(submap_);
+  CHECK(
+      testLandmarkConsistency(2 * kNumOfLandmarks + kNumOfDuplicateLandmarks));
+}
+
+TEST_F(LoopClosureHandlerTest, SubmapMergingInvalidSubmapObservationsTest) {
+  int num_inliers;
+  double inlier_ratio;
+  static constexpr bool kMergeLandmarks = true;
+  static constexpr bool kAddLoopClosureEdegs = false;
+  FLAGS_lc_ransac_pixel_sigma = 0.8;
+
+  std::mutex map_mutex;
+  for (const vi_map::LoopClosureConstraint& constraint : constraints_) {
+    pose::Transformation G_T_I;
+    vi_map::LoopClosureConstraint inlier_constraints;
+    loop_closure_handler::LoopClosureHandler::MergedLandmark3dPositionVector
+        landmark_pairs_merged;
+    constexpr pose_graph::VertexId* kVertexIdClosestToStructureMatches =
+        nullptr;
+    handler_->handleLoopClosure(
+        constraint, kMergeLandmarks, kAddLoopClosureEdegs, &num_inliers,
+        &inlier_ratio, &G_T_I, &inlier_constraints, &landmark_pairs_merged,
+        kVertexIdClosestToStructureMatches, &map_mutex);
+
+    EXPECT_GT(num_inliers, 0);
+    EXPECT_GT(inlier_ratio, 0);
+
+    EXPECT_EQ(kNumOfDuplicateLandmarks, expected_landmark_merges_.size());
+  }
+
+  populateSubmap();
+  pose_graph::VertexId first_submap_vertex_id = submap_vertex_ids_[0];
+  setFirstNObservationsInvalid(
+      first_submap_vertex_id, kNumOfInvalidFirstSubmapVertexObservation,
+      &submap_);
+  map_.mergeAllSubmapsFromMap(submap_);
+  CHECK(testLandmarkConsistency(
+      kNumOfLandmarks + kNumOfInvalidFirstSubmapVertexObservation));
+}
+
+TEST_F(LoopClosureHandlerTest, SubmapMergingTest) {
+  populateSubmap();
+  map_.mergeAllSubmapsFromMap(submap_);
+  CHECK(
+      testLandmarkConsistency(kNumOfLandmarks + 2 * kNumOfDuplicateLandmarks));
+}
+
+TEST_F(LoopClosureHandlerTest, SubmapMergingAdditionalSubmapLandmarksTest) {
+  populateSubmap();
+  vi_map::Vertex& vertex =
+      submap_.getVertex(submap_vertex_ids_[submap_vertex_ids_.size() / 2]);
+  generateAndProjectLandmarksToSubmapVertex(&vertex);
+  map_.mergeAllSubmapsFromMap(submap_);
+  CHECK(testLandmarkConsistency(
+      kNumOfLandmarks + 2 * kNumOfDuplicateLandmarks +
+      kNumOfAdditionalSubmapLandmarks));
 }
 
 MAPLAB_UNITTEST_ENTRYPOINT
