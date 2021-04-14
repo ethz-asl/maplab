@@ -2,6 +2,7 @@
 
 #include <aslam/common/stl-helpers.h>
 #include <aslam/common/time.h>
+#include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
 #include <glog/logging.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
@@ -1049,11 +1050,6 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
         map_->getSensorManager().getSensor<vi_map::ExternalFeatures>(
             external_features_sensor_id);
 
-    const aslam::SensorId& ncamera_sensor_id =
-        external_features_sensor.getTargetNCameraId();
-    const size_t target_camera_index =
-        external_features_sensor.getTargetCameraIndex();
-
     const int64_t timestamp_ns_measurement =
         external_features_measurement.getTimestampNanoseconds();
 
@@ -1072,9 +1068,64 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
       continue;
     }
 
-    // TODO(smauq): attach measurement here
-
     vi_map::Vertex& closest_vertex = map_->getVertex(closest_vertex_id);
+
+    const aslam::SensorId& target_ncamera_sensor_id =
+        external_features_sensor.getTargetNCameraId();
+    CHECK(closest_vertex.getNCameras()->getId() == target_ncamera_sensor_id)
+        << "Target NCamera " << target_ncamera_sensor_id
+        << " of external feature sensor " << external_features_sensor_id
+        << " is not attached to ";
+
+    const size_t target_camera_index =
+        external_features_sensor.getTargetCameraIndex();
+    aslam::VisualFrame::Ptr frame =
+        closest_vertex.getVisualFrameShared(target_camera_index);
+
+    // TODO(smauq): this is temporary, instead of removing the existing binary
+    // visual features a new channel needs to be added to deal with this
+    frame->clearKeypointChannels();
+
+    Eigen::Matrix2Xd keypoint_measurements;
+    external_features_measurement.getKeypointMeasurements(
+        &keypoint_measurements);
+    frame->swapKeypointMeasurements(&keypoint_measurements);
+
+    if (external_features_sensor.hasUncertainties()) {
+      Eigen::VectorXd keypoint_uncertainties;
+      external_features_measurement.getKeypointUncertainties(
+          &keypoint_uncertainties);
+      frame->swapKeypointMeasurementUncertainties(&keypoint_uncertainties);
+    }
+
+    if (external_features_sensor.hasOrientations()) {
+      Eigen::VectorXd keypoint_orientations;
+      external_features_measurement.getKeypointOrientations(
+          &keypoint_orientations);
+      frame->swapKeypointOrientations(&keypoint_orientations);
+    }
+
+    if (external_features_sensor.hasScores()) {
+      Eigen::VectorXd keypoint_scores;
+      external_features_measurement.getKeypointScores(&keypoint_scores);
+      frame->swapKeypointScores(&keypoint_scores);
+    }
+
+    if (external_features_sensor.hasScales()) {
+      Eigen::VectorXd keypoint_scales;
+      external_features_measurement.getKeypointScales(&keypoint_scales);
+      frame->swapKeypointScales(&keypoint_scales);
+    }
+
+    aslam::VisualFrame::DescriptorsT descriptors;
+    external_features_measurement.getDescriptors(&descriptors);
+    frame->swapDescriptors(&descriptors);
+
+    Eigen::VectorXi track_ids;
+    external_features_measurement.getTrackIds(&track_ids);
+    frame->swapTrackIds(&track_ids);
+
+    closest_vertex.resetObservedLandmarkIdsToInvalid();
 
     VLOG(3) << "[StreamMapBuilder] Attached a new external features "
             << "measurement for vertex " << closest_vertex_id << ", which now "

@@ -1,6 +1,5 @@
 #include <aslam/common/yaml-serialization.h>
 #include <glog/logging.h>
-
 #include <sensors/external-features.h>
 
 namespace vi_map {
@@ -34,7 +33,7 @@ bool ExternalFeatures::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
 }
 
 void ExternalFeatures::saveToYamlNodeImpl(YAML::Node* sensor_node) const {
-  // TODO(smauq): write serializer even though we will probably never use it
+  // TODO(smauq): write serializer
 }
 
 }  // namespace vi_map

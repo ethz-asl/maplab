@@ -1,10 +1,10 @@
 #ifndef SENSORS_EXTERNAL_FEATURES_H_
 #define SENSORS_EXTERNAL_FEATURES_H_
 
-#include <string>
-
 #include <aslam/common/sensor.h>
+#include <aslam/frames/visual-frame.h>
 #include <maplab-common/macros.h>
+#include <string>
 #include <yaml-cpp/yaml.h>
 
 #include "sensors/measurement.h"
@@ -74,6 +74,22 @@ class ExternalFeatures final : public aslam::Sensor {
   void setTargetCameraIndex(size_t target_camera_index) {
     target_camera_index_ = target_camera_index;
     target_camera_index_set_ = true;
+  }
+
+  bool hasUncertainties() const {
+    return has_uncertainties_;
+  }
+
+  bool hasOrientations() const {
+    return has_orientations_;
+  }
+
+  bool hasScores() const {
+    return has_scores_;
+  }
+
+  bool hasScales() const {
+    return has_scales_;
   }
 
  private:
@@ -152,6 +168,61 @@ class ExternalFeaturesMeasurement : public Measurement {
     CHECK(
         track_ids_.size() == 0 ||
         track_ids_.size() == num_keypoint_measurements);
+  }
+
+  void getKeypointMeasurements(Eigen::Matrix2Xd* keypoint_measurements) const {
+    CHECK_NOTNULL(keypoint_measurements);
+    keypoint_measurements->resize(Eigen::NoChange, num_keypoint_measurements_);
+    for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
+      (*keypoint_measurements)(i, 0) = keypoint_measurements_x_[i];
+      (*keypoint_measurements)(i, 1) = keypoint_measurements_y_[i];
+    }
+  }
+
+  void getKeypointUncertainties(Eigen::VectorXd* keypoint_uncertainties) const {
+    CHECK_NOTNULL(keypoint_uncertainties);
+    keypoint_uncertainties->resize(num_keypoint_measurements_);
+    for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
+      (*keypoint_uncertainties)(i) = keypoint_measurement_uncertainties_[i];
+    }
+  }
+
+  void getKeypointOrientations(Eigen::VectorXd* keypoint_orientations) const {
+    CHECK_NOTNULL(keypoint_orientations);
+    keypoint_orientations->resize(num_keypoint_measurements_);
+    for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
+      (*keypoint_orientations)(i) = keypoint_orientations_[i];
+    }
+  }
+
+  void getKeypointScores(Eigen::VectorXd* keypoint_scores) const {
+    CHECK_NOTNULL(keypoint_scores);
+    keypoint_scores->resize(num_keypoint_measurements_);
+    for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
+      (*keypoint_scores)(i) = keypoint_scores_[i];
+    }
+  }
+
+  void getKeypointScales(Eigen::VectorXd* keypoint_scales) const {
+    CHECK_NOTNULL(keypoint_scales);
+    keypoint_scales->resize(num_keypoint_measurements_);
+    for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
+      (*keypoint_scales)(i) = keypoint_scales_[i];
+    }
+  }
+
+  void getTrackIds(Eigen::VectorXi* track_ids) const {
+    CHECK_NOTNULL(track_ids);
+    track_ids->resize(num_keypoint_measurements_);
+    for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
+      (*track_ids)(i) = track_ids_[i];
+    }
+  }
+
+  void getDescriptors(aslam::VisualFrame::DescriptorsT* descriptors) const {
+    CHECK_NOTNULL(descriptors);
+    (*descriptors) = Eigen::Map<const aslam::VisualFrame::DescriptorsT>(
+        descriptors_.data(), descriptor_size_, num_keypoint_measurements_);
   }
 
   inline bool isEqual(
