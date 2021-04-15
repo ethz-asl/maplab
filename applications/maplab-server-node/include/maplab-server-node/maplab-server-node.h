@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <aslam/common/thread-pool.h>
@@ -18,6 +19,7 @@
 #include <visualization/viwls-graph-plotter.h>
 
 namespace maplab {
+class MaplabServerNodeTest;
 
 struct SubmapProcess {
   // Name of the agent
@@ -47,8 +49,10 @@ struct SubmapProcess {
 };
 
 class MaplabServerNode final {
+  friend MaplabServerNodeTest;  // Test.
+
  public:
-  explicit MaplabServerNode();
+  MaplabServerNode();
 
   ~MaplabServerNode();
 

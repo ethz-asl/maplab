@@ -23,8 +23,14 @@ class MaplabServerNodeTest : public ::testing::Test {
     FLAGS_overwrite = true;
     FLAGS_ros_free = true;
   }
+  uint32_t getTotalNumMergedSubmaps() {
+    CHECK_NOTNULL(maplab_server_node_);
+    return maplab_server_node_->total_num_merged_submaps_.load();
+  }
+  MaplabServerNode* maplab_server_node_;
 
  public:
+  const size_t kNumSubmaps = 8u;
   const std::string kBasePath = "./test_maps/submap_test/";
   const std::string kRobotName = "euroc_mh1";
   const std::string kSubmap0 = kBasePath + "euroc_v1_01_submap_0";
@@ -39,40 +45,45 @@ class MaplabServerNodeTest : public ::testing::Test {
 
 TEST_F(MaplabServerNodeTest, TestMaplabServerNode) {
   MaplabServerNode maplab_server_node;
+  maplab_server_node_ = &maplab_server_node;
   maplab_server_node.start();
   ros::Time::init();
 
   EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap0));
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
   maplab_server_node.visualizeMap();
 
   EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap1));
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
   maplab_server_node.visualizeMap();
 
   EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap2));
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
   maplab_server_node.visualizeMap();
 
   EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap3));
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
   maplab_server_node.visualizeMap();
 
   EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap4));
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
   maplab_server_node.visualizeMap();
 
   EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap5));
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
   maplab_server_node.visualizeMap();
 
   EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap6));
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
   maplab_server_node.visualizeMap();
 
   EXPECT_TRUE(maplab_server_node.loadAndProcessSubmap(kRobotName, kSubmap7));
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
   maplab_server_node.visualizeMap();
+
+  while (getTotalNumMergedSubmaps() < kNumSubmaps) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
 
   const std::string merged_map_path = kBasePath + "/merged_map_1";
   EXPECT_TRUE(maplab_server_node.saveMap(merged_map_path));
