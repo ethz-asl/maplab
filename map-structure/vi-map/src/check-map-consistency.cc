@@ -1,7 +1,5 @@
-#include <vi-map/check-map-consistency.h>
-
 #include <unordered_map>
-
+#include <vi-map/check-map-consistency.h>
 #include <vi-map/vi-map.h>
 
 namespace vi_map {
@@ -229,6 +227,8 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
     for (int i = 0; i < num_frames; ++i) {
       if (vertex.isVisualFrameSet(i)) {
         const aslam::VisualFrame& vnframe = vertex.getVisualFrame(i);
+        VLOG(0) << "frame.hasKeypointMeasurements(): "
+                << vnframe.hasKeypointMeasurements();
         if (vnframe.hasKeypointMeasurements()) {
           const size_t num_keypoints = vnframe.getNumKeypointMeasurements();
           for (size_t keypoint_idx = 0u; keypoint_idx < num_keypoints;
@@ -296,6 +296,8 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
             if (observed_landmark_j != observed_landmark_k) {
               continue;
             }
+            VLOG(0) << "frame.hasKeypointMeasurements(): "
+                    << vertex.getVisualFrame(i).hasKeypointMeasurements();
             // Same landmark id, check the distance in image space.
             if (vertex.getVisualFrame(i).hasKeypointMeasurements()) {
               Eigen::Matrix<double, 2, 1> measurement_i =

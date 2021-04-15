@@ -267,8 +267,10 @@ void Synchronizer::processImuMeasurements(
     const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_measurements) {
   const int64_t current_time_ns = aslam::time::nanoSecondsSinceEpoch();
 
-  time_last_imu_message_received_or_checked_ns_.store(current_time_ns);
-
+  int64_t time = time_last_imu_message_received_or_checked_ns_.load();
+  if (time)
+    time_last_imu_message_received_or_checked_ns_.store(
+        aslam::time::nanoSecondsSinceEpoch());
   if (statistics_) {
     CHECK_GT(imu_measurements.cols(), 0);
     const int last_idx = imu_measurements.cols() - 1;

@@ -39,6 +39,11 @@ class SynchronizerFlow {
         kSubscriberNodeName, delivery_method_,
         [this](const vio::ImuMeasurement::ConstPtr& imu) {
           CHECK(imu);
+          int64_t diff = imu->timestamp - last_imu_time;
+          if (diff <= 0) {
+            return;
+          }
+          last_imu_time = imu->timestamp;
           // TODO(schneith): This seems inefficient. Should we batch IMU
           // measurements on the datasource side?
           this->synchronizer_.processImuMeasurements(
@@ -200,6 +205,7 @@ class SynchronizerFlow {
   message_flow::MessageFlow* message_flow_;
 
   Synchronizer synchronizer_;
+  int64_t last_imu_time = 0;
 };
 
 }  // namespace maplab

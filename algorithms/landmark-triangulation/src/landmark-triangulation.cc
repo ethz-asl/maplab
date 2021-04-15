@@ -1,13 +1,12 @@
 #include "landmark-triangulation/landmark-triangulation.h"
 
-#include <functional>
-#include <string>
-#include <unordered_map>
-
 #include <aslam/common/statistics/statistics.h>
 #include <aslam/triangulation/triangulation.h>
+#include <functional>
 #include <maplab-common/multi-threaded-progress-bar.h>
 #include <maplab-common/parallel-process.h>
+#include <string>
+#include <unordered_map>
 #include <vi-map/landmark-quality-metrics.h>
 #include <vi-map/lidar-landmark-quality-metrics.h>
 #include <vi-map/vi-map.h>

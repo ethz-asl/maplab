@@ -1,0 +1,117 @@
+sensors:
+  - id: 5d2fcf479caf7592b35518478a2fe08d
+    sensor_type: IMU
+    description: "ADIS-16448 IMU"
+    topic: /VersaVIS/imu
+    sigmas:
+      gyro_noise_density: 0.005
+      gyro_bias_random_walk_noise_density: 4e-06
+      acc_noise_density: 0.01
+      acc_bias_random_walk_noise_density: 0.0002
+    saturation_accel_max_mps2: 150
+    saturation_gyro_max_radps: 7.5
+    gravity_magnitude_mps2: 9.808083883386614
+
+  - id: abf123479caf7592b35518478a2fe08d
+    sensor_type: LIDAR
+    description: "Lidarstick - Ouster OS1"
+    topic: /os1_cloud_node/points
+
+  - id: aabb23479caf7592b35518478a2fe08d
+    sensor_type: ODOMETRY_6DOF
+    description: "ROVIOLI in Odometry mode"
+    topic: /odometry/maplab_odom_T_M_I
+
+
+  - id: 99c1bac2a7c5fad79f09e49e3b96d99c
+    sensor_type: NCAMERA
+    description: "Lidar ncamera hack"
+    topic: ""
+    cameras:
+      - camera:
+          id: ca27b5000f15adb3c0da8ac6b729ee05
+          sensor_type: CAMERA
+          description: "Lidar RangeImage"
+          topic: /img_node/range_image
+          line-delay-nanoseconds: 97656
+          image_height: 256
+          image_width: 4096
+          type: camera-3d-lidar
+          intrinsics:
+            # kHorizontalResolutionRad      0.351562 deg
+            # kVerticalResolutionRad        0.527333 deg
+            # kVerticalCenterRad            16.611   deg
+            # kHorizontalCenterRad          0        deg
+            rows: 4
+            cols: 1
+            data:
+              - 0.0030679615
+              - 0.0046018515
+              - 0.289916642
+              - 3.1415926535
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+
+            - [0.697844757630570, -0.716151814458072, 0.011801393813587, -0.102101944710322]
+            - [-0.716008824390092, -0.697942707663664, -0.014399312991675, -0.089366022962345]
+            - [0.018548790878398, 0.001598582974092, -0.999826678424528, -0.074600824212783]            
+            - [0, 0, 0, 1.000000000000000]
+
+extrinsics:
+  - sensor_id: abf123479caf7592b35518478a2fe08d
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [0.697844757630570, -0.716151814458072, 0.011801393813587, -0.102101944710322]
+        - [-0.716008824390092, -0.697942707663664, -0.014399312991675, -0.089366022962345]
+        - [0.018548790878398, 0.001598582974092, -0.999826678424528, -0.074600824212783]
+        - [0, 0, 0, 1]
+
+        #This transformation is the one of above times the transformation from the raw lidar frame to lidar camera frame
+
+  - sensor_id: 5d2fcf479caf7592b35518478a2fe08d
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: aabb23479caf7592b35518478a2fe08d
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: 8af1bac2a7c5fad79f09e49e3b96d87b
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+  - sensor_id: 99c1bac2a7c5fad79f09e49e3b96d99c
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08d
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [-0.716151814458072, -0.011801393813587, -0.697844757630570, -0.102101944710322]
+        - [-0.697942707663664, 0.014399312991675, 0.716008824390092, -0.089366022962345]
+        - [0.001598582974092, 0.999826678424528, -0.018548790878398, -0.074600824212783]
+        - [0, 0, 0, 1]

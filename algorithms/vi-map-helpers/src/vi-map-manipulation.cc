@@ -378,7 +378,7 @@ size_t VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfMission(
   const size_t num_landmarks_initial = map_.numLandmarks();
   initializeLandmarksFromUnusedFeatureTracksOfOrderedVertices(
       all_vertices_in_missions, &track_id_to_landmark_id);
-
+  VLOG(0) << "Map size: " << map_.numLandmarks();
   const size_t num_new_landmarks = map_.numLandmarks() - num_landmarks_initial;
   return num_new_landmarks;
 }
@@ -411,11 +411,17 @@ void VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfVertex(
                           const size_t frame_index,
                           const aslam::VisualFrame& frame) {
     const size_t num_keypoints = frame.getNumKeypointMeasurements();
-    if (!frame.hasTrackIds()) {
-      VLOG(3) << "Frame has no tracking information. Skipping frame...";
+    if (!frame.hasTrackIds() && !frame.hasLidarTrackIds()) {
+      VLOG(0) << "Frame has no tracking information. Skipping frame...";
       return;
     }
-    const Eigen::VectorXi& track_ids = frame.getTrackIds();
+    Eigen::VectorXi track_ids;
+    if (frame.hasLidarTrackIds()) {
+      track_ids = frame.getLidarTrackIds();
+    }
+    if (frame.hasTrackIds()) {
+      track_ids = frame.getTrackIds();
+    }
 
     CHECK_EQ(static_cast<int>(num_keypoints), track_ids.rows());
 

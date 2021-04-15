@@ -202,6 +202,12 @@ void MaplabNode::initializeLidarMapping() {
     // TODO(LBern): Currently only one lidar is supported, but there is no
     // good reason not to support N-Lidars.
 
+    aslam::NCamera::Ptr mapping_ncamera =
+        vi_map::getLidarNCamera(*sensor_manager_);
+    lidar_tracker_flow_.reset(new LidarFeatureFlow(
+        mapping_ncamera, synchronizer_flow_->T_M_B_buffer()));
+    lidar_tracker_flow_->attachToMessageFlow(message_flow_);
+
     LOG(INFO) << "[MaplabNode] Lidar-inertial mapping is ENABLED!";
   } else {
     LOG(WARNING) << "[MaplabNode] Lidar-inertial mapping is DISABLED!";
