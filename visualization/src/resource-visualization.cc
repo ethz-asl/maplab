@@ -1,6 +1,7 @@
 #include "visualization/resource-visualization.h"
 
 #include <chrono>
+#include <sstream>
 #include <thread>
 
 #include <Eigen/Dense>
@@ -18,6 +19,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <vi-map/vertex.h>
 #include <vi-map/vi-map.h>
+#include <visualization/color-palette.h>
 #include <visualization/common-rviz-visualization.h>
 #include <visualization/point-cloud-filter.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -64,6 +66,13 @@ DEFINE_bool(
     vis_pointcloud_color_random, false,
     "If enabled, every point cloud receives a random color.");
 
+DEFINE_string(
+    vis_pointcloud_mission_id, "",
+    "Specifies the mission for publishing the dense map.");
+DEFINE_string(
+    vis_pointcloud_mission_id_topic, "",
+    "Specifies the topic for the mission specific dense map.");
+
 DEFINE_bool(
     vis_pointcloud_filter_dense_map_before_publishing, false,
     "If enabled, the visualized dense map will be filtered before "
@@ -77,6 +86,10 @@ DEFINE_double(
 DEFINE_bool(
     vis_pointcloud_filter_beautify_dense_map_before_publishing, false,
     "If point cloud filtering is enabled, beautifies the point cloud.");
+
+DEFINE_int32(
+    vis_pointcloud_sequential_speedup, 1,
+    "Defines the playback speed of the sequential point cloud publisher.");
 
 namespace visualization {
 
@@ -247,7 +260,7 @@ void publishPointCloudInGlobalFrame(
   const std::string kPointCloudTopic =
       ((topic_prefix.empty()) ? "" : (topic_prefix + "/")) + "point_cloud";
   RVizVisualizationSink::publish(kPointCloudTopic, *point_cloud_G);
-  VLOG(2) << "Visualized point-cloud with "
+  VLOG(3) << "Visualized point-cloud with "
           << point_cloud_G->width * point_cloud_G->height << " points on topic "
           << kPointCloudTopic;
 }
@@ -451,6 +464,74 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
       integration_function);
 }
 
+void createPointCloudMessageVectorForMission(
+    const backend::ResourceType input_resource_type,
+    const vi_map::MissionId& mission_id, const vi_map::VIMap& vi_map,
+    const uint16_t mission_counter, const Color& color,
+    std::map<int64_t, SequentialPointCloud>* resources) {
+  CHECK_NOTNULL(resources);
+  CHECK(mission_id.isValid());
+  CHECK(vi_map.hasMission(mission_id));
+
+  uint32_t point_cloud_counter = 0u;
+
+  srand(time(NULL));
+  int64_t previous_ts_ns = 0;
+  depth_integration::IntegrationFunctionPointCloudMaplabWithTs
+      integration_function = [&color, &mission_counter, &resources,
+                              &previous_ts_ns, &point_cloud_counter](
+                                 const int64_t ts_ns,
+                                 const aslam::Transformation& T_G_S,
+                                 const resources::PointCloud& points_S) {
+        if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
+            (point_cloud_counter % FLAGS_vis_pointcloud_visualize_every_nth !=
+             0u)) {
+          ++point_cloud_counter;
+          return;
+        }
+
+        // Transform points to G
+        resources::PointCloud points_G;
+        points_G.appendTransformed(points_S, T_G_S);
+        ++point_cloud_counter;
+
+        LineSegment line_segment;
+        const Eigen::Vector3d cur_pos = T_G_S.getPosition();
+        line_segment.from = cur_pos;
+        line_segment.to = cur_pos;
+        line_segment.color = color;
+        line_segment.scale = 0.4;
+        line_segment.alpha = 1.0;
+
+        Pose pose;
+        pose.G_p_B = T_G_S.getPosition();
+        pose.G_q_B = T_G_S.getRotation().vector();
+        pose.id = 0;
+        pose.scale = 1.8;
+        pose.line_width = 0.5;
+        pose.alpha = 1.0;
+
+        if (point_cloud_counter > 1) {
+          line_segment.from = (*resources)[previous_ts_ns].edge.to;
+        }
+        SequentialPointCloud& cur = (*resources)[ts_ns];
+        cur.point_cloud = std::move(points_G);
+        cur.edge = std::move(line_segment);
+        cur.pose = std::move(pose);
+        cur.mission = mission_counter;
+
+        previous_ts_ns = ts_ns;
+        return;
+      };
+
+  vi_map::MissionIdList mission_ids;
+  mission_ids.emplace_back(mission_id);
+  depth_integration::integrateAllDepthResourcesOfType(
+      mission_ids, input_resource_type,
+      FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
+      integration_function);
+}
+
 void visualizeReprojectedDepthResourcePerRobot(
     const backend::ResourceType input_resource_type,
     const std::unordered_map<std::string, vi_map::MissionIdList>
@@ -511,6 +592,88 @@ void visualizeReprojectedDepthResourcePerRobot(
 
     publishPointCloudInGlobalFrame(
         robot_name /*topic prefix*/, &ros_point_cloud_G);
+  }
+}
+
+void visualizeReprojectedDepthResourceFromMission(
+    const backend::ResourceType input_resource_type,
+    const vi_map::MissionIdList& mission_ids, const vi_map::VIMap& vi_map) {
+  CHECK(!mission_ids.empty());
+  CHECK(!FLAGS_vis_pointcloud_mission_id.empty());
+  CHECK(!FLAGS_vis_pointcloud_mission_id_topic.empty());
+
+  srand(time(NULL));
+
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    const std::string& mission_string = mission_id.shortHex();
+    if (mission_string != FLAGS_vis_pointcloud_mission_id) {
+      continue;
+    }
+    resources::PointCloud accumulated_point_cloud_G;
+    createAndAppendAccumulatedPointCloudMessageForMission(
+        input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G);
+
+    sensor_msgs::PointCloud2 ros_point_cloud_G;
+    backend::convertPointCloudType(
+        accumulated_point_cloud_G, &ros_point_cloud_G);
+    publishPointCloudInGlobalFrame(
+        FLAGS_vis_pointcloud_mission_id_topic, &ros_point_cloud_G);
+
+    return;
+  }
+  VLOG(1) << "No mission found with id: " << FLAGS_vis_pointcloud_mission_id;
+}
+
+void visualizeReprojectedDepthResourceSequentially(
+    const backend::ResourceType input_resource_type,
+    const vi_map::MissionIdList& mission_ids, const vi_map::VIMap& vi_map) {
+  CHECK(!mission_ids.empty());
+  srand(time(NULL));
+
+  // Extract resource information from the missions.
+  std::map<int64_t, SequentialPointCloud> incremental_resources;
+  std::vector<std::string> mission_topic_prefix;
+  uint16_t mission_counter = 0u;
+  const std::string mission_prefix = "mission_";
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    visualization::Color color;
+    visualization::GetRandomRGBColor(&color);
+    createPointCloudMessageVectorForMission(
+        input_resource_type, mission_id, vi_map, mission_counter, color,
+        &incremental_resources);
+    mission_topic_prefix.emplace_back(mission_prefix + mission_id.shortHex());
+    ++mission_counter;
+  }
+  // Publish the point clouds.
+  // We assume that the iteration is fast enough for the waiting.
+  int64_t previous_ts_ns = 0;
+  uint32_t idx = 0u;
+  VLOG(1) << "Publishing point clouds with playback: "
+          << FLAGS_vis_pointcloud_sequential_speedup << "x.";
+  for (const auto& kv : incremental_resources) {
+    if (previous_ts_ns > 0) {
+      int64_t ts_diff_ns =
+          (kv.first - previous_ts_ns) / FLAGS_vis_pointcloud_sequential_speedup;
+      // Sleep for x ns, where x is the time difference to previous resource.
+      std::this_thread::sleep_for(std::chrono::nanoseconds(ts_diff_ns));
+    }
+    sensor_msgs::PointCloud2 ros_point_cloud_G;
+    backend::convertPointCloudType(kv.second.point_cloud, &ros_point_cloud_G);
+
+    const std::string mission_prefix = mission_topic_prefix[kv.second.mission];
+
+    publishPointCloudInGlobalFrame(mission_prefix, &ros_point_cloud_G);
+
+    publishVerticesFromPoseVector(
+        {kv.second.pose}, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
+        mission_prefix + "/current_pose");
+
+    publishLines(
+        {kv.second.edge}, idx, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
+        mission_prefix + "/pose");
+
+    previous_ts_ns = kv.first;
+    ++idx;
   }
 }
 
