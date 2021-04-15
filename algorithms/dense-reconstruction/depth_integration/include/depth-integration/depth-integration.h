@@ -25,6 +25,11 @@ typedef std::function<void(
     const resources::PointCloud& /*points_S*/)>
     IntegrationFunctionPointCloudMaplab;
 
+typedef std::function<void(
+    const int64_t /*ts_ns*/, const aslam::Transformation /*T_G_S*/&,
+    const resources::PointCloud& /*points_S*/)>
+    IntegrationFunctionPointCloudMaplabWithTs;
+
 // Set of supported resource types when using the depth integrator with the
 // point cloud integration function.
 static std::unordered_set<backend::ResourceType, backend::ResourceTypeHash>
