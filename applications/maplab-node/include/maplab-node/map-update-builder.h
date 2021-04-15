@@ -9,7 +9,6 @@
 #include <utility>
 
 #include <aslam/common/memory.h>
-#include <aslam/common/unique-id.h>
 #include <maplab-common/localization-result.h>
 #include <vio-common/map-update.h>
 #include <vio-common/pose-lookup-buffer.h>
@@ -24,10 +23,8 @@ class MapUpdateBuilder {
   typedef std::function<void(const vio::MapUpdate::ConstPtr&)>
       MapUpdatePublishFunction;
 
-  explicit MapUpdateBuilder(
-      const vio_common::PoseLookupBuffer& T_M_B_buffer,
-      const aslam::SensorIdSet& ncamera_ids);
-      
+  explicit MapUpdateBuilder(const vio_common::PoseLookupBuffer& T_M_B_buffer);
+
   void registerMapUpdatePublishFunction(
       const MapUpdatePublishFunction& map_update_publish_function) {
     map_update_publish_function_ = map_update_publish_function;
@@ -41,9 +38,7 @@ class MapUpdateBuilder {
   void clearSynchronizedNFrameImuQueue() {
     // For unit tests.
     TrackedNFrameQueue empty_queue;
-    for (aslam::SensorId ncamera_id : ncamera_ids_) {
-      tracked_nframe_queues_[ncamera_id].swap(empty_queue);
-    }
+    tracked_nframe_queue_.swap(empty_queue);
   }
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -51,7 +46,7 @@ class MapUpdateBuilder {
   typedef std::queue<vio::SynchronizedNFrame::ConstPtr> TrackedNFrameQueue;
   typedef Aligned<std::deque, OdometryEstimate::ConstPtr> OdometryEstimateQueue;
 
-  bool findMatchAndPublish();
+  void findMatchAndPublish();
   void interpolateViNodeState(
       const int64_t timestamp_ns_a, const vio::ViNodeState& vi_node_a,
       const int64_t timestamp_ns_b, const vio::ViNodeState& vi_node_b,
@@ -65,12 +60,11 @@ class MapUpdateBuilder {
   common::TemporalBuffer<common::FusedLocalizationResult> localization_buffer_;
 
   std::recursive_mutex queue_mutex_;
-  std::map<aslam::SensorId, TrackedNFrameQueue> tracked_nframe_queues_;
-  aslam::SensorIdSet ncamera_ids_;
+  TrackedNFrameQueue tracked_nframe_queue_;
   // These values indicate the timestamp of the last message in the given topic
   // so that we can enforce that the timestamps are strictly monotonically
   // increasing
-  std::atomic<int64_t> last_published_timestamp_tracked_nframe_queue_;
+  std::atomic<int64_t> last_received_timestamp_tracked_nframe_queue_;
 
   MapUpdatePublishFunction map_update_publish_function_;
 

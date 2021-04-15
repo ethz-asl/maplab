@@ -67,9 +67,7 @@ MapBuilderFlow::MapBuilderFlow(
       map_with_mutex_(aligned_shared<VIMapWithMutex>()),
       last_vertex_of_previous_map_saving_(),
       mapping_terminated_(false),
-      map_update_builder_(
-          T_M_B_buffer,
-          sensor_manager_.getAllSensorIdsOfType(vi_map::SensorType::kNCamera)),
+      map_update_builder_(T_M_B_buffer),
       external_resource_folder_(),
       stream_map_builder_(sensor_manager_, &map_with_mutex_->vi_map) {
   if (!save_map_folder.empty()) {
