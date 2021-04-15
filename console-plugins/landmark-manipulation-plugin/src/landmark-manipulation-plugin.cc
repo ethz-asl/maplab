@@ -32,7 +32,7 @@ LandmarkManipulationPlugin::LandmarkManipulationPlugin(
   addCommand(
       {"evaluate_lidar_landmark_quality", "ellq"},
       [this]() -> int { return evaluateLidarLandmarkQuality(); },
-      "Evaluates and sets the landmark quality of all landmarks.",
+      "Evaluates and sets the landmark quality of all lidar landmarks.",
       common::Processing::Sync);
   addCommand(
       {"reset_landmark_quality", "rlq"},
