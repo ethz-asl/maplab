@@ -122,7 +122,7 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
         return visualizeReprojectedDepthResourceSequentially(
             backend::ResourceType::kPointCloudXYZI);
       },
-      "Incrementally builds and visualiezs the dense maps.",
+      "Incrementally builds and visualizes xyz + intensity dense maps.",
       common::Processing::Sync);
 
   addCommand(
