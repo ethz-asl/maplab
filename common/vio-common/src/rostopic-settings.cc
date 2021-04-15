@@ -8,6 +8,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <sensors/absolute-6dof-pose.h>
+#include <sensors/external-features.h>
 #include <sensors/gps-utm.h>
 #include <sensors/gps-wgs.h>
 #include <sensors/lidar.h>
@@ -40,8 +41,8 @@ RosTopicSettings::RosTopicSettings(
     // remove spurious "/" in topic names
     camera_topic_base.erase(camera_topic_base.find_last_not_of("/") + 1);
     camera_topic_suffix.erase(0, camera_topic_suffix.find_first_not_of("/"));
-    camera_topic_cam_index_map.emplace(std::make_pair(camera_topic_base + "/" +
-        camera_topic_suffix, cam_idx));
+    camera_topic_cam_index_map.emplace(
+        std::make_pair(camera_topic_base + "/" + camera_topic_suffix, cam_idx));
   }
 }
 
@@ -188,6 +189,25 @@ RosTopicSettings::RosTopicSettings(const vi_map::SensorManager& sensor_manager)
     CHECK(pointcloud_map_topic_map
               .emplace(pointcloud_map_topic, point_cloud_map_sensor->getId())
               .second);
+  }
+
+  aslam::SensorIdSet all_external_feature_sensor_ids;
+  sensor_manager.getAllSensorIdsOfType(
+      vi_map::SensorType::kExternalFeatures, &all_external_feature_sensor_ids);
+  for (const aslam::SensorId sensor_id : all_external_feature_sensor_ids) {
+    vi_map::ExternalFeatures::Ptr external_features_sensor =
+        sensor_manager.getSensorPtr<vi_map::ExternalFeatures>(sensor_id);
+    CHECK(external_features_sensor);
+
+    const std::string& external_features_topic =
+        external_features_sensor->getTopic();
+    CHECK(!external_features_topic.empty())
+        << "The selected external feature sensor ('"
+        << external_features_sensor->getId() << "') has an empty ROS topic!";
+    CHECK(
+        external_features_topic_map
+            .emplace(external_features_topic, external_features_sensor->getId())
+            .second);
   }
 }
 

@@ -1,7 +1,6 @@
 #include "maplab-node/map-builder-flow.h"
 
 #include <functional>
-
 #include <landmark-triangulation/landmark-triangulation.h>
 #include <localization-summary-map/localization-summary-map-creation.h>
 #include <localization-summary-map/localization-summary-map.h>
@@ -197,6 +196,7 @@ void MapBuilderFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
               << "to map.";
         }
       });
+
   flow->registerSubscriber<message_flow_topics::SYNCED_POINTCLOUD_MAP>(
       kSubscriberNodeName, delivery_options,
       [this](const vi_map::RosPointCloudMapSensorMeasurement::ConstPtr&
@@ -224,11 +224,31 @@ void MapBuilderFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
         }
       });
 
+  flow->registerSubscriber<message_flow_topics::SYNCED_EXTERNAL_FEATURES>(
+      kSubscriberNodeName, delivery_options,
+      [this](const vi_map::ExternalFeaturesMeasurement::ConstPtr&
+                 external_features_measurement) {
+        CHECK(external_features_measurement);
+        {
+          std::lock_guard<std::mutex> lock(map_with_mutex_->mutex);
+          if (mapping_terminated_) {
+            return;
+          }
+
+          stream_map_builder_.bufferExternalFeaturesMeasurement(
+              external_features_measurement);
+
+          VLOG(4)
+              << "[MaplabNode-MapBuilder] Attached external features to map.";
+        }
+      });
+
   std::function<void(const vio::MapUpdate::ConstPtr&)>
       map_update_builder_publisher =
           flow->registerPublisher<message_flow_topics::MAP_UPDATES>();
   map_update_builder_.registerMapUpdatePublishFunction(
       map_update_builder_publisher);
+
   flow->registerSubscriber<message_flow_topics::TRACKED_NFRAMES>(
       kSubscriberNodeName, delivery_options,
       [this](const vio::SynchronizedNFrame::ConstPtr& synchronized_nframe_imu) {
@@ -237,6 +257,7 @@ void MapBuilderFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
         }
         map_update_builder_.processTrackedNFrame(synchronized_nframe_imu);
       });
+
   flow->registerSubscriber<message_flow_topics::FUSED_LOCALIZATION_RESULT>(
       kSubscriberNodeName, delivery_options,
       std::bind(

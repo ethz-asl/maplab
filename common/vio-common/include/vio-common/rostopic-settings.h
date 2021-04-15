@@ -56,6 +56,8 @@ struct RosTopicSettings {
   // ROS topic for (accumulated) dense point clouds representing part or the
   // whole map.
   TopicSensorIdMap pointcloud_map_topic_map;
+  // ROS topic for external features
+  TopicSensorIdMap external_features_topic_map;
 
   void getAllValidTopics(std::vector<std::string>* topics);
 

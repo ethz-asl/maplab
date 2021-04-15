@@ -398,6 +398,10 @@ bool SensorManager::deserialize(const YAML::Node& yaml_node) {
           sensor = std::dynamic_pointer_cast<aslam::Sensor>(
               aligned_shared<vi_map::PointCloudMapSensor>());
           break;
+        case SensorType::kExternalFeatures:
+          sensor = std::dynamic_pointer_cast<aslam::Sensor>(
+              aligned_shared<vi_map::ExternalFeatures>());
+          break;
         case SensorType::kCamera:
           LOG(ERROR) << "Sensor deserialization of a single camera is "
                         "currently not supported, wrap it in an NCamera!";

@@ -1,15 +1,11 @@
 #ifndef ONLINE_MAP_BUILDERS_STREAM_MAP_BUILDER_H_
 #define ONLINE_MAP_BUILDERS_STREAM_MAP_BUILDER_H_
 
-#include <algorithm>
-#include <memory>
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
 #include <Eigen/Dense>
+#include <algorithm>
 #include <landmark-triangulation/pose-interpolator.h>
 #include <map-resources/resource-conversion.h>
+#include <memory>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <posegraph/unique-id.h>
@@ -18,6 +14,9 @@
 #include <sensors/lidar.h>
 #include <sensors/pointcloud-map-sensor.h>
 #include <sensors/wheel-odometry-sensor.h>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vi-mission.h>
@@ -79,6 +78,10 @@ class StreamMapBuilder {
       const vi_map::WheelOdometryMeasurement::ConstPtr&
           wheel_odometry_constraint);
 
+  void bufferExternalFeaturesMeasurement(
+      const vi_map::ExternalFeaturesMeasurement::ConstPtr&
+          external_features_measurement);
+
   template <typename PointCloudType>
   void attachPointCloudMap(
       const vi_map::PointCloudMapSensorMeasurement<PointCloudType>&
@@ -109,6 +112,7 @@ class StreamMapBuilder {
   void notifyAbsolute6DoFConstraintBuffer();
   void notifyLoopClosureConstraintBuffer();
   void notifyWheelOdometryConstraintBuffer();
+  void notifyExternalFeaturesMeasurementBuffer();
 
   void addRootViwlsVertex(
       const std::shared_ptr<aslam::VisualNFrame>& nframe,
@@ -175,7 +179,7 @@ class StreamMapBuilder {
   bool found_wheel_odometry_origin_;
 
   common::TemporalBuffer<vi_map::Absolute6DoFMeasurement::Ptr>
-      absolute_6dof_measurment_buffer_;
+      absolute_6dof_measurement_buffer_;
 
   aslam::Transformation T_M0_G_;
   bool is_first_baseframe_estimate_processed_;
@@ -186,6 +190,9 @@ class StreamMapBuilder {
   // Save transformation between lidar sensor frame and lidar camera sensor
   // frame.
   aslam::Transformation T_C_lidar_S_lidar_;
+
+  common::TemporalBuffer<vi_map::ExternalFeaturesMeasurement::ConstPtr>
+      external_features_measurement_temporal_buffer_;
 
   static constexpr size_t kKeepNMostRecentImages = 10u;
 };

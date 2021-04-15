@@ -945,32 +945,30 @@ void VIMap::associateMissionSensors(
 
   for (const auto& sensor_of_type : sensors_of_type) {
     CHECK(!sensor_of_type.second.empty());
-    if (static_cast<SensorType>(sensor_of_type.first) == SensorType::kNCamera) {
+    const SensorType sensor_type =
+        static_cast<SensorType>(sensor_of_type.first);
+    if (sensor_type == SensorType::kNCamera) {
       CHECK(!mission.hasNCamera()) << "There shouldn't be a NCamera sensor "
                                    << "associated yet with this mission!";
       const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
           FLAGS_selected_ncamera_sensor_id, "selected_ncamera_sensor_id",
           "NCamera", sensor_of_type.second);
       mission.setNCameraId(sensor_id);
-    } else if (
-        static_cast<SensorType>(sensor_of_type.first) == SensorType::kImu) {
+    } else if (sensor_type == SensorType::kImu) {
       CHECK(!mission.hasImu()) << "There shouldn't be a IMU sensor associated "
                                << "yet with this mission!";
       const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
           FLAGS_selected_imu_sensor_id, "selected_imu_sensor_id", "IMU",
           sensor_of_type.second);
       mission.setImuId(sensor_id);
-    } else if (
-        static_cast<SensorType>(sensor_of_type.first) == SensorType::kLidar) {
+    } else if (sensor_type == SensorType::kLidar) {
       CHECK(!mission.hasLidar()) << "There shouldn't be a Lidar sensor "
                                  << "associated yet with this mission!";
       const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
           FLAGS_selected_lidar_sensor_id, "selected_lidar_sensor_id", "Lidar",
           sensor_of_type.second);
       mission.setLidarId(sensor_id);
-    } else if (
-        static_cast<SensorType>(sensor_of_type.first) ==
-        SensorType::kOdometry6DoF) {
+    } else if (sensor_type == SensorType::kOdometry6DoF) {
       CHECK(!mission.hasOdometry6DoFSensor())
           << "There shouldn't be a Odometry6DoF sensor associated yet with "
           << "this mission!";
@@ -979,9 +977,7 @@ void VIMap::associateMissionSensors(
           "selected_odometry_6dof_sensor_id", "Odometry6DoF",
           sensor_of_type.second);
       mission.setOdometry6DoFSensor(sensor_id);
-    } else if (
-        static_cast<SensorType>(sensor_of_type.first) ==
-        SensorType::kLoopClosureSensor) {
+    } else if (sensor_type == SensorType::kLoopClosureSensor) {
       CHECK(!mission.hasLoopClosureSensor())
           << "Can not handle more than one "
              "loop closure 6DOF sensor per mission";
@@ -990,9 +986,7 @@ void VIMap::associateMissionSensors(
           "selected_loop_closure_sensor_id", "LoopClosureSensor",
           sensor_of_type.second);
       mission.setLoopClosureSensor(sensor_id);
-    } else if (
-        static_cast<SensorType>(sensor_of_type.first) ==
-        SensorType::kWheelOdometry) {
+    } else if (sensor_type == SensorType::kWheelOdometry) {
       CHECK(!mission.hasWheelOdometrySensor())
           << "Can not handle more than one wheel odometry sensor per mission";
       const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
@@ -1000,9 +994,7 @@ void VIMap::associateMissionSensors(
           "selected_wheel_odometry_sensor_id", "WheelOdometrySensor",
           sensor_of_type.second);
       mission.setWheelOdometrySensor(sensor_id);
-    } else if (
-        static_cast<SensorType>(sensor_of_type.first) ==
-        SensorType::kAbsolute6DoF) {
+    } else if (sensor_type == SensorType::kAbsolute6DoF) {
       CHECK(!mission.hasAbsolute6DoFSensor())
           << "There shouldn't be an Absolute6DoF sensor associated yet with "
           << "this mission!";
@@ -1012,8 +1004,8 @@ void VIMap::associateMissionSensors(
           sensor_of_type.second);
       mission.setAbsolute6DoFSensor(sensor_id);
     } else if (
-        static_cast<SensorType>(sensor_of_type.first) ==
-        SensorType::kPointCloudMapSensor) {
+        sensor_type == SensorType::kPointCloudMapSensor ||
+        sensor_type == SensorType::kExternalFeatures) {
       // NOTE: this sensor type does not need to be associated with the VIMap,
       // as it is only used to store sensor resources anyways.
     } else {

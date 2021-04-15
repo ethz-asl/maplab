@@ -20,7 +20,7 @@
   };                                                                 \
   }  // namespace std
 
-#define DEFINE_MEAUREMENT_CONTAINERS(measurement)              \
+#define DEFINE_MEASUREMENT_CONTAINERS(measurement)              \
   typedef AlignedUnorderedSet<measurement> measurement##Set;   \
   typedef Aligned<std::vector, measurement> measurement##List; \
   typedef MeasurementBuffer<measurement> measurement##Buffer;  \

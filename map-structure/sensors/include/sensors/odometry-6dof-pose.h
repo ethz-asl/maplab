@@ -146,7 +146,7 @@ class Odometry6DoFMeasurement : public Measurement {
   bool has_T_O_S_covariance_;
 };
 
-DEFINE_MEAUREMENT_CONTAINERS(Odometry6DoFMeasurement)
+DEFINE_MEASUREMENT_CONTAINERS(Odometry6DoFMeasurement)
 
 constexpr char kYamlFieldNameFixedCovariance[] = "T_St_Stp1_fixed_covariance";
 

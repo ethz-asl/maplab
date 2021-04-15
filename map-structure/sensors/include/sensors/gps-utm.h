@@ -132,7 +132,7 @@ class GpsUtmMeasurement final : public Measurement {
   UtmZone utm_zone_;
 };
 
-DEFINE_MEAUREMENT_CONTAINERS(GpsUtmMeasurement)
+DEFINE_MEASUREMENT_CONTAINERS(GpsUtmMeasurement)
 
 }  // namespace vi_map
 

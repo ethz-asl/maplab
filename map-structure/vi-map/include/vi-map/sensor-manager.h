@@ -17,6 +17,7 @@
 #include <maplab-common/accessors.h>
 #include <maplab-common/macros.h>
 #include <sensors/absolute-6dof-pose.h>
+#include <sensors/external-features.h>
 #include <sensors/gps-utm.h>
 #include <sensors/gps-wgs.h>
 #include <sensors/imu.h>

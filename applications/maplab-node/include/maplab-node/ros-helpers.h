@@ -22,12 +22,14 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <maplab_msgs/Features.h>
 #include <maplab_msgs/OdometryWithImuBiases.h>
 #include <minkindr_conversions/kindr_msg.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <sensors/absolute-6dof-pose.h>
+#include <sensors/external-features.h>
 #include <sensors/lidar.h>
 #include <sensors/loop-closure-sensor.h>
 #include <sensors/odometry-6dof-pose.h>
@@ -82,6 +84,10 @@ convertPoseWithCovarianceToAbsolute6DoFConstraint(
 
 vi_map::WheelOdometryMeasurement::Ptr convertRosOdometryToMaplabWheelOdometry(
     const nav_msgs::OdometryConstPtr& odometry_msg, aslam::SensorId sensor_id);
+
+vi_map::ExternalFeaturesMeasurement::Ptr
+convertRosFeatureMsgToMaplabExternalFeatures(
+    const maplab_msgs::FeaturesConstPtr& msg, aslam::SensorId sensor_id);
 
 #ifdef VOXGRAPH
 void convertVoxgraphEdgeListToLoopClosureConstraint(

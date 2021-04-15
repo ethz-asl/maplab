@@ -272,7 +272,7 @@ class ImuMeasurement final : public Measurement {
   CombinedImuData I_accel_xyz_m_s2_gyro_xyz_rad_s_;
 };
 
-DEFINE_MEAUREMENT_CONTAINERS(ImuMeasurement)
+DEFINE_MEASUREMENT_CONTAINERS(ImuMeasurement)
 
 }  // namespace vi_map
 

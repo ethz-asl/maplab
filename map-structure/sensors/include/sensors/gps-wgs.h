@@ -124,7 +124,7 @@ class GpsWgsMeasurement final : public Measurement {
   double altitude_meters_;
 };
 
-DEFINE_MEAUREMENT_CONTAINERS(GpsWgsMeasurement)
+DEFINE_MEASUREMENT_CONTAINERS(GpsWgsMeasurement)
 
 }  // namespace vi_map
 

@@ -87,7 +87,7 @@ void exportVerticesAndTracksToCsv(
   std::unique_ptr<common::FileLogger> logger_descriptor;
   if (FLAGS_csv_export_descriptors) {
     logger_descriptor.reset(new common::FileLogger(path_descriptor));
-    logger_tracks->writeDataWithDelimiterAndNewLine(
+    logger_descriptor->writeDataWithDelimiterAndNewLine(
         kDelimiter, "Descriptor byte as integer 1-N");
   }
 

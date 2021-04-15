@@ -2,6 +2,7 @@
 
 #include <aslam/common/stl-helpers.h>
 #include <aslam/common/time.h>
+#include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
 #include <glog/logging.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
@@ -463,7 +464,7 @@ void StreamMapBuilder::bufferAbsolute6DoFConstraint(
   CHECK(absolute_6dof_constraint->isValid())
       << "[StreamMapBuilder] Absolute 6DoF constraint invalid!";
 
-  absolute_6dof_measurment_buffer_.addValue(
+  absolute_6dof_measurement_buffer_.addValue(
       absolute_6dof_constraint->getTimestampNanoseconds(),
       absolute_6dof_constraint);
 }
@@ -515,17 +516,28 @@ void StreamMapBuilder::bufferWheelOdometryConstraint(
       wheel_odometry_constraint);
 }
 
+void StreamMapBuilder::bufferExternalFeaturesMeasurement(
+    const vi_map::ExternalFeaturesMeasurement::ConstPtr&
+        external_features_measurement) {
+  CHECK_NOTNULL(map_);
+  CHECK(external_features_measurement);
+  CHECK(external_features_measurement->isValid())
+      << "[StreamMapBuilder] External features measurement invalid!";
+
+  external_features_measurement_temporal_buffer_.addValue(
+      external_features_measurement->getTimestampNanoseconds(),
+      external_features_measurement);
+}
+
 void StreamMapBuilder::notifyBuffers() {
   notifyAbsolute6DoFConstraintBuffer();
   notifyLoopClosureConstraintBuffer();
-
-  if (constMap()->getMission(mission_id_).hasWheelOdometrySensor()) {
-    notifyWheelOdometryConstraintBuffer();
-  }
+  notifyWheelOdometryConstraintBuffer();
+  notifyExternalFeaturesMeasurementBuffer();
 }
 
 void StreamMapBuilder::notifyAbsolute6DoFConstraintBuffer() {
-  if (map_->numVertices() < 2u || absolute_6dof_measurment_buffer_.empty()) {
+  if (map_->numVertices() < 2u || absolute_6dof_measurement_buffer_.empty()) {
     return;
   }
 
@@ -535,7 +547,8 @@ void StreamMapBuilder::notifyAbsolute6DoFConstraintBuffer() {
   CHECK(aslam::time::isValidTime(oldest_vertex_time_ns));
 
   const size_t dropped_constraints =
-      absolute_6dof_measurment_buffer_.removeItemsBefore(oldest_vertex_time_ns);
+      absolute_6dof_measurement_buffer_.removeItemsBefore(
+          oldest_vertex_time_ns);
   if (dropped_constraints > 0u) {
     LOG(WARNING) << "[StreamMapBuilder] Dropped " << dropped_constraints
                  << " absolute 6DoF constraints, because they are before the "
@@ -543,11 +556,12 @@ void StreamMapBuilder::notifyAbsolute6DoFConstraintBuffer() {
   }
 
   std::vector<vi_map::Absolute6DoFMeasurement::Ptr> constraints;
-  absolute_6dof_measurment_buffer_.getValuesFromIncludingToIncluding(
+  absolute_6dof_measurement_buffer_.getValuesFromIncludingToIncluding(
       oldest_vertex_time_ns, newest_vertex_time_ns, &constraints);
 
   const size_t processed_constraints =
-      absolute_6dof_measurment_buffer_.removeItemsBefore(newest_vertex_time_ns);
+      absolute_6dof_measurement_buffer_.removeItemsBefore(
+          newest_vertex_time_ns);
 
   VLOG(3) << "[StreamMapBuilder] Processing " << processed_constraints
           << " absolute 6DoF constraints.";
@@ -686,7 +700,7 @@ void StreamMapBuilder::notifyLoopClosureConstraintBuffer() {
   if (loop_closure_measurement_buffer_.size() > 0u) {
     VLOG(3) << "[StreamMapBuilder] Left "
             << loop_closure_measurement_buffer_.size()
-            << " loop closure constraints in the buffer, because they "
+            << " loop closure constraints in the buffer, because they are "
             << "newer than the latest vertex in the map.";
   }
   VLOG(3) << "[StreamMapBuilder] Attaching or updating "
@@ -859,8 +873,6 @@ void StreamMapBuilder::notifyLoopClosureConstraintBuffer() {
 void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
   if ((map_->numVertices() < 1u ||
        wheel_odometry_measurement_temporal_buffer_.empty())) {
-    VLOG(3) << "[StreamMapBuilder] No wheel odometry measurements in buffer "
-            << "yet; not adding wheel odom edge.";
     return;
   }
 
@@ -990,6 +1002,136 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
     }
   }
   VLOG(2) << "[StreamMapBuilder] Added " << counter << " wheel odometry edges.";
+}
+
+void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
+  if (map_->numVertices() < 2u ||
+      external_features_measurement_temporal_buffer_.empty()) {
+    return;
+  }
+
+  const int64_t newest_vertex_time_ns = newest_vertex_timestamp_ns_.load();
+  const int64_t oldest_vertex_time_ns = oldest_vertex_timestamp_ns_.load();
+  CHECK(aslam::time::isValidTime(newest_vertex_time_ns));
+  CHECK(aslam::time::isValidTime(oldest_vertex_time_ns));
+
+  const size_t dropped_constraints =
+      external_features_measurement_temporal_buffer_.removeItemsBefore(
+          oldest_vertex_time_ns);
+  if (dropped_constraints > 0u) {
+    LOG(WARNING) << "[StreamMapBuilder] Dropped " << dropped_constraints
+                 << " external feature measurements, because they are before "
+                 << "the first vertex of the map.";
+  }
+
+  std::vector<vi_map::ExternalFeaturesMeasurement::ConstPtr> measurements;
+  external_features_measurement_temporal_buffer_
+      .getValuesFromIncludingToIncluding(
+          oldest_vertex_time_ns, newest_vertex_time_ns, &measurements);
+
+  const size_t processed_measurements =
+      external_features_measurement_temporal_buffer_.removeItemsBefore(
+          newest_vertex_time_ns);
+
+  VLOG(3) << "[StreamMapBuilder] Processing " << processed_measurements
+          << " external feature measurements.";
+
+  for (const vi_map::ExternalFeaturesMeasurement::ConstPtr measurement_ptr :
+       measurements) {
+    CHECK(measurement_ptr);
+    CHECK_LE(measurement_ptr->getTimestampNanoseconds(), newest_vertex_time_ns);
+    CHECK_GE(measurement_ptr->getTimestampNanoseconds(), oldest_vertex_time_ns);
+    const vi_map::ExternalFeaturesMeasurement& external_features_measurement =
+        *measurement_ptr;
+
+    const aslam::SensorId external_features_sensor_id =
+        external_features_measurement.getSensorId();
+    const vi_map::ExternalFeatures& external_features_sensor =
+        map_->getSensorManager().getSensor<vi_map::ExternalFeatures>(
+            external_features_sensor_id);
+
+    const int64_t timestamp_ns_measurement =
+        external_features_measurement.getTimestampNanoseconds();
+
+    constexpr int64_t kMaxInterpolationTimeNs = aslam::time::milliseconds(500);
+    pose_graph::VertexId closest_vertex_id;
+    uint64_t delta_ns = 0u;
+    if (!queries_.getClosestVertexIdByTimestamp(
+            timestamp_ns_measurement, kMaxInterpolationTimeNs,
+            &closest_vertex_id, &delta_ns)) {
+      LOG(WARNING)
+          << "[StreamMapBuilder] Could not attach external features "
+          << "measurement, because the timestamp is not close enough to "
+          << "a vertex in the pose graph (delta = " << delta_ns << "ns > "
+          << kMaxInterpolationTimeNs
+          << "ns)! timestamp_ns: " << timestamp_ns_measurement << ".";
+      continue;
+    }
+
+    vi_map::Vertex& closest_vertex = map_->getVertex(closest_vertex_id);
+
+    const aslam::SensorId& target_ncamera_sensor_id =
+        external_features_sensor.getTargetNCameraId();
+    CHECK(closest_vertex.getNCameras()->getId() == target_ncamera_sensor_id)
+        << "Target NCamera " << target_ncamera_sensor_id
+        << " of external feature sensor " << external_features_sensor_id
+        << " is not attached to ";
+
+    const size_t target_camera_index =
+        external_features_sensor.getTargetCameraIndex();
+    aslam::VisualFrame::Ptr frame =
+        closest_vertex.getVisualFrameShared(target_camera_index);
+
+    // TODO(smauq): this is temporary, instead of removing the existing binary
+    // visual features a new channel needs to be added to deal with this
+    frame->clearKeypointChannels();
+
+    Eigen::Matrix2Xd keypoint_measurements;
+    external_features_measurement.getKeypointMeasurements(
+        &keypoint_measurements);
+    frame->swapKeypointMeasurements(&keypoint_measurements);
+
+    if (external_features_sensor.hasUncertainties()) {
+      Eigen::VectorXd keypoint_uncertainties;
+      external_features_measurement.getKeypointUncertainties(
+          &keypoint_uncertainties);
+      frame->swapKeypointMeasurementUncertainties(&keypoint_uncertainties);
+    }
+
+    if (external_features_sensor.hasOrientations()) {
+      Eigen::VectorXd keypoint_orientations;
+      external_features_measurement.getKeypointOrientations(
+          &keypoint_orientations);
+      frame->swapKeypointOrientations(&keypoint_orientations);
+    }
+
+    if (external_features_sensor.hasScores()) {
+      Eigen::VectorXd keypoint_scores;
+      external_features_measurement.getKeypointScores(&keypoint_scores);
+      frame->swapKeypointScores(&keypoint_scores);
+    }
+
+    if (external_features_sensor.hasScales()) {
+      Eigen::VectorXd keypoint_scales;
+      external_features_measurement.getKeypointScales(&keypoint_scales);
+      frame->swapKeypointScales(&keypoint_scales);
+    }
+
+    aslam::VisualFrame::DescriptorsT descriptors;
+    external_features_measurement.getDescriptors(&descriptors);
+    frame->swapDescriptors(&descriptors);
+
+    Eigen::VectorXi track_ids;
+    external_features_measurement.getTrackIds(&track_ids);
+    frame->swapTrackIds(&track_ids);
+
+    closest_vertex.resetObservedLandmarkIdsToInvalid();
+
+    VLOG(3) << "[StreamMapBuilder] Attached a new external features "
+            << "measurement for vertex " << closest_vertex_id << ", which now "
+            << "has " << closest_vertex.getNumAbsolute6DoFMeasurements()
+            << " such constraints.";
+  }
 }
 
 }  // namespace online_map_builders

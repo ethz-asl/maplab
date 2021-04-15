@@ -48,6 +48,8 @@ class DataSourceFlow {
             message_flow_topics::LOOP_CLOSURE_CONSTRAINTS>());
     datasource_->registerPointCloudMapCallback(
         flow->registerPublisher<message_flow_topics::POINTCLOUD_MAP>());
+    datasource_->registerExternalFeaturesCallback(
+        flow->registerPublisher<message_flow_topics::EXTERNAL_FEATURES>());
   }
 
   void startStreaming() {
