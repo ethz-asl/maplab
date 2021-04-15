@@ -22,8 +22,8 @@ bool ExternalFeatures::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
 
   // TODO(smauq): fetch these actually
   has_uncertainties_ = true;
-  has_orientations_ = false;
-  has_scores_ = false;
+  has_orientations_ = true;
+  has_scores_ = true;
   has_scales_ = true;
   has_track_ids = true;
 

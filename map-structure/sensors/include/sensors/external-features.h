@@ -174,8 +174,8 @@ class ExternalFeaturesMeasurement : public Measurement {
     CHECK_NOTNULL(keypoint_measurements);
     keypoint_measurements->resize(Eigen::NoChange, num_keypoint_measurements_);
     for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
-      (*keypoint_measurements)(i, 0) = keypoint_measurements_x_[i];
-      (*keypoint_measurements)(i, 1) = keypoint_measurements_y_[i];
+      (*keypoint_measurements)(0, i) = keypoint_measurements_x_[i];
+      (*keypoint_measurements)(1, i) = keypoint_measurements_y_[i];
     }
   }
 
