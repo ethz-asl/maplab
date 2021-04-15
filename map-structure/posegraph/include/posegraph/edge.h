@@ -24,10 +24,6 @@ class Edge {
     kOdometry = 0,
     kLoopClosure = 1,
     kViwls = 2,
-    kStructureLoopClosure = 3,
-    k6DoFGps = 4,
-    kLaser = 5,
-    kTrajectory = 6,
     kCklamImuLandmark = 7,
     kWheelOdometry = 8
   };

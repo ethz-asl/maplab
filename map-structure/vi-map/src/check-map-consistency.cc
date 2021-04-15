@@ -4,28 +4,6 @@
 
 namespace vi_map {
 
-/// Checks whether a given vertex is a GPS reference vertex.
-/// GPS reference vertices have no incoming edges and only GPS outgoing edges,
-/// of which at least one.
-bool isGpsReferenceVertex(
-    const vi_map::VIMap& vi_map, const pose_graph::VertexId& vertex_id) {
-  pose_graph::EdgeIdSet incoming_edges;
-  pose_graph::EdgeIdSet outgoing_edges;
-  vi_map.getVertex(vertex_id).getIncomingEdges(&incoming_edges);
-  vi_map.getVertex(vertex_id).getOutgoingEdges(&outgoing_edges);
-
-  if ((!incoming_edges.empty()) || (outgoing_edges.empty())) {
-    return false;
-  }
-
-  for (const pose_graph::EdgeId& edge_id : outgoing_edges) {
-    if (vi_map.getEdgeType(edge_id) != pose_graph::Edge::EdgeType::k6DoFGps) {
-      return false;
-    }
-  }
-  return true;
-}
-
 bool checkMapConsistency(const vi_map::VIMap& vi_map) {
   LOG(INFO) << "Checking VI-Map consistency.";
 
@@ -839,9 +817,8 @@ bool checkForOrphanedPosegraphItems(const vi_map::VIMap& vi_map) {
   // Look for orphaned elements.
   for (const std::pair<const pose_graph::VertexId, bool>& vertex :
        vertices_observed) {
-    // If this vertex was not traversed and it's not a GPS reference vertex,
-    // it is orphaned.
-    if ((!vertex.second) && (!isGpsReferenceVertex(vi_map, vertex.first))) {
+    // If this vertex was not traversed it is orphaned.
+    if (!vertex.second) {
       LOG(ERROR)
           << "Vertex with ID " << vertex.first << " does not belong "
           << "to any trajectory, but is present on the posegraph. It is most "

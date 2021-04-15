@@ -114,8 +114,14 @@ class DataSourceRostopic : public DataSource {
   ros::Subscriber sub_pointcloud_map_;
 
   int64_t last_imu_timestamp_ns_;
+  int64_t last_imu_dispatch_timestamp_ns_;
+  const int64_t imu_batch_period_ns_;
+  vio::BatchedImuMeasurements::Ptr current_imu_batch_;
+
   std::vector<int64_t> last_image_timestamp_ns_;
   int64_t last_wheel_odometry_timestamp_ns_;
+  int64_t last_odometry_timestamp_ns_;
+  const int64_t odometry_min_period_ns_;
 };
 
 }  // namespace maplab

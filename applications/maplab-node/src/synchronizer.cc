@@ -41,6 +41,7 @@ Synchronizer::Synchronizer(const vi_map::SensorManager& sensor_manager)
       T_M_B_buffer_(
           FLAGS_odometry_buffer_history_ns,
           FLAGS_odometry_buffer_max_forward_propagation_ns),
+      image_skip_counter_(0u),
       frame_skip_counter_(0u),
       previous_nframe_timestamp_ns_(aslam::time::getInvalidTime()),
       min_nframe_timestamp_diff_ns_(
@@ -94,6 +95,12 @@ void Synchronizer::initializeNCameraSynchronization(
   CHECK(!visual_pipeline_) << "[MaplabNode-Synchronizer] NCamera "
                            << "synchronization already initialized!";
 
+  // Initialize temporal buffer per frame.
+  {
+    std::lock_guard<std::mutex> lock(image_buffer_mutex_);
+    image_buffer_.resize(camera_system->getNumCameras());
+  }
+
   // Initialize the pipeline.
   static constexpr bool kCopyImages = false;
   std::vector<aslam::VisualPipeline::Ptr> mono_pipelines;
@@ -120,57 +127,52 @@ void Synchronizer::initializeNCameraSynchronization(
 }
 
 void Synchronizer::processCameraImage(
-    const size_t camera_index, const cv::Mat& image, const int64_t timestamp) {
-  CHECK(visual_pipeline_) << "[MaplabNode-Synchronizer] The visual pipeline, "
-                             "which turns individual images "
-                          << "into NFrames, has not been initialized yet!";
+    const vio::ImageMeasurement::ConstPtr& image_measurement) {
+  CHECK(image_measurement);
 
   const int64_t current_time_ns = aslam::time::nanoSecondsSinceEpoch();
+
+  VLOG(5) << "[MaplabNode-Synchronizer] processCameraImage "
+          << aslam::time::timeNanosecondsToString(image_measurement->timestamp);
 
   {
     std::lock_guard<std::mutex> lock(
         mutex_times_last_camera_messages_received_or_checked_ns_);
     CHECK_LT(
-        camera_index,
-        times_last_camera_messages_received_or_checked_ns_.size());
-    times_last_camera_messages_received_or_checked_ns_[camera_index] =
+        image_measurement->camera_index,
+        static_cast<int>(
+            times_last_camera_messages_received_or_checked_ns_.size()));
+    times_last_camera_messages_received_or_checked_ns_[image_measurement
+                                                           ->camera_index] =
         current_time_ns;
   }
 
   if (statistics_) {
-    CHECK_LT(camera_index, statistics_->cam_latency_stats.size());
+    CHECK_LT(
+        image_measurement->camera_index,
+        static_cast<int>(statistics_->cam_latency_stats.size()));
 
-    const int64_t latency_ns = current_time_ns - timestamp;
+    const int64_t latency_ns = current_time_ns - image_measurement->timestamp;
     LOG_IF(WARNING, latency_ns < 0)
         << "[MaplabNode-Synchronizer] Received image message (cam "
-        << camera_index << ") from the "
+        << image_measurement->camera_index << ") from the "
         << "future! msg time "
-        << aslam::time::timeNanosecondsToString(timestamp) << " current time: "
+        << aslam::time::timeNanosecondsToString(image_measurement->timestamp)
+        << " current time: "
         << aslam::time::timeNanosecondsToString(current_time_ns)
         << " latency: " << latency_ns << "ns";
 
-    statistics_->cam_latency_stats[camera_index].AddSample(
+    statistics_->cam_latency_stats[image_measurement->camera_index].AddSample(
         static_cast<double>(latency_ns));
   }
 
-  if (!visual_pipeline_->processImageBlockingIfFull(
-          camera_index, image, timestamp,
-          FLAGS_vio_nframe_sync_max_queue_size)) {
-    LOG(ERROR)
-        << "[MaplabNode-Synchronizer] Failed to process an image of camera "
-        << camera_index << " into an NFrame at time " << timestamp << "ns!";
-    shutdown();
-  }
-
-  // Put all visual frames that are ready into the buffer.
   {
-    std::lock_guard<std::mutex> lock(nframe_buffer_mutex_);
-    aslam::VisualNFrame::Ptr next_nframe = visual_pipeline_->getNext();
-    while (next_nframe) {
-      nframe_buffer_.addValue(
-          next_nframe->getMinTimestampNanoseconds(), next_nframe);
-      next_nframe = visual_pipeline_->getNext();
-    }
+    std::lock_guard<std::mutex> lock(image_buffer_mutex_);
+    CHECK_LT(
+        image_measurement->camera_index,
+        static_cast<int>(image_buffer_.size()));
+    image_buffer_[image_measurement->camera_index].addValue(
+        image_measurement->timestamp, image_measurement);
   }
 }
 
@@ -182,14 +184,17 @@ void Synchronizer::processLidarMeasurement(
 
   time_last_lidar_message_received_or_checked_ns_.store(current_time_ns);
 
+  const int64_t timestamp_ns = lidar_measurement->getTimestampNanoseconds();
+
+  VLOG(5) << "[MaplabNode-Synchronizer] processLidarMeasurement "
+          << aslam::time::timeNanosecondsToString(timestamp_ns);
+
   if (statistics_) {
-    const int64_t latency_ns =
-        current_time_ns - lidar_measurement->getTimestampNanoseconds();
+    const int64_t latency_ns = current_time_ns - timestamp_ns;
     LOG_IF(WARNING, latency_ns < 0)
         << "[MaplabNode-Synchronizer] Received Lidar message from the "
         << "future! msg time "
-        << aslam::time::timeNanosecondsToString(
-               lidar_measurement->getTimestampNanoseconds())
+        << aslam::time::timeNanosecondsToString(timestamp_ns)
         << " current time: "
         << aslam::time::timeNanosecondsToString(current_time_ns)
         << " latency: " << latency_ns << "ns";
@@ -198,8 +203,7 @@ void Synchronizer::processLidarMeasurement(
 
   {
     std::lock_guard<std::mutex> lock(lidar_buffer_mutex_);
-    lidar_buffer_.addValue(
-        lidar_measurement->getTimestampNanoseconds(), lidar_measurement);
+    lidar_buffer_.addValue(timestamp_ns, lidar_measurement);
   }
 }
 
@@ -267,20 +271,20 @@ void Synchronizer::processImuMeasurements(
     const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_measurements) {
   const int64_t current_time_ns = aslam::time::nanoSecondsSinceEpoch();
 
-  int64_t time = time_last_imu_message_received_or_checked_ns_.load();
-  if (time)
-    time_last_imu_message_received_or_checked_ns_.store(
-        aslam::time::nanoSecondsSinceEpoch());
+  time_last_imu_message_received_or_checked_ns_.store(current_time_ns);
+
+  CHECK_GT(imu_measurements.cols(), 0);
+  const int last_idx = imu_measurements.cols() - 1;
+  const int64_t timestamp_ns = timestamps_nanoseconds[last_idx];
+
+  VLOG(5) << "[MaplabNode-Synchronizer] processImuMeasurements "
+          << aslam::time::timeNanosecondsToString(timestamp_ns);
+
   if (statistics_) {
-    CHECK_GT(imu_measurements.cols(), 0);
-    const int last_idx = imu_measurements.cols() - 1;
-    const int64_t latency_ns =
-        current_time_ns - timestamps_nanoseconds[last_idx];
+    const int64_t latency_ns = current_time_ns - timestamp_ns;
     LOG_IF(WARNING, latency_ns < 0)
         << "[MaplabNode-Synchronizer] Received IMU message from the future! "
-        << "msg time "
-        << aslam::time::timeNanosecondsToString(
-               timestamps_nanoseconds[last_idx])
+        << "msg time " << aslam::time::timeNanosecondsToString(timestamp_ns)
         << " current time: "
         << aslam::time::timeNanosecondsToString(current_time_ns)
         << " latency: " << latency_ns << "ns";
@@ -299,12 +303,16 @@ void Synchronizer::processOdometryMeasurement(
 
   time_last_odometry_message_received_or_checked_ns_.store(current_time_ns);
 
+  const int64_t timestamp_ns = odometry.getTimestamp();
+  VLOG(5) << "[MaplabNode-Synchronizer] processOdometryMeasurement "
+          << aslam::time::timeNanosecondsToString(timestamp_ns);
+
   if (statistics_) {
-    const int64_t latency_ns = current_time_ns - odometry.getTimestamp();
+    const int64_t latency_ns = current_time_ns - timestamp_ns;
     LOG_IF(WARNING, latency_ns < 0)
         << "[MaplabNode-Synchronizer] Received Odometry message from the "
         << "future! msg time "
-        << aslam::time::timeNanosecondsToString(odometry.getTimestamp())
+        << aslam::time::timeNanosecondsToString(timestamp_ns)
         << " current time: "
         << aslam::time::timeNanosecondsToString(current_time_ns)
         << " latency: " << latency_ns << "ns";
@@ -325,34 +333,92 @@ void Synchronizer::processOdometryMeasurement(
   releaseData();
 }
 
-void Synchronizer::releaseNFrameData(
+void Synchronizer::releaseCameraImages(
     const int64_t oldest_timestamp_ns, const int64_t newest_timestamp_ns) {
   CHECK_GE(newest_timestamp_ns, oldest_timestamp_ns);
-  std::vector<aslam::VisualNFrame::Ptr> nframes;
+  Aligned<std::vector, vio::ImageMeasurement::ConstPtr> all_extracted_images;
   {
-    std::lock_guard<std::mutex> lock(nframe_buffer_mutex_);
+    std::lock_guard<std::mutex> lock(image_buffer_mutex_);
+    const size_t n_image_buffer = image_buffer_.size();
+    for (size_t frame_idx = 0u; frame_idx < n_image_buffer; ++frame_idx) {
+      common::TemporalBuffer<vio::ImageMeasurement::ConstPtr>& image_buffer =
+          image_buffer_[frame_idx];
 
-    // Drop these frames, since there is no odometry data anymore for them.
-    const size_t dropped_nframes =
-        nframe_buffer_.removeItemsBefore(oldest_timestamp_ns);
-    LOG_IF(WARNING, dropped_nframes != 0u)
-        << "[MaplabNode-Synchronizer] Could not find an odometry "
-        << "transformation for " << dropped_nframes << " nframes "
-        << "because it was already dropped from the buffer! "
-        << "This might be okay during initialization.";
+      // Drop these images, since there is no odometry data anymore for them.
+      const size_t dropped_images =
+          image_buffer.removeItemsBefore(oldest_timestamp_ns);
+      LOG_IF(WARNING, dropped_images != 0u)
+          << "[MaplabNode-Synchronizer] Could not find an odometry "
+          << "transformation for " << dropped_images << " images "
+          << "because it was already dropped from the buffer! "
+          << "This might be okay during initialization.";
 
-    frame_skip_counter_ += dropped_nframes;
-
-    nframe_buffer_.extractItemsBeforeIncluding(newest_timestamp_ns, &nframes);
+      image_skip_counter_ += dropped_images;
+      Aligned<std::vector, vio::ImageMeasurement::ConstPtr> extracted_images;
+      image_buffer.extractItemsBeforeIncluding(
+          newest_timestamp_ns, &extracted_images);
+      all_extracted_images.insert(
+          all_extracted_images.end(), extracted_images.begin(),
+          extracted_images.end());
+    }
   }
 
-  for (const aslam::VisualNFrame::Ptr nframe : nframes) {
-    CHECK(nframe);
-    vio::SynchronizedNFrame::Ptr new_nframe_measurement(
-        new vio::SynchronizedNFrame);
-    new_nframe_measurement->nframe = nframe;
+  CHECK(visual_pipeline_) << "[MaplabNode-Synchronizer] The visual pipeline, "
+                          << "which turns individual images "
+                          << "into NFrames, has not been initialized yet!";
+
+  VLOG(5) << "[MaplabNode-Synchronizer] releasing "
+          << all_extracted_images.size()
+          << " camera images into the visual processing pipeline for "
+          << "synchronization and tracking.";
+
+  // Insert all images that are released into the visual pipeline to synchronize
+  // and track features.
+  for (const vio::ImageMeasurement::ConstPtr& image_measurement :
+       all_extracted_images) {
+    CHECK_NOTNULL(image_measurement);
+    CHECK_LE(image_measurement->timestamp, newest_timestamp_ns);
+    CHECK_GE(image_measurement->timestamp, oldest_timestamp_ns);
+
+    VLOG(5)
+        << "[MaplabNode-Synchronizer] release camera image at "
+        << aslam::time::timeNanosecondsToString(image_measurement->timestamp)
+        << " into visual processing pipeline... (blocking if pipeline is full)";
+    if (!visual_pipeline_->processImageBlockingIfFull(
+            image_measurement->camera_index, image_measurement->image,
+            image_measurement->timestamp,
+            FLAGS_vio_nframe_sync_max_queue_size)) {
+      LOG(ERROR)
+          << "[MaplabNode-Synchronizer] Failed to process an image of camera "
+          << image_measurement->camera_index << " into an NFrame at time "
+          << image_measurement->timestamp << "ns!";
+      shutdown();
+    }
+    VLOG(5) << "[MaplabNode-Synchronizer] done.";
+  }
+
+  // Release all visual frames that are ready.
+  Aligned<std::vector, aslam::VisualNFrame::Ptr> finished_nframes;
+  aslam::VisualNFrame::Ptr next_nframe = visual_pipeline_->getNext();
+  size_t num_nframes_released = 0u;
+  while (next_nframe) {
+    VLOG(5) << "[MaplabNode-Synchronizer] retrieved finished VisualNFrame at "
+            << aslam::time::timeNanosecondsToString(
+                   next_nframe->getMinTimestampNanoseconds())
+            << " from visual processing pipeline.";
+
+    finished_nframes.emplace_back(next_nframe);
+    next_nframe = visual_pipeline_->getNext();
+    ++num_nframes_released;
+  }
+
+  VLOG(5) << "[MaplabNode-Synchronizer] retreived " << num_nframes_released
+          << " finished VisualNFrames in total from the visual processing "
+             "pipeline.";
+
+  for (const aslam::VisualNFrame::Ptr& finished_nframe : finished_nframes) {
     const int64_t current_frame_timestamp_ns =
-        nframe->getMinTimestampNanoseconds();
+        finished_nframe->getMinTimestampNanoseconds();
 
     // Throttle the output rate of VisualNFrames to reduce the rate of which
     // the following nodes are running (e.g. tracker).
@@ -361,11 +427,25 @@ void Synchronizer::releaseNFrameData(
           min_nframe_timestamp_diff_ns_ *
               min_nframe_timestamp_diff_tolerance_factor_) {
         ++frame_skip_counter_;
+
+        // Release the VisualNFrames to the callbacks.
+        VLOG(5) << "[MaplabNode-Synchronizer] skipped finished VisualNFrame at "
+                << aslam::time::timeNanosecondsToString(
+                       current_frame_timestamp_ns)
+                << " due to VIO frame throttling.";
+
         continue;
       }
     }
     previous_nframe_timestamp_ns_ = current_frame_timestamp_ns;
 
+    // Release the VisualNFrames to the callbacks.
+    VLOG(5) << "[MaplabNode-Synchronizer] release finished VisualNFrame at "
+            << aslam::time::timeNanosecondsToString(current_frame_timestamp_ns)
+            << " to callbacks...";
+    vio::SynchronizedNFrame::Ptr new_nframe_measurement(
+        new vio::SynchronizedNFrame);
+    new_nframe_measurement->nframe = finished_nframe;
     {
       std::lock_guard<std::mutex> callback_lock(nframe_callback_mutex_);
       for (const std::function<void(const vio::SynchronizedNFrame::Ptr&)>&
@@ -373,6 +453,7 @@ void Synchronizer::releaseNFrameData(
         callback(new_nframe_measurement);
       }
     }
+    VLOG(5) << "[MaplabNode-Synchronizer] done.";
   }
 }
 
@@ -567,7 +648,12 @@ void Synchronizer::releaseData() {
     return;
   }
 
-  // Release (or drop) NFrames.
+  VLOG(5) << "[MaplabNode-Synchronizer] release data between "
+          << aslam::time::timeNanosecondsToString(oldest_timestamp_ns)
+          << " and "
+          << aslam::time::timeNanosecondsToString(newest_timestamp_ns);
+
+  // Release (or drop) camera images.
   {
     std::lock_guard<std::mutex> lock(
         mutex_times_last_camera_messages_received_or_checked_ns_);
@@ -576,7 +662,7 @@ void Synchronizer::releaseData() {
         times_last_camera_messages_received_or_checked_ns_.end(),
         [](int64_t time_ns) { return aslam::time::isValidTime(time_ns); });
     if (all_times_valid) {
-      releaseNFrameData(oldest_timestamp_ns, newest_timestamp_ns);
+      releaseCameraImages(oldest_timestamp_ns, newest_timestamp_ns);
     }
   }
 
@@ -681,10 +767,10 @@ void Synchronizer::shutdown() {
     check_if_messages_are_incoming_thread_.join();
   }
 
-  LOG(INFO)
-      << "[MaplabNode-Synchronizer] Shutting down. Skipped visual frames: "
-      << frame_skip_counter_
-      << " Skipped lidar measurements: " << lidar_skip_counter_;
+  LOG(INFO) << "[MaplabNode-Synchronizer] Shutting down. Skipped images: "
+            << image_skip_counter_
+            << ", skipped VisualNFrames: " << frame_skip_counter_
+            << ", skipped lidar measurements: " << lidar_skip_counter_;
 }
 
 void Synchronizer::expectOdometryData() {

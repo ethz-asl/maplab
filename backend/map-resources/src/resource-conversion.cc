@@ -583,7 +583,7 @@ void addLabelToPointCloud(
     const uint32_t label, const size_t index,
     resources::PointCloud* point_cloud) {
   CHECK_NOTNULL(point_cloud);
-  CHECK_LT(index, point_cloud->scalars.size());
+  DCHECK_LT(index, point_cloud->labels.size());
   point_cloud->labels[index] = label;
 }
 
@@ -603,7 +603,7 @@ template <>
 void addLabelToPointCloud(
     const uint32_t label, const size_t index,
     pcl::PointCloud<pcl::PointXYZL>* point_cloud) {
-  CHECK_LT(index, point_cloud->points.size());
+  DCHECK_LT(index, point_cloud->points.size());
   pcl::PointXYZL& point = point_cloud->points[index];
   point.label = label;
 }

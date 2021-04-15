@@ -41,6 +41,21 @@ struct PointCloud {
             xyz[idx + 1u] = transformed_point.y();
             xyz[idx + 2u] = transformed_point.z();
           }
+
+          // Rotate normals if present.
+          if (normals.size() == xyz.size()) {
+            const aslam::Quaternion& R_A_B = T_A_B.getRotation();
+            for (size_t point_idx : batch) {
+              const size_t idx = point_idx * 3;
+              const Eigen::Vector3d normal(
+                  normals[idx], normals[idx + 1u], normals[idx + 2u]);
+              const Eigen::Vector3f& transformed_normal =
+                  R_A_B.rotate(normal).cast<float>();
+              normals[idx] = transformed_normal.x();
+              normals[idx + 1u] = transformed_normal.y();
+              normals[idx + 2u] = transformed_normal.z();
+            }
+          }
         };
 
     const size_t num_threads = common::getNumHardwareThreads();
@@ -130,6 +145,46 @@ struct PointCloud {
     colors.insert(colors.end(), other.colors.begin(), other.colors.end());
     scalars.insert(scalars.end(), other.scalars.begin(), other.scalars.end());
     labels.insert(labels.end(), other.labels.begin(), other.labels.end());
+
+    CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
+  }
+
+  // Transforms the other point cloud and appends it to the current one. Assumes
+  // the other point cloud is in B frame.
+  inline void appendTransformed(
+      const PointCloud& other, const aslam::Transformation& T_A_B) {
+    if (other.empty()) {
+      return;
+    }
+
+    // Remember how many points there wrere before.
+    const size_t old_size = size();
+    append(other);
+    const size_t new_size = size();
+
+    for (size_t point_idx = old_size; point_idx < new_size; ++point_idx) {
+      const size_t idx = point_idx * 3;
+      const Eigen::Vector3d point(xyz[idx], xyz[idx + 1u], xyz[idx + 2u]);
+      const Eigen::Vector3f& transformed_point = (T_A_B * point).cast<float>();
+      xyz[idx] = transformed_point.x();
+      xyz[idx + 1u] = transformed_point.y();
+      xyz[idx + 2u] = transformed_point.z();
+    }
+
+    // Rotate normals if present.
+    if (normals.size() == xyz.size()) {
+      const aslam::Quaternion& R_A_B = T_A_B.getRotation();
+      for (size_t point_idx = old_size; point_idx < new_size; ++point_idx) {
+        const size_t idx = point_idx * 3;
+        const Eigen::Vector3d normal(
+            normals[idx], normals[idx + 1u], normals[idx + 2u]);
+        const Eigen::Vector3f& transformed_normal =
+            R_A_B.rotate(normal).cast<float>();
+        normals[idx] = transformed_normal.x();
+        normals[idx + 1u] = transformed_normal.y();
+        normals[idx + 2u] = transformed_normal.z();
+      }
+    }
 
     CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
   }
@@ -293,6 +348,32 @@ struct PointCloud {
       return true;
     }
     return false;
+  }
+
+  inline bool colorizePointCloud(
+      const size_t start_point_idx, const size_t end_point_idx, const uint8_t r,
+      const uint8_t g, const uint8_t b) {
+    if (colors.size() != xyz.size()) {
+      return false;
+    }
+    CHECK_LT(end_point_idx, size());
+    CHECK_LE(start_point_idx, end_point_idx);
+
+    auto it_rgb = colors.begin() + start_point_idx;
+    auto end_it = colors.begin() + end_point_idx;
+    while (it_rgb != end_it && it_rgb != colors.end()) {
+      *it_rgb = r;
+      *(it_rgb + 1) = g;
+      *(it_rgb + 2) = b;
+      it_rgb += 3;
+    }
+
+    return true;
+  }
+
+  inline bool colorizePointCloud(
+      const uint8_t r, const uint8_t g, const uint8_t b) {
+    return colorizePointCloud(0, size(), r, g, b);
   }
 };
 
