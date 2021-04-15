@@ -137,7 +137,8 @@ int main(int argc, char** argv) {
   // TODO(schneith): Adapt interface to take a rostopic directly instead of an
   // IMU structure.
   vi_map::Imu imu(aslam::createRandomId<aslam::SensorId>(), FLAGS_imu_topic);
-  rovioli::DataSourceFlow datasource_flow(*camera_system, imu);
+  vio_common::RosTopicSettings ros_topic_settings(*camera_system, imu);
+  rovioli::DataSourceFlow datasource_flow(ros_topic_settings);
   datasource_flow.attachToMessageFlow(message_flow.get());
   rovioli::ImuCameraSynchronizerFlow synchronizer_flow(camera_system);
   synchronizer_flow.attachToMessageFlow(message_flow.get());
@@ -147,8 +148,9 @@ int main(int argc, char** argv) {
       [&]() { is_datasource_exhausted.store(true); });
 
   // Create a data synchronizer for visualization of outlier and tracking data.
-  typedef std::pair<aslam::VisualNFrame::Ptr /*nframe_k*/,
-                    aslam::VisualNFrame::Ptr /*nframe_kp1*/>
+  typedef std::pair<
+      aslam::VisualNFrame::Ptr /*nframe_k*/,
+      aslam::VisualNFrame::Ptr /*nframe_kp1*/>
       NFramePair;
 
   struct NFramePairTimestampExtractor {

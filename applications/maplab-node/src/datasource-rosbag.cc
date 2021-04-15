@@ -250,21 +250,6 @@ void DataSourceRosbag::streamingWorker() {
           message.instantiate<sensor_msgs::Imu>();
       CHECK(imu_msg);
 
-<<<<<<< HEAD
-      vio::ImuMeasurement::Ptr imu_measurement =
-          convertRosImuToMaplabImu(imu_msg);
-      CHECK(imu_measurement);
-      int64_t diff = imu_measurement->timestamp - last_imu_time;
-
-      // Shift timestamps to start at 0.
-      if (diff > 0) {
-        last_imu_time = imu_measurement->timestamp;
-        if (!FLAGS_zero_initial_timestamps ||
-            shiftByFirstTimestamp(&(imu_measurement->timestamp))) {
-          VLOG(3) << "Publish IMU measurement...";
-          invokeImuCallbacks(imu_measurement);
-        }
-=======
       const int64_t timestamp_ns = rosTimeToNanoseconds(imu_msg->header.stamp);
 
       // Check for strictly increasing imu timestamps.
@@ -275,7 +260,6 @@ void DataSourceRosbag::streamingWorker() {
                      << "ns vs last timestamp: " << last_imu_timestamp_ns_
                      << "ns.";
         return;
->>>>>>> develop
       }
       // This IMU measurement was accepted.
       last_imu_timestamp_ns_ = timestamp_ns;
