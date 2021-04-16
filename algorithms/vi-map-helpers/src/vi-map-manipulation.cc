@@ -410,7 +410,7 @@ void VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfVertex(
   vertex.forEachFrame([this, &vertex, &trackid_landmarkid_map](
                           const size_t frame_index,
                           const aslam::VisualFrame& frame) {
-    const size_t num_keypoints = frame.getNumKeypointMeasurements();
+    const size_t num_keypoints = frame.getTotalNumKeypointMeasurements();
     if (!frame.hasTrackIds() && !frame.hasLidarTrackIds()) {
       VLOG(0) << "Frame has no tracking information. Skipping frame...";
       return;

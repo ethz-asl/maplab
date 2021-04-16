@@ -299,7 +299,7 @@ Vertex* Vertex::cloneWithVisualNFrame(
     }
 
     // Verify landmark vs keypoint state.
-    size_t num_keypoints = cloned_frame->getNumKeypointMeasurements();
+    size_t num_keypoints = cloned_frame->getTotalNumKeypointMeasurements();
     CHECK_EQ(
         cloned_vertex->observed_landmark_ids_[camera_idx].size(),
         num_keypoints);
