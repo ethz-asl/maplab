@@ -21,8 +21,8 @@ LidarTracking::LidarTracking(
   // Initialize the pipeline.
   static constexpr bool kCopyImages = false;
   std::vector<aslam::VisualPipeline::Ptr> mono_pipelines;
-  for (size_t camera_idx = 0u; camera_idx < camera_system->getNumCameras();
-       ++camera_idx) {
+  const std::size_t n_cameras = camera_system->getNumCameras();
+  for (size_t camera_idx = 0u; camera_idx < n_cameras; ++camera_idx) {
     mono_pipelines.emplace_back(new aslam::NullVisualPipeline(
         camera_system->getCameraShared(camera_idx), kCopyImages));
   }
@@ -82,9 +82,6 @@ bool LidarTracking::trackSynchronizedLidarMeasurementCallback(
   aslam::FrameToFrameMatchesList inlier_matches_kp1_k;
   aslam::FrameToFrameMatchesList outlier_matches_kp1_k;
   tracking_pipeline_->processNFrame(cloud, q_Ikp1_Ik, &(*current_nframe));
-
-  // if (warm_up_done_)
-  //   visualizeTracking(previous_synced_meas_, current_nframe);
 
   previous_synced_meas_ = current_nframe;
   previous_lidar_timestamp_ns_ = current_lidar_timestamp_ns;

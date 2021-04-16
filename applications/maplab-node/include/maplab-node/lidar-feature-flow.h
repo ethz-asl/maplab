@@ -43,8 +43,9 @@ class LidarFeatureFlow {
          this](const vi_map::RosLidarMeasurement::ConstPtr& lidar_measurement) {
           CHECK(lidar_measurement);
           bool success = this->projector_.projectToImage(lidar_measurement);
-          if (!success)
+          if (!success) {
             return;
+          }
           const cv::Mat& range_image = this->projector_.getRangeImage();
           const cv::Mat& intensity_image = this->projector_.getIntensityImage();
           const cv::Mat& feature_image = this->projector_.getFeatureImage();
@@ -61,8 +62,9 @@ class LidarFeatureFlow {
           // Merging of the images.
           success = lidar_tracking_.trackSynchronizedLidarMeasurementCallback(
               cloud, image, lidar_measurement->getTimestampNanoseconds());
-          if (!success)
+          if (!success) {
             return;
+          }
 
           // This will only fail for the first frame.
           aslam::VisualNFrame::Ptr tracked_nframe =

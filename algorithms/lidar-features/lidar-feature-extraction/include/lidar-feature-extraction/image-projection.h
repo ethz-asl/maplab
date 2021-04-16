@@ -24,13 +24,13 @@ class ImageProjection {
   const cv::Mat& getRangeImage() const;
   const cv::Mat& getIntensityImage() const;
   const cv::Mat& getFeatureImage() const;
-  pcl::PointCloud<pcl::PointXYZI>::ConstPtr getPointcloud() ;
+  pcl::PointCloud<pcl::PointXYZI>::ConstPtr getPointcloud();
 
  private:
   void convertPointCloudMsgToPcl(
       const vi_map::RosLidarMeasurement::ConstPtr& cloud);
   void projectPointCloud();
-  std::vector<int> getPxOffset(int lidar_mode);
+  std::vector<std::size_t> getPxOffset(const std::size_t lidar_mode);
   void createFeatureImage();
 
   const vio_common::PoseLookupBuffer& T_M_B_buffer_;
@@ -60,6 +60,8 @@ class ImageProjection {
 
   // Filter for horizontal lines.
   cv::Mat horizontal_lines_filter_kernel_;
+
+  std::vector<std::size_t> px_offset_;
 };
 
 }  // namespace LidarFeatureExtraction

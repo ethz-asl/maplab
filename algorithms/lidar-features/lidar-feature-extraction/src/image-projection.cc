@@ -1,12 +1,15 @@
 #include <lidar-feature-extraction/image-projection.h>
 #include <lidar-feature-extraction/ouster-configuration.h>
 
-#define USE_SSE2
 #include <cmath>
+#include <omp.h>
+
 #include <glog/logging.h>
+#include <pcl_conversions/pcl_conversions.h>
+
+#define USE_SSE2
 #include <lidar-feature-extraction/sse-mathfun-extension.h>
 #include <lidar-feature-extraction/vec-helper.h>
-#include <pcl_conversions/pcl_conversions.h>
 
 DEFINE_double(
     lidar_image_projection_flatness_range, 1,
@@ -47,12 +50,8 @@ ImageProjection::ImageProjection(
   feature_image_ = cv::Mat(beam_size_, ring_size_, CV_8U, cv::Scalar::all(0u));
   inpaint_mask_ = cv::Mat(beam_size_, ring_size_, CV_8U, cv::Scalar::all(0u));
 
-  if (FLAGS_lidar_image_projection_draw) {
-    // cv::namedWindow("Intensity eq non_filt", cv::WINDOW_NORMAL);
-    // cv::namedWindow("Intensity eq", cv::WINDOW_NORMAL);
-    // cv::namedWindow("Range eq", cv::WINDOW_NORMAL);
-    // cv::namedWindow("HDR Image", cv::WINDOW_NORMAL);
-  }
+  px_offset_ = getPxOffset(ring_size_);
+
   // Configure clahe.
   clahe_range_ = cv::createCLAHE(0.0, cv::Size(4, 12));
   clahe_intensity_ = cv::createCLAHE(6, cv::Size(4, 12));
@@ -63,11 +62,6 @@ ImageProjection::ImageProjection(
 
   // Setup horizontal lines filter.
   horizontal_lines_filter_kernel_ = cv::Mat::zeros(5, 3, CV_32F);
-  // horizontal_lines_filter_kernel_.at<float>(0, 2) = 0.06136;
-  // horizontal_lines_filter_kernel_.at<float>(1, 2) = 0.24477;
-  // horizontal_lines_filter_kernel_.at<float>(2, 2) = 0.38774;
-  // horizontal_lines_filter_kernel_.at<float>(3, 2) = 0.24477;
-  // horizontal_lines_filter_kernel_.at<float>(4, 2) = 0.06136;
   horizontal_lines_filter_kernel_.at<float>(0, 2) = 0.125;
   horizontal_lines_filter_kernel_.at<float>(1, 2) = 0.25;
   horizontal_lines_filter_kernel_.at<float>(2, 2) = 0.25;
@@ -102,75 +96,69 @@ void ImageProjection::convertPointCloudMsgToPcl(
   pcl::fromROSMsg(msg, *input_cloud_pointer_);
 }
 
-std::vector<int> ImageProjection::getPxOffset(int lidar_mode) {
-  auto repeat = [](int n, const std::vector<int>& v) {
-    std::vector<int> res{};
-    for (int i = 0; i < n; i++)
+std::vector<std::size_t> ImageProjection::getPxOffset(
+    const std::size_t lidar_mode) {
+  // TODO(lbern): there is probably a STL function that does this much better.
+  auto repeat = [](const std::size_t n, std::vector<std::size_t>&& v) {
+    std::vector<std::size_t> res{};
+    for (std::size_t i = 0u; i < n; ++i)
       res.insert(res.end(), v.begin(), v.end());
     return res;
   };
 
   switch (lidar_mode) {
-    case 512:
-      return repeat(16, {0, 3, 6, 9});
-    case 1024:
-      return repeat(16, {0, 6, 12, 18});
-    case 2048:
-      return repeat(16, {0, 12, 24, 36});
+    case 512u:
+      return repeat(16u, {0u, 3u, 6u, 9u});
+    case 1024u:
+      return repeat(16u, {0u, 6u, 12u, 18u});
+    case 2048u:
+      return repeat(16u, {0u, 12u, 24u, 36u});
     default:
-      return std::vector<int>{64, 0};
+      return std::vector<std::size_t>{64u, 0u};
   }
 }
 
 void ImageProjection::projectPointCloud() {
   // Example from :
   // https://github.com/ouster-lidar/ouster_example/blob/f3dc5ec292e4bbd260e8bac8d686069b9a3d2ec6/ouster_ros/src/img_node.cpp#L90
-  const auto& W = ring_size_;
-  const auto& H = beam_size_;
-  const auto px_offset = getPxOffset(W);
+  const std::size_t& W = ring_size_;
+  const std::size_t& H = beam_size_;
 
   inpaint_mask_ = 0u;
-
+#pragma omp parallel for
   for (std::size_t u = 0u; u < H; ++u) {
-    std::size_t v = 0u;
-    const std::size_t offset = px_offset[u];
-    // Process the remaining points in the cloud sequentially.
-
-    for (; v < W; ++v) {
-      const std::size_t index = ((v + offset) % W) * H + u;
-      const pcl::PointXYZI& curPoint = input_cloud_pointer_->points[index];
+    const std::size_t offset = px_offset_[u];
+    for (std::size_t v = 0u; v < W; ++v) {
+      const std::size_t img_index = u * W + v;
+      const std::size_t pcl_index = ((v + offset) % W) * H + u;
+      const pcl::PointXYZI& curPoint = input_cloud_pointer_->points[pcl_index];
       const float squaredXY = curPoint.x * curPoint.x + curPoint.y * curPoint.y;
-      float range = sqrt(squaredXY + curPoint.z * curPoint.z);
+      const float range =
+          sqrt(squaredXY + curPoint.z * curPoint.z) <= close_point_
+              ? 0.0f
+              : a_ * log((range - b_) * flatness_range_);
 
       // Scale range to fit close_point_ [m] to far_point_ [m] (logarithmically)
       // into 8 bit image.
-      if (range <= close_point_) {
-        range = 0;
-      } else {
-        range = a_ * log((range - b_) * flatness_range_);
-      }
       if (range <= 0) {
-        range_image_.data[u * W + v] = 0;
-        inpaint_mask_.data[u * W + v] = 255u;
+        range_image_.data[img_index] = 0;
+        inpaint_mask_.data[img_index] = 255u;
       } else {
-        range_image_.data[u * W + v] =
+        range_image_.data[img_index] =
             255u - static_cast<uint8_t>(std::min(std::round(range), 255.0f));
       }
-      // noise_image.data[u * W + v] = std::min(pt.noise, (uint16_t) 255);
 
       // Scale intenisty to fit min_int_ to max_int_ (logarithmicly)
       // into 8 bit image.
-      float intensity = curPoint.intensity;
-      if (intensity <= min_int_) {
-        intensity = 0;
-      } else {
-        intensity = c_ * log((intensity - d_) * flatness_intensity_);
-      }
-      intensity_image_.data[u * W + v] =
+      const float intensity =
+          curPoint.intensity <= min_int_
+              ? 0.0f
+              : c_ * log((curPoint.intensity - d_) * flatness_intensity_);
+      intensity_image_.data[img_index] =
           static_cast<uint8_t>(std::min(std::round(intensity), 255.f));
     }
   }
-}  // namespace LidarFeatureExtraction
+}
 
 const cv::Mat& ImageProjection::getRangeImage() const {
   return range_image_;
@@ -198,17 +186,14 @@ void ImageProjection::createFeatureImage() {
   std::vector<cv::Mat> images;
 
   cv::Mat inpainted_range_image;
-  double inpaint_radius = 10.0;
+  constexpr double inpaint_radius = 10.0;
   cv::inpaint(
       range_image_, inpaint_mask_, inpainted_range_image, inpaint_radius,
       cv::INPAINT_TELEA);
 
   // Perform histogram equalization on both images.
   clahe_range_->apply(range_image_, range_image_eq);
-  // cv::imshow("range_image_", range_image_eq);
-  // cv::waitKey(1);
   clahe_range_->apply(inpainted_range_image, range_image_eq);
-
   clahe_intensity_->apply(intensity_image_, intensity_image_eq);
 
   // Remove horizontal lines from intensity image.
@@ -222,8 +207,8 @@ void ImageProjection::createFeatureImage() {
 
   cv::Mat range_grad_x, range_grad_y;
   cv::Mat range_abs_grad_x, _range_abs_grad_y;
-  int scale = 1;
-  int delta = 0;
+  const int scale = 1;
+  const int delta = 0;
 
   /// Gradient X
   cv::Sobel(
@@ -240,29 +225,13 @@ void ImageProjection::createFeatureImage() {
   cv::Mat range_gradient;
   addWeighted(range_abs_grad_x, 0.5, _range_abs_grad_y, 0.5, 0, range_gradient);
 
-  // cv::imshow("Gradient Range", range_gradient);
-  // cv::waitKey(1);
-  // cv::imshow("inpainted_range_image", inpainted_range_image);
-  // cv::waitKey(1);
-
-  // cv::imshow("intensity_image_eq", intensity_image_eq);
-  // cv::waitKey(1);
   // Merge the two images into one HDR image.
   images.emplace_back(std::move(range_gradient));
   images.emplace_back(std::move(intensity_image_eq));
 
   merge_mertens_->process(images, hdr_image);
   hdr_image = hdr_image * 255u;
-  // hdr_image = intensity_image_eq;
   hdr_image.convertTo(feature_image_, CV_8UC1);
-  // cv::imshow("feature_image_", feature_image_);
-  // cv::waitKey(1);
-
-  // Histogram equalize the final image.
-  // clahe_hdr_->apply(hdr_image, feature_image_);
-  // cv::imwrite(
-  //     "/home/marius/Documents/Masterarbeit/picture_test/bild.jpg",
-  //     feature_image_);
 }
 
 pcl::PointCloud<pcl::PointXYZI>::ConstPtr ImageProjection::getPointcloud() {
