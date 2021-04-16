@@ -72,12 +72,7 @@ bool LidarTracking::trackSynchronizedLidarMeasurementCallback(
   CHECK(previous_synced_meas_);
   CHECK_GT(current_lidar_timestamp_ns, previous_lidar_timestamp_ns_);
   CHECK(tracking_pipeline_);
-  // CHECK(current_nframe);
-
-  if (!current_nframe) {
-    VLOG(0) << "Check failed: Current NFrame";
-    return false;
-  }
+  CHECK(current_nframe);
 
   aslam::FrameToFrameMatchesList inlier_matches_kp1_k;
   aslam::FrameToFrameMatchesList outlier_matches_kp1_k;

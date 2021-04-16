@@ -46,22 +46,17 @@ class LidarFeatureFlow {
           if (!success) {
             return;
           }
-          const cv::Mat& range_image = this->projector_.getRangeImage();
-          const cv::Mat& intensity_image = this->projector_.getIntensityImage();
-          const cv::Mat& feature_image = this->projector_.getFeatureImage();
-
-          pcl::PointCloud<pcl::PointXYZI>::ConstPtr cloud =
-              this->projector_.getPointcloud();
 
           // TODO(lbern) temporary solution to get the LK tracking done
-          cv::Mat cropped = feature_image;  //(cv::Rect(128, 0, 512, 64));
-          cv::Mat image;
+          const cv::Mat& feature_image = this->projector_.getFeatureImage();
+          cv::Mat resized_image;
           cv::resize(
-              cropped, image, cv::Size(4096, 256), 0, 0, cv::INTER_NEAREST);
+              feature_image, resized_image, cv::Size(4096, 256), 0, 0,
+              cv::INTER_NEAREST);
 
-          // Merging of the images.
           success = lidar_tracking_.trackSynchronizedLidarMeasurementCallback(
-              cloud, image, lidar_measurement->getTimestampNanoseconds());
+              this->projector_.getPointcloud(), resized_image,
+              lidar_measurement->getTimestampNanoseconds());
           if (!success) {
             return;
           }
