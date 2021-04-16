@@ -525,6 +525,7 @@ void retriangulateLidarLandmarks(
 
 void retriangulateLidarLandmarksOfMission(
     const vi_map::MissionId& mission_id, vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
   FrameToPoseMap interpolated_frame_poses;
   interpolateVisualFramePoses(mission_id, *map, &interpolated_frame_poses);
   retriangulateLidarLandmarksOfMission(
@@ -543,8 +544,13 @@ void retriangulateLidarLandmarksAlongMissionAfterVertex(
 }
 
 void retriangulateLidarLandmarks(vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
   vi_map::MissionIdList mission_ids;
   map->getAllMissionIds(&mission_ids);
+  if (mission_ids.empty()) {
+    LOG(ERROR) << "No missions are present in the map.";
+    return;
+  }
   retriangulateLidarLandmarks(mission_ids, map);
 }
 

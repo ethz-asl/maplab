@@ -38,18 +38,18 @@ struct LidarLandmarkWellConstrainedSettings {
 
 bool isLidarLandmarkWellConstrained(
     const vi_map::VIMap& map, const vi_map::Landmark& landmark,
-    bool re_evaluate_quality);
+    const bool re_evaluate_quality);
 
 inline bool isLidarLandmarkWellConstrained(
     const Aligned<std::vector, Eigen::Vector3d>& G_normalized_incidence_rays,
-    double signed_distance_to_closest_observer,
+    const double signed_distance_to_closest_observer,
     const LidarLandmarkWellConstrainedSettings& settings);
 
 // Includes an additional check for 3D LiDAR data
 bool isLidarLandmarkWellConstrained(
     const vi_map::VIMap& map, const vi_map::Landmark& landmark,
-    bool re_evaluate_quality, double min_distance_to_lidar,
-    double position_uncertainty);
+    const bool re_evaluate_quality, const double min_distance_to_lidar,
+    const double position_uncertainty);
 
 }  // namespace vi_map
 #include "./lidar-landmark-quality-metrics-inl.h"

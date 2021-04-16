@@ -58,11 +58,10 @@ bool isLidarLandmarkWellConstrained(
   return isLidarLandmarkWellConstrained(map, landmark, kReEvaluateQuality);
 }
 
-
 bool isLidarLandmarkWellConstrained(
     const vi_map::VIMap& map, const vi_map::Landmark& landmark,
-    bool re_evaluate_quality, double min_distance_to_lidar,
-    double position_uncertainty) {
+    const bool re_evaluate_quality, const double min_distance_to_lidar,
+    const double position_uncertainty) {
   LidarLandmarkWellConstrainedSettings settings;
   if (position_uncertainty / min_distance_to_lidar >
           settings.max_position_uncertainty_lidar ||
@@ -74,7 +73,7 @@ bool isLidarLandmarkWellConstrained(
 
 bool isLidarLandmarkWellConstrained(
     const vi_map::VIMap& map, const vi_map::Landmark& landmark,
-    bool re_evaluate_quality) {
+    const bool re_evaluate_quality) {
   vi_map::Landmark::Quality quality = landmark.getQuality();
   // Localization landmarks are always good.
   if (quality == vi_map::Landmark::Quality::kLocalizationSummaryLandmark) {
@@ -82,9 +81,7 @@ bool isLidarLandmarkWellConstrained(
   }
   if (re_evaluate_quality) {
     quality = vi_map::Landmark::Quality::kUnknown;
-  }
-
-  if (quality != vi_map::Landmark::Quality::kUnknown) {
+  } else if (quality != vi_map::Landmark::Quality::kUnknown) {
     return quality == vi_map::Landmark::Quality::kGood;
   }
 
@@ -93,7 +90,7 @@ bool isLidarLandmarkWellConstrained(
 
   const vi_map::KeypointIdentifierList& backlinks = landmark.getObservations();
   if (backlinks.size() < settings.min_observers_lidar) {
-    statistics::StatsCollector stats("Landmark has too few backlinks");
+    statistics::StatsCollector stats("LiDAR Landmark has too few backlinks");
     stats.IncrementOne();
     return false;
   }

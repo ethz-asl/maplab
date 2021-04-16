@@ -13,7 +13,7 @@ namespace vi_map {
 
 inline bool isLidarLandmarkWellConstrained(
     const Aligned<std::vector, Eigen::Vector3d>& G_normalized_incidence_rays,
-    double distance_to_closest_observer,
+    const double distance_to_closest_observer,
     const LidarLandmarkWellConstrainedSettings& settings) {
   const size_t num_observations = G_normalized_incidence_rays.size();
   if (num_observations < settings.min_observers_lidar) {
@@ -24,7 +24,8 @@ inline bool isLidarLandmarkWellConstrained(
           settings.max_distance_to_closest_observer_lidar ||
       distance_to_closest_observer <
           settings.min_distance_to_closest_observer_lidar) {
-    statistics::StatsCollector stats("Landmark too close or too far away.");
+    statistics::StatsCollector stats(
+        "LiDAR Landmark too close or too far away.");
     stats.AddSample(distance_to_closest_observer);
     return false;
   }
@@ -34,11 +35,12 @@ inline bool isLidarLandmarkWellConstrained(
           G_normalized_incidence_rays);
 
   constexpr double kRadToDeg = 180.0 / M_PI;
-  double angle_deg = max_disparity_angle_rad * kRadToDeg;
-  bool quality_good = angle_deg >= settings.min_observation_angle_deg_lidar;
+  const double angle_deg = max_disparity_angle_rad * kRadToDeg;
+  const bool quality_good =
+      angle_deg >= settings.min_observation_angle_deg_lidar;
   if (!quality_good) {
     statistics::StatsCollector stats(
-        "Landmark observations angles too close together.");
+        "LiDAR Landmark observations angles too close together.");
     stats.IncrementOne();
   }
   return quality_good;

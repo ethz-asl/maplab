@@ -633,22 +633,21 @@ bool Vertex::areFrameAndKeypointIndicesValid(
 
   const bool is_frame_idx_valid = isFrameIndexValid(frame_idx);
   LOG_IF(ERROR, !is_frame_idx_valid) << "Invalid frame index: " << frame_idx;
+  const std::size_t n_total_keypoints =
+      n_frame_->getFrame(frame_idx).getTotalNumKeypointMeasurements();
+
   const bool is_observed_landmarks_ids_size_correct =
-      observed_landmark_ids_[frame_idx].size() ==
-      static_cast<unsigned int>(
-          n_frame_->getFrame(frame_idx).getNumKeypointMeasurements());
+      observed_landmark_ids_[frame_idx].size() == n_total_keypoints;
   LOG_IF(ERROR, !is_observed_landmarks_ids_size_correct)
       << "Observed landmark IDs vector size is incorrect. ("
       << observed_landmark_ids_[frame_idx].size() << " vs. "
-      << n_frame_->getFrame(frame_idx).getNumKeypointMeasurements() << ").";
+      << n_total_keypoints << ").";
 
-  const bool is_keypoint_index_valid =
-      keypoint_idx <
-      static_cast<int>(
-          n_frame_->getFrame(frame_idx).getNumKeypointMeasurements());
+  // TODO(lbern): why is keypoint_idx signed?
+  const bool is_keypoint_index_valid = keypoint_idx < n_total_keypoints;
   LOG_IF(ERROR, !is_keypoint_index_valid)
       << "Keypoint index out of bounds. (" << keypoint_idx << " vs. "
-      << n_frame_->getFrame(frame_idx).getNumKeypointMeasurements() << ").";
+      << n_total_keypoints << ").";
 
   return is_frame_idx_valid && is_observed_landmarks_ids_size_correct &&
          is_keypoint_index_valid;

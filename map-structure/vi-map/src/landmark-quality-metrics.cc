@@ -10,17 +10,17 @@
 #include <vi-map/vi-map.h>
 
 DEFINE_double(
-    vi_map_landmark_quality_min_observation_angle_deg, 0.0,
+    vi_map_landmark_quality_min_observation_angle_deg, 5.0,
     "Minimum angle disparity of observers for a landmark to be "
     "well constrained.");
 
 DEFINE_uint64(
-    vi_map_landmark_quality_min_observers, 1,
+    vi_map_landmark_quality_min_observers, 4,
     "Minimum number of observers for a landmark to be "
     "well constrained.");
 
 DEFINE_double(
-    vi_map_landmark_quality_max_distance_from_closest_observer, 60,
+    vi_map_landmark_quality_max_distance_from_closest_observer, 40,
     "Maximum distance from closest observer for a landmark to be "
     "well constrained [m].");
 
