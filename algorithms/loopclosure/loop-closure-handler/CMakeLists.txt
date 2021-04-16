@@ -16,7 +16,6 @@ cs_add_library(${PROJECT_NAME}
   src/loop-closure-handler.cc
   src/loop-detector-node.cc
   src/visualization/loop-closure-visualizer.cc
-  #test/test_loop_closure_handling_test.cc
   ${PROTO_SRCS})
 
 cs_add_library(${PROJECT_NAME}_test
