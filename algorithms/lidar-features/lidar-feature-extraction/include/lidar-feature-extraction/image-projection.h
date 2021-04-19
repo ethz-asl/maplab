@@ -36,9 +36,7 @@ class ImageProjection {
   const vio_common::PoseLookupBuffer& T_M_B_buffer_;
   pcl::PointCloud<pcl::PointXYZI>::Ptr input_cloud_pointer_;
   pcl::PointCloud<pcl::PointXYZI> old_cloud_;
-  cv::Ptr<cv::CLAHE> clahe_range_;
   cv::Ptr<cv::CLAHE> clahe_intensity_;
-  cv::Ptr<cv::CLAHE> clahe_hdr_;
 
   cv::Ptr<cv::MergeMertens> merge_mertens_;
   cv::Mat range_image_;

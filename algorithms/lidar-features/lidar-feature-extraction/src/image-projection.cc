@@ -53,9 +53,7 @@ ImageProjection::ImageProjection(
   px_offset_ = getPxOffset(ring_size_);
 
   // Configure clahe.
-  clahe_range_ = cv::createCLAHE(0.0, cv::Size(4, 12));
   clahe_intensity_ = cv::createCLAHE(6, cv::Size(4, 12));
-  clahe_hdr_ = cv::createCLAHE(0.5, cv::Size(8, 24));
 
   // Setup hdr.
   merge_mertens_ = cv::createMergeMertens();
@@ -125,7 +123,6 @@ void ImageProjection::projectPointCloud() {
   const std::size_t& H = beam_size_;
 
   inpaint_mask_ = 0u;
-#pragma omp parallel for
   for (std::size_t u = 0u; u < H; ++u) {
     const std::size_t offset = px_offset_[u];
     for (std::size_t v = 0u; v < W; ++v) {
@@ -173,27 +170,11 @@ const cv::Mat& ImageProjection::getFeatureImage() const {
 }
 
 void ImageProjection::createFeatureImage() {
-  CHECK_NOTNULL(clahe_range_);
   CHECK_NOTNULL(clahe_intensity_);
-  CHECK_NOTNULL(clahe_hdr_);
   CHECK_NOTNULL(merge_mertens_);
 
-  cv::Mat range_image_eq, intensity_image_eq, hdr_image;
-  range_image_eq = cv::Mat(beam_size_, ring_size_, CV_8U, cv::Scalar::all(0u));
-  intensity_image_eq =
-      cv::Mat(beam_size_, ring_size_, CV_8U, cv::Scalar::all(0u));
-  hdr_image = cv::Mat(beam_size_, ring_size_, CV_8U, cv::Scalar::all(0u));
-  std::vector<cv::Mat> images;
-
-  cv::Mat inpainted_range_image;
-  constexpr double inpaint_radius = 10.0;
-  cv::inpaint(
-      range_image_, inpaint_mask_, inpainted_range_image, inpaint_radius,
-      cv::INPAINT_TELEA);
-
-  // Perform histogram equalization on both images.
-  clahe_range_->apply(range_image_, range_image_eq);
-  clahe_range_->apply(inpainted_range_image, range_image_eq);
+  // Perform histogram equalization on the intensity image.
+  cv::Mat intensity_image_eq;
   clahe_intensity_->apply(intensity_image_, intensity_image_eq);
 
   // Remove horizontal lines from intensity image.
@@ -201,34 +182,42 @@ void ImageProjection::createFeatureImage() {
       intensity_image_eq, intensity_image_eq, CV_8U,
       horizontal_lines_filter_kernel_);
 
+  cv::Mat inpainted_range_image;
+  constexpr double inpaint_radius = 5.0;
+  cv::inpaint(
+      range_image_, inpaint_mask_, inpainted_range_image, inpaint_radius,
+      cv::INPAINT_TELEA);
+
   cv::GaussianBlur(
       inpainted_range_image, inpainted_range_image, cv::Size(5, 5), 1, 1,
       cv::BORDER_DEFAULT);
 
   cv::Mat range_grad_x, range_grad_y;
-  cv::Mat range_abs_grad_x, _range_abs_grad_y;
+  cv::Mat range_abs_grad_x, range_abs_grad_y;
   const int scale = 1;
   const int delta = 0;
 
   /// Gradient X
   cv::Sobel(
-      inpainted_range_image, range_grad_x, CV_16S, 1, 0, 3, scale, delta,
+      inpainted_range_image, range_grad_x, CV_8U, 1, 0, 3, scale, delta,
       cv::BORDER_DEFAULT);
   /// Gradient Y
   cv::Sobel(
-      inpainted_range_image, range_grad_y, CV_16S, 0, 1, 3, scale, delta,
+      inpainted_range_image, range_grad_y, CV_8U, 0, 1, 3, scale, delta,
       cv::BORDER_DEFAULT);
 
   cv::convertScaleAbs(range_grad_x, range_abs_grad_x);
-  cv::convertScaleAbs(range_grad_y, _range_abs_grad_y);
+  cv::convertScaleAbs(range_grad_y, range_abs_grad_y);
 
   cv::Mat range_gradient;
-  addWeighted(range_abs_grad_x, 0.5, _range_abs_grad_y, 0.5, 0, range_gradient);
+  addWeighted(range_abs_grad_x, 0.5, range_abs_grad_y, 0.5, 0, range_gradient);
 
   // Merge the two images into one HDR image.
+  std::vector<cv::Mat> images;
   images.emplace_back(std::move(range_gradient));
   images.emplace_back(std::move(intensity_image_eq));
 
+  cv::Mat hdr_image;
   merge_mertens_->process(images, hdr_image);
   hdr_image = hdr_image * 255u;
   hdr_image.convertTo(feature_image_, CV_8UC1);

@@ -71,7 +71,7 @@ class LidarFeatureFlow {
           }
 
           LOG(INFO) << "=====================================";
-          LOG(INFO) << "LiDAR projection takes: "
+          LOG(INFO) << "LiDAR projection in total takes: "
                     << std::chrono::duration_cast<std::chrono::milliseconds>(
                            dur_projection)
                            .count()
