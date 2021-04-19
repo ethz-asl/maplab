@@ -56,7 +56,6 @@ class DataSourceRostopic : public DataSource {
   image_transport::ImageTransport image_transport_;
   std::vector<image_transport::Subscriber> sub_images_;
   ros::Subscriber sub_imu_;
-  int64_t last_time_imu = 0;
   std::vector<ros::Subscriber> sub_odometry_;
 
   int64_t last_imu_timestamp_ns_;

@@ -57,7 +57,6 @@ class DataSourceRosbag : public DataSource {
 
   std::unique_ptr<rosbag::Bag> bag_;
   std::unique_ptr<rosbag::View> bag_view_;
-  int64_t last_imu_time = 0;
 
   int64_t last_imu_timestamp_ns_;
   int64_t last_imu_dispatch_timestamp_ns_;

@@ -28,8 +28,8 @@ struct OutlierRejectionSolverOptions {
   // missions.
   double reprojection_error_other_mission_px = 400;
   // Maximal angle error between the lidar measurement and the landmark
-  // position
-  double max_lidar_error = 0.05;
+  // position. Computes the tan(theta) between measurement and landmark.
+  double max_angular_lidar_error = 0.05;
 };
 
 class OutlierRejectionCallback : public ceres::IterationCallback {

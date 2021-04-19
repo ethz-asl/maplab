@@ -26,14 +26,5 @@ cs_add_library(${PROJECT_NAME}
   src/pnp-ransac.cc
 )
 
-
-##########
-# GTESTS #
-##########
-#catkin_add_gtest(test_feature_extractor
-#  test/test-feature-track-extractor.cc
-#)
-#target_link_libraries(test_feature_extractor ${PROJECT_NAME})
-
 cs_install()
 cs_export()

@@ -21,7 +21,7 @@ DEFINE_double(
     "Reprojection error threshold in pixels for observations from missions"
     "the landmark is NOT stored in.");
 DEFINE_double(
-    ba_outlier_max_lidar_error, 0.05,
+    ba_outlier_max_angular_lidar_error, 0.05,
     "Maximal angle error between the lidar measurement and the landmark"
     "position");
 DEFINE_bool(
@@ -55,7 +55,7 @@ void findOutlierLandmarks(
     const vi_map::VIMap& map, const vi_map::LandmarkIdSet& landmark_ids_set,
     const bool use_reprojection_error,
     const double same_mission_reprojection_error_px,
-    const double max_lidar_error,
+    const double max_angular_lidar_error,
     const double other_mission_reprojection_error_px,
     vi_map::LandmarkIdList* outlier_landmarks) {
   CHECK_NOTNULL(outlier_landmarks)->clear();
@@ -101,10 +101,11 @@ void findOutlierLandmarks(
             if (observer_vertex.getVisualFrame(frame_idx)
                     .hasLidarKeypoint3DMeasurements()) {
               const Eigen::Vector3d measurement =
-                  observer_vertex.getVisualFrame(frame_idx).getLidarKeypoint3DMeasurement(
-                      keypoint_id.keypoint_index);
+                  observer_vertex.getVisualFrame(frame_idx)
+                      .getLidarKeypoint3DMeasurement(
+                          keypoint_id.keypoint_index);
               if ((measurement - p_C_fi).norm() / p_C_fi.norm() >
-                  max_lidar_error) {
+                  max_angular_lidar_error) {
                 local_outlier_landmarks.emplace_back(landmark_id);
               }
               break;
@@ -213,7 +214,7 @@ void rejectOutliers(
       map, present_landmarks,
       rejection_options.reject_landmarks_based_on_reprojection_errors,
       rejection_options.reprojection_error_same_mission_px,
-      rejection_options.max_lidar_error,
+      rejection_options.max_angular_lidar_error,
       rejection_options.reprojection_error_other_mission_px,
       &outlier_landmarks);
 
@@ -238,13 +239,13 @@ OutlierRejectionSolverOptions OutlierRejectionSolverOptions::initFromFlags() {
   OutlierRejectionSolverOptions options;
   options.reject_outliers_every_n_iters =
       FLAGS_ba_outlier_rejection_reject_every_n_iters;
-
   options.reject_landmarks_based_on_reprojection_errors =
       FLAGS_ba_outlier_rejection_reject_using_reprojection_error;
   options.reprojection_error_same_mission_px =
       FLAGS_ba_outlier_rejection_reprojection_error_same_mission_px;
   options.reprojection_error_other_mission_px =
       FLAGS_ba_outlier_rejection_reprojection_error_other_mission_px;
+  options.max_angular_lidar_error = FLAGS_ba_outlier_max_angular_lidar_error;
   return options;
 }
 
