@@ -56,7 +56,7 @@ bool FeatureTrackerGyroAidedLaser::processNFrame(
   tracking_debug_output->timestamp_nframe_k = prev_nframe_timestamp_ns_;
 
   CHECK(tracker_pipeline_);
-  tracker_pipeline_->processImages2(
+  tracker_pipeline_->processLidarImages(
       q_Ikp1_Ik, curr_nframe_images, prev_nframe_images_, prev_nframe_features_,
       &curr_nframe_features, cloud, tracking_debug_output.get());
 

@@ -80,7 +80,6 @@ bool LidarTracking::trackSynchronizedLidarMeasurementCallback(
 
   previous_synced_meas_ = current_nframe;
   previous_lidar_timestamp_ns_ = current_lidar_timestamp_ns;
-  warm_up_done_ = true;
   return true;
 }
 

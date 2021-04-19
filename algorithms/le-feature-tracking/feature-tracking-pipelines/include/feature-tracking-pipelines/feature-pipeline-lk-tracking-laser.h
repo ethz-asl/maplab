@@ -68,7 +68,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
   }
   virtual ~FeaturePipelineLkTrackingLaser() = default;
 
-  virtual void processImages2(
+  virtual void processLidarImages(
       const aslam::Quaternion& q_Icurr_Iprev,
       const std::vector<cv::Mat>& curr_camera_images,
       const std::vector<cv::Mat>& prev_camera_images,
@@ -77,6 +77,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
       pcl::PointCloud<pcl::PointXYZI>::ConstPtr cloud,
       FeaturePipelineDebugData* optional_debug_data) override {
     // optional_debug_data is optional and can be a nullptr.
+    CHECK_NOTNULL(cloud);
     CHECK_EQ(1, curr_camera_images.size());
     CHECK_EQ(1, previous_keyframe.size());
     CHECK_NOTNULL(current_keyframe_ptr)->clear();
@@ -91,9 +92,8 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
     cv::Mat tracker_img = curr_camera_images[0];
     cv::cvtColor(tracker_img, tracker_img, CV_GRAY2RGB);
     std::vector<cv::Point2f> keypoints_curr;
-    bool show_illustrations = true;
+    const bool show_illustrations = false;
 
-    // TODO(schneith): Parallelize the loop over camera images.
     for (size_t frame_idx = 0u; frame_idx < 1u; ++frame_idx) {
       KeyframeFeatures previous_keyframe_features_removed =
           previous_keyframe[frame_idx];
@@ -133,8 +133,9 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
         CvKeypointsToKeyframeFeatures(
             keypoints_curr, &current_keyframe[frame_idx].keypoint_measurements);
 
+        const std::size_t n_initial_keypoints = keypoints_curr.size();
         if (show_illustrations) {
-          for (int i = 0; i < keypoints_curr.size(); ++i) {
+          for (std::size_t i = 0u; i < n_initial_keypoints; ++i) {
             // Red circles and lines
             cv::circle(
                 tracker_img, keypoints_curr[i], 3, cv::Scalar(0, 0, 255));
@@ -145,7 +146,6 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
         }
       }
 
-      int initial_keypoints = keypoints_curr.size();
       // Track IDs remain the same as in the previous frame.
       current_keyframe[frame_idx].keypoint_track_ids =
           previous_keyframe[frame_idx].keypoint_track_ids;
@@ -177,7 +177,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
       // Reject Points with unusable Lidar data
       std::vector<size_t> bad_lidar_indices;
 
-      for (int i = 0;
+      for (std::size_t i = 0;
            i < current_keyframe[frame_idx].keypoint_measurements.cols(); ++i) {
         Eigen::Vector3d position_vector;
         backProject3d(
@@ -208,15 +208,6 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
           previous_keyframe_features_removed, &ransac_rotation_matrix,
           &ransac_translation, &ransac_inliers, &ransac_outliers);
 
-      VLOG(2) << "Ransac Outliers: " << ransac_outliers.size();
-      VLOG(2) << "Ransac Inliers: " << ransac_inliers.size();
-
-      Eigen::Matrix3d rotation_matrix_gyro = q_Icurr_Iprev.getRotationMatrix();
-
-      Eigen::Matrix3d relative_rotation =
-          ransac_rotation_matrix.transpose() * rotation_matrix_gyro;
-      double rotation_error = acos((relative_rotation.trace() - 1) / 2);
-      VLOG(2) << "Rotation Error: " << rotation_error * 180 / M_PI << "°";
       if (show_illustrations) {
         for (int i = 0; i < ransac_outliers.size(); ++i) {
           cv::Point2f point;
@@ -299,7 +290,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
               cv::Scalar(0, 255, 0));
         }
       }
-      int succ_keypoints = keypoints_curr.size();
+      std::size_t succ_keypoints = keypoints_curr.size();
 
       // Create a detection mask to prevent new detections close to features
       // that are already being tracked.
@@ -329,18 +320,20 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
               CV_FILLED);
         }
       }
+
       // Adjust the mask for invalid lidar data
-      for (int v = 0; v < curr_camera_images[frame_idx].rows - 4; v += 4) {
-        for (int u = 0; u < curr_camera_images[frame_idx].cols - 4; u += 4) {
+      for (std::size_t v = 0u; v < curr_camera_images[frame_idx].rows - 4;
+           v += 4) {
+        const std::size_t vp2 = v + 2;
+        for (std::size_t u = 0u; u < curr_camera_images[frame_idx].cols - 4;
+             u += 4) {
           Eigen::Vector3d position_vector;
           Eigen::Vector2d point;
-          point << u + 2, v + 2;
+          point << u + 2, vp2;
           backProject3d(cloud, point, &position_vector);
           if (position_vector.norm() < settings_.min_tracking_distance) {
             cv::Point cvpoint(point[0], point[1]);
             cv::circle(detection_mask, cvpoint, 5, cv::Scalar(0), CV_FILLED);
-            // cv::circle(
-            //     tracker_img, cvpoint, 5, cv::Scalar(0, 0, 255), CV_FILLED);
           }
         }
       }
@@ -350,19 +343,11 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
       // tracked feature count drops under kRedetectThresholdPercent percent of
       // the max feature count.
       constexpr double kRedetectThresholdPercent = 0.7;
-      VLOG(5) << "current detections: "
-              << current_keyframe[frame_idx].keypoint_measurements.cols()
-              << " vs. "
-              << (kRedetectThresholdPercent * settings_.max_num_features);
 
       const bool should_redetect =
           (current_keyframe[frame_idx].keypoint_measurements.cols() <
            (kRedetectThresholdPercent * settings_.max_num_features));
       int new_keypoints = 0;
-      if (should_redetect)
-        VLOG(5) << "should redetect is true";
-      else
-        VLOG(5) << "should redetect is false";
       if (should_redetect) {
         const int num_to_detect =
             settings_.max_num_features -
@@ -391,38 +376,18 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
             new_detections.keypoint_measurements, &keypoints_curr);
         if (show_illustrations) {
           // Blue circles
-          for (int i = 0; i < keypoints_curr.size(); ++i) {
+          const std::size_t n_keypoints = keypoints_curr.size();
+          for (std::size_t i = 0u; i < n_keypoints; ++i) {
             cv::circle(
                 tracker_img, keypoints_curr[i], 3, cv::Scalar(255, 0, 0));
           }
         }
       }
-      if (show_illustrations) {
-        std::stringstream failed_stream;
-        std::stringstream succ_stream;
-        std::stringstream new_stream;
-        succ_stream << "Successfull: " << succ_keypoints;
-        failed_stream << "Failed: " << initial_keypoints - succ_keypoints;
-        new_stream << "New: " << new_keypoints;
-        cv::putText(
-            tracker_img, succ_stream.str(), cv::Point2f(1900, 15),
-            cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 255, 0));
-        cv::putText(
-            tracker_img, failed_stream.str(), cv::Point2f(1900, 35),
-            cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255));
-        cv::putText(
-            tracker_img, new_stream.str(), cv::Point2f(1900, 55),
-            cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 0, 0));
-      }
 
       // Extract the descriptors for all newly detected and also for the new
       // location of the tracked keypoints.
-      VLOG(5) << "BEFORE DESCRIBTION: "
-              << current_keyframe[frame_idx].keypoint_measurements.cols();
       feature_describer_->describeFeatures(
           curr_camera_images[frame_idx], &current_keyframe[frame_idx]);
-      VLOG(5) << "AFTER DESCRIBTION: "
-              << current_keyframe[frame_idx].keypoint_measurements.cols();
 
       // Assume a constant measurement uncertainty.
       // This needs to done after the feature extraction
@@ -436,7 +401,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
       current_keyframe[frame_idx].keypoint_vectors.resize(3, num_keypoints);
 
       // Reproject feature to add 3D information to the frame
-      for (int i = 0; i < num_keypoints; ++i) {
+      for (std::size_t i = 0u; i < num_keypoints; ++i) {
         Eigen::Vector3d position_vector;
         Eigen::Vector2d point;
         point << current_keyframe[frame_idx].keypoint_measurements(0, i),
@@ -444,19 +409,12 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
         backProject3d(cloud, point, &position_vector);
         current_keyframe[frame_idx].keypoint_vectors.col(i) = position_vector;
       }
-      // cv::imshow("Mask", detection_mask);
-      cv::imwrite(
-          "/home/marius/Documents/Masterarbeit/picture_tests/bild.jpg",
-          tracker_img);
     }
 
     if (optional_debug_data != nullptr) {
       optional_debug_data->inlier_matches_kp1_k.swap(inlier_matches_kp1_k);
       optional_debug_data->outlier_matches_kp1_k.swap(outlier_matches_kp1_k);
     }
-
-    cv::imshow("Tracking 2", tracker_img);
-    cv::waitKey(1);
   }
 
  private:

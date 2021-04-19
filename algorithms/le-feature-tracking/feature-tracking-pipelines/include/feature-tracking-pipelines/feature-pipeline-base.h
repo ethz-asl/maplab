@@ -17,7 +17,6 @@
 
 namespace feature_tracking_pipelines {
 
-  
 struct FeaturePipelineDebugData {
   int64_t timestamp_nframe_kp1;
   int64_t timestamp_nframe_k;
@@ -38,7 +37,7 @@ class FeatureTrackingPipelineBase {
       std::vector<KeyframeFeatures>* current_keyframe_ptr,
       FeaturePipelineDebugData* optional_debug_data) {}
 
-  virtual void processImages2(
+  virtual void processLidarImages(
       const aslam::Quaternion& q_Icurr_Iprev,
       const std::vector<cv::Mat>& curr_camera_images,
       const std::vector<cv::Mat>& prev_camera_images,

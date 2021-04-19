@@ -51,7 +51,6 @@ class LidarTracking {
   aslam::VisualNPipeline::Ptr visual_pipeline_;
   std::unique_ptr<feature_tracking_pipelines::FeatureTrackerGyroAidedLaser>
       tracking_pipeline_;
-  bool warm_up_done_ = false;
 };
 
 }  // namespace maplab
