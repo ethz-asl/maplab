@@ -15,7 +15,7 @@ LidarTracking::LidarTracking(
     : T_M_B_buffer_(T_M_B_buffer), previous_lidar_timestamp_ns_(-1) {
   tracking_pipeline_.reset(
       new feature_tracking_pipelines::FeatureTrackerGyroAidedLaser(
-          *camera_system,
+          *CHECK_NOTNULL(camera_system),
           feature_tracking_pipelines::CreateFeaturePipelineFromGFlags()));
 
   // Initialize the pipeline.
@@ -44,10 +44,9 @@ bool LidarTracking::trackSynchronizedLidarMeasurementCallback(
   if (!visual_pipeline_->processImageBlockingIfFull(
           0, projected_lidar_image, current_lidar_timestamp_ns,
           max_queue_size_)) {
-    LOG(ERROR)
-        << "[MaplabNode-Synchronizer] Failed to process an image of camera "
-        << 0 << " into an NFrame at time " << current_lidar_timestamp_ns
-        << "ns!";
+    LOG(ERROR) << "[LidarTracking] Failed to process an image of camera " << 0
+               << " into an NFrame at time " << current_lidar_timestamp_ns
+               << "ns!";
     return false;
   }
 

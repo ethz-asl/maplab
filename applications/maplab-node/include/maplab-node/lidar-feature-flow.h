@@ -4,19 +4,19 @@
 #include <chrono>
 #include <memory>
 
-#include <aslam/cameras/ncamera.h>
-#include <aslam/pipeline/visual-npipeline.h>
-#include <lidar-feature-extraction/image-projection.h>
-#include <message-flow/message-flow.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/video/tracking.hpp>
+
+#include <aslam/cameras/ncamera.h>
+#include <aslam/pipeline/visual-npipeline.h>
+#include <lidar-feature-extraction/image-projection.h>
+#include <message-flow/message-flow.h>
 #include <sensors/imu.h>
 #include <vio-common/pose-lookup-buffer.h>
 #include <vio-common/vio-types.h>
 
-#include "lidar-feature-extraction/image-projection.h"
 #include "maplab-node/flow-topics.h"
 #include "maplab-node/lidar-tracking.h"
 #include "maplab-node/odometry-estimate.h"
