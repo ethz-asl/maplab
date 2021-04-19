@@ -25,7 +25,7 @@ bool ExternalFeatures::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
   has_orientations_ = true;
   has_scores_ = true;
   has_scales_ = true;
-  has_track_ids = true;
+  has_track_ids_ = true;
 
   feature_type_ = ExternalFeatureType::kVisualBinaryFeatures;
 

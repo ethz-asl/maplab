@@ -1082,55 +1082,52 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
     aslam::VisualFrame::Ptr frame =
         closest_vertex.getVisualFrameShared(target_camera_index);
 
-    // TODO(smauq): this is temporary, instead of removing the existing binary
-    // visual features a new channel needs to be added to deal with this
-    frame->clearKeypointChannels();
-
     Eigen::Matrix2Xd keypoint_measurements;
     external_features_measurement.getKeypointMeasurements(
         &keypoint_measurements);
-    frame->swapKeypointMeasurements(&keypoint_measurements);
+    frame->swapExternalKeypointMeasurements(&keypoint_measurements);
+
+    aslam::VisualFrame::DescriptorsT descriptors;
+    external_features_measurement.getDescriptors(&descriptors);
+    frame->swapExternalDescriptors(&descriptors);
 
     if (external_features_sensor.hasUncertainties()) {
       Eigen::VectorXd keypoint_uncertainties;
       external_features_measurement.getKeypointUncertainties(
           &keypoint_uncertainties);
-      frame->swapKeypointMeasurementUncertainties(&keypoint_uncertainties);
+      frame->swapExternalKeypointMeasurementUncertainties(
+          &keypoint_uncertainties);
     }
 
     if (external_features_sensor.hasOrientations()) {
       Eigen::VectorXd keypoint_orientations;
       external_features_measurement.getKeypointOrientations(
           &keypoint_orientations);
-      frame->swapKeypointOrientations(&keypoint_orientations);
+      frame->swapExternalKeypointOrientations(&keypoint_orientations);
     }
 
     if (external_features_sensor.hasScores()) {
       Eigen::VectorXd keypoint_scores;
       external_features_measurement.getKeypointScores(&keypoint_scores);
-      frame->swapKeypointScores(&keypoint_scores);
+      frame->swapExternalKeypointScores(&keypoint_scores);
     }
 
     if (external_features_sensor.hasScales()) {
       Eigen::VectorXd keypoint_scales;
       external_features_measurement.getKeypointScales(&keypoint_scales);
-      frame->swapKeypointScales(&keypoint_scales);
+      frame->swapExternalKeypointScales(&keypoint_scales);
     }
 
-    aslam::VisualFrame::DescriptorsT descriptors;
-    external_features_measurement.getDescriptors(&descriptors);
-    frame->swapDescriptors(&descriptors);
+    if (external_features_sensor.hasTrackIds()) {
+      Eigen::VectorXi track_ids;
+      external_features_measurement.getTrackIds(&track_ids);
+      frame->swapExternalTrackIds(&track_ids);
+    }
 
-    Eigen::VectorXi track_ids;
-    external_features_measurement.getTrackIds(&track_ids);
-    frame->swapTrackIds(&track_ids);
-
-    closest_vertex.resetObservedLandmarkIdsToInvalid();
-
-    VLOG(3) << "[StreamMapBuilder] Attached a new external features "
+    /*VLOG(3) << "[StreamMapBuilder] Attached a new external features "
             << "measurement for vertex " << closest_vertex_id << ", which now "
             << "has " << closest_vertex.getNumAbsolute6DoFMeasurements()
-            << " such constraints.";
+            << " such constraints.";*/
   }
 }
 

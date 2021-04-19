@@ -92,6 +92,10 @@ class ExternalFeatures final : public aslam::Sensor {
     return has_scales_;
   }
 
+  bool hasTrackIds() const {
+    return has_track_ids_;
+  }
+
  private:
   bool loadFromYamlNodeImpl(const YAML::Node& sensor_node) override;
   void saveToYamlNodeImpl(YAML::Node* sensor_node) const override;
@@ -116,7 +120,7 @@ class ExternalFeatures final : public aslam::Sensor {
   bool has_orientations_;
   bool has_scores_;
   bool has_scales_;
-  bool has_track_ids;
+  bool has_track_ids_;
   ExternalFeatureType feature_type_;
 };
 
@@ -179,16 +183,26 @@ class ExternalFeaturesMeasurement : public Measurement {
     }
   }
 
-  void getKeypointUncertainties(Eigen::VectorXd* keypoint_uncertainties) const {
-    CHECK_NOTNULL(keypoint_uncertainties);
-    keypoint_uncertainties->resize(num_keypoint_measurements_);
+  void getKeypointUncertainties(
+      Eigen::VectorXd* keypoint_measurement_uncertainties) const {
+    CHECK_EQ(
+        keypoint_measurement_uncertainties_.size(), num_keypoint_measurements_)
+        << "External keypoint uncertainty measurements requested but none "
+           "provided.";
+    CHECK_NOTNULL(keypoint_measurement_uncertainties);
+
+    keypoint_measurement_uncertainties->resize(num_keypoint_measurements_);
     for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
-      (*keypoint_uncertainties)(i) = keypoint_measurement_uncertainties_[i];
+      (*keypoint_measurement_uncertainties)(i) =
+          keypoint_measurement_uncertainties_[i];
     }
   }
 
   void getKeypointOrientations(Eigen::VectorXd* keypoint_orientations) const {
+    CHECK_EQ(keypoint_orientations_.size(), num_keypoint_measurements_)
+        << "External keypoint orientations requested but none provided.";
     CHECK_NOTNULL(keypoint_orientations);
+
     keypoint_orientations->resize(num_keypoint_measurements_);
     for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
       (*keypoint_orientations)(i) = keypoint_orientations_[i];
@@ -196,7 +210,10 @@ class ExternalFeaturesMeasurement : public Measurement {
   }
 
   void getKeypointScores(Eigen::VectorXd* keypoint_scores) const {
+    CHECK_EQ(keypoint_scores_.size(), num_keypoint_measurements_)
+        << "External keypoint scores requested but none provided.";
     CHECK_NOTNULL(keypoint_scores);
+
     keypoint_scores->resize(num_keypoint_measurements_);
     for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
       (*keypoint_scores)(i) = keypoint_scores_[i];
@@ -204,7 +221,10 @@ class ExternalFeaturesMeasurement : public Measurement {
   }
 
   void getKeypointScales(Eigen::VectorXd* keypoint_scales) const {
+    CHECK_EQ(keypoint_scales_.size(), num_keypoint_measurements_)
+        << "External keypoint scales requested but none provided.";
     CHECK_NOTNULL(keypoint_scales);
+
     keypoint_scales->resize(num_keypoint_measurements_);
     for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
       (*keypoint_scales)(i) = keypoint_scales_[i];
@@ -212,6 +232,8 @@ class ExternalFeaturesMeasurement : public Measurement {
   }
 
   void getTrackIds(Eigen::VectorXi* track_ids) const {
+    CHECK_EQ(track_ids_.size(), num_keypoint_measurements_)
+        << "External keypoint track ids requested but none provided.";
     CHECK_NOTNULL(track_ids);
     track_ids->resize(num_keypoint_measurements_);
     for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
