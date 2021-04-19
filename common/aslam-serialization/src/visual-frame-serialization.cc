@@ -39,8 +39,6 @@ void serializeVisualFrame(
 
     const aslam::VisualFrame::DescriptorsT& descriptors =
         frame.getDescriptors();
-    VLOG(200) << "Frame " << frame.getId() << " has " << descriptors.cols()
-              << " descriptors!";
     internal::serializeDescriptors(descriptors, proto);
 
     proto->set_is_valid(frame.isValid());
@@ -49,8 +47,6 @@ void serializeVisualFrame(
       ::common::eigen_proto::serialize(
           frame.getTrackIds(), proto->mutable_track_ids());
     }
-  } else {
-    VLOG(200) << "Frame " << frame.getId() << " has no descriptors!";
   }
   if (frame.hasLidarTrackIds()) {
     ::common::eigen_proto::serialize(
@@ -179,7 +175,8 @@ void deserializeVisualFrame(
           proto, frame_ref.getLidarDescriptorsMutable());
     }
     if (proto.lidar_keypoint_2d_measurement_sigmas_size() != 0) {
-      frame_ref.setLidarKeypoint2DMeasurementUncertainties(lidar_2d_uncertainties);
+      frame_ref.setLidarKeypoint2DMeasurementUncertainties(
+          lidar_2d_uncertainties);
     }
 
     if (proto.has_is_valid() && !proto.is_valid()) {

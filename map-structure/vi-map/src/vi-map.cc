@@ -1,11 +1,12 @@
 #include "vi-map/vi-map.h"
 
+#include <limits>
+#include <queue>
+
 #include <aslam/common/memory.h>
 #include <aslam/common/time.h>
-#include <limits>
 #include <map-resources/resource_metadata.pb.h>
 #include <maplab-common/file-system-tools.h>
-#include <queue>
 
 #include "vi-map/sensor-manager.h"
 #include "vi-map/sensor-utils.h"
@@ -952,10 +953,8 @@ void VIMap::associateMissionSensors(
           FLAGS_selected_ncamera_sensor_id, "selected_ncamera_sensor_id",
           "NCamera", sensor_of_type.second);
       if (!mission.hasNCamera()) {
-        VLOG(1) << "setting normal: " << sensor_id;
         mission.setNCameraId(sensor_id);
       } else {
-        VLOG(1) << "setting additional: " << sensor_id;
         mission.setAdditionalNCameraId(sensor_id);
       }
     } else if (

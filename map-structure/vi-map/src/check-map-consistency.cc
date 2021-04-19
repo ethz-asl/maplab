@@ -1,4 +1,5 @@
 #include <unordered_map>
+
 #include <vi-map/check-map-consistency.h>
 #include <vi-map/vi-map.h>
 

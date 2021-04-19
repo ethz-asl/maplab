@@ -23,7 +23,7 @@ LandmarkManipulationPlugin::LandmarkManipulationPlugin(
   addCommand(
       {"retriangulate_lidar_landmarks", "rtll"},
       [this]() -> int { return retriangulateLidarLandmarks(); },
-      "Retriangulate all landmarks.", common::Processing::Sync);
+      "Retriangulate all LiDAR landmarks.", common::Processing::Sync);
   addCommand(
       {"evaluate_landmark_quality", "elq"},
       [this]() -> int { return evaluateLandmarkQuality(); },
@@ -32,7 +32,7 @@ LandmarkManipulationPlugin::LandmarkManipulationPlugin(
   addCommand(
       {"evaluate_lidar_landmark_quality", "ellq"},
       [this]() -> int { return evaluateLidarLandmarkQuality(); },
-      "Evaluates and sets the landmark quality of all lidar landmarks.",
+      "Evaluates and sets the landmark quality of all LiDAR landmarks.",
       common::Processing::Sync);
   addCommand(
       {"reset_landmark_quality", "rlq"},
@@ -152,7 +152,8 @@ int LandmarkManipulationPlugin::evaluateLidarLandmarkQuality() {
     map->getAllMissionIds(&mission_ids_to_process);
   }
 
-  vi_map_helpers::evaluateLidarLandmarkQuality(mission_ids_to_process, map.get());
+  vi_map_helpers::evaluateLidarLandmarkQuality(
+      mission_ids_to_process, map.get());
   return common::kSuccess;
 }
 

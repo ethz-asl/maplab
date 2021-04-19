@@ -16,7 +16,9 @@ DEFINE_string(
     "to determine which one is used.");
 
 DEFINE_string(
-    selected_lidar_ncamera_sensor_id, "", "Points to the lidar ncamera hack ");
+    selected_lidar_ncamera_sensor_id, "",
+    "If there is more than one LiDAR NCamera in the sensor manager, use this "
+    "flag to determine which one is used.");
 
 DEFINE_string(
     selected_imu_sensor_id, "",
@@ -110,7 +112,7 @@ aslam::NCamera::Ptr getLidarNCamera(const SensorManager& sensor_manager) {
   CHECK(
       !FLAGS_selected_lidar_ncamera_sensor_id.empty() &&
       mapping_ncamera_id.fromHexString(FLAGS_selected_lidar_ncamera_sensor_id))
-        << "Please provide the lidar ncamera";
+      << "Please provide the lidar ncamera";
   CHECK(
       sensor_manager.hasSensor(mapping_ncamera_id) &&
       (sensor_manager.getSensorType(mapping_ncamera_id) ==
