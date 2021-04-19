@@ -1,19 +1,21 @@
 #ifndef FEATURE_TRACKING_PIPELINES_FEATURE_PIPELINE_LK_TRACKING_LASER_H_
 #define FEATURE_TRACKING_PIPELINES_FEATURE_PIPELINE_LK_TRACKING_LASER_H_
 
-#include <Eigen/Core>
-#include <aslam/cameras/ncamera.h>
-#include <aslam/matcher/match-helpers.h>
 #include <functional>
-#include <glog/logging.h>
 #include <memory>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/video/tracking.hpp>
-#include <sensors/lidar.h>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <Eigen/Core>
+#include <glog/logging.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/video/tracking.hpp>
+
+#include <aslam/cameras/ncamera.h>
+#include <aslam/matcher/match-helpers.h>
+#include <sensors/lidar.h>
 
 #include "feature-tracking-pipelines/feature-describer-base.h"
 #include "feature-tracking-pipelines/feature-detector-base.h"
@@ -64,7 +66,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
       : FeatureTrackingPipelineBase(
             ransac_settings, feature_detector, feature_describer),
         settings_(settings) {
-    // cv::namedWindow("Tracking 2", cv::WINDOW_NORMAL);
+    px_offset_ = getPxOffset(H_);
   }
   virtual ~FeaturePipelineLkTrackingLaser() = default;
 
@@ -176,13 +178,11 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
 
       // Reject Points with unusable Lidar data
       std::vector<size_t> bad_lidar_indices;
-
       for (std::size_t i = 0;
            i < current_keyframe[frame_idx].keypoint_measurements.cols(); ++i) {
         Eigen::Vector3d position_vector;
-        backProject3d(
-            cloud, &(curr_camera_images[0]),
-            current_keyframe[frame_idx].keypoint_measurements.col(i),
+        backProject3dUsingCloud(
+            cloud, current_keyframe[frame_idx].keypoint_measurements.col(i),
             &position_vector);
         if (position_vector.norm() < settings_.min_tracking_distance) {
           bad_lidar_indices.emplace_back(i);
@@ -290,13 +290,11 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
               cv::Scalar(0, 255, 0));
         }
       }
-      std::size_t succ_keypoints = keypoints_curr.size();
 
       // Create a detection mask to prevent new detections close to features
       // that are already being tracked.
       // TODO(schneith): Expose as settings.
       constexpr size_t kRejectFeatureRadiusPx = 10u;
-
       cv::Mat detection_mask(
           curr_camera_images[frame_idx].rows,
           curr_camera_images[frame_idx].cols, CV_8UC1, cv::Scalar(255));
@@ -330,9 +328,9 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
           Eigen::Vector3d position_vector;
           Eigen::Vector2d point;
           point << u + 2, vp2;
-          backProject3d(cloud, point, &position_vector);
+          backProject3dUsingCloud(cloud, point, &position_vector);
           if (position_vector.norm() < settings_.min_tracking_distance) {
-            cv::Point cvpoint(point[0], point[1]);
+            const cv::Point cvpoint(point[0], point[1]);
             cv::circle(detection_mask, cvpoint, 5, cv::Scalar(0), CV_FILLED);
           }
         }
@@ -392,7 +390,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
       // Assume a constant measurement uncertainty.
       // This needs to done after the feature extraction
       // since the number of keypoints can change in there.
-      std::size_t num_keypoints =
+      const std::size_t num_keypoints =
           current_keyframe[frame_idx].keypoint_measurements.cols();
       Eigen::VectorXd uncertainties(num_keypoints);
       uncertainties.setConstant(0.8);
@@ -406,7 +404,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
         Eigen::Vector2d point;
         point << current_keyframe[frame_idx].keypoint_measurements(0, i),
             current_keyframe[frame_idx].keypoint_measurements(1, i);
-        backProject3d(cloud, point, &position_vector);
+        backProject3dUsingCloud(cloud, point, &position_vector);
         current_keyframe[frame_idx].keypoint_vectors.col(i) = position_vector;
       }
     }
@@ -417,8 +415,52 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
     }
   }
 
+  bool backProject3dUsingCloud(
+      const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& cloud,
+      const Eigen::Ref<const Eigen::Vector2d>& keypoint,
+      Eigen::Vector3d* out_point_3d) const {
+    CHECK_NOTNULL(cloud);
+    CHECK_NOTNULL(out_point_3d);
+
+    constexpr int kPictureStretchingFactor = 4;
+    const int v = keypoint[0] / kPictureStretchingFactor;
+    const int u = keypoint[1] / kPictureStretchingFactor;
+
+    const std::size_t offset = px_offset_[u];
+    const std::size_t index = ((v + offset) % W_) * H_ + u;
+    const pcl::PointXYZI& projected = cloud->points[index];
+
+    (*out_point_3d)[0] = projected.x;
+    (*out_point_3d)[1] = projected.y;
+    (*out_point_3d)[2] = projected.z;
+  }
+
+  std::vector<std::size_t> getPxOffset(const std::size_t lidar_mode) {
+    // TODO(lbern): there is probably a STL function that does this much better.
+    auto repeat = [](const std::size_t n, std::vector<std::size_t>&& v) {
+      std::vector<std::size_t> res{};
+      for (std::size_t i = 0u; i < n; ++i)
+        res.insert(res.end(), v.begin(), v.end());
+      return res;
+    };
+
+    switch (lidar_mode) {
+      case 512u:
+        return repeat(16u, {0u, 3u, 6u, 9u});
+      case 1024u:
+        return repeat(16u, {0u, 6u, 12u, 18u});
+      case 2048u:
+        return repeat(16u, {0u, 12u, 24u, 36u});
+      default:
+        return std::vector<std::size_t>{64u, 0u};
+    }
+  }
+
  private:
   const LkTrackingSettingsLaser settings_;
+  const std::size_t W_ = 1024u;
+  const std::size_t H_ = 64u;
+  std::vector<std::size_t> px_offset_;
 
   TrackIdProvider track_id_provider_;
 };

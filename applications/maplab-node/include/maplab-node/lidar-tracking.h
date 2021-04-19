@@ -1,17 +1,18 @@
 #ifndef MAPLAB_NODE_LIDAR_TRACKING_H_
 #define MAPLAB_NODE_LIDAR_TRACKING_H_
 
-#include <Eigen/Core>
-#include <feature-tracking-pipelines/feature-tracker-gyro-aided-laser.h>
 #include <memory>
+#include <vector>
+
+#include <Eigen/Core>
+
+#include <aslam/pipeline/visual-npipeline.h>
+#include <feature-tracking-pipelines/feature-tracker-gyro-aided-laser.h>
 #include <sensors/imu.h>
 #include <sensors/lidar.h>
-#include <vector>
 #include <vio-common/pose-lookup-buffer.h>
 #include <vio-common/vio-types.h>
 #include <vio-common/vio-update.h>
-//#include <feature-tracking-pipelines/feature-tracker-gyro-aided.h>
-#include <aslam/pipeline/visual-npipeline.h>
 
 #include "maplab-node/odometry-estimate.h"
 
