@@ -84,10 +84,7 @@ bool isLandmarkWellConstrained(
             .get_T_C_B(backlink.frame_id.frame_index)
             .inverse();
 
-    const Eigen::Vector3d p_C_fi = map.getLandmark_p_C_fi(
-        landmark.id(), vertex, backlink.frame_id.frame_index);
     const Eigen::Vector3d G_incidence_ray = T_G_C.getPosition() - p_G_fi;
-
     const double distance = G_incidence_ray.norm();
     distance_to_closest_observer =
         std::min(distance_to_closest_observer, distance);

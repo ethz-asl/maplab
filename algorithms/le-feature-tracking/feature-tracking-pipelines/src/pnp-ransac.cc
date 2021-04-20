@@ -1,7 +1,7 @@
 #include "feature-tracking-pipelines/pnp-ransac.h"
 
-int kPictureStretchingFactor = 4;
 namespace feature_tracking_pipelines {
+
 RansacSettings InitRansacSettingsFromGFlags() {
   RansacSettings settings;
   settings.ransac_threshold = FLAGS_NEW_feature_tracker_ransac_threshold;
@@ -10,7 +10,12 @@ RansacSettings InitRansacSettingsFromGFlags() {
   return settings;
 }
 
-bool PerformTemporalFrameToFrameRansac(
+PnpRansac::PnpRansac(const std::size_t ring_size, const std::size_t beam_size)
+    : height_(ring_size), width_(beam_size) {
+  px_offset_ = getPxOffset(beam_size);
+}
+
+bool PnpRansac::performTemporalFrameToFrameRansac(
     const aslam::Camera& camera, const KeyframeFeatures& keyframe_features_kp1,
     const KeyframeFeatures& keyframe_features_k, const RansacSettings& settings,
     const aslam::Quaternion& q_Ckp1_Ck,
@@ -78,67 +83,7 @@ bool PerformTemporalFrameToFrameRansac(
   return ransac_success;
 }
 
-static std::vector<int> getPxOffset(int lidar_mode) {
-  auto repeat = [](int n, const std::vector<int>& v) {
-    std::vector<int> res{};
-    for (int i = 0; i < n; i++)
-      res.insert(res.end(), v.begin(), v.end());
-    return res;
-  };
-
-  switch (lidar_mode) {
-    case 512:
-      return repeat(16, {0, 3, 6, 9});
-    case 1024:
-      return repeat(16, {0, 6, 12, 18});
-    case 2048:
-      return repeat(16, {0, 12, 24, 36});
-    default:
-      return std::vector<int>{64, 0};
-  }
-}
-
-bool backProject3d(
-    pcl::PointCloud<pcl::PointXYZI>::ConstPtr cloud, const cv::Mat* image,
-    const Eigen::Ref<const Eigen::Vector2d>& keypoint,
-    Eigen::Vector3d* out_point_3d) {
-  CHECK_NOTNULL(out_point_3d);
-  const auto W = 1024;
-  const auto H = 64;
-  CHECK_EQ(kPictureStretchingFactor, image->cols / W);
-
-  const int v = keypoint[0];
-  const int u = keypoint[1];
-  const auto px_offset = getPxOffset(W);
-  const std::size_t offset = px_offset[u / kPictureStretchingFactor];
-  const std::size_t index = ((v / kPictureStretchingFactor + offset) % W) * H +
-                            u / kPictureStretchingFactor;
-  pcl::PointXYZI projected = cloud->points[index];
-  (*out_point_3d)[0] = projected.x;
-  (*out_point_3d)[1] = projected.y;
-  (*out_point_3d)[2] = projected.z;
-}
-
-bool backProject3d(
-    pcl::PointCloud<pcl::PointXYZI>::ConstPtr cloud,
-    const Eigen::Ref<const Eigen::Vector2d>& keypoint,
-    Eigen::Vector3d* out_point_3d) {
-  CHECK_NOTNULL(out_point_3d);
-  const auto W = 1024;
-  const auto H = 64;
-  const int v = keypoint[0];
-  const int u = keypoint[1];
-  const auto px_offset = getPxOffset(W);
-  const std::size_t offset = px_offset[u / kPictureStretchingFactor];
-  const std::size_t index = ((v / kPictureStretchingFactor + offset) % W) * H +
-                            u / kPictureStretchingFactor;
-  pcl::PointXYZI projected = cloud->points[index];
-  (*out_point_3d)[0] = projected.x;
-  (*out_point_3d)[1] = projected.y;
-  (*out_point_3d)[2] = projected.z;
-}
-
-bool PerformTemporalFrameToFrameRansac(
+bool PnpRansac::performTemporalFrameToFrameRansac(
     pcl::PointCloud<pcl::PointXYZI>::ConstPtr cloud,
     const KeyframeFeatures& keyframe_features_kp1,
     const KeyframeFeatures& keyframe_features_k,
@@ -150,10 +95,10 @@ bool PerformTemporalFrameToFrameRansac(
       << "Ransac unsuccessful. Not enough "
          "features.";
   if (keyframe_features_k.keypoint_measurements.cols() < 6 ||
-                   keyframe_features_kp1.keypoint_measurements.cols() < 6) {
+      keyframe_features_kp1.keypoint_measurements.cols() < 6) {
     return false;
   }
-  
+
   best_inliers->clear();
   best_outliers->clear();
 
@@ -163,10 +108,10 @@ bool PerformTemporalFrameToFrameRansac(
 
   for (int i = 0; i < keyframe_features_kp1.keypoint_measurements.cols(); i++) {
     Eigen::Vector3d feature_position_kp1, feature_position_k;
-    backProject3d(
+    backProject3dUsingCloud(
         cloud, keyframe_features_kp1.keypoint_measurements.col(i),
         &feature_position_kp1);
-    backProject3d(
+    backProject3dUsingCloud(
         cloud, keyframe_features_k.keypoint_measurements.col(i),
         &feature_position_k);
     feature_vector_k.push_back(feature_position_k);
@@ -174,22 +119,22 @@ bool PerformTemporalFrameToFrameRansac(
   }
   RansacSettings settings = InitRansacSettingsFromGFlags();
 
-  RansacTransformationFor3DPoints(
-      feature_vector_k, feature_vector_kp1, best_rotation_matrix,
-      best_translation, best_inliers, best_outliers, settings.ransac_threshold,
-      settings.ransac_max_iterations);
+  ransacTransformationFor3DPoints(
+      feature_vector_k, feature_vector_kp1, settings.ransac_threshold,
+      settings.ransac_max_iterations, best_rotation_matrix, best_translation,
+      best_inliers, best_outliers);
 }
-void RansacTransformationFor3DPoints(
-    std::vector<Eigen::Vector3d> point_set_1,
-    std::vector<Eigen::Vector3d> point_set_2,
+void PnpRansac::ransacTransformationFor3DPoints(
+    const std::vector<Eigen::Vector3d>& point_set_1,
+    const std::vector<Eigen::Vector3d>& point_set_2,
+    const double ransac_threshold, const std::size_t ransac_max_iterations,
     Eigen::Matrix3d* best_rotation_matrix, Eigen::Vector3d* best_translation,
-    std::vector<size_t>* best_inliers, std::vector<size_t>* best_outliers,
-    double ransac_threshold, int ransac_max_iterations) {
+    std::vector<size_t>* best_inliers, std::vector<size_t>* best_outliers) {
   CHECK_GT(ransac_threshold, 0.0);
   CHECK_GT(ransac_max_iterations, 0u);
   CHECK_EQ(point_set_1.size(), point_set_2.size());
   CHECK_GT(point_set_2.size(), 5u);
-  for (int j = 0; j < ransac_max_iterations; ++j) {
+  for (std::size_t j = 0u; j < ransac_max_iterations; ++j) {
     // Generate 3 random indeces for Ransac
     std::vector<int> ransac_indeces(6);
 
@@ -267,6 +212,47 @@ void RansacTransformationFor3DPoints(
       *best_translation = t;
       *best_inliers = inliers;
     }
+  }
+}
+
+bool PnpRansac::backProject3dUsingCloud(
+    const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& cloud,
+    const Eigen::Ref<const Eigen::Vector2d>& keypoint,
+    Eigen::Vector3d* out_point_3d) const {
+  CHECK_NOTNULL(cloud);
+  CHECK_NOTNULL(out_point_3d);
+
+  const std::size_t v = keypoint[0] / kPictureStretchingFactor;
+  const std::size_t u = keypoint[1] / kPictureStretchingFactor;
+
+  const std::size_t offset = px_offset_[u];
+  const std::size_t index = ((v + offset) % width_) * height_ + u;
+  const pcl::PointXYZI& projected = cloud->points[index];
+
+  (*out_point_3d)[0] = projected.x;
+  (*out_point_3d)[1] = projected.y;
+  (*out_point_3d)[2] = projected.z;
+}
+
+std::vector<std::size_t> PnpRansac::getPxOffset(
+    const std::size_t lidar_mode) const {
+  // TODO(lbern): there is probably a STL function that does this much better.
+  auto repeat = [](const std::size_t n, std::vector<std::size_t>&& v) {
+    std::vector<std::size_t> res{};
+    for (std::size_t i = 0u; i < n; ++i)
+      res.insert(res.end(), v.begin(), v.end());
+    return res;
+  };
+
+  switch (lidar_mode) {
+    case 512u:
+      return repeat(16u, {0u, 3u, 6u, 9u});
+    case 1024u:
+      return repeat(16u, {0u, 6u, 12u, 18u});
+    case 2048u:
+      return repeat(16u, {0u, 12u, 24u, 36u});
+    default:
+      return std::vector<std::size_t>{64u, 0u};
   }
 }
 

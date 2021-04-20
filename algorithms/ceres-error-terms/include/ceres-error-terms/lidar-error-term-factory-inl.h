@@ -20,11 +20,13 @@ ceres::CostFunction* createLidarCostFunction(
     aslam::Camera* camera) {
   CHECK_NOTNULL(camera);
   ceres::CostFunction* error_term = nullptr;
-  aslam::Camera3DLidar* derived_camera =
-      static_cast<aslam::Camera3DLidar*>(camera);
   if (camera->getType() != aslam::Camera::Type::kLidar3D) {
     LOG(FATAL) << "Wrong Camera type for this term";
   }
+  aslam::Camera3DLidar* derived_camera =
+      dynamic_cast<aslam::Camera3DLidar*>(camera);
+  CHECK_NOTNULL(derived_camera);
+
   error_term = new ErrorTerm<aslam::Camera3DLidar, aslam::NullDistortion>(
       measurement, pixel_sigma, error_term_type, derived_camera);
   return error_term;
@@ -40,7 +42,7 @@ void replaceUnusedArgumentsOfLidarCostFunctionWithDummies(
 
   CHECK_EQ(error_term_argument_list->size(), 8u);
   for (const double* argument : *error_term_argument_list) {
-    // CHECK_NOTNULL(argument);
+    CHECK_NOTNULL(argument);
   }
 
   // Initialize dummy variables to infinity so that any usage mistakes can be
@@ -61,17 +63,18 @@ void replaceUnusedArgumentsOfLidarCostFunctionWithDummies(
     (*error_term_argument_list)[2] = dummy_7d_landmark_mission_base_pose.data();
     (*error_term_argument_list)[3] = dummy_7d_imu_mission_base_pose.data();
     (*error_term_argument_list)[4] = dummy_7d_imu_pose.data();
-    dummies_to_set_constant->push_back(dummy_7d_landmark_base_pose.data());
-    dummies_to_set_constant->push_back(
+    dummies_to_set_constant->emplace_back(dummy_7d_landmark_base_pose.data());
+    dummies_to_set_constant->emplace_back(
         dummy_7d_landmark_mission_base_pose.data());
-    dummies_to_set_constant->push_back(dummy_7d_imu_mission_base_pose.data());
-    dummies_to_set_constant->push_back(dummy_7d_imu_pose.data());
+    dummies_to_set_constant->emplace_back(
+        dummy_7d_imu_mission_base_pose.data());
+    dummies_to_set_constant->emplace_back(dummy_7d_imu_pose.data());
   } else if (error_term_type == visual::VisualErrorType::kLocalMission) {
     // The baseframes are not necessary in the local mission case.
     (*error_term_argument_list)[2] = dummy_7d_landmark_base_pose.data();
     (*error_term_argument_list)[3] = dummy_7d_landmark_mission_base_pose.data();
-    dummies_to_set_constant->push_back(dummy_7d_landmark_base_pose.data());
-    dummies_to_set_constant->push_back(
+    dummies_to_set_constant->emplace_back(dummy_7d_landmark_base_pose.data());
+    dummies_to_set_constant->emplace_back(
         dummy_7d_landmark_mission_base_pose.data());
   } else if (error_term_type == visual::VisualErrorType::kGlobal) {
     // Nothing to replace.

@@ -189,7 +189,7 @@ void ImageProjection::createFeatureImage() {
       cv::INPAINT_TELEA);
 
   cv::GaussianBlur(
-      inpainted_range_image, inpainted_range_image, cv::Size(5, 5), 1, 1,
+      inpainted_range_image, inpainted_range_image, cv::Size(3, 3), 1, 1,
       cv::BORDER_DEFAULT);
 
   cv::Mat range_grad_x, range_grad_y;

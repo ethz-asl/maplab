@@ -45,7 +45,7 @@ class FeaturePipelineLkTracking : public FeatureTrackingPipelineBase {
       std::shared_ptr<FeatureDescriberBase> feature_describer)
       : FeatureTrackingPipelineBase(
             ransac_settings, feature_detector, feature_describer),
-        settings_(settings) {}
+        settings_(settings) ransac_(0u, 0u) {}
   virtual ~FeaturePipelineLkTracking() = default;
 
   virtual void processImages(
@@ -94,7 +94,7 @@ class FeaturePipelineLkTracking : public FeatureTrackingPipelineBase {
 
       /*
       Eigen::Matrix2Xd predicted_keypoints;
-      const Eigen::Matrix2Xd &prev_keypoints 
+      const Eigen::Matrix2Xd &prev_keypoints
           = previous_keyframe[frame_idx].keypoint_measurements;
       std::vector<unsigned char> prediction_success;
       aslam::predictKeypointsByRotation(
@@ -157,7 +157,7 @@ class FeaturePipelineLkTracking : public FeatureTrackingPipelineBase {
       LOG(WARNING) << "REMOVED";
 
       // Reject outliers using PNP-ransac.
-      const bool ransac_success = PerformTemporalFrameToFrameRansac(
+      const bool ransac_success = ransac_.performTemporalFrameToFrameRansac(
           ncamera.getCamera(frame_idx), current_keyframe[frame_idx],
           previous_keyframe[frame_idx], ransac_settings_, q_Icurr_Iprev,
           &inlier_matches_kp1_k[frame_idx], &outlier_matches_kp1_k[frame_idx]);
@@ -328,6 +328,7 @@ class FeaturePipelineLkTracking : public FeatureTrackingPipelineBase {
 
  private:
   const LkTrackingSettings settings_;
+  PnpRansac ransac_;
 
   TrackIdProvider track_id_provider_;
 };

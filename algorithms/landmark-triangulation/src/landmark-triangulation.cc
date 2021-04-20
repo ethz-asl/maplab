@@ -1,12 +1,13 @@
 #include "landmark-triangulation/landmark-triangulation.h"
 
-#include <aslam/common/statistics/statistics.h>
-#include <aslam/triangulation/triangulation.h>
 #include <functional>
-#include <maplab-common/multi-threaded-progress-bar.h>
-#include <maplab-common/parallel-process.h>
 #include <string>
 #include <unordered_map>
+
+#include <aslam/common/statistics/statistics.h>
+#include <aslam/triangulation/triangulation.h>
+#include <maplab-common/multi-threaded-progress-bar.h>
+#include <maplab-common/parallel-process.h>
 #include <vi-map/landmark-quality-metrics.h>
 #include <vi-map/lidar-landmark-quality-metrics.h>
 #include <vi-map/vi-map.h>
@@ -333,7 +334,7 @@ void retriangulateLidarLandmarksOfVertex(
     p_G_C_vector.resize(Eigen::NoChange, observations.size());
     lm_positions.resize(Eigen::NoChange, observations.size());
 
-    int num_measurements = 0;
+    std::size_t num_measurements = 0u;
     double min_distance_to_lidar = std::numeric_limits<double>::max();
     for (const vi_map::KeypointIdentifier& observation : observations) {
       const pose_graph::VertexId& observer_id = observation.frame_id.vertex_id;
