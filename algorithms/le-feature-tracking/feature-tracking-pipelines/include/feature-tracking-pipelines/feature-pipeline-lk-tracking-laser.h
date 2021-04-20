@@ -83,7 +83,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
     CHECK_EQ(1, curr_camera_images.size());
     CHECK_EQ(1, previous_keyframe.size());
     CHECK_NOTNULL(current_keyframe_ptr)->clear();
-    const bool show_illustrations = false;
+    const bool show_illustrations = true;
 
     std::vector<KeyframeFeatures>& current_keyframe = *current_keyframe_ptr;
     current_keyframe.resize(1);

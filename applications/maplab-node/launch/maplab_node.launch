@@ -22,6 +22,9 @@
 	<!-- LOCALIZATION BASED ON LIDAR -->
 	<arg name="enable_lidar_localization" default="false"/>
 	<arg name="lidar_localization_map_folder" default=""/>
+	<arg name="lc_ransac_lidar_exit_ratio" default="0.5" />
+	<arg name="lc_num_ransac_iters" default="100" />
+	<arg name="lc_ransac_lidar_uncertainty" default="0.7" />
 
 	<!-- ONLINE MAPPING -->
 	<arg name="enable_online_mapping" default="false"/>
@@ -125,6 +128,9 @@
 		<param name="lidar_image_projection_min_intensity" value="$(arg lidar_image_projection_min_intensity)"/>
 		<param name="lidar_image_projection_max_intensity" value="$(arg lidar_image_projection_max_intensity)"/>
 		<param name="lidar_image_projection_draw" value="$(arg lidar_image_projection_draw)"/>
+		<param name="lc_ransac_lidar_exit_ratio" value="$(arg lc_ransac_lidar_exit_ratio)"/>
+		<param name="lc_num_ransac_iters" value="$(arg lc_num_ransac_iters)"/>
+		<param name="lc_ransac_lidar_uncertainty" value="$(arg lc_ransac_lidar_uncertainty)"/>
 
 		<!-- ONLINE MAPPING -->
 		<param name="enable_online_mapping" value="$(arg enable_online_mapping)"/>

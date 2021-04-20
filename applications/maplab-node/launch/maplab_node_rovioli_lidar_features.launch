@@ -140,15 +140,15 @@
 
 		<!-- LIDAR FEATURE TRACKING -->
 		<arg name="NEW_feature_tracker_num_features" default="500"/>
-		<arg name="NEW_feature_tracker_num_pyramid_levels" default="2"/>
+		<arg name="NEW_feature_tracker_num_pyramid_levels" default="7"/>
 		<arg name="NEW_feature_tracker_min_eigen_threshold" default="0.01"/>
 		<arg name="NEW_feature_tracker_criteria_max_count" default="20"/>
 		<arg name="NEW_feature_tracker_window_height" default="50"/>
 		<arg name="NEW_feature_tracker_window_width" default="50"/>
-		<arg name="NEW_feature_tracker_min_tracking_distance" default="1.5"/>
-		<arg name="NEW_feature_tracker_pyramid_scale_decimation" default="1.5"/>
+		<arg name="NEW_feature_tracker_min_tracking_distance" default="1.0"/>
+		<arg name="NEW_feature_tracker_pyramid_scale_decimation" default="0.4"/>
 		<arg name="NEW_feature_tracker_ransac_threshold" default=".8"/>
-		<arg name="NEW_feature_tracker_ransac_max_iters" default="50"/>
+		<arg name="NEW_feature_tracker_ransac_max_iters" default="70"/>
 		<arg name="NEW_eature_tracker_ransac_fix_seed" default="false"/>
 		<arg name="NEW_feature_tracker_detector_orb_edge_threshold" default="31"/>
 		<arg name="NEW_feature_tracker_detector_orb_fast_threshold" default="20"/>
@@ -159,11 +159,17 @@
 		<arg name="NEW_feature_pipeline_type" default="lk"/>
 
 		<!-- SURF FEATURES -->
-		<arg name="NEW_feature_tracker_surf_hessian_threshold" default="2000"/>
+		<arg name="NEW_feature_tracker_surf_hessian_threshold" default="2500"/>
 		<arg name="NEW_feature_tracker_surf_n_octaves" default="4"/>
 		<arg name="NEW_feature_tracker_surf_octave_layers" default="5"/>
 		<arg name="NEW_feature_tracker_surf_extended" default="false"/>
 		<arg name="NEW_feature_tracker_surf_upright" default="true"/>
+
+		<!-- LiDAR Loop Closure (Visual) -->
+  	<arg name="lc_ransac_lidar_exit_ratio" default="0.7" />
+  	<arg name="lc_num_ransac_iters" default="200" />
+  	<arg name="lc_ransac_lidar_uncertainty" default="0.7" />
+
 
 		<!-- MAPLAB_NODE -->
 		<include file="$(find maplab_node)/launch/maplab_node.launch" pass_all_args="true"/>
