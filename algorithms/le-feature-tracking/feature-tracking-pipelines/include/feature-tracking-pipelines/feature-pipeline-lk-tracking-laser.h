@@ -118,6 +118,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
           previous_keyframe[frame_idx].keypoint_measurements, &keypoints_curr);
 
       // Track features from last to current frame using LK.
+      auto tic = std::chrono::steady_clock::now();
       std::vector<float> tracking_error;
       std::vector<unsigned char> tracking_successful;
       if (!keypoints_prev.empty()) {
@@ -149,7 +150,14 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
           }
         }
       }
+      auto tac = std::chrono::steady_clock::now();
+      LOG(INFO) << "LK Tracking costs us: "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(
+                       tac - tic)
+                       .count()
+                << "ms";
 
+      tic = std::chrono::steady_clock::now();
       // Track IDs remain the same as in the previous frame.
       current_keyframe[frame_idx].keypoint_track_ids =
           previous_keyframe[frame_idx].keypoint_track_ids;
@@ -179,7 +187,6 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
       RemoveKeypoints(failed_indices, &previous_keyframe_features_removed);
 
       // Reject Points with unusable Lidar data
-      auto tic = std::chrono::steady_clock::now();
       std::vector<std::size_t> bad_lidar_indices;
       for (std::size_t i = 0u;
            i < current_keyframe[frame_idx].keypoint_measurements.cols(); ++i) {
@@ -191,13 +198,6 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
           bad_lidar_indices.emplace_back(i);
         }
       }
-      auto tac = std::chrono::steady_clock::now();
-      auto dur_projection = tac - tic;
-      LOG(INFO) << "Unusable points removal takes: "
-                << std::chrono::duration_cast<std::chrono::milliseconds>(
-                       dur_projection)
-                       .count()
-                << "ms";
 
       VLOG_IF(2, !bad_lidar_indices.empty())
           << "Removing " << bad_lidar_indices.size()
@@ -232,7 +232,14 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
         RemoveKeypoints(
             non_describable_indices, &previous_keyframe_features_removed);
       }
+      tac = std::chrono::steady_clock::now();
+      LOG(INFO) << "Initial removal costs us: "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(
+                       tac - tic)
+                       .count()
+                << "ms";
 
+      tic = std::chrono::steady_clock::now();
       // Remove features that have converged, preferring to keep longer tracks
       // (which is equal to a lower track id).
       constexpr double kMinDistance = 3.0;
@@ -318,12 +325,19 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
           }
         }
       }
+      tac = std::chrono::steady_clock::now();
+      LOG(INFO) << "Second removal with mask costs us: "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(
+                       tac - tic)
+                       .count()
+                << "ms";
 
+      tic = std::chrono::steady_clock::now();
       // Fill up the keypoint slots using new detections.
       // We delay redetections for performance reasons until the successfully
       // tracked feature count drops under kRedetectThresholdPercent percent of
       // the max feature count.
-      constexpr double kRedetectThresholdPercent = 0.6;
+      constexpr double kRedetectThresholdPercent = 0.25;
       const bool should_redetect =
           (current_keyframe[frame_idx].keypoint_measurements.cols() <
            (kRedetectThresholdPercent * settings_.max_num_features));
@@ -351,12 +365,25 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
             new_detections.keypoint_measurements.cols());
 
         AppendKeypoints(new_detections, &current_keyframe[frame_idx]);
+        tac = std::chrono::steady_clock::now();
+        LOG(INFO) << "New keypoints detection costs us: "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(
+                         tac - tic)
+                         .count()
+                  << "ms";
       }
 
+      tic = std::chrono::steady_clock::now();
       // Extract the descriptors for all newly detected and also for the new
       // location of the tracked keypoints.
       feature_describer_->describeFeatures(
           curr_camera_images[frame_idx], &current_keyframe[frame_idx]);
+      tac = std::chrono::steady_clock::now();
+      LOG(INFO) << "Description costs us: "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(
+                       tac - tic)
+                       .count()
+                << "ms";
 
       // Assume a constant measurement uncertainty.
       // This needs to done after the feature extraction

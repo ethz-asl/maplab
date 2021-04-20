@@ -15,7 +15,7 @@
   <!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/marius/Documents/Masterarbeit/bags/arche_17_2019-07-04-14-15-19.bag -r 0.3 -s 0" /> -->
 
   <!-- Koze 1  -->
-  <node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/koze/asl_koze_table_both_side_with_loop_light_change_medium.bag -r 0.5 -s 0" />
+  <node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/koze/asl_koze_table_both_side_with_loop_light_change_medium.bag -r 0.8 -s 0" />
 
   <!-- Koze 2  -->
   <!-- <node pkg="rosbag" type="play" name="rosbag" args="/home/marius/Documents/Masterarbeit/bags/asl_koze_table_one_side_with_loop_light_change_max.bag -r 0.3 -s 0" /> -->
