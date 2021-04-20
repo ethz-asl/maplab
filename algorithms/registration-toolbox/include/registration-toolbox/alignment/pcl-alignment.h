@@ -2,6 +2,7 @@
 #define REGISTRATION_TOOLBOX_ALIGNMENT_PCL_ALIGNMENT_H_
 #define PCL_NO_PRECOMPILE
 
+#include <algorithm>
 #include <limits>
 
 #include <glog/logging.h>
@@ -95,7 +96,8 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
   is_converged &= fitness_score <= FLAGS_regbox_pcl_max_fitness_score_m;
   const Eigen::Matrix4f T_f = aligner_.getFinalTransformation();
   const Eigen::Matrix4d T = T_f.cast<double>();
-  const Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6) * 1e-2;
+  const Eigen::MatrixXd cov =
+      Eigen::MatrixXd::Identity(6, 6) * FLAGS_regbox_fixed_covariance;
 
   if (T.topLeftCorner<3, 3>().normalized().squaredNorm() <=
       static_cast<double>(1) +
@@ -123,20 +125,17 @@ void PclAlignment<T_alignment, T_point>::downSamplePointCloud(
   // point cloud fit into memory and otherwise skips downsampling, we have to
   // split the point cloud into multiple volumes that are small enough to fit.
 
-  size_t volume_level = 1;
+  std::int64_t volume_level = 1;
 
   T_point min_point;
   T_point max_point;
   pcl::getMinMax3D(*cloud, min_point, max_point);
-  const std::int64_t dx = static_cast<std::int64_t>(
-                              (max_point.x - min_point.x) * inverse_grid_size) +
-                          1;
-  const std::int64_t dy = static_cast<std::int64_t>(
-                              (max_point.y - min_point.y) * inverse_grid_size) +
-                          1;
-  const std::int64_t dz = static_cast<std::int64_t>(
-                              (max_point.z - min_point.z) * inverse_grid_size) +
-                          1;
+  const std::int64_t dx =
+      std::max(std::ceil((max_point.x - min_point.x) * inverse_grid_size), 1.f);
+  const std::int64_t dy =
+      std::max(std::ceil((max_point.y - min_point.y) * inverse_grid_size), 1.f);
+  const std::int64_t dz =
+      std::max(std::ceil((max_point.z - min_point.z) * inverse_grid_size), 1.f);
   const std::int64_t dxdydz = dx * dy * dz;
   // Find amount of levels that we have to split the pointcloud into
   bool indices_fit_in_voxel_grid = false;
@@ -149,7 +148,7 @@ void PclAlignment<T_alignment, T_point>::downSamplePointCloud(
     }
   }
 
-  for (size_t x_level = 0; x_level < volume_level; ++x_level) {
+  for (std::int64_t x_level = 0; x_level < volume_level; ++x_level) {
     const float min_x = min_point.x + (max_point.x - min_point.x) *
                                           static_cast<float>(x_level) /
                                           static_cast<float>(volume_level);
@@ -157,14 +156,14 @@ void PclAlignment<T_alignment, T_point>::downSamplePointCloud(
                                           static_cast<float>(x_level + 1) /
                                           static_cast<float>(volume_level);
 
-    for (size_t y_level = 0; y_level < volume_level; ++y_level) {
+    for (std::int64_t y_level = 0; y_level < volume_level; ++y_level) {
       const float min_y = min_point.y + (max_point.y - min_point.y) *
                                             static_cast<float>(y_level) /
                                             static_cast<float>(volume_level);
       const float max_y = min_point.y + (max_point.y - min_point.y) *
                                             static_cast<float>(y_level + 1) /
                                             static_cast<float>(volume_level);
-      for (size_t z_level = 0; z_level < volume_level; ++z_level) {
+      for (std::int64_t z_level = 0; z_level < volume_level; ++z_level) {
         const float min_z = min_point.z + (max_point.z - min_point.z) *
                                               static_cast<float>(z_level) /
                                               static_cast<float>(volume_level);

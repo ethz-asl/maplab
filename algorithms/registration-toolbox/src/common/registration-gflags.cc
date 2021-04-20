@@ -2,7 +2,13 @@
 
 namespace regbox {
 
-// Point cloud preprocessing.
+// Alignment method independent flags
+DEFINE_double(
+    regbox_fixed_covariance, 1e-2,
+    "Fixed covariance value for "
+    "registration results.");
+
+// pcl config
 DEFINE_double(
     regbox_pcl_downsample_leaf_size_m, 0.15f,
     "Defines the leaf size of the voxel grid.");
@@ -28,6 +34,7 @@ DEFINE_double(
     "Maximum fitness score"
     "allowed for successful alignment");
 
+// libpointmatcher config
 DEFINE_string(
     regbox_lpm_config_path, "",
     "Path to the configuration for libpointmatcher.");
