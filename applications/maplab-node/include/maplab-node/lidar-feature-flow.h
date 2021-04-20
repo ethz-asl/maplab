@@ -44,11 +44,7 @@ class LidarFeatureFlow {
         [publish_result,
          this](const vi_map::RosLidarMeasurement::ConstPtr& lidar_measurement) {
           CHECK(lidar_measurement);
-          auto tic = std::chrono::steady_clock::now();
           bool success = this->projector_.projectToImage(lidar_measurement);
-          auto tac = std::chrono::steady_clock::now();
-          auto dur_projection = tac - tic;
-
           if (!success) {
             return;
           }
@@ -60,28 +56,12 @@ class LidarFeatureFlow {
               feature_image, resized_image, cv::Size(4096, 256), 0, 0,
               cv::INTER_NEAREST);
 
-          tic = std::chrono::steady_clock::now();
           success = lidar_tracking_.trackSynchronizedLidarMeasurementCallback(
               this->projector_.getPointcloud(), resized_image,
               lidar_measurement->getTimestampNanoseconds());
-          tac = std::chrono::steady_clock::now();
-          auto dur_tracking = tac - tic;
           if (!success) {
             return;
           }
-
-          LOG(INFO) << "=====================================";
-          LOG(INFO) << "LiDAR projection in total takes: "
-                    << std::chrono::duration_cast<std::chrono::milliseconds>(
-                           dur_projection)
-                           .count()
-                    << "ms";
-          LOG(INFO) << "LiDAR tracking takes: "
-                    << std::chrono::duration_cast<std::chrono::milliseconds>(
-                           dur_tracking)
-                           .count()
-                    << "ms";
-          LOG(INFO) << "=====================================";
 
           // This will only fail for the first frame.
           aslam::VisualNFrame::Ptr tracked_nframe =
