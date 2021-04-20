@@ -6,6 +6,7 @@
 #include <Eigen/Core>
 #include <ceres/ceres.h>
 #include <ceres/sized_cost_function.h>
+
 #include <maplab-common/pose_types.h>
 
 #include "ceres-error-terms/common.h"
@@ -18,14 +19,13 @@ namespace ceres_error_terms {
 // in JPL convention [x, y, z, w]. This convention corresponds to the internal
 // coefficient storage of Eigen so you can directly pass pointer to your
 // Eigen quaternion data, e.g. your_eigen_quaternion.coeffs().data().
-template <typename CameraType, typename DistortionType>
+template <typename CameraType>
 class LidarPositionError
     : public ceres::SizedCostFunction<
           visual::kLidarResidualSize, visual::kPositionBlockSize,
           visual::kPoseBlockSize, visual::kPoseBlockSize,
           visual::kPoseBlockSize, visual::kPoseBlockSize,
-          visual::kOrientationBlockSize, visual::kPositionBlockSize,
-          CameraType::parameterCount(), DistortionType::parameterCount()>,
+          visual::kOrientationBlockSize, visual::kPositionBlockSize>,
       public VisualCostFunction {
  public:
   typedef VisualCostFunction Base;
@@ -62,7 +62,6 @@ class LidarPositionError
     kIdxImuPose,
     kIdxCameraToImuQ,
     kIdxCameraToImuP,
-    kIdxCameraIntrinsics,
   };
 
   // The representation for Jacobians computed by this object.
@@ -82,15 +81,6 @@ class LidarPositionError
       double, visual::kLidarResidualSize, visual::kPoseBlockSize,
       Eigen::RowMajor>
       PoseJacobian;
-
-  typedef Eigen::Matrix<
-      double, visual::kLidarResidualSize, CameraType::parameterCount(),
-      Eigen::RowMajor>
-      IntrinsicsJacobian;
-
-  typedef Eigen::Matrix<
-      double, visual::kLidarResidualSize, Eigen::Dynamic, Eigen::RowMajor>
-      DistortionJacobian;
 
   Eigen::Vector3d measurement_;
   const visual::VisualErrorType error_term_type_;

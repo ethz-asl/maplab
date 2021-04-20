@@ -8,9 +8,9 @@
 
 #include <aslam/cameras/camera-3d-lidar.h>
 
+#include <ceres-error-terms/lidar-error-term.h>
 #include <ceres-error-terms/parameterization/pose-param-jpl.h>
 #include <ceres-error-terms/parameterization/quaternion-param-jpl.h>
-#include <ceres-error-terms/lidar-error-term.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
@@ -22,9 +22,8 @@ class LidarTerm : public ::testing::Test {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  protected:
-  typedef aslam::NullDistortion DistortionType;
   typedef aslam::Camera3DLidar CameraType;
-  typedef LidarPositionError<CameraType, DistortionType> ErrorTerm;
+  typedef LidarPositionError<CameraType> ErrorTerm;
 
   virtual void SetUp() {
     zero_position_.setZero();

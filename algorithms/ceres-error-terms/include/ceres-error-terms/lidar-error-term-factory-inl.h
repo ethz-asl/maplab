@@ -13,13 +13,12 @@
 
 namespace ceres_error_terms {
 
-template <template <typename, typename> class ErrorTerm>
+template <template <typename> class ErrorTerm>
 ceres::CostFunction* createLidarCostFunction(
     const Eigen::Vector3d& measurement, double pixel_sigma,
     ceres_error_terms::visual::VisualErrorType error_term_type,
     aslam::Camera* camera) {
   CHECK_NOTNULL(camera);
-  ceres::CostFunction* error_term = nullptr;
   if (camera->getType() != aslam::Camera::Type::kLidar3D) {
     LOG(FATAL) << "Wrong Camera type for this term";
   }
@@ -27,9 +26,8 @@ ceres::CostFunction* createLidarCostFunction(
       dynamic_cast<aslam::Camera3DLidar*>(camera);
   CHECK_NOTNULL(derived_camera);
 
-  error_term = new ErrorTerm<aslam::Camera3DLidar, aslam::NullDistortion>(
+  return new ErrorTerm<aslam::Camera3DLidar>(
       measurement, pixel_sigma, error_term_type, derived_camera);
-  return error_term;
 }
 
 // TODO(mariusbr) This will need some adjustments to the measurements maybe
