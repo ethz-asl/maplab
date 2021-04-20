@@ -125,7 +125,7 @@ void PclAlignment<T_alignment, T_point>::downSamplePointCloud(
   // point cloud fit into memory and otherwise skips downsampling, we have to
   // split the point cloud into multiple volumes that are small enough to fit.
 
-  std::uint64_t volume_level = 1;
+  std::uint64_t volume_level = 1u;
 
   T_point min_point;
   T_point max_point;
@@ -144,11 +144,11 @@ void PclAlignment<T_alignment, T_point>::downSamplePointCloud(
         static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max())) {
       indices_fit_in_voxel_grid = true;
     } else {
-      volume_level++;
+      ++volume_level;
     }
   }
 
-  for (std::uint64_t x_level = 0; x_level < volume_level; ++x_level) {
+  for (std::uint64_t x_level = 0u; x_level < volume_level; ++x_level) {
     const float min_x = min_point.x + (max_point.x - min_point.x) *
                                           static_cast<float>(x_level) /
                                           static_cast<float>(volume_level);
@@ -156,14 +156,14 @@ void PclAlignment<T_alignment, T_point>::downSamplePointCloud(
                                           static_cast<float>(x_level + 1) /
                                           static_cast<float>(volume_level);
 
-    for (std::uint64_t y_level = 0; y_level < volume_level; ++y_level) {
+    for (std::uint64_t y_level = 0u; y_level < volume_level; ++y_level) {
       const float min_y = min_point.y + (max_point.y - min_point.y) *
                                             static_cast<float>(y_level) /
                                             static_cast<float>(volume_level);
       const float max_y = min_point.y + (max_point.y - min_point.y) *
                                             static_cast<float>(y_level + 1) /
                                             static_cast<float>(volume_level);
-      for (std::uint64_t z_level = 0; z_level < volume_level; ++z_level) {
+      for (std::uint64_t z_level = 0u; z_level < volume_level; ++z_level) {
         const float min_z = min_point.z + (max_point.z - min_point.z) *
                                               static_cast<float>(z_level) /
                                               static_cast<float>(volume_level);
