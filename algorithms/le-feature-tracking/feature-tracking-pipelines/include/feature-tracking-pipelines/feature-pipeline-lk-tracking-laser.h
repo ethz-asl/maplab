@@ -82,6 +82,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
     CHECK_EQ(1, curr_camera_images.size());
     CHECK_EQ(1, previous_keyframe.size());
     CHECK_NOTNULL(current_keyframe_ptr)->clear();
+    const bool show_illustrations = true;
 
     std::vector<KeyframeFeatures>& current_keyframe = *current_keyframe_ptr;
     current_keyframe.resize(1);
@@ -91,11 +92,13 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
     inlier_matches_kp1_k.resize(1);
     outlier_matches_kp1_k.resize(1);
     cv::Mat tracker_img = curr_camera_images[0];
-    cv::cvtColor(tracker_img, tracker_img, CV_GRAY2RGB);
-    std::vector<cv::Point2f> keypoints_curr;
-    const bool show_illustrations = true;
 
-    for (size_t frame_idx = 0u; frame_idx < 1u; ++frame_idx) {
+    if (show_illustrations) {
+      cv::cvtColor(tracker_img, tracker_img, CV_GRAY2RGB);
+    }
+
+    std::vector<cv::Point2f> keypoints_curr;
+    for (std::size_t frame_idx = 0u; frame_idx < 1u; ++frame_idx) {
       KeyframeFeatures previous_keyframe_features_removed =
           previous_keyframe[frame_idx];
       // Copy over the keypoints from the last tracking round.
@@ -199,8 +202,8 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
       // Reject outliers using PNP-ransac.
       Eigen::Matrix3d ransac_rotation_matrix;
       Eigen::Vector3d ransac_translation;
-      std::vector<size_t> ransac_inliers;
-      std::vector<size_t> ransac_outliers;
+      std::vector<std::size_t> ransac_inliers;
+      std::vector<std::size_t> ransac_outliers;
       ransac_.performTemporalFrameToFrameRansac(
           cloud, current_keyframe[frame_idx],
           previous_keyframe_features_removed, &ransac_rotation_matrix,

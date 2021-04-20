@@ -106,7 +106,8 @@ bool PnpRansac::performTemporalFrameToFrameRansac(
   std::vector<Eigen::Vector3d> feature_vector_kp1;
   std::vector<Eigen::Vector3d> feature_vector_k;
 
-  for (int i = 0; i < keyframe_features_kp1.keypoint_measurements.cols(); i++) {
+  const std::size_t n_meas = keyframe_features_kp1.keypoint_measurements.cols();
+  for (std::size_t i = 0u; i < n_meas; ++i) {
     Eigen::Vector3d feature_position_kp1, feature_position_k;
     backProject3dUsingCloud(
         cloud, keyframe_features_kp1.keypoint_measurements.col(i),
@@ -114,8 +115,8 @@ bool PnpRansac::performTemporalFrameToFrameRansac(
     backProject3dUsingCloud(
         cloud, keyframe_features_k.keypoint_measurements.col(i),
         &feature_position_k);
-    feature_vector_k.push_back(feature_position_k);
-    feature_vector_kp1.push_back(feature_position_kp1);
+    feature_vector_k.emplace_back(feature_position_k);
+    feature_vector_kp1.emplace_back(feature_position_kp1);
   }
   RansacSettings settings = InitRansacSettingsFromGFlags();
 

@@ -1,18 +1,19 @@
 #ifndef MAPLAB_COMMON_EIGEN_HELPERS_H_
 #define MAPLAB_COMMON_EIGEN_HELPERS_H_
+#include <numeric>
 #include <set>
 #include <vector>
-#include <numeric>
 
 #include <Eigen/Dense>
 #include <glog/logging.h>
 
 namespace common {
 
-template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows,
-          int _MaxCols>
+template <
+    typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows,
+    int _MaxCols>
 void RemoveColsFromEigen(
-    const std::vector<size_t>& indices_to_remove_in,
+    const std::vector<std::size_t>& indices_to_remove_in,
     Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>*
         matrix) {
   CHECK_NOTNULL(matrix);
@@ -22,28 +23,26 @@ void RemoveColsFromEigen(
   }
 
   // Sort and remove duplicates.
-  std::set<size_t> indices_to_remove(
+  std::set<std::size_t> indices_to_remove(
       indices_to_remove_in.begin(), indices_to_remove_in.end());
 
   // Remove columns.
-  size_t input_read_upto = 0u;
-  size_t output_end_index = 0u;
+  std::size_t input_read_upto = 0u;
+  std::size_t output_end_index = 0u;
 
-  for (int idx_to_remove : indices_to_remove) {
+  for (const std::size_t idx_to_remove : indices_to_remove) {
     CHECK_LT(idx_to_remove, matrix->cols());
 
-    size_t num_cols_to_copy = idx_to_remove - input_read_upto;
-
+    const std::size_t num_cols_to_copy = idx_to_remove - input_read_upto;
     matrix->middleCols(output_end_index, num_cols_to_copy) =
         matrix->middleCols(input_read_upto, num_cols_to_copy);
 
     output_end_index += num_cols_to_copy;
-    input_read_upto = idx_to_remove + 1;
+    ++input_read_upto;
   }
 
   // Copy over the remeaining cols.
-  size_t num_cols_to_copy = matrix->cols() - input_read_upto;
-
+  const std::size_t num_cols_to_copy = matrix->cols() - input_read_upto;
   matrix->middleCols(output_end_index, num_cols_to_copy) =
       matrix->middleCols(input_read_upto, num_cols_to_copy);
   output_end_index += num_cols_to_copy;

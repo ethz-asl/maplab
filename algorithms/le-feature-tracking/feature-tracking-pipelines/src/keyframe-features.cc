@@ -47,34 +47,50 @@ void RemoveKeypoints(
   // Keypoints are always expected to be present.
   common::RemoveColsFromEigen(
       indices_to_remove, &keyframe_features->keypoint_measurements);
-  const int num_keypoints = keyframe_features->keypoint_measurements.cols();
+  const std::size_t num_keypoints =
+      keyframe_features->keypoint_measurements.cols();
 
   // The other fields are optional and only shrinked if they are present.
-  if (keyframe_features->keypoint_scales.cols() > 0) {
+  std::size_t n_keyframe = keyframe_features->keypoint_scales.cols();
+  if (n_keyframe > 0) {
     common::RemoveColsFromEigen(
         indices_to_remove, &keyframe_features->keypoint_scales);
-    CHECK_EQ(keyframe_features->keypoint_scales.cols(), num_keypoints);
+    CHECK_EQ(n_keyframe, num_keypoints);
   }
-  if (keyframe_features->keypoint_orientations_rad.cols() > 0) {
+
+  n_keyframe = keyframe_features->keypoint_orientations_rad.cols();
+  if (n_keyframe > 0) {
     common::RemoveColsFromEigen(
         indices_to_remove, &keyframe_features->keypoint_orientations_rad);
-    CHECK_EQ(
-        keyframe_features->keypoint_orientations_rad.cols(), num_keypoints);
+    CHECK_EQ(n_keyframe, num_keypoints);
   }
-  if (keyframe_features->keypoint_scores.cols() > 0) {
+
+  n_keyframe = keyframe_features->keypoint_scores.cols();
+  if (n_keyframe > 0) {
     common::RemoveColsFromEigen(
         indices_to_remove, &keyframe_features->keypoint_scores);
-    CHECK_EQ(keyframe_features->keypoint_scores.cols(), num_keypoints);
+    CHECK_EQ(n_keyframe, num_keypoints);
   }
-  if (keyframe_features->keypoint_descriptors.cols() > 0) {
+
+  n_keyframe = keyframe_features->keypoint_descriptors.cols();
+  if (n_keyframe > 0) {
     common::RemoveColsFromEigen(
         indices_to_remove, &keyframe_features->keypoint_descriptors);
-    CHECK_EQ(keyframe_features->keypoint_descriptors.cols(), num_keypoints);
+    CHECK_EQ(n_keyframe, num_keypoints);
   }
-  if (keyframe_features->keypoint_track_ids.cols() > 0) {
+
+  n_keyframe = keyframe_features->keypoint_track_ids.cols();
+  if (n_keyframe > 0) {
     common::RemoveColsFromEigen(
         indices_to_remove, &keyframe_features->keypoint_track_ids);
-    CHECK_EQ(keyframe_features->keypoint_track_ids.cols(), num_keypoints);
+    CHECK_EQ(n_keyframe, num_keypoints);
+  }
+
+  n_keyframe = keyframe_features->keypoint_vectors.cols();
+  if (n_keyframe > 0) {
+    common::RemoveColsFromEigen(
+        indices_to_remove, &keyframe_features->keypoint_vectors);
+    CHECK_EQ(n_keyframe, num_keypoints);
   }
 }
 
@@ -85,7 +101,8 @@ void AppendKeypoints(
   common::AppendColsRightToEigen(
       data_to_append.keypoint_measurements,
       &keyframe_merged->keypoint_measurements);
-  const int num_keypoints = keyframe_merged->keypoint_measurements.cols();
+  const std::size_t num_keypoints =
+      keyframe_merged->keypoint_measurements.cols();
 
   // The other fields are optional and are only added if they already exist in
   // the destination container.
