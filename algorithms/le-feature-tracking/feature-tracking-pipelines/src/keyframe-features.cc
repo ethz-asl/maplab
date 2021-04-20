@@ -51,46 +51,37 @@ void RemoveKeypoints(
       keyframe_features->keypoint_measurements.cols();
 
   // The other fields are optional and only shrinked if they are present.
-  std::size_t n_keyframe = keyframe_features->keypoint_scales.cols();
-  if (n_keyframe > 0) {
+  if (keyframe_features->keypoint_scales.cols() > 0) {
     common::RemoveColsFromEigen(
         indices_to_remove, &keyframe_features->keypoint_scales);
-    CHECK_EQ(n_keyframe, num_keypoints);
+    CHECK_EQ(keyframe_features->keypoint_scales.cols(), num_keypoints);
   }
-
-  n_keyframe = keyframe_features->keypoint_orientations_rad.cols();
-  if (n_keyframe > 0) {
+  if (keyframe_features->keypoint_orientations_rad.cols() > 0) {
     common::RemoveColsFromEigen(
         indices_to_remove, &keyframe_features->keypoint_orientations_rad);
-    CHECK_EQ(n_keyframe, num_keypoints);
+    CHECK_EQ(
+        keyframe_features->keypoint_orientations_rad.cols(), num_keypoints);
   }
-
-  n_keyframe = keyframe_features->keypoint_scores.cols();
-  if (n_keyframe > 0) {
+  if (keyframe_features->keypoint_scores.cols() > 0) {
     common::RemoveColsFromEigen(
         indices_to_remove, &keyframe_features->keypoint_scores);
-    CHECK_EQ(n_keyframe, num_keypoints);
+    CHECK_EQ(keyframe_features->keypoint_scores.cols(), num_keypoints);
   }
-
-  n_keyframe = keyframe_features->keypoint_descriptors.cols();
-  if (n_keyframe > 0) {
+  if (keyframe_features->keypoint_descriptors.cols() > 0) {
     common::RemoveColsFromEigen(
         indices_to_remove, &keyframe_features->keypoint_descriptors);
-    CHECK_EQ(n_keyframe, num_keypoints);
+    CHECK_EQ(keyframe_features->keypoint_descriptors.cols(), num_keypoints);
   }
-
-  n_keyframe = keyframe_features->keypoint_track_ids.cols();
-  if (n_keyframe > 0) {
+  if (keyframe_features->keypoint_track_ids.cols() > 0) {
     common::RemoveColsFromEigen(
         indices_to_remove, &keyframe_features->keypoint_track_ids);
-    CHECK_EQ(n_keyframe, num_keypoints);
+    CHECK_EQ(keyframe_features->keypoint_track_ids.cols(), num_keypoints);
   }
 
-  n_keyframe = keyframe_features->keypoint_vectors.cols();
-  if (n_keyframe > 0) {
+  if (keyframe_features->keypoint_vectors.cols() > 0) {
     common::RemoveColsFromEigen(
         indices_to_remove, &keyframe_features->keypoint_vectors);
-    CHECK_EQ(n_keyframe, num_keypoints);
+    CHECK_EQ(keyframe_features->keypoint_vectors.cols(), num_keypoints);
   }
 }
 

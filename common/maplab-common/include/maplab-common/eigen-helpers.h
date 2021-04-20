@@ -38,7 +38,7 @@ void RemoveColsFromEigen(
         matrix->middleCols(input_read_upto, num_cols_to_copy);
 
     output_end_index += num_cols_to_copy;
-    ++input_read_upto;
+    input_read_upto = idx_to_remove + 1;
   }
 
   // Copy over the remeaining cols.

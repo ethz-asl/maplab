@@ -1,6 +1,7 @@
 #ifndef FEATURE_TRACKING_PIPELINES_FEATURE_PIPELINE_LK_TRACKING_LASER_H_
 #define FEATURE_TRACKING_PIPELINES_FEATURE_PIPELINE_LK_TRACKING_LASER_H_
 
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <string>
@@ -178,6 +179,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
       RemoveKeypoints(failed_indices, &previous_keyframe_features_removed);
 
       // Reject Points with unusable Lidar data
+      auto tic = std::chrono::steady_clock::now();
       std::vector<std::size_t> bad_lidar_indices;
       for (std::size_t i = 0u;
            i < current_keyframe[frame_idx].keypoint_measurements.cols(); ++i) {
@@ -189,6 +191,13 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
           bad_lidar_indices.emplace_back(i);
         }
       }
+      auto tac = std::chrono::steady_clock::now();
+      auto dur_projection = tac - tic;
+      LOG(INFO) << "Unusable points removal takes: "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(
+                       dur_projection)
+                       .count()
+                << "ms";
 
       VLOG_IF(2, !bad_lidar_indices.empty())
           << "Removing " << bad_lidar_indices.size()
@@ -332,7 +341,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
         const int num_detected = new_detections.keypoint_measurements.cols();
 
         // Assign track ids to new detections.
-        std::pair<size_t, size_t> ids_start_end =
+        std::pair<std::size_t, std::size_t> ids_start_end =
             track_id_provider_.getIds(num_detected);
         new_detections.keypoint_track_ids.resize(Eigen::NoChange, num_detected);
         new_detections.keypoint_track_ids.setLinSpaced(

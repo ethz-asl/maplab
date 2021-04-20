@@ -131,39 +131,42 @@ void PnpRansac::ransacTransformationFor3DPoints(
     const double ransac_threshold, const std::size_t ransac_max_iterations,
     Eigen::Matrix3d* best_rotation_matrix, Eigen::Vector3d* best_translation,
     std::vector<size_t>* best_inliers, std::vector<size_t>* best_outliers) {
+  const std::size_t n_point_set_1 = point_set_1.size();
+  const std::size_t n_point_set_2 = point_set_2.size();
   CHECK_GT(ransac_threshold, 0.0);
   CHECK_GT(ransac_max_iterations, 0u);
-  CHECK_EQ(point_set_1.size(), point_set_2.size());
-  CHECK_GT(point_set_2.size(), 5u);
+  CHECK_EQ(n_point_set_1, n_point_set_2);
+  CHECK_GT(n_point_set_2, 5u);
+
   for (std::size_t j = 0u; j < ransac_max_iterations; ++j) {
     // Generate 3 random indeces for Ransac
     std::vector<int> ransac_indeces(6);
 
-    ransac_indeces[0] = rand() % point_set_2.size();
+    ransac_indeces[0] = rand() % n_point_set_2;
     while (ransac_indeces[0] == ransac_indeces[1]) {
-      ransac_indeces[1] = rand() % point_set_2.size();
+      ransac_indeces[1] = rand() % n_point_set_2;
     }
     while (ransac_indeces[0] == ransac_indeces[2] ||
            ransac_indeces[1] == ransac_indeces[2]) {
-      ransac_indeces[2] = rand() % point_set_2.size();
+      ransac_indeces[2] = rand() % n_point_set_2;
     }
     while (ransac_indeces[0] == ransac_indeces[3] ||
            ransac_indeces[1] == ransac_indeces[3] ||
            ransac_indeces[2] == ransac_indeces[3]) {
-      ransac_indeces[3] = rand() % point_set_2.size();
+      ransac_indeces[3] = rand() % n_point_set_2;
     }
     while (ransac_indeces[0] == ransac_indeces[4] ||
            ransac_indeces[1] == ransac_indeces[4] ||
            ransac_indeces[2] == ransac_indeces[4] ||
            ransac_indeces[3] == ransac_indeces[4]) {
-      ransac_indeces[4] = rand() % point_set_2.size();
+      ransac_indeces[4] = rand() % n_point_set_2;
     }
     while (ransac_indeces[0] == ransac_indeces[5] ||
            ransac_indeces[1] == ransac_indeces[5] ||
            ransac_indeces[2] == ransac_indeces[5] ||
            ransac_indeces[3] == ransac_indeces[5] ||
            ransac_indeces[4] == ransac_indeces[5]) {
-      ransac_indeces[5] = rand() % point_set_2.size();
+      ransac_indeces[5] = rand() % n_point_set_2;
     }
 
     // Generate transformation matrix
@@ -176,36 +179,37 @@ void PnpRansac::ransacTransformationFor3DPoints(
         point_set_2[ransac_indeces[2]], point_set_2[ransac_indeces[3]],
         point_set_2[ransac_indeces[4]], point_set_2[ransac_indeces[5]];
 
-    Eigen::VectorXd X_mean = X.rowwise().mean();
-    Eigen::VectorXd Y_mean = Y.rowwise().mean();
+    const Eigen::VectorXd X_mean = X.rowwise().mean();
+    const Eigen::VectorXd Y_mean = Y.rowwise().mean();
 
     X.colwise() -= X_mean;
     Y.colwise() -= Y_mean;
 
-    Eigen::Matrix3d S = X * Y.transpose();
+    const Eigen::Matrix3d S = X * Y.transpose();
     Eigen::JacobiSVD<Eigen::Matrix3d> svd(
         S, Eigen::ComputeThinU | Eigen::ComputeThinV);
     Eigen::Matrix3d reflection_handler = Eigen::Matrix3d::Identity();
     reflection_handler(2, 2) =
         (svd.matrixV() * svd.matrixU().transpose()).determinant();
-    Eigen::Matrix3d R =
+    const Eigen::Matrix3d R =
         svd.matrixV() * reflection_handler * svd.matrixU().transpose();
-    Eigen::Vector3d t = Y_mean - R * X_mean;
+    const Eigen::Vector3d t = Y_mean - R * X_mean;
 
     // Calculate Outliers for Transformation
-    std::vector<size_t> outliers;
-    std::vector<size_t> inliers;
+    std::vector<std::size_t> outliers;
+    std::vector<std::size_t> inliers;
 
-    for (int i = 0; i < point_set_1.size(); ++i) {
-      Eigen::Vector3d transformation_error =
+    for (std::size_t i = 0u; i < n_point_set_1; ++i) {
+      const Eigen::Vector3d transformation_error =
           R * point_set_1[i] + t - point_set_2[i];
       if (transformation_error.norm() / point_set_2[i].norm() >
           ransac_threshold) {
-        outliers.push_back(i);
+        outliers.emplace_back(i);
       } else {
-        inliers.push_back(i);
+        inliers.emplace_back(i);
       }
     }
+
     // Compare results
     if (inliers.size() > best_inliers->size()) {
       *best_outliers = outliers;
