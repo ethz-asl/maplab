@@ -1070,17 +1070,18 @@ bool MaplabServerNode::appendAvailableSubmaps() {
     CHECK(!submap_process.map_key.empty());
     CHECK(map_manager_.hasMap(submap_process.map_key));
     if (isSubmapBlacklisted(submap_process.map_key)) {
-      vi_map::MissionId submap_mission_id;
       {
+        vi_map::MissionId submap_mission_id;
         vi_map::VIMapManager::MapReadAccess submap =
             map_manager_.getMapReadAccess(submap_process.map_key);
         CHECK_EQ(submap->numMissions(), 1u);
         submap_mission_id = submap->getIdOfFirstMission();
+
+        LOG(WARNING) << "[MaplabServerNode] MapMerging - Received a new submap "
+                     << "of deleted mission " << submap_mission_id
+                     << ", will discard it.";
       }
 
-      LOG(WARNING) << "[MaplabServerNode] MapMerging - Received a new submap "
-                   << "of deleted mission " << submap_mission_id
-                   << ", will discard it.";
 
       // Delete map from manager.
       map_manager_.deleteMap(submap_process.map_key);
@@ -1128,6 +1129,11 @@ bool MaplabServerNode::appendAvailableSubmaps() {
               << "The first submap does not have exactly one mission, but "
               << mission_ids.size() << "! Something went wrong!";
         }
+        map->addSubmapKey(submap_process.map_key);
+        std::lock_guard<std::mutex> key_lock(mission_id_to_submap_keys_mutex_);
+        std::vector<std::string>& mission_id_submap_keys =
+            mission_id_to_submap_keys_[mission_ids[0]];
+        mission_id_submap_keys.push_back(submap_process.map_key);
       }
 
       found_new_submaps = true;
@@ -1141,13 +1147,26 @@ bool MaplabServerNode::appendAvailableSubmaps() {
       // data.
       CHECK(map_manager_.mergeSubmapIntoBaseMap(
           kMergedMapKey, submap_process.map_key));
-      // Remove submap.
-      map_manager_.deleteMap(submap_process.map_key);
+      vi_map::MissionId submap_mission_id;
+      {
+        vi_map::VIMapManager::MapReadAccess submap =
+            map_manager_.getMapReadAccess(submap_process.map_key);
+        CHECK_EQ(submap->numMissions(), 1u);
+        submap_mission_id = submap->getIdOfFirstMission();
+      }
       {
         vi_map::VIMapManager::MapWriteAccess map =
             map_manager_.getMapWriteAccess(kMergedMapKey);
         map->addSubmapKey(submap_process.map_key);
       }
+      {
+        std::lock_guard<std::mutex> key_lock(mission_id_to_submap_keys_mutex_);
+        std::vector<std::string>& mission_id_submap_keys =
+            mission_id_to_submap_keys_[submap_mission_id];
+        mission_id_submap_keys.push_back(submap_process.map_key);
+      }
+      // Remove submap.
+      map_manager_.deleteMap(submap_process.map_key);
     }
     CHECK(map_manager_.hasMap(kMergedMapKey));
     CHECK(!map_manager_.hasMap(submap_process.map_key));
@@ -1685,6 +1704,12 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
       LOG(INFO) << "[MaplabServerNode] Deleting blacklisted mission "
                 << mission_id << " from the merged map.";
       merged_map->removeMission(mission_id, true /*remove baseframe*/);
+      std::lock_guard<std::mutex> key_lock(mission_id_to_submap_keys_mutex_);
+      std::vector<std::string>& mission_id_submap_keys =
+          mission_id_to_submap_keys_[mission_id];
+      for (const std::string& submap_key : mission_id_submap_keys) {
+        merged_map->deleteSubmapKey(submap_key);
+      }
     }
 
     // Cleanup bookeeping (robot to mission, mission to robot).
@@ -1732,6 +1757,13 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
               static_cast<backend::ResourceType>(
                   FLAGS_maplab_server_dense_map_resource_type),
               empty_robot_mission_id_list, *merged_map);
+        }
+        {
+          std::lock_guard<std::mutex> key_lock(
+              mission_id_to_submap_keys_mutex_);
+          if (mission_id_to_submap_keys_.count(blacklisted_mission_id) > 0) {
+            mission_id_to_submap_keys_.erase(blacklisted_mission_id);
+          }
         }
       }
     }  // Limits the scope of the lock on the robot to mission id bookkeeping

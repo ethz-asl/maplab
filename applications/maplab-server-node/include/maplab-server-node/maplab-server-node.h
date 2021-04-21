@@ -210,6 +210,10 @@ class MaplabServerNode final {
   std::mutex submap_processing_queue_mutex_;
   std::deque<SubmapProcess> submap_processing_queue_;
 
+  mutable std::mutex mission_id_to_submap_keys_mutex_;
+  std::unordered_map<vi_map::MissionId, std::vector<std::string>>
+      mission_id_to_submap_keys_;
+
   // Callbacks
   ////////////
   // Callback that is called at the end of every merging thread loop and provide
