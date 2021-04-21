@@ -288,7 +288,8 @@ pose_graph::VertexId StreamMapBuilder::addViwlsVertex(
     if (nframe->isFrameSet(frame_idx)) {
       const aslam::VisualFrame& frame = nframe->getFrame(frame_idx);
       invalid_landmark_ids.emplace_back(
-          frame.getTotalNumKeypointMeasurements());
+          // frame.getTotalNumKeypointMeasurements());
+          frame.getNumKeypointMeasurements());
     }
   }
   // Create and add the new map vertex.

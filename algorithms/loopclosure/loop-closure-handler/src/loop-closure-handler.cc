@@ -37,9 +37,6 @@ DEFINE_double(
 DEFINE_int32(
     lc_edge_min_inlier_count, 20,
     "The minimum loop-closure inlier count to add a loop-closure edge.");
-DEFINE_double(
-    lc_ransac_lidar_exit_ratio, 0.5,
-    "The minimium ratio of inliers that will terminate the 3D PnP RANSAC");
 
 namespace loop_closure_handler {
 
@@ -132,8 +129,8 @@ bool addLoopClosureEdge(
     pnp_success = pose_estimator.absoluteMultiPoseRansac3DFeatures(
         measurements_keypoint_vectors, measurement_camera_indices,
         G_landmark_positions, FLAGS_lc_ransac_lidar_uncertainty,
-        FLAGS_lc_num_ransac_iters, FLAGS_lc_ransac_lidar_exit_ratio, ncamera,
-        &T_G_Inn_ransac, &inliers, &inlier_distances_to_model, &num_iters);
+        FLAGS_lc_num_ransac_iters, ncamera, &T_G_Inn_ransac, &inliers,
+        &inlier_distances_to_model, &num_iters);
   } else {
     pnp_success = pose_estimator.absoluteMultiPoseRansacPinholeCam(
         measurements, measurement_camera_indices, G_landmark_positions,
@@ -396,9 +393,8 @@ bool LoopClosureHandler::handleLoopClosure(
   if (ncamera->getCamera(0).getType() == aslam::Camera::Type::kLidar3D) {
     pose_estimator.absoluteMultiPoseRansac3DFeatures(
         keypoint_vectors, measurement_camera_indices, G_landmark_positions,
-        FLAGS_lc_ransac_lidar_uncertainty, FLAGS_lc_num_ransac_iters,
-        FLAGS_lc_ransac_lidar_exit_ratio, ncamera, T_G_I_ransac, &inliers,
-        &inlier_distances_to_model, &num_iters);
+        FLAGS_lc_ransac_lidar_uncertainty, FLAGS_lc_num_ransac_iters, ncamera,
+        T_G_I_ransac, &inliers, &inlier_distances_to_model, &num_iters);
   } else {
     pose_estimator.absoluteMultiPoseRansacPinholeCam(
         keypoint_measurements, measurement_camera_indices, G_landmark_positions,

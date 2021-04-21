@@ -39,6 +39,8 @@ bool LidarPositionError<CameraType>::Evaluate(
       parameters[kIdxImuPose] + visual::kOrientationBlockSize);
   Eigen::Map<const Eigen::Quaterniond> q_C_I(parameters[kIdxCameraToImuQ]);
   Eigen::Map<const Eigen::Vector3d> p_C_I(parameters[kIdxCameraToImuP]);
+  Eigen::Map<const Eigen::Matrix<double, CameraType::parameterCount(), 1> >
+      intrinsics_map(parameters[kIdxCameraIntrinsics]);
 
   // Jacobian of landmark pose in camera system w.r.t. keyframe pose
   Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_q_I_M;
@@ -62,6 +64,12 @@ bool LidarPositionError<CameraType>::Evaluate(
 
   // Jacobian of landmark pose in camera system w.r.t. landmark position
   Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_p_B_fi;
+
+  // Jacobians w.r.t. camera intrinsics coefficients
+  typedef Eigen::Matrix<double, visual::kLidarResidualSize, Eigen::Dynamic>
+      JacobianWrtIntrinsicsType;
+  JacobianWrtIntrinsicsType J_keypoint_wrt_intrinsics(
+      visual::kLidarResidualSize, CameraType::parameterCount());
 
   Eigen::Matrix3d R_B_LM, R_LM_B;
   Eigen::Matrix3d R_G_LM;
@@ -101,13 +109,14 @@ bool LidarPositionError<CameraType>::Evaluate(
   // And: p_I_C = - R_C_I.transpose() * p_C_I
   const Eigen::Vector3d p_C_fi = R_C_I * p_I_fi + p_C_I;
 
-  // Jacobian of 3d keypoint
+  // Jacobian of 3d keypoint (including intrinsics)
   // w.r.t. to landmark position in camera coordinates
   Eigen::Vector3d reprojected_landmark = p_C_fi;
   typedef Eigen::Matrix<
       double, visual::kLidarResidualSize, visual::kPositionBlockSize>
       LidarJacobianType;
   LidarJacobianType J_keypoint_wrt_p_C_fi = Eigen::Matrix3d::Identity();
+  Eigen::VectorXd intrinsics = intrinsics_map;
   if (jacobians) {
     // JPL quaternion parameterization is used because our memory layout
     // of quaternions is JPL.
@@ -237,6 +246,11 @@ bool LidarPositionError<CameraType>::Evaluate(
     if (jacobians[kIdxCameraToImuP]) {
       Eigen::Map<PositionJacobian> J(jacobians[kIdxCameraToImuP]);
       J = J_keypoint_wrt_p_C_fi * J_p_C_fi_wrt_p_C_I;
+    }
+    // Jacobian w.r.t. intrinsics.
+    if (jacobians[kIdxCameraIntrinsics]) {
+      Eigen::Map<IntrinsicsJacobian> J(jacobians[kIdxCameraIntrinsics]);
+      J.setZero();
     }
   }
   // Compute residuals.

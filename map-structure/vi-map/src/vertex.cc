@@ -299,7 +299,8 @@ Vertex* Vertex::cloneWithVisualNFrame(
     }
 
     // Verify landmark vs keypoint state.
-    size_t num_keypoints = cloned_frame->getTotalNumKeypointMeasurements();
+    // size_t num_keypoints = cloned_frame->getTotalNumKeypointMeasurements();
+    const size_t num_keypoints = cloned_frame->getNumKeypointMeasurements();
     CHECK_EQ(
         cloned_vertex->observed_landmark_ids_[camera_idx].size(),
         num_keypoints);
@@ -634,7 +635,8 @@ bool Vertex::areFrameAndKeypointIndicesValid(
   const bool is_frame_idx_valid = isFrameIndexValid(frame_idx);
   LOG_IF(ERROR, !is_frame_idx_valid) << "Invalid frame index: " << frame_idx;
   const std::size_t n_total_keypoints =
-      n_frame_->getFrame(frame_idx).getTotalNumKeypointMeasurements();
+      // n_frame_->getFrame(frame_idx).getTotalNumKeypointMeasurements();
+      n_frame_->getFrame(frame_idx).getNumKeypointMeasurements();
 
   const bool is_observed_landmarks_ids_size_correct =
       observed_landmark_ids_[frame_idx].size() == n_total_keypoints;

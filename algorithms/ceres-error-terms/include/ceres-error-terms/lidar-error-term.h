@@ -6,7 +6,6 @@
 #include <Eigen/Core>
 #include <ceres/ceres.h>
 #include <ceres/sized_cost_function.h>
-
 #include <maplab-common/pose_types.h>
 
 #include "ceres-error-terms/common.h"
@@ -25,7 +24,8 @@ class LidarPositionError
           visual::kLidarResidualSize, visual::kPositionBlockSize,
           visual::kPoseBlockSize, visual::kPoseBlockSize,
           visual::kPoseBlockSize, visual::kPoseBlockSize,
-          visual::kOrientationBlockSize, visual::kPositionBlockSize>,
+          visual::kOrientationBlockSize, visual::kPositionBlockSize,
+          CameraType::parameterCount()>,
       public VisualCostFunction {
  public:
   typedef VisualCostFunction Base;
@@ -62,6 +62,7 @@ class LidarPositionError
     kIdxImuPose,
     kIdxCameraToImuQ,
     kIdxCameraToImuP,
+    kIdxCameraIntrinsics,
   };
 
   // The representation for Jacobians computed by this object.
@@ -81,6 +82,11 @@ class LidarPositionError
       double, visual::kLidarResidualSize, visual::kPoseBlockSize,
       Eigen::RowMajor>
       PoseJacobian;
+
+  typedef Eigen::Matrix<
+      double, visual::kLidarResidualSize, CameraType::parameterCount(),
+      Eigen::RowMajor>
+      IntrinsicsJacobian;
 
   Eigen::Vector3d measurement_;
   const visual::VisualErrorType error_term_type_;
