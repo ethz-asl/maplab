@@ -437,7 +437,7 @@ void VIMap::getStatisticsOfMission(
       if (vertex.isVisualFrameSet(frame_idx) &&
           vertex.isVisualFrameValid(frame_idx)) {
         *num_observations +=
-            vertex.getVisualFrame(frame_idx).getNumKeypointMeasurements();
+            vertex.getVisualFrame(frame_idx).getTotalNumKeypointMeasurements();
       }
     }
   }

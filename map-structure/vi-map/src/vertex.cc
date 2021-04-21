@@ -89,7 +89,7 @@ Vertex::Vertex(
     observed_landmark_ids_[kFirstFrameIndex] = observed_landmark_ids;
     CHECK_EQ(
         observed_landmark_ids_[kFirstFrameIndex].size(),
-        frame->getNumKeypointMeasurements());
+        frame->getTotalNumKeypointMeasurements());
   }
 
   checkConsistencyOfVisualObservationContainers();
@@ -131,7 +131,8 @@ Vertex::Vertex(
 
   observed_landmark_ids_.resize(n_frame_->getNumFrames());
   for (size_t i = 0; i < observed_landmark_ids_.size(); ++i) {
-    size_t num_keypoints = n_frame_->getFrame(i).getNumKeypointMeasurements();
+    const size_t num_keypoints =
+        n_frame_->getFrame(i).getTotalNumKeypointMeasurements();
     observed_landmark_ids_[i].resize(num_keypoints);
   }
 
@@ -300,7 +301,8 @@ Vertex* Vertex::cloneWithVisualNFrame(
 
     // Verify landmark vs keypoint state.
     // size_t num_keypoints = cloned_frame->getTotalNumKeypointMeasurements();
-    const size_t num_keypoints = cloned_frame->getNumKeypointMeasurements();
+    const size_t num_keypoints =
+        cloned_frame->getTotalNumKeypointMeasurements();
     CHECK_EQ(
         cloned_vertex->observed_landmark_ids_[camera_idx].size(),
         num_keypoints);
@@ -636,7 +638,7 @@ bool Vertex::areFrameAndKeypointIndicesValid(
   LOG_IF(ERROR, !is_frame_idx_valid) << "Invalid frame index: " << frame_idx;
   const std::size_t n_total_keypoints =
       // n_frame_->getFrame(frame_idx).getTotalNumKeypointMeasurements();
-      n_frame_->getFrame(frame_idx).getNumKeypointMeasurements();
+      n_frame_->getFrame(frame_idx).getTotalNumKeypointMeasurements();
 
   const bool is_observed_landmarks_ids_size_correct =
       observed_landmark_ids_[frame_idx].size() == n_total_keypoints;
@@ -787,7 +789,7 @@ size_t Vertex::discardUntrackedObservations() {
   const size_t num_frames = numFrames();
   for (size_t i = 0u; i < num_frames; ++i) {
     const size_t original_count =
-        getVisualFrame(i).getNumKeypointMeasurements();
+        getVisualFrame(i).getTotalNumKeypointMeasurements();
     std::vector<size_t> discarded_indices;
     getVisualFrame(i).discardUntrackedObservations(&discarded_indices);
     aslam::common::stl_helpers::eraseIndicesFromContainer(
@@ -898,7 +900,7 @@ void Vertex::resetObservedLandmarkIdsToInvalid() {
   for (unsigned int frame_idx = 0u; frame_idx < n_frame_->getNumFrames();
        ++frame_idx) {
     observed_landmark_ids_[frame_idx].resize(
-        n_frame_->getFrame(frame_idx).getNumKeypointMeasurements(),
+        n_frame_->getFrame(frame_idx).getTotalNumKeypointMeasurements(),
         invalid_landmark_id);
   }
   checkConsistencyOfVisualObservationContainers();
@@ -963,7 +965,7 @@ void Vertex::forEachKeypoint(
   for (size_t frame_i = 0u; frame_i < numFrames(); ++frame_i) {
     keypoint_identifier.frame_id.frame_index = frame_i;
     const size_t num_keypoints =
-        getVisualFrame(frame_i).getNumKeypointMeasurements();
+        getVisualFrame(frame_i).getTotalNumKeypointMeasurements();
     for (size_t keypoint_i = 0u; keypoint_i < num_keypoints; ++keypoint_i) {
       keypoint_identifier.keypoint_index = keypoint_i;
       action(keypoint_identifier);

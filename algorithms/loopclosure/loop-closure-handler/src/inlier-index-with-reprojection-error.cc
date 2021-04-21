@@ -25,7 +25,7 @@ void getBestStructureMatchForEveryKeypoint(
         structure_matches[inlier_index].keypoint_index_query;
     CHECK_LT(
         keypoint_index, query_vertex_n_frame.getFrame(frame_index)
-                            .getNumKeypointMeasurements());
+                            .getTotalNumKeypointMeasurements());
     const vi_map::KeypointIdentifier keypoint_identifier(
         invalid_vertex_id, frame_index, keypoint_index);
 
@@ -35,11 +35,10 @@ void getBestStructureMatchForEveryKeypoint(
     if (best_match_iterator == keypoint_to_best_structure_match->end()) {
       InlierIndexWithReprojectionError inlier_index_with_reprojection_error(
           inlier_index, reprojection_error);
-      CHECK(
-          keypoint_to_best_structure_match
-              ->emplace(
-                  keypoint_identifier, inlier_index_with_reprojection_error)
-              .second);
+      CHECK(keypoint_to_best_structure_match
+                ->emplace(
+                    keypoint_identifier, inlier_index_with_reprojection_error)
+                .second);
     } else if (
         best_match_iterator->second.getReprojectionError() >
         reprojection_error) {

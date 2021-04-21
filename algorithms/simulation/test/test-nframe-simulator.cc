@@ -125,7 +125,7 @@ TEST_P(VisualNFrameSimulatorTest, testSimulateNFrames_noNoise) {
       const Eigen::VectorXi& landmark_id_channel =
           nframe_channels::getGroundTruthLandmarkIds(frame);
 
-      size_t num_keypoints = frame.getNumKeypointMeasurements();
+      const size_t num_keypoints = frame.getTotalNumKeypointMeasurements();
       for (size_t keypoint_idx = 0; keypoint_idx < num_keypoints;
            ++keypoint_idx) {
         // Get the id of the associated landmark.s
@@ -226,7 +226,7 @@ TEST_P(VisualNFrameSimulatorTest, testSimulateNFrames_withNoise) {
       const Eigen::VectorXi& landmark_id_channel =
           nframe_channels::getGroundTruthLandmarkIds(frame);
 
-      size_t num_keypoints = frame.getNumKeypointMeasurements();
+      const size_t num_keypoints = frame.getTotalNumKeypointMeasurements();
       for (size_t keypoint_idx = 0; keypoint_idx < num_keypoints;
            ++keypoint_idx) {
         // Get the id of the associated landmark.s

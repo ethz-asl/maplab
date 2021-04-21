@@ -46,7 +46,7 @@ void addLidarPositionTermForKeypoint(
   CHECK_GE(keypoint_idx, 0);
   CHECK_LT(
       keypoint_idx,
-      static_cast<int>(visual_frame.getNumKeypointMeasurements()));
+      static_cast<int>(visual_frame.getTotalNumKeypointMeasurements()));
 
   const vi_map::LandmarkId landmark_id =
       vertex_ptr->getObservedLandmarkId(frame_idx, keypoint_idx);
@@ -66,8 +66,8 @@ void addLidarPositionTermForKeypoint(
           keypoint_idx);
 
   const double image_point_uncertainty =
-      vertex_ptr->getVisualFrame(frame_idx).getLidarKeypoint2DMeasurementUncertainty(
-          keypoint_idx);
+      vertex_ptr->getVisualFrame(frame_idx)
+          .getLidarKeypoint2DMeasurementUncertainty(keypoint_idx);
 
   // As defined here: http://en.wikipedia.org/wiki/Huber_Loss_Function
   double huber_loss_delta = 3.0;
@@ -123,15 +123,14 @@ void addLidarPositionTermForKeypoint(
           lidar_measurement, image_point_uncertainty, error_term_type,
           camera_ptr.get()));
 
-  std::vector<double*> cost_term_args = {
-      landmark.get_p_B_Mutable(),
-      landmark_store_vertex_q_IM__M_p_MI,
-      landmark_store_baseframe_q_GM__G_p_GM,
-      observer_baseframe_q_GM__G_p_GM,
-      vertex_q_IM__M_p_MI,
-      camera_q_CI,
-      camera_C_p_CI,
-      camera_ptr->getParametersMutable()};
+  std::vector<double*> cost_term_args = {landmark.get_p_B_Mutable(),
+                                         landmark_store_vertex_q_IM__M_p_MI,
+                                         landmark_store_baseframe_q_GM__G_p_GM,
+                                         observer_baseframe_q_GM__G_p_GM,
+                                         vertex_q_IM__M_p_MI,
+                                         camera_q_CI,
+                                         camera_C_p_CI,
+                                         camera_ptr->getParametersMutable()};
 
   // Certain types of visual cost terms (as indicated by error_term_type) do not
   // use all of the pointer arguments. Ceres, however, requires us to provide
@@ -223,7 +222,7 @@ void addVisualTermForKeypoint(
   CHECK_GE(keypoint_idx, 0);
   CHECK_LT(
       keypoint_idx,
-      static_cast<int>(visual_frame.getNumKeypointMeasurements()));
+      static_cast<int>(visual_frame.getTotalNumKeypointMeasurements()));
 
   const vi_map::LandmarkId landmark_id =
       vertex_ptr->getObservedLandmarkId(frame_idx, keypoint_idx);
@@ -419,7 +418,8 @@ int addVisualTermsForVertices(
           vertex_id);
 
       const aslam::VisualFrame& visual_frame = vertex.getVisualFrame(frame_idx);
-      const size_t num_keypoints = visual_frame.getNumKeypointMeasurements();
+      const size_t num_keypoints =
+          visual_frame.getTotalNumKeypointMeasurements();
 
       bool add_visual_constraint_for_vertex = false;
       bool add_lidar_constraint_for_vertex = false;
@@ -428,7 +428,7 @@ int addVisualTermsForVertices(
         if (vertex.getVisualFrame(frame_idx).hasKeypointMeasurements()) {
           add_visual_constraint_for_vertex = true;
         } else {
-          LOG_FIRST_N(WARNING,1)
+          LOG_FIRST_N(WARNING, 1)
               << "Tried to add visual constraints, but the vertex does "
                  "not contain any!";
         }
@@ -438,8 +438,9 @@ int addVisualTermsForVertices(
         if (vertex.getVisualFrame(frame_idx).hasLidarKeypoint3DMeasurements()) {
           add_lidar_constraint_for_vertex = true;
         } else {
-          LOG_FIRST_N(WARNING,1) << "Tried to add lidar constraints, but the vertex does "
-                          "not contain any!";
+          LOG_FIRST_N(WARNING, 1)
+              << "Tried to add lidar constraints, but the vertex does "
+                 "not contain any!";
         }
       }
 
@@ -480,12 +481,13 @@ int addVisualTermsForVertices(
         }
         // TODO: mariusbr --> fix map building and solve this
         if (add_visual_constraint_for_vertex) {
-        //   addVisualTermForKeypoint(
-        //       keypoint_idx, frame_idx, fix_landmark_positions, fix_intrinsics,
-        //       fix_extrinsics_rotation, fix_extrinsics_translation,
-        //       pose_parameterization, baseframe_parameterization,
-        //       camera_parameterization, &vertex, problem);
-        //   num_visual_constraints++;
+          //   addVisualTermForKeypoint(
+          //       keypoint_idx, frame_idx, fix_landmark_positions,
+          //       fix_intrinsics, fix_extrinsics_rotation,
+          //       fix_extrinsics_translation, pose_parameterization,
+          //       baseframe_parameterization, camera_parameterization, &vertex,
+          //       problem);
+          //   num_visual_constraints++;
         }
       }
     }
@@ -499,7 +501,7 @@ int addVisualTerms(
     const bool add_visual_constraints, const bool add_lidar_constraints,
     const size_t min_landmarks_per_frame, OptimizationProblem* problem) {
   CHECK_NOTNULL(problem);
-  
+
   vi_map::VIMap* map = CHECK_NOTNULL(problem->getMapMutable());
 
   const OptimizationProblem::LocalParameterizations& parameterizations =

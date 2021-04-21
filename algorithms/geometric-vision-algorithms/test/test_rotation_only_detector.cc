@@ -37,10 +37,14 @@ class RotationOnlyDetectorTest
 INSTANTIATE_TEST_CASE_P(
     Parameters, RotationOnlyDetectorTest,
     ::testing::Values(
-        std::vector<double>{3.0, 1.0, 0.0}, std::vector<double>{4.0, 1.0, 0.0}, // NOLINT
-        std::vector<double>{3.0, 2.0, 0.0}, std::vector<double>{4.0, 2.0, 0.0}, // NOLINT
-        std::vector<double>{3.0, 1.0, 0.8}, std::vector<double>{4.0, 1.0, 0.8}, // NOLINT
-        std::vector<double>{3.0, 2.0, 0.8}, std::vector<double>{4.0, 2.0, 0.8})); // NOLINT
+        std::vector<double>{3.0, 1.0, 0.0},
+        std::vector<double>{4.0, 1.0, 0.0},  // NOLINT
+        std::vector<double>{3.0, 2.0, 0.0},
+        std::vector<double>{4.0, 2.0, 0.0},  // NOLINT
+        std::vector<double>{3.0, 1.0, 0.8},
+        std::vector<double>{4.0, 1.0, 0.8},  // NOLINT
+        std::vector<double>{3.0, 2.0, 0.8},
+        std::vector<double>{4.0, 2.0, 0.8}));  // NOLINT
 
 // *************************************************************
 // The test goes as follows:
@@ -95,9 +99,8 @@ TEST_P(RotationOnlyDetectorTest, testRotationOnlyDetector) {
 
   // Generate the ncamera object.
   aslam::NCamera::Ptr n_camera;
-  n_camera.reset(
-      new aslam::NCamera(
-          n_camera_id, T_C_B_vector, camera_vector, "pose_estimator_test"));
+  n_camera.reset(new aslam::NCamera(
+      n_camera_id, T_C_B_vector, camera_vector, "pose_estimator_test"));
 
   // **************************************************
   // [2] Generate the path and landmarks.
@@ -156,13 +159,13 @@ TEST_P(RotationOnlyDetectorTest, testRotationOnlyDetector) {
           simulation::nframe_channels::getGroundTruthLandmarkIds(*frame);
       frame->setTrackIds(groundtruth_ids);
       CHECK_EQ(
-          frame->getTrackIds().rows(), frame->getNumKeypointMeasurements());
+          frame->getTrackIds().rows(),
+          frame->getTotalNumKeypointMeasurements());
     }
   }
 
-  detector_.reset(
-      new geometric_vision::RotationOnlyDetector(
-          kMotionClassificationThreshold));
+  detector_.reset(new geometric_vision::RotationOnlyDetector(
+      kMotionClassificationThreshold));
   // Loop over frames in trajectory: The acceleration is limited by the path
   // planner and thus
   // the first few frames are a mixture of translation and rotation. Either

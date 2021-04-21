@@ -207,7 +207,8 @@ bool checkMapConsistency(const vi_map::VIMap& vi_map) {
       if (vertex.isVisualFrameSet(i)) {
         const aslam::VisualFrame& vnframe = vertex.getVisualFrame(i);
         if (vnframe.hasKeypointMeasurements()) {
-          const size_t num_keypoints = vnframe.getNumKeypointMeasurements();
+          const size_t num_keypoints =
+              vnframe.getTotalNumKeypointMeasurements();
           for (size_t keypoint_idx = 0u; keypoint_idx < num_keypoints;
                ++keypoint_idx) {
             const vi_map::LandmarkId landmark_id =

@@ -575,7 +575,7 @@ void LoopDetectorNode::findNearestNeighborMatchesForNFrame(
           n_frame.getFrameShared(frame_idx);
 
       CHECK(frame->hasKeypointMeasurements());
-      if (frame->getNumKeypointMeasurements() == 0u) {
+      if (frame->getTotalNumKeypointMeasurements() == 0u) {
         // Skip frame if zero measurements found.
         continue;
       }
@@ -814,8 +814,10 @@ void LoopDetectorNode::queryVertexInDatabase(
     if (query_vertex.isVisualFrameSet(frame_idx) &&
         query_vertex.isVisualFrameValid(frame_idx)) {
       const aslam::VisualFrame& frame = query_vertex.getVisualFrame(frame_idx);
-      CHECK(frame.hasKeypointMeasurements() || frame.hasLidarKeypoint2DMeasurements());
-      if (frame.getNumKeypointMeasurements() == 0u) {
+      CHECK(
+          frame.hasKeypointMeasurements() ||
+          frame.hasLidarKeypoint2DMeasurements());
+      if (frame.getTotalNumKeypointMeasurements() == 0u) {
         // Skip frame if zero measurements found.
         continue;
       }

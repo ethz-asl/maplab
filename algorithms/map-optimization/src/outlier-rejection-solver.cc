@@ -93,7 +93,7 @@ void findOutlierLandmarks(
             CHECK_LT(
                 keypoint_id.keypoint_index,
                 observer_vertex.getVisualFrame(frame_idx)
-                    .getNumKeypointMeasurements());
+                    .getTotalNumKeypointMeasurements());
 
             const Eigen::Vector3d& p_C_fi =
                 map.getLandmark_p_C_fi(landmark_id, observer_vertex, frame_idx);
