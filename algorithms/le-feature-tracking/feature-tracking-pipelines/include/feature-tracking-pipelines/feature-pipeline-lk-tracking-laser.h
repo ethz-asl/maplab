@@ -227,7 +227,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
 
       // Remove features that have converged, preferring to keep longer tracks
       // (which is equal to a lower track id).
-      constexpr double kMinDistance = 3.0;
+      constexpr double kMinDistance = 2.0;
       cv::Mat occupancy_image(
           curr_camera_images[frame_idx].rows,
           curr_camera_images[frame_idx].cols, CV_8UC1, cv::Scalar(255));
@@ -246,7 +246,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
             current_keyframe[frame_idx].keypoint_measurements(0, kp_idx),
             current_keyframe[frame_idx].keypoint_measurements(1, kp_idx));
 
-        if (occupancy_image.at<uchar>(keypoint) == 255) {
+        if (occupancy_image.at<uchar>(keypoint) == 255u) {
           cv::circle(
               occupancy_image, keypoint, kMinDistance, cv::Scalar(0),
               CV_FILLED);
@@ -269,7 +269,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
       // Create a detection mask to prevent new detections close to features
       // that are already being tracked.
       // TODO(schneith): Expose as settings.
-      constexpr size_t kRejectFeatureRadiusPx = 10u;
+      constexpr size_t kRejectFeatureRadiusPx = 5u;
       cv::Mat detection_mask(
           curr_camera_images[frame_idx].rows,
           curr_camera_images[frame_idx].cols, CV_8UC1, cv::Scalar(255));
@@ -287,7 +287,7 @@ class FeaturePipelineLkTrackingLaser : public FeatureTrackingPipelineBase {
             current_keyframe[frame_idx].keypoint_measurements(0, kp_idx),
             current_keyframe[frame_idx].keypoint_measurements(1, kp_idx));
 
-        if (detection_mask.at<uchar>(keypoint) == 255) {
+        if (detection_mask.at<uchar>(keypoint) == 255u) {
           cv::circle(
               detection_mask, keypoint, kRejectFeatureRadiusPx, cv::Scalar(0),
               CV_FILLED);

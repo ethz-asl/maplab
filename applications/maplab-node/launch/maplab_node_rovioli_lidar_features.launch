@@ -139,7 +139,7 @@
 		<arg name="feature_tracker_visualize_keypoints_individual_frames" default="false"/>
 
 		<!-- LIDAR FEATURE TRACKING -->
-		<arg name="NEW_feature_tracker_num_features" default="500"/>
+		<arg name="NEW_feature_tracker_num_features" default="1500"/>
 		<arg name="NEW_feature_tracker_num_pyramid_levels" default="7"/>
 		<arg name="NEW_feature_tracker_min_eigen_threshold" default="0.01"/>
 		<arg name="NEW_feature_tracker_criteria_max_count" default="20"/>
@@ -159,9 +159,9 @@
 		<arg name="NEW_feature_pipeline_type" default="lk"/>
 
 		<!-- SURF FEATURES -->
-		<arg name="NEW_feature_tracker_surf_hessian_threshold" default="2500"/>
-		<arg name="NEW_feature_tracker_surf_n_octaves" default="4"/>
-		<arg name="NEW_feature_tracker_surf_octave_layers" default="5"/>
+		<arg name="NEW_feature_tracker_surf_hessian_threshold" default="500"/>
+		<arg name="NEW_feature_tracker_surf_n_octaves" default="5"/>
+		<arg name="NEW_feature_tracker_surf_octave_layers" default="3"/>
 		<arg name="NEW_feature_tracker_surf_extended" default="false"/>
 		<arg name="NEW_feature_tracker_surf_upright" default="true"/>
 

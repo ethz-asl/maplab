@@ -83,7 +83,8 @@ bool addLoopClosureEdge(
     const vi_map::LandmarkIdList& observed_landmarks =
         vertex.getFrameObservedLandmarkIds(frame_idx);
     CHECK_EQ(
-        observed_landmarks.size(), visual_frame.getNumKeypointMeasurements());
+        observed_landmarks.size(),
+        visual_frame.getTotalNumKeypointMeasurements());
     for (size_t i = 0u; i < observed_landmarks.size(); ++i) {
       if (commonly_observed_landmarks.count(observed_landmarks[i]) > 0u) {
         CHECK(observed_landmarks[i].isValid());
@@ -93,13 +94,15 @@ bool addLoopClosureEdge(
         CHECK_LT(index, measurements_keypoint_vectors.cols());
 
         measurement_camera_indices.push_back(frame_idx);
-        measurements.col(index) = visual_frame.getKeypointMeasurement(i);
-        G_landmark_positions.col(index) =
-            map->getLandmark_G_p_fi(observed_landmarks[i]);
+        if (visual_frame.hasKeypointMeasurements()) {
+          measurements.col(index) = visual_frame.getKeypointMeasurement(i);
+        }
         if (visual_frame.hasLidarKeypoint3DMeasurements()) {
           measurements_keypoint_vectors.col(index) =
               visual_frame.getLidarKeypoint3DMeasurement(i);
         }
+        G_landmark_positions.col(index) =
+            map->getLandmark_G_p_fi(observed_landmarks[i]);
 
         ++index;
       }
@@ -128,6 +131,7 @@ bool addLoopClosureEdge(
   std::vector<double> inlier_distances_to_model;
   bool pnp_success;
   int num_iters;
+  // TODO(lbern): This allows only to have either visual or lidar LCs.
   if (ncamera->getCameraShared(0)->getType() == aslam::Camera::Type::kLidar3D) {
     pnp_success = pose_estimator.absoluteMultiPoseRansac3DFeatures(
         measurements_keypoint_vectors, measurement_camera_indices,

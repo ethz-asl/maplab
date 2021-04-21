@@ -39,7 +39,7 @@ class FeatureDetectorSurf : public FeatureDetectorBase {
 
   virtual void detectFeatures(
       const cv::Mat& image, size_t num_features, const cv::Mat& mask,
-      KeyframeFeatures *keyframe);
+      KeyframeFeatures* keyframe);
 
   virtual std::string getDetectorName() const {
     return "surf";
@@ -48,7 +48,7 @@ class FeatureDetectorSurf : public FeatureDetectorBase {
  private:
   cv::Ptr<cv::xfeatures2d::SURF> detector_;
 
-  const int kMaxDetection = 1000;
+  const int kMaxDetection = 5000;
   const FeatureDetectorSurfSettings settings_;
 };
 
