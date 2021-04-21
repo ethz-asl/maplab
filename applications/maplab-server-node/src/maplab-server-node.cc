@@ -1143,6 +1143,11 @@ bool MaplabServerNode::appendAvailableSubmaps() {
           kMergedMapKey, submap_process.map_key));
       // Remove submap.
       map_manager_.deleteMap(submap_process.map_key);
+      {
+        vi_map::VIMapManager::MapWriteAccess map =
+            map_manager_.getMapWriteAccess(kMergedMapKey);
+        map->addSubmapKey(submap_process.map_key);
+      }
     }
     CHECK(map_manager_.hasMap(kMergedMapKey));
     CHECK(!map_manager_.hasMap(submap_process.map_key));
