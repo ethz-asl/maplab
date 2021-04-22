@@ -160,8 +160,8 @@
 
 		<!-- SURF FEATURES -->
 		<arg name="NEW_feature_tracker_surf_hessian_threshold" default="500"/>
-		<arg name="NEW_feature_tracker_surf_n_octaves" default="5"/>
-		<arg name="NEW_feature_tracker_surf_octave_layers" default="3"/>
+		<arg name="NEW_feature_tracker_surf_n_octaves" default="7"/>
+		<arg name="NEW_feature_tracker_surf_octave_layers" default="5"/>
 		<arg name="NEW_feature_tracker_surf_extended" default="false"/>
 		<arg name="NEW_feature_tracker_surf_upright" default="true"/>
 
