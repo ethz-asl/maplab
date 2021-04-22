@@ -73,8 +73,6 @@ class ResourceMap {
     std::string map_resource_folder;
     // List of external resource folders.
     std::vector<std::string> external_resource_folders;
-    // List of external resource folders.
-    std::vector<std::string> included_submap_keys;
   };
 
   void migrateAllResourcesToFolder(
@@ -170,9 +168,6 @@ class ResourceMap {
   // Check if all resource files are present. Does not check the content of the
   // resource files.
   bool checkResourceFileSystem() const;
-
-  bool addSubmapKey(const std::string& submap_key);
-  bool deleteSubmapKey(const std::string& submap_key);
 
  protected:
   // Check if the resource file is present and attempt to load it to verify its

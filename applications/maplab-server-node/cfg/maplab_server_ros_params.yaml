@@ -6,7 +6,7 @@ num_hardware_threads:                                                 12 # Set i
 
 # INPUT / OUTPUT
 ############################
-maplab_server_backup_interval_s:                                      300
+maplab_server_backup_interval_s:                                      10
 maplab_server_merged_map_folder:                                      /tmp/maplab_server/merged_map
 overwrite:                                                            true
 maplab_server_map_update_topic:                                       map_update_notification

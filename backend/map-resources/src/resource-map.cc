@@ -41,7 +41,6 @@ void ResourceMap::deepCopy(const ResourceMap& other) {
   meta_data_.map_resource_folder = other.meta_data_.map_resource_folder;
   meta_data_.external_resource_folders =
       other.meta_data_.external_resource_folders;
-  meta_data_.included_submap_keys = other.meta_data_.included_submap_keys;
   resource_info_map_ = other.resource_info_map_;
 }
 
@@ -59,10 +58,6 @@ void ResourceMap::mergeFromMap(const ResourceMap& source_map) {
       meta_data_.external_resource_folders.end(),
       source_map.meta_data_.external_resource_folders.begin(),
       source_map.meta_data_.external_resource_folders.end());
-  meta_data_.included_submap_keys.insert(
-      meta_data_.included_submap_keys.end(),
-      source_map.meta_data_.included_submap_keys.begin(),
-      source_map.meta_data_.included_submap_keys.end());
 
   // Loop through resource info and adjust folder index.
   for (size_t resource_type = 0u; resource_type < kNumResourceTypes;
@@ -101,7 +96,6 @@ ResourceMap::MetaData& ResourceMap::MetaData::operator=(
   resource_folder_in_use = other_meta_data.resource_folder_in_use;
   map_resource_folder = other_meta_data.map_resource_folder;
   external_resource_folders = other_meta_data.external_resource_folders;
-  included_submap_keys = other_meta_data.included_submap_keys;
   return *this;
 }
 
@@ -134,13 +128,6 @@ ResourceMap::MetaData::MetaData(
   for (size_t i = 0u; i < num_external_folders; ++i) {
     external_resource_folders[i] = metadata_proto.external_resource_folders(i);
   }
-
-  const size_t num_included_submaps =
-      metadata_proto.included_submap_keys_size();
-  included_submap_keys.resize(num_included_submaps);
-  for (size_t i = 0u; i < num_included_submaps; ++i) {
-    included_submap_keys[i] = metadata_proto.included_submap_keys(i);
-  }
 }
 
 void ResourceMap::MetaData::serialize(
@@ -158,10 +145,6 @@ void ResourceMap::MetaData::serialize(
   const size_t num_external_folders = external_resource_folders.size();
   for (size_t i = 0u; i < num_external_folders; ++i) {
     metadata_proto->add_external_resource_folders(external_resource_folders[i]);
-  }
-  const size_t num_included_submaps = included_submap_keys.size();
-  for (size_t i = 0u; i < num_included_submaps; ++i) {
-    metadata_proto->add_included_submap_keys(included_submap_keys[i]);
   }
 }
 
@@ -863,33 +846,6 @@ bool ResourceMap::deleteResourceNoDataType(
   }
   info_map.erase(it);
   return true;
-}
-
-bool ResourceMap::addSubmapKey(const std::string& submap_key) {
-  if (std::find(
-          meta_data_.included_submap_keys.begin(),
-          meta_data_.included_submap_keys.end(),
-          submap_key) == meta_data_.included_submap_keys.end()) {
-    meta_data_.included_submap_keys.push_back(submap_key);
-    return true;
-  } else {
-    LOG(WARNING) << "Submap Key " << submap_key
-                 << " is already included in MetaData.";
-    return false;
-  }
-}
-bool ResourceMap::deleteSubmapKey(const std::string& submap_key) {
-  auto it = std::find(
-      meta_data_.included_submap_keys.begin(),
-      meta_data_.included_submap_keys.end(), submap_key);
-  if (it != meta_data_.included_submap_keys.end()) {
-    meta_data_.included_submap_keys.erase(it);
-    return true;
-  } else {
-    LOG(WARNING) << "Submap Key " << submap_key
-                 << " does not exist in MetaData.";
-    return false;
-  }
 }
 
 }  // namespace backend

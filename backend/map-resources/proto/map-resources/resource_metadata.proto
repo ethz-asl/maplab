@@ -7,5 +7,4 @@ message MetaData {
   optional int32 resource_folder_in_use = 3;
   optional string map_resource_folder = 4;
   repeated string external_resource_folders = 5;
-  repeated string included_submap_keys = 6;
 }

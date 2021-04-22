@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <aslam/common/thread-pool.h>
@@ -16,6 +17,8 @@
 #include <vi-map/vi-map.h>
 #include <visualization/resource-visualization.h>
 #include <visualization/viwls-graph-plotter.h>
+
+#include "maplab-server-node/robot_missions_information.pb.h"
 
 namespace maplab {
 
@@ -48,7 +51,7 @@ struct SubmapProcess {
 
 class MaplabServerNode final {
  public:
-  explicit MaplabServerNode();
+  MaplabServerNode();
 
   ~MaplabServerNode();
 
@@ -134,7 +137,19 @@ class MaplabServerNode final {
 
   bool isSubmapBlacklisted(const std::string& map_key);
 
+  bool saveRobotMissionsInfo(const backend::SaveConfig& config);
+
   struct RobotMissionInformation {
+    explicit RobotMissionInformation(
+        const maplab_server_node::proto::RobotMissionInfo&
+            robot_mission_information_proto);
+    RobotMissionInformation() {}
+    void serialize(maplab_server_node::proto::RobotMissionInfo*
+                       robot_mission_information_proto) const;
+    bool addSubmapKey(
+        const vi_map::MissionId& mission_id, const std::string& submap_key);
+
+    std::string robot_name;
     // Contains the mission ids and whether the baseframe is known of this
     // robot, the most recent mission is at the front of the vector.
     std::list<std::pair<vi_map::MissionId, bool>>
@@ -148,6 +163,9 @@ class MaplabServerNode final {
     // initially.
     std::map<int64_t, aslam::Transformation> T_M_B_submaps_input;
     std::map<int64_t, aslam::Transformation> T_G_M_submaps_input;
+
+    std::unordered_map<vi_map::MissionId, std::vector<std::string>>
+        mission_ids_to_submap_keys;
   };
 
  private:
@@ -165,6 +183,7 @@ class MaplabServerNode final {
   // Map management
   /////////////////
   const std::string kMergedMapKey = "merged_map";
+  const std::string kRobotMissionsInfoFileName = "robot_missions_info";
   // Stores all submaps and the merged map.
   vi_map::VIMapManager map_manager_;
   // Map visualization
@@ -210,10 +229,6 @@ class MaplabServerNode final {
   std::mutex submap_processing_queue_mutex_;
   std::deque<SubmapProcess> submap_processing_queue_;
 
-  mutable std::mutex mission_id_to_submap_keys_mutex_;
-  std::unordered_map<vi_map::MissionId, std::vector<std::string>>
-      mission_id_to_submap_keys_;
-
   // Callbacks
   ////////////
   // Callback that is called at the end of every merging thread loop and provide
@@ -247,6 +262,8 @@ class MaplabServerNode final {
 
   // Number of full map merging processings
   uint32_t num_full_map_merging_processings = 0u;
+
+  std::string initial_map_path_;
 };
 
 }  // namespace maplab

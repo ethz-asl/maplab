@@ -14,7 +14,9 @@
 #include <map-optimization/solver-options.h>
 #include <map-optimization/vi-map-optimizer.h>
 #include <map-optimization/vi-optimization-builder.h>
+#include <maplab-common/eigen-proto.h>
 #include <maplab-common/file-system-tools.h>
+#include <maplab-common/proto-serialization-helper.h>
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
 #include <signal.h>
@@ -119,6 +121,10 @@ DEFINE_int32(
     "If enabled, the global LiDAR LC search will be performed every nth map "
     "merging iterations.");
 
+DEFINE_string(
+    maplab_server_initial_map_path, "",
+    "If not empty, the server will be initialized with the map at this path.");
+
 namespace maplab {
 MaplabServerNode::MaplabServerNode()
     : submap_loading_thread_pool_(
@@ -131,7 +137,8 @@ MaplabServerNode::MaplabServerNode()
       optimization_trust_region_radius_(FLAGS_ba_initial_trust_region_radius),
       total_num_merged_submaps_(0u),
       time_of_last_map_backup_s_(0.0),
-      is_running_(false) {
+      is_running_(false),
+      initial_map_path_(FLAGS_maplab_server_initial_map_path) {
   if (!FLAGS_ros_free) {
     visualization::RVizVisualizationSink::init();
     plotter_.reset(new visualization::ViwlsGraphRvizPlotter);
@@ -153,6 +160,10 @@ void MaplabServerNode::start() {
         << "[MaplabServerNode] Cannot start node (again), a shutdown has "
         << "already been requrested!";
     return;
+  }
+
+  if (!initial_map_path_.empty()) {
+    CHECK(map_manager_.loadMapFromFolder(initial_map_path_, kMergedMapKey));
   }
 
   LOG(INFO) << "[MaplabServerNode] launching MapMerging thread...";
@@ -425,9 +436,11 @@ bool MaplabServerNode::saveMap() {
   LOG(INFO) << "[MaplabServerNode] Saving map to '"
             << FLAGS_maplab_server_merged_map_folder << "'.";
   if (map_manager_.hasMap(kMergedMapKey)) {
-    return map_manager_.saveMapToFolder(
-        kMergedMapKey, FLAGS_maplab_server_merged_map_folder,
-        vi_map::parseSaveConfigFromGFlags());
+    auto config = vi_map::parseSaveConfigFromGFlags();
+    bool save_map = map_manager_.saveMapToFolder(
+        kMergedMapKey, FLAGS_maplab_server_merged_map_folder, config);
+    save_map &= saveRobotMissionsInfo(config);
+    return save_map;
   } else {
     return false;
   }
@@ -692,6 +705,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
       if (!robot_name.empty()) {
         RobotMissionInformation& robot_info =
             robot_to_mission_id_map_[robot_name];
+        robot_info.robot_name = robot_name;
         for (auto& mission_id_with_baseframe_status :
              robot_info.mission_ids_with_baseframe_status) {
           if (mission_id_with_baseframe_status.first == mission_id) {
@@ -1069,19 +1083,17 @@ bool MaplabServerNode::appendAvailableSubmaps() {
     // Check if submap is blacklisted and delete it.
     CHECK(!submap_process.map_key.empty());
     CHECK(map_manager_.hasMap(submap_process.map_key));
+    vi_map::MissionId submap_mission_id;
+    {
+      vi_map::VIMapManager::MapReadAccess submap =
+          map_manager_.getMapReadAccess(submap_process.map_key);
+      CHECK_EQ(submap->numMissions(), 1u);
+      submap_mission_id = submap->getIdOfFirstMission();
+    }
     if (isSubmapBlacklisted(submap_process.map_key)) {
-      {
-        vi_map::MissionId submap_mission_id;
-        vi_map::VIMapManager::MapReadAccess submap =
-            map_manager_.getMapReadAccess(submap_process.map_key);
-        CHECK_EQ(submap->numMissions(), 1u);
-        submap_mission_id = submap->getIdOfFirstMission();
-
-        LOG(WARNING) << "[MaplabServerNode] MapMerging - Received a new submap "
-                     << "of deleted mission " << submap_mission_id
-                     << ", will discard it.";
-      }
-
+      LOG(WARNING) << "[MaplabServerNode] MapMerging - Received a new submap "
+                   << "of deleted mission " << submap_mission_id
+                   << ", will discard it.";
 
       // Delete map from manager.
       map_manager_.deleteMap(submap_process.map_key);
@@ -1129,11 +1141,6 @@ bool MaplabServerNode::appendAvailableSubmaps() {
               << "The first submap does not have exactly one mission, but "
               << mission_ids.size() << "! Something went wrong!";
         }
-        map->addSubmapKey(submap_process.map_key);
-        std::lock_guard<std::mutex> key_lock(mission_id_to_submap_keys_mutex_);
-        std::vector<std::string>& mission_id_submap_keys =
-            mission_id_to_submap_keys_[mission_ids[0]];
-        mission_id_submap_keys.push_back(submap_process.map_key);
       }
 
       found_new_submaps = true;
@@ -1147,27 +1154,18 @@ bool MaplabServerNode::appendAvailableSubmaps() {
       // data.
       CHECK(map_manager_.mergeSubmapIntoBaseMap(
           kMergedMapKey, submap_process.map_key));
-      vi_map::MissionId submap_mission_id;
-      {
-        vi_map::VIMapManager::MapReadAccess submap =
-            map_manager_.getMapReadAccess(submap_process.map_key);
-        CHECK_EQ(submap->numMissions(), 1u);
-        submap_mission_id = submap->getIdOfFirstMission();
-      }
-      {
-        vi_map::VIMapManager::MapWriteAccess map =
-            map_manager_.getMapWriteAccess(kMergedMapKey);
-        map->addSubmapKey(submap_process.map_key);
-      }
-      {
-        std::lock_guard<std::mutex> key_lock(mission_id_to_submap_keys_mutex_);
-        std::vector<std::string>& mission_id_submap_keys =
-            mission_id_to_submap_keys_[submap_mission_id];
-        mission_id_submap_keys.push_back(submap_process.map_key);
-      }
+
       // Remove submap.
       map_manager_.deleteMap(submap_process.map_key);
     }
+
+    {
+      std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+      RobotMissionInformation& robot_info =
+          robot_to_mission_id_map_[submap_process.robot_name];
+      robot_info.addSubmapKey(submap_mission_id, submap_process.map_key);
+    }
+
     CHECK(map_manager_.hasMap(kMergedMapKey));
     CHECK(!map_manager_.hasMap(submap_process.map_key));
 
@@ -1704,12 +1702,6 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
       LOG(INFO) << "[MaplabServerNode] Deleting blacklisted mission "
                 << mission_id << " from the merged map.";
       merged_map->removeMission(mission_id, true /*remove baseframe*/);
-      std::lock_guard<std::mutex> key_lock(mission_id_to_submap_keys_mutex_);
-      std::vector<std::string>& mission_id_submap_keys =
-          mission_id_to_submap_keys_[mission_id];
-      for (const std::string& submap_key : mission_id_submap_keys) {
-        merged_map->deleteSubmapKey(submap_key);
-      }
     }
 
     // Cleanup bookeeping (robot to mission, mission to robot).
@@ -1739,6 +1731,7 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
         while (it !=
                robot_mission_info.mission_ids_with_baseframe_status.end()) {
           if (it->first == blacklisted_mission_id) {
+            robot_mission_info.mission_ids_to_submap_keys.erase(it->first);
             it = robot_mission_info.mission_ids_with_baseframe_status.erase(it);
             continue;
           }
@@ -1757,13 +1750,6 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
               static_cast<backend::ResourceType>(
                   FLAGS_maplab_server_dense_map_resource_type),
               empty_robot_mission_id_list, *merged_map);
-        }
-        {
-          std::lock_guard<std::mutex> key_lock(
-              mission_id_to_submap_keys_mutex_);
-          if (mission_id_to_submap_keys_.count(blacklisted_mission_id) > 0) {
-            mission_id_to_submap_keys_.erase(blacklisted_mission_id);
-          }
         }
       }
     }  // Limits the scope of the lock on the robot to mission id bookkeeping
@@ -1818,6 +1804,95 @@ bool MaplabServerNode::getDenseMapInRange(
       integration_function, get_resources_in_radius);
 
   return true;
+}
+
+bool MaplabServerNode::saveRobotMissionsInfo(
+    const backend::SaveConfig& config) {
+  CHECK(!FLAGS_maplab_server_merged_map_folder.empty());
+  std::string file_path = common::concatenateFolderAndFileName(
+      FLAGS_maplab_server_merged_map_folder, kRobotMissionsInfoFileName);
+  //
+  // // Check if path is the name of an already existing directory or file.
+  // if (common::fileExists(complete_folder_path) &&
+  //     (!config.overwrite_existing_files &&
+  //      common::pathExists(complete_folder_path))) {
+  //   LOG(ERROR) << "Cannot save map because file already exists.";
+  //   return false;
+  // }
+  //
+  // if (!common::createPath(complete_folder_path)) {
+  //   LOG(ERROR) << "Could not create path to file!";
+  //   return false;
+  // }
+  constexpr bool kIsTextFormat = true;
+  maplab_server_node::proto::MaplabServerNodeInfo server_info_proto;
+
+  std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+
+  for (auto it = robot_to_mission_id_map_.begin();
+       it != robot_to_mission_id_map_.end(); it++) {
+    auto robot_mission_information_proto =
+        server_info_proto.add_robot_mission_infos();
+    it->second.serialize(robot_mission_information_proto);
+  }
+
+  common::proto_serialization_helper::serializeProtoToFile(
+      FLAGS_maplab_server_merged_map_folder, kRobotMissionsInfoFileName,
+      server_info_proto, kIsTextFormat);
+  return true;
+}
+
+bool MaplabServerNode::RobotMissionInformation::addSubmapKey(
+    const vi_map::MissionId& mission_id, const std::string& submap_key) {
+  auto& mission_included_submap_keys = mission_ids_to_submap_keys[mission_id];
+  if (std::find(
+          mission_included_submap_keys.begin(),
+          mission_included_submap_keys.end(),
+          submap_key) == mission_included_submap_keys.end()) {
+    mission_included_submap_keys.push_back(submap_key);
+    return true;
+  } else {
+    LOG(WARNING) << "Submap Key " << submap_key
+                 << " is already included in RobotMissionInformation.";
+    return false;
+  }
+}
+
+void MaplabServerNode::RobotMissionInformation::serialize(
+    maplab_server_node::proto::RobotMissionInfo*
+        robot_mission_information_proto) const {
+  CHECK_NOTNULL(robot_mission_information_proto);
+  robot_mission_information_proto->set_robot_name(robot_name);
+  const size_t num_missions = mission_ids_with_baseframe_status.size();
+  CHECK_EQ(num_missions, mission_ids_to_submap_keys.size());
+  for (auto it = mission_ids_with_baseframe_status.begin();
+       it != mission_ids_with_baseframe_status.end(); it++) {
+    auto mission_info = robot_mission_information_proto->add_mission_infos();
+    const vi_map::MissionId& mission_id = it->first;
+    mission_id.serialize(mission_info->mutable_mission_id());
+    mission_info->set_baseframe_status(it->second);
+    auto jt = mission_ids_to_submap_keys.find(mission_id);
+    CHECK(jt != mission_ids_to_submap_keys.end());
+    for (auto submap_key : jt->second) {
+      mission_info->add_included_submap_keys(submap_key);
+    }
+  }
+
+  for (auto it = T_M_B_submaps_input.begin(); it != T_M_B_submaps_input.end();
+       it++) {
+    auto stamped_T_M_B =
+        robot_mission_information_proto->add_t_m_b_submaps_input();
+    stamped_T_M_B->set_timestamp_ns(it->first);
+    common::eigen_proto::serialize(it->second, stamped_T_M_B->mutable_t_a_b());
+  }
+
+  for (auto it = T_G_M_submaps_input.begin(); it != T_G_M_submaps_input.end();
+       it++) {
+    auto stamped_T_G_M =
+        robot_mission_information_proto->add_t_g_m_submaps_input();
+    stamped_T_G_M->set_timestamp_ns(it->first);
+    common::eigen_proto::serialize(it->second, stamped_T_G_M->mutable_t_a_b());
+  }
 }
 
 }  // namespace maplab
