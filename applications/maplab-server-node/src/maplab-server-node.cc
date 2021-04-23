@@ -145,16 +145,16 @@ MaplabServerNode::~MaplabServerNode() {
 }
 
 void MaplabServerNode::start() {
-  LOG(ERROR) << "start waiting for lock";
+  LOG(WARNING) << "start waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "start received lock";
+  LOG(WARNING) << "start received lock";
   LOG(INFO) << "[MaplabServerNode] Starting...";
 
   if (shut_down_requested_.load()) {
     LOG(ERROR)
         << "[MaplabServerNode] Cannot start node (again), a shutdown has "
         << "already been requrested!";
-    LOG(ERROR) << "start unlocking";
+    LOG(WARNING) << "start unlocking";
     return;
   }
 
@@ -237,13 +237,13 @@ void MaplabServerNode::start() {
 
   is_running_ = true;
   LOG(INFO) << "[MaplabServerNode] MapMerging - thread launched.";
-  LOG(ERROR) << "start unlocking";
+  LOG(WARNING) << "start unlocking";
 }
 
 void MaplabServerNode::shutdown() {
-  LOG(ERROR) << "shutdown waiting for lock";
+  LOG(WARNING) << "shutdown waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "shutdown received lock";
+  LOG(WARNING) << "shutdown received lock";
   LOG(INFO) << "[MaplabServerNode] Shutting down...";
   shut_down_requested_.store(true);
 
@@ -277,21 +277,21 @@ void MaplabServerNode::shutdown() {
   }
 
   is_running_ = false;
-  LOG(ERROR) << "shutdown unlocking";
+  LOG(WARNING) << "shutdown unlocking";
 }
 
 bool MaplabServerNode::saveMap(const std::string& path) {
-  LOG(ERROR) << "saveMap(with path) waiting for lock";
+  LOG(WARNING) << "saveMap(with path) waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "saveMap received lock";
+  LOG(WARNING) << "saveMap received lock";
   LOG(INFO) << "[MaplabServerNode] Saving map to '" << path << "'.";
   if (map_manager_.hasMap(kMergedMapKey)) {
     bool saved = map_manager_.saveMapToFolder(
         kMergedMapKey, path, vi_map::parseSaveConfigFromGFlags());
-    LOG(ERROR) << "saveMap(with path) unlocking";
+    LOG(WARNING) << "saveMap(with path) unlocking";
     return saved;
   } else {
-    LOG(ERROR) << "saveMap(with path) unlocking";
+    LOG(WARNING) << "saveMap(with path) unlocking";
     return false;
   }
 }
@@ -301,13 +301,13 @@ bool MaplabServerNode::isSubmapBlacklisted(const std::string& map_key) {
 
   vi_map::MissionId submap_mission_id;
   {
-    LOG(ERROR) << "isSubmapBlacklisted waiting for read access";
+    LOG(WARNING) << "isSubmapBlacklisted waiting for read access";
     vi_map::VIMapManager::MapReadAccess submap =
         map_manager_.getMapReadAccess(map_key);
-    LOG(ERROR) << "isSubmapBlacklisted received read access";
+    LOG(WARNING) << "isSubmapBlacklisted received read access";
     CHECK_EQ(submap->numMissions(), 1u);
     submap_mission_id = submap->getIdOfFirstMission();
-    LOG(ERROR) << "isSubmapBlacklisted unlocking read access";
+    LOG(WARNING) << "isSubmapBlacklisted unlocking read access";
   }
 
   bool mission_is_blacklisted = false;
@@ -326,14 +326,14 @@ bool MaplabServerNode::loadAndProcessSubmap(
     const std::string& robot_name, const std::string& submap_path) {
   CHECK(!submap_path.empty());
   CHECK(!robot_name.empty());
-  LOG(ERROR) << "loadAndProcessSubmap waiting for lock";
+  LOG(WARNING) << "loadAndProcessSubmap waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "loadAndProcessSubmap received lock";
+  LOG(WARNING) << "loadAndProcessSubmap received lock";
   if (shut_down_requested_.load()) {
     LOG(WARNING) << "[MaplabServerNode] shutdown was requrested, will ignore "
                  << " SubmapProcessing thread for submap at '" << submap_path
                  << "'.";
-    LOG(ERROR) << "loadAndProcessSubmap unlocking";
+    LOG(WARNING) << "loadAndProcessSubmap unlocking";
     return false;
   }
 
@@ -411,7 +411,7 @@ bool MaplabServerNode::loadAndProcessSubmap(
           // We skip the processing part, the merging thread will then discard
           // the submap.
           submap_process.is_processed = true;
-          LOG(ERROR) << "loadAndProcessSubmap unlocking";
+          LOG(WARNING) << "loadAndProcessSubmap unlocking";
           return true;
         }
 
@@ -424,23 +424,23 @@ bool MaplabServerNode::loadAndProcessSubmap(
         VLOG(3) << "[MaplabServerNode] SubmapProcessing - finished processing "
                    "submap with key '"
                 << submap_process.map_key << "'.";
-        LOG(ERROR) << "loadAndProcessSubmap unlocking";
+        LOG(WARNING) << "loadAndProcessSubmap unlocking";
         return true;
       });
 
   VLOG(1) << "[MaplabServerNode] SubmapProcessing - thread launched.";
-  LOG(ERROR) << "loadAndProcessSubmap unlocking";
+  LOG(WARNING) << "loadAndProcessSubmap unlocking";
   return true;
 }
 
 bool MaplabServerNode::saveMap() {
-  LOG(ERROR) << "saveMap waiting for lock";
+  LOG(WARNING) << "saveMap waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "saveMap received lock";
+  LOG(WARNING) << "saveMap received lock";
   if (FLAGS_maplab_server_merged_map_folder.empty()) {
     LOG(ERROR) << "[MaplabServerNode] Cannot save map because "
                   "--maplab_server_merged_map_folder is empty!";
-    LOG(ERROR) << "saveMap unlocking";
+    LOG(WARNING) << "saveMap unlocking";
     return false;
   }
 
@@ -450,26 +450,26 @@ bool MaplabServerNode::saveMap() {
     bool saved = map_manager_.saveMapToFolder(
         kMergedMapKey, FLAGS_maplab_server_merged_map_folder,
         vi_map::parseSaveConfigFromGFlags());
-    LOG(ERROR) << "saveMap unlocking";
+    LOG(WARNING) << "saveMap unlocking";
     return saved;
   } else {
-    LOG(ERROR) << "saveMap unlocking";
+    LOG(WARNING) << "saveMap unlocking";
     return false;
   }
 }
 
 void MaplabServerNode::visualizeMap() {
-  LOG(ERROR) << "visualizeMap waiting for lock";
+  LOG(WARNING) << "visualizeMap waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "visualizeMap received lock";
+  LOG(WARNING) << "visualizeMap received lock";
   if (plotter_) {
     if (map_manager_.hasMap(kMergedMapKey)) {
-      LOG(ERROR) << "visualizeMap waiting for read access";
+      LOG(WARNING) << "visualizeMap waiting for read access";
       vi_map::VIMapManager::MapReadAccess map =
           map_manager_.getMapReadAccess(kMergedMapKey);
-      LOG(ERROR) << "visualizeMap received read access";
+      LOG(WARNING) << "visualizeMap received read access";
       plotter_->visualizeMap(*map);
-      LOG(ERROR) << "visualizeMap unlocking read access";
+      LOG(WARNING) << "visualizeMap unlocking read access";
     } else {
       LOG(WARNING) << "[MaplabServerNode] Could not visualize merged map, as "
                       "it doesn't exist yet!";
@@ -478,7 +478,7 @@ void MaplabServerNode::visualizeMap() {
     LOG(WARNING) << "[MaplabServerNode] No plotter was added to the maplab "
                  << "server node, cannot visualize map!";
   }
-  LOG(ERROR) << "visualizeMap unlocking";
+  LOG(WARNING) << "visualizeMap unlocking";
 }
 
 MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
@@ -487,20 +487,20 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
     Eigen::Vector3d* p_G, Eigen::Vector3d* sensor_p_G) const {
   CHECK_NOTNULL(p_G);
   CHECK_NOTNULL(sensor_p_G);
-  LOG(ERROR) << "mapLookup waiting for lock";
+  LOG(WARNING) << "mapLookup waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "mapLookup received lock";
+  LOG(WARNING) << "mapLookup received lock";
   if (!map_manager_.hasMap(kMergedMapKey)) {
     LOG(WARNING)
         << "[MaplabServerNode] Received map lookup but merged map does not "
            "exist yet!";
-    LOG(ERROR) << "mapLookup unlocking";
+    LOG(WARNING) << "mapLookup unlocking";
     return MapLookupStatus::kPoseNotAvailableYet;
   }
   if (robot_name.empty()) {
     LOG(WARNING)
         << "[MaplabServerNode] Received map lookup with empty robot name!";
-    LOG(ERROR) << "mapLookup unlocking";
+    LOG(WARNING) << "mapLookup unlocking";
     return MapLookupStatus::kNoSuchMission;
   }
   vi_map::MissionId submap_mission_id;
@@ -510,7 +510,7 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
       LOG(WARNING) << "[MaplabServerNode] Received map lookup with invalid "
                       "robot name: "
                    << robot_name;
-      LOG(ERROR) << "mapLookup unlocking";
+      LOG(WARNING) << "mapLookup unlocking";
       return MapLookupStatus::kNoSuchMission;
     }
 
@@ -525,7 +525,7 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
           << "[MaplabServerNode] Received map lookup with valid robot name ("
           << robot_name
           << "), but an invalid mission id is associated with it!";
-      LOG(ERROR) << "mapLookup unlocking";
+      LOG(WARNING) << "mapLookup unlocking";
       return MapLookupStatus::kNoSuchMission;
     }
   }
@@ -534,24 +534,24 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
     LOG(WARNING)
         << "[MaplabServerNode] Received map lookup with invalid timestamp: "
         << timestamp_ns << "ns";
-    LOG(ERROR) << "mapLookup unlocking";
+    LOG(WARNING) << "mapLookup unlocking";
     return MapLookupStatus::kPoseNeverAvailable;
   }
 
   CHECK(submap_mission_id.isValid());
   {
-    LOG(ERROR) << "mapLookup waiting for read access";
+    LOG(WARNING) << "mapLookup waiting for read access";
     vi_map::VIMapManager::MapReadAccess map =
         map_manager_.getMapReadAccess(kMergedMapKey);
-    LOG(ERROR) << "mapLookup received read access";
+    LOG(WARNING) << "mapLookup received read access";
     if (!map->hasMission(submap_mission_id)) {
       LOG(ERROR)
           << "[MaplabServerNode] Received map lookup with valid robot name ("
           << robot_name
           << "), but a mission id is associated with it that is not part of "
           << "the map (yet)!";
-      LOG(ERROR) << "mapLookup unlocking read access";
-      LOG(ERROR) << "mapLookup unlocking";
+      LOG(WARNING) << "mapLookup unlocking read access";
+      LOG(WARNING) << "mapLookup unlocking";
       return MapLookupStatus::kNoSuchMission;
     }
 
@@ -562,8 +562,8 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
       if (!mission.hasNCamera()) {
         LOG(WARNING) << "[MaplabServerNode] Received map lookup with NCamera "
                      << "sensor, but there is no such sensor in the map!";
-        LOG(ERROR) << "mapLookup unlocking read access";
-        LOG(ERROR) << "mapLookup unlocking";
+        LOG(WARNING) << "mapLookup unlocking read access";
+        LOG(WARNING) << "mapLookup unlocking";
         return MapLookupStatus::kNoSuchSensor;
       }
       sensor_id = mission.getNCameraId();
@@ -571,8 +571,8 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
       if (!mission.hasImu()) {
         LOG(WARNING) << "[MaplabServerNode] Received map lookup with IMU "
                      << "sensor, but there is no such sensor in the map!";
-        LOG(ERROR) << "mapLookup unlocking read access";
-        LOG(ERROR) << "mapLookup unlocking";
+        LOG(WARNING) << "mapLookup unlocking read access";
+        LOG(WARNING) << "mapLookup unlocking";
         return MapLookupStatus::kNoSuchSensor;
       }
       sensor_id = mission.getImuId();
@@ -580,8 +580,8 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
       if (!mission.hasLidar()) {
         LOG(WARNING) << "[MaplabServerNode] Received map lookup with Lidar "
                      << "sensor, but there is no such sensor in the map!";
-        LOG(ERROR) << "mapLookup unlocking read access";
-        LOG(ERROR) << "mapLookup unlocking";
+        LOG(WARNING) << "mapLookup unlocking read access";
+        LOG(WARNING) << "mapLookup unlocking";
         return MapLookupStatus::kNoSuchSensor;
       }
       sensor_id = mission.getLidarId();
@@ -589,8 +589,8 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
       if (!mission.hasOdometry6DoFSensor()) {
         LOG(WARNING) << "[MaplabServerNode] Received map lookup with Odometry "
                      << "sensor, but there is no such sensor in the map!";
-        LOG(ERROR) << "mapLookup unlocking read access";
-        LOG(ERROR) << "mapLookup unlocking";
+        LOG(WARNING) << "mapLookup unlocking read access";
+        LOG(WARNING) << "mapLookup unlocking";
         return MapLookupStatus::kNoSuchSensor;
       }
       sensor_id = mission.getOdometry6DoFSensor();
@@ -599,16 +599,16 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
         LOG(WARNING) << "[MaplabServerNode] Received map lookup with "
                      << "PointCloudMap sensor, but there is no such sensor"
                      << "in the map!";
-        LOG(ERROR) << "mapLookup unlocking read access";
-        LOG(ERROR) << "mapLookup unlocking";
+        LOG(WARNING) << "mapLookup unlocking read access";
+        LOG(WARNING) << "mapLookup unlocking";
         return MapLookupStatus::kNoSuchSensor;
       }
       sensor_id = mission.getPointCloudMapSensorId();
     } else {
       LOG(WARNING)
           << "[MaplabServerNode] Received map lookup with invalid sensor!";
-      LOG(ERROR) << "mapLookup unlocking read access";
-      LOG(ERROR) << "mapLookup unlocking";
+      LOG(WARNING) << "mapLookup unlocking read access";
+      LOG(WARNING) << "mapLookup unlocking";
       return MapLookupStatus::kNoSuchSensor;
     }
     const aslam::Transformation& T_B_S =
@@ -631,8 +631,8 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
                    << aslam::time::timeNanosecondsToString(timestamp_ns)
                    << " - earliest map time: "
                    << aslam::time::timeNanosecondsToString(min_timestamp_ns);
-      LOG(ERROR) << "mapLookup unlocking read access";
-      LOG(ERROR) << "mapLookup unlocking";
+      LOG(WARNING) << "mapLookup unlocking read access";
+      LOG(WARNING) << "mapLookup unlocking";
       return MapLookupStatus::kPoseNeverAvailable;
     } else if (timestamp_ns > max_timestamp_ns) {
       LOG(WARNING) << "[MaplabServerNode] Received map lookup with timestamp "
@@ -640,8 +640,8 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
                    << aslam::time::timeNanosecondsToString(timestamp_ns)
                    << " - most recent map time: "
                    << aslam::time::timeNanosecondsToString(max_timestamp_ns);
-      LOG(ERROR) << "mapLookup unlocking read access";
-      LOG(ERROR) << "mapLookup unlocking";
+      LOG(WARNING) << "mapLookup unlocking read access";
+      LOG(WARNING) << "mapLookup unlocking";
       return MapLookupStatus::kPoseNotAvailableYet;
     }
 
@@ -658,9 +658,9 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
 
     *p_G = T_G_S * p_S;
     *sensor_p_G = T_G_S * Eigen::Vector3d::Zero();
-    LOG(ERROR) << "mapLookup unlocking read access";
+    LOG(WARNING) << "mapLookup unlocking read access";
   }
-  LOG(ERROR) << "mapLookup unlocking";
+  LOG(WARNING) << "mapLookup unlocking";
   return MapLookupStatus::kSuccess;
 }
 
@@ -671,12 +671,12 @@ void MaplabServerNode::registerPoseCorrectionPublisherCallback(
         const aslam::Transformation&)>
         callback) {
   CHECK(callback);
-  LOG(ERROR) << "registerPoseCorrectionPublisherCallback waiting for lock";
+  LOG(WARNING) << "registerPoseCorrectionPublisherCallback waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "registerPoseCorrectionPublisherCallback received lock";
+  LOG(WARNING) << "registerPoseCorrectionPublisherCallback received lock";
 
   pose_correction_publisher_callback_ = callback;
-  LOG(ERROR) << "registerPoseCorrectionPublisherCallback unlocking";
+  LOG(WARNING) << "registerPoseCorrectionPublisherCallback unlocking";
 }
 
 void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
@@ -685,11 +685,11 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   // All missions with absolute pose constraints will automatically be set to
   // anchored, since they contain a global reference.
   {
-    LOG(ERROR)
+    LOG(WARNING)
         << "absolute constraint based map anchoring waiting for write access";
     vi_map::VIMapManager::MapWriteAccess map =
         map_manager_.getMapWriteAccess(kMergedMapKey);
-    LOG(ERROR)
+    LOG(WARNING)
         << "absolute constraint based map anchoring received write access";
     vi_map::MissionIdList mission_ids;
     map->getAllMissionIds(&mission_ids);
@@ -700,7 +700,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
       running_merging_process_ = "absolute constraint based map anchoring";
     }
     map_anchoring::setMissionBaseframeToKnownIfHasAbs6DoFConstraints(map.get());
-    LOG(ERROR)
+    LOG(WARNING)
         << "absolute constraint based map anchoring unlocking write access";
   }
 
@@ -719,10 +719,10 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   //     agree on a rigid transformation that would be consistent with the
   //     majority of them.
   if (FLAGS_maplab_server_enable_visual_loop_closure_based_map_anchoring) {
-    LOG(ERROR) << "vision based map anchoring waiting for write access";
+    LOG(WARNING) << "vision based map anchoring waiting for write access";
     vi_map::VIMapManager::MapWriteAccess map =
         map_manager_.getMapWriteAccess(kMergedMapKey);
-    LOG(ERROR) << "vision based map anchoring received write access";
+    LOG(WARNING) << "vision based map anchoring received write access";
     vi_map::MissionIdList mission_ids;
     map->getAllMissionIds(&mission_ids);
 
@@ -736,15 +736,15 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
       LOG(INFO) << "[MaplabServerNode] MapMerging - Unable to anchor maps "
                 << "based on vision, or there was nothing left to do.";
     }
-    LOG(ERROR) << "vision based map anchoring unlocking write access";
+    LOG(WARNING) << "vision based map anchoring unlocking write access";
   }
 
   // Update the baseframe information for the status thread.
   {
-    LOG(ERROR) << "update map anchoring info waiting for read access";
+    LOG(WARNING) << "update map anchoring info waiting for read access";
     vi_map::VIMapManager::MapReadAccess map =
         map_manager_.getMapReadAccess(kMergedMapKey);
-    LOG(ERROR) << "update map anchoring info received read access";
+    LOG(WARNING) << "update map anchoring info received read access";
     vi_map::MissionIdList mission_ids;
     map->getAllMissionIds(&mission_ids);
 
@@ -779,7 +779,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
           << "! This should be available once the mission reaches "
           << "the merged map";
     }
-    LOG(ERROR) << "update map anchoring info unlocking read access";
+    LOG(WARNING) << "update map anchoring info unlocking read access";
   }
 
   // Visual loop closure
@@ -789,10 +789,10 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   // reprojection error of the landmarks. This is safer, more accurate, but
   // also weaker, and will likely not close very large loops.
   if (FLAGS_maplab_server_enable_visual_loop_closure) {
-    LOG(ERROR) << "visual loop closure waiting for write access";
+    LOG(WARNING) << "visual loop closure waiting for write access";
     vi_map::VIMapManager::MapWriteAccess map =
         map_manager_.getMapWriteAccess(kMergedMapKey);
-    LOG(ERROR) << "visual loop closure received write access";
+    LOG(WARNING) << "visual loop closure received write access";
     vi_map::MissionIdList mission_ids;
     map->getAllMissionIds(&mission_ids);
 
@@ -835,7 +835,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         loop_detector.detectLoopClosuresAndMergeLandmarks(*jt, map.get());
       }
     }
-    LOG(ERROR) << "visual loop closure unlocking write access";
+    LOG(WARNING) << "visual loop closure unlocking write access";
   }
 
   // Full optimization
@@ -843,10 +843,10 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   // This does not scale, and never will, so it is important that # we limit
   // the runtime by setting the --ba_max_time_seconds flag.
   {
-    LOG(ERROR) << "first optimization waiting for write access";
+    LOG(WARNING) << "first optimization waiting for write access";
     vi_map::VIMapManager::MapWriteAccess map =
         map_manager_.getMapWriteAccess(kMergedMapKey);
-    LOG(ERROR) << "first optimization received write access";
+    LOG(WARNING) << "first optimization received write access";
     vi_map::MissionIdList mission_ids;
     map->getAllMissionIds(&mission_ids);
 
@@ -900,7 +900,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
             FLAGS_ba_initial_trust_region_radius;
       }
     }
-    LOG(ERROR) << "first optimization unlocking write access";
+    LOG(WARNING) << "first optimization unlocking write access";
   }
 
   // Lidar local constraints/loop closure
@@ -921,10 +921,10 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
       perform_loop_closure = n_processing == 0;
     }
     if (perform_loop_closure) {
-      LOG(ERROR) << "lidar loop closure waiting for write access";
+      LOG(WARNING) << "lidar loop closure waiting for write access";
       vi_map::VIMapManager::MapWriteAccess map =
           map_manager_.getMapWriteAccess(kMergedMapKey);
-      LOG(ERROR) << "lidar loop closure received write access";
+      LOG(WARNING) << "lidar loop closure received write access";
       vi_map::MissionIdList mission_ids;
       map->getAllMissionIds(&mission_ids);
       {
@@ -939,7 +939,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
                    << "encountered an error!";
       }
-      LOG(ERROR) << "lidar loop closure unlocking write access";
+      LOG(WARNING) << "lidar loop closure unlocking write access";
     }
   }
 #else
@@ -952,10 +952,10 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   // This does not scale, and never will, so it is important that # we limit
   // the runtime by setting the --ba_max_time_seconds flag.
   {
-    LOG(ERROR) << "second optimization waiting for write access";
+    LOG(WARNING) << "second optimization waiting for write access";
     vi_map::VIMapManager::MapWriteAccess map =
         map_manager_.getMapWriteAccess(kMergedMapKey);
-    LOG(ERROR) << "second optimization received write access";
+    LOG(WARNING) << "second optimization received write access";
     vi_map::MissionIdList mission_ids;
     map->getAllMissionIds(&mission_ids);
 
@@ -1009,7 +1009,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
             FLAGS_ba_initial_trust_region_radius;
       }
     }
-    LOG(ERROR) << "second optimization unlocking write access";
+    LOG(WARNING) << "second optimization unlocking write access";
   }
 
   // Reset merging thread status.
@@ -1022,11 +1022,11 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
 }
 
 void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
-  LOG(ERROR)
+  LOG(WARNING)
       << "publishMostRecentVertexPoseAndCorrection waiting for read access";
   vi_map::VIMapManager::MapReadAccess map =
       map_manager_.getMapReadAccess(kMergedMapKey);
-  LOG(ERROR) << "publishMostRecentVertexPoseAndCorrection received read access";
+  LOG(WARNING) << "publishMostRecentVertexPoseAndCorrection received read access";
   vi_map::MissionIdList mission_ids;
   map->getAllMissionIds(&mission_ids);
   if (!mission_ids.empty()) {
@@ -1105,7 +1105,7 @@ void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
       }
     }
   }
-  LOG(ERROR)
+  LOG(WARNING)
       << "publishMostRecentVertexPoseAndCorrection unlocking read access";
 }
 
@@ -1161,13 +1161,13 @@ bool MaplabServerNode::appendAvailableSubmaps() {
     if (isSubmapBlacklisted(submap_process.map_key)) {
       vi_map::MissionId submap_mission_id;
       {
-        LOG(ERROR) << "appendAvailableSubmaps waiting for read access";
+        LOG(WARNING) << "appendAvailableSubmaps waiting for read access";
         vi_map::VIMapManager::MapReadAccess submap =
             map_manager_.getMapReadAccess(submap_process.map_key);
-        LOG(ERROR) << "appendAvailableSubmaps received read access";
+        LOG(WARNING) << "appendAvailableSubmaps received read access";
         CHECK_EQ(submap->numMissions(), 1u);
         submap_mission_id = submap->getIdOfFirstMission();
-        LOG(ERROR) << "appendAvailableSubmaps unlocking read access";
+        LOG(WARNING) << "appendAvailableSubmaps unlocking read access";
       }
 
       LOG(WARNING) << "[MaplabServerNode] MapMerging - Received a new submap "
@@ -1208,10 +1208,10 @@ bool MaplabServerNode::appendAvailableSubmaps() {
 
       // If enabled, set first mission baseframe to known.
       if (FLAGS_maplab_server_set_first_robot_map_baseframe_to_known) {
-        LOG(ERROR) << "first robot baseframe waiting for write access";
+        LOG(WARNING) << "first robot baseframe waiting for write access";
         vi_map::VIMapManager::MapWriteAccess map =
             map_manager_.getMapWriteAccess(kMergedMapKey);
-        LOG(ERROR) << "first robot baseframe received write access";
+        LOG(WARNING) << "first robot baseframe received write access";
         vi_map::MissionIdList mission_ids;
         map->getAllMissionIds(&mission_ids);
         if (mission_ids.size() == 1u) {
@@ -1222,7 +1222,7 @@ bool MaplabServerNode::appendAvailableSubmaps() {
               << "The first submap does not have exactly one mission, but "
               << mission_ids.size() << "! Something went wrong!";
         }
-        LOG(ERROR) << "first robot baseframe unlocking write access";
+        LOG(WARNING) << "first robot baseframe unlocking write access";
       }
 
       found_new_submaps = true;
@@ -1370,10 +1370,10 @@ void MaplabServerNode::printAndPublishServerStatus() {
 
 void MaplabServerNode::updateRobotInfoBasedOnSubmap(
     const SubmapProcess& submap_process) {
-  LOG(ERROR) << "updateRobotInfoBasedOnSubmap waiting for read access";
+  LOG(WARNING) << "updateRobotInfoBasedOnSubmap waiting for read access";
   vi_map::VIMapManager::MapReadAccess map =
       map_manager_.getMapReadAccess(submap_process.map_key);
-  LOG(ERROR) << "updateRobotInfoBasedOnSubmap received read access";
+  LOG(WARNING) << "updateRobotInfoBasedOnSubmap received read access";
 
   vi_map::MissionIdList mission_ids;
   map->getAllMissionIds(&mission_ids);
@@ -1439,15 +1439,15 @@ void MaplabServerNode::updateRobotInfoBasedOnSubmap(
                << "'" << submap_process.path << "' contains "
                << mission_ids.size() << " missions, but should contain one!";
   }
-  LOG(ERROR) << "updateRobotInfoBasedOnSubmap unlocking read access";
+  LOG(WARNING) << "updateRobotInfoBasedOnSubmap unlocking read access";
 }
 
 void MaplabServerNode::runSubmapProcessing(
     const SubmapProcess& submap_process) {
-  LOG(ERROR) << "runSubmapProcessing waiting for write access";
+  LOG(WARNING) << "runSubmapProcessing waiting for write access";
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager_.getMapWriteAccess(submap_process.map_key);
-  LOG(ERROR) << "runSubmapProcessing received write access";
+  LOG(WARNING) << "runSubmapProcessing received write access";
   vi_map::MissionIdList missions_to_process;
   map->getAllMissionIds(&missions_to_process);
   CHECK_EQ(missions_to_process.size(), 1u);
@@ -1585,27 +1585,27 @@ void MaplabServerNode::runSubmapProcessing(
     std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
     running_submap_process_.erase(submap_process.map_hash);
   }
-  LOG(ERROR) << "runSubmapProcessing unlocking write access";
+  LOG(WARNING) << "runSubmapProcessing unlocking write access";
 }
 
 void MaplabServerNode::registerStatusCallback(
     std::function<void(const std::string&)> callback) {
   CHECK(callback);
-  LOG(ERROR) << "registerStatusCallback waiting for lock";
+  LOG(WARNING) << "registerStatusCallback waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "registerStatusCallback received lock";
+  LOG(WARNING) << "registerStatusCallback received lock";
   status_publisher_callback_ = callback;
-  LOG(ERROR) << "registerStatusCallback unlocking";
+  LOG(WARNING) << "registerStatusCallback unlocking";
 }
 
 void MaplabServerNode::publishDenseMap() {
   if (!map_manager_.hasMap(kMergedMapKey)) {
     return;
   }
-  LOG(ERROR) << "publishDenseMap waiting for read access";
+  LOG(WARNING) << "publishDenseMap waiting for read access";
   vi_map::VIMapManager::MapReadAccess map =
       map_manager_.getMapReadAccess(kMergedMapKey);
-  LOG(ERROR) << "publishDenseMap received read access";
+  LOG(WARNING) << "publishDenseMap received read access";
   std::unordered_map<std::string, vi_map::MissionIdList>
       robot_to_mission_id_map;
   {
@@ -1620,15 +1620,15 @@ void MaplabServerNode::publishDenseMap() {
       static_cast<backend::ResourceType>(
           FLAGS_maplab_server_dense_map_resource_type),
       robot_to_mission_id_map, *map);
-  LOG(ERROR) << "publishDenseMap unlocking read access";
+  LOG(WARNING) << "publishDenseMap unlocking read access";
 }
 
 bool MaplabServerNode::deleteMission(
     const std::string& partial_mission_id_string, std::string* status_message) {
   CHECK_NOTNULL(status_message);
-  LOG(ERROR) << "deleteMission waiting for lock";
+  LOG(WARNING) << "deleteMission waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "deleteMission received lock";
+  LOG(WARNING) << "deleteMission received lock";
   std::stringstream ss;
 
   const uint32_t kMinMissionIdHashLength = 4u;
@@ -1641,7 +1641,7 @@ bool MaplabServerNode::deleteMission(
        << " is smaller than 4)";
     *status_message = ss.str();
     LOG(ERROR) << "[MaplabServerNode] " << *status_message;
-    LOG(ERROR) << "deleteMission unlocking";
+    LOG(WARNING) << "deleteMission unlocking";
     return false;
   }
 
@@ -1667,7 +1667,7 @@ bool MaplabServerNode::deleteMission(
        << "('" << partial_mission_id_string << "')";
     *status_message = ss.str();
     LOG(ERROR) << "[MaplabServerNode] " << *status_message;
-    LOG(ERROR) << "deleteMission unlocking";
+    LOG(WARNING) << "deleteMission unlocking";
     return false;
   }
 
@@ -1677,7 +1677,7 @@ bool MaplabServerNode::deleteMission(
        << "'). Try providing the full hash.";
     *status_message = ss.str();
     LOG(ERROR) << "[MaplabServerNode] " << *status_message;
-    LOG(ERROR) << "deleteMission unlocking";
+    LOG(WARNING) << "deleteMission unlocking";
     return false;
   }
   CHECK_EQ(num_matching_missions, 1u);
@@ -1693,18 +1693,18 @@ bool MaplabServerNode::deleteMission(
     ss << "Will delete and blacklist mission " << mission_to_delete.hexString();
     *status_message = ss.str();
     LOG(INFO) << "[MaplabServerNode] " << *status_message;
-    LOG(ERROR) << "deleteMission unlocking";
+    LOG(WARNING) << "deleteMission unlocking";
     return true;
   }
-  LOG(ERROR) << "deleteMission unlocking";
+  LOG(WARNING) << "deleteMission unlocking";
 }
 
 bool MaplabServerNode::deleteAllRobotMissions(
     const std::string& robot_name, std::string* status_message) {
   CHECK_NOTNULL(status_message);
-  LOG(ERROR) << "deleteAllRobotMissions waiting for lock";
+  LOG(WARNING) << "deleteAllRobotMissions waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "deleteAllRobotMissions received lock";
+  LOG(WARNING) << "deleteAllRobotMissions received lock";
   std::stringstream ss;
 
   if (robot_name.empty()) {
@@ -1712,7 +1712,7 @@ bool MaplabServerNode::deleteAllRobotMissions(
        << "them!";
     *status_message = ss.str();
     LOG(ERROR) << "[MaplabServerNode] " << *status_message;
-    LOG(ERROR) << "deleteAllRobotMissions unlocking";
+    LOG(WARNING) << "deleteAllRobotMissions unlocking";
     return false;
   }
 
@@ -1735,7 +1735,7 @@ bool MaplabServerNode::deleteAllRobotMissions(
        << "('" << robot_name << "')";
     *status_message = ss.str();
     LOG(ERROR) << "[MaplabServerNode] " << *status_message;
-    LOG(ERROR) << "deleteAllRobotMissions unlocking";
+    LOG(WARNING) << "deleteAllRobotMissions unlocking";
     return false;
   }
 
@@ -1752,10 +1752,10 @@ bool MaplabServerNode::deleteAllRobotMissions(
     }
     *status_message = ss.str();
     LOG(INFO) << "[MaplabServerNode] " << *status_message;
-    LOG(ERROR) << "deleteAllRobotMissions unlocking";
+    LOG(WARNING) << "deleteAllRobotMissions unlocking";
     return true;
   }
-  LOG(ERROR) << "deleteAllRobotMissions unlocking";
+  LOG(WARNING) << "deleteAllRobotMissions unlocking";
 }
 
 bool MaplabServerNode::deleteBlacklistedMissions() {
@@ -1764,10 +1764,10 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
   }
   uint32_t num_missions_in_merged_map_after_deletion;
   {
-    LOG(ERROR) << "deleteBlacklistedMissions waiting for write access";
+    LOG(WARNING) << "deleteBlacklistedMissions waiting for write access";
     vi_map::VIMapManager::MapWriteAccess merged_map =
         map_manager_.getMapWriteAccess(kMergedMapKey);
-    LOG(ERROR) << "deleteBlacklistedMissions received write access";
+    LOG(WARNING) << "deleteBlacklistedMissions received write access";
     // Make copy of blacklisted missions to avoid repeatedly locking a
     // potentially changing blacklist.
     std::unordered_map<vi_map::MissionId, std::string>
@@ -1776,7 +1776,7 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
       std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
       if (blacklisted_missions_.empty()) {
         // Nothing todo here.
-        LOG(ERROR) << "deleteBlacklistedMissions unlocking write access";
+        LOG(WARNING) << "deleteBlacklistedMissions unlocking write access";
         return true;
       }
       blacklisted_missions_copy = blacklisted_missions_;
@@ -1861,10 +1861,10 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
     map_manager_.deleteMap(kMergedMapKey);
 
     // Return false to reset the 'received_first_submap' variable.
-    LOG(ERROR) << "deleteBlacklistedMissions unlocking write access";
+    LOG(WARNING) << "deleteBlacklistedMissions unlocking write access";
     return false;
   }
-  LOG(ERROR) << "deleteBlacklistedMissions unlocking write access";
+  LOG(WARNING) << "deleteBlacklistedMissions unlocking write access";
   return true;
 }
 
@@ -1872,9 +1872,9 @@ bool MaplabServerNode::getDenseMapInRange(
     const backend::ResourceType resource_type, const Eigen::Vector3d& center_G,
     const double radius_m, resources::PointCloud* point_cloud_G) {
   CHECK_NOTNULL(point_cloud_G);
-  LOG(ERROR) << "getDenseMapInRange waiting for lock";
+  LOG(WARNING) << "getDenseMapInRange waiting for lock";
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(ERROR) << "deleteAllRobotMissions received lock";
+  LOG(WARNING) << "deleteAllRobotMissions received lock";
   depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
       [&point_cloud_G](
           const aslam::Transformation& T_G_S,
@@ -1889,10 +1889,10 @@ bool MaplabServerNode::getDenseMapInRange(
           const aslam::Transformation& T_G_S) -> bool {
     return (T_G_S.getPosition() - center_G).norm() < radius_m;
   };
-  LOG(ERROR) << "getDenseMapInRange waiting for read access";
+  LOG(WARNING) << "getDenseMapInRange waiting for read access";
   vi_map::VIMapManager::MapReadAccess map =
       map_manager_.getMapReadAccess(kMergedMapKey);
-  LOG(ERROR) << "getDenseMapInRange received read access";
+  LOG(WARNING) << "getDenseMapInRange received read access";
   vi_map::MissionIdList mission_ids;
   map->getAllMissionIds(&mission_ids);
 
@@ -1900,8 +1900,8 @@ bool MaplabServerNode::getDenseMapInRange(
       mission_ids, resource_type,
       false /*use_undistorted_camera_for_depth_maps*/, *map,
       integration_function, get_resources_in_radius);
-  LOG(ERROR) << "getDenseMapInRange unlocking read access";
-  LOG(ERROR) << "getDenseMapInRange unlocking";
+  LOG(WARNING) << "getDenseMapInRange unlocking read access";
+  LOG(WARNING) << "getDenseMapInRange unlocking";
   return true;
 }
 
