@@ -31,9 +31,9 @@ namespace internal {
 
 void serializeDescriptors(
     const aslam::VisualFrame::DescriptorsT& descriptors,
-    aslam::proto::VisualFrame* proto);
+    std::string* descriptors_string);
 void deserializeDescriptors(
-    const aslam::proto::VisualFrame& proto,
+    const std::string& descriptor_raw, const uint32_t descriptor_size,
     aslam::VisualFrame::DescriptorsT* descriptors);
 
 }  // namespace internal
