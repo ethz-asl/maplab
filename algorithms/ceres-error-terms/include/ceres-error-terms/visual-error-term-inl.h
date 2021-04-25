@@ -183,7 +183,7 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
 
     // These Jacobians will be used in all the cases.
     J_p_C_fi_wrt_p_C_I = Eigen::Matrix3d::Identity();
-    J_p_C_fi_wrt_q_C_I = common::skew(p_C_fi);
+    J_p_C_fi_wrt_q_C_I = common::skew(R_C_I * p_I_fi);
 
     if (error_term_type_ == visual::VisualErrorType::kGlobal) {
       // The following commented expressions are evaluated in an optimized way
