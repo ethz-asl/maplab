@@ -1885,14 +1885,15 @@ bool MaplabServerNode::loadRobotMissionsInfo() {
   for (size_t idx = 0u; idx < num_robot_mission_infos; ++idx) {
     const maplab_server_node::proto::RobotMissionInfo&
         robot_mission_info_proto = server_info_proto.robot_mission_infos(idx);
-    RobotMissionInformation robot_mission_info(robot_mission_info_proto);
+    const std::string& robot_name = robot_mission_info_proto.robot_name();
+    robot_to_mission_id_map_.emplace(robot_name, robot_mission_info_proto);
+    const RobotMissionInformation& robot_mission_info =
+        robot_to_mission_id_map_[robot_name];
     for (auto it = robot_mission_info.mission_ids_to_submap_keys.begin();
          it != robot_mission_info.mission_ids_to_submap_keys.end(); it++) {
       mission_id_to_robot_map_[it->first] = robot_mission_info.robot_name;
       total_num_merged_submaps_ += it->second.size();
     }
-    robot_to_mission_id_map_[robot_mission_info.robot_name] =
-        robot_mission_info;
   }
   optimization_trust_region_radius_ =
       server_info_proto.last_optimization_trust_region_radius();
@@ -1905,16 +1906,19 @@ MaplabServerNode::RobotMissionInformation::RobotMissionInformation(
         robot_mission_information_proto) {
   robot_name = robot_mission_information_proto.robot_name();
   CHECK(!robot_name.empty());
+  size_t total_submaps = 0u;
   const size_t num_missions =
       static_cast<size_t>(robot_mission_information_proto.mission_infos_size());
   for (size_t idx = 0u; idx < num_missions; ++idx) {
     const maplab_server_node::proto::MissionInfo& mission_info_proto =
         robot_mission_information_proto.mission_infos(idx);
     const vi_map::MissionId mission_id(mission_info_proto.mission_id());
+    CHECK(mission_id.isValid());
     mission_ids_with_baseframe_status.push_back(
         std::make_pair(mission_id, mission_info_proto.baseframe_status()));
     const size_t num_submaps =
         static_cast<size_t>(mission_info_proto.included_submap_keys_size());
+    total_submaps += num_submaps;
     for (size_t submap_idx = 0u; submap_idx < num_submaps; ++submap_idx) {
       std::vector<std::string>& submap_keys =
           mission_ids_to_submap_keys[mission_id];
@@ -1927,6 +1931,7 @@ MaplabServerNode::RobotMissionInformation::RobotMissionInformation(
   const size_t num_t_g_m =
       robot_mission_information_proto.t_g_m_submaps_input_size();
   CHECK_EQ(num_t_m_b, num_t_g_m);
+  CHECK_EQ(num_t_m_b, total_submaps);
   for (size_t idx = 0u; idx < num_t_m_b; ++idx) {
     const maplab_server_node::proto::StampedTransformation stamped_T_M_B =
         robot_mission_information_proto.t_m_b_submaps_input(idx);
