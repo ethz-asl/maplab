@@ -139,6 +139,8 @@ class MaplabServerNode final {
 
   bool saveRobotMissionsInfo(const backend::SaveConfig& config);
 
+  bool loadRobotMissionsInfo();
+
   struct RobotMissionInformation {
     explicit RobotMissionInformation(
         const maplab_server_node::proto::RobotMissionInfo&

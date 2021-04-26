@@ -164,6 +164,7 @@ void MaplabServerNode::start() {
 
   if (!initial_map_path_.empty()) {
     CHECK(map_manager_.loadMapFromFolder(initial_map_path_, kMergedMapKey));
+    CHECK(loadRobotMissionsInfo());
   }
 
   LOG(INFO) << "[MaplabServerNode] launching MapMerging thread...";
@@ -1809,21 +1810,31 @@ bool MaplabServerNode::getDenseMapInRange(
 bool MaplabServerNode::saveRobotMissionsInfo(
     const backend::SaveConfig& config) {
   CHECK(!FLAGS_maplab_server_merged_map_folder.empty());
-  std::string file_path = common::concatenateFolderAndFileName(
+
+  // Check if path is the name of an already existing directory or file.
+  if (common::fileExists(FLAGS_maplab_server_merged_map_folder) ||
+      (!config.overwrite_existing_files &&
+       common::pathExists(FLAGS_maplab_server_merged_map_folder))) {
+    LOG(ERROR) << "Cannot save map because file already exists.";
+    return false;
+  }
+
+  if (!common::createPath(FLAGS_maplab_server_merged_map_folder)) {
+    LOG(ERROR) << "Could not create path to RobotMissionsInfo file!";
+    return false;
+  }
+
+  const std::string file_path = common::concatenateFolderAndFileName(
       FLAGS_maplab_server_merged_map_folder, kRobotMissionsInfoFileName);
-  //
-  // // Check if path is the name of an already existing directory or file.
-  // if (common::fileExists(complete_folder_path) &&
-  //     (!config.overwrite_existing_files &&
-  //      common::pathExists(complete_folder_path))) {
-  //   LOG(ERROR) << "Cannot save map because file already exists.";
-  //   return false;
-  // }
-  //
-  // if (!common::createPath(complete_folder_path)) {
-  //   LOG(ERROR) << "Could not create path to file!";
-  //   return false;
-  // }
+  if (!config.overwrite_existing_files) {
+    // Check that no file that should be written already exists.
+    if (common::pathExists(file_path) || common::fileExists(file_path)) {
+      LOG(ERROR) << "RobotMissionsInfo can't be saved because a file would be"
+                    "overwritten.";
+      return false;
+    }
+  }
+
   constexpr bool kIsTextFormat = true;
   maplab_server_node::proto::MaplabServerNodeInfo server_info_proto;
 
@@ -1840,6 +1851,86 @@ bool MaplabServerNode::saveRobotMissionsInfo(
       FLAGS_maplab_server_merged_map_folder, kRobotMissionsInfoFileName,
       server_info_proto, kIsTextFormat);
   return true;
+}
+
+bool MaplabServerNode::loadRobotMissionsInfo() {
+  CHECK(!initial_map_path_.empty());
+  const std::string file_path = common::concatenateFolderAndFileName(
+      initial_map_path_, kRobotMissionsInfoFileName);
+  if (!common::fileExists(file_path)) {
+    LOG(ERROR) << "RobotMissionsInfo under \"" << file_path
+               << "\" does not exist!";
+    return false;
+  }
+  constexpr bool kIsTextFormat = true;
+  maplab_server_node::proto::MaplabServerNodeInfo server_info_proto;
+  if (!common::proto_serialization_helper::parseProtoFromFile(
+          initial_map_path_, kRobotMissionsInfoFileName, &server_info_proto,
+          kIsTextFormat)) {
+    LOG(ERROR) << "RobotMissionsInfo under \"" << file_path
+               << "\" could not be parsed!";
+    return false;
+  }
+
+  const size_t num_robot_mission_infos =
+      static_cast<size_t>(server_info_proto.robot_mission_infos_size());
+  std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+  for (size_t idx = 0u; idx < num_robot_mission_infos; ++idx) {
+    const maplab_server_node::proto::RobotMissionInfo&
+        robot_mission_info_proto = server_info_proto.robot_mission_infos(idx);
+    RobotMissionInformation robot_mission_info(robot_mission_info_proto);
+    robot_to_mission_id_map_[robot_mission_info.robot_name] =
+        robot_mission_info;
+    for (auto it = robot_mission_info.mission_ids_to_submap_keys.begin();
+         it != robot_mission_info.mission_ids_to_submap_keys.end(); it++) {
+      total_num_merged_submaps_ += it->second.size();
+    }
+  }
+
+  return true;
+}
+
+MaplabServerNode::RobotMissionInformation::RobotMissionInformation(
+    const maplab_server_node::proto::RobotMissionInfo&
+        robot_mission_information_proto) {
+  robot_name = robot_mission_information_proto.robot_name();
+  CHECK(!robot_name.empty());
+  const size_t num_missions =
+      static_cast<size_t>(robot_mission_information_proto.mission_infos_size());
+  for (size_t idx = 0u; idx < num_missions; ++idx) {
+    const maplab_server_node::proto::MissionInfo& mission_info_proto =
+        robot_mission_information_proto.mission_infos(idx);
+    const vi_map::MissionId mission_id(mission_info_proto.mission_id());
+    mission_ids_with_baseframe_status.push_back(
+        std::make_pair(mission_id, mission_info_proto.baseframe_status()));
+    const size_t num_submaps =
+        static_cast<size_t>(mission_info_proto.included_submap_keys_size());
+    for (size_t submap_idx = 0u; submap_idx < num_submaps; ++submap_idx) {
+      std::vector<std::string>& submap_keys =
+          mission_ids_to_submap_keys[mission_id];
+      submap_keys.push_back(
+          mission_info_proto.included_submap_keys(submap_idx));
+    }
+  }
+  const size_t num_t_m_b =
+      robot_mission_information_proto.t_m_b_submaps_input_size();
+  const size_t num_t_g_m =
+      robot_mission_information_proto.t_g_m_submaps_input_size();
+  CHECK_EQ(num_t_m_b, num_t_g_m);
+  for (size_t idx = 0u; idx < num_t_m_b; ++idx) {
+    const maplab_server_node::proto::StampedTransformation stamped_T_M_B =
+        robot_mission_information_proto.t_m_b_submaps_input(idx);
+    pose::Transformation& T_M_B =
+        T_M_B_submaps_input[stamped_T_M_B.timestamp_ns()];
+    common::eigen_proto::deserialize(stamped_T_M_B.t_a_b(), &T_M_B);
+  }
+  for (size_t idx = 0u; idx < num_t_g_m; ++idx) {
+    const maplab_server_node::proto::StampedTransformation stamped_T_G_M =
+        robot_mission_information_proto.t_g_m_submaps_input(idx);
+    pose::Transformation& T_G_M =
+        T_G_M_submaps_input[stamped_T_G_M.timestamp_ns()];
+    common::eigen_proto::deserialize(stamped_T_G_M.t_a_b(), &T_G_M);
+  }
 }
 
 bool MaplabServerNode::RobotMissionInformation::addSubmapKey(
@@ -1873,6 +1964,7 @@ void MaplabServerNode::RobotMissionInformation::serialize(
     mission_info->set_baseframe_status(it->second);
     auto jt = mission_ids_to_submap_keys.find(mission_id);
     CHECK(jt != mission_ids_to_submap_keys.end());
+    // CHECK(jt->second.size() == T_M_B_submaps_input.size());
     for (auto submap_key : jt->second) {
       mission_info->add_included_submap_keys(submap_key);
     }
