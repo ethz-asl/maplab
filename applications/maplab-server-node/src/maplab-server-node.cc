@@ -410,8 +410,6 @@ bool MaplabServerNode::loadAndProcessSubmap(
           return true;
         }
 
-        updateRobotInfoBasedOnSubmap(submap_process);
-
         runSubmapProcessing(submap_process);
 
         submap_process.is_processed = true;
@@ -1126,6 +1124,7 @@ bool MaplabServerNode::appendAvailableSubmaps() {
       VLOG(3) << "[MaplabServerNode] MapMerging - first submap is "
                  "used to initalize merged map with key '"
               << kMergedMapKey << "'.";
+      updateRobotInfoBasedOnSubmap(submap_process);
       map_manager_.renameMap(submap_process.map_key, kMergedMapKey);
 
       // If enabled, set first mission baseframe to known.
@@ -1156,6 +1155,7 @@ bool MaplabServerNode::appendAvailableSubmaps() {
       CHECK(map_manager_.mergeSubmapIntoBaseMap(
           kMergedMapKey, submap_process.map_key));
 
+      updateRobotInfoBasedOnSubmap(submap_process);
       // Remove submap.
       map_manager_.deleteMap(submap_process.map_key);
     }
