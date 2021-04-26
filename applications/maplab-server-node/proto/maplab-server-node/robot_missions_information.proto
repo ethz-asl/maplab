@@ -3,6 +3,7 @@ import "aslam/common/id.proto";
 
 message MaplabServerNodeInfo {
   repeated RobotMissionInfo robot_mission_infos = 1;
+  required double last_optimization_trust_region_radius = 2;
 }
 
 message RobotMissionInfo {

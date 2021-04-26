@@ -25,7 +25,7 @@
 #include "maplab-server-node/maplab-server-node.h"
 
 DEFINE_int32(
-    maplab_server_map_update_topic_queue_size, 100, "Size of ROS subscriber.");
+    maplab_server_map_update_topic_queue_size, 1000, "Size of ROS subscriber.");
 
 DEFINE_string(
     maplab_server_map_update_topic, "map_update_notification",

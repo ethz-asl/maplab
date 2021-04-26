@@ -197,6 +197,7 @@ class MaplabServerNode final {
   // requested.
   std::atomic<bool> shut_down_requested_;
 
+  std::atomic<bool> received_first_submap_;
   // Submap processing thread status variables.
   // Accessed by submap and status threads.
   std::mutex running_submap_process_mutex_;

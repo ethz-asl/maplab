@@ -125,6 +125,10 @@ DEFINE_string(
     maplab_server_initial_map_path, "",
     "If not empty, the server will be initialized with the map at this path.");
 
+DEFINE_bool(
+    maplab_server_clear_at_status_print, true,
+    "If true, the terminal output will be cleared at every status print.");
+
 namespace maplab {
 MaplabServerNode::MaplabServerNode()
     : submap_loading_thread_pool_(
@@ -135,6 +139,7 @@ MaplabServerNode::MaplabServerNode()
       running_merging_process_(""),
       duration_last_merging_loop_s_(0.0),
       optimization_trust_region_radius_(FLAGS_ba_initial_trust_region_radius),
+      received_first_submap_(false),
       total_num_merged_submaps_(0u),
       time_of_last_map_backup_s_(0.0),
       is_running_(false),
@@ -165,24 +170,24 @@ void MaplabServerNode::start() {
   if (!initial_map_path_.empty()) {
     CHECK(map_manager_.loadMapFromFolder(initial_map_path_, kMergedMapKey));
     CHECK(loadRobotMissionsInfo());
+    received_first_submap_ = true;
   }
 
   LOG(INFO) << "[MaplabServerNode] launching MapMerging thread...";
 
   submap_merging_thread_ = std::thread([this]() {
     // Loop until shutdown is requested.
-    bool received_first_submap = false;
     while (!shut_down_requested_.load()) {
       timing::TimerImpl map_merging_timer("map-merging");
 
       // Delete blacklisted submap mission, if no missions remain in the merged
       // map, it will return false and therefore reset the
       // 'received_first_submap' variable.
-      received_first_submap &= deleteBlacklistedMissions();
+      received_first_submap_ =
+          received_first_submap_.load() & deleteBlacklistedMissions();
 
       std::vector<std::string> all_map_keys;
       map_manager_.getAllMapKeys(&all_map_keys);
-
       // List all loaded maps.
       if (VLOG_IS_ON(1) && !all_map_keys.empty()) {
         std::stringstream ss;
@@ -195,7 +200,7 @@ void MaplabServerNode::start() {
         VLOG(1) << ss.str();
       }
 
-      if (!received_first_submap && all_map_keys.empty()) {
+      if (!received_first_submap_.load() && all_map_keys.empty()) {
         VLOG(1) << "[MaplabServerNode] MapMerging - waiting for first "
                    "submap to be loaded...";
 
@@ -208,9 +213,10 @@ void MaplabServerNode::start() {
 
       merging_thread_busy_ = true;
 
-      received_first_submap |= appendAvailableSubmaps();
+      received_first_submap_ =
+          received_first_submap_.load() | appendAvailableSubmaps();
 
-      if (received_first_submap) {
+      if (received_first_submap_.load()) {
         VLOG(3) << "[MaplabServerNode] MapMerging - processing global map "
                 << "with key '" << kMergedMapKey << "'";
 
@@ -327,7 +333,7 @@ bool MaplabServerNode::loadAndProcessSubmap(
   std::lock_guard<std::mutex> lock(mutex_);
 
   if (shut_down_requested_.load()) {
-    LOG(WARNING) << "[MaplabServerNode] shutdown was requrested, will ignore "
+    LOG(WARNING) << "[MaplabServerNode] shutdown was requested, will ignore "
                  << " SubmapProcessing thread for submap at '" << submap_path
                  << "'.";
     return false;
@@ -699,7 +705,6 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
       const bool baseframe_is_known =
           map->getMissionBaseFrameForMission(mission_id).is_T_G_M_known();
       const std::string& robot_name = mission_id_to_robot_map_[mission_id];
-
       bool found = false;
       if (!robot_name.empty()) {
         RobotMissionInformation& robot_info =
@@ -1187,7 +1192,8 @@ bool MaplabServerNode::appendAvailableSubmaps() {
 void MaplabServerNode::printAndPublishServerStatus() {
   std::stringstream ss;
 
-  ss << "\033c";
+  if (FLAGS_maplab_server_clear_at_status_print)
+    ss << "\033c";
   ss << "\n"
      << "==================================================================\n";
   ss << "=                   MaplabServerNode Status                      =\n";
@@ -1846,7 +1852,8 @@ bool MaplabServerNode::saveRobotMissionsInfo(
         server_info_proto.add_robot_mission_infos();
     it->second.serialize(robot_mission_information_proto);
   }
-
+  server_info_proto.set_last_optimization_trust_region_radius(
+      optimization_trust_region_radius_.load());
   common::proto_serialization_helper::serializeProtoToFile(
       FLAGS_maplab_server_merged_map_folder, kRobotMissionsInfoFileName,
       server_info_proto, kIsTextFormat);
@@ -1879,13 +1886,16 @@ bool MaplabServerNode::loadRobotMissionsInfo() {
     const maplab_server_node::proto::RobotMissionInfo&
         robot_mission_info_proto = server_info_proto.robot_mission_infos(idx);
     RobotMissionInformation robot_mission_info(robot_mission_info_proto);
-    robot_to_mission_id_map_[robot_mission_info.robot_name] =
-        robot_mission_info;
     for (auto it = robot_mission_info.mission_ids_to_submap_keys.begin();
          it != robot_mission_info.mission_ids_to_submap_keys.end(); it++) {
+      mission_id_to_robot_map_[it->first] = robot_mission_info.robot_name;
       total_num_merged_submaps_ += it->second.size();
     }
+    robot_to_mission_id_map_[robot_mission_info.robot_name] =
+        robot_mission_info;
   }
+  optimization_trust_region_radius_ =
+      server_info_proto.last_optimization_trust_region_radius();
 
   return true;
 }
@@ -1964,7 +1974,7 @@ void MaplabServerNode::RobotMissionInformation::serialize(
     mission_info->set_baseframe_status(it->second);
     auto jt = mission_ids_to_submap_keys.find(mission_id);
     CHECK(jt != mission_ids_to_submap_keys.end());
-    // CHECK(jt->second.size() == T_M_B_submaps_input.size());
+    CHECK(jt->second.size() == T_M_B_submaps_input.size());
     for (auto submap_key : jt->second) {
       mission_info->add_included_submap_keys(submap_key);
     }
