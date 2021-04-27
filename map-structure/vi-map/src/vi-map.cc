@@ -2975,10 +2975,11 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
           // then we need to add it to the last vertex of the basemap.
           base_last_vertex.setObservedLandmarkId(
               frame_idx, observation_idx, submap_landmark_id);
+          const bool stored_by_first_submap_vertex =
+              storing_vertex_id_submap == first_submap_vertex_id;
           const pose_graph::VertexId& new_landmark_vertex_id =
-              (storing_vertex_id_submap == first_submap_vertex_id)
-                  ? last_base_vertex_id
-                  : storing_vertex_id_submap;
+              stored_by_first_submap_vertex ? last_base_vertex_id
+                                            : storing_vertex_id_submap;
           CHECK(!landmark_index.hasLandmark(submap_landmark_id));
           landmark_index.addLandmarkAndVertexReference(
               submap_landmark_id, new_landmark_vertex_id);
@@ -2986,7 +2987,7 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
           // If the first vertex of the submap stores the landmark we also add
           // it to the last vertex of the base map. Otherwise the landmark is
           // stored in another vertex that will be added later.
-          if (storing_vertex_id_submap == first_submap_vertex_id) {
+          if (stored_by_first_submap_vertex) {
             vi_map::Landmark submap_landmark =
                 submap_first_vertex.getLandmarks().getLandmark(
                     submap_landmark_id);
