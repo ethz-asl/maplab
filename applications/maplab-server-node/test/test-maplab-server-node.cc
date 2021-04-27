@@ -25,7 +25,7 @@ class MaplabServerNodeTest : public ::testing::Test {
   }
   uint32_t getTotalNumMergedSubmaps() {
     CHECK_NOTNULL(maplab_server_node_);
-    return maplab_server_node_->total_num_merged_submaps_.load();
+    return maplab_server_node_->getTotalNumMergedSubmaps();
   }
   MaplabServerNode* maplab_server_node_;
 
