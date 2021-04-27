@@ -21,6 +21,8 @@
 #include "maplab-server-node/robot_missions_information.pb.h"
 
 namespace maplab {
+class MaplabServerNodeTest;
+class MaplabServerRosNode;
 
 struct SubmapProcess {
   // Name of the agent
@@ -50,6 +52,9 @@ struct SubmapProcess {
 };
 
 class MaplabServerNode final {
+  friend MaplabServerNodeTest;  // Test.
+  friend MaplabServerRosNode;
+
  public:
   MaplabServerNode();
 
@@ -61,6 +66,10 @@ class MaplabServerNode final {
 
   bool loadAndProcessSubmap(
       const std::string& robot_name, const std::string& submap_path);
+
+  bool loadAndProcessMissingSubmaps(
+      const std::unordered_map<std::string, std::vector<std::string>>&
+          robot_to_submap_paths);
 
   // Save the map to disk.
   bool saveMap(const std::string& path);

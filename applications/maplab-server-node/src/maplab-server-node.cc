@@ -325,6 +325,47 @@ bool MaplabServerNode::isSubmapBlacklisted(const std::string& map_key) {
   return false;
 }
 
+bool MaplabServerNode::loadAndProcessMissingSubmaps(
+    const std::unordered_map<std::string, std::vector<std::string>>&
+        robot_to_submap_paths) {
+  // We have to compare which submaps are already included in the merged map
+  // and which ones have to be loaded.
+  for (auto it = robot_to_submap_paths.begin();
+       it != robot_to_submap_paths.end(); it++) {
+    const std::string& robot_name = it->first;
+    auto robot_mission_info = robot_to_mission_id_map_.find(robot_name);
+    // If the robot is present in the merged map, this means we have to load
+    // and process all submaps of this robot.
+    if (robot_mission_info == robot_to_mission_id_map_.end()) {
+      for (const std::string& submap_path : it->second) {
+        loadAndProcessSubmap(robot_name, submap_path);
+      }
+      // If the robot is already present in the merged map, we have to check
+      // which submaps are missing by comparing the submap keys.
+    } else {
+      for (const std::string& submap_path : it->second) {
+        const size_t map_hash = std::hash<std::string>{}(submap_path);
+        const std::string map_key = robot_name + "_" + std::to_string(map_hash);
+        for (auto mission_it =
+                 robot_mission_info->second.mission_ids_to_submap_keys.begin();
+             mission_it !=
+             robot_mission_info->second.mission_ids_to_submap_keys.end();
+             mission_it++) {
+          auto const& key_it = std::find(
+              mission_it->second.begin(), mission_it->second.end(), map_key);
+          // If the submap key is already included, continue. Otherwise load
+          // and process the new submap.
+          if (key_it != mission_it->second.end()) {
+            continue;
+          }
+          loadAndProcessSubmap(robot_name, submap_path);
+        }
+      }
+    }
+  }
+  return true;
+}
+
 bool MaplabServerNode::loadAndProcessSubmap(
     const std::string& robot_name, const std::string& submap_path) {
   CHECK(!submap_path.empty());

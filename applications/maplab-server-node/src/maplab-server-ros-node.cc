@@ -22,6 +22,11 @@
 #include <maplab_msgs/MapLookupResponse.h>
 #include <resources-common/point-cloud.h>
 
+#include <transfolder_msgs/ContinuePublishing.h>
+#include <transfolder_msgs/FileTransferStatus.h>
+#include <transfolder_msgs/GetAllSubfolders.h>
+#include <transfolder_msgs/StopPublishing.h>
+
 #include "maplab-server-node/maplab-server-node.h"
 
 DEFINE_int32(
@@ -29,6 +34,22 @@ DEFINE_int32(
 
 DEFINE_string(
     maplab_server_map_update_topic, "map_update_notification",
+    "Topic on which the map update notification message is received, it "
+    "contains the robot name and the map folder of the new map update.");
+
+DEFINE_string(
+    maplab_server_transfolder_stop_publishing_service, "stop_publishing",
+    "Topic on which the map update notification message is received, it "
+    "contains the robot name and the map folder of the new map update.");
+
+DEFINE_string(
+    maplab_server_transfolder_continue_publishing_service,
+    "continue_publishing",
+    "Topic on which the map update notification message is received, it "
+    "contains the robot name and the map folder of the new map update.");
+
+DEFINE_string(
+    maplab_server_transfolder_get_all_subfolders_service, "get_all_subfolders",
     "Topic on which the map update notification message is received, it "
     "contains the robot name and the map folder of the new map update.");
 
@@ -48,7 +69,33 @@ MaplabServerRosNode::MaplabServerRosNode(
   // === MAPLAB SERVER NODE ===
   LOG(INFO) << "[MaplabServerRosNode] Initializing MaplabServerNode...";
   maplab_server_node_.reset(new MaplabServerNode);
-
+  maplab_server_node_->start();
+  const bool server_initialized =
+      maplab_server_node_->total_num_merged_submaps_.load() > 0;
+  LOG(WARNING) << "initialized: " << server_initialized;
+  if (server_initialized) {
+    ros::ServiceClient stop_client =
+        nh_.serviceClient<transfolder_msgs::StopPublishing>(
+            FLAGS_maplab_server_transfolder_stop_publishing_service, true);
+    if (stop_client.waitForExistence(ros::Duration(1))) {
+      transfolder_msgs::StopPublishing stop_msg;
+      stop_client.call(stop_msg);
+    }
+    ros::ServiceClient get_all_subfolders_client =
+        nh_.serviceClient<transfolder_msgs::GetAllSubfolders>(
+            FLAGS_maplab_server_transfolder_get_all_subfolders_service, true);
+    if (get_all_subfolders_client.waitForExistence(ros::Duration(1))) {
+      transfolder_msgs::GetAllSubfolders subfolder_msg;
+      get_all_subfolders_client.call(subfolder_msg);
+      std::unordered_map<std::string, std::vector<std::string>>
+          robot_to_submap_paths;
+      for (auto const& subfolder_pair : subfolder_msg.response.subfolders) {
+        auto& robot_submaps = robot_to_submap_paths[subfolder_pair.key];
+        robot_submaps.push_back(subfolder_pair.value);
+      }
+      maplab_server_node_->loadAndProcessMissingSubmaps(robot_to_submap_paths);
+    }
+  }
   boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
       save_map_callback =
           boost::bind(&MaplabServerRosNode::saveMapCallback, this, _1, _2);
@@ -91,6 +138,16 @@ MaplabServerRosNode::MaplabServerRosNode(
   map_update_notification_sub_ = nh_.subscribe(
       FLAGS_maplab_server_map_update_topic,
       FLAGS_maplab_server_map_update_topic_queue_size, submap_loading_callback);
+
+  if (server_initialized) {
+    ros::ServiceClient continue_client =
+        nh_.serviceClient<transfolder_msgs::ContinuePublishing>(
+            FLAGS_maplab_server_transfolder_continue_publishing_service, true);
+    if (continue_client.waitForExistence(ros::Duration(1))) {
+      transfolder_msgs::ContinuePublishing continue_msg;
+      continue_client.call(continue_msg);
+    }
+  }
 
   T_G_curr_B_curr_pub_ =
       nh_.advertise<geometry_msgs::TransformStamped>("T_G_curr_B_curr", 1);
@@ -135,7 +192,6 @@ bool MaplabServerRosNode::start() {
   // Start the pipeline. The ROS spinner will handle SIGINT for us and abort
   // the application on CTRL+C.
   maplab_spinner_.start();
-  maplab_server_node_->start();
   return true;
 }
 
