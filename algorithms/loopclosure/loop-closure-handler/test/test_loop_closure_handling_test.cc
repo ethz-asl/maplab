@@ -299,14 +299,13 @@ void LoopClosureHandlerTest::addDuplicateLandmarksToQueryKeyframes() {
     }
   }
 
-  for (unsigned int j = kNumOfDuplicateLandmarks; j < kNumOfLandmarks; j++) {
+  for (unsigned int j = kNumOfDuplicateLandmarks; j < kNumOfLandmarks; ++j) {
     vi_map::Vertex& landmark_vertex =
         map_.getLandmarkStoreVertex(all_landmark_ids[j]);
     Eigen::Vector3d LM_p_fi =
         landmark_vertex.getLandmark_p_LM_fi(all_landmark_ids[j]);
     for (unsigned int i = kNumOfMapVertices; i < vertex_ids_.size(); ++i) {
       vi_map::Vertex& keypoint_vertex = map_.getVertex(vertex_ids_[i]);
-      int keypoint_idx =
           addKeypointToVertex(LM_p_fi, all_landmark_ids[j], &keypoint_vertex);
     }
   }
