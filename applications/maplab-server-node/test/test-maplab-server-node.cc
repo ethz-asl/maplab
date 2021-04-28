@@ -23,7 +23,7 @@ class MaplabServerNodeTest : public ::testing::Test {
     FLAGS_overwrite = true;
     FLAGS_ros_free = true;
   }
-  uint32_t getTotalNumMergedSubmaps() {
+  uint32_t getTotalNumMergedSubmaps() const {
     CHECK_NOTNULL(maplab_server_node_);
     return maplab_server_node_->getTotalNumMergedSubmaps();
   }
