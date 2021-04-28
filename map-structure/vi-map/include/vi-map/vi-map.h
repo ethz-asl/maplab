@@ -52,6 +52,7 @@
 DECLARE_bool(disable_consistency_check);
 
 class LoopClosureHandlerTest;
+class SubmapMergingTest;
 
 namespace vi_map {
 class VIMap;
@@ -85,6 +86,7 @@ typedef std::pair<MissionId, pose_graph::VertexIdList> MissionVertexIdPair;
 class VIMap : public backend::ResourceMap,
               public backend::MapInterface<vi_map::VIMap> {
   friend ::LoopClosureHandlerTest;       // Test.
+  friend ::SubmapMergingTest;            // Test.
   friend class MapConsistencyCheckTest;  // Test.
   friend class SixDofVIMapGenerator;     // Test.
   friend bool checkMapConsistency(const VIMap&);

@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <aslam/common/thread-pool.h>
@@ -48,7 +49,7 @@ struct SubmapProcess {
 
 class MaplabServerNode final {
  public:
-  explicit MaplabServerNode();
+  MaplabServerNode();
 
   ~MaplabServerNode();
 
@@ -106,6 +107,10 @@ class MaplabServerNode final {
           callback);
 
   void registerStatusCallback(std::function<void(const std::string&)> callback);
+
+  size_t getTotalNumMergedSubmaps() {
+    return total_num_merged_submaps_.load();
+  }
 
  protected:
   // Status thread functions:
