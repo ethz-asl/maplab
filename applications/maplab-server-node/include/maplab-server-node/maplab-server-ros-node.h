@@ -14,6 +14,7 @@
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 #include <std_srvs/Empty.h>
+#include <transfolder_msgs/RobotSubfoldersArray.h>
 
 #include "maplab-server-node/maplab-server-node.h"
 
@@ -30,7 +31,8 @@ class MaplabServerRosNode {
   // Start the app.
   bool start();
 
-  void submapLoadingCallback(const diagnostic_msgs::KeyValueConstPtr& msg);
+  void submapLoadingCallback(
+      const transfolder_msgs::RobotSubfoldersArrayConstPtr& msg);
 
   // Save current map.
   bool saveMap(const std::string& map_folder);

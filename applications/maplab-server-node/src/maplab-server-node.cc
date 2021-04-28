@@ -156,7 +156,7 @@ MaplabServerNode::~MaplabServerNode() {
   }
 }
 
-void MaplabServerNode::start() {
+void MaplabServerNode::start(const bool& load_previous_state) {
   std::lock_guard<std::mutex> lock(mutex_);
   LOG(INFO) << "[MaplabServerNode] Starting...";
 
@@ -167,10 +167,15 @@ void MaplabServerNode::start() {
     return;
   }
 
-  if (!initial_map_path_.empty()) {
-    CHECK(map_manager_.loadMapFromFolder(initial_map_path_, kMergedMapKey));
-    CHECK(loadRobotMissionsInfo());
-    received_first_submap_ = true;
+  if (load_previous_state) {
+    if (!initial_map_path_.empty()) {
+      CHECK(map_manager_.loadMapFromFolder(initial_map_path_, kMergedMapKey));
+      CHECK(loadRobotMissionsInfo());
+      received_first_submap_ = true;
+    } else {
+      LOG(ERROR) << "[MaplabServerNode] Cannot restore previous state since no"
+                    " initial map path was given.";
+    }
   }
 
   LOG(INFO) << "[MaplabServerNode] launching MapMerging thread...";
@@ -328,22 +333,35 @@ bool MaplabServerNode::isSubmapBlacklisted(const std::string& map_key) {
 bool MaplabServerNode::loadAndProcessMissingSubmaps(
     const std::unordered_map<std::string, std::vector<std::string>>&
         robot_to_submap_paths) {
+  std::lock_guard<std::mutex> lock(mutex_);
   // We have to compare which submaps are already included in the merged map
   // and which ones have to be loaded.
   for (auto it = robot_to_submap_paths.begin();
        it != robot_to_submap_paths.end(); it++) {
     const std::string& robot_name = it->first;
     auto robot_mission_info = robot_to_mission_id_map_.find(robot_name);
-    // If the robot is present in the merged map, this means we have to load
+    // If the robot is not present in the merged map, this means we have to load
     // and process all submaps of this robot.
     if (robot_mission_info == robot_to_mission_id_map_.end()) {
-      for (const std::string& submap_path : it->second) {
+      for (std::string submap_path : it->second) {
+        const size_t map_hash = std::hash<std::string>{}(submap_path);
+        const std::string map_key = robot_name + "_" + std::to_string(map_hash);
+        if (map_manager_.hasMap(map_key)) {
+          continue;
+        }
+        common::simplifyPath(&submap_path);
+        if (!common::pathExists(submap_path)) {
+          LOG(ERROR) << "[MaplabServer] Received map notification for robot '"
+                     << robot_name << "' and local map folder '" << submap_path
+                     << "', but the folder does not exist!";
+          continue;
+        }
         loadAndProcessSubmap(robot_name, submap_path);
       }
       // If the robot is already present in the merged map, we have to check
       // which submaps are missing by comparing the submap keys.
     } else {
-      for (const std::string& submap_path : it->second) {
+      for (std::string submap_path : it->second) {
         const size_t map_hash = std::hash<std::string>{}(submap_path);
         const std::string map_key = robot_name + "_" + std::to_string(map_hash);
         for (auto mission_it =
@@ -355,7 +373,15 @@ bool MaplabServerNode::loadAndProcessMissingSubmaps(
               mission_it->second.begin(), mission_it->second.end(), map_key);
           // If the submap key is already included, continue. Otherwise load
           // and process the new submap.
-          if (key_it != mission_it->second.end()) {
+          if (key_it != mission_it->second.end() ||
+              map_manager_.hasMap(map_key)) {
+            continue;
+          }
+          common::simplifyPath(&submap_path);
+          if (!common::pathExists(submap_path)) {
+            LOG(ERROR) << "[MaplabServer] Received map notification for robot '"
+                       << robot_name << "' and local map folder '"
+                       << submap_path << "', but the folder does not exist!";
             continue;
           }
           loadAndProcessSubmap(robot_name, submap_path);
@@ -370,8 +396,6 @@ bool MaplabServerNode::loadAndProcessSubmap(
     const std::string& robot_name, const std::string& submap_path) {
   CHECK(!submap_path.empty());
   CHECK(!robot_name.empty());
-
-  std::lock_guard<std::mutex> lock(mutex_);
 
   if (shut_down_requested_.load()) {
     LOG(WARNING) << "[MaplabServerNode] shutdown was requested, will ignore "

@@ -21,8 +21,6 @@
 #include "maplab-server-node/robot_missions_information.pb.h"
 
 namespace maplab {
-class MaplabServerNodeTest;
-class MaplabServerRosNode;
 
 struct SubmapProcess {
   // Name of the agent
@@ -52,16 +50,13 @@ struct SubmapProcess {
 };
 
 class MaplabServerNode final {
-  friend MaplabServerNodeTest;  // Test.
-  friend MaplabServerRosNode;
-
  public:
   MaplabServerNode();
 
   ~MaplabServerNode();
 
   // Once the node is started, the configuration cannot be changed anymore.
-  void start();
+  void start(const bool& load_previous_state);
   void shutdown();
 
   bool loadAndProcessSubmap(
