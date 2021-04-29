@@ -114,6 +114,10 @@ class MaplabServerNode final {
 
   void registerStatusCallback(std::function<void(const std::string&)> callback);
 
+  size_t getTotalNumMergedSubmaps() {
+    return total_num_merged_submaps_.load();
+  }
+
  protected:
   // Status thread functions:
   void printAndPublishServerStatus();
