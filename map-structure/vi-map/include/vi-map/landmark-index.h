@@ -13,6 +13,7 @@
 #include <vi-map/unique-id.h>
 
 class LoopClosureHandlerTest;
+class SubmapMergingTest;
 
 namespace vi_map {
 class VIMap;
@@ -24,6 +25,7 @@ typedef std::unordered_map<LandmarkId, pose_graph::VertexId>
 class LandmarkIndex {
   friend VIMap;
   friend ::LoopClosureHandlerTest;                   // Test.
+  friend ::SubmapMergingTest;                        // Test.
   friend class MapConsistencyCheckTest;              // Test.
   friend class SixDofVIMapGenerator;                 // Test.
 
