@@ -334,36 +334,35 @@ bool MaplabServerNode::loadAndProcessMissingSubmaps(
     const std::unordered_map<std::string, std::vector<std::string>>&
         robot_to_submap_paths) {
   std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<std::mutex> submap_queue_lock(submap_processing_queue_mutex_);
+  std::lock_guard<std::mutex> robot_lock(robot_to_mission_id_map_mutex_);
   // We have to compare which submaps are already included in the merged map
   // and which ones have to be loaded.
   for (auto it = robot_to_submap_paths.begin();
        it != robot_to_submap_paths.end(); it++) {
     const std::string& robot_name = it->first;
-    auto robot_mission_info = robot_to_mission_id_map_.find(robot_name);
-    // If the robot is not present in the merged map, this means we have to load
-    // and process all submaps of this robot.
-    if (robot_mission_info == robot_to_mission_id_map_.end()) {
-      for (std::string submap_path : it->second) {
-        const size_t map_hash = std::hash<std::string>{}(submap_path);
-        const std::string map_key = robot_name + "_" + std::to_string(map_hash);
-        if (map_manager_.hasMap(map_key)) {
-          continue;
+    for (std::string submap_path : it->second) {
+      const size_t map_hash = std::hash<std::string>{}(submap_path);
+      const std::string map_key = robot_name + "_" + std::to_string(map_hash);
+
+      // If the submap is already queued for processing we continue.
+      bool already_included_in_submap_queue = false;
+      for (auto queue_it = submap_processing_queue_.cbegin();
+           queue_it != submap_processing_queue_.cend(); ++queue_it) {
+        if (queue_it->map_key == map_key) {
+          already_included_in_submap_queue = true;
+          break;
         }
-        common::simplifyPath(&submap_path);
-        if (!common::pathExists(submap_path)) {
-          LOG(ERROR) << "[MaplabServer] Received map notification for robot '"
-                     << robot_name << "' and local map folder '" << submap_path
-                     << "', but the folder does not exist!";
-          continue;
-        }
-        loadAndProcessSubmap(robot_name, submap_path);
       }
-      // If the robot is already present in the merged map, we have to check
-      // which submaps are missing by comparing the submap keys.
-    } else {
-      for (std::string submap_path : it->second) {
-        const size_t map_hash = std::hash<std::string>{}(submap_path);
-        const std::string map_key = robot_name + "_" + std::to_string(map_hash);
+      if (already_included_in_submap_queue) {
+        continue;
+      }
+
+      bool already_included_in_map = false;
+      auto robot_mission_info = robot_to_mission_id_map_.find(robot_name);
+      // If the robot is not present in the merged map, this means we have to
+      // load and process all submaps of this robot.
+      if (robot_mission_info != robot_to_mission_id_map_.end()) {
         for (auto mission_it =
                  robot_mission_info->second.mission_ids_to_submap_keys.begin();
              mission_it !=
@@ -373,20 +372,25 @@ bool MaplabServerNode::loadAndProcessMissingSubmaps(
               mission_it->second.begin(), mission_it->second.end(), map_key);
           // If the submap key is already included, continue. Otherwise load
           // and process the new submap.
-          if (key_it != mission_it->second.end() ||
-              map_manager_.hasMap(map_key)) {
-            continue;
+          if (key_it != mission_it->second.end()) {
+            already_included_in_map = true;
+            break;
           }
-          common::simplifyPath(&submap_path);
-          if (!common::pathExists(submap_path)) {
-            LOG(ERROR) << "[MaplabServer] Received map notification for robot '"
-                       << robot_name << "' and local map folder '"
-                       << submap_path << "', but the folder does not exist!";
-            continue;
-          }
-          loadAndProcessSubmap(robot_name, submap_path);
         }
       }
+
+      if (already_included_in_map) {
+        continue;
+      }
+
+      common::simplifyPath(&submap_path);
+      if (!common::pathExists(submap_path)) {
+        LOG(ERROR) << "[MaplabServer] Received map notification for robot '"
+                   << robot_name << "' and local map folder '" << submap_path
+                   << "', but the folder does not exist!";
+        continue;
+      }
+      loadAndProcessSubmap(robot_name, submap_path);
     }
   }
   return true;
@@ -407,8 +411,9 @@ bool MaplabServerNode::loadAndProcessSubmap(
   VLOG(1) << "[MaplabServerNode] launching SubmapProcessing thread for "
           << "submap at '" << submap_path << "'.";
 
-  std::lock_guard<std::mutex> submap_queue_lock(submap_processing_queue_mutex_);
-  // Add new element at the back.
+  // std::lock_guard<std::mutex>
+  // submap_queue_lock(submap_processing_queue_mutex_); Add new element at the
+  // back.
   submap_processing_queue_.emplace_back();
 
   SubmapProcess& submap_process = submap_processing_queue_.back();
@@ -455,7 +460,6 @@ bool MaplabServerNode::loadAndProcessSubmap(
               << "key in storage, something went wrong! key '" << old_key
               << "'. Changing the key to: '" << submap_process.map_key << "'.";
         }
-
         CHECK(map_manager_.loadMapFromFolder(
             submap_process.path, submap_process.map_key));
 

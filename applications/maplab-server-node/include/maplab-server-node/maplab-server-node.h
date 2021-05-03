@@ -59,8 +59,6 @@ class MaplabServerNode final {
   void start(const bool& load_previous_state);
   void shutdown();
 
-  bool loadAndProcessSubmap(
-      const std::string& robot_name, const std::string& submap_path);
 
   bool loadAndProcessMissingSubmaps(
       const std::unordered_map<std::string, std::vector<std::string>>&
@@ -119,6 +117,8 @@ class MaplabServerNode final {
   }
 
  protected:
+  bool loadAndProcessSubmap(
+      const std::string& robot_name, const std::string& submap_path);
   // Status thread functions:
   void printAndPublishServerStatus();
 
