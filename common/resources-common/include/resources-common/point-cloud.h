@@ -182,6 +182,47 @@ struct PointCloud {
     CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
   }
 
+  inline void append(const std::vector<PointCloud>& others) {
+    if (others.empty()) {
+      return;
+    }
+
+    size_t n_points = 0u, n_normals = 0u, n_colors = 0u, n_scalars = 0u,
+           n_labels = 0u, n_rings = 0u, n_times = 0u;
+    for (const PointCloud& other : others) {
+      CHECK(other.checkConsistency(true));
+      n_points += other.xyz.size();
+      n_normals += other.normals.size();
+      n_colors += other.colors.size();
+      n_scalars += other.scalars.size();
+      n_labels += other.labels.size();
+      n_rings += other.rings.size();
+      n_times += other.times.size();
+    }
+
+    xyz.reserve(xyz.size() + n_points);
+    normals.reserve(normals.size() + n_normals);
+    colors.reserve(colors.size() + n_colors);
+    scalars.reserve(scalars.size() + n_scalars);
+    labels.reserve(labels.size() + n_labels);
+    rings.reserve(rings.size() + n_rings);
+    times.reserve(times.size() + n_times);
+
+    for (const PointCloud& other : others) {
+      if (other.empty()) {
+        return;
+      }
+      xyz.insert(xyz.end(), other.xyz.begin(), other.xyz.end());
+      normals.insert(normals.end(), other.normals.begin(), other.normals.end());
+      colors.insert(colors.end(), other.colors.begin(), other.colors.end());
+      scalars.insert(scalars.end(), other.scalars.begin(), other.scalars.end());
+      labels.insert(labels.end(), other.labels.begin(), other.labels.end());
+      rings.insert(rings.end(), other.rings.begin(), other.rings.end());
+      times.insert(times.end(), other.times.begin(), other.times.end());
+    }
+    CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
+  }
+
   // Transforms the other point cloud and appends it to the current one. Assumes
   // the other point cloud is in B frame.
   inline void appendTransformed(

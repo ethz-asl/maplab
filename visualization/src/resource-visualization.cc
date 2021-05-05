@@ -107,19 +107,89 @@ static void applyVoxelGridFilter(
   backend::convertPointCloudType((*pcl_cloud), cloud_filtered);
 }
 
-template <typename T_input>
+template <typename T_input, typename T_output>
 static void applyBeautification(
-    const T_input& cloud_in, sensor_msgs::PointCloud2* cloud_filtered) {
+    const T_input& cloud_in, T_output* cloud_filtered) {
   pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
       new pcl::PointCloud<pcl::PointXYZI>);
   CHECK_NOTNULL(pcl_cloud);
-
+  sensor_msgs::PointCloud2 cloud_ros;
   backend::convertPointCloudType(cloud_in, &(*pcl_cloud));
   if (pcl_cloud->empty()) {
     return;
   }
-  beautifyPointCloud(pcl_cloud, cloud_filtered);
+  beautifyPointCloud(pcl_cloud, &cloud_ros);
   backend::convertPointCloudType(*pcl_cloud, cloud_filtered);
+}
+
+template <typename T_input, typename T_output>
+static void applyRandomDownSamplingFilter(
+    const T_input& cloud_in, const size_t& n_points_to_keep,
+    T_output* cloud_filtered) {
+  CHECK_GE(cloud_in.size(), n_points_to_keep);
+
+  const bool input_has_normals = backend::hasNormalsInformation(cloud_in);
+  const bool input_has_scalars = backend::hasScalarInformation(cloud_in);
+  const bool input_has_color = backend::hasColorInformation(cloud_in);
+  const bool input_has_labels = backend::hasLabelInformation(cloud_in);
+  const bool input_has_rings = backend::hasRingInformation(cloud_in);
+  const bool input_has_times = backend::hasTimeInformation(cloud_in);
+
+  backend::resizePointCloud(
+      n_points_to_keep, input_has_color, input_has_normals, input_has_scalars,
+      input_has_labels, input_has_rings, input_has_times, cloud_filtered);
+
+  const bool output_has_normals =
+      backend::hasNormalsInformation(cloud_filtered);
+  const bool output_has_scalars = backend::hasScalarInformation(cloud_filtered);
+  const bool output_has_color = backend::hasColorInformation(cloud_filtered);
+  const bool output_has_labels = backend::hasLabelInformation(cloud_filtered);
+  const bool output_has_rings = backend::hasRingInformation(cloud_filtered);
+  const bool output_has_times = backend::hasTimeInformation(cloud_filtered);
+
+  std::vector<size_t> sampling_indices(cloud_in.size());
+  std::iota(sampling_indices.begin(), sampling_indices.end(), 0u);
+  for (size_t idx = 0u; idx < n_points_to_keep; ++idx) {
+    Eigen::Vector3d point_C;
+    backend::getPointFromPointCloud(cloud_in, sampling_indices[idx], &point_C);
+    backend::addPointToPointCloud(
+        point_C, sampling_indices[idx], cloud_filtered);
+
+    if (input_has_color && output_has_color) {
+      resources::RgbaColor color;
+      backend::getColorFromPointCloud(cloud_in, sampling_indices[idx], &color);
+      backend::addColorToPointCloud(
+          color, sampling_indices[idx], cloud_filtered);
+    }
+
+    if (input_has_scalars && output_has_scalars) {
+      float scalar;
+      backend::getScalarFromPointCloud(
+          cloud_in, sampling_indices[idx], &scalar);
+      backend::addScalarToPointCloud(
+          scalar, sampling_indices[idx], cloud_filtered);
+    }
+
+    if (input_has_labels && output_has_labels) {
+      uint32_t label;
+      backend::getLabelFromPointCloud(cloud_in, sampling_indices[idx], &label);
+      backend::addLabelToPointCloud(
+          label, sampling_indices[idx], cloud_filtered);
+    }
+
+    if (input_has_rings && output_has_rings) {
+      uint32_t ring;
+      backend::getRingFromPointCloud(cloud_in, sampling_indices[idx], &ring);
+      backend::addRingToPointCloud(ring, sampling_indices[idx], cloud_filtered);
+    }
+
+    if (input_has_times && output_has_times) {
+      float time_s;
+      backend::getTimeFromPointCloud(cloud_in, sampling_indices[idx], &time_s);
+      backend::addTimeToPointCloud(
+          time_s, sampling_indices[idx], cloud_filtered);
+    }
+  }
 }
 
 bool visualizeCvMatResources(
@@ -424,9 +494,9 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
   uint32_t point_cloud_counter = 0u;
 
   srand(time(NULL));
-
+  std::vector<resources::PointCloud> point_clouds_G;
   depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
-      [&accumulated_point_cloud_G, &point_cloud_counter](
+      [&point_clouds_G, &point_cloud_counter](
           const aslam::Transformation& T_G_S,
           const resources::PointCloud& points_S) {
         if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
@@ -445,13 +515,10 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
 
         ++point_cloud_counter;
 
-        const size_t previous_size = accumulated_point_cloud_G->size();
-        accumulated_point_cloud_G->appendTransformed(points_S, T_G_S);
-        const size_t new_size = accumulated_point_cloud_G->size();
-
+        point_clouds_G.push_back(points_S);
+        point_clouds_G.back().applyTransformation(T_G_S);
         if (FLAGS_vis_pointcloud_color_random) {
-          accumulated_point_cloud_G->colorizePointCloud(
-              previous_size, new_size, r, g, b);
+          point_clouds_G.back().colorizePointCloud(r, g, b);
         }
         return;
       };
@@ -462,6 +529,7 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
       mission_ids, input_resource_type,
       FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
       integration_function);
+  accumulated_point_cloud_G->append(point_clouds_G);
 }
 
 void createPointCloudMessageVectorForMission(
@@ -578,18 +646,45 @@ void visualizeReprojectedDepthResourcePerRobot(
       continue;
     }
 
-    // Publish accumulated point cloud in global frame.
-    sensor_msgs::PointCloud2 ros_point_cloud_G;
+    std::shared_ptr<resources::PointCloud> filtered_accumulated_point_cloud_G;
     if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
-      applyVoxelGridFilter(accumulated_point_cloud_G, &ros_point_cloud_G);
+      filtered_accumulated_point_cloud_G =
+          std::make_shared<resources::PointCloud>();
+      applyVoxelGridFilter(
+          accumulated_point_cloud_G, filtered_accumulated_point_cloud_G.get());
     } else if (
         FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
-      applyBeautification(accumulated_point_cloud_G, &ros_point_cloud_G);
+      filtered_accumulated_point_cloud_G =
+          std::make_shared<resources::PointCloud>();
+      applyBeautification(
+          accumulated_point_cloud_G, filtered_accumulated_point_cloud_G.get());
+    } else {
+      filtered_accumulated_point_cloud_G =
+          std::make_shared<resources::PointCloud>(
+              std::move(accumulated_point_cloud_G));
+    }
+    const uint32_t point_step = backend::getPointStep(
+        filtered_accumulated_point_cloud_G->hasColor(),
+        filtered_accumulated_point_cloud_G->hasNormals(),
+        filtered_accumulated_point_cloud_G->hasTimes(),
+        filtered_accumulated_point_cloud_G->hasLabels(),
+        filtered_accumulated_point_cloud_G->hasRings(),
+        filtered_accumulated_point_cloud_G->hasTimes());
+    static const size_t kMargin = 1000u;
+    static const size_t kMaxRosMessageSize = 1000000000u;
+    static const size_t kMaxDataSize = kMaxRosMessageSize - kMargin;
+    sensor_msgs::PointCloud2 ros_point_cloud_G;
+    if (filtered_accumulated_point_cloud_G->size() * point_step >
+        kMaxDataSize) {
+      int n_max_points = kMaxDataSize / point_step;
+      applyRandomDownSamplingFilter(
+          *filtered_accumulated_point_cloud_G, n_max_points,
+          &ros_point_cloud_G);
     } else {
       backend::convertPointCloudType(
-          accumulated_point_cloud_G, &ros_point_cloud_G);
+          *filtered_accumulated_point_cloud_G, &ros_point_cloud_G);
     }
-
+    // Publish accumulated point cloud in global frame.
     publishPointCloudInGlobalFrame(
         robot_name /*topic prefix*/, &ros_point_cloud_G);
   }
