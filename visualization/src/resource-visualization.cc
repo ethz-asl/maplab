@@ -122,70 +122,20 @@ static void applyBeautification(
   backend::convertPointCloudType(*pcl_cloud, cloud_filtered);
 }
 
-template <typename T_input, typename T_output>
-static void applyRandomDownSamplingFilter(
-    const T_input& cloud_in, const size_t& n_points_to_keep,
-    T_output* cloud_filtered) {
-  CHECK_GE(cloud_in.size(), n_points_to_keep);
-
-  const bool input_has_normals = backend::hasNormalsInformation(cloud_in);
-  const bool input_has_scalars = backend::hasScalarInformation(cloud_in);
-  const bool input_has_color = backend::hasColorInformation(cloud_in);
-  const bool input_has_labels = backend::hasLabelInformation(cloud_in);
-  const bool input_has_rings = backend::hasRingInformation(cloud_in);
-  const bool input_has_times = backend::hasTimeInformation(cloud_in);
-
-  backend::resizePointCloud(
-      n_points_to_keep, input_has_color, input_has_normals, input_has_scalars,
-      input_has_labels, input_has_rings, input_has_times, cloud_filtered);
-
-  const bool output_has_normals =
-      backend::hasNormalsInformation(*cloud_filtered);
-  const bool output_has_scalars =
-      backend::hasScalarInformation(*cloud_filtered);
-  const bool output_has_color = backend::hasColorInformation(*cloud_filtered);
-  const bool output_has_labels = backend::hasLabelInformation(*cloud_filtered);
-  const bool output_has_rings = backend::hasRingInformation(*cloud_filtered);
-  const bool output_has_times = backend::hasTimeInformation(*cloud_filtered);
-
-  std::vector<size_t> sampling_indices(cloud_in.size());
-  std::iota(sampling_indices.begin(), sampling_indices.end(), 0u);
-  std::random_shuffle(sampling_indices.begin(), sampling_indices.end());
-  for (size_t idx = 0u; idx < n_points_to_keep; ++idx) {
-    Eigen::Vector3d point_C;
-    backend::getPointFromPointCloud(cloud_in, sampling_indices[idx], &point_C);
-    backend::addPointToPointCloud(point_C, idx, cloud_filtered);
-
-    if (input_has_color && output_has_color) {
-      resources::RgbaColor color;
-      backend::getColorFromPointCloud(cloud_in, sampling_indices[idx], &color);
-      backend::addColorToPointCloud(color, idx, cloud_filtered);
-    }
-
-    if (input_has_scalars && output_has_scalars) {
-      float scalar;
-      backend::getScalarFromPointCloud(
-          cloud_in, sampling_indices[idx], &scalar);
-      backend::addScalarToPointCloud(scalar, idx, cloud_filtered);
-    }
-
-    if (input_has_labels && output_has_labels) {
-      uint32_t label;
-      backend::getLabelFromPointCloud(cloud_in, sampling_indices[idx], &label);
-      backend::addLabelToPointCloud(label, idx, cloud_filtered);
-    }
-
-    if (input_has_rings && output_has_rings) {
-      uint32_t ring;
-      backend::getRingFromPointCloud(cloud_in, sampling_indices[idx], &ring);
-      backend::addRingToPointCloud(ring, idx, cloud_filtered);
-    }
-
-    if (input_has_times && output_has_times) {
-      float time_s;
-      backend::getTimeFromPointCloud(cloud_in, sampling_indices[idx], &time_s);
-      backend::addTimeToPointCloud(time_s, idx, cloud_filtered);
-    }
+template <typename T_input>
+static void subsamplePointCloudForRosIfNecessary(
+    const T_input& cloud_in, sensor_msgs::PointCloud2* ros_point_cloud) {
+  const uint32_t point_step = backend::getPointStep(
+      cloud_in.hasColor(), cloud_in.hasNormals(), cloud_in.hasTimes(),
+      cloud_in.hasLabels(), cloud_in.hasRings(), cloud_in.hasTimes());
+  static const size_t kMargin = 1000u;
+  static const size_t kMaxRosMessageSize = 1000000000u;
+  static const size_t kMaxDataSize = kMaxRosMessageSize - kMargin;
+  if (cloud_in.size() * point_step > kMaxDataSize) {
+    const int n_max_points = kMaxDataSize / point_step;
+    applyRandomDownSamplingFilter(cloud_in, n_max_points, ros_point_cloud);
+  } else {
+    backend::convertPointCloudType(cloud_in, ros_point_cloud);
   }
 }
 
@@ -456,16 +406,27 @@ void visualizeReprojectedDepthResource(
     return;
   }
 
-  // Publish accumulated point cloud in global frame.
-  sensor_msgs::PointCloud2 ros_point_cloud_G;
+  std::shared_ptr<resources::PointCloud> filtered_accumulated_point_cloud_G;
   if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
-    applyVoxelGridFilter(accumulated_point_cloud_G, &ros_point_cloud_G);
+    filtered_accumulated_point_cloud_G =
+        std::make_shared<resources::PointCloud>();
+    applyVoxelGridFilter(
+        accumulated_point_cloud_G, filtered_accumulated_point_cloud_G.get());
   } else if (FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
-    applyBeautification(accumulated_point_cloud_G, &ros_point_cloud_G);
+    filtered_accumulated_point_cloud_G =
+        std::make_shared<resources::PointCloud>();
+    applyBeautification(
+        accumulated_point_cloud_G, filtered_accumulated_point_cloud_G.get());
   } else {
-    backend::convertPointCloudType(
-        accumulated_point_cloud_G, &ros_point_cloud_G);
+    filtered_accumulated_point_cloud_G =
+        std::make_shared<resources::PointCloud>(
+            std::move(accumulated_point_cloud_G));
   }
+  sensor_msgs::PointCloud2 ros_point_cloud_G;
+  subsamplePointCloudForRosIfNecessary(
+      *filtered_accumulated_point_cloud_G, &ros_point_cloud_G);
+
+  // Publish accumulated point cloud in global frame.
   publishPointCloudInGlobalFrame("" /*topic prefix*/, &ros_point_cloud_G);
 
   // Only continue if we want to export the accumulated point cloud to file.
@@ -660,27 +621,9 @@ void visualizeReprojectedDepthResourcePerRobot(
           std::make_shared<resources::PointCloud>(
               std::move(accumulated_point_cloud_G));
     }
-    const uint32_t point_step = backend::getPointStep(
-        filtered_accumulated_point_cloud_G->hasColor(),
-        filtered_accumulated_point_cloud_G->hasNormals(),
-        filtered_accumulated_point_cloud_G->hasTimes(),
-        filtered_accumulated_point_cloud_G->hasLabels(),
-        filtered_accumulated_point_cloud_G->hasRings(),
-        filtered_accumulated_point_cloud_G->hasTimes());
-    static const size_t kMargin = 1000u;
-    static const size_t kMaxRosMessageSize = 1000000000u;
-    static const size_t kMaxDataSize = kMaxRosMessageSize - kMargin;
     sensor_msgs::PointCloud2 ros_point_cloud_G;
-    if (filtered_accumulated_point_cloud_G->size() * point_step >
-        kMaxDataSize) {
-      int n_max_points = kMaxDataSize / point_step;
-      applyRandomDownSamplingFilter(
-          *filtered_accumulated_point_cloud_G, n_max_points,
-          &ros_point_cloud_G);
-    } else {
-      backend::convertPointCloudType(
-          *filtered_accumulated_point_cloud_G, &ros_point_cloud_G);
-    }
+    subsamplePointCloudForRosIfNecessary(
+        *filtered_accumulated_point_cloud_G, &ros_point_cloud_G);
     // Publish accumulated point cloud in global frame.
     publishPointCloudInGlobalFrame(
         robot_name /*topic prefix*/, &ros_point_cloud_G);
@@ -706,7 +649,7 @@ void visualizeReprojectedDepthResourceFromMission(
         input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G);
 
     sensor_msgs::PointCloud2 ros_point_cloud_G;
-    backend::convertPointCloudType(
+    subsamplePointCloudForRosIfNecessary(
         accumulated_point_cloud_G, &ros_point_cloud_G);
     publishPointCloudInGlobalFrame(
         FLAGS_vis_pointcloud_mission_id_topic, &ros_point_cloud_G);
@@ -750,7 +693,8 @@ void visualizeReprojectedDepthResourceSequentially(
       std::this_thread::sleep_for(std::chrono::nanoseconds(ts_diff_ns));
     }
     sensor_msgs::PointCloud2 ros_point_cloud_G;
-    backend::convertPointCloudType(kv.second.point_cloud, &ros_point_cloud_G);
+    subsamplePointCloudForRosIfNecessary(
+        kv.second.point_cloud, &ros_point_cloud_G);
 
     const std::string mission_prefix = mission_topic_prefix[kv.second.mission];
 
