@@ -187,6 +187,7 @@ void addPointToPointCloud(
     const Eigen::Vector3d& point_C, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
   CHECK_NOTNULL(point_cloud);
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud->point_step);
   sensor_msgs::PointCloud2Iterator<float> it_x(
       *point_cloud, kPointCloud2PointX);
   sensor_msgs::PointCloud2Iterator<float> it_y(
@@ -245,7 +246,7 @@ void getPointFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     Eigen::Vector3d* point_C) {
   CHECK_NOTNULL(point_C);
-
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud.point_step);
   sensor_msgs::PointCloud2ConstIterator<float> it_x(
       point_cloud, kPointCloud2PointX);
   sensor_msgs::PointCloud2ConstIterator<float> it_y(
@@ -306,7 +307,7 @@ void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
   CHECK_NOTNULL(point_cloud);
-
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud->point_step);
   sensor_msgs::PointCloud2Iterator<uint8_t> it_r(
       *point_cloud, kPointCloud2ColorR);
   sensor_msgs::PointCloud2Iterator<uint8_t> it_g(
@@ -383,6 +384,7 @@ void getColorFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     resources::RgbaColor* color) {
   CHECK_NOTNULL(color);
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud.point_step);
   resources::RgbaColor& color_out = *color;
   if (hasColorInformation(point_cloud)) {
     sensor_msgs::PointCloud2ConstIterator<uint8_t> it_r(
@@ -511,7 +513,7 @@ void addScalarToPointCloud(
     const float scalar, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
   CHECK_NOTNULL(point_cloud);
-
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud->point_step);
   sensor_msgs::PointCloud2Iterator<float> it_intensity(
       *point_cloud, kPointCloud2IntensityV1);
 
@@ -562,6 +564,7 @@ void getScalarFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     float* scalar) {
   CHECK_NOTNULL(scalar);
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud.point_step);
   sensor_msgs::PointField field = getScalarField(point_cloud);
   CHECK(!field.name.empty());
 
@@ -613,6 +616,8 @@ template <>
 void addLabelToPointCloud(
     const uint32_t label, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
+  CHECK_NOTNULL(point_cloud);
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud->point_step);
   sensor_msgs::PointCloud2Iterator<uint32_t> it_label(
       *point_cloud, kPointCloud2LabelV1);
 
@@ -645,6 +650,7 @@ void getLabelFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     uint32_t* label) {
   CHECK_NOTNULL(label);
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud.point_step);
   sensor_msgs::PointField field = getLabelField(point_cloud);
   CHECK(!field.name.empty());
 
@@ -676,6 +682,8 @@ template <>
 void addRingToPointCloud(
     const uint32_t ring, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
+  CHECK_NOTNULL(point_cloud);
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud->point_step);
   sensor_msgs::PointCloud2Iterator<uint32_t> it_ring(
       *point_cloud, kPointCloud2Ring);
 
@@ -699,6 +707,7 @@ void getRingFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     uint32_t* ring) {
   CHECK_NOTNULL(ring);
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud.point_step);
   sensor_msgs::PointField field = getRingField(point_cloud);
   CHECK(!field.name.empty());
 
@@ -720,6 +729,8 @@ template <>
 void addTimeToPointCloud(
     const float time_s, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
+  CHECK_NOTNULL(point_cloud);
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud->point_step);
   sensor_msgs::PointCloud2Iterator<float> it_time(
       *point_cloud, kPointCloud2Time);
 
@@ -743,6 +754,7 @@ void getTimeFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     float* time_s) {
   CHECK_NOTNULL(time_s);
+  CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud.point_step);
   sensor_msgs::PointField field = getTimeField(point_cloud);
   CHECK(!field.name.empty());
 
@@ -870,12 +882,36 @@ void resizePointCloud(
   point_cloud->point_step = offset;
   point_cloud->row_step = point_cloud->width * point_cloud->point_step;
   point_cloud->data.resize(point_cloud->height * point_cloud->row_step);
-
+  CHECK_GE(std::numeric_limits<int>::max(), point_cloud->row_step);
   CHECK_EQ(hasScalarInformation(*point_cloud), has_scalar);
   CHECK_EQ(hasColorInformation(*point_cloud), has_color);
   CHECK_EQ(hasLabelInformation(*point_cloud), has_labels);
   CHECK_EQ(hasRingInformation(*point_cloud), has_rings);
   CHECK_EQ(hasTimeInformation(*point_cloud), has_times);
+}
+
+uint32_t getPointStep(
+    const bool has_color, const bool /*has_normals*/, const bool has_scalar,
+    const bool has_labels, const bool has_rings, const bool has_times) {
+  uint32_t offset = 0;
+
+  offset = 4u * sizeOfPointField(sensor_msgs::PointField::FLOAT32);
+  if (has_color) {
+    offset += 4u * sizeOfPointField(sensor_msgs::PointField::FLOAT32);
+  }
+  if (has_scalar) {
+    offset += 4u * sizeOfPointField(sensor_msgs::PointField::FLOAT32);
+  }
+  if (has_labels) {
+    offset += 4 * sizeOfPointField(sensor_msgs::PointField::UINT32);
+  }
+  if (has_rings) {
+    offset += 4 * sizeOfPointField(sensor_msgs::PointField::UINT32);
+  }
+  if (has_times) {
+    offset += 4u * sizeOfPointField(sensor_msgs::PointField::FLOAT32);
+  }
+  return offset;
 }
 
 void createCameraWithoutDistortion(
