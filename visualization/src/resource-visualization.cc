@@ -140,54 +140,51 @@ static void applyRandomDownSamplingFilter(
       input_has_labels, input_has_rings, input_has_times, cloud_filtered);
 
   const bool output_has_normals =
-      backend::hasNormalsInformation(cloud_filtered);
-  const bool output_has_scalars = backend::hasScalarInformation(cloud_filtered);
-  const bool output_has_color = backend::hasColorInformation(cloud_filtered);
-  const bool output_has_labels = backend::hasLabelInformation(cloud_filtered);
-  const bool output_has_rings = backend::hasRingInformation(cloud_filtered);
-  const bool output_has_times = backend::hasTimeInformation(cloud_filtered);
+      backend::hasNormalsInformation(*cloud_filtered);
+  const bool output_has_scalars =
+      backend::hasScalarInformation(*cloud_filtered);
+  const bool output_has_color = backend::hasColorInformation(*cloud_filtered);
+  const bool output_has_labels = backend::hasLabelInformation(*cloud_filtered);
+  const bool output_has_rings = backend::hasRingInformation(*cloud_filtered);
+  const bool output_has_times = backend::hasTimeInformation(*cloud_filtered);
 
   std::vector<size_t> sampling_indices(cloud_in.size());
   std::iota(sampling_indices.begin(), sampling_indices.end(), 0u);
+  std::random_shuffle(sampling_indices.begin(), sampling_indices.end());
   for (size_t idx = 0u; idx < n_points_to_keep; ++idx) {
     Eigen::Vector3d point_C;
     backend::getPointFromPointCloud(cloud_in, sampling_indices[idx], &point_C);
-    backend::addPointToPointCloud(
-        point_C, sampling_indices[idx], cloud_filtered);
+    backend::addPointToPointCloud(point_C, idx, cloud_filtered);
 
     if (input_has_color && output_has_color) {
       resources::RgbaColor color;
       backend::getColorFromPointCloud(cloud_in, sampling_indices[idx], &color);
-      backend::addColorToPointCloud(
-          color, sampling_indices[idx], cloud_filtered);
+      backend::addColorToPointCloud(color, idx, cloud_filtered);
     }
 
     if (input_has_scalars && output_has_scalars) {
       float scalar;
       backend::getScalarFromPointCloud(
           cloud_in, sampling_indices[idx], &scalar);
-      backend::addScalarToPointCloud(
-          scalar, sampling_indices[idx], cloud_filtered);
+      backend::addScalarToPointCloud(scalar, idx, cloud_filtered);
     }
 
     if (input_has_labels && output_has_labels) {
       uint32_t label;
       backend::getLabelFromPointCloud(cloud_in, sampling_indices[idx], &label);
-      backend::addLabelToPointCloud(
-          label, sampling_indices[idx], cloud_filtered);
+      backend::addLabelToPointCloud(label, idx, cloud_filtered);
     }
 
     if (input_has_rings && output_has_rings) {
       uint32_t ring;
       backend::getRingFromPointCloud(cloud_in, sampling_indices[idx], &ring);
-      backend::addRingToPointCloud(ring, sampling_indices[idx], cloud_filtered);
+      backend::addRingToPointCloud(ring, idx, cloud_filtered);
     }
 
     if (input_has_times && output_has_times) {
       float time_s;
       backend::getTimeFromPointCloud(cloud_in, sampling_indices[idx], &time_s);
-      backend::addTimeToPointCloud(
-          time_s, sampling_indices[idx], cloud_filtered);
+      backend::addTimeToPointCloud(time_s, idx, cloud_filtered);
     }
   }
 }
