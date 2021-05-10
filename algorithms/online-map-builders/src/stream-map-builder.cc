@@ -275,18 +275,21 @@ void StreamMapBuilder::addViwlsVertexAndEdge(
 pose_graph::VertexId StreamMapBuilder::addViwlsVertex(
     const aslam::VisualNFrame::Ptr& nframe,
     const vio::ViNodeState& vinode_state, const aslam::Transformation& T_G_M) {
-  CHECK_EQ(
-      map_->getMissionNCamera(mission_id_).getId(),
-      nframe->getNCamera().getId())
+  aslam::SensorId nframe_id = nframe->getNCamera().getId();
+  CHECK(
+      map_->getMissionNCamera(mission_id_).getId() == nframe_id ||
+      map_->getAdditionalNCamera(mission_id_).getId() == nframe_id)
       << "Can only add nframes that correspond to the mission camera";
 
   // Initialize all keypoint <-> landmark associations to invalid.
   std::vector<vi_map::LandmarkIdList> invalid_landmark_ids;
-  const size_t num_frames = nframe->getNumFrames();
-  for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
+  const std::size_t num_frames = nframe->getNumFrames();
+  for (std::size_t frame_idx = 0u; frame_idx < num_frames; ++frame_idx) {
     if (nframe->isFrameSet(frame_idx)) {
       const aslam::VisualFrame& frame = nframe->getFrame(frame_idx);
-      invalid_landmark_ids.emplace_back(frame.getNumKeypointMeasurements());
+      invalid_landmark_ids.emplace_back(
+          // frame.getTotalNumKeypointMeasurements());
+          frame.getTotalNumKeypointMeasurements());
     }
   }
   // Create and add the new map vertex.
@@ -309,7 +312,7 @@ pose_graph::VertexId StreamMapBuilder::addViwlsVertex(
         << "please set the map folder in the VIMap constructor or by using "
         << "map.setMapFolder()!";
     map_->useMapResourceFolder();
-    for (size_t frame_idx = 0u; frame_idx < nframe->getNumFrames();
+    for (std::size_t frame_idx = 0u; frame_idx < nframe->getNumFrames();
          ++frame_idx) {
       if (nframe->isFrameSet(frame_idx)) {
         map_->storeFrameResource(

@@ -37,7 +37,8 @@ cs_add_library(${PROJECT_NAME}_lib
   src/map-update-builder.cc
 	src/visual-localizer-flow.cc
 	src/visual-localizer-helpers.cc
-	src/visual-localizer.cc)
+	src/visual-localizer.cc
+	src/lidar-tracking.cc)
 
 
 #######

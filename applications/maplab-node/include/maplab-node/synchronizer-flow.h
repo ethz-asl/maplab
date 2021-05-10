@@ -207,6 +207,7 @@ class SynchronizerFlow {
   message_flow::MessageFlow* message_flow_;
 
   Synchronizer synchronizer_;
+  int64_t last_imu_time = 0;
 };
 
 }  // namespace maplab

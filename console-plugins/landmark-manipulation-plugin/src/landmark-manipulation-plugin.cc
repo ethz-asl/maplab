@@ -21,9 +21,18 @@ LandmarkManipulationPlugin::LandmarkManipulationPlugin(
       [this]() -> int { return retriangulateLandmarks(); },
       "Retriangulate all landmarks.", common::Processing::Sync);
   addCommand(
+      {"retriangulate_lidar_landmarks", "rtll"},
+      [this]() -> int { return retriangulateLidarLandmarks(); },
+      "Retriangulate all LiDAR landmarks.", common::Processing::Sync);
+  addCommand(
       {"evaluate_landmark_quality", "elq"},
       [this]() -> int { return evaluateLandmarkQuality(); },
       "Evaluates and sets the landmark quality of all landmarks.",
+      common::Processing::Sync);
+  addCommand(
+      {"evaluate_lidar_landmark_quality", "ellq"},
+      [this]() -> int { return evaluateLidarLandmarkQuality(); },
+      "Evaluates and sets the landmark quality of all LiDAR landmarks.",
       common::Processing::Sync);
   addCommand(
       {"reset_landmark_quality", "rlq"},
@@ -67,6 +76,32 @@ int LandmarkManipulationPlugin::retriangulateLandmarks() {
   return common::kSuccess;
 }
 
+int LandmarkManipulationPlugin::retriangulateLidarLandmarks() {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids;
+  if (!FLAGS_map_mission.empty()) {
+    vi_map::MissionId mission_id;
+    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
+    if (!mission_id.isValid()) {
+      return common::kStupidUserError;
+    }
+    mission_ids.emplace_back(mission_id);
+  } else {
+    map->getAllMissionIds(&mission_ids);
+  }
+
+  landmark_triangulation::retriangulateLidarLandmarks(mission_ids, map.get());
+  return common::kSuccess;
+}
+
 int LandmarkManipulationPlugin::evaluateLandmarkQuality() {
   std::string selected_map_key;
   if (!getSelectedMapKeyIfSet(&selected_map_key)) {
@@ -91,6 +126,34 @@ int LandmarkManipulationPlugin::evaluateLandmarkQuality() {
   }
 
   vi_map_helpers::evaluateLandmarkQuality(mission_ids_to_process, map.get());
+  return common::kSuccess;
+}
+
+int LandmarkManipulationPlugin::evaluateLidarLandmarkQuality() {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids_to_process;
+  if (!FLAGS_map_mission.empty()) {
+    vi_map::MissionId mission_id;
+    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
+    if (!mission_id.isValid()) {
+      return common::kStupidUserError;
+    } else {
+      mission_ids_to_process.emplace_back(mission_id);
+    }
+  } else {
+    map->getAllMissionIds(&mission_ids_to_process);
+  }
+
+  vi_map_helpers::evaluateLidarLandmarkQuality(
+      mission_ids_to_process, map.get());
   return common::kSuccess;
 }
 

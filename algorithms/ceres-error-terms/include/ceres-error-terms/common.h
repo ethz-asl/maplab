@@ -10,6 +10,7 @@
 #include <glog/logging.h>
 
 #include "ceres-error-terms/visual-error-term-base.h"
+#include "ceres-error-terms/lidar-error-term-base.h"
 
 namespace ceres_error_terms {
 
@@ -25,6 +26,7 @@ inline bool isValidVisualErrorTermType(VisualErrorType type) {
 }
 
 static const int kResidualSize = 2;
+static const int kLidarResidualSize = 3;
 static const int kBearingBasedResidualSize = 1;
 
 static const int kOrientationBlockSize = 4;

@@ -1,0 +1,49 @@
+
+- Integrate into Milans Codebase
+
+
+- Impl BRISK detector
+- Gyro predictions
+
+- Implement RANSAC visualization
+
+
+- Fix outlier tracks return
+ Returning of outlier tracks does not work anymore.
+      // Earlier we set the TrackId to -1 but now we delete it, so the indices
+      // change....
+      
+
+===
+      
+- Tune rejectin mask radius
+- Rejection: Appearance-based outlier rejection. 
+
+
+
+
+
+Optional:
+- Refactor to combine the detector & descriptor in one class offering the 
+  the following interfaces (internally cache pyramids):
+     - Compute orientations/scale
+     - Detect (subpixel)
+     - ComputeDescriptors & Orientation (what about scale?)
+   ==> mainly to remove the orientation feature which is not provided by many  
+- Consider removing hasNonDescribableFeatures feature as the detector should
+  make sure this is the case 
+    --> one more strong point to combine detector & descriptor
+- Parallelize the frame loop
+- Inegrate visualization into flow. 
+- LK-tracker: re-calculate orientation, scale, score 
+
+---
+
+---
+
+
+Cleanup:
+  - Export common functionality (flows) from ROVIOLI (e.g. HAL-flows for datasrouce, etc.)
+  - Use the FeatureTrackingGyroAided in ROVIOL
+  
+  

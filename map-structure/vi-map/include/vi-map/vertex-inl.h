@@ -139,7 +139,7 @@ inline void Vertex::forEachUnassociatedKeypoint(
     const unsigned int frame_idx,
     const std::function<void(const int keypoint_index)>& action) const {
   const aslam::VisualFrame& frame = getVisualFrame(frame_idx);
-  const int num_keypoint_measurements = frame.getNumKeypointMeasurements();
+  const int num_keypoint_measurements = frame.getTotalNumKeypointMeasurements();
   for (int i = 0; i < num_keypoint_measurements; ++i) {
     if (!getObservedLandmarkId(frame_idx, i).isValid()) {
       action(i);
@@ -151,7 +151,7 @@ inline void Vertex::getUnassociatedKeypoints(
     const unsigned int frame_idx, std::vector<int>* result) const {
   CHECK_NOTNULL(result)->clear();
   const aslam::VisualFrame& frame = getVisualFrame(frame_idx);
-  const int num_keypoint_measurements = frame.getNumKeypointMeasurements();
+  const int num_keypoint_measurements = frame.getTotalNumKeypointMeasurements();
   result->reserve(num_keypoint_measurements);
   for (int i = 0; i < num_keypoint_measurements; ++i) {
     if (!getObservedLandmarkId(frame_idx, i).isValid()) {

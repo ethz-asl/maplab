@@ -59,7 +59,7 @@ size_t FeatureTrackExtractor::extractFromNFrameStream(
   size_t num_tracks = 0;
   for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
     (*tracks_opportunistic_terminated)[camera_idx].reserve(
-        nframe->getFrame(camera_idx).getNumKeypointMeasurements());
+        nframe->getFrame(camera_idx).getTotalNumKeypointMeasurements());
     extractFromFrameStreamImpl(
         nframe, camera_idx, kTrackPersistentFeatures,
         &(*tracks_opportunistic_terminated)[camera_idx],
@@ -102,8 +102,9 @@ void FeatureTrackExtractor::extractFromNFrameStream(
   // TODO(schneith): Use the thread pool at some point.
   const bool kTrackpersistentFeatures = true;
   const double kKeypointToTrackRatioGuess = 0.5;
-  const size_t num_reserve = kKeypointToTrackRatioGuess *
-                             nframe->getFrame(0).getNumKeypointMeasurements();
+  const size_t num_reserve =
+      kKeypointToTrackRatioGuess *
+      nframe->getFrame(0).getTotalNumKeypointMeasurements();
   for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
     (*tracks_opportunistic_terminated)[camera_idx].reserve(num_reserve);
     (*tracks_opportunistic_terminated)[camera_idx].reserve(num_reserve);
@@ -214,7 +215,7 @@ void FeatureTrackExtractor::extractFromFrameStreamImpl(
   // Find currently new and continued tracks.
   std::unordered_set<int> present_tracks;
   const Eigen::VectorXi& current_track_ids = frame.getTrackIds();
-  const size_t num_keypoints = frame.getNumKeypointMeasurements();
+  const size_t num_keypoints = frame.getTotalNumKeypointMeasurements();
   size_t num_track_ids = static_cast<size_t>(current_track_ids.rows());
   CHECK_EQ(num_keypoints, num_track_ids);
 
@@ -268,10 +269,9 @@ void FeatureTrackExtractor::extractFromFrameStreamImpl(
             aslam::FeatureTrack new_track(track_id);
             new_track.addKeypointObservationAtBack(
                 nframe, camera_idx, keypoint_idx_current_frame);
-            CHECK(
-                opportunistic_tracks_[camera_idx]
-                    .emplace(track_id, new_track)
-                    .second);
+            CHECK(opportunistic_tracks_[camera_idx]
+                      .emplace(track_id, new_track)
+                      .second);
           }
         } else {
           // Simply append the current keypoint to the existing track.
@@ -387,8 +387,8 @@ size_t FeatureTrackExtractor::extractBatch(
   FeatureTrackExtractor extractor(ncamera, max_track_length);
 
   auto appendToOutput = [&num_cameras](
-      const aslam::FeatureTracksList& rig_tracks,
-      aslam::FeatureTracksList* output_rig_tracks) {
+                            const aslam::FeatureTracksList& rig_tracks,
+                            aslam::FeatureTracksList* output_rig_tracks) {
     CHECK_NOTNULL(output_rig_tracks);
     CHECK_EQ(output_rig_tracks->size(), rig_tracks.size());
 
@@ -461,10 +461,9 @@ void FeatureTrackExtractor::abortAndReturnNLongestOpportunisticTracks(
              active_opportunistic_track : opportunistic_tracks_[camera_idx]) {
       const aslam::FeatureTrack& track = active_opportunistic_track.second;
       if (track.getTrackLength() >= min_track_length) {
-        tracklength_track_map.emplace(
-            std::make_pair(
-                track.getTrackLength(),
-                CameraIdxTrackIdPair(camera_idx, track.getTrackId())));
+        tracklength_track_map.emplace(std::make_pair(
+            track.getTrackLength(),
+            CameraIdxTrackIdPair(camera_idx, track.getTrackId())));
       }
     }
   }

@@ -89,7 +89,7 @@ Vertex::Vertex(
     observed_landmark_ids_[kFirstFrameIndex] = observed_landmark_ids;
     CHECK_EQ(
         observed_landmark_ids_[kFirstFrameIndex].size(),
-        frame->getNumKeypointMeasurements());
+        frame->getTotalNumKeypointMeasurements());
   }
 
   checkConsistencyOfVisualObservationContainers();
@@ -131,7 +131,8 @@ Vertex::Vertex(
 
   observed_landmark_ids_.resize(n_frame_->getNumFrames());
   for (size_t i = 0; i < observed_landmark_ids_.size(); ++i) {
-    size_t num_keypoints = n_frame_->getFrame(i).getNumKeypointMeasurements();
+    const size_t num_keypoints =
+        n_frame_->getFrame(i).getTotalNumKeypointMeasurements();
     observed_landmark_ids_[i].resize(num_keypoints);
   }
 
@@ -282,9 +283,26 @@ Vertex* Vertex::cloneWithVisualNFrame(
     if (this_frame.hasRawImage()) {
       cloned_frame->setRawImage(this_frame.getRawImage().clone());
     }
+    if (this_frame.hasLidarKeypoint3DMeasurements()) {
+      cloned_frame->setLidarKeypoint3DMeasurements(
+          this_frame.getLidarKeypoint3DMeasurements());
+    }
+    if (this_frame.hasLidarKeypoint3DMeasurements()) {
+      cloned_frame->setLidarKeypoint3DMeasurements(
+          this_frame.getLidarKeypoint3DMeasurements());
+    }
+    if (this_frame.hasLidarKeypoint2DMeasurements()) {
+      cloned_frame->setLidarKeypoint2DMeasurements(
+          this_frame.getLidarKeypoint2DMeasurements());
+    }
+    if (this_frame.hasLidarDescriptors()) {
+      cloned_frame->setLidarDescriptors(this_frame.getLidarDescriptors());
+    }
 
     // Verify landmark vs keypoint state.
-    size_t num_keypoints = cloned_frame->getNumKeypointMeasurements();
+    // size_t num_keypoints = cloned_frame->getTotalNumKeypointMeasurements();
+    const size_t num_keypoints =
+        cloned_frame->getTotalNumKeypointMeasurements();
     CHECK_EQ(
         cloned_vertex->observed_landmark_ids_[camera_idx].size(),
         num_keypoints);
@@ -618,22 +636,22 @@ bool Vertex::areFrameAndKeypointIndicesValid(
 
   const bool is_frame_idx_valid = isFrameIndexValid(frame_idx);
   LOG_IF(ERROR, !is_frame_idx_valid) << "Invalid frame index: " << frame_idx;
+  const std::size_t n_total_keypoints =
+      // n_frame_->getFrame(frame_idx).getTotalNumKeypointMeasurements();
+      n_frame_->getFrame(frame_idx).getTotalNumKeypointMeasurements();
+
   const bool is_observed_landmarks_ids_size_correct =
-      observed_landmark_ids_[frame_idx].size() ==
-      static_cast<unsigned int>(
-          n_frame_->getFrame(frame_idx).getNumKeypointMeasurements());
+      observed_landmark_ids_[frame_idx].size() == n_total_keypoints;
   LOG_IF(ERROR, !is_observed_landmarks_ids_size_correct)
       << "Observed landmark IDs vector size is incorrect. ("
       << observed_landmark_ids_[frame_idx].size() << " vs. "
-      << n_frame_->getFrame(frame_idx).getNumKeypointMeasurements() << ").";
+      << n_total_keypoints << ").";
 
-  const bool is_keypoint_index_valid =
-      keypoint_idx <
-      static_cast<int>(
-          n_frame_->getFrame(frame_idx).getNumKeypointMeasurements());
+  // TODO(lbern): why is keypoint_idx signed?
+  const bool is_keypoint_index_valid = keypoint_idx < n_total_keypoints;
   LOG_IF(ERROR, !is_keypoint_index_valid)
       << "Keypoint index out of bounds. (" << keypoint_idx << " vs. "
-      << n_frame_->getFrame(frame_idx).getNumKeypointMeasurements() << ").";
+      << n_total_keypoints << ").";
 
   return is_frame_idx_valid && is_observed_landmarks_ids_size_correct &&
          is_keypoint_index_valid;
@@ -744,6 +762,18 @@ void Vertex::expandVisualObservationContainersIfNecessary() {
         new_size = determineNewObservedLandmarkIdVectorSize(
             new_size, frame.getKeypointScores().rows(), old_size);
       }
+      if (frame.hasLidarKeypoint3DMeasurements()) {
+        new_size = determineNewObservedLandmarkIdVectorSize(
+            new_size, frame.getLidarKeypoint3DMeasurements().cols(), old_size);
+      }
+      if (frame.hasLidarKeypoint2DMeasurements()) {
+        new_size = determineNewObservedLandmarkIdVectorSize(
+            new_size, frame.getLidarKeypoint2DMeasurements().cols(), old_size);
+      }
+      if (frame.hasLidarDescriptors()) {
+        new_size = determineNewObservedLandmarkIdVectorSize(
+            new_size, frame.getLidarDescriptors().cols(), old_size);
+      }
       if (new_size > old_size) {
         VLOG(4) << "Resizing visual observation container from " << old_size
                 << " to " << new_size << " for VisualFrame " << frame_idx
@@ -759,7 +789,7 @@ size_t Vertex::discardUntrackedObservations() {
   const size_t num_frames = numFrames();
   for (size_t i = 0u; i < num_frames; ++i) {
     const size_t original_count =
-        getVisualFrame(i).getNumKeypointMeasurements();
+        getVisualFrame(i).getTotalNumKeypointMeasurements();
     std::vector<size_t> discarded_indices;
     getVisualFrame(i).discardUntrackedObservations(&discarded_indices);
     aslam::common::stl_helpers::eraseIndicesFromContainer(
@@ -823,6 +853,21 @@ void Vertex::checkConsistencyOfVisualObservationContainers() const {
             frame.getKeypointScores().rows(),
             static_cast<int>(observed_landmark_ids_[frame_idx].size()));
       }
+      if (frame.hasLidarKeypoint3DMeasurements()) {
+        CHECK_EQ(
+            frame.getLidarKeypoint3DMeasurements().cols(),
+            static_cast<int>(observed_landmark_ids_[frame_idx].size()));
+      }
+      if (frame.hasLidarKeypoint2DMeasurements()) {
+        CHECK_EQ(
+            frame.getLidarKeypoint2DMeasurements().cols(),
+            static_cast<int>(observed_landmark_ids_[frame_idx].size()));
+      }
+      if (frame.hasLidarDescriptors()) {
+        CHECK_EQ(
+            frame.getLidarDescriptors().cols(),
+            static_cast<int>(observed_landmark_ids_[frame_idx].size()));
+      }
     }
   }
 }
@@ -855,7 +900,7 @@ void Vertex::resetObservedLandmarkIdsToInvalid() {
   for (unsigned int frame_idx = 0u; frame_idx < n_frame_->getNumFrames();
        ++frame_idx) {
     observed_landmark_ids_[frame_idx].resize(
-        n_frame_->getFrame(frame_idx).getNumKeypointMeasurements(),
+        n_frame_->getFrame(frame_idx).getTotalNumKeypointMeasurements(),
         invalid_landmark_id);
   }
   checkConsistencyOfVisualObservationContainers();
@@ -920,7 +965,7 @@ void Vertex::forEachKeypoint(
   for (size_t frame_i = 0u; frame_i < numFrames(); ++frame_i) {
     keypoint_identifier.frame_id.frame_index = frame_i;
     const size_t num_keypoints =
-        getVisualFrame(frame_i).getNumKeypointMeasurements();
+        getVisualFrame(frame_i).getTotalNumKeypointMeasurements();
     for (size_t keypoint_i = 0u; keypoint_i < num_keypoints; ++keypoint_i) {
       keypoint_identifier.keypoint_index = keypoint_i;
       action(keypoint_identifier);

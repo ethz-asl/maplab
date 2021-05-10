@@ -59,6 +59,7 @@ class ImuCameraSynchronizerFlow {
 
  private:
   ImuCameraSynchronizer synchronizing_pipeline_;
+  int64_t last_imu_time = 0;
 };
 
 }  // namespace rovioli

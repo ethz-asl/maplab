@@ -15,9 +15,7 @@ class FeatureTrackingFlow {
  public:
   FeatureTrackingFlow(
       const aslam::NCamera::Ptr& camera_system, const vi_map::Imu& imu_sensor)
-      : tracking_pipeline_(camera_system, imu_sensor) {
-    CHECK(camera_system);
-  }
+      : tracking_pipeline_(camera_system, imu_sensor) {}
 
   void attachToMessageFlow(message_flow::MessageFlow* flow) {
     CHECK_NOTNULL(flow);

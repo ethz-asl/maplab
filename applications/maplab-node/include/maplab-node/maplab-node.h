@@ -17,6 +17,7 @@
 #include "maplab-node/map-builder-flow.h"
 #include "maplab-node/synchronizer-flow.h"
 #include "maplab-node/visual-localizer-flow.h"
+#include "maplab-node/lidar-feature-flow.h"
 
 namespace maplab {
 
@@ -79,6 +80,7 @@ class MaplabNode final {
 
   std::unique_ptr<VisualLocalizerFlow> localizer_flow_;
   std::unique_ptr<LocalizationHandlerFlow> localization_handler_flow;
+  std::unique_ptr<LidarFeatureFlow> lidar_tracker_flow_;
 
   // Set to true once the data-source has played back all its data. Will never
   // be true for infinite data-sources (live-data).

@@ -85,6 +85,9 @@ class SensorManager : public aslam::YamlFileSerializable {
       const vi_map::SensorType& sensor_type,
       aslam::SensorIdSet* all_sensor_ids) const;
 
+  const aslam::SensorIdSet getAllSensorIdsOfType(
+      const vi_map::SensorType& sensor_type) const;
+      
   size_t getNumSensors() const;
   size_t getNumSensorsOfType(const vi_map::SensorType& sensor_type) const;
 

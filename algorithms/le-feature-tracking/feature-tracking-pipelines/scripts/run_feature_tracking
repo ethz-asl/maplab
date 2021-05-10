@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+ROSBAG="/home/berlukas/Documents/datasets/lee_j/lee_j_run_1_2019-05-07-12-55-36.bag"
+NCAMERA="/home/berlukas/Documents/calibration/lidarstick/cam-lidarstick-180deg-fisheye.yaml "
+NCAMERA2="/home/berlukas/Documents/calibration/lidarstick/ncamera-lidarstick-180deg-fisheye.yaml"
+IMU="/home/berlukas/Documents/calibration/lidarstick/imu_maplab.yaml"
+CAMERA_TOPIC="/VersaVIS/cam1/image_raw"
+IMU_TOPIC="/VersaVIS/imu"
+REST=$@
+
+rosrun feature_tracking_pipelines feature_tracking_app \
+  --v=1 \
+  --alsologtostderr=1 \
+  --ncamera_calibration=$NCAMERA \
+  --camera_topic=$CAMERA_TOPIC \
+  --publish_debug_markers \
+  --imu_topic=$IMU_TOPIC \
+  --datasource_type="rosbag" \
+  --datasource_rosbag=$ROSBAG \
+  $REST
+

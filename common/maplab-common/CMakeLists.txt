@@ -67,6 +67,10 @@ catkin_add_gtest(test_fixed_size_queue
     test/test_fixed_size_queue.cc)
 target_link_libraries(test_fixed_size_queue ${PROJECT_NAME})
 
+catkin_add_gtest(test_eigen_helpers
+    test/test_eigen_helpers.cc)
+target_link_libraries(test_eigen_helpers ${PROJECT_NAME})
+
 catkin_add_gtest(test_eigen_proto_test
   test/test_eigen_proto_test.cc)
 target_link_libraries(test_eigen_proto_test ${PROJECT_NAME})

@@ -27,7 +27,7 @@ double VIMapGeometry::getMedianSceneDepth(
   const aslam::VisualFrame& frame = vertex.getVisualFrame(frame_id.frame_index);
   const Eigen::Vector3d p_G_C = getVisualFrame_T_G_C(frame_id).getPosition();
 
-  const size_t num_keypoints = frame.getNumKeypointMeasurements();
+  const size_t num_keypoints = frame.getTotalNumKeypointMeasurements();
   std::vector<double> square_depths;
   square_depths.reserve(num_keypoints);
 

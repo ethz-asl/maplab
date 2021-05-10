@@ -32,7 +32,13 @@ namespace internal {
 void serializeDescriptors(
     const aslam::VisualFrame::DescriptorsT& descriptors,
     aslam::proto::VisualFrame* proto);
+void serializeLidarDescriptors(
+    const aslam::VisualFrame::DescriptorsT& descriptors,
+    aslam::proto::VisualFrame* proto);
 void deserializeDescriptors(
+    const aslam::proto::VisualFrame& proto,
+    aslam::VisualFrame::DescriptorsT* descriptors);
+void deserializeLidarDescriptors(
     const aslam::proto::VisualFrame& proto,
     aslam::VisualFrame::DescriptorsT* descriptors);
 

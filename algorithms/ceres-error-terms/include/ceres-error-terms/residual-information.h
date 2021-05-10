@@ -23,6 +23,7 @@ enum class ResidualType {
   kVelocityPrior,
   k3DoFGPS,
   kGenericPrior,
+  kLidarPositionError,
 };
 
 struct ResidualInformation {

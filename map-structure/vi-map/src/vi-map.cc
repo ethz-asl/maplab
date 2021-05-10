@@ -437,7 +437,7 @@ void VIMap::getStatisticsOfMission(
       if (vertex.isVisualFrameSet(frame_idx) &&
           vertex.isVisualFrameValid(frame_idx)) {
         *num_observations +=
-            vertex.getVisualFrame(frame_idx).getNumKeypointMeasurements();
+            vertex.getVisualFrame(frame_idx).getTotalNumKeypointMeasurements();
       }
     }
   }
@@ -946,12 +946,17 @@ void VIMap::associateMissionSensors(
   for (const auto& sensor_of_type : sensors_of_type) {
     CHECK(!sensor_of_type.second.empty());
     if (static_cast<SensorType>(sensor_of_type.first) == SensorType::kNCamera) {
-      CHECK(!mission.hasNCamera()) << "There shouldn't be a NCamera sensor "
-                                   << "associated yet with this mission!";
+      CHECK(!(mission.hasNCamera() && mission.hasAdditionalNCamera()))
+          << "There shouldn't be a NCamera sensor "
+          << "associated yet with this mission!";
       const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
           FLAGS_selected_ncamera_sensor_id, "selected_ncamera_sensor_id",
           "NCamera", sensor_of_type.second);
-      mission.setNCameraId(sensor_id);
+      if (!mission.hasNCamera()) {
+        mission.setNCameraId(sensor_id);
+      } else {
+        mission.setAdditionalNCameraId(sensor_id);
+      }
     } else if (
         static_cast<SensorType>(sensor_of_type.first) == SensorType::kImu) {
       CHECK(!mission.hasImu()) << "There shouldn't be a IMU sensor associated "
@@ -1022,6 +1027,14 @@ void VIMap::associateMissionSensors(
           << sensor_of_type.first;
     }
   }
+}
+
+const aslam::NCamera& VIMap::getAdditionalNCamera(
+    const vi_map::MissionId& id) const {
+  const VIMission& mission = getMission(id);
+  CHECK(mission.hasAdditionalNCamera());
+  return sensor_manager_.getSensor<aslam::NCamera>(
+      mission.getAdditionalNCameraId());
 }
 
 void VIMap::getAllAssociatedMissionSensorIds(
