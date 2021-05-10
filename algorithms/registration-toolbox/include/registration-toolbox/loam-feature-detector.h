@@ -17,11 +17,13 @@ namespace regbox {
 
 class LoamFeatureDetector {
  public:
+  LoamFeatureDetector();
   ~LoamFeatureDetector() = default;
 
   void extractLoamFeaturesFromPointCloud(
       const resources::PointCloud& point_cloud,
-      resources::PointCloud* feature_cloud);
+      resources::PointCloud* feature_cloud, size_t* n_edges = nullptr,
+      size_t* n_surfaces = nullptr);
 
  private:
   void extractFeaturesFromScanLine(
@@ -54,6 +56,12 @@ class LoamFeatureDetector {
       const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
       CurvaturePairs* curvatures);
   pcl::PointCloud<pcl::PointXYZ> pickedpoints_;
+  float max_angle_between_valid_neighbors_rad_;
+  static constexpr float kDistanceEpsillon = 0.0001;
+  static constexpr float kMaxCurvatureRegionNeighborDistanceSquaredm2 = 0.05;
+  static constexpr float kSquaredPointToNextPointDistancem2 = 0.1;
+  static constexpr float kRampFactor = 0.0002;
+  static constexpr float kWeightedDistanceThreshold = 0.1;
 };
 
 }  // namespace regbox

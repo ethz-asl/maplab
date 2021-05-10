@@ -40,6 +40,9 @@ DECLARE_double(dm_constraint_switch_variable_value);
 DECLARE_double(dm_constraint_switch_variable_sigma);
 DECLARE_double(dm_candidate_selection_min_switch_variable_value);
 
+// VISUALIZATION
+DECLARE_bool(dm_visualization_publish_loam_map);
+
 }  // namespace dense_mapping
 
 #endif  // DENSE_MAPPING_DENSE_MAPPING_GFLAGS_H_

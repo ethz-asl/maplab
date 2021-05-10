@@ -8,17 +8,7 @@
 #include <pcl/filters/filter.h>
 #include <pcl_conversions/pcl_conversions.h>
 
-DEFINE_int32(
-    regbox_loam_optimization_iterations, 15,
-    "Iterations for LOAM Optimization");
-DEFINE_int32(
-    regbox_loam_ceres_iterations, 5, "Iterations per Ceres Optimization");
-DEFINE_double(
-    regbox_loam_max_edge_distance_m, 1.0,
-    "Maximum point distance for edge point matches");
-DEFINE_double(
-    regbox_loam_max_surface_distance_m, 1.0,
-    "Maximum point distance for surface point matches");
+#include "registration-toolbox/common/registration-gflags.h"
 
 namespace regbox {
 
@@ -48,7 +38,8 @@ RegistrationResult LoamAlignment::registerCloudImpl(
   t_w_curr = prior_T_target_source.getPosition();
   const Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(6, 6) * 1e-4;
 
-  if ((target_edges_->empty() && target_surfaces_->empty()) ||
+  if ((target_edges_->size() < FLAGS_regbox_loam_min_map_edges ||
+       target_surfaces_->size() < FLAGS_regbox_loam_min_map_surfaces) ||
       (source_edges_->empty() && source_surfaces_->empty())) {
     return RegistrationResult(source, covariance, prior_T_target_source, false);
   }
@@ -118,33 +109,6 @@ void LoamAlignment::extractFeaturesFromInputClouds(
       source_edges_->push_back(point);
     }
   }
-}
-
-bool LoamAlignment::calculateSolutionCovariance(
-    // This is still a draft as the covariance is calculated on the
-    // quaternions, but covariance on the euler angles is needed
-    ceres::Problem* problem, Eigen::Matrix<float, 7, 7>* covariance) {
-  CHECK_NOTNULL(problem);
-  CHECK_NOTNULL(covariance);
-
-  ceres::Covariance::Options options;
-  ceres::Covariance ceres_covariance(options);
-
-  std::vector<std::pair<const double*, const double*>> covariance_pairs;
-  covariance_pairs.push_back(
-      std::make_pair(&parameters_[0] + 4, &parameters_[0] + 4));
-  covariance_pairs.push_back(std::make_pair(&parameters_[0], &parameters_[0]));
-
-  if (!ceres_covariance.Compute(covariance_pairs, problem)) {
-    return false;
-  }
-
-  double covariance_q[16];
-  ceres_covariance.GetCovarianceBlock(
-      &parameters_[0] + 4, &parameters_[0] + 4, covariance_q);
-  double covariance_t[9];
-  ceres_covariance.GetCovarianceBlock(
-      &parameters_[0], &parameters_[0], covariance_t);
 }
 
 bool EdgeAnalyticCostFunction::Evaluate(
@@ -292,8 +256,6 @@ void LoamAlignment::addEdgeCostFactors(
   CHECK_NOTNULL(problem);
   CHECK_NOTNULL(loss_function);
 
-  size_t n_corners = 0u;
-
   PclPointCloudPtr<pcl::PointXYZL> source_edges_transformed(
       new pcl::PointCloud<pcl::PointXYZL>);
   pcl::transformPointCloud(
@@ -353,13 +315,8 @@ void LoamAlignment::addEdgeCostFactors(
         ceres::CostFunction* cost_function =
             new EdgeAnalyticCostFunction(edge_point, point_a, point_b);
         problem->AddResidualBlock(cost_function, loss_function, parameters_);
-        n_corners++;
       }
     }
-  }
-  if (n_corners < 20) {
-    // LOG(WARNING) << "Not enough edge points matched in Loam Alignment";
-    // LOG(WARNING) << n_corners;
   }
 }
 
@@ -370,8 +327,6 @@ void LoamAlignment::addSurfaceCostFactors(
     ceres::LossFunction* loss_function) {
   CHECK_NOTNULL(problem);
   CHECK_NOTNULL(loss_function);
-
-  size_t n_surfaces = 0;
 
   PclPointCloudPtr<pcl::PointXYZL> source_surfaces_transformed(
       new pcl::PointCloud<pcl::PointXYZL>);
@@ -436,12 +391,8 @@ void LoamAlignment::addSurfaceCostFactors(
         ceres::CostFunction* cost_function = new SurfaceAnalyticCostFunction(
             source_point, normal, negative_OA_dot_norm);
         problem->AddResidualBlock(cost_function, loss_function, parameters_);
-        n_surfaces++;
       }
     }
-  }
-  if (n_surfaces < 20) {
-    // LOG(WARNING) << "Not enough surface points matched in Loam Alignment";
   }
 }
 

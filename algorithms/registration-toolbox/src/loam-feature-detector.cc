@@ -27,12 +27,22 @@ DEFINE_double(
 DEFINE_double(
     regbox_loam_surface_curvature_threshold, 0.1,
     "Curvature below which a point is considered surface");
+DEFINE_double(
+    regbox_loam_max_angle_between_valid_neighbors_deg, 1.,
+    "If angle is larger than this, the neighborhood is marked unstable. "
+    "Can be used to filter out artificial features e.g. if filtered points "
+    "are missing.");
 
 namespace regbox {
 
+LoamFeatureDetector::LoamFeatureDetector()
+    : max_angle_between_valid_neighbors_rad_(
+          M_PI * FLAGS_regbox_loam_max_angle_between_valid_neighbors_deg /
+          180.) {}
+
 void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
     const resources::PointCloud& point_cloud,
-    resources::PointCloud* feature_cloud) {
+    resources::PointCloud* feature_cloud, size_t* n_edges, size_t* n_surfaces) {
   CHECK(point_cloud.hasRings());
   CHECK_NOTNULL(feature_cloud);
 
@@ -41,40 +51,34 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
 
   std::vector<int> indices;
 
-  std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> scan_lines;
+  std::map<size_t, pcl::PointCloud<pcl::PointXYZ>::Ptr> scan_lines;
   pickedpoints_.clear();
 
-  pcl::PointCloud<pcl::PointXYZ> loam_input;
-  uint32_t max_ring =
-      *std::max_element(point_cloud.rings.begin(), point_cloud.rings.end());
-
-  if (max_ring > 16) {
-    LOG(WARNING) << "MAX RING: " << max_ring;
-    return;
-  }
-  for (size_t idx = 0u; idx <= max_ring; idx++) {
-    scan_lines.push_back(
-        PclPointCloudPtr<pcl::PointXYZ>(new pcl::PointCloud<pcl::PointXYZ>));
-  }
-  for (int idx = 0u; idx < point_cloud.size(); idx++) {
+  for (size_t idx = 0u; idx < point_cloud.size(); idx++) {
     CHECK_GE(point_cloud.rings[idx], 0);
     pcl::PointXYZ point;
     point.x = point_cloud.xyz[3u * idx + 0];
     point.y = point_cloud.xyz[3u * idx + 1];
     point.z = point_cloud.xyz[3u * idx + 2];
-    const double planar_distance = sqrt(point.x * point.x + point.y * point.y);
-    if (abs(point.z) < 0.001)
+    const double distance = point.getVector3fMap().norm();
+
+    if (distance < kDistanceEpsillon)
       continue;
     if (!std::isfinite(point.x) || !std::isfinite(point.y) ||
         !std::isfinite(point.z)) {
       continue;
     }
-    scan_lines[static_cast<size_t>(point_cloud.rings[idx])]->push_back(point);
-    loam_input.push_back(point);
+    auto& scan_line = scan_lines[point_cloud.rings[idx]];
+    if (!scan_line) {
+      scan_line = boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    }
+    scan_line->push_back(point);
   }
-  for (const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line : scan_lines) {
-    if (scan_line->size() >= 2 * FLAGS_regbox_loam_curvature_region + 1) {
-      extractFeaturesFromScanLine(scan_line, edges, surfaces);
+
+  for (const auto& scan_line : scan_lines) {
+    if (scan_line.second->size() >=
+        2 * FLAGS_regbox_loam_curvature_region + 1) {
+      extractFeaturesFromScanLine(scan_line.second, edges, surfaces);
     }
   }
 
@@ -91,6 +95,12 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
     feature_cloud->xyz.push_back(point.y);
     feature_cloud->xyz.push_back(point.z);
     feature_cloud->labels.push_back(0u);
+  }
+  if (n_edges) {
+    *n_edges = edges->size();
+  }
+  if (n_surfaces) {
+    *n_surfaces = surfaces->size();
   }
 }
 
@@ -123,7 +133,8 @@ void LoamFeatureDetector::extractFeaturesFromScanLine(
   for (int idx = cloud_curvatures.size() - 1; idx >= 0; idx--) {
     int ind = cloud_curvatures[idx].first;
     if (!point_picked[ind]) {
-      if (cloud_curvatures[idx].second <= 0.1) {
+      if (cloud_curvatures[idx].second <=
+          FLAGS_regbox_loam_surface_curvature_threshold) {
         break;
       }
       if (edges_extracted_per_region
@@ -133,7 +144,9 @@ void LoamFeatureDetector::extractFeaturesFromScanLine(
         edges_extracted_per_region
             [FLAGS_regbox_loam_feature_regions * ind / scan_line->size()]++;
         edges->push_back((*scan_line)[ind]);
-        markCurvatureRegionAsPicked(ind, sqrt(0.05), scan_line, &point_picked);
+        markCurvatureRegionAsPicked(
+            ind, sqrt(kMaxCurvatureRegionNeighborDistanceSquaredm2), scan_line,
+            &point_picked);
       } else {
         break;
       }
@@ -143,7 +156,8 @@ void LoamFeatureDetector::extractFeaturesFromScanLine(
   for (int idx = 0; idx < cloud_curvatures.size(); idx++) {
     int ind = cloud_curvatures[idx].first;
     if (!point_picked[ind]) {
-      if (cloud_curvatures[idx].second > 0.1) {
+      if (cloud_curvatures[idx].second >
+          FLAGS_regbox_loam_surface_curvature_threshold) {
         break;
       }
       if (surfaces_extracted_per_region
@@ -152,7 +166,9 @@ void LoamFeatureDetector::extractFeaturesFromScanLine(
         surfaces->push_back((*scan_line)[ind]);
         surfaces_extracted_per_region
             [FLAGS_regbox_loam_feature_regions * ind / scan_line->size()]++;
-        markCurvatureRegionAsPicked(ind, sqrt(0.05), scan_line, &point_picked);
+        markCurvatureRegionAsPicked(
+            ind, sqrt(kMaxCurvatureRegionNeighborDistanceSquaredm2), scan_line,
+            &point_picked);
       }
     }
   }
@@ -166,23 +182,22 @@ void LoamFeatureDetector::markUnstablePointsAsPicked(
        point_idx++) {
     const pcl::PointXYZ& point = (*scan_line)[point_idx];
     const pcl::PointXYZ& previous_point = (*scan_line)[point_idx - 1];
-    float alpha = acos(
+    const float alpha = acos(
         point.getVector3fMap().dot(previous_point.getVector3fMap()) /
         (point.getVector3fMap().norm() *
          previous_point.getVector3fMap().norm()));
-    if (abs(alpha) > 1. * M_PI / 180.) {
+    if (abs(alpha) > max_angle_between_valid_neighbors_rad_) {
       markCurvatureRegionAsPicked(point_idx, point_picked);
     }
     const float point_distance_m = point.getVector3fMap().norm();
 
     const pcl::PointXYZ& next_point = (*scan_line)[point_idx + 1];
 
-    const float point_to_next_point_distance_m =
-        (next_point.getVector3fMap() - point.getVector3fMap()).norm();
     const float squared_point_to_next_point_distance_m2 =
         (point.getVector3fMap() - next_point.getVector3fMap()).squaredNorm();
 
-    if (squared_point_to_next_point_distance_m2 > 0.1) {
+    if (squared_point_to_next_point_distance_m2 >
+        kSquaredPointToNextPointDistancem2) {
       const float next_point_distance_m = next_point.getVector3fMap().norm();
 
       if (point_distance_m > next_point_distance_m) {
@@ -192,7 +207,9 @@ void LoamFeatureDetector::markUnstablePointsAsPicked(
                                       .norm() /
                                   next_point_distance_m;
 
-        if (weighted_distance < 0.1) {
+        //  In this case there is a gap between the points because the point is
+        //  occluded by the next point and we mark the points before it
+        if (weighted_distance < kWeightedDistanceThreshold) {
           markFirstHalfCurvatureRegionAsPicked(point_idx, point_picked);
           continue;
         }
@@ -202,8 +219,9 @@ void LoamFeatureDetector::markUnstablePointsAsPicked(
                                        next_point.getVector3fMap())
                                       .norm() /
                                   point_distance_m;
-
-        if (weighted_distance < 0.1) {
+        //  In this case there is a gap between the points because the point is
+        //  occluded by the previous point and we mark the points after it
+        if (weighted_distance < kWeightedDistanceThreshold) {
           markSecondHalfCurvatureRegionAsPicked(point_idx, point_picked);
         }
       }
@@ -217,7 +235,7 @@ void LoamFeatureDetector::markUnstablePointsAsPicked(
     // this will reject a point if the difference in distance of point and its
     // neighbors is outside a bound i.e. rejecting very sharp ramp like points
     const float squared_point_distance_threshold_m2 =
-        0.0002 * squared_point_distance_m2;
+        kRampFactor * squared_point_distance_m2;
     if (squared_point_to_next_point_distance_m2 >
             squared_point_distance_threshold_m2 &&
         squared_point_to_previous_point_distance_m2 >

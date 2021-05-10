@@ -28,6 +28,7 @@ DEFINE_double(
     "Maximum fitness score"
     "allowed for successful alignment");
 
+// libpointmatcher config
 DEFINE_string(
     regbox_lpm_config_path, "",
     "Path to the configuration for libpointmatcher.");
@@ -40,4 +41,23 @@ DEFINE_double(
 DEFINE_bool(
     regbox_lpm_use_computed_covariance, false,
     "If true, the LC edge uses the computed covariance if it is valid.");
+
+// loam config
+DEFINE_int32(
+    regbox_loam_optimization_iterations, 15,
+    "Iterations for LOAM Optimization");
+DEFINE_int32(
+    regbox_loam_ceres_iterations, 5, "Iterations per Ceres Optimization");
+DEFINE_int32(
+    regbox_loam_min_map_edges, 10,
+    "Minimum amount of edges in map for valid registration");
+DEFINE_int32(
+    regbox_loam_min_map_surfaces, 50,
+    "Minimum amount of surfaces in map for valid registration");
+DEFINE_double(
+    regbox_loam_max_edge_distance_m, 1.0,
+    "Maximum point distance for edge point matches");
+DEFINE_double(
+    regbox_loam_max_surface_distance_m, 1.0,
+    "Maximum point distance for surface point matches");
 }  // namespace regbox

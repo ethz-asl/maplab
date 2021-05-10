@@ -10,6 +10,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <registration-toolbox/common/base-controller.h>
+#include <registration-toolbox/common/registration-gflags.h>
 #include <registration-toolbox/loam-feature-detector.h>
 #include <registration-toolbox/mock-controller.h>
 #include <registration-toolbox/model/registration-result.h>
@@ -394,13 +395,20 @@ bool computeLoamAlignmentForCandidatePairs(
             if (!retrieveResourceForCandidate(
                     pair.candidate_A, map, &candidate_resource_A)) {
               LOG(ERROR) << "Unable to retrieve resource for candidate A.";
-              return false;
+              continue;
             }
 
+            size_t n_edges;
+            size_t n_surfaces;
             feature_detector.extractLoamFeaturesFromPointCloud(
-                candidate_resource_A, &aggregated_loam_map);
-            if (aggregated_loam_map.empty())
-              return false;
+                candidate_resource_A, &aggregated_loam_map, &n_edges,
+                &n_surfaces);
+            if (n_edges < regbox::FLAGS_regbox_loam_min_map_edges ||
+                n_surfaces < regbox::FLAGS_regbox_loam_min_map_surfaces) {
+              LOG(WARNING) << "First loam map candidate does not have "
+                              "enough features, trying next one.";
+              continue;
+            }
             loam_map_base_candidate = pair.candidate_A;
             last_successful_candidate = loam_map_base_candidate;
           }
