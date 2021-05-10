@@ -280,7 +280,6 @@ void resizePointCloud(
     const bool /*has_labels*/, const bool /*has_rings*/,
     const bool /*has_times*/, pcl::PointCloud<PointType>* point_cloud) {
   CHECK_NOTNULL(point_cloud);
-  CHECK_GT(num_points, 0u);
   point_cloud->points.resize(num_points);
 }
 

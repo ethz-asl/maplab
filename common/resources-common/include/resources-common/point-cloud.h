@@ -3,7 +3,9 @@
 
 #include <cstdio>
 #include <fstream>  // NOLINT
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <Eigen/Core>
@@ -12,11 +14,15 @@
 #include <maplab-common/parallel-process.h>
 #include <maplab-common/threading-helpers.h>
 
+#include "resources-common/resources-gflags.h"
 #include "resources-common/tinyply/tinyply.h"
 
 namespace resources {
 
 typedef Eigen::Matrix<uint8_t, 4, 1> RgbaColor;
+
+static const std::string kPointCloudSuffix = ".ply";
+static const std::string kCompressedPointCloudSuffix = ".drc";
 
 struct PointCloud {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -26,7 +32,7 @@ struct PointCloud {
   std::vector<unsigned char> colors;
   std::vector<float> scalars;
   std::vector<uint32_t> labels;
-  std::vector<uint32_t> rings;
+  std::vector<uint16_t> rings;
   std::vector<float> times;
 
   // Apply transformation T_A_B to pointcloud, assuming the pointcloud is
@@ -176,6 +182,47 @@ struct PointCloud {
     CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
   }
 
+  inline void append(const std::vector<PointCloud>& others) {
+    if (others.empty()) {
+      return;
+    }
+
+    size_t n_points = 0u, n_normals = 0u, n_colors = 0u, n_scalars = 0u,
+           n_labels = 0u, n_rings = 0u, n_times = 0u;
+    for (const PointCloud& other : others) {
+      CHECK(other.checkConsistency(true));
+      n_points += other.xyz.size();
+      n_normals += other.normals.size();
+      n_colors += other.colors.size();
+      n_scalars += other.scalars.size();
+      n_labels += other.labels.size();
+      n_rings += other.rings.size();
+      n_times += other.times.size();
+    }
+
+    xyz.reserve(xyz.size() + n_points);
+    normals.reserve(normals.size() + n_normals);
+    colors.reserve(colors.size() + n_colors);
+    scalars.reserve(scalars.size() + n_scalars);
+    labels.reserve(labels.size() + n_labels);
+    rings.reserve(rings.size() + n_rings);
+    times.reserve(times.size() + n_times);
+
+    for (const PointCloud& other : others) {
+      if (other.empty()) {
+        return;
+      }
+      xyz.insert(xyz.end(), other.xyz.begin(), other.xyz.end());
+      normals.insert(normals.end(), other.normals.begin(), other.normals.end());
+      colors.insert(colors.end(), other.colors.begin(), other.colors.end());
+      scalars.insert(scalars.end(), other.scalars.begin(), other.scalars.end());
+      labels.insert(labels.end(), other.labels.begin(), other.labels.end());
+      rings.insert(rings.end(), other.rings.begin(), other.rings.end());
+      times.insert(times.end(), other.times.begin(), other.times.end());
+    }
+    CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
+  }
+
   // Transforms the other point cloud and appends it to the current one. Assumes
   // the other point cloud is in B frame.
   inline void appendTransformed(
@@ -308,8 +355,15 @@ struct PointCloud {
     return is_same;
   }
 
+  void writeToFileCompressed(const std::string& file_path) const;
+
   inline void writeToFile(const std::string& file_path) const {
     CHECK(common::createPathToFile(file_path));
+
+    if (FLAGS_resources_compress_pointclouds) {
+      writeToFileCompressed(file_path);
+      return;
+    }
 
     std::filebuf filebuf;
     filebuf.open(file_path, std::ios::out | std::ios::binary);
@@ -345,7 +399,7 @@ struct PointCloud {
 
     if (!rings.empty()) {
       ply_file.add_properties_to_element(
-          "vertex", {"ring"}, const_cast<std::vector<uint32_t>&>(rings));
+          "vertex", {"ring"}, const_cast<std::vector<uint16_t>&>(rings));
     }
 
     if (!times.empty()) {
@@ -363,65 +417,72 @@ struct PointCloud {
       VLOG(1) << "Point cloud file does not exist! Path: " << file_path;
       return false;
     }
+    CHECK_GE(file_path.size(), 4);
+    const std::string suffix = file_path.substr(file_path.size() - 4);
+    if (suffix == kCompressedPointCloudSuffix) {
+      return loadFromCompressedFile(file_path);
+    } else {
+      std::ifstream stream_ply(file_path);
+      if (stream_ply.is_open()) {
+        tinyply::PlyFile ply_file(stream_ply);
+        const int xyz_point_count = ply_file.request_properties_from_element(
+            "vertex", {"x", "y", "z"}, xyz);
+        const int colors_count = ply_file.request_properties_from_element(
+            "vertex", {"nx", "ny", "nz"}, normals);
+        const int normals_count = ply_file.request_properties_from_element(
+            "vertex", {"red", "green", "blue"}, colors);
+        const int scalar_count = ply_file.request_properties_from_element(
+            "vertex", {"scalar"}, scalars);
+        const int label_count = ply_file.request_properties_from_element(
+            "vertex", {"label"}, labels);
+        const int ring_count =
+            ply_file.request_properties_from_element("vertex", {"ring"}, rings);
+        const int time_count =
+            ply_file.request_properties_from_element("vertex", {"time"}, times);
+        if (xyz_point_count > 0) {
+          if (colors_count > 0) {
+            // If colors are present, their count should match the point count.
+            CHECK_EQ(xyz_point_count, colors_count);
+          }
+          if (normals_count > 0) {
+            // If normals are present, their count should match the point count.
+            CHECK_EQ(xyz_point_count, normals_count);
+          }
 
-    std::ifstream stream_ply(file_path);
-    if (stream_ply.is_open()) {
-      tinyply::PlyFile ply_file(stream_ply);
-      const int xyz_point_count = ply_file.request_properties_from_element(
-          "vertex", {"x", "y", "z"}, xyz);
-      const int colors_count = ply_file.request_properties_from_element(
-          "vertex", {"nx", "ny", "nz"}, normals);
-      const int normals_count = ply_file.request_properties_from_element(
-          "vertex", {"red", "green", "blue"}, colors);
-      const int scalar_count = ply_file.request_properties_from_element(
-          "vertex", {"scalar"}, scalars);
-      const int label_count =
-          ply_file.request_properties_from_element("vertex", {"label"}, labels);
-      const int ring_count =
-          ply_file.request_properties_from_element("vertex", {"ring"}, rings);
-      const int time_count =
-          ply_file.request_properties_from_element("vertex", {"time"}, times);
-      if (xyz_point_count > 0) {
-        if (colors_count > 0) {
-          // If colors are present, their count should match the point count.
-          CHECK_EQ(xyz_point_count, colors_count);
-        }
-        if (normals_count > 0) {
-          // If normals are present, their count should match the point count.
-          CHECK_EQ(xyz_point_count, normals_count);
-        }
+          if (scalar_count > 0) {
+            // If a value attribute is present, its count should match the point
+            // count.
+            CHECK_EQ(xyz_point_count, scalar_count);
+          }
 
-        if (scalar_count > 0) {
-          // If a value attribute is present, its count should match the point
-          // count.
-          CHECK_EQ(xyz_point_count, scalar_count);
-        }
+          if (label_count > 0) {
+            // If a label attribute is present, its count should match the point
+            // count.
+            CHECK_EQ(xyz_point_count, label_count);
+          }
 
-        if (label_count > 0) {
-          // If a label attribute is present, its count should match the point
-          // count.
-          CHECK_EQ(xyz_point_count, label_count);
-        }
+          if (ring_count > 0) {
+            // If a ring attribute is present, its count should match the point
+            // count.
+            CHECK_EQ(xyz_point_count, ring_count);
+          }
 
-        if (ring_count > 0) {
-          // If a ring attribute is present, its count should match the point
-          // count.
-          CHECK_EQ(xyz_point_count, ring_count);
-        }
+          if (time_count > 0) {
+            // If a time attribute is present, its count should match the point
+            // count.
+            CHECK_EQ(xyz_point_count, time_count);
+          }
 
-        if (time_count > 0) {
-          // If a time attribute is present, its count should match the point
-          // count.
-          CHECK_EQ(xyz_point_count, time_count);
+          ply_file.read(stream_ply);
         }
-
-        ply_file.read(stream_ply);
+        stream_ply.close();
+        return true;
       }
-      stream_ply.close();
-      return true;
+      return false;
     }
-    return false;
   }
+
+  bool loadFromCompressedFile(const std::string& file_path);
 
   inline bool colorizePointCloud(
       const size_t start_point_idx, const size_t end_point_idx, const uint8_t r,

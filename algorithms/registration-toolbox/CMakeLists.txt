@@ -24,6 +24,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 cs_add_library(${PROJECT_NAME}
   src/alignment/lpm-alignment.cc
   src/alignment/loam-alignment.cc
+  src/alignment/pcl-alignment.cc
   src/common/common.cc
   src/common/registration-factory.cc
   src/common/registration-gflags.cc

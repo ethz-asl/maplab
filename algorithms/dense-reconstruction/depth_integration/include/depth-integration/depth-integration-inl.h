@@ -3,10 +3,13 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
+#include <memory>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include <Eigen/Core>
 #include <aslam/common/pose-types.h>

@@ -314,6 +314,9 @@ bool MaplabServerRosNode::getDenseMapInRangeCallback(
     case maplab_msgs::GetDenseMapInRange::Request::POINT_CLOUD_TYPE_XYZL:
       resource_type = backend::ResourceType::kPointCloudXYZL;
       break;
+    case maplab_msgs::GetDenseMapInRange::Request::POINT_CLOUD_TYPE_XYZIRT:
+      resource_type = backend::ResourceType::kPointCloudXYZIRT;
+      break;
     default:
       LOG(ERROR) << "[MaplabServerRosNode] Received a request from robot '"
                  << request.robot_name

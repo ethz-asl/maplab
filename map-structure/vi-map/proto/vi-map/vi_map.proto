@@ -147,6 +147,7 @@ message Mission {
   optional aslam.proto.Id absolute_6dof_id = 13;
   optional aslam.proto.Id detection_id = 14;
   optional aslam.proto.Id wheel_odometry_id = 15;
+  optional aslam.proto.Id pointcloud_map_id = 16;
 }
 
 message MissionBaseframe {

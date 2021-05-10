@@ -191,9 +191,12 @@ bool exportAllImagesForCalibration(
 
           const int64_t frame_timestamp_ns =
               vertex.getVisualFrame(frame_idx).getTimestampNanoseconds();
-          const std::string file_path =
-              resource_type_folder + std::to_string(frame_timestamp_ns) +
-              backend::ResourceTypeFileSuffix[static_cast<int>(resource_type)];
+          std::string file_suffix;
+          resource_loader.getResourceTypeFileSuffix(
+              resource_type, &file_suffix);
+          const std::string file_path = resource_type_folder +
+                                        std::to_string(frame_timestamp_ns) +
+                                        file_suffix;
 
           resource_loader.saveResourceToFile(
               file_path, resource_type, resource);

@@ -69,8 +69,6 @@ class DataSourceRostopic : public DataSource {
  private:
   void registerSubscribers(const vio_common::RosTopicSettings& ros_topics);
   void imageCallback(const sensor_msgs::ImageConstPtr& msg, size_t camera_idx);
-  void compressedImageCallback(
-      const sensor_msgs::CompressedImageConstPtr& msg, size_t camera_idx);
   void imuMeasurementCallback(const sensor_msgs::ImuConstPtr& msg);
   void lidarMeasurementCallback(
       const sensor_msgs::PointCloud2ConstPtr& msg,

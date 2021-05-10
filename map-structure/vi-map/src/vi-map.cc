@@ -695,6 +695,13 @@ std::string VIMap::printMapStatistics(
     // TODO(mfehr): ADD ALL LIDAR Sensor SPECIFIC STUFF
   }
 
+  // Print PointCloudMap sensor/constraint info if present
+  if (mission.hasPointCloudMap()) {
+    aslam::SensorId pointcloud_map_id = mission.getPointCloudMapSensorId();
+    stats_text << std::endl;
+    print_aligned("PointCloudMap Sensor: ", pointcloud_map_id.hexString(), 1);
+  }
+
   stats_text << std::endl;
   print_aligned("General:", "", 1);
   const size_t num_vertices = numVerticesInMission(mission_id);
@@ -1014,8 +1021,14 @@ void VIMap::associateMissionSensors(
     } else if (
         static_cast<SensorType>(sensor_of_type.first) ==
         SensorType::kPointCloudMapSensor) {
-      // NOTE: this sensor type does not need to be associated with the VIMap,
-      // as it is only used to store sensor resources anyways.
+      CHECK(!mission.hasPointCloudMap())
+          << "There shouldn't be a PointCloudMap"
+          << "sensor associated yet with this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_point_cloud_map_sensor_id,
+          "selected_point_cloud_map_sensor_id", "PointCloudMap",
+          sensor_of_type.second);
+      mission.setPointCloudMapId(sensor_id);
     } else {
       LOG(FATAL)
           << "Trying to associate an unknown sensor type with the VIMap! Type: "
@@ -1039,6 +1052,9 @@ void VIMap::getAllAssociatedMissionSensorIds(
   }
   if (mission.hasLidar()) {
     sensor_ids->insert(mission.getLidarId());
+  }
+  if (mission.hasPointCloudMap()) {
+    sensor_ids->insert(mission.getPointCloudMapSensorId());
   }
   if (mission.hasOdometry6DoFSensor()) {
     sensor_ids->insert(mission.getOdometry6DoFSensor());
@@ -1093,6 +1109,18 @@ vi_map::Lidar::Ptr VIMap::getMissionLidarPtr(
     const vi_map::MissionId& id) const {
   return sensor_manager_.getSensorPtr<vi_map::Lidar>(
       getMission(id).getLidarId());
+}
+
+const vi_map::PointCloudMapSensor& VIMap::getMissionPointCloudMapSensor(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensor<vi_map::PointCloudMapSensor>(
+      getMission(id).getPointCloudMapSensorId());
+}
+
+vi_map::PointCloudMapSensor::Ptr VIMap::getMissionPointCloudMapSensorPtr(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensorPtr<vi_map::PointCloudMapSensor>(
+      getMission(id).getPointCloudMapSensorId());
 }
 
 const vi_map::Odometry6DoF& VIMap::getMissionOdometry6DoFSensor(
@@ -1576,6 +1604,25 @@ const vi_map::MissionId VIMap::duplicateMission(
 
     CHECK(mission_ptr);
     mission_ptr->setLidarId(new_sensor_id);
+  }
+
+  if (source_mission.hasPointCloudMap()) {
+    const aslam::SensorId source_sensor_id =
+        source_mission.getPointCloudMapSensorId();
+
+    vi_map::PointCloudMapSensor* cloned_pointcloud_map = CHECK_NOTNULL(
+        getMissionPointCloudMapSensor(source_mission_id).cloneWithNewIds());
+    const aslam::SensorId new_sensor_id = cloned_pointcloud_map->getId();
+    const aslam::Transformation& T_B_S =
+        getSensorManager().getSensor_T_B_S(source_sensor_id);
+    const aslam::SensorId& base_sensor_id =
+        getSensorManager().getBaseSensorId(source_sensor_id);
+    getSensorManager().addSensor<vi_map::PointCloudMapSensor>(
+        vi_map::PointCloudMapSensor::UniquePtr(cloned_pointcloud_map),
+        base_sensor_id, T_B_S);
+
+    CHECK(mission_ptr);
+    mission_ptr->setPointCloudMapId(new_sensor_id);
   }
 
   if (source_mission.hasOdometry6DoFSensor()) {
@@ -2466,13 +2513,10 @@ bool VIMap::checkResourceConsistency() const {
                 }
                 break;
               case backend::ResourceType::kPointCloudXYZ:
-                if (!checkResource<resources::PointCloud>(resource_id, type)) {
-                  LOG(ERROR) << "Resource " << resource_id
-                             << " is in an inconsistent state!";
-                  consistent = false;
-                }
-                break;
               case backend::ResourceType::kPointCloudXYZRGBN:
+              case backend::ResourceType::kPointCloudXYZI:
+              case backend::ResourceType::kPointCloudXYZL:
+              case backend::ResourceType::kPointCloudXYZIRT:
                 if (!checkResource<resources::PointCloud>(resource_id, type)) {
                   LOG(ERROR) << "Resource " << resource_id
                              << " is in an inconsistent state!";
@@ -2892,7 +2936,6 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
         CHECK(submap.landmark_index.hasLandmark(submap_landmark_id));
         const pose_graph::VertexId& storing_vertex_id_submap =
             submap.landmark_index.getStoringVertexId(submap_landmark_id);
-        CHECK_EQ(storing_vertex_id_submap, first_submap_vertex_id);
         CHECK(submap.hasVertex(storing_vertex_id_submap));
         CHECK(submap.getVertex(storing_vertex_id_submap)
                   .hasStoredLandmark(submap_landmark_id));
@@ -2928,34 +2971,45 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
               !base_last_vertex.getLandmarks().hasLandmark(submap_landmark_id));
 
           // If the same vertex in the submap owns a new landmark, we
-          // transfer it to the base map vertex.
-          vi_map::Landmark submap_landmark =
-              submap_first_vertex.getLandmarks().getLandmark(
-                  submap_landmark_id);
-
-          // Clear all observations and rebuild them later when adding the
-          // vertices.
-          base_last_vertex.getLandmarks().addLandmark(submap_landmark);
-          landmark_index.addLandmarkAndVertexReference(
-              submap_landmark_id, last_base_vertex_id);
+          // transfer it to the base map using the storing vertex unless
+          // the storing vertex is the first vertex of the submap,
+          // then we need to add it to the last vertex of the basemap.
           base_last_vertex.setObservedLandmarkId(
               frame_idx, observation_idx, submap_landmark_id);
+          const bool stored_by_first_submap_vertex =
+              storing_vertex_id_submap == first_submap_vertex_id;
+          const pose_graph::VertexId& new_landmark_vertex_id =
+              stored_by_first_submap_vertex ? last_base_vertex_id
+                                            : storing_vertex_id_submap;
+          CHECK(!landmark_index.hasLandmark(submap_landmark_id));
+          landmark_index.addLandmarkAndVertexReference(
+              submap_landmark_id, new_landmark_vertex_id);
 
-          // Check storing vertex of submap landmark after insertion into the
-          // base map.
-          CHECK(landmark_index.hasLandmark(submap_landmark_id));
-          const pose_graph::VertexId& storing_vertex_id_base_map =
-              landmark_index.getStoringVertexId(submap_landmark_id);
-          CHECK_EQ(storing_vertex_id_base_map, last_base_vertex_id);
-          CHECK(hasVertex(storing_vertex_id_base_map));
-          CHECK(getVertex(storing_vertex_id_base_map)
-                    .hasStoredLandmark(submap_landmark_id));
-          CHECK_GE(
-              base_last_vertex.getNumLandmarkObservations(submap_landmark_id),
-              1u);
-          CHECK(getLandmark(submap_landmark_id)
-                    .hasObservation(
-                        last_base_vertex_id, frame_idx, observation_idx));
+          // If the first vertex of the submap stores the landmark we also add
+          // it to the last vertex of the base map. Otherwise the landmark is
+          // stored in another vertex that will be added later.
+          if (stored_by_first_submap_vertex) {
+            vi_map::Landmark submap_landmark =
+                submap_first_vertex.getLandmarks().getLandmark(
+                    submap_landmark_id);
+
+            // Clear all observations and rebuild them later when adding the
+            // vertices.
+            base_last_vertex.getLandmarks().addLandmark(submap_landmark);
+            CHECK(landmark_index.hasLandmark(submap_landmark_id));
+            const pose_graph::VertexId& storing_vertex_id_base_map =
+                landmark_index.getStoringVertexId(submap_landmark_id);
+            CHECK_EQ(storing_vertex_id_base_map, last_base_vertex_id);
+            CHECK(hasVertex(storing_vertex_id_base_map));
+            CHECK(getVertex(storing_vertex_id_base_map)
+                      .hasStoredLandmark(submap_landmark_id));
+            CHECK_GE(
+                base_last_vertex.getNumLandmarkObservations(submap_landmark_id),
+                1u);
+            CHECK(getLandmark(submap_landmark_id)
+                      .hasObservation(
+                          last_base_vertex_id, frame_idx, observation_idx));
+          }
         }
       }
     }
@@ -3041,15 +3095,21 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
         // If this landmark has been remapped to a landmark in the base map we
         // can delete it or if it doesn't have any observations. Otherwise we
         // need to update the global landmark index of the base map.
+        const bool has_observations = vertex_copy->getLandmarks()
+                                          .getLandmark(owned_landmark_id)
+                                          .hasObservations();
         if (remapped_landmark_submap_ids.count(owned_landmark_id) > 0u ||
-            !vertex_copy->getLandmarks()
-                 .getLandmark(owned_landmark_id)
-                 .hasObservations()) {
+            !has_observations) {
           vertex_copy->getLandmarks().removeLandmark(owned_landmark_id);
-          LandmarkId invalid;
-          vertex_copy->updateIdInObservedLandmarkIdList(
-              owned_landmark_id, invalid);
-        } else {
+          if (!has_observations) {
+            LandmarkId invalid;
+            vertex_copy->updateIdInObservedLandmarkIdList(
+                owned_landmark_id, invalid);
+          }
+
+          // Check if the landmark is already included which can happen if the
+          // landmark was added as an observation from a previous vertex.
+        } else if (!landmark_index.hasLandmark(owned_landmark_id)) {
           landmark_index.addLandmarkAndVertexReference(
               owned_landmark_id, submap_vertex_id);
         }

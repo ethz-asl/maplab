@@ -304,7 +304,7 @@ class StereoDenseReconstructionTest : public ::testing::Test {
 
     const std::string mesh_file_name =
         kTestDataBaseFolder + name +
-        backend::ResourceTypeFileSuffix[static_cast<int>(
+        backend::getResourceTypesFileSuffixes()[static_cast<int>(
             backend::ResourceType::kPointCloudXYZRGBN)];
     if (common::fileExists(mesh_file_name)) {
       common::deleteFile(mesh_file_name);
@@ -312,7 +312,7 @@ class StereoDenseReconstructionTest : public ::testing::Test {
 
     const std::string depth_map_file_name =
         kTestDataBaseFolder + name +
-        backend::ResourceTypeFileSuffix[static_cast<int>(
+        backend::getResourceTypesFileSuffixes()[static_cast<int>(
             backend::ResourceType::kRawDepthMap)];
     if (common::fileExists(depth_map_file_name)) {
       common::deleteFile(depth_map_file_name);

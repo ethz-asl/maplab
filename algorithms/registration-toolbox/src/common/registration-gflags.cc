@@ -4,8 +4,29 @@ namespace regbox {
 
 // Point cloud preprocessing.
 DEFINE_double(
-    regbox_pcl_downsample_leaf_size_m, 0.4f,
+    regbox_pcl_downsample_leaf_size_m, 0.15f,
     "Defines the leaf size of the voxel grid.");
+
+DEFINE_bool(
+    regbox_pcl_use_downsampling, true, "Defines if downsampling is performed.");
+
+DEFINE_int32(
+    regbox_pcl_gicp_n_neighbors, 15,
+    "Amount of neighboring points used for GICP covariance estimation.");
+
+DEFINE_int32(
+    regbox_pcl_max_iterations, 50, "Maximum number of alignment iterations.");
+
+DEFINE_double(
+    regbox_pcl_fitness_max_considered_distance_m, 1.,
+    "Maximum"
+    "distance between points to be considered inilers in the euclidean fitness"
+    "score calculation");
+
+DEFINE_double(
+    regbox_pcl_max_fitness_score_m, 0.15,
+    "Maximum fitness score"
+    "allowed for successful alignment");
 
 DEFINE_string(
     regbox_lpm_config_path, "",
