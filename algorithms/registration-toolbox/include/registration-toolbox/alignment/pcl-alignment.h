@@ -68,11 +68,11 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
         PclPointCloudPtr<T_point>(new pcl::PointCloud<T_point>);
     source_aligner_input =
         PclPointCloudPtr<T_point>(new pcl::PointCloud<T_point>);
-    downSamplePointCloud(target, target_aligner_input);
-    downSamplePointCloud(source, source_aligner_input);
+    downSamplePointCloud(target_pcl, target_aligner_input);
+    downSamplePointCloud(source_pcl, source_aligner_input);
   } else {
-    target_aligner_input = target;
-    source_aligner_input = source;
+    target_aligner_input = target_pcl;
+    source_aligner_input = source_pcl;
   }
 
   bool is_converged = true;
@@ -102,13 +102,13 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
   if (T.topLeftCorner<3, 3>().normalized().squaredNorm() <=
       static_cast<double>(1) +
           kindr::minimal::EPS<double>::normalization_value()) {
-
-            resources::PointCloud source_registered = source;
-            const auto T_kindr = this->convertEigenToKindr(T.cast<double>());
-            source_registered.applyTransformation(T_kindr);
-            source_registered.applyTransformation(T_kindr);
+    resources::PointCloud source_registered = source;
+    const auto T_kindr = this->convertEigenToKindr(T.cast<double>());
+    source_registered.applyTransformation(T_kindr);
+    source_registered.applyTransformation(T_kindr);
     return RegistrationResult(
-      source_registered, cov, T_kindr, aligner_.hasConverged() & is_converged);
+        source_registered, cov, T_kindr,
+        aligner_.hasConverged() & is_converged);
   } else {
     LOG(ERROR)
         << "PCL registration gave invalid rotation matrix, returning prior.";
