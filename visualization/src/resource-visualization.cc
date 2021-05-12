@@ -107,19 +107,36 @@ static void applyVoxelGridFilter(
   backend::convertPointCloudType((*pcl_cloud), cloud_filtered);
 }
 
-template <typename T_input>
+template <typename T_input, typename T_output>
 static void applyBeautification(
-    const T_input& cloud_in, sensor_msgs::PointCloud2* cloud_filtered) {
+    const T_input& cloud_in, T_output* cloud_filtered) {
   pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(
       new pcl::PointCloud<pcl::PointXYZI>);
   CHECK_NOTNULL(pcl_cloud);
-
+  sensor_msgs::PointCloud2 cloud_ros;
   backend::convertPointCloudType(cloud_in, &(*pcl_cloud));
   if (pcl_cloud->empty()) {
     return;
   }
-  beautifyPointCloud(pcl_cloud, cloud_filtered);
+  beautifyPointCloud(pcl_cloud, &cloud_ros);
   backend::convertPointCloudType(*pcl_cloud, cloud_filtered);
+}
+
+template <typename T_input>
+static void subsamplePointCloudForRosIfNecessary(
+    const T_input& cloud_in, sensor_msgs::PointCloud2* ros_point_cloud) {
+  const uint32_t point_step = backend::getPointStep(
+      cloud_in.hasColor(), cloud_in.hasNormals(), cloud_in.hasTimes(),
+      cloud_in.hasLabels(), cloud_in.hasRings(), cloud_in.hasTimes());
+  static const size_t kMargin = 1000u;
+  static const size_t kMaxRosMessageSize = 1000000000u;
+  static const size_t kMaxDataSize = kMaxRosMessageSize - kMargin;
+  if (cloud_in.size() * point_step > kMaxDataSize) {
+    const int n_max_points = kMaxDataSize / point_step;
+    applyRandomDownSamplingFilter(cloud_in, n_max_points, ros_point_cloud);
+  } else {
+    backend::convertPointCloudType(cloud_in, ros_point_cloud);
+  }
 }
 
 bool visualizeCvMatResources(
@@ -389,16 +406,27 @@ void visualizeReprojectedDepthResource(
     return;
   }
 
-  // Publish accumulated point cloud in global frame.
-  sensor_msgs::PointCloud2 ros_point_cloud_G;
+  std::shared_ptr<resources::PointCloud> filtered_accumulated_point_cloud_G;
   if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
-    applyVoxelGridFilter(accumulated_point_cloud_G, &ros_point_cloud_G);
+    filtered_accumulated_point_cloud_G =
+        std::make_shared<resources::PointCloud>();
+    applyVoxelGridFilter(
+        accumulated_point_cloud_G, filtered_accumulated_point_cloud_G.get());
   } else if (FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
-    applyBeautification(accumulated_point_cloud_G, &ros_point_cloud_G);
+    filtered_accumulated_point_cloud_G =
+        std::make_shared<resources::PointCloud>();
+    applyBeautification(
+        accumulated_point_cloud_G, filtered_accumulated_point_cloud_G.get());
   } else {
-    backend::convertPointCloudType(
-        accumulated_point_cloud_G, &ros_point_cloud_G);
+    filtered_accumulated_point_cloud_G =
+        std::make_shared<resources::PointCloud>(
+            std::move(accumulated_point_cloud_G));
   }
+  sensor_msgs::PointCloud2 ros_point_cloud_G;
+  subsamplePointCloudForRosIfNecessary(
+      *filtered_accumulated_point_cloud_G, &ros_point_cloud_G);
+
+  // Publish accumulated point cloud in global frame.
   publishPointCloudInGlobalFrame("" /*topic prefix*/, &ros_point_cloud_G);
 
   // Only continue if we want to export the accumulated point cloud to file.
@@ -424,9 +452,9 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
   uint32_t point_cloud_counter = 0u;
 
   srand(time(NULL));
-
+  std::vector<resources::PointCloud> point_clouds_G;
   depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
-      [&accumulated_point_cloud_G, &point_cloud_counter](
+      [&point_clouds_G, &point_cloud_counter](
           const aslam::Transformation& T_G_S,
           const resources::PointCloud& points_S) {
         if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
@@ -445,13 +473,10 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
 
         ++point_cloud_counter;
 
-        const size_t previous_size = accumulated_point_cloud_G->size();
-        accumulated_point_cloud_G->appendTransformed(points_S, T_G_S);
-        const size_t new_size = accumulated_point_cloud_G->size();
-
+        point_clouds_G.push_back(points_S);
+        point_clouds_G.back().applyTransformation(T_G_S);
         if (FLAGS_vis_pointcloud_color_random) {
-          accumulated_point_cloud_G->colorizePointCloud(
-              previous_size, new_size, r, g, b);
+          point_clouds_G.back().colorizePointCloud(r, g, b);
         }
         return;
       };
@@ -462,6 +487,7 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
       mission_ids, input_resource_type,
       FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
       integration_function);
+  accumulated_point_cloud_G->append(point_clouds_G);
 }
 
 void createPointCloudMessageVectorForMission(
@@ -578,18 +604,27 @@ void visualizeReprojectedDepthResourcePerRobot(
       continue;
     }
 
-    // Publish accumulated point cloud in global frame.
-    sensor_msgs::PointCloud2 ros_point_cloud_G;
+    std::shared_ptr<resources::PointCloud> filtered_accumulated_point_cloud_G;
     if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
-      applyVoxelGridFilter(accumulated_point_cloud_G, &ros_point_cloud_G);
+      filtered_accumulated_point_cloud_G =
+          std::make_shared<resources::PointCloud>();
+      applyVoxelGridFilter(
+          accumulated_point_cloud_G, filtered_accumulated_point_cloud_G.get());
     } else if (
         FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
-      applyBeautification(accumulated_point_cloud_G, &ros_point_cloud_G);
+      filtered_accumulated_point_cloud_G =
+          std::make_shared<resources::PointCloud>();
+      applyBeautification(
+          accumulated_point_cloud_G, filtered_accumulated_point_cloud_G.get());
     } else {
-      backend::convertPointCloudType(
-          accumulated_point_cloud_G, &ros_point_cloud_G);
+      filtered_accumulated_point_cloud_G =
+          std::make_shared<resources::PointCloud>(
+              std::move(accumulated_point_cloud_G));
     }
-
+    sensor_msgs::PointCloud2 ros_point_cloud_G;
+    subsamplePointCloudForRosIfNecessary(
+        *filtered_accumulated_point_cloud_G, &ros_point_cloud_G);
+    // Publish accumulated point cloud in global frame.
     publishPointCloudInGlobalFrame(
         robot_name /*topic prefix*/, &ros_point_cloud_G);
   }
@@ -614,7 +649,7 @@ void visualizeReprojectedDepthResourceFromMission(
         input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G);
 
     sensor_msgs::PointCloud2 ros_point_cloud_G;
-    backend::convertPointCloudType(
+    subsamplePointCloudForRosIfNecessary(
         accumulated_point_cloud_G, &ros_point_cloud_G);
     publishPointCloudInGlobalFrame(
         FLAGS_vis_pointcloud_mission_id_topic, &ros_point_cloud_G);
@@ -658,7 +693,8 @@ void visualizeReprojectedDepthResourceSequentially(
       std::this_thread::sleep_for(std::chrono::nanoseconds(ts_diff_ns));
     }
     sensor_msgs::PointCloud2 ros_point_cloud_G;
-    backend::convertPointCloudType(kv.second.point_cloud, &ros_point_cloud_G);
+    subsamplePointCloudForRosIfNecessary(
+        kv.second.point_cloud, &ros_point_cloud_G);
 
     const std::string mission_prefix = mission_topic_prefix[kv.second.mission];
 

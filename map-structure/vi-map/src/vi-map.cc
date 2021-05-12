@@ -2516,6 +2516,7 @@ bool VIMap::checkResourceConsistency() const {
               case backend::ResourceType::kPointCloudXYZRGBN:
               case backend::ResourceType::kPointCloudXYZI:
               case backend::ResourceType::kPointCloudXYZL:
+              case backend::ResourceType::kPointCloudXYZIRT:
                 if (!checkResource<resources::PointCloud>(resource_id, type)) {
                   LOG(ERROR) << "Resource " << resource_id
                              << " is in an inconsistent state!";

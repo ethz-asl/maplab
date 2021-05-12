@@ -43,6 +43,18 @@ void PointCloud::writeToFileCompressed(const std::string& file_path) const {
         draco::GeometryAttribute::GENERIC, 1, draco::DT_UINT32);
     builder.SetAttributeValuesForAllPoints(labels_att_id, labels.data(), 0);
   }
+  int times_att_id;
+  if (!times.empty()) {
+    times_att_id = builder.AddAttribute(
+        draco::GeometryAttribute::GENERIC, 1, draco::DT_FLOAT32);
+    builder.SetAttributeValuesForAllPoints(times_att_id, times.data(), 0);
+  }
+  int rings_att_id;
+  if (!rings.empty()) {
+    rings_att_id = builder.AddAttribute(
+        draco::GeometryAttribute::GENERIC, 1, draco::DT_UINT16);
+    builder.SetAttributeValuesForAllPoints(rings_att_id, rings.data(), 0);
+  }
 
   // Draco encoding does not maintain point order.
   // Save point index in additional field entry.
@@ -81,6 +93,22 @@ void PointCloud::writeToFileCompressed(const std::string& file_path) const {
     labels_metadata->AddEntryString("name", "labels");
     draco_pointcloud->AddAttributeMetadata(
         labels_att_id, std::move(labels_metadata));
+  }
+  if (!times.empty()) {
+    std::unique_ptr<draco::AttributeMetadata> times_metadata =
+        std::unique_ptr<draco::AttributeMetadata>(
+            new draco::AttributeMetadata());
+    times_metadata->AddEntryString("name", "times");
+    draco_pointcloud->AddAttributeMetadata(
+        times_att_id, std::move(times_metadata));
+  }
+  if (!rings.empty()) {
+    std::unique_ptr<draco::AttributeMetadata> rings_metadata =
+        std::unique_ptr<draco::AttributeMetadata>(
+            new draco::AttributeMetadata());
+    rings_metadata->AddEntryString("name", "rings");
+    draco_pointcloud->AddAttributeMetadata(
+        rings_att_id, std::move(rings_metadata));
   }
   std::filebuf filebuf;
   filebuf.open(file_path, std::ios::out | std::ios::binary);
@@ -213,6 +241,24 @@ bool PointCloud::loadFromCompressedFile(const std::string& file_path) {
         for (draco::PointIndex::ValueType point_index = 0;
              point_index < number_of_points; point_index++) {
           uint32_t* out_data = &labels[indices[point_index]];
+          CHECK_NOTNULL(out_data);
+          attribute->GetValue(
+              draco::AttributeValueIndex(point_index), out_data);
+        }
+      } else if (attribute_name == "times") {
+        times.resize(number_of_points);
+        for (draco::PointIndex::ValueType point_index = 0;
+             point_index < number_of_points; point_index++) {
+          float* out_data = &times[indices[point_index]];
+          CHECK_NOTNULL(out_data);
+          attribute->GetValue(
+              draco::AttributeValueIndex(point_index), out_data);
+        }
+      } else if (attribute_name == "rings") {
+        rings.resize(number_of_points);
+        for (draco::PointIndex::ValueType point_index = 0;
+             point_index < number_of_points; point_index++) {
+          uint16_t* out_data = &rings[indices[point_index]];
           CHECK_NOTNULL(out_data);
           attribute->GetValue(
               draco::AttributeValueIndex(point_index), out_data);

@@ -45,6 +45,10 @@ std::array<std::string, kNumResourceTypes> getResourceTypesFileSuffixes() {
       /*kPointCloudXYZL*/
       (FLAGS_resources_compress_pointclouds == true)
           ? resources::kCompressedPointCloudSuffix
+          : resources::kPointCloudSuffix,
+      /*kPointCloudXYZIRT*/
+      (FLAGS_resources_compress_pointclouds == true)
+          ? resources::kCompressedPointCloudSuffix
           : resources::kPointCloudSuffix};
 }
 
@@ -57,6 +61,8 @@ bool isResourceTypePointCloud(const ResourceType& type) {
     case ResourceType::kPointCloudXYZI:
       // Fall through intended.
     case ResourceType::kPointCloudXYZL:
+      // Fall through intended.
+    case ResourceType::kPointCloudXYZIRT:
       return true;
     default:
       return false;
