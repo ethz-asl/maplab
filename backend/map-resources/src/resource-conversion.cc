@@ -767,7 +767,7 @@ template <>
 void resizePointCloud(
     const size_t size, const bool /*has_color*/, const bool /*has_normals*/,
     const bool /*has_scalar*/, const bool /*has_labels*/,
-    const bool /*has_rings*/, const bool /*has_times*/,
+    const bool /*has_rings*/, const bool /*has_time*/,
     voxblox::Pointcloud* point_cloud) {
   CHECK_NOTNULL(point_cloud);
   point_cloud->resize(size);
@@ -777,7 +777,7 @@ template <>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool /*has_normals*/,
     const bool /*has_scalar*/, const bool /*has_labels*/,
-    const bool /*has_rings*/, const bool /*has_times*/,
+    const bool /*has_rings*/, const bool /*has_time*/,
     resources::VoxbloxColorPointCloud* point_cloud) {
   CHECK_NOTNULL(point_cloud);
   CHECK_NOTNULL(point_cloud->colors)->clear();
@@ -793,18 +793,18 @@ template <>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool has_normals,
     const bool has_scalar, const bool has_labels, const bool has_rings,
-    const bool has_times, resources::PointCloud* point_cloud) {
+    const bool has_time, resources::PointCloud* point_cloud) {
   CHECK_NOTNULL(point_cloud);
   point_cloud->resize(
       size, has_normals, has_color, has_scalar, has_labels, has_rings,
-      has_times);
+      has_time);
 }
 
 template <>
 void resizePointCloud(
     const size_t num_points, const bool has_color, const bool /*has_normals*/,
     const bool has_scalar, const bool has_labels, const bool has_rings,
-    const bool has_times, sensor_msgs::PointCloud2* point_cloud) {
+    const bool has_time, sensor_msgs::PointCloud2* point_cloud) {
   CHECK_NOTNULL(point_cloud);
   assert(sizeof(float) == 4u);
   CHECK_GE(num_points, 0u);
@@ -870,7 +870,7 @@ void resizePointCloud(
     offset += 3 * sizeOfPointField(sensor_msgs::PointField::UINT32);
   }
 
-  if (has_times) {
+  if (has_time) {
     offset = addPointField(
         *point_cloud, kPointCloud2Time, 1, sensor_msgs::PointField::FLOAT32,
         offset);
@@ -887,12 +887,12 @@ void resizePointCloud(
   CHECK_EQ(hasColorInformation(*point_cloud), has_color);
   CHECK_EQ(hasLabelInformation(*point_cloud), has_labels);
   CHECK_EQ(hasRingInformation(*point_cloud), has_rings);
-  CHECK_EQ(hasTimeInformation(*point_cloud), has_times);
+  CHECK_EQ(hasTimeInformation(*point_cloud), has_time);
 }
 
 uint32_t getPointStep(
     const bool has_color, const bool /*has_normals*/, const bool has_scalar,
-    const bool has_labels, const bool has_rings, const bool has_times) {
+    const bool has_labels, const bool has_rings, const bool has_time) {
   uint32_t offset = 0;
 
   offset = 4u * sizeOfPointField(sensor_msgs::PointField::FLOAT32);
@@ -908,7 +908,7 @@ uint32_t getPointStep(
   if (has_rings) {
     offset += 4 * sizeOfPointField(sensor_msgs::PointField::UINT32);
   }
-  if (has_times) {
+  if (has_time) {
     offset += 4u * sizeOfPointField(sensor_msgs::PointField::FLOAT32);
   }
   return offset;
