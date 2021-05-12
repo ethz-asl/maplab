@@ -143,11 +143,11 @@ template <typename PointCloudType>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool has_normals,
     const bool has_scalar, const bool has_labels, const bool has_rings,
-    const bool has_times, PointCloudType* point_cloud);
+    const bool has_time, PointCloudType* point_cloud);
 
 uint32_t getPointStep(
     const bool has_color, const bool /*has_normals*/, const bool has_scalar,
-    const bool has_labels, const bool has_rings, const bool has_times);
+    const bool has_labels, const bool has_rings, const bool has_time);
 
 }  // namespace backend
 
