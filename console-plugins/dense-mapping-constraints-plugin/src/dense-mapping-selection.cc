@@ -1,5 +1,10 @@
 #include "dense-mapping/dense-mapping-selection.h"
 
+#include <algorithm>
+#include <list>
+#include <random>
+#include <vector>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -63,9 +68,11 @@ bool hasGoodLoopClosureEdgeFromAToB(
   return has_good_edge;
 }
 
-static void filter_based_on_quality(
+static void filter_candidates_based_on_quality(
     const SelectionConfig& config, vi_map::VIMap* map_ptr,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK_NOTNULL(candidate_pairs_ptr);
+  CHECK_NOTNULL(map_ptr);
   const size_t num_candidates_before = candidate_pairs_ptr->size();
   std::size_t num_removed_edges = 0u;
   std::size_t num_good_prior_edges = 0u;
@@ -121,13 +128,51 @@ static void filter_based_on_quality(
           << " bad prior constraints.";
 }
 
+static void randomly_filter_candidates(
+    const std::size_t max_number_of_candidates,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK_NOTNULL(candidate_pairs_ptr);
+  // Create a vector of candidate iterators and shuffle it.
+  const std::size_t n_candidates = candidate_pairs_ptr->size();
+  std::vector<AlignmentCandidatePairs::iterator> v(n_candidates);
+  std::iota(v.begin(), v.end(), candidate_pairs_ptr->begin());
+  std::shuffle(v.begin(), v.end(), std::mt19937{std::random_device{}()});
+
+  // Delete the elements from the original candidate list.
+  const std::size_t n_candidates_to_delete =
+      n_candidates - std::min(n_candidates, max_number_of_candidates);
+  auto it = v.begin();
+  const auto it_end = it + n_candidates_to_delete;
+  for (; it != it_end; ++it) {
+    candidate_pairs_ptr->erase(*it);
+  }
+}
+
+static void filter_candidates_based_on_strategy(
+    const SelectionConfig& config, vi_map::VIMap* map_ptr,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK(config.max_number_of_candidates > 0u);
+  CHECK_NOTNULL(candidate_pairs_ptr);
+  CHECK_NOTNULL(map_ptr);
+
+  if (config.filter_strategy == "random") {
+    randomly_filter_candidates(
+        config.max_number_of_candidates, candidate_pairs_ptr);
+  } else if (config.filter_strategy == "equi") {
+  }
+}
+
 bool selectAlignmentCandidatePairs(
     const SelectionConfig& config, vi_map::VIMap* map_ptr,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
   CHECK_NOTNULL(candidate_pairs_ptr);
   CHECK_NOTNULL(map_ptr);
 
-  filter_based_on_quality(config, map_ptr, candidate_pairs_ptr);
+  // First, filter candidates based on their current edge quality.
+  filter_candidates_based_on_quality(config, map_ptr, candidate_pairs_ptr);
+
+  // Next, filter the remaining candidates based on their priority.
+  filter_candidates_based_on_strategy(config, map_ptr, candidate_pairs_ptr);
 
   return true;
 }
