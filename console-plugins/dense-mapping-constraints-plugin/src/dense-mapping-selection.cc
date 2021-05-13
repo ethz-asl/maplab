@@ -7,13 +7,19 @@ namespace dense_mapping {
 
 SelectionConfig SelectionConfig::fromGflags() {
   SelectionConfig config;
+
+  // LC edge quality filtering.
   config.recompute_all_constraints =
       FLAGS_dm_candidate_selection_recompute_all_constraints;
   config.recompute_invalid_constraints =
       FLAGS_dm_candidate_selection_recompute_invalid_constraints;
-
   config.constraint_min_switch_variable_value =
       FLAGS_dm_candidate_selection_min_switch_variable_value;
+
+  // LC edge
+  config.max_number_of_candidates =
+      FLAGS_dm_candidate_selection_max_number_of_candidates;
+  config.filter_strategy = FLAGS_dm_candidate_selection_filter_strategy;
 
   return config;
 }

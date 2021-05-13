@@ -29,6 +29,8 @@ DECLARE_bool(dm_candidate_search_enable_inter_mission_global);
 DECLARE_bool(dm_candidate_selection_recompute_all_constraints);
 DECLARE_bool(dm_candidate_selection_recompute_invalid_constraints);
 DECLARE_double(dm_candidate_selection_min_switch_variable_value);
+DECLARE_int32(dm_candidate_selection_max_number_of_candidates);
+DECLARE_string(dm_candidate_selection_filter_strategy);
 
 // ALIGNMENT
 DECLARE_double(dm_candidate_alignment_max_delta_position_to_initial_guess_m);
