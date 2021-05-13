@@ -57,18 +57,15 @@ bool hasGoodLoopClosureEdgeFromAToB(
   return has_good_edge;
 }
 
-bool selectAlignmentCandidatePairs(
+static void filter_based_on_quality(
     const SelectionConfig& config, vi_map::VIMap* map_ptr,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
-  CHECK_NOTNULL(candidate_pairs_ptr);
-  CHECK_NOTNULL(map_ptr);
-
   const size_t num_candidates_before = candidate_pairs_ptr->size();
-  size_t num_removed_edges = 0u;
-  size_t num_good_prior_edges = 0u;
+  std::size_t num_removed_edges = 0u;
+  std::size_t num_good_prior_edges = 0u;
 
-  VLOG(1) << "Selecting final candidates from " << num_candidates_before
-          << " initial candidates.";
+  VLOG(1) << "Selecting candidates based on quality from "
+          << num_candidates_before << " initial candidates.";
 
   pose_graph::EdgeIdSet constraints_to_delete_edge_ids;
   AlignmentCandidatePairs::iterator it = candidate_pairs_ptr->begin();
@@ -116,6 +113,15 @@ bool selectAlignmentCandidatePairs(
           << candidate_pairs_ptr->size() << " based on " << num_good_prior_edges
           << " good prior constraints and removed " << num_removed_edges
           << " bad prior constraints.";
+}
+
+bool selectAlignmentCandidatePairs(
+    const SelectionConfig& config, vi_map::VIMap* map_ptr,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK_NOTNULL(candidate_pairs_ptr);
+  CHECK_NOTNULL(map_ptr);
+
+  filter_based_on_quality(config, map_ptr, candidate_pairs_ptr);
 
   return true;
 }
