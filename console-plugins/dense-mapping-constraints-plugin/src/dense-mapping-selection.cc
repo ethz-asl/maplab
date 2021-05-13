@@ -5,6 +5,7 @@
 #include <random>
 #include <vector>
 
+#include <Eigen/Dense>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -21,10 +22,12 @@ SelectionConfig SelectionConfig::fromGflags() {
   config.constraint_min_switch_variable_value =
       FLAGS_dm_candidate_selection_min_switch_variable_value;
 
-  // LC edge
+  // LC edge generic filtering.
   config.max_number_of_candidates =
       FLAGS_dm_candidate_selection_max_number_of_candidates;
   config.filter_strategy = FLAGS_dm_candidate_selection_filter_strategy;
+  config.min_distance_to_next_candidate =
+      FLAGS_dm_candidate_selection_min_distance_to_other_candidates;
 
   return config;
 }
@@ -128,7 +131,7 @@ static void filter_candidates_based_on_quality(
           << " bad prior constraints.";
 }
 
-static void randomly_filter_candidates(
+static void filter_candidates_randomly(
     const std::size_t max_number_of_candidates,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
   CHECK_NOTNULL(candidate_pairs_ptr);
@@ -148,17 +151,62 @@ static void randomly_filter_candidates(
   }
 }
 
+static void filter_candidates_based_on_distance(
+    const std::size_t max_number_of_candidates,
+    const double min_distance_to_next_candidate, vi_map::VIMap* map_ptr,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK_NOTNULL(candidate_pairs_ptr);
+  CHECK_NOTNULL(map_ptr);
+  AlignmentCandidatePairs::iterator it = candidate_pairs_ptr->begin();
+  std::vector<Eigen::Vector3d> candidate_positions;
+  while (it != candidate_pairs_ptr->end()) {
+    // Get a position from the alignment candidate pair.
+    const AlignmentCandidatePair& alignment = *it;
+    const vi_map::Vertex& vertex_A =
+        map_ptr->getVertex(alignment.candidate_A.closest_vertex_id);
+    const Eigen::Vector3d& position_A = vertex_A.get_p_M_I();
+
+    // Check for clusters in the candidate list.
+    const bool valid_candidate = std::all_of(
+        candidate_positions.cbegin(), candidate_positions.cend(),
+        [&position_A,
+         &min_distance_to_next_candidate](const Eigen::Vector3d& p_M_I) {
+          const double distance = (position_A - p_M_I).norm();
+          return distance > min_distance_to_next_candidate;
+        });
+
+    // Only keep candidates that are valid.
+    if (valid_candidate) {
+      candidate_positions.emplace_back(position_A);
+      if (candidate_positions.size() >= max_number_of_candidates) {
+        break;
+      }
+      ++it;
+    } else {
+      it = candidate_pairs_ptr->erase(it);
+    }
+  }
+}
+
 static void filter_candidates_based_on_strategy(
     const SelectionConfig& config, vi_map::VIMap* map_ptr,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
-  CHECK(config.max_number_of_candidates > 0u);
+  if (config.max_number_of_candidates < 0) {
+    return;
+  }
+
   CHECK_NOTNULL(candidate_pairs_ptr);
   CHECK_NOTNULL(map_ptr);
 
   if (config.filter_strategy == "random") {
-    randomly_filter_candidates(
+    filter_candidates_randomly(
         config.max_number_of_candidates, candidate_pairs_ptr);
-  } else if (config.filter_strategy == "equi") {
+  } else if (config.filter_strategy == "distance") {
+    filter_candidates_based_on_distance(
+        config.max_number_of_candidates, config.min_distance_to_next_candidate,
+        map_ptr, candidate_pairs_ptr);
+  } else {
+    LOG(ERROR) << "Unknown filter strategy " << config.filter_strategy;
   }
 }
 

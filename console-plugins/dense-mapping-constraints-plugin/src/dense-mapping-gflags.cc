@@ -91,12 +91,16 @@ DEFINE_int32(
     "Limits the number of candidates according to the filter strategy.");
 DEFINE_string(
     dm_candidate_selection_filter_strategy, "random",
-    "Filter strategy for the candidate selection process.");
+    "Filter strategy [random, distance] for the candidate selection process.");
+DEFINE_double(
+    dm_candidate_selection_min_distance_to_other_candidates, 0.2,
+    "Minimum distance to the all other candidates.");
 
 // ALIGNMENTS
 DEFINE_double(
     dm_candidate_alignment_max_delta_position_to_initial_guess_m, 0.5,
-    "Maximum translation deviation of the alignment from the initial guess.");
+    "Maximum translation deviation of the alignment from the initial "
+    "guess.");
 DEFINE_double(
     dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg, 10,
     "Maximum angular deviation of the alignment from the initial guess.");
