@@ -18,6 +18,8 @@
 #include <visualization/resource-visualization.h>
 #include <visualization/viwls-graph-plotter.h>
 
+#include "maplab-server-node/robot_missions_information.pb.h"
+
 namespace maplab {
 
 struct SubmapProcess {
@@ -54,11 +56,13 @@ class MaplabServerNode final {
   ~MaplabServerNode();
 
   // Once the node is started, the configuration cannot be changed anymore.
-  void start();
+  void start(const bool& load_previous_state);
   void shutdown();
 
-  bool loadAndProcessSubmap(
-      const std::string& robot_name, const std::string& submap_path);
+
+  bool loadAndProcessMissingSubmaps(
+      const std::unordered_map<std::string, std::vector<std::string>>&
+          robot_to_submap_paths);
 
   // Save the map to disk.
   bool saveMap(const std::string& path);
@@ -113,6 +117,8 @@ class MaplabServerNode final {
   }
 
  protected:
+  bool loadAndProcessSubmap(
+      const std::string& robot_name, const std::string& submap_path);
   // Status thread functions:
   void printAndPublishServerStatus();
 
@@ -139,7 +145,21 @@ class MaplabServerNode final {
 
   bool isSubmapBlacklisted(const std::string& map_key);
 
+  bool saveRobotMissionsInfo(const backend::SaveConfig& config);
+
+  bool loadRobotMissionsInfo();
+
   struct RobotMissionInformation {
+    explicit RobotMissionInformation(
+        const maplab_server_node::proto::RobotMissionInfo&
+            robot_mission_information_proto);
+    RobotMissionInformation() {}
+    void serialize(maplab_server_node::proto::RobotMissionInfo*
+                       robot_mission_information_proto) const;
+    bool addSubmapKey(
+        const vi_map::MissionId& mission_id, const std::string& submap_key);
+
+    std::string robot_name;
     // Contains the mission ids and whether the baseframe is known of this
     // robot, the most recent mission is at the front of the vector.
     std::list<std::pair<vi_map::MissionId, bool>>
@@ -153,6 +173,9 @@ class MaplabServerNode final {
     // initially.
     std::map<int64_t, aslam::Transformation> T_M_B_submaps_input;
     std::map<int64_t, aslam::Transformation> T_G_M_submaps_input;
+
+    std::unordered_map<vi_map::MissionId, std::vector<std::string>>
+        mission_ids_to_submap_keys;
   };
 
  private:
@@ -170,6 +193,7 @@ class MaplabServerNode final {
   // Map management
   /////////////////
   const std::string kMergedMapKey = "merged_map";
+  const std::string kRobotMissionsInfoFileName = "robot_missions_info";
   // Stores all submaps and the merged map.
   vi_map::VIMapManager map_manager_;
   // Map visualization
@@ -181,6 +205,7 @@ class MaplabServerNode final {
   // requested.
   std::atomic<bool> shut_down_requested_;
 
+  std::atomic<bool> received_first_submap_;
   // Submap processing thread status variables.
   // Accessed by submap and status threads.
   std::mutex running_submap_process_mutex_;
@@ -248,6 +273,8 @@ class MaplabServerNode final {
 
   // Number of full map merging processings
   uint32_t num_full_map_merging_processings = 0u;
+
+  std::string initial_map_path_;
 };
 
 }  // namespace maplab

@@ -22,13 +22,27 @@
 #include <maplab_msgs/MapLookupResponse.h>
 #include <resources-common/point-cloud.h>
 
+#include <transfolder_msgs/QueryAllSubfolders.h>
+
 #include "maplab-server-node/maplab-server-node.h"
 
 DEFINE_int32(
-    maplab_server_map_update_topic_queue_size, 100, "Size of ROS subscriber.");
+    maplab_server_map_update_topic_queue_size, 1000, "Size of ROS subscriber.");
 
 DEFINE_string(
     maplab_server_map_update_topic, "map_update_notification",
+    "Topic on which the map update notification message is received, it "
+    "contains the robot name and the map folder of the new map update.");
+
+DEFINE_string(
+    maplab_server_transfolder_query_all_subfolders_service,
+    "get_all_subfolders",
+    "Topic on which the map update notification message is received, it "
+    "contains the robot name and the map folder of the new map update.");
+
+DEFINE_string(
+    maplab_server_restore_previous_state_param_name,
+    "/maplab_server/restore_state",
     "Topic on which the map update notification message is received, it "
     "contains the robot name and the map folder of the new map update.");
 
@@ -85,7 +99,7 @@ MaplabServerRosNode::MaplabServerRosNode(
   get_dense_map_in_range_srv_ = nh_.advertiseService(
       "get_dense_map_in_range", get_dense_map_in_range_callback);
 
-  boost::function<void(const diagnostic_msgs::KeyValueConstPtr&)>
+  boost::function<void(const transfolder_msgs::RobotSubfoldersArrayConstPtr&)>
       submap_loading_callback =
           boost::bind(&MaplabServerRosNode::submapLoadingCallback, this, _1);
   map_update_notification_sub_ = nh_.subscribe(
@@ -134,26 +148,41 @@ bool MaplabServerRosNode::start() {
   LOG(INFO) << "[MaplabServerRosNode] Starting...";
   // Start the pipeline. The ROS spinner will handle SIGINT for us and abort
   // the application on CTRL+C.
+  bool restore_server_state;
+  nh_.param<bool>(
+      FLAGS_maplab_server_restore_previous_state_param_name,
+      restore_server_state, false);
+  maplab_server_node_->start(restore_server_state);
   maplab_spinner_.start();
-  maplab_server_node_->start();
+  if (restore_server_state) {
+    ros::ServiceClient query_all_subfolders_client =
+        nh_.serviceClient<transfolder_msgs::QueryAllSubfolders>(
+            FLAGS_maplab_server_transfolder_query_all_subfolders_service, true);
+    if (query_all_subfolders_client.waitForExistence(ros::Duration(1))) {
+      transfolder_msgs::QueryAllSubfolders subfolder_msg;
+      query_all_subfolders_client.call(subfolder_msg);
+    }
+  }
+  nh_.setParam(FLAGS_maplab_server_restore_previous_state_param_name, true);
   return true;
 }
 
 void MaplabServerRosNode::submapLoadingCallback(
-    const diagnostic_msgs::KeyValueConstPtr& msg) {
+    const transfolder_msgs::RobotSubfoldersArrayConstPtr& msg) {
   CHECK(msg);
-  const std::string robot_name = msg->key;
-  std::string map_path = msg->value;
-  common::simplifyPath(&map_path);
 
-  if (!common::pathExists(map_path)) {
-    LOG(ERROR) << "[MaplabServerRosNode] Received map notification for robot '"
-               << robot_name << "' and local map folder '" << map_path
-               << "', but the folder does not exist!";
-    return;
+  std::unordered_map<std::string, std::vector<std::string>>
+      robot_to_submap_paths;
+  for (auto robot_msg : msg->robots_with_subfolders) {
+    const std::string robot_name = robot_msg.robot_name;
+    std::vector<std::string>& robot_submap_paths =
+        robot_to_submap_paths[robot_name];
+    for (auto absolute_subfolder_path : robot_msg.absolute_subfolder_paths) {
+      robot_submap_paths.push_back(absolute_subfolder_path);
+    }
   }
 
-  maplab_server_node_->loadAndProcessSubmap(robot_name, map_path);
+  maplab_server_node_->loadAndProcessMissingSubmaps(robot_to_submap_paths);
 }
 
 bool MaplabServerRosNode::saveMap(const std::string& map_folder) {
