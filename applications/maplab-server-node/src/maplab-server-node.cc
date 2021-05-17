@@ -2005,10 +2005,16 @@ bool MaplabServerNode::loadRobotMissionsInfo() {
 
 void MaplabServerNode::replacePublicMap() {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (map_manager_.hasMap(kMergedMapPublicKey)) {
-    map_manager_.deleteMap(kMergedMapPublicKey);
+  if (public_map_manager_.hasMap(kMergedMapPublicKey)) {
+    vi_map::VIMapManager::MapWriteAccess public_map =
+        public_map_manager_.getMapWriteAccess(kMergedMapPublicKey);
+    public_map.get()->deepCopy(map_manager_.getMap(kMergedMapKey));
+  } else {
+    AlignedUniquePtr<vi_map::VIMap> public_map =
+      aligned_unique<vi_map::VIMap>();
+    public_map.get()->deepCopy(map_manager_.getMap(kMergedMapKey));
+    public_map_manager_.addMap(kMergedMapPublicKey, public_map);
   }
-  map_manager_.copyMap(kMergedMapKey, kMergedMapPublicKey);
 }
 
 MaplabServerNode::RobotMissionInformation::RobotMissionInformation(
