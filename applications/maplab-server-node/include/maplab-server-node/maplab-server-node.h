@@ -199,6 +199,8 @@ class MaplabServerNode final {
   const std::string kRobotMissionsInfoFileName = "robot_missions_info";
   // Stores all submaps and the merged map.
   vi_map::VIMapManager map_manager_;
+  // Stores the public merged map.
+  vi_map::VIMapManager public_map_manager_;
   // Map visualization
   std::unique_ptr<visualization::ViwlsGraphRvizPlotter> plotter_;
 

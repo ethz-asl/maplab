@@ -43,7 +43,7 @@ void VIMap::deepCopy(const VIMap& other) {
   clear();
   CHECK(mergeAllMissionsFromMapWithoutResources(other));
   ResourceMap::deepCopy(other);
-  CHECK(checkMapConsistency(other));
+  //  CHECK(checkMapConsistency(other));
 }
 
 bool VIMap::mergeAllMissionsFromMapWithoutResources(
