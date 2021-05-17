@@ -407,6 +407,7 @@ bool computeLoamAlignmentForCandidatePairs(
                 n_surfaces < regbox::FLAGS_regbox_loam_min_map_surfaces) {
               LOG(WARNING) << "First loam map candidate does not have "
                               "enough features, trying next one.";
+              aggregated_loam_map = resources::PointCloud();
               continue;
             }
             loam_map_base_candidate = pair.candidate_A;
@@ -506,7 +507,6 @@ bool computeLoamAlignmentForCandidatePairs(
       ++successful_alignments;
       last_successful_candidate = loam_pair.candidate_A;
       T_map_last_successful_candidate = loam_pair.T_SB_SA_final;
-
       float min_x = std::numeric_limits<float>::max();
       float min_y = std::numeric_limits<float>::max();
       float min_z = std::numeric_limits<float>::max();

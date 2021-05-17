@@ -36,7 +36,7 @@ RegistrationResult LoamAlignment::registerCloudImpl(
 
   q_w_curr = Eigen::Quaterniond(prior_T_target_source.getEigenQuaternion());
   t_w_curr = prior_T_target_source.getPosition();
-  const Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(6, 6) * 1e-4;
+  const Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(6, 6) * 1e-2;
 
   if ((target_edges_->size() < FLAGS_regbox_loam_min_map_edges ||
        target_surfaces_->size() < FLAGS_regbox_loam_min_map_surfaces) ||

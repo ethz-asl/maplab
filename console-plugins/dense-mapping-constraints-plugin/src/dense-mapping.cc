@@ -57,12 +57,14 @@ bool addDenseMappingConstraintsToMap(
     LOG(ERROR) << "The search for alignment candidate pairs failed!";
     return false;
   }
-  if (!selectAlignmentCandidatePairs(
-          config.selection_config, vi_map_ptr, &candidates)) {
-    LOG(ERROR)
-        << "The selection and filtering of the alignment candidate pairs "
-        << "failed!";
-    return false;
+  if (!config.use_loam_alignment) {
+    if (!selectAlignmentCandidatePairs(
+            config.selection_config, vi_map_ptr, &candidates)) {
+      LOG(ERROR)
+          << "The selection and filtering of the alignment candidate pairs "
+          << "failed!";
+      return false;
+    }
   }
 
   AlignmentCandidatePairs aligned_candidates;
