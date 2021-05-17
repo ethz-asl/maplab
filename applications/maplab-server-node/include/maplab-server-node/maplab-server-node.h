@@ -149,6 +149,8 @@ class MaplabServerNode final {
 
   bool loadRobotMissionsInfo();
 
+  void replacePublicMap();
+
   struct RobotMissionInformation {
     explicit RobotMissionInformation(
         const maplab_server_node::proto::RobotMissionInfo&
@@ -193,6 +195,7 @@ class MaplabServerNode final {
   // Map management
   /////////////////
   const std::string kMergedMapKey = "merged_map";
+  const std::string kMergedMapPublicKey = "merged_map_public";
   const std::string kRobotMissionsInfoFileName = "robot_missions_info";
   // Stores all submaps and the merged map.
   vi_map::VIMapManager map_manager_;
@@ -268,8 +271,14 @@ class MaplabServerNode final {
   // reset.
   uint32_t num_submaps_at_last_trust_region_reset = 0u;
 
-  // Protects the whole server from concurrent access from the outside.
+  // Protects the server from concurrent access from the outside.
   mutable std::mutex mutex_;
+
+  // Protects the server from concurrent submap adding calls from the outside.
+  mutable std::mutex submap_callback_mutex_;
+
+  // Protects the server from concurrent saving of the map.
+  mutable std::mutex save_map_mutex_;
 
   // Number of full map merging processings
   uint32_t num_full_map_merging_processings = 0u;
