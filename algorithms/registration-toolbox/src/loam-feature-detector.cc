@@ -50,7 +50,6 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
   PclPointCloudPtr<pcl::PointXYZ> surfaces(new pcl::PointCloud<pcl::PointXYZ>);
 
   std::vector<int> indices;
-
   std::map<size_t, pcl::PointCloud<pcl::PointXYZ>::Ptr> scan_lines;
   pickedpoints_.clear();
 
@@ -74,10 +73,10 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
     }
     scan_line->push_back(point);
   }
-
-  for (const auto& scan_line : scan_lines) {
+  for (auto& scan_line : scan_lines) {
     if (scan_line.second->size() >=
         2 * FLAGS_regbox_loam_curvature_region + 1) {
+      sortScanLineAzimuthal(scan_line.second);
       extractFeaturesFromScanLine(scan_line.second, edges, surfaces);
     }
   }
@@ -104,10 +103,32 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
   }
 }
 
+void LoamFeatureDetector::sortScanLineAzimuthal(
+    pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line) {
+  CHECK_NOTNULL(scan_line);
+  std::vector<std::pair<pcl::PointXYZ, float>> azimuthal_pairs;
+  for (auto point : *scan_line) {
+    const float theta = atan2(point.y, point.x);
+    azimuthal_pairs.push_back(std::make_pair(point, theta));
+  }
+  std::sort(
+      azimuthal_pairs.begin(), azimuthal_pairs.end(),
+      [](const std::pair<pcl::PointXYZ, float>& a,
+         const std::pair<pcl::PointXYZ, float>& b) {
+        return a.second < b.second;
+      });
+  for (size_t idx = 0u; idx < scan_line->size(); ++idx) {
+    scan_line->points[idx] = azimuthal_pairs[idx].first;
+  }
+}
+
 void LoamFeatureDetector::extractFeaturesFromScanLine(
     const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
     pcl::PointCloud<pcl::PointXYZ>::Ptr edges,
     pcl::PointCloud<pcl::PointXYZ>::Ptr surfaces) {
+  CHECK_NOTNULL(scan_line);
+  CHECK_NOTNULL(edges);
+  CHECK_NOTNULL(surfaces);
   std::vector<bool> point_picked(scan_line->size(), false);
   markUnstablePointsAsPicked(scan_line, &point_picked);
   CurvaturePairs cloud_curvatures;
@@ -177,6 +198,8 @@ void LoamFeatureDetector::extractFeaturesFromScanLine(
 void LoamFeatureDetector::markUnstablePointsAsPicked(
     const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
     std::vector<bool>* point_picked) {
+  CHECK_NOTNULL(scan_line);
+  CHECK_NOTNULL(point_picked);
   for (int point_idx = FLAGS_regbox_loam_curvature_region;
        point_idx < scan_line->size() - FLAGS_regbox_loam_curvature_region;
        point_idx++) {
@@ -247,6 +270,7 @@ void LoamFeatureDetector::markUnstablePointsAsPicked(
 
 void LoamFeatureDetector::markCurvatureRegionAsPicked(
     const int& point_idx, std::vector<bool>* point_picked) {
+  CHECK_NOTNULL(point_picked);
   for (int neighbor_idx = -FLAGS_regbox_loam_curvature_region;
        neighbor_idx <= FLAGS_regbox_loam_curvature_region; neighbor_idx++) {
     (*point_picked)[point_idx + neighbor_idx] = true;
@@ -257,6 +281,8 @@ void LoamFeatureDetector::markCurvatureRegionAsPicked(
     const int& point_idx, const double& distance_threshold_m,
     const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
     std::vector<bool>* point_picked) {
+  CHECK_NOTNULL(scan_line);
+  CHECK_NOTNULL(point_picked);
   (*point_picked)[point_idx] = true;
   for (int neighbor_idx = 1; neighbor_idx <= FLAGS_regbox_loam_curvature_region;
        neighbor_idx++) {
@@ -285,6 +311,7 @@ void LoamFeatureDetector::markCurvatureRegionAsPicked(
 
 void LoamFeatureDetector::markFirstHalfCurvatureRegionAsPicked(
     const int& point_idx, std::vector<bool>* point_picked) {
+  CHECK_NOTNULL(point_picked);
   for (int neighbor_idx = 0; neighbor_idx <= FLAGS_regbox_loam_curvature_region;
        neighbor_idx++) {
     (*point_picked)[point_idx - neighbor_idx] = true;
@@ -293,6 +320,7 @@ void LoamFeatureDetector::markFirstHalfCurvatureRegionAsPicked(
 
 void LoamFeatureDetector::markSecondHalfCurvatureRegionAsPicked(
     const int& point_idx, std::vector<bool>* point_picked) {
+  CHECK_NOTNULL(point_picked);
   (*point_picked)[point_idx] = true;
   for (int neighbor_idx = 1; neighbor_idx <= FLAGS_regbox_loam_curvature_region;
        neighbor_idx++) {
@@ -303,6 +331,8 @@ void LoamFeatureDetector::markSecondHalfCurvatureRegionAsPicked(
 void LoamFeatureDetector::downSampleFeatures(
     pcl::PointCloud<pcl::PointXYZ>::Ptr edges,
     pcl::PointCloud<pcl::PointXYZ>::Ptr surfaces) {
+  CHECK_NOTNULL(edges);
+  CHECK_NOTNULL(surfaces);
   pcl::VoxelGrid<pcl::PointXYZ> edge_filter;
   edge_filter.setInputCloud(edges);
   edge_filter.setLeafSize(
@@ -323,6 +353,8 @@ void LoamFeatureDetector::downSampleFeatures(
 void LoamFeatureDetector::calculateCurvatures(
     const pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line,
     CurvaturePairs* curvatures) {
+  CHECK_NOTNULL(scan_line);
+  CHECK_NOTNULL(curvatures);
   for (int point_idx = FLAGS_regbox_loam_curvature_region;
        point_idx < (*scan_line).size() - FLAGS_regbox_loam_curvature_region;
        point_idx++) {
