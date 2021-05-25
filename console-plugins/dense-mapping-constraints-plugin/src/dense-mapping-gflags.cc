@@ -95,6 +95,9 @@ DEFINE_string(
 DEFINE_double(
     dm_candidate_selection_min_distance_to_other_candidates, 0.2,
     "Minimum distance to the all other candidates.");
+DEFINE_double(
+    dm_candidate_selection_prioritize_recent_candidates, 0.0,
+    "Defines the percentage of fixed recent candidates [0,1].");
 
 // ALIGNMENTS
 DEFINE_double(

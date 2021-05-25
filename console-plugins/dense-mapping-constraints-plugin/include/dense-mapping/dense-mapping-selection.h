@@ -21,6 +21,7 @@ struct SelectionConfig {
   std::size_t max_number_of_candidates;
   std::string filter_strategy;
   double min_distance_to_next_candidate;
+  double prioritize_recent_candidates;
 };
 
 bool selectAlignmentCandidatePairs(

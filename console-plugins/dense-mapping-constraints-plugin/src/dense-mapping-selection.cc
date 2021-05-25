@@ -28,6 +28,8 @@ SelectionConfig SelectionConfig::fromGflags() {
   config.filter_strategy = FLAGS_dm_candidate_selection_filter_strategy;
   config.min_distance_to_next_candidate =
       FLAGS_dm_candidate_selection_min_distance_to_other_candidates;
+  config.prioritize_recent_candidates =
+      FLAGS_dm_candidate_selection_prioritize_recent_candidates;
 
   return config;
 }
@@ -133,6 +135,7 @@ static void filter_candidates_based_on_quality(
 
 static void filter_candidates_randomly(
     const std::size_t max_number_of_candidates,
+    const AlignmentCandidatePairIterators& protected_candidates,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
   CHECK_NOTNULL(candidate_pairs_ptr);
   // Create a vector of candidate iterators and shuffle it.
@@ -153,8 +156,9 @@ static void filter_candidates_randomly(
 
 static void filter_candidates_based_on_distance(
     const std::size_t max_number_of_candidates,
-    const double min_distance_to_next_candidate, vi_map::VIMap* map_ptr,
-    AlignmentCandidatePairs* candidate_pairs_ptr) {
+    const double min_distance_to_next_candidate,
+    const AlignmentCandidatePairIterators& protected_candidates,
+    vi_map::VIMap* map_ptr, AlignmentCandidatePairs* candidate_pairs_ptr) {
   CHECK_NOTNULL(candidate_pairs_ptr);
   CHECK_NOTNULL(map_ptr);
   AlignmentCandidatePairs::iterator it = candidate_pairs_ptr->begin();
@@ -188,23 +192,65 @@ static void filter_candidates_based_on_distance(
   }
 }
 
+/*
+static AlignmentCandidatePairIterators filter_n_recent_candidates(
+const std::size_t n_recent_candidates,
+AlignmentCandidatePairs* candidate_pairs_ptr) {
+CHECK_NOTNULL(candidate_pairs_ptr);
+
+// Create a vector of iterators.
+const std::size_t n_candidates = candidate_pairs_ptr->size();
+std::vector<AlignmentCandidatePairs::iterator> v(n_candidates);
+std::iota(v.begin(), v.end(), candidate_pairs_ptr->begin());
+
+// Sort the iterators based on the newest timestamp.
+auto sorter = [](const AlignmentCandidatePairs::iterator& lhs,
+               const AlignmentCandidatePairs::iterator& rhs) {
+const int64_t newest_lhs_ts_ns = lhs->getNewestTimestamp();
+const int64_t newest_rhs_ts_ns = rhs->getNewestTimestamp();
+return newest_lhs_ts_ns > newest_rhs_ts_ns;
+};
+std::sort(v.begin(), v.end(), sorter);
+
+const std::size_t n_candidates_to_take =
+  std::min(n_recent_candidates, n_candidates);
+return std::vector<AlignmentCandidatePairs::iterator>{
+  v.begin, v.begin() + n_candidates_to_take};
+}
+*/
+
 static void filter_candidates_based_on_strategy(
     const SelectionConfig& config, vi_map::VIMap* map_ptr,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
-  if (config.max_number_of_candidates < 0) {
-    return;
-  }
-
   CHECK_NOTNULL(candidate_pairs_ptr);
   CHECK_NOTNULL(map_ptr);
+  std::size_t n_max_candidates = config.max_number_of_candidates;
+  AlignmentCandidatePairIterators protected_candidates;
+  if (config.prioritize_recent_candidates > 0.0) {
+    CHECK_LE(config.prioritize_recent_candidates, 1.0);
+    const std::size_t n_recent_candidates = static_cast<std::size_t>(
+        static_cast<double>(n_max_candidates) *
+        config.prioritize_recent_candidates);
+    n_max_candidates = n_max_candidates - n_recent_candidates;
+
+    LOG(INFO) << "Prioritzing " << n_recent_candidates << ", "
+              << n_max_candidates << " are remaining.";
+    /*
+    const AlignmentCandidatePairIterators recent_candidates =
+        filter_n_recent_candidates(n_recent_candidates, candidate_pairs_ptr);
+    protected_candidates.insert(
+        protected_candidates.end(), recent_candidates.begin(),
+        recent_candidates.end());
+        */
+  }
 
   if (config.filter_strategy == "random") {
     filter_candidates_randomly(
-        config.max_number_of_candidates, candidate_pairs_ptr);
+        n_max_candidates, protected_candidates, candidate_pairs_ptr);
   } else if (config.filter_strategy == "distance") {
     filter_candidates_based_on_distance(
-        config.max_number_of_candidates, config.min_distance_to_next_candidate,
-        map_ptr, candidate_pairs_ptr);
+        n_max_candidates, config.min_distance_to_next_candidate,
+        protected_candidates, map_ptr, candidate_pairs_ptr);
   } else {
     LOG(ERROR) << "Unknown filter strategy " << config.filter_strategy;
   }
