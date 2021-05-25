@@ -26,8 +26,6 @@ SelectionConfig SelectionConfig::fromGflags() {
   config.max_number_of_candidates =
       FLAGS_dm_candidate_selection_max_number_of_candidates;
   config.filter_strategy = FLAGS_dm_candidate_selection_filter_strategy;
-  config.min_distance_to_next_candidate =
-      FLAGS_dm_candidate_selection_min_distance_to_other_candidates;
   config.prioritize_recent_candidates =
       FLAGS_dm_candidate_selection_prioritize_recent_candidates;
 
@@ -135,31 +133,11 @@ static void filter_candidates_based_on_quality(
 
 static void filter_candidates_randomly(
     const std::size_t max_number_of_candidates,
-    const AlignmentCandidatePairIterators& protected_candidates,
-    AlignmentCandidatePairs* candidate_pairs_ptr) {
-  CHECK_NOTNULL(candidate_pairs_ptr);
-  // Create a vector of candidate iterators and shuffle it.
-  const std::size_t n_candidates = candidate_pairs_ptr->size();
-  std::vector<AlignmentCandidatePairs::iterator> v(n_candidates);
-  std::iota(v.begin(), v.end(), candidate_pairs_ptr->begin());
-  std::shuffle(v.begin(), v.end(), std::mt19937{std::random_device{}()});
-
-  // Delete the elements from the original candidate list.
-  const std::size_t n_candidates_to_delete =
-      n_candidates - std::min(n_candidates, max_number_of_candidates);
-  auto it = v.begin();
-  const auto it_end = it + n_candidates_to_delete;
-  for (; it != it_end; ++it) {
-    candidate_pairs_ptr->erase(*it);
-  }
-}
-
-static AlignmentCandidatePairIterators filter_n_recent_candidates(
     const std::size_t n_recent_candidates,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
   CHECK_NOTNULL(candidate_pairs_ptr);
 
-  // Create a vector of iterators.
+  // Create a vector of candidate iterators.
   const std::size_t n_candidates = candidate_pairs_ptr->size();
   std::vector<AlignmentCandidatePairs::iterator> v(n_candidates);
   std::iota(v.begin(), v.end(), candidate_pairs_ptr->begin());
@@ -171,12 +149,24 @@ static AlignmentCandidatePairIterators filter_n_recent_candidates(
     const int64_t newest_rhs_ts_ns = rhs->getNewestTimestamp();
     return newest_lhs_ts_ns > newest_rhs_ts_ns;
   };
-  std::sort(v.begin(), v.end(), sorter);
 
-  const std::size_t n_candidates_to_take =
-      std::min(n_recent_candidates, n_candidates);
-  return std::vector<AlignmentCandidatePairs::iterator>{
-      v.begin, v.begin() + n_candidates_to_take};
+  // Sort the iterators to access the most recent ones.
+  // Shuffle the remaining iterators.
+  std::sort(v.begin(), v.end(), sorter);
+  std::shuffle(
+      v.begin() + n_recent_candidates, v.end(),
+      std::mt19937{std::random_device{}()});
+
+  // Delete the elements from the original candidate list.
+  const std::size_t n_remaining_candidates = n_candidates - n_recent_candidates;
+  const std::size_t n_candidates_to_delete =
+      n_remaining_candidates -
+      std::min(n_remaining_candidates, max_number_of_candidates);
+  auto it = v.begin() + n_recent_candidates;
+  const auto it_end = it + n_candidates_to_delete;
+  for (; it != it_end; ++it) {
+    candidate_pairs_ptr->erase(*it);
+  }
 }
 
 static void filter_candidates_based_on_strategy(
@@ -184,29 +174,17 @@ static void filter_candidates_based_on_strategy(
     AlignmentCandidatePairs* candidate_pairs_ptr) {
   CHECK_NOTNULL(candidate_pairs_ptr);
   CHECK_NOTNULL(map_ptr);
-  std::size_t n_max_candidates = config.max_number_of_candidates;
-  AlignmentCandidatePairIterators protected_candidates;
-  if (config.prioritize_recent_candidates > 0.0) {
-    CHECK_LE(config.prioritize_recent_candidates, 1.0);
-    const std::size_t n_recent_candidates = static_cast<std::size_t>(
-        static_cast<double>(n_max_candidates) *
-        config.prioritize_recent_candidates);
-    n_max_candidates = n_max_candidates - n_recent_candidates;
 
-    LOG(INFO) << "Prioritzing " << n_recent_candidates << ", "
-              << n_max_candidates << " are remaining.";
-    /*
-    const AlignmentCandidatePairIterators recent_candidates =
-        filter_n_recent_candidates(n_recent_candidates, candidate_pairs_ptr);
-    protected_candidates.insert(
-        protected_candidates.end(), recent_candidates.begin(),
-        recent_candidates.end());
-        */
-  }
+  // Compute the bounds of the number of candidates to retrieve and reserve.
+  const std::size_t n_recent_candidates = static_cast<std::size_t>(
+      static_cast<double>(config.max_number_of_candidates) *
+      config.prioritize_recent_candidates);
+  const std::size_t n_max_candidates =
+      config.max_number_of_candidates - n_recent_candidates;
 
   if (config.filter_strategy == "random") {
     filter_candidates_randomly(
-        n_max_candidates, protected_candidates, candidate_pairs_ptr);
+        n_max_candidates, n_recent_candidates, candidate_pairs_ptr);
   } else {
     LOG(ERROR) << "Unknown filter strategy " << config.filter_strategy;
   }

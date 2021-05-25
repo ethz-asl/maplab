@@ -31,7 +31,6 @@ DECLARE_bool(dm_candidate_selection_recompute_invalid_constraints);
 DECLARE_double(dm_candidate_selection_min_switch_variable_value);
 DECLARE_int32(dm_candidate_selection_max_number_of_candidates);
 DECLARE_string(dm_candidate_selection_filter_strategy);
-DECLARE_double(dm_candidate_selection_min_distance_to_other_candidates);
 DECLARE_double(dm_candidate_selection_prioritize_recent_candidates);
 
 // ALIGNMENT

@@ -93,9 +93,6 @@ DEFINE_string(
     dm_candidate_selection_filter_strategy, "random",
     "Filter strategy [random] for the candidate selection process.");
 DEFINE_double(
-    dm_candidate_selection_min_distance_to_other_candidates, 0.2,
-    "Minimum distance to the all other candidates.");
-DEFINE_double(
     dm_candidate_selection_prioritize_recent_candidates, 0.0,
     "Defines the percentage of fixed recent candidates [0,1].");
 
