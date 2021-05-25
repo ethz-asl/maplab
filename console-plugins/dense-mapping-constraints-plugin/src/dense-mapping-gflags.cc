@@ -91,7 +91,7 @@ DEFINE_int32(
     "Limits the number of candidates according to the filter strategy.");
 DEFINE_string(
     dm_candidate_selection_filter_strategy, "random",
-    "Filter strategy [random, distance] for the candidate selection process.");
+    "Filter strategy [random] for the candidate selection process.");
 DEFINE_double(
     dm_candidate_selection_min_distance_to_other_candidates, 0.2,
     "Minimum distance to the all other candidates.");

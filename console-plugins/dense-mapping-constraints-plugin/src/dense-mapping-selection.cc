@@ -154,70 +154,30 @@ static void filter_candidates_randomly(
   }
 }
 
-static void filter_candidates_based_on_distance(
-    const std::size_t max_number_of_candidates,
-    const double min_distance_to_next_candidate,
-    const AlignmentCandidatePairIterators& protected_candidates,
-    vi_map::VIMap* map_ptr, AlignmentCandidatePairs* candidate_pairs_ptr) {
-  CHECK_NOTNULL(candidate_pairs_ptr);
-  CHECK_NOTNULL(map_ptr);
-  AlignmentCandidatePairs::iterator it = candidate_pairs_ptr->begin();
-  std::vector<Eigen::Vector3d> candidate_positions;
-  while (it != candidate_pairs_ptr->end()) {
-    // Get a position from the alignment candidate pair.
-    const AlignmentCandidatePair& alignment = *it;
-    const vi_map::Vertex& vertex_A =
-        map_ptr->getVertex(alignment.candidate_A.closest_vertex_id);
-    const Eigen::Vector3d& position_A = vertex_A.get_p_M_I();
-
-    // Check for clusters in the candidate list.
-    const bool valid_candidate = std::all_of(
-        candidate_positions.cbegin(), candidate_positions.cend(),
-        [&position_A,
-         &min_distance_to_next_candidate](const Eigen::Vector3d& p_M_I) {
-          const double distance = (position_A - p_M_I).norm();
-          return distance > min_distance_to_next_candidate;
-        });
-
-    // Only keep candidates that are valid.
-    if (valid_candidate) {
-      candidate_positions.emplace_back(position_A);
-      if (candidate_positions.size() >= max_number_of_candidates) {
-        break;
-      }
-      ++it;
-    } else {
-      it = candidate_pairs_ptr->erase(it);
-    }
-  }
-}
-
-/*
 static AlignmentCandidatePairIterators filter_n_recent_candidates(
-const std::size_t n_recent_candidates,
-AlignmentCandidatePairs* candidate_pairs_ptr) {
-CHECK_NOTNULL(candidate_pairs_ptr);
+    const std::size_t n_recent_candidates,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK_NOTNULL(candidate_pairs_ptr);
 
-// Create a vector of iterators.
-const std::size_t n_candidates = candidate_pairs_ptr->size();
-std::vector<AlignmentCandidatePairs::iterator> v(n_candidates);
-std::iota(v.begin(), v.end(), candidate_pairs_ptr->begin());
+  // Create a vector of iterators.
+  const std::size_t n_candidates = candidate_pairs_ptr->size();
+  std::vector<AlignmentCandidatePairs::iterator> v(n_candidates);
+  std::iota(v.begin(), v.end(), candidate_pairs_ptr->begin());
 
-// Sort the iterators based on the newest timestamp.
-auto sorter = [](const AlignmentCandidatePairs::iterator& lhs,
-               const AlignmentCandidatePairs::iterator& rhs) {
-const int64_t newest_lhs_ts_ns = lhs->getNewestTimestamp();
-const int64_t newest_rhs_ts_ns = rhs->getNewestTimestamp();
-return newest_lhs_ts_ns > newest_rhs_ts_ns;
-};
-std::sort(v.begin(), v.end(), sorter);
+  // Sort the iterators based on the newest timestamp.
+  auto sorter = [](const AlignmentCandidatePairs::iterator& lhs,
+                   const AlignmentCandidatePairs::iterator& rhs) {
+    const int64_t newest_lhs_ts_ns = lhs->getNewestTimestamp();
+    const int64_t newest_rhs_ts_ns = rhs->getNewestTimestamp();
+    return newest_lhs_ts_ns > newest_rhs_ts_ns;
+  };
+  std::sort(v.begin(), v.end(), sorter);
 
-const std::size_t n_candidates_to_take =
-  std::min(n_recent_candidates, n_candidates);
-return std::vector<AlignmentCandidatePairs::iterator>{
-  v.begin, v.begin() + n_candidates_to_take};
+  const std::size_t n_candidates_to_take =
+      std::min(n_recent_candidates, n_candidates);
+  return std::vector<AlignmentCandidatePairs::iterator>{
+      v.begin, v.begin() + n_candidates_to_take};
 }
-*/
 
 static void filter_candidates_based_on_strategy(
     const SelectionConfig& config, vi_map::VIMap* map_ptr,
@@ -247,10 +207,6 @@ static void filter_candidates_based_on_strategy(
   if (config.filter_strategy == "random") {
     filter_candidates_randomly(
         n_max_candidates, protected_candidates, candidate_pairs_ptr);
-  } else if (config.filter_strategy == "distance") {
-    filter_candidates_based_on_distance(
-        n_max_candidates, config.min_distance_to_next_candidate,
-        protected_candidates, map_ptr, candidate_pairs_ptr);
   } else {
     LOG(ERROR) << "Unknown filter strategy " << config.filter_strategy;
   }
