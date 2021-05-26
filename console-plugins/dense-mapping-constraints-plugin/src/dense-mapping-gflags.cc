@@ -86,11 +86,22 @@ DEFINE_bool(
 DEFINE_double(
     dm_candidate_selection_min_switch_variable_value, 0.75,
     "Threshold for the switch variable to classify a constraint as valid.");
+DEFINE_int32(
+    dm_candidate_selection_max_number_of_candidates, 0,
+    "Limits the number of candidates according to the filter strategy. "
+    "Zero means no limit.");
+DEFINE_string(
+    dm_candidate_selection_filter_strategy, "random",
+    "Filter strategy [random] for the candidate selection process.");
+DEFINE_double(
+    dm_candidate_selection_prioritize_recent_candidates, 0.0,
+    "Defines the percentage of fixed recent candidates [0,1].");
 
 // ALIGNMENTS
 DEFINE_double(
     dm_candidate_alignment_max_delta_position_to_initial_guess_m, 0.5,
-    "Maximum translation deviation of the alignment from the initial guess.");
+    "Maximum translation deviation of the alignment from the initial "
+    "guess.");
 DEFINE_double(
     dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg, 10,
     "Maximum angular deviation of the alignment from the initial guess.");

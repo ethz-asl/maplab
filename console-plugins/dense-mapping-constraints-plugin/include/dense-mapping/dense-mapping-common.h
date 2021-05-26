@@ -77,6 +77,8 @@ struct AlignmentCandidatePair {
   // Convenience function for logging.
   friend std::ostream& operator<<(
       std::ostream& out, const AlignmentCandidatePair& pair);
+
+  int64_t getNewestTimestamp() const;
 };
 
 }  // namespace dense_mapping
@@ -117,6 +119,8 @@ struct hash<dense_mapping::AlignmentCandidatePair> {
 namespace dense_mapping {
 
 typedef AlignedUnorderedSet<AlignmentCandidatePair> AlignmentCandidatePairs;
+typedef Aligned<std::vector, AlignmentCandidatePairs::iterator>
+    AlignmentCandidatePairIterators;
 typedef Aligned<std::vector, AlignmentCandidate> AlignmentCandidateList;
 typedef AlignedUnorderedMap<vi_map::MissionId, AlignmentCandidateList>
     MissionToAlignmentCandidatesMap;
