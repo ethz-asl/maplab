@@ -5,7 +5,6 @@
 #include <random>
 #include <vector>
 
-#include <Eigen/Dense>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
