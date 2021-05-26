@@ -131,8 +131,8 @@ static void filter_candidates_based_on_quality(
 }
 
 static void filter_candidates_randomly(
-    const std::size_t max_number_of_candidates,
-    const std::size_t n_recent_candidates,
+    const std::size_t n_remaining_candidates_to_keep,
+    const std::size_t n_reserved_candidates,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
   CHECK_NOTNULL(candidate_pairs_ptr);
 
@@ -153,15 +153,16 @@ static void filter_candidates_randomly(
   // Shuffle the remaining iterators.
   std::sort(v.begin(), v.end(), sorter);
   std::shuffle(
-      v.begin() + n_recent_candidates, v.end(),
+      v.begin() + n_reserved_candidates, v.end(),
       std::mt19937{std::random_device{}()});
 
   // Delete the elements from the original candidate list.
-  const std::size_t n_remaining_candidates = n_candidates - n_recent_candidates;
+  const std::size_t n_remaining_candidates =
+      n_candidates - n_reserved_candidates;
   const std::size_t n_candidates_to_delete =
       n_remaining_candidates -
-      std::min(n_remaining_candidates, max_number_of_candidates);
-  auto it = v.begin() + n_recent_candidates;
+      std::min(n_remaining_candidates, n_remaining_candidates_to_keep);
+  auto it = v.begin() + n_reserved_candidates;
   const auto it_end = it + n_candidates_to_delete;
   for (; it != it_end; ++it) {
     candidate_pairs_ptr->erase(*it);
@@ -177,17 +178,18 @@ static void filter_candidates_based_on_strategy(
   CHECK_NOTNULL(candidate_pairs_ptr);
   CHECK_NOTNULL(map_ptr);
 
-  // Compute the bounds of the number of candidates to retrieve and reserve.
-  const std::size_t n_recent_candidates = static_cast<std::size_t>(
+  // Compute the bounds of the number of candidates to retrieve and keep.
+  const std::size_t n_reserved_candidates = static_cast<std::size_t>(
       static_cast<double>(config.max_number_of_candidates) *
       config.prioritize_recent_candidates);
-  const std::size_t n_max_candidates =
-      config.max_number_of_candidates - n_recent_candidates;
-  const std::size_t n_candidates_before = candidate_pairs_ptr->size();
+  const std::size_t n_remaining_candidates_to_keep =
+      config.max_number_of_candidates - n_reserved_candidates;
 
+  const std::size_t n_candidates_before = candidate_pairs_ptr->size();
   if (config.filter_strategy == "random") {
     filter_candidates_randomly(
-        n_max_candidates, n_recent_candidates, candidate_pairs_ptr);
+        n_remaining_candidates_to_keep, n_reserved_candidates,
+        candidate_pairs_ptr);
   } else {
     LOG(ERROR) << "Unknown filter strategy " << config.filter_strategy;
   }
