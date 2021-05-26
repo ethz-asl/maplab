@@ -6,7 +6,10 @@
 
 namespace regbox {
 
-// Point cloud preprocessing.
+// Alignment method independent flags
+DECLARE_double(regbox_fixed_covariance);
+
+// pcl config
 DECLARE_double(regbox_pcl_downsample_leaf_size_m);
 DECLARE_bool(regbox_pcl_use_downsampling);
 DECLARE_int32(regbox_pcl_gicp_n_neighbors);
