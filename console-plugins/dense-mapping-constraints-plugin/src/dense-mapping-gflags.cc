@@ -87,8 +87,9 @@ DEFINE_double(
     dm_candidate_selection_min_switch_variable_value, 0.75,
     "Threshold for the switch variable to classify a constraint as valid.");
 DEFINE_int32(
-    dm_candidate_selection_max_number_of_candidates, -1,
-    "Limits the number of candidates according to the filter strategy.");
+    dm_candidate_selection_max_number_of_candidates, 0,
+    "Limits the number of candidates according to the filter strategy. "
+    "Zero means no limit.");
 DEFINE_string(
     dm_candidate_selection_filter_strategy, "random",
     "Filter strategy [random] for the candidate selection process.");

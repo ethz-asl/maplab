@@ -142,7 +142,7 @@ static void filter_candidates_randomly(
   std::vector<AlignmentCandidatePairs::iterator> v(n_candidates);
   std::iota(v.begin(), v.end(), candidate_pairs_ptr->begin());
 
-  // Sort the iterators based on the newest timestamp.
+  // Sorter for the iterators based on the newest timestamp.
   auto sorter = [](const AlignmentCandidatePairs::iterator& lhs,
                    const AlignmentCandidatePairs::iterator& rhs) {
     const int64_t newest_lhs_ts_ns = lhs->getNewestTimestamp();
@@ -172,6 +172,9 @@ static void filter_candidates_randomly(
 static void filter_candidates_based_on_strategy(
     const SelectionConfig& config, vi_map::VIMap* map_ptr,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
+  if (config.max_number_of_candidates == 0) {
+    return;
+  }
   CHECK_NOTNULL(candidate_pairs_ptr);
   CHECK_NOTNULL(map_ptr);
 
