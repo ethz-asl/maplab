@@ -184,6 +184,7 @@ static void filter_candidates_based_on_strategy(
       config.prioritize_recent_candidates);
   const std::size_t n_max_candidates =
       config.max_number_of_candidates - n_recent_candidates;
+  const std::size_t n_candidates_before = candidate_pairs_ptr->size();
 
   if (config.filter_strategy == "random") {
     filter_candidates_randomly(
@@ -191,6 +192,10 @@ static void filter_candidates_based_on_strategy(
   } else {
     LOG(ERROR) << "Unknown filter strategy " << config.filter_strategy;
   }
+
+  VLOG(1) << "Reduced candidate set from " << n_candidates_before << " to "
+          << candidate_pairs_ptr->size() << " based on the "
+          << config.filter_strategy << " strategy.";
 }
 
 bool selectAlignmentCandidatePairs(
