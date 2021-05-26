@@ -28,6 +28,8 @@ target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib)
 catkin_add_gtest(test_maplab_server_node test/test-maplab-server-node.cc)
 target_link_libraries(test_maplab_server_node ${PROJECT_NAME}_lib)
 maplab_import_test_maps(test_maplab_server_node)
+catkin_add_gtest(test_submap_merging test/test-submap-merging.cc)
+target_link_libraries(test_submap_merging ${PROJECT_NAME}_lib ${catkin_LIBRARIES})
 
 ############
 ## EXPORT ##

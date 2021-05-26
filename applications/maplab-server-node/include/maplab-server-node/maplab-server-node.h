@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <aslam/common/thread-pool.h>
@@ -48,7 +49,7 @@ struct SubmapProcess {
 
 class MaplabServerNode final {
  public:
-  explicit MaplabServerNode();
+  MaplabServerNode();
 
   ~MaplabServerNode();
 
@@ -106,6 +107,10 @@ class MaplabServerNode final {
           callback);
 
   void registerStatusCallback(std::function<void(const std::string&)> callback);
+
+  size_t getTotalNumMergedSubmaps() {
+    return total_num_merged_submaps_.load();
+  }
 
  protected:
   // Status thread functions:
@@ -236,10 +241,13 @@ class MaplabServerNode final {
   // Exclusively accessed by the merging thread, keeps track of number of
   // submaps at the the last time the trust region has been
   // reset.
-  uint32_t num_submaps_at_last_trust_region_reset = 0;
+  uint32_t num_submaps_at_last_trust_region_reset = 0u;
 
   // Protects the whole server from concurrent access from the outside.
   mutable std::mutex mutex_;
+
+  // Number of full map merging processings
+  uint32_t num_full_map_merging_processings = 0u;
 };
 
 }  // namespace maplab

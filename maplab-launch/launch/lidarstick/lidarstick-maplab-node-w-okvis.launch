@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-	<node pkg="rosbag" type="play" name="rosbag" args="/home/mfehr/experimental_ws/maplab/lidarstick_gonzen/gonzen_run_9_2019-02-15-14-08-27.bag -q -d 2 -s 3 -r 2.0"/>
+  <node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/alice/gonzen_run_3_2019-02-13-16-05-06.bag -q -d 4 -s 0 -r 0.9"/>
 
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 
@@ -38,11 +38,13 @@
 
 		<!-- DENSE MAP -->
 		<param name="map_builder_save_point_cloud_maps_as_resources" value="true"/>
+		<param name="map_builder_save_point_clouds_as_resources" value="true"/>
+		<param name="map_builder_save_image_as_resources" value="true"/>
 
 		<!-- MAPLAB_NODE_CONFIG -->
-		<param name="map_save_every_n_sec" value="30"/>
+		<param name="map_save_every_n_sec" value="0"/>
 		<param name="map_run_keyframing_when_saving" value="false"/>
-		<param name="image_apply_clahe_histogram_equalization" value="true"/>
+		<param name="image_apply_clahe_histogram_equalization" value="false"/>
 		<param name="map_output_folder" value="/tmp/lidarstick/submaps/"/>
 	</node>
 </launch>

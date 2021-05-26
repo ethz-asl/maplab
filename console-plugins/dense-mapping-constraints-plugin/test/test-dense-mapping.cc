@@ -101,14 +101,14 @@ TEST_F(DenseMappingTest, TestDenseMapping) {
   EXPECT_TRUE(addDenseMappingConstraintsToMap(config, mission_ids, map_ptr));
   timer_first.Stop();
 
-  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 1);
+  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 3);
 
   timing::TimerImpl timer_second("addDenseMappingConstraintsToMap (run 2)");
   EXPECT_TRUE(addDenseMappingConstraintsToMap(config, mission_ids, map_ptr));
   timer_second.Stop();
 
   // No new edges are computed.
-  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 1);
+  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 3);
 
   visualizeMap();
 

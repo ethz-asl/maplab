@@ -18,6 +18,10 @@ cs_add_library(${PROJECT_NAME}
   src/visualization/loop-closure-visualizer.cc
   ${PROTO_SRCS})
 
+cs_add_library(${PROJECT_NAME}_test
+  test/test_loop_closure_handling_test.cc)
+target_link_libraries(${PROJECT_NAME}_test gtest)
+
 ##########
 # GTESTS #
 ##########

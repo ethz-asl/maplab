@@ -82,6 +82,9 @@ void ResourceCache::deleteResourceNoDataType(
     case ResourceType::kPointCloudXYZL:
       deleteResource<resources::PointCloud>(id, type);
       break;
+    case ResourceType::kPointCloudXYZIRT:
+      deleteResource<resources::PointCloud>(id, type);
+      break;
     case ResourceType::kVoxbloxTsdfMap:
       deleteResource<voxblox::TsdfMap>(id, type);
       break;

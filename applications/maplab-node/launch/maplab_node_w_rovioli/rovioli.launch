@@ -15,6 +15,7 @@
   <arg name="rovioli_world_frame" default="map"/>
   <arg name="rovioli_verbosity" default="0"/>
 
+  <arg name="rovioli_enable_health_checking" default="true"/>
   <arg name="rovioli_visualize" default="false"/>
 
   <!-- ================================== ROVIOLI ================================================== -->
@@ -25,7 +26,7 @@
           <arg name="sensor_calibration_file" default="$(arg rovioli_sensor_calibration_file)"/>
           <arg name="external_imu_parameters_rovio" default=""/>
           <arg name="imu_to_camera_time_offset_ns" default="$(arg rovioli_imu_to_camera_time_offset_ns)"/>
-          <arg name="rovioli_image_apply_clahe_histogram_equalization" 
+          <arg name="rovioli_image_apply_clahe_histogram_equalization"
             default="$(arg rovioli_apply_clahe)"/>
 
           <arg name="rovio_image_mask_path" default="$(arg rovioli_camera_mask_file)"/>
@@ -59,7 +60,7 @@
           <arg name="tf_mission_frame" default="rovioli_$(arg robot_name)_odom"/>
           <arg name="tf_imu_frame" default="rovioli_$(arg robot_name)_imu"/>
 
-          <arg name="rovioli_enable_health_checking" default="true"/>
+          <arg name="rovioli_enable_health_checking" default="$(arg rovioli_enable_health_checking)"/>
           <arg name="rovio_enable_frame_visualization" default="$(arg rovioli_visualize)"/>
           <arg name="vio_camera_topic_suffix" default="$(arg rovioli_image_topic_suffix)" />
     </include>

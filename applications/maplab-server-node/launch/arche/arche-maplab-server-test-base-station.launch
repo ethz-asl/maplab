@@ -27,7 +27,7 @@ Requires:
 	</node>
 
 	<!-- ARTIFACT MANAGER NODE -->
-	<group if="true">
+	<group if="false">
 		<include file="$(find artifact_manager_node)/launch/artifact_manager.launch">
 			<arg name="initial_artifact_store_folder" default="$(find maplab_server_node)/share/arche/arche-artifact-store" />
 			<arg name="backup_artifact_store_folder" default="/tmp/backup-artifacts" />

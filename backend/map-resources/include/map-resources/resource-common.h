@@ -12,6 +12,7 @@
 #include <boost/variant.hpp>
 #include <opencv2/core.hpp>
 #include <resources-common/point-cloud.h>
+#include <resources-common/resources-gflags.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
 #include <voxblox/core/esdf_map.h>
@@ -56,11 +57,14 @@ enum class ResourceType : int {
   kObjectInstanceBoundingBoxes = 22,
   kObjectInstanceMasks = 23,
   kPointCloudXYZL = 24,
+  kPointCloudXYZIRT = 25,
   kCount
 };
 
 static constexpr size_t kNumResourceTypes =
     static_cast<size_t>(ResourceType::kCount);
+
+bool isResourceTypePointCloud(const ResourceType& type);
 
 // NOTE: [ADD_RESOURCE_TYPE] Add name.
 const std::array<std::string, kNumResourceTypes> ResourceTypeNames = {
@@ -88,35 +92,11 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeNames = {
      /*kPointCloudXYZI*/ "point_cloud_w_intensity",
      /*kObjectInstanceBoundingBoxes*/ "object_instance_bounding_boxes",
      /*kObjectInstanceMasks*/ "object_instance_masks",
-     /*kPointCloudXYZL*/ "labeled_point_cloud"}};
+     /*kPointCloudXYZL*/ "labeled_point_cloud",
+     /*kPointCloudXYZIRT*/ "point_cloud_w_intensity_ring_time"}};
 
 // NOTE: [ADD_RESOURCE_TYPE] Add suffix.
-const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
-    {/*kRawImage*/ ".pgm",
-     /*kUndistortedImage*/ ".pgm",
-     /*kRectifiedImage*/ ".pgm",
-     /*kImageForDepthMap*/ ".pgm",
-     /*kRawColorImage*/ ".ppm",
-     /*kUndistortedColorImage*/ ".ppm",
-     /*kRectifiedColorImage*/ ".ppm",
-     /*kColorImageForDepthMap*/ ".ppm",
-     /*kRawDepthMap*/ ".pgm",
-     /*kOptimizedDepthMap*/ ".pgm",
-     /*kDisparityMap*/ ".pgm",
-     /*kText*/ ".txt",
-     /*kPmvsReconstructionPath*/ ".txt",
-     /*kTsdfGridPath*/ ".txt",
-     /*kEsdfGridPath*/ ".txt",
-     /*kOccupancyGridPath*/ ".txt",
-     /*kPointCloudXYZ*/ ".ply",
-     /*kPointCloudXYZRGBN*/ ".ply",
-     /*kVoxbloxTsdfMap*/ ".tsdf.voxblox",
-     /*kVoxbloxEsdfMap*/ ".esdf.voxblox",
-     /*kVoxbloxOccupancyMap*/ ".occupancy.voxblox",
-     /*kPointCloudXYZI*/ ".ply",
-     /*kObjectInstanceBoundingBoxes*/ ".obj_instance_bboxes.proto",
-     /*kObjectInstanceMasks*/ ".obj_instance_mask.ppm",
-     /*kPointCloudXYZL*/ ".ply"}};
+std::array<std::string, kNumResourceTypes> getResourceTypesFileSuffixes();
 
 struct ResourceTypeHash {
   template <typename T>

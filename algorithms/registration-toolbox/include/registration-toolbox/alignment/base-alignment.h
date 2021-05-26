@@ -25,11 +25,7 @@ class BaseAlignment {
 
   constexpr aslam::Transformation convertEigenToKindr(
       const Eigen::Matrix4d& T) const {
-    if (!aslam::Transformation::Rotation::isValidRotationMatrix(
-            T.template topLeftCorner<3, 3>().eval())) {
       return aslam::Transformation::constructAndRenormalizeRotation(T);
-    }
-    return aslam::Transformation(T);
   }
 };
 

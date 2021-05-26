@@ -53,6 +53,7 @@ class VIMission : public Mission {
     is_same &= ncamera_id_ == lhs.ncamera_id_;
     is_same &= imu_id_ == lhs.imu_id_;
     is_same &= lidar_id_ == lhs.lidar_id_;
+    is_same &= pointcloud_map_id_ == lhs.pointcloud_map_id_;
     is_same &= odometry_6dof_id_ == lhs.odometry_6dof_id_;
     is_same &= loop_closure_id_ == lhs.loop_closure_id_;
     is_same &= absolute_6dof_id_ == lhs.absolute_6dof_id_;
@@ -72,6 +73,7 @@ class VIMission : public Mission {
   void setNCameraId(const aslam::SensorId& ncamera_id);
   void setImuId(const aslam::SensorId& imu_id);
   void setLidarId(const aslam::SensorId& lidar_id);
+  void setPointCloudMapId(const aslam::SensorId& pointcloud_map_id);
   void setOdometry6DoFSensor(const aslam::SensorId& odometry_6dof_id);
   void setLoopClosureSensor(const aslam::SensorId& loop_closure_id);
   void setAbsolute6DoFSensor(const aslam::SensorId& absolute_6dof_id);
@@ -83,6 +85,7 @@ class VIMission : public Mission {
   const aslam::SensorId& getNCameraId() const;
   const aslam::SensorId& getImuId() const;
   const aslam::SensorId& getLidarId() const;
+  const aslam::SensorId& getPointCloudMapSensorId() const;
   const aslam::SensorId& getOdometry6DoFSensor() const;
   const aslam::SensorId& getLoopClosureSensor() const;
   const aslam::SensorId& getAbsolute6DoFSensor() const;
@@ -91,6 +94,7 @@ class VIMission : public Mission {
   bool hasNCamera() const;
   bool hasImu() const;
   bool hasLidar() const;
+  bool hasPointCloudMap() const;
   bool hasOdometry6DoFSensor() const;
   bool hasLoopClosureSensor() const;
   bool hasAbsolute6DoFSensor() const;
@@ -196,6 +200,7 @@ class VIMission : public Mission {
   aslam::SensorId ncamera_id_;
   aslam::SensorId imu_id_;
   aslam::SensorId lidar_id_;
+  aslam::SensorId pointcloud_map_id_;
   aslam::SensorId odometry_6dof_id_;
   aslam::SensorId loop_closure_id_;
   aslam::SensorId absolute_6dof_id_;

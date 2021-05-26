@@ -76,7 +76,7 @@ bool PythonInterface::loadModule(const std::string& python_script) {
   }
   CHECK(!module_name.empty());
 
-  PyObject* pyname = PyString_FromString(module_name.c_str());
+  PyObject* pyname = PyBytes_FromString(module_name.c_str());
   python_module_->obj = PyImport_Import(pyname);
   Py_DECREF(pyname);
   return *python_module_;

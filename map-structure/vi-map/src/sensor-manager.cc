@@ -413,7 +413,6 @@ bool SensorManager::deserialize(const YAML::Node& yaml_node) {
         return false;
       }
       CHECK(sensor->isValid());
-
       // Only add the base sensors and buffer the other sensors for later
       // addition to guarantee validity of the sensor manager
       if (base_sensor_ids.count(sensor->getId()) > 0u) {

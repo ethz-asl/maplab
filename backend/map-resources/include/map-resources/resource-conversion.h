@@ -87,6 +87,12 @@ template <typename PointCloudType>
 void addLabelToPointCloud(
     const uint32_t label, const size_t index, PointCloudType* point_cloud);
 template <typename PointCloudType>
+void addRingToPointCloud(
+    const uint32_t ring, const size_t index, PointCloudType* point_cloud);
+template <typename PointCloudType>
+void addTimeToPointCloud(
+    const float time, const size_t index, PointCloudType* point_cloud);
+template <typename PointCloudType>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
     PointCloudType* point_cloud);
@@ -101,6 +107,12 @@ void getScalarFromPointCloud(
 template <typename PointCloudType>
 void getLabelFromPointCloud(
     const PointCloudType& point_cloud, const size_t index, uint32_t* label);
+template <typename PointCloudType>
+void getRingFromPointCloud(
+    const PointCloudType& point_cloud, const size_t index, uint32_t* ring);
+template <typename PointCloudType>
+void getTimeFromPointCloud(
+    const PointCloudType& point_cloud, const size_t index, float* time_s);
 template <typename PointCloudType>
 void getColorFromPointCloud(
     const PointCloudType& point_cloud, const size_t index,
@@ -121,12 +133,21 @@ bool hasNormalsInformation(const PointCloudType& point_cloud);
 template <typename PointCloudType>
 bool hasLabelInformation(const PointCloudType& point_cloud);
 template <typename PointCloudType>
+bool hasRingInformation(const PointCloudType& point_cloud);
+template <typename PointCloudType>
+bool hasTimeInformation(const PointCloudType& point_cloud);
+template <typename PointCloudType>
 bool hasScalarInformation(const PointCloudType& point_cloud);
 
 template <typename PointCloudType>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool has_normals,
-    const bool has_scalar, const bool has_labels, PointCloudType* point_cloud);
+    const bool has_scalar, const bool has_labels, const bool has_rings,
+    const bool has_time, PointCloudType* point_cloud);
+
+uint32_t getPointStep(
+    const bool has_color, const bool /*has_normals*/, const bool has_scalar,
+    const bool has_labels, const bool has_rings, const bool has_time);
 
 }  // namespace backend
 

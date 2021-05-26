@@ -10,7 +10,8 @@ namespace backend {
 
 class ResourceLoader {
  public:
-  ResourceLoader() {}
+  ResourceLoader()
+      : resource_types_file_suffixes_(getResourceTypesFileSuffixes()) {}
 
   void migrateResource(
       const ResourceId& id, const ResourceType& type,
@@ -58,6 +59,13 @@ class ResourceLoader {
       const ResourceId& id, const ResourceType& type, const std::string& folder,
       std::string* file_path) const;
 
+  void getPointCloudResourceFilePath(
+      const ResourceId& id, const ResourceType& type, const std::string& folder,
+      const bool compressed, std::string* file_path) const;
+
+  void getResourceTypeFileSuffix(
+      const ResourceType& type, std::string* file_suffix);
+
   void deleteResourceFile(
       const ResourceId& id, const ResourceType& type,
       const std::string& folder);
@@ -76,7 +84,14 @@ class ResourceLoader {
 
  private:
   mutable ResourceCache cache_;
+  const std::array<std::string, backend::kNumResourceTypes>
+      resource_types_file_suffixes_;
 };
+
+template <>
+void ResourceLoader::getResource(
+    const ResourceId& id, const ResourceType& type, const std::string& folder,
+    resources::PointCloud* resource) const;
 
 // Implementation for cv::Mat resources.
 template <>

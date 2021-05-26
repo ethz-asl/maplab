@@ -160,9 +160,8 @@ OptimizationProblem* constructOptimizationProblem(
         options.fix_extrinsics_rotation, options.fix_extrinsics_translation,
         options.min_landmarks_per_frame, problem);
     if (num_visual_constraints_added == 0u) {
-      LOG(WARNING)
-          << "WARNING: Visual constraints enabled, but none "
-          << "were found, adapting DoF settings of optimization problem...";
+      VLOG(3) << "WARNING: Visual constraints enabled, but none "
+              << "were found, adapting DoF settings of optimization problem...";
     }
   }
   size_t num_inertial_constraints_added = 0u;
@@ -171,9 +170,8 @@ OptimizationProblem* constructOptimizationProblem(
         options.fix_gyro_bias, options.fix_accel_bias, options.fix_velocity,
         options.gravity_magnitude, problem);
     if (num_inertial_constraints_added == 0u) {
-      LOG(WARNING)
-          << "WARNING: Inertial constraints enabled, but none "
-          << "were found, adapting DoF settings of optimization problem...";
+      VLOG(3) << "WARNING: Inertial constraints enabled, but none "
+              << "were found, adapting DoF settings of optimization problem...";
     }
   }
 
@@ -182,9 +180,8 @@ OptimizationProblem* constructOptimizationProblem(
     num_wheel_odometry_constraints_added =
         addWheelOdometryTerms(options.fix_wheel_extrinsics, problem);
     if (num_wheel_odometry_constraints_added == 0u) {
-      LOG(WARNING)
-          << "WARNING: Wheel odometry constraints enabled, but none "
-          << "were found, adapting DoF settings of optimization problem...";
+      VLOG(3) << "WARNING: Wheel odometry constraints enabled, but none "
+              << "were found, adapting DoF settings of optimization problem...";
     }
   }
 
@@ -193,9 +190,8 @@ OptimizationProblem* constructOptimizationProblem(
     num_6dof_odometry_constraints_added =
         add6DoFOdometryTerms(options.fix_6dof_odometry_extrinsics, problem);
     if (num_6dof_odometry_constraints_added == 0u) {
-      LOG(WARNING)
-          << "WARNING: 6DoF odometry constraints enabled, but none "
-          << "were found, adapting DoF settings of optimization problem...";
+      VLOG(3) << "WARNING: 6DoF odometry constraints enabled, but none "
+              << "were found, adapting DoF settings of optimization problem...";
     }
   }
 
@@ -204,9 +200,8 @@ OptimizationProblem* constructOptimizationProblem(
     num_absolute_6dof_constraints_added = addAbsolutePoseConstraintsTerms(
         options.fix_absolute_pose_sensor_extrinsics, problem);
     if (num_absolute_6dof_constraints_added == 0u) {
-      LOG(WARNING)
-          << "WARNING: Absolute 6DoF constraints enabled, but none "
-          << "were found, adapting DoF settings of optimization problem...";
+      VLOG(3) << "WARNING: Absolute 6DoF constraints enabled, but none "
+              << "were found, adapting DoF settings of optimization problem...";
     }
   }
 
@@ -214,8 +209,8 @@ OptimizationProblem* constructOptimizationProblem(
   if (options.add_loop_closure_edges) {
     num_lc_edges = numLoopclosureEdges(*map);
     if (num_lc_edges == 0u) {
-      LOG(WARNING) << "WARNING: Loop closure edges are enabled, but none "
-                   << "were found.";
+      VLOG(3) << "WARNING: Loop closure edges are enabled, but none "
+              << "were found.";
     } else {
       size_t actually_added_lc_error_terms =
           augmentOptimizationProblemWithLoopclosureEdges(problem);

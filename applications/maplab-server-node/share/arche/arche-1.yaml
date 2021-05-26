@@ -31,11 +31,17 @@ sensors:
     sensor_type:                           LIDAR
     description:                           "Lidarmace - Ouster OS0"
     topic:                                 /arche_1/points
+    beams:                                 128
+    fov_upper:                             45
+    fov_lower:                             45
 
   - id:                                    abf432179caf7592b37718478a1fa06d
     sensor_type:                           POINTCLOUD_MAP
     description:                           "Lidarsmace - Ouster OS0 - Throttled"
     topic:                                 /arche_1/points_throttled
+    beams:                                 128
+    fov_upper:                             45
+    fov_lower:                             45
 
   - id:                                    7af1bac2a7c5fad79f09e49e3a96d87c
     sensor_type:                           NCAMERA

@@ -81,8 +81,21 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
 
   // Initialize the aligner if we haven't already.
   if (!*aligner_ptr) {
-    *aligner_ptr =
-        regbox::BaseController::make(regbox::Aligner::PclIcp, "ADMC Aligner");
+    if (FLAGS_dm_candidate_alignment_type == "PclIcp") {
+      *aligner_ptr =
+          regbox::BaseController::make(regbox::Aligner::PclIcp, "ADMC Aligner");
+    } else if (FLAGS_dm_candidate_alignment_type == "PclGIcp") {
+      *aligner_ptr = regbox::BaseController::make(
+          regbox::Aligner::PclGIcp, "ADMC Aligner");
+    } else if (FLAGS_dm_candidate_alignment_type == "LpmIcp") {
+      *aligner_ptr =
+          regbox::BaseController::make(regbox::Aligner::LpmIcp, "ADMC Aligner");
+    } else {
+      *aligner_ptr = regbox::BaseController::make(
+          regbox::Aligner::PclGIcp, "ADMC Aligner");
+      LOG(ERROR) << "Selected alignment for dense mapping constraints is not "
+                    "supported. Choosing PclGIcp as default.";
+    }
   }
   CHECK(*aligner_ptr);
 
@@ -198,12 +211,15 @@ bool computeAlignmentForCandidatePairs(
         // Fall through intended.
         case backend::ResourceType::kPointCloudXYZI:
         // Fall through intended.
+        case backend::ResourceType::kPointCloudXYZIRT:
+        // Fall through intended.
         case backend::ResourceType::kPointCloudXYZRGBN:
           try {
             aligned_without_error =
                 computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
                     map, pair, &aligner_ptr, &processed_pair);
-          } catch (const std::exception&) {
+          } catch (const std::exception& e) {
+            LOG(ERROR) << e.what();
             aligned_without_error = false;
           }
           break;

@@ -7,6 +7,68 @@
 
 namespace backend {
 
+std::array<std::string, kNumResourceTypes> getResourceTypesFileSuffixes() {
+  return std::array<std::string, kNumResourceTypes>{
+      /*kRawImage*/ ".pgm",
+      /*kUndistortedImage*/ ".pgm",
+      /*kRectifiedImage*/ ".pgm",
+      /*kImageForDepthMap*/ ".pgm",
+      /*kRawColorImage*/ ".ppm",
+      /*kUndistortedColorImage*/ ".ppm",
+      /*kRectifiedColorImage*/ ".ppm",
+      /*kColorImageForDepthMap*/ ".ppm",
+      /*kRawDepthMap*/ ".pgm",
+      /*kOptimizedDepthMap*/ ".pgm",
+      /*kDisparityMap*/ ".pgm",
+      /*kText*/ ".txt",
+      /*kPmvsReconstructionPath*/ ".txt",
+      /*kTsdfGridPath*/ ".txt",
+      /*kEsdfGridPath*/ ".txt",
+      /*kOccupancyGridPath*/ ".txt",
+      /*kPointCloudXYZ*/
+      (FLAGS_resources_compress_pointclouds == true)
+          ? resources::kCompressedPointCloudSuffix
+          : resources::kPointCloudSuffix,
+      /*kPointCloudXYZRGBN*/
+      (FLAGS_resources_compress_pointclouds == true)
+          ? resources::kCompressedPointCloudSuffix
+          : resources::kPointCloudSuffix,
+      /*kVoxbloxTsdfMap*/ ".tsdf.voxblox",
+      /*kVoxbloxEsdfMap*/ ".esdf.voxblox",
+      /*kVoxbloxOccupancyMap*/ ".occupancy.voxblox",
+      /*kPointCloudXYZI*/
+      (FLAGS_resources_compress_pointclouds == true)
+          ? resources::kCompressedPointCloudSuffix
+          : resources::kPointCloudSuffix,
+      /*kObjectInstanceBoundingBoxes*/ ".obj_instance_bboxes.proto",
+      /*kObjectInstanceMasks*/ ".obj_instance_mask.ppm",
+      /*kPointCloudXYZL*/
+      (FLAGS_resources_compress_pointclouds == true)
+          ? resources::kCompressedPointCloudSuffix
+          : resources::kPointCloudSuffix,
+      /*kPointCloudXYZIRT*/
+      (FLAGS_resources_compress_pointclouds == true)
+          ? resources::kCompressedPointCloudSuffix
+          : resources::kPointCloudSuffix};
+}
+
+bool isResourceTypePointCloud(const ResourceType& type) {
+  switch (type) {
+    case ResourceType::kPointCloudXYZ:
+      // Fall through intended.
+    case ResourceType::kPointCloudXYZRGBN:
+      // Fall through intended.
+    case ResourceType::kPointCloudXYZI:
+      // Fall through intended.
+    case ResourceType::kPointCloudXYZL:
+      // Fall through intended.
+    case ResourceType::kPointCloudXYZIRT:
+      return true;
+    default:
+      return false;
+  }
+}
+
 // NOTE: [ADD_RESOURCE_DATA_TYPE] Implement.
 template <>
 bool isSameResource(const cv::Mat& resource_A, const cv::Mat& resource_B) {

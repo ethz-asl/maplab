@@ -28,6 +28,7 @@ bool Odometry6DoF::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
 }
 
 void Odometry6DoF::saveToYamlNodeImpl(YAML::Node* sensor_node) const {
+  CHECK_NOTNULL(sensor_node);
   if (has_T_St_Stp1_fixed_covariance_) {
     (*sensor_node)[static_cast<std::string>(kYamlFieldNameFixedCovariance)] =
         YAML::convert<aslam::TransformationCovariance>::encode(
