@@ -5,7 +5,6 @@
 #include <random>
 #include <vector>
 
-#include <Eigen/Dense>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -26,8 +25,8 @@ SelectionConfig SelectionConfig::fromGflags() {
   config.max_number_of_candidates =
       FLAGS_dm_candidate_selection_max_number_of_candidates;
   config.filter_strategy = FLAGS_dm_candidate_selection_filter_strategy;
-  config.min_distance_to_next_candidate =
-      FLAGS_dm_candidate_selection_min_distance_to_other_candidates;
+  config.prioritize_recent_candidates =
+      FLAGS_dm_candidate_selection_prioritize_recent_candidates;
 
   return config;
 }
@@ -132,82 +131,72 @@ static void filter_candidates_based_on_quality(
 }
 
 static void filter_candidates_randomly(
-    const std::size_t max_number_of_candidates,
+    const std::size_t n_remaining_candidates_to_keep,
+    const std::size_t n_reserved_candidates,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
   CHECK_NOTNULL(candidate_pairs_ptr);
-  // Create a vector of candidate iterators and shuffle it.
+
+  // Create a vector of candidate iterators.
   const std::size_t n_candidates = candidate_pairs_ptr->size();
   std::vector<AlignmentCandidatePairs::iterator> v(n_candidates);
   std::iota(v.begin(), v.end(), candidate_pairs_ptr->begin());
-  std::shuffle(v.begin(), v.end(), std::mt19937{std::random_device{}()});
+
+  // Sorter for the iterators based on the newest timestamp.
+  auto sorter = [](const AlignmentCandidatePairs::iterator& lhs,
+                   const AlignmentCandidatePairs::iterator& rhs) {
+    const int64_t newest_lhs_ts_ns = lhs->getNewestTimestamp();
+    const int64_t newest_rhs_ts_ns = rhs->getNewestTimestamp();
+    return newest_lhs_ts_ns > newest_rhs_ts_ns;
+  };
+
+  // Sort the iterators to access the most recent ones.
+  // Shuffle the remaining iterators.
+  std::sort(v.begin(), v.end(), sorter);
+  std::shuffle(
+      v.begin() + n_reserved_candidates, v.end(),
+      std::mt19937{std::random_device{}()});
 
   // Delete the elements from the original candidate list.
+  const std::size_t n_remaining_candidates =
+      n_candidates - n_reserved_candidates;
   const std::size_t n_candidates_to_delete =
-      n_candidates - std::min(n_candidates, max_number_of_candidates);
-  auto it = v.begin();
+      n_remaining_candidates -
+      std::min(n_remaining_candidates, n_remaining_candidates_to_keep);
+  auto it = v.begin() + n_reserved_candidates;
   const auto it_end = it + n_candidates_to_delete;
   for (; it != it_end; ++it) {
     candidate_pairs_ptr->erase(*it);
   }
 }
 
-static void filter_candidates_based_on_distance(
-    const std::size_t max_number_of_candidates,
-    const double min_distance_to_next_candidate, vi_map::VIMap* map_ptr,
-    AlignmentCandidatePairs* candidate_pairs_ptr) {
-  CHECK_NOTNULL(candidate_pairs_ptr);
-  CHECK_NOTNULL(map_ptr);
-  AlignmentCandidatePairs::iterator it = candidate_pairs_ptr->begin();
-  std::vector<Eigen::Vector3d> candidate_positions;
-  while (it != candidate_pairs_ptr->end()) {
-    // Get a position from the alignment candidate pair.
-    const AlignmentCandidatePair& alignment = *it;
-    const vi_map::Vertex& vertex_A =
-        map_ptr->getVertex(alignment.candidate_A.closest_vertex_id);
-    const Eigen::Vector3d& position_A = vertex_A.get_p_M_I();
-
-    // Check for clusters in the candidate list.
-    const bool valid_candidate = std::all_of(
-        candidate_positions.cbegin(), candidate_positions.cend(),
-        [&position_A,
-         &min_distance_to_next_candidate](const Eigen::Vector3d& p_M_I) {
-          const double distance = (position_A - p_M_I).norm();
-          return distance > min_distance_to_next_candidate;
-        });
-
-    // Only keep candidates that are valid.
-    if (valid_candidate) {
-      candidate_positions.emplace_back(position_A);
-      if (candidate_positions.size() >= max_number_of_candidates) {
-        break;
-      }
-      ++it;
-    } else {
-      it = candidate_pairs_ptr->erase(it);
-    }
-  }
-}
-
 static void filter_candidates_based_on_strategy(
     const SelectionConfig& config, vi_map::VIMap* map_ptr,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
-  if (config.max_number_of_candidates < 0) {
+  if (config.max_number_of_candidates == 0) {
     return;
   }
-
   CHECK_NOTNULL(candidate_pairs_ptr);
   CHECK_NOTNULL(map_ptr);
 
+  // Compute the bounds of the number of candidates to retrieve and keep.
+  const std::size_t n_reserved_candidates = static_cast<std::size_t>(
+      static_cast<double>(config.max_number_of_candidates) *
+      config.prioritize_recent_candidates);
+  const std::size_t n_remaining_candidates_to_keep =
+      config.max_number_of_candidates - n_reserved_candidates;
+
+  const std::size_t n_candidates_before = candidate_pairs_ptr->size();
   if (config.filter_strategy == "random") {
     filter_candidates_randomly(
-        config.max_number_of_candidates, candidate_pairs_ptr);
-  } else if (config.filter_strategy == "distance") {
-    filter_candidates_based_on_distance(
-        config.max_number_of_candidates, config.min_distance_to_next_candidate,
-        map_ptr, candidate_pairs_ptr);
+        n_remaining_candidates_to_keep, n_reserved_candidates,
+        candidate_pairs_ptr);
   } else {
     LOG(ERROR) << "Unknown filter strategy " << config.filter_strategy;
   }
+
+  VLOG(1) << "Reduced candidate set from " << n_candidates_before << " to "
+          << candidate_pairs_ptr->size() << " based on the "
+          << config.filter_strategy << " strategy.";
 }
 
 bool selectAlignmentCandidatePairs(
