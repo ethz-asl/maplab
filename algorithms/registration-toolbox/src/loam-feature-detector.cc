@@ -51,7 +51,6 @@ void LoamFeatureDetector::extractLoamFeaturesFromPointCloud(
 
   std::vector<int> indices;
   std::map<size_t, pcl::PointCloud<pcl::PointXYZ>::Ptr> scan_lines;
-  pickedpoints_.clear();
 
   for (size_t idx = 0u; idx < point_cloud.size(); idx++) {
     CHECK_GE(point_cloud.rings[idx], 0);
@@ -136,10 +135,8 @@ void LoamFeatureDetector::extractFeaturesFromScanLine(
   for (size_t idx = 0u; idx < cloud_curvatures.size(); ++idx) {
     if (point_picked[cloud_curvatures[idx].first]) {
       pcl::PointXYZ point = (*scan_line)[cloud_curvatures[idx].first];
-      pickedpoints_.push_back(point);
     }
   }
-
   std::sort(
       cloud_curvatures.begin(), cloud_curvatures.end(),
       [](const CurvaturePair& a, const CurvaturePair& b) {
@@ -211,6 +208,7 @@ void LoamFeatureDetector::markUnstablePointsAsPicked(
          previous_point.getVector3fMap().norm()));
     if (abs(alpha) > max_angle_between_valid_neighbors_rad_) {
       markCurvatureRegionAsPicked(point_idx, point_picked);
+      continue;
     }
     const float point_distance_m = point.getVector3fMap().norm();
 
@@ -368,7 +366,7 @@ void LoamFeatureDetector::calculateCurvatures(
     const float curvature =
         merged_point.norm() / (2 * FLAGS_regbox_loam_curvature_region *
                                (*scan_line)[point_idx].getVector3fMap().norm());
-    const CurvaturePair curvature_pair(point_idx, merged_point.norm());
+    const CurvaturePair curvature_pair(point_idx, curvature);
     curvatures->push_back(curvature_pair);
   }
 }

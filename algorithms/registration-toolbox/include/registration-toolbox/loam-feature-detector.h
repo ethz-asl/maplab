@@ -58,7 +58,6 @@ class LoamFeatureDetector {
 
   void sortScanLineAzimuthal(pcl::PointCloud<pcl::PointXYZ>::Ptr& scan_line);
 
-  pcl::PointCloud<pcl::PointXYZ> pickedpoints_;
   float max_angle_between_valid_neighbors_rad_;
   static constexpr float kDistanceEpsillon = 0.0001;
   static constexpr float kMaxCurvatureRegionNeighborDistanceSquaredm2 = 0.05;

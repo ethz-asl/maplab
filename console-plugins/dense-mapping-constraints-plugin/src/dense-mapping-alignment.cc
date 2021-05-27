@@ -340,6 +340,8 @@ bool computeLoamAlignmentForCandidatePairs(
   auto aligner = regbox::BaseController::make("regbox::LoamController", "Loam");
   auto feature_detector = regbox::LoamFeatureDetector();
   resources::PointCloud aggregated_loam_map;
+  resources::PointCloud aggregated_map;
+  resources::PointCloud aggregated_odom_map;
 
   AlignmentCandidate loam_map_base_candidate;
   aslam::Transformation T_map_last_successful_candidate;
@@ -410,6 +412,8 @@ bool computeLoamAlignmentForCandidatePairs(
               aggregated_loam_map = resources::PointCloud();
               continue;
             }
+            aggregated_map = candidate_resource_A;
+            aggregated_odom_map = candidate_resource_A;
             loam_map_base_candidate = pair.candidate_A;
             last_successful_candidate = loam_map_base_candidate;
           }
@@ -496,6 +500,14 @@ bool computeLoamAlignmentForCandidatePairs(
 
     loam_pair.success = true;
     if (loam_pair.success) {
+      AlignmentCandidatePair odom_pair;
+      createCandidatePair(
+          loam_pair.candidate_A, loam_map_base_candidate, &odom_pair);
+
+      resources::PointCloud b_cloud;
+      retrieveResourceForCandidate(loam_pair.candidate_A, map, &b_cloud);
+      aggregated_odom_map.appendTransformed(b_cloud, odom_pair.T_SB_SA_init);
+      aggregated_map.appendTransformed(b_cloud, loam_pair.T_SB_SA_final);
       aligned_candidate_pairs->insert(loam_pair);
       pcl::PointCloud<pcl::PointXYZL> new_aligned_features_pcl;
       backend::convertPointCloudType(
@@ -578,6 +590,16 @@ bool computeLoamAlignmentForCandidatePairs(
           kLoamMapPointCloudTopic, loam_map_points_msg);
       backend::convertPointCloudType(
           *aggregated_loam_map_pcl, &aggregated_loam_map);
+      sensor_msgs::PointCloud2 map_points_msg;
+      backend::convertPointCloudType(aggregated_map, &map_points_msg);
+      map_points_msg.header.frame_id = "/loam_map";
+      visualization::RVizVisualizationSink::publish(
+          "aggregated_points", map_points_msg);
+      sensor_msgs::PointCloud2 odom_points_msg;
+      backend::convertPointCloudType(aggregated_odom_map, &odom_points_msg);
+      odom_points_msg.header.frame_id = "/loam_map";
+      visualization::RVizVisualizationSink::publish(
+          "aggregated_odom_points", odom_points_msg);
     }
     progress_bar.update(++processed_pairs);
   }
