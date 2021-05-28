@@ -24,6 +24,7 @@ DECLARE_int32(dm_candidate_search_proximity_take_closest_n_candidates);
 
 DECLARE_bool(dm_candidate_search_enable_intra_mission_global);
 DECLARE_bool(dm_candidate_search_enable_inter_mission_global);
+DECLARE_string(dm_candidate_search_external_global_service);
 
 // CANDIDATE SELECTION
 DECLARE_bool(dm_candidate_selection_recompute_all_constraints);

@@ -72,6 +72,9 @@ DEFINE_bool(
     "If enabled, the algorithm will try to find dense mapping constraints "
     "between any dense data based on a global place recognition algorithm, "
     "across missions.");
+DEFINE_string(
+    dm_candidate_search_external_global_service, "/maplab_server/place_lookup",
+    "Requests will be sent to this service");
 
 // CANDIDATE SELECTION
 DEFINE_bool(
