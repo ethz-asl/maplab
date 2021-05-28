@@ -13,6 +13,8 @@
 #include <vi-map/vertex.h>
 #include <vi-map/vi-map.h>
 
+#include "dense-mapping/dense-mapping-external-interface.h"
+
 namespace dense_mapping {
 
 SearchConfig SearchConfig::fromGflags() {
@@ -712,7 +714,7 @@ bool searchForProximityBasedAlignmentCandidatePairs(
 }
 
 bool searchGloballyForAlignmentCandidatePairsBetweenTwoMissions(
-    const SearchConfig& /*config*/, const vi_map::VIMap& /*map*/,
+    const SearchConfig& config, const vi_map::VIMap& /*map*/,
     const vi_map::MissionId& mission_A, const vi_map::MissionId& mission_B,
     const AlignmentCandidateList& /*candidates_A*/,
     const AlignmentCandidateList& /*candidates_B*/,
@@ -722,7 +724,11 @@ bool searchGloballyForAlignmentCandidatePairsBetweenTwoMissions(
   VLOG(1) << "Searching for global candidates between missions " << mission_A
           << " and " << mission_B;
 
-  // TODO(mfehr): implement.
+  ExternalInterface ext_interface(
+      config.enable_intra_mission_global_search,
+      config.enable_inter_mission_global_search);
+
+  ext_interface.poseLookupRequest();
 
   return true;
 }
