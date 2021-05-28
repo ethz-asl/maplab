@@ -21,6 +21,9 @@ bool applyConstraintsToMap(
     const ConstraintsConfig& config,
     const AlignmentCandidatePairs& candidate_pairs, vi_map::VIMap* map_ptr);
 
+bool removeAllConstraintsFromVertices(
+    const pose_graph::VertexIdList& vertex_ids, vi_map::VIMap* map_ptr);
+
 }  // namespace dense_mapping
 
 #endif  // DENSE_MAPPING_DENSE_MAPPING_CONSTRAINTS_H_

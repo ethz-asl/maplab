@@ -14,6 +14,7 @@
 #include <aslam/common/thread-pool.h>
 #include <map-manager/map-manager.h>
 #include <resources-common/point-cloud.h>
+#include <sparse-graph/sparse-graph.h>
 #include <vi-map/vi-map.h>
 #include <visualization/resource-visualization.h>
 #include <visualization/viwls-graph-plotter.h>
@@ -96,6 +97,13 @@ class MaplabServerNode final {
       const backend::ResourceType resource_type,
       const Eigen::Vector3d& center_G, const double radius_m,
       resources::PointCloud* point_cloud_G);
+
+  enum class VerificationStatus : int {
+    kFailure = -1,
+    kSuccess = 0,
+    kNoSuchMission = 1,
+  };
+  VerificationStatus verifySubmap(const uint32_t submap_id);
 
   void visualizeMap();
 
@@ -248,6 +256,8 @@ class MaplabServerNode final {
 
   // Number of full map merging processings
   uint32_t num_full_map_merging_processings = 0u;
+
+  spg::SparseGraph sparsified_graph_;
 };
 
 }  // namespace maplab

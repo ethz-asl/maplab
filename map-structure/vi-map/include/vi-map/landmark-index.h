@@ -24,10 +24,9 @@ typedef std::unordered_map<LandmarkId, pose_graph::VertexId>
 
 class LandmarkIndex {
   friend VIMap;
-  friend ::LoopClosureHandlerTest;                   // Test.
-  friend ::SubmapMergingTest;                        // Test.
-  friend class MapConsistencyCheckTest;              // Test.
-  friend class SixDofVIMapGenerator;                 // Test.
+  friend ::LoopClosureHandlerTest;       // Test.
+  friend class MapConsistencyCheckTest;  // Test.
+  friend class SixDofVIMapGenerator;     // Test.
 
   LandmarkIndex() {}
 
@@ -56,8 +55,13 @@ class LandmarkIndex {
       const pose_graph::VertexId& vertex_id) {
     CHECK(landmark_id.isValid());
     std::lock_guard<std::mutex> lock(access_mutex_);
+    /*
     CHECK(!hasLandmarkInternal(landmark_id)) << "Landmark " << landmark_id
                                              << " is already in the index!";
+                                             */
+    if (hasLandmarkInternal(landmark_id)) {
+      index_[landmark_id] = vertex_id;
+    }
     index_.emplace(landmark_id, vertex_id);
   }
 
@@ -70,8 +74,7 @@ class LandmarkIndex {
     }
   }
 
-  inline void getAllLandmarkIds(
-      std::vector<LandmarkId>* landmark_ids) const {
+  inline void getAllLandmarkIds(std::vector<LandmarkId>* landmark_ids) const {
     CHECK_NOTNULL(landmark_ids)->clear();
     landmark_ids->resize(index_.size());
 
@@ -94,24 +97,21 @@ class LandmarkIndex {
   }
 
   inline void updateVertexOfLandmark(
-      const LandmarkId& landmark_id,
-      const pose_graph::VertexId& vertex_id) {
+      const LandmarkId& landmark_id, const pose_graph::VertexId& vertex_id) {
     std::lock_guard<std::mutex> lock(access_mutex_);
     LandmarkToVertexMap::iterator it = index_.find(landmark_id);
     CHECK(it != index_.end());
     it->second = vertex_id;
   }
 
-  inline void removeLandmark(
-      const LandmarkId& landmark_id) {
+  inline void removeLandmark(const LandmarkId& landmark_id) {
     std::lock_guard<std::mutex> lock(access_mutex_);
     CHECK(hasLandmarkInternal(landmark_id)) << "Tried to remove a landmark "
-        << "that does not exist!";
+                                            << "that does not exist!";
     index_.erase(landmark_id);
   }
 
-  void setLandmarkToVertexMap(
-      const LandmarkToVertexMap& landmark_to_vertex) {
+  void setLandmarkToVertexMap(const LandmarkToVertexMap& landmark_to_vertex) {
     std::lock_guard<std::mutex> lock(access_mutex_);
     index_ = landmark_to_vertex;
   }
