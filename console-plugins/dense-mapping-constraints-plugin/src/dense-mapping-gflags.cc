@@ -11,6 +11,7 @@ DEFINE_string(
     "Defines the resource types that are used to derive the dense mapping "
     "constraints. Provide a CSV string with the resource type numbers.");
 
+// CANDIDATE SEARCH - CONSECUTIVE
 DEFINE_bool(
     dm_candidate_search_enable_intra_mission_consecutive, true,
     "If enabled, the algorithm will try to find dense mapping constraints "
@@ -32,16 +33,11 @@ DEFINE_double(
     "graph. The search will try to find corresponding dense data pairs with "
     "less rotation.");
 
+// CANDIDATE SEARCH - PROXIMITY
 DEFINE_bool(
     dm_candidate_search_enable_intra_mission_proximity, true,
     "If enabled, the algorithm will try to find dense mapping constraints "
     "between nearby/overlapping dense data, within a single mission.");
-DEFINE_bool(
-    dm_candidate_search_enable_intra_mission_global, true,
-    "If enabled, the algorithm will try to find dense mapping constraints "
-    "between any dense data based on a global place recognition algorithm, "
-    "within a single mission.");
-
 DEFINE_double(
     dm_candidate_search_proximity_max_delta_position_m, 2.0,
     "Maximum delta position between dense mapping constraints based on nearby "
@@ -62,11 +58,17 @@ DEFINE_int32(
     dm_candidate_search_proximity_take_closest_n_candidates, 3,
     "If enabled (> 0), the proximity search will only take the N closest "
     "candidates.");
-
 DEFINE_bool(
     dm_candidate_search_enable_inter_mission_proximity, true,
     "If enabled, the algorithm will try to find dense mapping constraints "
     "between nearby/overlapping dense data, across missions.");
+
+// CANDIDATE SEARCH - GLOBAL
+DEFINE_bool(
+    dm_candidate_search_enable_intra_mission_global, true,
+    "If enabled, the algorithm will try to find dense mapping constraints "
+    "between any dense data based on a global place recognition algorithm, "
+    "within a single mission.");
 DEFINE_bool(
     dm_candidate_search_enable_inter_mission_global, true,
     "If enabled, the algorithm will try to find dense mapping constraints "
@@ -75,6 +77,12 @@ DEFINE_bool(
 DEFINE_string(
     dm_candidate_search_external_global_service, "/maplab_server/place_lookup",
     "Requests will be sent to this service");
+DEFINE_int32(
+    dm_candidate_search_external_n_nearest_neighbors, 15,
+    "Defines the number of nearest neighbors used by the global search.");
+DEFINE_double(
+    dm_candidate_search_external_min_confidence, 0.95,
+    "Minimum confidence threshold to accept a potential candidate.");
 
 // CANDIDATE SELECTION
 DEFINE_bool(

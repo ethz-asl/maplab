@@ -612,7 +612,7 @@ bool searchForProximityBasedAlignmentCandidatePairsBetweenTwoMissions(
            squared_distance_to_candidate_pair_map) {
         ss << "\n - " << std::sqrt(pair_w_distance.first) << "m";
       }
-      VLOG(3) << ss.str();
+      VLOG(5) << ss.str();
     }
 
     // If enabled (param proximity_search_take_closest_n_candidates is greater
