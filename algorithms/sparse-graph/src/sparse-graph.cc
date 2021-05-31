@@ -537,7 +537,6 @@ bool SparseGraph::publishSubmap(
   std::vector<maplab_msgs::DenseNode> dense_nodes =
       map_builder.buildMapFromNodes(nodes, mission_id);
   if (dense_nodes.empty()) {
-    // LOG(ERROR) << "Dense nodes are empty";
     return false;
   }
   maplab_msgs::Submap submap_msg;
@@ -546,6 +545,7 @@ bool SparseGraph::publishSubmap(
   submap_msg.robot_name = robot_name;
   submap_msg.id = submap_id;
   submap_msg.nodes = dense_nodes;
+  submap_msg.mission_id = mission_id.shortHex();
 
   visualization::RVizVisualizationSink::publish(
       "sparse_graph/submap", submap_msg);
