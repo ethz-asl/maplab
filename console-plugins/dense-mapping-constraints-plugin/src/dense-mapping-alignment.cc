@@ -15,7 +15,9 @@
 #include <registration-toolbox/mock-controller.h>
 #include <registration-toolbox/model/registration-result.h>
 #include <registration-toolbox/pcl-icp-controller.h>
+#include <visualization/common-rviz-visualization.h>
 #include <visualization/rviz-visualization-sink.h>
+#include <visualization/viz-primitives.h>
 
 #include "dense-mapping/dense-mapping-parallel-process.h"
 #include "dense-mapping/dense-mapping-search.h"
@@ -348,7 +350,9 @@ bool computeLoamAlignmentForCandidatePairs(
   AlignmentCandidate last_successful_candidate;
   // Do the work.
   backend::ResourceType current_resource_type = backend::ResourceType::kCount;
-
+  std::vector<pose_graph::VertexId> ids_in_loam_map;
+  visualization::PoseVector init_poses;
+  visualization::PoseVector loam_poses;
   // Move iterator to the start idx, since for an unordered_map we cannot
   // access it by index directly.
   std::vector<AlignmentCandidatePair> temporally_ordered_pairs;
@@ -415,6 +419,8 @@ bool computeLoamAlignmentForCandidatePairs(
             aggregated_map = candidate_resource_A;
             aggregated_odom_map = candidate_resource_A;
             loam_map_base_candidate = pair.candidate_A;
+            ids_in_loam_map.push_back(
+                loam_map_base_candidate.closest_vertex_id);
             last_successful_candidate = loam_map_base_candidate;
           }
 
@@ -431,7 +437,16 @@ bool computeLoamAlignmentForCandidatePairs(
           AlignmentCandidatePair loam_candidate_pair;
           createCandidatePair(
               pair.candidate_B, loam_map_base_candidate, &loam_candidate_pair);
+          visualization::Pose pose;
+          pose.G_p_B = loam_candidate_pair.T_SB_SA_init.getPosition();
+          pose.G_q_B = loam_candidate_pair.T_SB_SA_init.getEigenQuaternion();
 
+          pose.id = init_poses.size();
+          pose.scale = 0.15;
+          pose.line_width = 0.01;
+          pose.alpha = 0.45;
+
+          init_poses.push_back(pose);
           createCandidatePair(
               pair.candidate_B, last_successful_candidate,
               &candidate_to_last_successful_pair);
@@ -508,7 +523,13 @@ bool computeLoamAlignmentForCandidatePairs(
       retrieveResourceForCandidate(loam_pair.candidate_A, map, &b_cloud);
       aggregated_odom_map.appendTransformed(b_cloud, odom_pair.T_SB_SA_init);
       aggregated_map.appendTransformed(b_cloud, loam_pair.T_SB_SA_final);
-      aligned_candidate_pairs->insert(loam_pair);
+      if (std::find(
+              ids_in_loam_map.begin(), ids_in_loam_map.end(),
+              loam_pair.candidate_A.closest_vertex_id) ==
+          ids_in_loam_map.end()) {
+        ids_in_loam_map.push_back(loam_pair.candidate_A.closest_vertex_id);
+        aligned_candidate_pairs->insert(loam_pair);
+      }
       pcl::PointCloud<pcl::PointXYZL> new_aligned_features_pcl;
       backend::convertPointCloudType(
           new_aligned_features, &new_aligned_features_pcl);
@@ -519,6 +540,18 @@ bool computeLoamAlignmentForCandidatePairs(
       ++successful_alignments;
       last_successful_candidate = loam_pair.candidate_A;
       T_map_last_successful_candidate = loam_pair.T_SB_SA_final;
+
+      visualization::Pose pose;
+      pose.G_p_B = T_map_last_successful_candidate.getPosition();
+      pose.G_q_B = T_map_last_successful_candidate.getEigenQuaternion();
+
+      pose.id = loam_poses.size();
+      pose.scale = 0.15;
+      pose.line_width = 0.02;
+      pose.alpha = 0.75;
+
+      loam_poses.push_back(pose);
+
       float min_x = std::numeric_limits<float>::max();
       float min_y = std::numeric_limits<float>::max();
       float min_z = std::numeric_limits<float>::max();
@@ -600,6 +633,11 @@ bool computeLoamAlignmentForCandidatePairs(
       odom_points_msg.header.frame_id = "/loam_map";
       visualization::RVizVisualizationSink::publish(
           "aggregated_odom_points", odom_points_msg);
+      const std::string& kNamespace = "vertices";
+      visualization::publishVerticesFromPoseVector(
+          init_poses, "/loam_map", kNamespace, "init_poses");
+      visualization::publishVerticesFromPoseVector(
+          loam_poses, "/loam_map", kNamespace, "loam_poses");
     }
     progress_bar.update(++processed_pairs);
   }
