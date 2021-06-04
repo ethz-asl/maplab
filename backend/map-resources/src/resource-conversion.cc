@@ -35,7 +35,9 @@ static const std::string kPointCloud2Ring = "ring";
 static const std::string kPointCloud2Time = "time";
 
 static PointCloud2Visitor<float> intensity_visitor;
+static PointCloud2Visitor<float> time_visitor;
 static PointCloud2Visitor<uint32_t> label_visitor;
+static PointCloud2Visitor<uint32_t> ring_visitor;
 
 inline sensor_msgs::PointField getScalarField(
     const sensor_msgs::PointCloud2& point_cloud) {
@@ -713,7 +715,7 @@ void getRingFromPointCloud(
 
   PointCloud2ConstIteratorVariant var =
       getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
-  *ring = boost::apply_visitor(label_visitor.setIndex(index), var);
+  *ring = boost::apply_visitor(ring_visitor.setIndex(index), var);
 }
 
 template <>
@@ -760,7 +762,7 @@ void getTimeFromPointCloud(
 
   PointCloud2ConstIteratorVariant var =
       getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
-  *time_s = boost::apply_visitor(label_visitor.setIndex(index), var);
+  *time_s = boost::apply_visitor(time_visitor.setIndex(index), var);
 }
 
 template <>
