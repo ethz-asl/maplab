@@ -432,7 +432,7 @@ void SparseGraph::publishGraphForBuilding() const {
     }
   }
 
-  graph_msg.header.stamp = ts_ros;
+  graph_msg.header.stamp = ros::Time::now();
   graph_msg.header.seq = pub_seq_;
   visualization::RVizVisualizationSink::publish(
       "sparse_graph/graph", graph_msg);
@@ -463,7 +463,7 @@ void SparseGraph::publishTrajecotryForEvaluation() const {
     traj_msg.nodes.emplace_back(node_msg);
   }
 
-  traj_msg.header.stamp = ts_ros;
+  traj_msg.header.stamp = ros::Time::now();
   traj_msg.header.seq = pub_seq_;
   visualization::RVizVisualizationSink::publish(
       "sparse_graph/trajectory", traj_msg);
@@ -485,7 +485,7 @@ void SparseGraph::publishGraphForVisualization() const {
     node_msg.header.seq = node.getAssociatedSubmapId();
     graph_msg.poses.emplace_back(node_msg);
   }
-  graph_msg.header.stamp = ts_ros;
+  graph_msg.header.stamp = ros::Time::now();
   graph_msg.header.seq = pub_seq_;
   visualization::RVizVisualizationSink::publish(
       "sparse_graph/viz_graph", graph_msg);
