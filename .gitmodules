@@ -106,3 +106,6 @@
 [submodule "dependencies/3rdparty/draco"]
 	path = dependencies/3rdparty/draco
 	url = git@github.com:leggedrobotics/draco.git
+[submodule "dependencies/internal/transfolder"]
+	path = dependencies/internal/transfolder
+	url = git@github.com:ethz-asl/transfolder.git

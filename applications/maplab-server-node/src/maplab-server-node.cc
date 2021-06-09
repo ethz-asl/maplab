@@ -413,9 +413,6 @@ bool MaplabServerNode::loadAndProcessSubmap(
   VLOG(1) << "[MaplabServerNode] launching SubmapProcessing thread for "
           << "submap at '" << submap_path << "'.";
 
-  // std::lock_guard<std::mutex>
-  // submap_queue_lock(submap_processing_queue_mutex_); Add new element at the
-  // back.
   submap_processing_queue_.emplace_back();
 
   SubmapProcess& submap_process = submap_processing_queue_.back();
