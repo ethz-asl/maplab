@@ -33,6 +33,11 @@ struct SearchConfig {
   bool enable_inter_mission_global_search;
 };
 
+void createCandidatePair(
+    const AlignmentCandidate& candidate_A,
+    const AlignmentCandidate& candidate_B,
+    AlignmentCandidatePair* candidate_pair_ptr);
+
 void findAllAlignmentCandidates(
     const SearchConfig& config, const vi_map::VIMap& map,
     const vi_map::MissionIdList& mission_ids,
