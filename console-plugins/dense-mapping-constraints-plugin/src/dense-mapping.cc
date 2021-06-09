@@ -24,6 +24,18 @@ Config Config::fromGflags() {
   return config;
 }
 
+Config Config::forIncrementalSubmapAlignment() {
+  Config config;
+
+  config.search_config = SearchConfig::fromGflags();
+  config.search_config.enable_incremental_submap_search = true;
+  config.selection_config = SelectionConfig::fromGflags();
+  config.alignment_config = AlignmentConfig::fromGflags();
+  config.constraints_config = ConstraintsConfig::fromGflags();
+
+  return config;
+}
+
 bool addDenseMappingConstraintsToMap(
     const Config& config, const vi_map::MissionIdList& mission_ids,
     vi_map::VIMap* vi_map_ptr) {
@@ -38,18 +50,27 @@ bool addDenseMappingConstraintsToMap(
     return false;
   }
 
-  if (!selectAlignmentCandidatePairs(
-          config.selection_config, vi_map_ptr, &candidates)) {
-    LOG(ERROR)
-        << "The selection and filtering of the alignment candidate pairs "
-        << "failed!";
-    return false;
+  if (!config.search_config.enable_incremental_submap_search) {
+    if (!selectAlignmentCandidatePairs(
+            config.selection_config, vi_map_ptr, &candidates)) {
+      LOG(ERROR)
+          << "The selection and filtering of the alignment candidate pairs "
+          << "failed!";
+      return false;
+    }
   }
 
   AlignmentCandidatePairs aligned_candidates;
-  if (!computeAlignmentForCandidatePairs(
-          config.alignment_config, *vi_map_ptr, candidates,
-          &aligned_candidates)) {
+  if (!config.search_config.enable_incremental_submap_search) {
+    if (!computeAlignmentForIncrementalSubmapCandidatePairs(
+            config.alignment_config, *vi_map_ptr, candidates,
+            &aligned_candidates)) {
+      LOG(ERROR) << "Computing the alignment of the candidates failed!";
+      return false;
+    }
+  } else if (!computeAlignmentForCandidatePairs(
+                 config.alignment_config, *vi_map_ptr, candidates,
+                 &aligned_candidates)) {
     LOG(ERROR) << "Computing the alignment of the candidates failed!";
     return false;
   }

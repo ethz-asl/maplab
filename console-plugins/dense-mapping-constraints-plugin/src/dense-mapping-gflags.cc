@@ -108,6 +108,10 @@ DEFINE_double(
 DEFINE_string(
     dm_candidate_alignment_type, "PclGIcp",
     "Alignment type that is used for the pointcloud registration");
+DEFINE_bool(
+    dm_candidate_alignment_use_incremental_submab_alignment, true,
+    "If enabled, an incremental map is built and alignment is performed "
+    "against it");
 
 // CONSTRAINTS
 DEFINE_double(

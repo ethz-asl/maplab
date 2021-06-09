@@ -1571,6 +1571,12 @@ void MaplabServerNode::runSubmapProcessing(
       running_submap_process_[submap_process.map_hash] = "lidar loop closure";
     }
 
+    dense_mapping::Config config;
+    if (FLAGS_dm_candidate_alignment_use_incremental_submab_alignment) {
+      config = dense_mapping::Config::forIncrementalSubmapAlignment();
+    } else {
+      config = dense_mapping::Config::fromGflags();
+    }
     const dense_mapping::Config config = dense_mapping::Config::fromGflags();
     if (!dense_mapping::addDenseMappingConstraintsToMap(
             config, missions_to_process, map.get())) {
