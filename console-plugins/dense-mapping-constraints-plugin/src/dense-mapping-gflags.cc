@@ -3,8 +3,6 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-namespace dense_mapping {
-
 // CANDIDATE SEARCH
 DEFINE_string(
     dm_resource_types, "16,17,21,24",
@@ -122,5 +120,3 @@ DEFINE_double(
     dm_constraint_switch_variable_sigma, 1e-3,
     "Sigma of switch variable of loop closure edge that is used to "
     "enforce the dense mapping constraint.");
-
-}  // namespace dense_mapping
