@@ -20,6 +20,8 @@
 #include <maplab-common/threading-helpers.h>
 #include <maplab_msgs/MapLookupRequest.h>
 #include <maplab_msgs/MapLookupResponse.h>
+#include <maplab_msgs/VerificationCheckRequest.h>
+#include <maplab_msgs/VerificationCheckResponse.h>
 #include <resources-common/point-cloud.h>
 
 #include <transfolder_msgs/QueryAllSubfolders.h>
@@ -98,6 +100,13 @@ MaplabServerRosNode::MaplabServerRosNode(
           &MaplabServerRosNode::getDenseMapInRangeCallback, this, _1, _2);
   get_dense_map_in_range_srv_ = nh_.advertiseService(
       "get_dense_map_in_range", get_dense_map_in_range_callback);
+
+  boost::function<bool(
+      maplab_msgs::Verification::Request&,
+      maplab_msgs::Verification::Response&)>
+      verification_callback =
+          boost::bind(&MaplabServerRosNode::verificationCallback, this, _1, _2);
+      map_lookup_srv_ = nh_.advertiseService("verification", verification_callback);
 
   boost::function<void(const transfolder_msgs::RobotSubfoldersArrayConstPtr&)>
       submap_loading_callback =
@@ -373,7 +382,29 @@ bool MaplabServerRosNode::getDenseMapInRangeCallback(
   return true;
 }
 
+bool MaplabServerRosNode::verificationCallback(
+    maplab_msgs::Verification::Request& request,      // NOLINT
+    maplab_msgs::Verification::Response& response) {  // NOLINT
+  CHECK_NOTNULL(maplab_server_node_);
+  const maplab_msgs::VerificationCheckRequest& check_request =
+      request.verify_request;
+  const std::string& robot_name = check_request.robot_name;
+  const std::vector<uint32_t>& submap_ids = check_request.submap_ids;
+  LOG(INFO) << "[MaplabServerRosNode] Received verification from " << robot_name
+            << " with " << submap_ids.size() << " submap ids.";
+
+  // Reverify the submaps
+  for (const uint32_t submap_id : submap_ids) {
+    const int submap_status =
+        static_cast<int>(maplab_server_node_->verifySubmap(submap_id));
+    response.status_response.status.emplace_back(submap_status);
+  }
+
+  return true;
+}
+
 void MaplabServerRosNode::visualizeMap() {
+  CHECK_NOTNULL(maplab_server_node_);
   LOG(INFO) << "[MaplabServerRosNode] Visualizing merged map.";
   maplab_server_node_->visualizeMap();
 }
