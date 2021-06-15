@@ -34,7 +34,7 @@ struct PointCloud {
   std::vector<uint32_t> labels;
   std::vector<uint16_t> rings;
   std::vector<float> times;
-
+  bool is_undistorted = false;
   // Apply transformation T_A_B to pointcloud, assuming the pointcloud is
   // currently expressed in the B frame.
   inline void applyTransformation(const aslam::Transformation& T_A_B) {

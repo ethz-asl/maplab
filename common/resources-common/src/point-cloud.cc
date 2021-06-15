@@ -2,6 +2,7 @@
 
 #include <numeric>
 
+#include <aslam/common/pose-types.h>
 #include <draco/compression/encode.h>
 #include <draco/io/file_utils.h>
 #include <draco/io/point_cloud_io.h>
@@ -282,4 +283,5 @@ bool PointCloud::loadFromCompressedFile(const std::string& file_path) {
   }
   return true;
 }
+
 }  // namespace resources
