@@ -17,6 +17,7 @@
 #include <maplab-common/progress-bar.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <pointcloud-undistortion/undistortion.h>
 #include <vi-map/vertex.h>
 #include <vi-map/vi-map.h>
 #include <visualization/color-palette.h>
@@ -453,17 +454,19 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
 
   srand(time(NULL));
   std::vector<resources::PointCloud> point_clouds_G;
-  depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
-      [&point_clouds_G, &point_cloud_counter](
-          const aslam::Transformation& T_G_S,
-          const resources::PointCloud& points_S) {
+  depth_integration::IntegrationFunctionPointCloudMaplabWithIds
+      integration_function = [&vi_map, &point_clouds_G, &point_cloud_counter](
+                                 const int64_t timestamp_ns,
+                                 const vi_map::MissionId& mission_id,
+                                 const aslam::SensorId& sensor_id,
+                                 const aslam::Transformation& T_G_S,
+                                 const resources::PointCloud& points_S) {
         if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
             (point_cloud_counter % FLAGS_vis_pointcloud_visualize_every_nth !=
              0u)) {
           ++point_cloud_counter;
           return;
         }
-
         uint8_t r = 0u, g = 0u, b = 0u;
         if (FLAGS_vis_pointcloud_color_random) {
           r = rand() % 256;
@@ -471,13 +474,23 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
           b = rand() % 256;
         }
 
-        ++point_cloud_counter;
-
         point_clouds_G.push_back(points_S);
+        if (points_S.hasTimes() && mission_id.isValid() &&
+            sensor_id.isValid()) {
+          if (!pointcloud_undistortion::undistortPointCloud(
+                  vi_map, mission_id, sensor_id, timestamp_ns,
+                  &point_clouds_G.back())) {
+            LOG(WARNING) << "Could not undistort point cloud with timestamp "
+                         << timestamp_ns;
+            point_clouds_G.pop_back();
+            return;
+          }
+        }
         point_clouds_G.back().applyTransformation(T_G_S);
         if (FLAGS_vis_pointcloud_color_random) {
           point_clouds_G.back().colorizePointCloud(r, g, b);
         }
+        ++point_cloud_counter;
         return;
       };
 

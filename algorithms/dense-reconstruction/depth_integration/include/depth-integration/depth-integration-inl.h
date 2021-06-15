@@ -208,7 +208,8 @@ void integrateAllFrameDepthResourcesOfType(
 
             VLOG(3) << "Found point cloud.";
             integratePointCloud(
-                timestamp_ns, T_G_C, point_cloud, integration_function);
+                timestamp_ns, mission_id, aslam::SensorId(), T_G_C, point_cloud,
+                integration_function);
             continue;
           }
           default:
@@ -505,7 +506,8 @@ void integrateAllSensorDepthResourcesOfType(
             VLOG(3) << "Found point cloud at timestamp " << timestamp_ns
                     << "ns";
             integratePointCloud(
-                timestamp_ns, T_G_S, point_cloud, integration_function);
+                timestamp_ns, mission_id, sensor_id, T_G_S, point_cloud,
+                integration_function);
             continue;
           }
           default:
