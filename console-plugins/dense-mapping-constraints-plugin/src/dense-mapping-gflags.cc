@@ -120,3 +120,8 @@ DEFINE_double(
     dm_constraint_switch_variable_sigma, 1e-3,
     "Sigma of switch variable of loop closure edge that is used to "
     "enforce the dense mapping constraint.");
+
+// VISUALIZATION
+DEFINE_bool(
+    dm_visualize_incremental_submap, false,
+    "If enabled, the incremental map is visualized");

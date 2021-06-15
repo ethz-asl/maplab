@@ -59,9 +59,8 @@ bool addDenseMappingConstraintsToMap(
       return false;
     }
   }
-
   AlignmentCandidatePairs aligned_candidates;
-  if (!config.search_config.enable_incremental_submap_search) {
+  if (config.search_config.enable_incremental_submap_search) {
     if (!computeAlignmentForIncrementalSubmapCandidatePairs(
             config.alignment_config, *vi_map_ptr, candidates,
             &aligned_candidates)) {

@@ -7,6 +7,7 @@
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pointcloud-undistortion/undistortion.h>
 #include <registration-toolbox/common/base-controller.h>
 #include <registration-toolbox/mock-controller.h>
 #include <registration-toolbox/model/registration-result.h>
@@ -112,12 +113,25 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
     LOG(ERROR) << "Unable to retrieve resource for candidate A.";
     return false;
   }
+  if (!pointcloud_undistortion::undistortPointCloud(
+          map, pair.candidate_A.mission_id, pair.candidate_A.sensor_id,
+          pair.candidate_A.timestamp_ns, &candidate_resource_A)) {
+    LOG(WARNING) << "Could not undistort point cloud with timestamp "
+                 << pair.candidate_A.timestamp_ns;
+    return false;
+  }
   if (!retrieveResourceForCandidate(
           pair.candidate_B, map, &candidate_resource_B)) {
     LOG(ERROR) << "Unable to retrieve resource for candidate B.";
     return false;
   }
-
+  if (!pointcloud_undistortion::undistortPointCloud(
+          map, pair.candidate_B.mission_id, pair.candidate_B.sensor_id,
+          pair.candidate_B.timestamp_ns, &candidate_resource_B)) {
+    LOG(WARNING) << "Could not undistort point cloud with timestamp "
+                 << pair.candidate_B.timestamp_ns;
+    return false;
+  }
   const regbox::RegistrationResult result =
       (*aligner_ptr)
           ->align(
@@ -393,6 +407,7 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
     // Launch a resource type specific alignment.
     AlignmentCandidatePair submap_pair;
     AlignmentCandidatePair candidate_to_last_successful_pair;
+    resources::PointCloud candidate_resource_B;
     bool aligned_without_error = false;
     switch (current_resource_type) {
       case backend::ResourceType::kPointCloudXYZ:
@@ -404,11 +419,19 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
       case backend::ResourceType::kPointCloudXYZRGBN:
         try {
           // Extract depth resource.
-          resources::PointCloud candidate_resource_A, candidate_resource_B;
+          resources::PointCloud candidate_resource_A;
           if (aggregated_filtered_map.empty()) {
             if (!retrieveResourceForCandidate(
                     pair.candidate_A, map, &candidate_resource_A)) {
               LOG(ERROR) << "Unable to retrieve resource for candidate A.";
+              continue;
+            }
+            if (!pointcloud_undistortion::undistortPointCloud(
+                    map, pair.candidate_A.mission_id,
+                    pair.candidate_A.sensor_id, pair.candidate_A.timestamp_ns,
+                    &candidate_resource_A)) {
+              LOG(WARNING) << "Could not undistort point cloud with timestamp "
+                           << pair.candidate_A.timestamp_ns;
               continue;
             }
             aggregated_filtered_map = candidate_resource_A;
@@ -423,6 +446,13 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
                   pair.candidate_B, map, &candidate_resource_B)) {
             LOG(ERROR) << "Unable to retrieve resource for candidate B.";
             return false;
+          }
+          if (!pointcloud_undistortion::undistortPointCloud(
+                  map, pair.candidate_B.mission_id, pair.candidate_B.sensor_id,
+                  pair.candidate_B.timestamp_ns, &candidate_resource_B)) {
+            LOG(WARNING) << "Could not undistort point cloud with timestamp "
+                         << pair.candidate_B.timestamp_ns;
+            continue;
           }
 
           AlignmentCandidatePair map_candidate_pair;
@@ -458,7 +488,7 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
         }
         break;
       default:
-        LOG(FATAL) << "Incremental Submap Alignment is noz implemented for "
+        LOG(FATAL) << "Incremental Submap Alignment is not implemented for "
                    << "type "
                    << backend::ResourceTypeNames[static_cast<int>(
                           current_resource_type)];
@@ -494,16 +524,12 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
 
     submap_pair.success = true;
     if (submap_pair.success) {
-      AlignmentCandidatePair odom_pair;
-      createCandidatePair(
-          submap_pair.candidate_A, map_base_candidate, &odom_pair);
-
-      resources::PointCloud b_cloud;
-      retrieveResourceForCandidate(submap_pair.candidate_A, map, &b_cloud);
-      resources::PointCloud b_cloud_transformed = b_cloud;
-      b_cloud.applyTransformation(submap_pair.T_SB_SA_final);
-      aggregated_odom_map.appendTransformed(b_cloud, odom_pair.T_SB_SA_init);
-      aggregated_map.append(b_cloud_transformed);
+      resources::PointCloud registered_candidate_cloud = candidate_resource_B;
+      registered_candidate_cloud.applyTransformation(submap_pair.T_SB_SA_final);
+      pcl::PointCloud<pcl::PointXYZ>::Ptr registered_candidate_cloud_pcl(
+          new pcl::PointCloud<pcl::PointXYZ>);
+      backend::convertPointCloudType(
+          registered_candidate_cloud, registered_candidate_cloud_pcl.get());
       if (std::find(
               ids_in_submap.begin(), ids_in_submap.end(),
               submap_pair.candidate_A.closest_vertex_id) ==
@@ -511,9 +537,16 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
         ids_in_submap.push_back(submap_pair.candidate_A.closest_vertex_id);
         aligned_candidate_pairs->insert(submap_pair);
       }
-      pcl::PointCloud<pcl::PointXYZ> new_aligned_features_pcl;
-      backend::convertPointCloudType(
-          b_cloud_transformed, &new_aligned_features_pcl);
+
+      pcl::PointCloud<pcl::PointXYZ> points_to_add_downsampled;
+      pcl::VoxelGrid<pcl::PointXYZ> grid_filter;
+      grid_filter.setInputCloud(registered_candidate_cloud_pcl);
+      grid_filter.setLeafSize(
+          regbox::FLAGS_regbox_pcl_downsample_leaf_size_m,
+          regbox::FLAGS_regbox_pcl_downsample_leaf_size_m,
+          regbox::FLAGS_regbox_pcl_downsample_leaf_size_m);
+      grid_filter.filter(points_to_add_downsampled);
+
       pcl::PointCloud<pcl::PointXYZ>::Ptr aggregated_filtered_map_pcl(
           new pcl::PointCloud<pcl::PointXYZ>);
       backend::convertPointCloudType(
@@ -528,13 +561,13 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
       float max_x = -std::numeric_limits<float>::max();
       float max_y = -std::numeric_limits<float>::max();
       float max_z = -std::numeric_limits<float>::max();
-      for (const pcl::PointXYZ& new_feature_point : new_aligned_features_pcl) {
-        min_x = std::min(min_x, new_feature_point.x);
-        min_y = std::min(min_y, new_feature_point.y);
-        min_z = std::min(min_z, new_feature_point.z);
-        max_x = std::max(max_x, new_feature_point.x);
-        max_y = std::max(max_y, new_feature_point.y);
-        max_z = std::max(max_z, new_feature_point.z);
+      for (const pcl::PointXYZ& point_to_add : points_to_add_downsampled) {
+        min_x = std::min(min_x, point_to_add.x);
+        min_y = std::min(min_y, point_to_add.y);
+        min_z = std::min(min_z, point_to_add.z);
+        max_x = std::max(max_x, point_to_add.x);
+        max_y = std::max(max_y, point_to_add.y);
+        max_z = std::max(max_z, point_to_add.z);
       }
 
       pcl::CropBox<pcl::PointXYZ> box_filter(true);
@@ -553,36 +586,47 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
 
       *aggregated_filtered_map_pcl = map_points_outside_current_fov;
 
-      *map_points_in_current_fov += new_aligned_features_pcl;
+      *map_points_in_current_fov += points_to_add_downsampled;
 
       pcl::PointCloud<pcl::PointXYZ> map_points_in_current_fov_down_sampled;
-      pcl::VoxelGrid<pcl::PointXYZ> grid_filter;
-      grid_filter.setInputCloud(map_points_in_current_fov);
-      grid_filter.setLeafSize(0.15, 0.15, 0.15);
-      grid_filter.filter(map_points_in_current_fov_down_sampled);
 
+      grid_filter.setInputCloud(map_points_in_current_fov);
+      grid_filter.setLeafSize(
+          regbox::FLAGS_regbox_pcl_downsample_leaf_size_m,
+          regbox::FLAGS_regbox_pcl_downsample_leaf_size_m,
+          regbox::FLAGS_regbox_pcl_downsample_leaf_size_m);
+      grid_filter.filter(map_points_in_current_fov_down_sampled);
       *aggregated_filtered_map_pcl += map_points_in_current_fov_down_sampled;
-      const std::string kSubMapFrame = "submap";
-      aggregated_filtered_map_pcl->header.frame_id = kSubMapFrame;
-      const std::string kSubMapPointCloudTopic = "submap_points";
-      sensor_msgs::PointCloud2 sub_map_points_msg;
-      pcl::toROSMsg(*aggregated_filtered_map_pcl, sub_map_points_msg);
-      sub_map_points_msg.header.stamp.fromNSec(
-          candidate_to_last_successful_pair.candidate_A.timestamp_ns);
-      visualization::RVizVisualizationSink::publish(
-          kSubMapPointCloudTopic, sub_map_points_msg);
-      backend::convertPointCloudType(
-          *aggregated_filtered_map_pcl, &aggregated_filtered_map);
-      sensor_msgs::PointCloud2 map_points_msg;
-      backend::convertPointCloudType(aggregated_map, &map_points_msg);
-      map_points_msg.header.frame_id = kSubMapFrame;
-      visualization::RVizVisualizationSink::publish(
-          "aggregated_points", map_points_msg);
-      sensor_msgs::PointCloud2 odom_points_msg;
-      backend::convertPointCloudType(aggregated_odom_map, &odom_points_msg);
-      odom_points_msg.header.frame_id = kSubMapFrame;
-      visualization::RVizVisualizationSink::publish(
-          "aggregated_odom_points", odom_points_msg);
+
+      if (FLAGS_dm_visualize_incremental_submap) {
+        const std::string kSubMapFrame = "submap";
+        aggregated_filtered_map_pcl->header.frame_id = kSubMapFrame;
+        const std::string kSubMapPointCloudTopic = "submap_points";
+        sensor_msgs::PointCloud2 sub_map_points_msg;
+        pcl::toROSMsg(*aggregated_filtered_map_pcl, sub_map_points_msg);
+        sub_map_points_msg.header.stamp.fromNSec(
+            candidate_to_last_successful_pair.candidate_A.timestamp_ns);
+        visualization::RVizVisualizationSink::publish(
+            kSubMapPointCloudTopic, sub_map_points_msg);
+        backend::convertPointCloudType(
+            *aggregated_filtered_map_pcl, &aggregated_filtered_map);
+        sensor_msgs::PointCloud2 map_points_msg;
+        AlignmentCandidatePair odom_pair;
+        createCandidatePair(
+            submap_pair.candidate_A, map_base_candidate, &odom_pair);
+        aggregated_odom_map.appendTransformed(
+            candidate_resource_B, odom_pair.T_SB_SA_init);
+        aggregated_map.append(registered_candidate_cloud);
+        backend::convertPointCloudType(aggregated_map, &map_points_msg);
+        map_points_msg.header.frame_id = kSubMapFrame;
+        visualization::RVizVisualizationSink::publish(
+            "aggregated_points", map_points_msg);
+        sensor_msgs::PointCloud2 odom_points_msg;
+        backend::convertPointCloudType(aggregated_odom_map, &odom_points_msg);
+        odom_points_msg.header.frame_id = kSubMapFrame;
+        visualization::RVizVisualizationSink::publish(
+            "aggregated_odom_points", odom_points_msg);
+      }
     }
     progress_bar.update(++processed_pairs);
   }
