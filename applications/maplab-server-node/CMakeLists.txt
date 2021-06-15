@@ -6,13 +6,19 @@ set(CMAKE_CXX_STANDARD 14)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
+############
+# PROTOBUF #
+############
+set(PROTO_DEFNS proto/maplab-server-node/robot_missions_information.proto)
+PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
+
 #############
 # LIBRARIES #
 #############
 cs_add_library(${PROJECT_NAME}_lib
 	src/maplab-server-node.cc
-  src/maplab-server-ros-node.cc)
-
+  src/maplab-server-ros-node.cc
+	${PROTO_SRCS})
 
 #######
 # APP #
