@@ -165,12 +165,19 @@ void evaluateLandmarkQuality(
 
     // Remove all outlier observations from the landmark and set their
     // observed landmark invalid
+    std::vector<std::pair<vi_map::KeypointIdentifier, int>>
+        keypoints_with_track_id;
+    pose_graph::VertexIdList keypoint_vertex_ids;
     for (const auto& outlier_track_ids_with_observations :
          outlier_track_ids_with_observations_per_thread) {
       for (auto it = outlier_track_ids_with_observations.begin();
            it != outlier_track_ids_with_observations.end(); ++it) {
         for (const auto& keypoint : it->second) {
-          vi_map::Vertex& vertex = map->getVertex(keypoint.frame_id.vertex_id);
+          const pose_graph::VertexId& vertex_id = keypoint.frame_id.vertex_id;
+          keypoint_vertex_ids.push_back(vertex_id);
+          keypoints_with_track_id.push_back(
+              std::make_pair(keypoint, it->first));
+          vi_map::Vertex& vertex = map->getVertex(vertex_id);
           const vi_map::LandmarkId previously_observed_landmark_id =
               vertex.getObservedLandmarkId(keypoint);
           vi_map::Landmark& previously_observed_landmark =
@@ -178,6 +185,58 @@ void evaluateLandmarkQuality(
           previously_observed_landmark.removeObservation(keypoint);
           vertex.setObservedLandmarkId(keypoint, invalid_landmark_id);
         }
+      }
+    }
+
+    // Sort the keypoints along the pose graph
+    std::vector<std::pair<vi_map::KeypointIdentifier, int>>
+        keypoints_with_track_id_sorted;
+    pose_graph::VertexIdList all_vertices_in_mission;
+    map->getAllVertexIdsInMissionAlongGraph(
+        mission_id, &all_vertices_in_mission);
+    for (const auto& vertex_id_along_graph : all_vertices_in_mission) {
+      for (size_t idx = 0u; idx < keypoint_vertex_ids.size(); ++idx) {
+        if (vertex_id_along_graph == keypoint_vertex_ids[idx]) {
+          keypoints_with_track_id_sorted.push_back(
+              keypoints_with_track_id[idx]);
+        }
+      }
+    }
+
+    // Initialize new landmarks from unused track ids and associate
+    // observations with them
+    std::unordered_map<int, vi_map::LandmarkId> track_id_to_landmark_id;
+    for (const auto& keypoint_with_track_id : keypoints_with_track_id_sorted) {
+      const int track_id = keypoint_with_track_id.second;
+      const vi_map::KeypointIdentifier& keypoint = keypoint_with_track_id.first;
+      // Skip non-tracked landmark observation.
+      if (track_id < 0) {
+        continue;
+      }
+
+      // Check whether this track has already a global landmark id
+      // associated.
+      const vi_map::LandmarkId* landmark_id_ptr =
+          common::getValuePtr(track_id_to_landmark_id, track_id);
+
+      if (landmark_id_ptr != nullptr && map->hasLandmark(*landmark_id_ptr)) {
+        map->associateKeypointWithExistingLandmark(
+            keypoint.frame_id.vertex_id, keypoint.frame_id.frame_index,
+            keypoint.keypoint_index, *landmark_id_ptr);
+      } else {
+        // Assign a new global landmark id to this track if it hasn't
+        // been seen before and add a new landmark to the map.
+        vi_map::LandmarkId landmark_id =
+            aslam::createRandomId<vi_map::LandmarkId>();
+        // operator[] intended as this is either overwriting an old outdated
+        // entry or creating a new one.
+        track_id_to_landmark_id[track_id] = landmark_id;
+
+        vi_map::KeypointIdentifier keypoint_id;
+        keypoint_id.frame_id.frame_index = keypoint.frame_id.frame_index;
+        keypoint_id.frame_id.vertex_id = keypoint.frame_id.vertex_id;
+        keypoint_id.keypoint_index = keypoint.keypoint_index;
+        map->addNewLandmark(landmark_id, keypoint_id);
       }
     }
   }
