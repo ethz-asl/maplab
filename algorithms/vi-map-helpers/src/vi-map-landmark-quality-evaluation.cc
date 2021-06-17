@@ -86,6 +86,7 @@ void evaluateLandmarkQuality(
     common::ParallelProcess(
         num_landmarks, evaluator, kAlwaysParallelize, num_threads);
 
+    // Merge results from all threads
     vi_map::TrackKeypointMap outlier_track_ids_with_observations;
     for (const auto& outliers_in_thread :
          outlier_track_ids_with_observations_per_thread) {
@@ -154,7 +155,12 @@ void findTracksOfInferiorDuplicateLandmarkObservations(
     vi_map::KeypointIdentifierList& frame_observation =
         frames_with_observations[keypoint.frame_id];
     frame_observation.push_back(keypoint);
-    const vi_map::Vertex& vertex = map.getVertex(keypoint.frame_id.vertex_id);
+    const pose_graph::VertexId& vertex_id = keypoint.frame_id.vertex_id;
+    CHECK(vertex_id.isValid());
+    CHECK(map.hasVertex(vertex_id));
+    const vi_map::Vertex& vertex = map.getVertex(vertex_id);
+    CHECK(vertex.hasVisualNFrame());
+    CHECK(vertex.getVisualFrame(keypoint.frame_id.frame_index).isValid());
     const int track_id = vertex.getVisualFrame(keypoint.frame_id.frame_index)
                              .getTrackId(keypoint.keypoint_index);
     vi_map::KeypointIdentifierList& track_id_observations =
@@ -167,31 +173,33 @@ void findTracksOfInferiorDuplicateLandmarkObservations(
   static constexpr int kMaxNumSameLandmarkId = 1;
   for (auto it = frames_with_observations.begin();
        it != frames_with_observations.end(); ++it) {
-    // If the landmark is only observed once in the frame we're good
+    // If the landmark is only observed once nothing has to be done.
     if (it->second.size() <= kMaxNumSameLandmarkId) {
       continue;
     }
 
-    // Otherwise find observation with smallest reprojection error
     const vi_map::Vertex& vertex = map.getVertex(it->first.vertex_id);
     const Eigen::Vector3d& p_C_fi =
         map.getLandmark_p_C_fi(landmark.id(), vertex, it->first.frame_index);
 
-    // if (p_C_fi[2] <= 0.0) {
-    //   local_outlier_landmarks.emplace_back(landmark_id);
-    //   break;
-    // }
-    double min_sq_reprojection_error = std::numeric_limits<double>::max();
     vi_map::KeypointIdentifier min_error_keypoint;
-    for (const vi_map::KeypointIdentifier& keypoint : it->second) {
-      const double reprojection_error_sq = computeSquaredReprojectionError(
-          vertex, keypoint.frame_id.frame_index, keypoint.keypoint_index,
-          p_C_fi);
-      if (reprojection_error_sq < min_sq_reprojection_error) {
-        min_error_keypoint = keypoint;
-        min_sq_reprojection_error = reprojection_error_sq;
+
+    // If landmark lies behind the camera plane we remove all observations
+    // from this frame from the landmark. Otherwise we keep the observation
+    // with the smallest reprojection error.
+    if (p_C_fi[2] > 0.0) {
+      double min_sq_reprojection_error = std::numeric_limits<double>::max();
+      for (const vi_map::KeypointIdentifier& keypoint : it->second) {
+        const double reprojection_error_sq = computeSquaredReprojectionError(
+            vertex, keypoint.frame_id.frame_index, keypoint.keypoint_index,
+            p_C_fi);
+        if (reprojection_error_sq < min_sq_reprojection_error) {
+          min_error_keypoint = keypoint;
+          min_sq_reprojection_error = reprojection_error_sq;
+        }
       }
     }
+
     for (const vi_map::KeypointIdentifier& keypoint : it->second) {
       if (keypoint == min_error_keypoint) {
         continue;
@@ -215,19 +223,23 @@ void findTracksOfInferiorDuplicateLandmarkObservations(
 }
 void detachTracksFromLandmarks(
     const vi_map::TrackKeypointMap& tracks_with_keypoints, vi_map::VIMap* map) {
-  // Remove all outlier observations from the landmark and set their
+  // Remove all observations from the landmark and set their
   // observed landmark invalid
   static const vi_map::LandmarkId invalid_landmark_id;
   for (auto it = tracks_with_keypoints.begin();
        it != tracks_with_keypoints.end(); ++it) {
     for (const auto& keypoint : it->second) {
-      vi_map::Vertex& vertex = map->getVertex(keypoint.frame_id.vertex_id);
+      const pose_graph::VertexId& vertex_id = keypoint.frame_id.vertex_id;
+      CHECK(vertex_id.isValid());
+      CHECK(map->hasVertex(vertex_id));
+      vi_map::Vertex& vertex = map->getVertex(vertex_id);
       const vi_map::LandmarkId previously_observed_landmark_id =
           vertex.getObservedLandmarkId(keypoint);
       vi_map::Landmark& previously_observed_landmark =
           map->getLandmark(previously_observed_landmark_id);
       previously_observed_landmark.removeObservation(keypoint);
       vertex.setObservedLandmarkId(keypoint, invalid_landmark_id);
+      CHECK(!previously_observed_landmark.hasObservation(keypoint));
     }
   }
 }
