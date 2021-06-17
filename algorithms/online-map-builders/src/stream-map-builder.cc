@@ -1085,43 +1085,43 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
     Eigen::Matrix2Xd keypoint_measurements;
     external_features_measurement.getKeypointMeasurements(
         &keypoint_measurements);
-    frame->swapExternalKeypointMeasurements(&keypoint_measurements);
+
+    frame->extendKeypointMeasurements(keypoint_measurements);
 
     aslam::VisualFrame::DescriptorsT descriptors;
     external_features_measurement.getDescriptors(&descriptors);
-    frame->swapExternalDescriptors(&descriptors);
+    frame->extendDescriptors(descriptors);
 
     if (external_features_sensor.hasUncertainties()) {
       Eigen::VectorXd keypoint_uncertainties;
       external_features_measurement.getKeypointUncertainties(
           &keypoint_uncertainties);
-      frame->swapExternalKeypointMeasurementUncertainties(
-          &keypoint_uncertainties);
+      frame->extendKeypointMeasurementUncertainties(keypoint_uncertainties);
     }
 
     if (external_features_sensor.hasOrientations()) {
       Eigen::VectorXd keypoint_orientations;
       external_features_measurement.getKeypointOrientations(
           &keypoint_orientations);
-      frame->swapExternalKeypointOrientations(&keypoint_orientations);
+      frame->extendKeypointOrientations(keypoint_orientations);
     }
 
     if (external_features_sensor.hasScores()) {
       Eigen::VectorXd keypoint_scores;
       external_features_measurement.getKeypointScores(&keypoint_scores);
-      frame->swapExternalKeypointScores(&keypoint_scores);
+      frame->extendKeypointScores(keypoint_scores);
     }
 
     if (external_features_sensor.hasScales()) {
       Eigen::VectorXd keypoint_scales;
       external_features_measurement.getKeypointScales(&keypoint_scales);
-      frame->swapExternalKeypointScales(&keypoint_scales);
+      frame->extendKeypointScales(keypoint_scales);
     }
 
     if (external_features_sensor.hasTrackIds()) {
       Eigen::VectorXi track_ids;
       external_features_measurement.getTrackIds(&track_ids);
-      frame->swapExternalTrackIds(&track_ids);
+      frame->extendTrackIds(track_ids);
     }
 
     /*VLOG(3) << "[StreamMapBuilder] Attached a new external features "

@@ -22,6 +22,12 @@ sensors:
     description: "cam1 brisk features"
     topic: /features/cam1
     target_sensor: ca27b5000f15adb3c0da8ac6b729ee05
+    has_uncertainties: true
+    has_orientations: true
+    has_scores: true
+    has_scales: true
+    has_track_ids: true
+
     feature_type: VISUAL_BINARY_FEATURES
 
   - id: 8af1bac2a7c5fad79f09e49e3b96d87c

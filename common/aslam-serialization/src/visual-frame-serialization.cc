@@ -56,43 +56,6 @@ void serializeVisualFrame(
     VLOG(200) << "Frame " << frame.getId() << " has no descriptors!";
   }
 
-  // Serialize external feature points
-  if (frame.hasExternalKeypointMeasurements()) {
-    ::common::eigen_proto::serialize(
-        frame.getExternalKeypointMeasurements(),
-        proto->mutable_external_measurements());
-    ::common::eigen_proto::serialize(
-        frame.getExternalKeypointMeasurementUncertainties(),
-        proto->mutable_external_measurement_sigmas());
-    CHECK_EQ(
-        proto->external_measurements_size(),
-        2 * proto->external_measurement_sigmas_size());
-
-    if (frame.hasExternalKeypointScales()) {
-      ::common::eigen_proto::serialize(
-          frame.getExternalKeypointScales(), proto->mutable_external_scales());
-      CHECK_EQ(
-          proto->external_measurements_size(),
-          2 * proto->external_scales_size());
-    }
-
-    const aslam::VisualFrame::DescriptorsT& descriptors =
-        frame.getExternalDescriptors();
-    proto->set_external_descriptor_size(
-        descriptors.rows() * sizeof(aslam::VisualFrame::DescriptorsT::Scalar));
-    internal::serializeDescriptors(
-        descriptors, proto->mutable_external_descriptors());
-
-    CHECK_EQ(proto->external_measurements_size(), 2 * descriptors.cols());
-    VLOG(200) << "Frame " << frame.getId() << " has " << descriptors.cols()
-              << " external descriptors!";
-
-    if (frame.hasExternalTrackIds()) {
-      ::common::eigen_proto::serialize(
-          frame.getExternalTrackIds(), proto->mutable_external_track_ids());
-    }
-  }
-
   // check we serialized a valid frame
   proto->set_is_valid(frame.isValid());
 }
@@ -166,54 +129,6 @@ void deserializeVisualFrame(
       CHECK(frame_ref.hasKeypointMeasurements());
       CHECK(frame_ref.hasKeypointMeasurementUncertainties());
       CHECK(frame_ref.hasDescriptors());
-    }
-
-    // Deserialize the external feature points
-    if (proto.external_measurements_size() > 0) {
-      Eigen::Map<const Eigen::Matrix2Xd> img_points_distorted(
-          proto.external_measurements().data(), 2,
-          proto.external_measurements_size() / 2);
-      Eigen::Map<const Eigen::VectorXd> uncertainties(
-          proto.external_measurement_sigmas().data(),
-          proto.external_measurement_sigmas_size());
-      Eigen::Map<const Eigen::VectorXd> scales(
-          proto.external_scales().data(), proto.external_scales_size());
-      Eigen::Map<const Eigen::VectorXi> track_ids(
-          proto.external_track_ids().data(), proto.external_track_ids_size());
-
-      CHECK_EQ(
-          2 * proto.keypoint_measurement_sigmas_size(),
-          proto.keypoint_measurements_size());
-
-      frame_ref.setExternalKeypointMeasurements(img_points_distorted);
-      frame_ref.setExternalKeypointMeasurementUncertainties(uncertainties);
-      if (scales.rows() != 0) {
-        CHECK_EQ(scales.rows(), img_points_distorted.cols());
-        frame_ref.setExternalKeypointScales(scales);
-      }
-      if (track_ids.rows() != 0) {
-        CHECK_EQ(track_ids.rows(), img_points_distorted.cols());
-        frame_ref.setExternalTrackIds(track_ids);
-      }
-
-      LOG(INFO) << proto.external_descriptors().size();
-      LOG(INFO) << proto.external_descriptor_size();
-      LOG(INFO) << proto.external_measurements_size();
-
-      CHECK_EQ(
-          2 * proto.external_descriptors().size() /
-              proto.external_descriptor_size(),
-          static_cast<uint32_t>(proto.external_measurements_size()));
-
-      // Need to set empty descriptors, otherwise getMutable call below fails.
-      frame_ref.setExternalDescriptors(aslam::VisualFrame::DescriptorsT());
-      internal::deserializeDescriptors(
-          proto.external_descriptors(), proto.external_descriptor_size(),
-          frame_ref.getExternalDescriptorsMutable());
-
-      CHECK(frame_ref.hasExternalKeypointMeasurements());
-      CHECK(frame_ref.hasExternalKeypointMeasurementUncertainties());
-      //CHECK(frame_ref.hasExternalDescriptors());
     }
 
     if (proto.has_is_valid() && !proto.is_valid()) {
