@@ -1,6 +1,7 @@
 #include "vi-map-helpers/vi-map-landmark-quality-evaluation.h"
 
 #include <glog/logging.h>
+#include <landmark-triangulation/landmark-triangulation.h>
 #include <maplab-common/multi-threaded-progress-bar.h>
 #include <maplab-common/parallel-process.h>
 #include <maplab-common/threading-helpers.h>
@@ -95,8 +96,12 @@ void evaluateLandmarkQuality(
     }
 
     detachTracksFromLandmarks(outlier_track_ids_with_observations, map);
+    vi_map::LandmarkIdList new_landmark_ids;
     initializeNewLandmarksFromTracks(
-        outlier_track_ids_with_observations, mission_id, map);
+        outlier_track_ids_with_observations, mission_id, map,
+        &new_landmark_ids);
+    landmark_triangulation::retriangulateLandmarks(
+        new_landmark_ids, mission_id, map);
   }
 }
 
@@ -246,7 +251,8 @@ void detachTracksFromLandmarks(
 
 void initializeNewLandmarksFromTracks(
     const vi_map::TrackKeypointMap& tracks_with_keypoints,
-    const vi_map::MissionId& mission_id, vi_map::VIMap* map) {
+    const vi_map::MissionId& mission_id, vi_map::VIMap* map,
+    vi_map::LandmarkIdList* new_landmark_ids) {
   std::vector<std::pair<vi_map::KeypointIdentifier, int>>
       keypoints_with_track_id;
   pose_graph::VertexIdList keypoint_vertex_ids;
@@ -304,6 +310,7 @@ void initializeNewLandmarksFromTracks(
       keypoint_id.frame_id.vertex_id = keypoint.frame_id.vertex_id;
       keypoint_id.keypoint_index = keypoint.keypoint_index;
       map->addNewLandmark(landmark_id, keypoint_id);
+      new_landmark_ids->push_back(landmark_id);
     }
   }
 }

@@ -20,6 +20,9 @@ void retriangulateLandmarksAlongMissionAfterVertex(
     const pose_graph::VertexId& starting_vertex_id, vi_map::VIMap* map);
 void retriangulateLandmarksOfVertex(
     const pose_graph::VertexId& storing_vertex_id, vi_map::VIMap* map);
+void retriangulateLandmarks(
+    const vi_map::LandmarkIdList landmark_ids,
+    const vi_map::MissionId& mission_id, vi_map::VIMap* map);
 
 }  // namespace landmark_triangulation
 #endif  // LANDMARK_TRIANGULATION_LANDMARK_TRIANGULATION_H_

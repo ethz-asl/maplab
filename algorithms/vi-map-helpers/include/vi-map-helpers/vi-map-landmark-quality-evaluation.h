@@ -32,7 +32,8 @@ void detachTracksFromLandmarks(
     const vi_map::TrackKeypointMap& tracks_with_keypoints, vi_map::VIMap* map);
 void initializeNewLandmarksFromTracks(
     const vi_map::TrackKeypointMap& tracks_with_keypoints,
-    const vi_map::MissionId& mission_id, vi_map::VIMap* map);
+    const vi_map::MissionId& mission_id, vi_map::VIMap* map,
+    vi_map::LandmarkIdList* new_landmark_ids);
 
 }  // namespace vi_map_helpers
 
