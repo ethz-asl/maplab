@@ -37,15 +37,11 @@ void serializeVisualFrame(
           2 * proto->keypoint_scales_size());
     }
 
-    const aslam::VisualFrame::DescriptorsT& descriptors =
-        frame.getDescriptors();
-    proto->set_keypoint_descriptor_size(
-        descriptors.rows() * sizeof(aslam::VisualFrame::DescriptorsT::Scalar));
-    internal::serializeDescriptors(
-        descriptors, proto->mutable_keypoint_descriptors());
+    frame.serializeDescriptorsToString(proto->mutable_keypoint_descriptors());
 
-    CHECK_EQ(proto->keypoint_measurements_size(), 2 * descriptors.cols());
-    VLOG(200) << "Frame " << frame.getId() << " has " << descriptors.cols()
+    size_t num_descriptors = frame.getNumDescriptors();
+    CHECK_EQ(proto->keypoint_measurements_size(), 2 * num_descriptors);
+    VLOG(200) << "Frame " << frame.getId() << " has " << num_descriptors
               << " descriptors!";
 
     if (frame.hasTrackIds()) {
@@ -115,16 +111,9 @@ void deserializeVisualFrame(
         frame_ref.setTrackIds(track_ids);
       }
 
-      CHECK_EQ(
-          2 * proto.keypoint_descriptors().size() /
-              proto.keypoint_descriptor_size(),
-          static_cast<uint32_t>(proto.keypoint_measurements_size()));
-
-      // Need to set empty descriptors, otherwise getMutable call below fails.
-      frame_ref.setDescriptors(aslam::VisualFrame::DescriptorsT());
-      internal::deserializeDescriptors(
-          proto.keypoint_descriptors(), proto.keypoint_descriptor_size(),
-          frame_ref.getDescriptorsMutable());
+      frame_ref.deserializeDescriptorsFromString(proto.keypoint_descriptors());
+      size_t num_descriptors = frame_ref.getNumDescriptors();
+      CHECK_EQ(proto.keypoint_measurements_size(), 2 * num_descriptors);
 
       CHECK(frame_ref.hasKeypointMeasurements());
       CHECK(frame_ref.hasKeypointMeasurementUncertainties());
@@ -212,38 +201,5 @@ void deserializeVisualNFrame(
     }
   }
 }
-
-namespace internal {
-
-void serializeDescriptors(
-    const aslam::VisualFrame::DescriptorsT& descriptors,
-    std::string* descriptors_string) {
-  CHECK_NOTNULL(descriptors_string);
-  descriptors_string->resize(
-      descriptors.size() * sizeof(aslam::VisualFrame::DescriptorsT::Scalar));
-  Eigen::Map<aslam::VisualFrame::DescriptorsT> descriptors_map(
-      reinterpret_cast<unsigned char*>(&descriptors_string->front()),
-      descriptors.rows(), descriptors.cols());
-  descriptors_map = descriptors;
-}
-
-void deserializeDescriptors(
-    const std::string& descriptors_raw, const uint32_t descriptor_size,
-    aslam::VisualFrame::DescriptorsT* descriptors) {
-  CHECK_NOTNULL(descriptors);
-
-  if (descriptors_raw.size() != 0) {
-    CHECK_GT(descriptor_size, 0u);
-    Eigen::Map<const aslam::VisualFrame::DescriptorsT> descriptor_map(
-        reinterpret_cast<const unsigned char*>(&descriptors_raw.front()),
-        descriptor_size, descriptors_raw.size() / descriptor_size);
-    *descriptors = descriptor_map;
-  } else {
-    descriptors->resize(0, 0);
-  }
-}
-
-}  // namespace internal
-
 }  // namespace serialization
 }  // namespace aslam

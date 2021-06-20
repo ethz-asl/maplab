@@ -10,15 +10,7 @@ message VisualFrame {
   repeated double keypoint_measurement_sigmas = 4;
   repeated double keypoint_scales = 8;
   optional bytes keypoint_descriptors = 5;
-  optional uint32 keypoint_descriptor_size = 6;
   repeated int32 track_ids = 10;
-
-  repeated double external_measurements = 11;
-  repeated double external_measurement_sigmas = 12;
-  repeated double external_scales = 13;
-  optional bytes external_descriptors = 14;
-  optional uint32 external_descriptor_size = 15;
-  repeated int32 external_track_ids = 16;
 
   repeated aslam.proto.Id landmark_ids = 7;
   optional bool is_valid = 9;

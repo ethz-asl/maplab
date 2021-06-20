@@ -687,21 +687,6 @@ int Vertex::numValidObservedLandmarkIds(unsigned int frame_idx) const {
   return landmark_ids.size();
 }
 
-int Vertex::determineNewObservedLandmarkIdVectorSize(
-    int previous_new_size, int current_new_size, int old_size) const {
-  // If the new size has been determined before by another keypoint vector, it
-  // should have be equal to the current new size.
-  CHECK_GE(current_new_size, old_size);
-  CHECK(
-      !((previous_new_size != old_size) &&
-        (previous_new_size != current_new_size)));
-  if (current_new_size > old_size) {
-    return current_new_size;
-  } else {
-    return old_size;
-  }
-}
-
 void Vertex::removeObservedLandmarkIdList(const LandmarkId& landmark_id) {
   CHECK(landmark_id.isValid());
   LandmarkId invalid_id;
@@ -717,34 +702,9 @@ void Vertex::expandVisualObservationContainersIfNecessary() {
        ++frame_idx) {
     if (n_frame_->isFrameSet(frame_idx)) {
       const aslam::VisualFrame& frame = n_frame_->getFrame(frame_idx);
-      int old_size = static_cast<int>(observed_landmark_ids_[frame_idx].size());
-      int new_size = old_size;
-      if (frame.hasDescriptors()) {
-        new_size = determineNewObservedLandmarkIdVectorSize(
-            new_size, frame.getDescriptors().cols(), old_size);
-      }
-      if (frame.hasKeypointMeasurements()) {
-        new_size = determineNewObservedLandmarkIdVectorSize(
-            new_size, frame.getKeypointMeasurements().cols(), old_size);
-      }
-      if (frame.hasKeypointMeasurementUncertainties()) {
-        new_size = determineNewObservedLandmarkIdVectorSize(
-            new_size, frame.getKeypointMeasurementUncertainties().rows(),
-            old_size);
-      }
-      if (frame.hasKeypointOrientations()) {
-        new_size = determineNewObservedLandmarkIdVectorSize(
-            new_size, frame.getKeypointOrientations().rows(), old_size);
-      }
-      if (frame.hasKeypointScales()) {
-        new_size = determineNewObservedLandmarkIdVectorSize(
-            new_size, frame.getKeypointScales().rows(), old_size);
-      }
-      if (frame.hasKeypointScores()) {
-        new_size = determineNewObservedLandmarkIdVectorSize(
-            new_size, frame.getKeypointScores().rows(), old_size);
-      }
-      if (new_size > old_size) {
+      const size_t old_size = observed_landmark_ids_[frame_idx].size();
+      const size_t new_size = frame.getNumKeypointMeasurements();
+      if (new_size != old_size) {
         VLOG(4) << "Resizing visual observation container from " << old_size
                 << " to " << new_size << " for VisualFrame " << frame_idx
                 << " of Vertex " << id() << " ...";

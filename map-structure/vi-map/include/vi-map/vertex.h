@@ -278,9 +278,6 @@ class Vertex : public pose_graph::Vertex {
   // keypoints to one of the frames. Resizes the observed_landmark_ids_ vector
   // for every frame based on the number of keypoints the frames number of
   // keypoints.
-  // Crashes hard if:
-  //    The new number of keypoints is smaller than the old one.
-  //    The keypoint vector sizes are not all equal (if set)
   void expandVisualObservationContainersIfNecessary();
 
   size_t discardUntrackedObservations();
@@ -306,17 +303,6 @@ class Vertex : public pose_graph::Vertex {
   // Used for testing only.
   void addObservedLandmarkId(
       unsigned int frame_idx, const LandmarkId& landmark_id);
-
-  // Utility function to determine the new size of observed_landmark_ids_ if
-  // the number of keypoints increase.
-  // previous_new_size: new observed_landmark_ids size determined by a
-  //                    previously checked keypoint vector size
-  // current_new_size:  new observed_landmark_ids size determined by the
-  //                    current keypoint vector size
-  // old_size:          original observed_landmark_ids size
-  // returns:           the new size of observed_landmark_ids
-  int determineNewObservedLandmarkIdVectorSize(
-      int previous_new_size, int current_new_size, int old_size) const;
 
   pose_graph::VertexId id_;
   vi_map::MissionId mission_id_;
