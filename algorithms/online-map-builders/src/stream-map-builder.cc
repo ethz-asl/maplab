@@ -67,6 +67,7 @@ StreamMapBuilder::StreamMapBuilder(
     : map_(CHECK_NOTNULL(map)),
       oldest_vertex_timestamp_ns_(aslam::time::getInvalidTime()),
       newest_vertex_timestamp_ns_(aslam::time::getInvalidTime()),
+      second_newest_vertex_timestamp_ns_(aslam::time::getInvalidTime()),
       queries_(*map),
       manipulation_(map),
       mission_id_(aslam::createRandomId<vi_map::MissionId>()),
@@ -217,6 +218,7 @@ void StreamMapBuilder::apply(
     done_current_vertex_wheel_odometry_ = false;
   } else {
     CHECK(mission_id_.isValid());
+    second_newest_vertex_timestamp_ns_.store(newest_vertex_timestamp_ns_);
     newest_vertex_timestamp_ns_.store(
         nframe_to_insert->getMinTimestampNanoseconds());
     if (!is_first_baseframe_estimate_processed_ &&
@@ -1005,12 +1007,12 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
 }
 
 void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
-  if (map_->numVertices() < 2u ||
+  if (map_->numVertices() < 3u ||
       external_features_measurement_temporal_buffer_.empty()) {
     return;
   }
 
-  const int64_t newest_vertex_time_ns = newest_vertex_timestamp_ns_.load();
+  const int64_t newest_vertex_time_ns = second_newest_vertex_timestamp_ns_.load();
   const int64_t oldest_vertex_time_ns = oldest_vertex_timestamp_ns_.load();
   CHECK(aslam::time::isValidTime(newest_vertex_time_ns));
   CHECK(aslam::time::isValidTime(oldest_vertex_time_ns));
@@ -1085,7 +1087,6 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
     Eigen::Matrix2Xd keypoint_measurements;
     external_features_measurement.getKeypointMeasurements(
         &keypoint_measurements);
-
     frame->extendKeypointMeasurements(keypoint_measurements);
 
     aslam::VisualFrame::DescriptorsT descriptors;
@@ -1123,6 +1124,8 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
       external_features_measurement.getTrackIds(&track_ids);
       frame->extendTrackIds(track_ids);
     }
+
+    closest_vertex.expandVisualObservationContainersIfNecessary();
 
     /*VLOG(3) << "[StreamMapBuilder] Attached a new external features "
             << "measurement for vertex " << closest_vertex_id << ", which now "

@@ -147,6 +147,10 @@ class StreamMapBuilder {
   // checked.
   std::atomic<int64_t> oldest_vertex_timestamp_ns_;
   std::atomic<int64_t> newest_vertex_timestamp_ns_;
+  // TODO(smauq): find more elegant solution than this by modifying the tracker
+  // code in aslam to deal with the multiple feature types. Also not dealing
+  // nicely with submapping at the moment!!!
+  std::atomic<int64_t> second_newest_vertex_timestamp_ns_;
 
   vi_map_helpers::VIMapQueries queries_;
   vi_map_helpers::VIMapManipulation manipulation_;
