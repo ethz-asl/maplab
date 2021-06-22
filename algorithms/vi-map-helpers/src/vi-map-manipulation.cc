@@ -373,8 +373,7 @@ size_t VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfMission(
   map_.getAllVertexIdsInMissionAlongGraph(
       mission_id, starting_vertex_id, &all_vertices_in_missions);
 
-  TrackIndexToLandmarkIdMap track_id_to_landmark_id;
-  track_id_to_landmark_id.reserve(1000u * all_vertices_in_missions.size());
+  MultiTrackIndexToLandmarkIdMap track_id_to_landmark_id;
   const size_t num_landmarks_initial = map_.numLandmarks();
   initializeLandmarksFromUnusedFeatureTracksOfOrderedVertices(
       all_vertices_in_missions, &track_id_to_landmark_id);
@@ -394,20 +393,20 @@ size_t VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfMission(
 void VIMapManipulation::
     initializeLandmarksFromUnusedFeatureTracksOfOrderedVertices(
         const pose_graph::VertexIdList& ordered_vertex_ids,
-        TrackIndexToLandmarkIdMap* trackid_landmarkid_map) {
+        MultiTrackIndexToLandmarkIdMap* multitrackid_landmarkid_map) {
   for (const pose_graph::VertexId& vertex_id : ordered_vertex_ids) {
     initializeLandmarksFromUnusedFeatureTracksOfVertex(
-        vertex_id, trackid_landmarkid_map);
+        vertex_id, multitrackid_landmarkid_map);
   }
 }
 
 void VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfVertex(
     const pose_graph::VertexId& vertex_id,
-    TrackIndexToLandmarkIdMap* trackid_landmarkid_map) {
-  CHECK_NOTNULL(trackid_landmarkid_map);
+    MultiTrackIndexToLandmarkIdMap* multitrackid_landmarkid_map) {
+  CHECK_NOTNULL(multitrackid_landmarkid_map);
   const vi_map::Vertex& vertex = map_.getVertex(vertex_id);
 
-  vertex.forEachFrame([this, &vertex, &trackid_landmarkid_map](
+  vertex.forEachFrame([this, &vertex, &multitrackid_landmarkid_map](
                           const size_t frame_index,
                           const aslam::VisualFrame& frame) {
     const size_t num_keypoints = frame.getNumKeypointMeasurements();
@@ -432,10 +431,16 @@ void VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfVertex(
         continue;
       }
 
+      // Check whether this feature type has been encountered before
+      // and insert a track index map if necessary
+      const int feature_type = frame.getDescriptorType(keypoint_i);
+      TrackIndexToLandmarkIdMap& trackid_landmarkid_map =
+          (*multitrackid_landmarkid_map)[feature_type];
+
       // Check whether this track has already a global landmark id
       // associated.
       const vi_map::LandmarkId* landmark_id_ptr =
-          common::getValuePtr(*trackid_landmarkid_map, track_id);
+          common::getValuePtr(trackid_landmarkid_map, track_id);
 
       if (landmark_id_ptr != nullptr && map_.hasLandmark(*landmark_id_ptr)) {
         map_.associateKeypointWithExistingLandmark(
@@ -447,7 +452,7 @@ void VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfVertex(
             aslam::createRandomId<vi_map::LandmarkId>();
         // operator[] intended as this is either overwriting an old outdated
         // entry or creating a new one.
-        (*trackid_landmarkid_map)[track_id] = landmark_id;
+        trackid_landmarkid_map[track_id] = landmark_id;
 
         vi_map::KeypointIdentifier keypoint_id;
         keypoint_id.frame_id.frame_index = frame_index;

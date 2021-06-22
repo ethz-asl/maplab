@@ -54,7 +54,7 @@ class KeyframedMapBuilder {
   map_sparsification::KeyframingHeuristicsOptions keyframing_options_;
 
   vi_map_helpers::VIMapManipulation map_manipulation_;
-  vi_map_helpers::VIMapManipulation::TrackIndexToLandmarkIdMap
+  vi_map_helpers::VIMapManipulation::MultiTrackIndexToLandmarkIdMap
       track_id_to_landmark_id_map_;
 };
 
