@@ -12,9 +12,9 @@
 
 namespace vi_map {
 
-enum ExternalFeatureType : uint8_t {
-  kVisualBinaryFeatures,
-  kVisualFloatFeatures
+enum ExternalFeatureType : int {
+  kBRISK,
+  kSIFT
 };
 
 // ...
@@ -94,6 +94,10 @@ class ExternalFeatures final : public aslam::Sensor {
 
   bool hasTrackIds() const {
     return has_track_ids_;
+  }
+
+  ExternalFeatureType getFeatureType() const {
+    return feature_type_;
   }
 
  private:

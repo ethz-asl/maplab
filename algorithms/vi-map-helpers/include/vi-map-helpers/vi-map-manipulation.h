@@ -1,11 +1,9 @@
 #ifndef VI_MAP_HELPERS_VI_MAP_MANIPULATION_H_
 #define VI_MAP_HELPERS_VI_MAP_MANIPULATION_H_
 
-#include <stddef.h>
-
-#include <unordered_map>
-
 #include <posegraph/unique-id.h>
+#include <stddef.h>
+#include <unordered_map>
 
 #include "vi-map-helpers/vi-map-geometry.h"
 #include "vi-map-helpers/vi-map-queries.h"
@@ -19,6 +17,8 @@ namespace vi_map_helpers {
 class VIMapManipulation {
  public:
   typedef std::unordered_map<int, vi_map::LandmarkId> TrackIndexToLandmarkIdMap;
+  typedef std::unordered_map<int, TrackIndexToLandmarkIdMap>
+      MultiTrackIndexToLandmarkIdMap;
 
   explicit VIMapManipulation(vi_map::VIMap* map);
 
@@ -78,10 +78,10 @@ class VIMapManipulation {
       const pose_graph::VertexId& starting_vertex_id);
   void initializeLandmarksFromUnusedFeatureTracksOfOrderedVertices(
       const pose_graph::VertexIdList& ordered_vertex_ids,
-      TrackIndexToLandmarkIdMap* trackid_landmarkid_map);
+      MultiTrackIndexToLandmarkIdMap* trackid_landmarkid_map);
   void initializeLandmarksFromUnusedFeatureTracksOfVertex(
       const pose_graph::VertexId& vertex_id,
-      TrackIndexToLandmarkIdMap* trackid_landmarkid_map);
+      MultiTrackIndexToLandmarkIdMap* trackid_landmarkid_map);
 
   // Releases image from the vertices that are older than
   // image_removal_age_threshold frames. Used by online odometry pipelines.

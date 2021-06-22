@@ -1012,7 +1012,8 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
     return;
   }
 
-  const int64_t newest_vertex_time_ns = second_newest_vertex_timestamp_ns_.load();
+  const int64_t newest_vertex_time_ns =
+      second_newest_vertex_timestamp_ns_.load();
   const int64_t oldest_vertex_time_ns = oldest_vertex_timestamp_ns_.load();
   CHECK(aslam::time::isValidTime(newest_vertex_time_ns));
   CHECK(aslam::time::isValidTime(oldest_vertex_time_ns));
@@ -1091,7 +1092,9 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
 
     aslam::VisualFrame::DescriptorsT descriptors;
     external_features_measurement.getDescriptors(&descriptors);
-    frame->extendDescriptors(descriptors);
+    const int feature_type =
+        static_cast<int>(external_features_sensor.getFeatureType());
+    frame->extendDescriptors(descriptors, feature_type);
 
     if (external_features_sensor.hasUncertainties()) {
       Eigen::VectorXd keypoint_uncertainties;
