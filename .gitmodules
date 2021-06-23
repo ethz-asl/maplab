@@ -1,105 +1,105 @@
 [submodule "tools/maplab_test_data"]
 	path = tools/maplab-test-data
-	url = git@github.com:ethz-asl/maplab_test_data.git
+	url = https://github.com/ethz-asl/maplab_test_data
 [submodule "aslam_cv2"]
 	path = aslam_cv2
-	url = git@github.com:ethz-asl/aslam_cv2.git
+	url = https://github.com/ethz-asl/aslam_cv2
 [submodule "tools/evaluation_tools"]
 	path = tools/evaluation_tools
-	url = git@github.com:ethz-asl/evaluation_tools.git
+	url = https://github.com/ethz-asl/evaluation_tools
 [submodule "dependencies/3rdparty/protobuf_catkin"]
 	path = dependencies/3rdparty/protobuf_catkin
-	url = git@github.com:ethz-asl/protobuf_catkin.git
+	url = https://github.com/ethz-asl/protobuf_catkin
 [submodule "dependencies/3rdparty/glog_catkin"]
 	path = dependencies/3rdparty/glog_catkin
-	url = git@github.com:ethz-asl/glog_catkin.git
+	url = https://github.com/ethz-asl/glog_catkin
 [submodule "dependencies/3rdparty/gflags_catkin"]
 	path = dependencies/3rdparty/gflags_catkin
-	url = git@github.com:ethz-asl/gflags_catkin.git
+	url = https://github.com/ethz-asl/gflags_catkin
 [submodule "dependencies/3rdparty/ceres_catkin"]
 	path = dependencies/3rdparty/ceres_catkin
-	url = git@github.com:ethz-asl/ceres_catkin.git
+	url = https://github.com/ethz-asl/ceres_catkin
 [submodule "dependencies/3rdparty/suitesparse"]
 	path = dependencies/3rdparty/suitesparse
-	url = git@github.com:ethz-asl/suitesparse.git
+	url = https://github.com/ethz-asl/suitesparse
 [submodule "dependencies/3rdparty/eigen_catkin"]
 	path = dependencies/3rdparty/eigen_catkin
-	url = git@github.com:ethz-asl/eigen_catkin.git
+	url = https://github.com/ethz-asl/eigen_catkin
 [submodule "dependencies/3rdparty/yaml_cpp_catkin"]
 	path = dependencies/3rdparty/yaml_cpp_catkin
-	url = git@github.com:ethz-asl/yaml_cpp_catkin.git
+	url = https://github.com/ethz-asl/yaml_cpp_catkin
 [submodule "dependencies/3rdparty/lpsolve_catkin"]
 	path = dependencies/3rdparty/lpsolve_catkin
-	url = git@github.com:ethz-asl/lpsolve_catkin.git
+	url = https://github.com/ethz-asl/lpsolve_catkin
 [submodule "dependencies/3rdparty/metis_catkin"]
 	path = dependencies/3rdparty/metis_catkin
-	url = git@github.com:ethz-asl/metis_catkin.git
+	url = https://github.com/ethz-asl/metis_catkin
 [submodule "dependencies/3rdparty/opencv3_catkin"]
 	path = dependencies/3rdparty/opencv3_catkin
-	url = git@github.com:ethz-asl/opencv3_catkin.git
+	url = https://github.com/ethz-asl/opencv3_catkin
 [submodule "dependencies/3rdparty/vision_opencv"]
 	path = dependencies/3rdparty/vision_opencv
-	url = git@github.com:ethz-asl/vision_opencv.git
+	url = https://github.com/ethz-asl/vision_opencv
 [submodule "dependencies/3rdparty/opengv"]
 	path = dependencies/3rdparty/opengv
-	url = git@github.com:ethz-asl/opengv.git
+	url = https://github.com/ethz-asl/opengv
 [submodule "dependencies/3rdparty/doxygen_catkin"]
 	path = dependencies/3rdparty/doxygen_catkin
-	url = git@github.com:ethz-asl/doxygen_catkin.git
+	url = https://github.com/ethz-asl/doxygen_catkin
 [submodule "dependencies/3rdparty/catkin_simple"]
 	path = dependencies/3rdparty/catkin_simple
-	url = git@github.com:catkin/catkin_simple.git
+	url = https://github.com/catkin/catkin_simple
 [submodule "dependencies/internal/voxblox"]
 	path = dependencies/internal/voxblox
-	url = git@github.com:ethz-asl/voxblox.git
+	url = https://github.com/ethz-asl/voxblox
 [submodule "dependencies/internal/ethzasl_brisk"]
 	path = dependencies/internal/ethzasl_brisk
-	url = git@github.com:ethz-asl/ethzasl_brisk.git
+	url = https://github.com/ethz-asl/ethzasl_brisk
 [submodule "dependencies/internal/ethzasl_apriltag2"]
 	path = dependencies/internal/ethzasl_apriltag2
-	url = git@github.com:ethz-asl/ethzasl_apriltag2.git
+	url = https://github.com/ethz-asl/ethzasl_apriltag2
 [submodule "dependencies/internal/eigen_checks"]
 	path = dependencies/internal/eigen_checks
-	url = git@github.com:ethz-asl/eigen_checks.git
+	url = https://github.com/ethz-asl/eigen_checks
 [submodule "dependencies/internal/libnabo"]
 	path = dependencies/internal/libnabo
-	url = git@github.com:ethz-asl/libnabo.git
+	url = https://github.com/ethz-asl/libnabo
 [submodule "dependencies/internal/minkindr"]
 	path = dependencies/internal/minkindr
-	url = git@github.com:ethz-asl/minkindr.git
+	url = https://github.com/ethz-asl/minkindr
 [submodule "dependencies/internal/minkindr_ros"]
 	path = dependencies/internal/minkindr_ros
-	url = git@github.com:ethz-asl/minkindr_ros.git
+	url = https://github.com/ethz-asl/minkindr_ros
 [submodule "dependencies/internal/maplab_rovio"]
 	path = dependencies/internal/maplab_rovio
-	url = git@github.com:ethz-asl/maplab_rovio.git
+	url = https://github.com/ethz-asl/maplab_rovio
 [submodule "dependencies/internal/kindr"]
 	path = dependencies/internal/kindr
-	url = git@github.com:ethz-asl/kindr.git
+	url = https://github.com/ethz-asl/kindr
 [submodule "dependencies/internal/plotty"]
 	path = dependencies/internal/plotty
-	url = git@github.com:ethz-asl/plotty.git
+	url = https://github.com/ethz-asl/plotty
 [submodule "dependencies/internal/hand_eye_calibration"]
 	path = dependencies/internal/hand_eye_calibration
-	url = git@github.com:ethz-asl/hand_eye_calibration.git
+	url = https://github.com/ethz-asl/hand_eye_calibration
 [submodule "dependencies/3rdparty/benchmark_catkin"]
 	path = dependencies/3rdparty/benchmark_catkin
-	url = git@github.com:ethz-asl/benchmark_catkin.git
+	url = https://github.com/ethz-asl/benchmark_catkin
 [submodule "dependencies/internal/ros-system-monitor"]
 	path = dependencies/internal/ros-system-monitor
-	url = git@github.com:ethz-asl/ros-system-monitor
+	url = https://github.com/ethz-asl/ros-system-monitor
 [submodule "dependencies/internal/linter"]
 	path = dependencies/internal/linter
-	url = git@github.com:ethz-asl/linter.git
+	url = https://github.com/ethz-asl/linter
 [submodule "dependencies/internal/maplab_tools"]
 	path = dependencies/internal/maplab_tools
-	url = git@github.com:ethz-asl/maplab_tools.git
+	url = https://github.com/ethz-asl/maplab_tools
 [submodule "dependencies/internal/maplab_msgs"]
 	path = dependencies/internal/maplab_msgs
-	url = git@github.com:ethz-asl/maplab_msgs.git
+	url = https://github.com/ethz-asl/maplab_msgs
 [submodule "dependencies/3rdparty/pointmatcher-ros"]
 	path = dependencies/3rdparty/pointmatcher-ros
-	url = git@github.com:ANYbotics/pointmatcher-ros.git
+	url = https://github.com/ANYbotics/pointmatcher-ros
 [submodule "dependencies/internal/libpointmatcher"]
 	path = dependencies/internal/libpointmatcher
-	url = git@github.com:ethz-asl/libpointmatcher.git
+	url = https://github.com/ethz-asl/libpointmatcher
