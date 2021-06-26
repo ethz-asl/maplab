@@ -6,6 +6,7 @@
 #include <maplab-common/conversions.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/progress-bar.h>
+#include <sensors/external-features.h>
 #include <vi-map/vi-map.h>
 
 DEFINE_int64(
@@ -433,7 +434,8 @@ void VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfVertex(
 
       // Check whether this feature type has been encountered before
       // and insert a track index map if necessary
-      const int feature_type = frame.getDescriptorType(keypoint_i);
+      const vi_map::FeatureType feature_type =
+          static_cast<vi_map::FeatureType>(frame.getDescriptorType(keypoint_i));
       TrackIndexToLandmarkIdMap& trackid_landmarkid_map =
           (*multitrackid_landmarkid_map)[feature_type];
 
@@ -458,7 +460,7 @@ void VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfVertex(
         keypoint_id.frame_id.frame_index = frame_index;
         keypoint_id.frame_id.vertex_id = vertex.id();
         keypoint_id.keypoint_index = keypoint_i;
-        map_.addNewLandmark(landmark_id, keypoint_id);
+        map_.addNewLandmark(landmark_id, keypoint_id, feature_type);
       }
     }
   });

@@ -12,7 +12,7 @@
 
 namespace vi_map {
 
-enum ExternalFeatureType : int {
+enum FeatureType : int {
   kBRISK,
   kSIFT
 };
@@ -96,7 +96,7 @@ class ExternalFeatures final : public aslam::Sensor {
     return has_track_ids_;
   }
 
-  ExternalFeatureType getFeatureType() const {
+  FeatureType getFeatureType() const {
     return feature_type_;
   }
 
@@ -125,7 +125,7 @@ class ExternalFeatures final : public aslam::Sensor {
   bool has_scores_;
   bool has_scales_;
   bool has_track_ids_;
-  ExternalFeatureType feature_type_;
+  FeatureType feature_type_;
 };
 
 // ...

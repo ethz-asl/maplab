@@ -15,17 +15,17 @@ constexpr char kYamlFieldNameFeatureType[] = "feature_type";
 constexpr const char* kBRISKIdentifier = "BRISK";
 constexpr const char* kSIFTIdentifier = "SIFT";
 
-std::string ExternalFeatureTypeToString(int feature_type) {
-  if (feature_type == ExternalFeatureType::kBRISK) {
+std::string FeatureTypeToString(int feature_type) {
+  if (feature_type == FeatureType::kBRISK) {
     return std::string(kBRISKIdentifier);
-  } else if (feature_type == ExternalFeatureType::kSIFT) {
+  } else if (feature_type == FeatureType::kSIFT) {
     return std::string(kSIFTIdentifier);
   } else {
     LOG(FATAL) << "Unknown feature type!";
   }
 }
 
-ExternalFeatureType StringToExternalFeatureType(const std::string& feature_string) {
+FeatureType StringToFeatureType(const std::string& feature_string) {
   const char* feature_c_string = feature_string.c_str();
   std::function<bool(const char*, const char*)> equals = [](const char* lhs,
                                                             const char* rhs) {
@@ -33,9 +33,9 @@ ExternalFeatureType StringToExternalFeatureType(const std::string& feature_strin
   };
 
   if (equals(feature_c_string, kBRISKIdentifier)) {
-    return ExternalFeatureType::kBRISK;
+    return FeatureType::kBRISK;
   } else if (equals(feature_c_string, kSIFTIdentifier)) {
-    return ExternalFeatureType::kSIFT;
+    return FeatureType::kSIFT;
   } else {
     LOG(FATAL) << "Unknown feature type!";
   }
@@ -75,7 +75,7 @@ bool ExternalFeatures::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
   CHECK(YAML::safeGet(
       sensor_node, static_cast<std::string>(kYamlFieldNameFeatureType),
       &feature_string));
-  feature_type_ = StringToExternalFeatureType(feature_string);
+  feature_type_ = StringToFeatureType(feature_string);
 
   return true;
 }
@@ -94,7 +94,7 @@ void ExternalFeatures::saveToYamlNodeImpl(YAML::Node* sensor_node) const {
   node[static_cast<std::string>(kYamlFieldNameHasScales)] = has_scales_;
   node[static_cast<std::string>(kYamlFieldNameHasTrackIds)] = has_track_ids_;
   node[static_cast<std::string>(kYamlFieldNameFeatureType)] =
-      ExternalFeatureTypeToString(feature_type_);
+      FeatureTypeToString(feature_type_);
 }
 
 }  // namespace vi_map

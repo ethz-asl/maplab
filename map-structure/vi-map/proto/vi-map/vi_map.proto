@@ -114,6 +114,7 @@ message Landmark {
     kGood = 2;
   }
   optional Quality quality = 7 [default = kUnknown];
+  optional int32 feature_type = 9;
 
   repeated int32 appearances = 8;
 }
