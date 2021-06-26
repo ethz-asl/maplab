@@ -10,6 +10,7 @@ message VisualFrame {
   repeated double keypoint_measurement_sigmas = 4;
   repeated double keypoint_scales = 8;
   optional bytes keypoint_descriptors = 5;
+  repeated int32 descriptor_types = 11;
   repeated int32 track_ids = 10;
 
   repeated aslam.proto.Id landmark_ids = 7;

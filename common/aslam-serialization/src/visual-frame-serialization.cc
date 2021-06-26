@@ -38,9 +38,13 @@ void serializeVisualFrame(
     }
 
     frame.serializeDescriptorsToString(proto->mutable_keypoint_descriptors());
+    ::common::eigen_proto::serialize(
+        frame.getDescriptorTypes(), proto->mutable_descriptor_types());
 
     size_t num_descriptors = frame.getNumDescriptors();
-    CHECK_EQ(proto->keypoint_measurements_size(), 2 * num_descriptors);
+    CHECK_EQ(
+        static_cast<size_t>(proto->keypoint_measurements_size()),
+        2 * num_descriptors);
     VLOG(200) << "Frame " << frame.getId() << " has " << num_descriptors
               << " descriptors!";
 
@@ -93,6 +97,8 @@ void deserializeVisualFrame(
           proto.keypoint_measurement_sigmas_size());
       Eigen::Map<const Eigen::VectorXd> scales(
           proto.keypoint_scales().data(), proto.keypoint_scales_size());
+      Eigen::Map<const Eigen::VectorXi> descriptor_types(
+          proto.descriptor_types().data(), proto.descriptor_types_size());
       Eigen::Map<const Eigen::VectorXi> track_ids(
           proto.track_ids().data(), proto.track_ids_size());
 
@@ -112,8 +118,11 @@ void deserializeVisualFrame(
       }
 
       frame_ref.deserializeDescriptorsFromString(proto.keypoint_descriptors());
+      frame_ref.setDescriptorTypes(descriptor_types);
       size_t num_descriptors = frame_ref.getNumDescriptors();
-      CHECK_EQ(proto.keypoint_measurements_size(), 2 * num_descriptors);
+      CHECK_EQ(
+          static_cast<size_t>(proto.keypoint_measurements_size()),
+          2 * num_descriptors);
 
       CHECK(frame_ref.hasKeypointMeasurements());
       CHECK(frame_ref.hasKeypointMeasurementUncertainties());
