@@ -1,15 +1,13 @@
 #include "vi-map/vertex.h"
 
-#include <string>
-#include <unordered_set>
-
-#include <glog/logging.h>
-
 #include <aslam-serialization/visual-frame-serialization.h>
 #include <aslam/common/hash-id.h>
 #include <aslam/common/stl-helpers.h>
+#include <glog/logging.h>
 #include <maplab-common/eigen-proto.h>
 #include <maplab-common/quaternion-math.h>
+#include <string>
+#include <unordered_set>
 
 #include "vi-map/vi_map.pb.h"
 
@@ -227,7 +225,6 @@ Vertex* Vertex::cloneWithVisualNFrame(
   cloned_vertex->observed_landmark_ids_ = observed_landmark_ids_;
   cloned_vertex->landmarks_ = landmarks_;
   cloned_vertex->resource_map_ = resource_map_;
-
   cloned_vertex->absolute_6dof_measurements_ = absolute_6dof_measurements_;
 
   // Verify that the camera of the other vertex and the new one are the same.
@@ -274,7 +271,11 @@ Vertex* Vertex::cloneWithVisualNFrame(
       cloned_frame->setKeypointScales(this_frame.getKeypointScales());
     }
     if (this_frame.hasDescriptors()) {
-      cloned_frame->setDescriptors(this_frame.getDescriptors());
+      const Eigen::VectorXi& descriptor_types = this_frame.getDescriptorTypes();
+      for (int index = 0; index < descriptor_types.size(); ++index) {
+        cloned_frame->extendDescriptors(
+            this_frame.getDescriptors(index), descriptor_types.coeff(index));
+      }
     }
     if (this_frame.hasTrackIds()) {
       cloned_frame->setTrackIds(this_frame.getTrackIds());
@@ -760,8 +761,8 @@ void Vertex::checkConsistencyOfVisualObservationContainers() const {
       }
       if (frame.hasDescriptors()) {
         CHECK_EQ(
-            frame.getDescriptors().cols(),
-            static_cast<int>(observed_landmark_ids_[frame_idx].size()));
+            frame.getNumDescriptors(),
+            observed_landmark_ids_[frame_idx].size());
       }
       if (frame.hasKeypointMeasurementUncertainties()) {
         CHECK_EQ(
