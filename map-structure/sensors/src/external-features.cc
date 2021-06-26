@@ -15,7 +15,7 @@ constexpr char kYamlFieldNameFeatureType[] = "feature_type";
 constexpr const char* kBRISKIdentifier = "BRISK";
 constexpr const char* kSIFTIdentifier = "SIFT";
 
-std::string FeatureTypeToString(int feature_type) {
+std::string FeatureTypeToString(FeatureType feature_type) {
   if (feature_type == FeatureType::kBRISK) {
     return std::string(kBRISKIdentifier);
   } else if (feature_type == FeatureType::kSIFT) {

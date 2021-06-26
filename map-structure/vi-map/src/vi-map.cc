@@ -1,12 +1,11 @@
 #include "vi-map/vi-map.h"
 
-#include <limits>
-#include <queue>
-
 #include <aslam/common/memory.h>
 #include <aslam/common/time.h>
+#include <limits>
 #include <map-resources/resource_metadata.pb.h>
 #include <maplab-common/file-system-tools.h>
+#include <queue>
 
 #include "vi-map/sensor-manager.h"
 #include "vi-map/sensor-utils.h"
@@ -377,12 +376,14 @@ bool VIMap::getEarliestMissionStartTimeNs(int64_t* start_time_ns) const {
 // TODO(mfehr): split into visual stuff and rest.
 void VIMap::getStatisticsOfMission(
     const vi_map::MissionId& mission_id,
-    std::vector<size_t>* num_good_landmarks_per_camera,
-    std::vector<size_t>* num_bad_landmarks_per_camera,
-    std::vector<size_t>* num_unknown_landmarks_per_camera,
-    std::vector<size_t>* total_num_landmarks_per_camera, size_t* num_landmarks,
-    size_t* num_vertices, size_t* num_observations, double* duration_s,
-    int64_t* start_time_ns, int64_t* end_time_ns) const {
+    const std::set<FeatureType>& feature_types,
+    std::vector<std::map<int, size_t>>* num_good_landmarks_per_camera,
+    std::vector<std::map<int, size_t>>* num_bad_landmarks_per_camera,
+    std::vector<std::map<int, size_t>>* num_unknown_landmarks_per_camera,
+    std::vector<std::map<int, size_t>>* total_num_landmarks_per_camera,
+    std::map<int, size_t>* num_landmarks,
+    std::map<int, size_t>* num_observations, size_t* num_vertices,
+    double* duration_s, int64_t* start_time_ns, int64_t* end_time_ns) const {
   CHECK_NOTNULL(num_good_landmarks_per_camera)->clear();
   CHECK_NOTNULL(num_bad_landmarks_per_camera)->clear();
   CHECK_NOTNULL(num_unknown_landmarks_per_camera)->clear();
@@ -392,53 +393,72 @@ void VIMap::getStatisticsOfMission(
   CHECK_NOTNULL(start_time_ns);
   CHECK_NOTNULL(end_time_ns);
   CHECK(mission_id.isValid());
+  CHECK_GT(feature_types.size(), 0u);
 
   const aslam::NCameraId& ncamera_id = getMission(mission_id).getNCameraId();
   CHECK(ncamera_id.isValid());
   const aslam::NCamera& ncamera =
       sensor_manager_.getSensor<aslam::NCamera>(ncamera_id);
 
-  *num_observations = 0u;
-  *num_vertices = 0u;
-  *num_landmarks = 0u;
-
   const size_t num_cameras = ncamera.numCameras();
-  num_good_landmarks_per_camera->resize(num_cameras, 0u);
-  num_bad_landmarks_per_camera->resize(num_cameras, 0u);
-  num_unknown_landmarks_per_camera->resize(num_cameras, 0u);
-  total_num_landmarks_per_camera->resize(num_cameras, 0u);
+  num_good_landmarks_per_camera->resize(num_cameras);
+  num_bad_landmarks_per_camera->resize(num_cameras);
+  num_unknown_landmarks_per_camera->resize(num_cameras);
+  total_num_landmarks_per_camera->resize(num_cameras);
+
+  for (const FeatureType& feature_type : feature_types) {
+    (*num_landmarks)[feature_type] = 0u;
+    (*num_observations)[feature_type] = 0u;
+
+    for (size_t frame_idx = 0; frame_idx < num_cameras; ++frame_idx) {
+      (*num_unknown_landmarks_per_camera)[frame_idx][feature_type] = 0;
+      (*num_bad_landmarks_per_camera)[frame_idx][feature_type] = 0;
+      (*num_good_landmarks_per_camera)[frame_idx][feature_type] = 0;
+      (*total_num_landmarks_per_camera)[frame_idx][feature_type] = 0;
+    }
+  }
 
   pose_graph::VertexIdList vertex_ids;
   getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
+  *num_vertices = vertex_ids.size();
+
   for (const pose_graph::VertexId& vertex_id : vertex_ids) {
     const vi_map::Vertex& vertex = getVertex(vertex_id);
-    ++(*num_vertices);
-    *num_landmarks += vertex.getLandmarks().size();
+    //*num_landmarks += vertex.getLandmarks().size();
     for (const vi_map::Landmark& landmark : vertex.getLandmarks()) {
       const KeypointIdentifierList& observations = landmark.getObservations();
       if (!observations.empty()) {
-        const size_t first_observation_frame_idx =
-            observations.front().frame_id.frame_index;
-        CHECK_LT(first_observation_frame_idx, num_cameras);
+        const size_t frame_idx = observations.front().frame_id.frame_index;
+        CHECK_LT(frame_idx, num_cameras);
+
+        const int feature_type = static_cast<int>(landmark.getFeatureType());
 
         if (landmark.getQuality() == vi_map::Landmark::Quality::kUnknown) {
-          ++((*num_unknown_landmarks_per_camera)[first_observation_frame_idx]);
+          ++((*num_unknown_landmarks_per_camera)[frame_idx][feature_type]);
         } else if (landmark.getQuality() == vi_map::Landmark::Quality::kBad) {
-          ++((*num_bad_landmarks_per_camera)[first_observation_frame_idx]);
+          ++((*num_bad_landmarks_per_camera)[frame_idx][feature_type]);
         } else if (landmark.getQuality() == vi_map::Landmark::Quality::kGood) {
-          ++((*num_good_landmarks_per_camera)[first_observation_frame_idx]);
+          ++((*num_good_landmarks_per_camera)[frame_idx][feature_type]);
         }
-        ++((*total_num_landmarks_per_camera)[first_observation_frame_idx]);
+
+        ++((*total_num_landmarks_per_camera)[frame_idx][feature_type]);
       }
     }
 
-    const unsigned int num_frames = vertex.numFrames();
+    /*const unsigned int num_frames = vertex.numFrames();
     for (unsigned int frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
       if (vertex.isVisualFrameSet(frame_idx) &&
           vertex.isVisualFrameValid(frame_idx)) {
         *num_observations +=
             vertex.getVisualFrame(frame_idx).getNumKeypointMeasurements();
       }
+    }*/
+  }
+
+  for (const FeatureType& feature_type : feature_types) {
+    for (size_t frame_idx = 0; frame_idx < num_cameras; ++frame_idx) {
+      (*num_landmarks)[feature_type] +=
+          (*total_num_landmarks_per_camera)[frame_idx][feature_type];
     }
   }
 
@@ -552,21 +572,27 @@ std::string VIMap::printMapStatistics(
         sensor_manager_.getSensor<aslam::NCamera>(ncamera_id);
     const size_t num_cameras = ncamera.numCameras();
 
-    std::vector<size_t> num_good_landmarks_per_camera;
-    std::vector<size_t> num_bad_landmarks_per_camera;
-    std::vector<size_t> num_unknown_landmarks_per_camera;
-    std::vector<size_t> total_num_landmarks_per_camera;
-    size_t num_landmarks = 0u;
+    std::set<FeatureType> feature_types;
+    getMissionFeatureTypes(mission_id, &feature_types);
+    for (const auto& f : feature_types) {
+      LOG(INFO) << "F: " << f;
+    }
+
+    std::vector<std::map<int, size_t>> num_good_landmarks_per_camera;
+    std::vector<std::map<int, size_t>> num_bad_landmarks_per_camera;
+    std::vector<std::map<int, size_t>> num_unknown_landmarks_per_camera;
+    std::vector<std::map<int, size_t>> total_num_landmarks_per_camera;
+    std::map<int, size_t> num_landmarks;
+    std::map<int, size_t> num_observations;
     size_t num_vertices = 0u;
-    size_t num_observations = 0u;
     double duration_s = 0.0;
     int64_t start_time_ns = 0u;
     int64_t end_time_ns = 0u;
     getStatisticsOfMission(
-        mission_id, &num_good_landmarks_per_camera,
+        mission_id, feature_types, &num_good_landmarks_per_camera,
         &num_bad_landmarks_per_camera, &num_unknown_landmarks_per_camera,
-        &total_num_landmarks_per_camera, &num_landmarks, &num_vertices,
-        &num_observations, &duration_s, &start_time_ns, &end_time_ns);
+        &total_num_landmarks_per_camera, &num_landmarks, &num_observations,
+        &num_vertices, &duration_s, &start_time_ns, &end_time_ns);
 
     CHECK_EQ(num_good_landmarks_per_camera.size(), num_cameras);
     CHECK_EQ(num_bad_landmarks_per_camera.size(), num_cameras);
@@ -574,21 +600,41 @@ std::string VIMap::printMapStatistics(
     CHECK_EQ(total_num_landmarks_per_camera.size(), num_cameras);
 
     stats_text << std::endl;
-    print_aligned("NCamera Sensor: ", ncamera_id.hexString(), 1);
+    print_aligned("NCamera Sensor:", ncamera_id.hexString(), 1);
+    print_aligned(" - Landmarks:", "", 1);
+    for (const FeatureType& feature_type : feature_types) {
+      print_aligned(
+          "     " + FeatureTypeToString(feature_type),
+          std::to_string(num_landmarks[feature_type]), 1);
+    }
 
-    print_aligned(" - Landmarks: ", std::to_string(num_landmarks), 1);
-    print_aligned(" - Observations:", std::to_string(num_observations), 1);
+    print_aligned(" - Observations:", "", 1);
+    for (const FeatureType& feature_type : feature_types) {
+      print_aligned(
+          "     " + FeatureTypeToString(feature_type),
+          std::to_string(num_observations[feature_type]), 1);
+    }
+
     print_aligned(" - Landmarks by first observer backlink:", "", 1);
     for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
-      print_aligned(
-          "   - Camera " + std::to_string(camera_idx) + ":",
-          std::to_string(total_num_landmarks_per_camera[camera_idx]) + " (g:" +
-              std::to_string(num_good_landmarks_per_camera[camera_idx]) +
-              " b:" + std::to_string(num_bad_landmarks_per_camera[camera_idx]) +
-              " u:" +
-              std::to_string(num_unknown_landmarks_per_camera[camera_idx]) +
-              ")",
-          1);
+      print_aligned("   - Camera " + std::to_string(camera_idx) + ":", "", 1);
+      for (const FeatureType& feature_type : feature_types) {
+        print_aligned(
+            "       " + FeatureTypeToString(feature_type),
+            std::to_string(
+                total_num_landmarks_per_camera[camera_idx][feature_type]) +
+                " (g:" +
+                std::to_string(
+                    num_good_landmarks_per_camera[camera_idx][feature_type]) +
+                " b:" +
+                std::to_string(
+                    num_bad_landmarks_per_camera[camera_idx][feature_type]) +
+                " u:" +
+                std::to_string(num_unknown_landmarks_per_camera[camera_idx]
+                                                               [feature_type]) +
+                ")",
+            1);
+      }
     }
   }
 
@@ -779,7 +825,7 @@ std::string VIMap::printMapAccumulatedStatistics() const {
   double total_duration_s = 0.0;
 
   for (const vi_map::MissionId& mission_id : all_missions) {
-    std::vector<size_t> num_good_landmarks_per_camera;
+    /*std::vector<size_t> num_good_landmarks_per_camera;
     std::vector<size_t> num_bad_landmarks_per_camera;
     std::vector<size_t> num_unknown_landmarks_per_camera;
     std::vector<size_t> total_num_landmarks_per_camera;
@@ -812,7 +858,7 @@ std::string VIMap::printMapAccumulatedStatistics() const {
 
     double distance_travelled;
     getDistanceTravelledPerMission(mission_id, &distance_travelled);
-    total_distance_travelled += distance_travelled;
+    total_distance_travelled += distance_travelled;*/
   }
 
   std::stringstream stats_text;
@@ -1165,13 +1211,35 @@ void VIMap::addNewLandmark(
 
 void VIMap::addNewLandmark(
     const LandmarkId& predefined_landmark_id,
-    const KeypointIdentifier& first_observation) {
+    const KeypointIdentifier& first_observation, FeatureType feature_type) {
   CHECK(!hasLandmark(predefined_landmark_id));
   vi_map::Landmark landmark;
+  landmark.setFeatureType(feature_type);
   landmark.setId(predefined_landmark_id);
   addNewLandmark(
       landmark, first_observation.frame_id.vertex_id,
       first_observation.frame_id.frame_index, first_observation.keypoint_index);
+}
+
+void VIMap::getMapFeatureTypes(std::set<FeatureType>* feature_types) const {
+  vi_map::MissionIdList all_missions;
+  getAllMissionIdsSortedByTimestamp(&all_missions);
+  for (const vi_map::MissionId& mission_id : all_missions) {
+    getMissionFeatureTypes(mission_id, feature_types);
+  }
+}
+
+void VIMap::getMissionFeatureTypes(
+    const vi_map::MissionId& mission_id,
+    std::set<FeatureType>* feature_types) const {
+  pose_graph::VertexIdList vertex_ids;
+  getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
+  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+    const LandmarkStore& landmarks = getVertex(vertex_id).getLandmarks();
+    for (const Landmark& landmark : landmarks) {
+      feature_types->emplace(landmark.getFeatureType());
+    }
+  }
 }
 
 void VIMap::associateKeypointWithExistingLandmark(

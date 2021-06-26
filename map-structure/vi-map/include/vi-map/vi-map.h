@@ -1,16 +1,6 @@
 #ifndef VI_MAP_VI_MAP_H_
 #define VI_MAP_VI_MAP_H_
 
-#include <memory>
-#include <mutex>
-#include <queue>
-#include <random>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
-#include <vector>
-
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
 #include <aslam/common/memory.h>
@@ -22,15 +12,25 @@
 #include <maplab-common/macros.h>
 #include <maplab-common/map-manager-config.h>
 #include <maplab-common/map-traits.h>
+#include <memory>
+#include <mutex>
 #include <posegraph/pose-graph.h>
 #include <posegraph/unique-id.h>
+#include <queue>
+#include <random>
 #include <sensors/absolute-6dof-pose.h>
+#include <sensors/external-features.h>
 #include <sensors/imu.h>
 #include <sensors/lidar.h>
 #include <sensors/loop-closure-sensor.h>
 #include <sensors/odometry-6dof-pose.h>
 #include <sensors/pointcloud-map-sensor.h>
 #include <sensors/wheel-odometry-sensor.h>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "vi-map/cklam-edge.h"
 #include "vi-map/landmark-index.h"
@@ -319,7 +319,8 @@ class VIMap : public backend::ResourceMap,
       unsigned int frame_index, unsigned int keypoint_index);
   void addNewLandmark(
       const LandmarkId& predefined_landmark_id,
-      const KeypointIdentifier& first_observation);
+      const KeypointIdentifier& first_observation,
+      FeatureType feature_type = kBRISK);
 
   /// Add a new observation to an existing landmark by providing information
   /// about the vertex, frame and keypoint index of the observation.
@@ -380,6 +381,11 @@ class VIMap : public backend::ResourceMap,
 
   inline void getLandmarkDescriptors(
       const LandmarkId& id, DescriptorsType* result) const;
+
+  void getMapFeatureTypes(std::set<FeatureType>* feature_types) const;
+  void getMissionFeatureTypes(
+      const vi_map::MissionId& mission_id,
+      std::set<FeatureType>* feature_types) const;
 
   /// Return a mapping from mission id to number of landmarks stored in vertices
   /// from this mission.
@@ -522,11 +528,13 @@ class VIMap : public backend::ResourceMap,
 
   void getStatisticsOfMission(
       const vi_map::MissionId& mission_id,
-      std::vector<size_t>* num_good_landmarks_per_camera,
-      std::vector<size_t>* num_bad_landmarks_per_camera,
-      std::vector<size_t>* num_unknown_landmarks_per_camera,
-      std::vector<size_t>* total_num_landmarks_per_camera,
-      size_t* num_landmarks, size_t* num_vertices, size_t* num_observations,
+      const std::set<FeatureType>& feature_types,
+      std::vector<std::map<int, size_t>>* num_good_landmarks_per_camera,
+      std::vector<std::map<int, size_t>>* num_bad_landmarks_per_camera,
+      std::vector<std::map<int, size_t>>* num_unknown_landmarks_per_camera,
+      std::vector<std::map<int, size_t>>* total_num_landmarks_per_camera,
+      std::map<int, size_t>* num_landmarks,
+      std::map<int, size_t>* num_observations, size_t* num_vertices,
       double* duration_s, int64_t* start_time, int64_t* end_time) const;
 
   std::string printMapStatistics(
@@ -725,10 +733,10 @@ class VIMap : public backend::ResourceMap,
       VIMission* mission);
 
   void deleteAllSensorResourcesBeforeTime(
-          const vi_map::MissionId& mission_id, int64_t timestamp_ns,
-          const bool delete_from_file_system);
+      const vi_map::MissionId& mission_id, int64_t timestamp_ns,
+      const bool delete_from_file_system);
   void deleteAllSensorResources(
-          const vi_map::MissionId& mission_id, const bool delete_from_file_system);
+      const vi_map::MissionId& mission_id, const bool delete_from_file_system);
 
   // Map interface (for map manager)
   // ===============================

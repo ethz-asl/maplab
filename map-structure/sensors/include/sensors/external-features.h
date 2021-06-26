@@ -17,6 +17,9 @@ enum FeatureType : int {
   kSIFT
 };
 
+std::string FeatureTypeToString(FeatureType feature_type);
+FeatureType StringToFeatureType(const std::string& feature_string);
+
 // ...
 class ExternalFeatures final : public aslam::Sensor {
  public:
