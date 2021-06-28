@@ -35,8 +35,8 @@ bool undistortPointCloud(
            static_cast<int64_t>(FLAGS_pointcloud_undistortion_ts_precision_ns)];
       indices_at_time.push_back(idx);
     } else {
-      auto& indices_at_time = times_to_indices[(static_cast<int64_t>(
-        kSecondsToNanoSeconds * cloud->times[idx])];
+      auto& indices_at_time = times_to_indices[static_cast<int64_t>(
+          kSecondsToNanoSeconds * cloud->times[idx])];
       indices_at_time.push_back(idx);
     }
   }
