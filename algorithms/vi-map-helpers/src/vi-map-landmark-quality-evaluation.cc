@@ -39,16 +39,15 @@ void evaluateLandmarkQuality(
     map->getAllLandmarkIdsInMission(mission_id, &landmark_ids);
     const size_t num_landmarks = landmark_ids.size();
 
-    VLOG(1) << "Evaluating quality of landmarks of " << num_landmarks
-            << " landmarks of mission " << mission_id.hexString();
-
     const size_t num_threads = common::getNumHardwareThreads();
     vi_map::TrackKeypointMapList outlier_track_ids_with_observations_per_thread(
         num_threads);
     const bool kAlwaysParallelize = false;
-    common::MultiThreadedProgressBar progress_bar;
-    std::function<void(const std::vector<size_t>&)> evaluator =
-        [&landmark_ids, map, &progress_bar,
+    common::MultiThreadedProgressBar detector_progress_bar;
+
+    // Detect invalid landmark observations and their respective tracks
+    std::function<void(const std::vector<size_t>&)> detector =
+        [&landmark_ids, map, &detector_progress_bar,
          &outlier_track_ids_with_observations_per_thread, &num_threads,
          kAlwaysParallelize](const std::vector<size_t>& batch) {
           const size_t num_items = landmark_ids.size();
@@ -61,7 +60,7 @@ void evaluateLandmarkQuality(
                 static_cast<double>(num_threads));
             thread_idx = batch[0] / num_items_per_block;
           }
-          progress_bar.setNumElements(batch.size());
+          detector_progress_bar.setNumElements(batch.size());
           size_t num_processed = 0u;
 
           for (size_t idx : batch) {
@@ -69,22 +68,19 @@ void evaluateLandmarkQuality(
             const vi_map::LandmarkId& landmark_id = landmark_ids[idx];
             CHECK(landmark_id.isValid());
             vi_map::Landmark& landmark = map->getLandmark(landmark_id);
-            landmark.setQuality(
-                vi_map::isLandmarkWellConstrained(
-                    *map, landmark, kEvaluateLandmarkQuality)
-                    ? vi_map::Landmark::Quality::kGood
-                    : vi_map::Landmark::Quality::kBad);
 
             findTracksOfInferiorDuplicateLandmarkObservations(
                 *map, landmark,
                 &outlier_track_ids_with_observations_per_thread[thread_idx]);
 
-            progress_bar.update(++num_processed);
+            detector_progress_bar.update(++num_processed);
           }
         };
 
+    VLOG(1) << "Removing invalid landmark observations of mission "
+            << mission_id.hexString();
     common::ParallelProcess(
-        num_landmarks, evaluator, kAlwaysParallelize, num_threads);
+        num_landmarks, detector, kAlwaysParallelize, num_threads);
 
     // Merge results from all threads
     vi_map::TrackKeypointMap outlier_track_ids_with_observations;
@@ -96,11 +92,47 @@ void evaluateLandmarkQuality(
 
     detachTracksFromLandmarks(outlier_track_ids_with_observations, map);
     vi_map::LandmarkIdList new_landmark_ids;
+
+    // Initialize new landmarks from orphan tracks
     initializeNewLandmarksFromTracks(
         outlier_track_ids_with_observations, mission_id, map,
         &new_landmark_ids);
+
+    // Triangulate the landmarks from the previous orphan tracks
     landmark_triangulation::retriangulateLandmarks(
         new_landmark_ids, mission_id, map);
+
+    vi_map::LandmarkIdList landmark_ids_after_riangulation;
+    map->getAllLandmarkIdsInMission(
+        mission_id, &landmark_ids_after_riangulation);
+    const size_t num_landmarks_after_triangulation =
+        landmark_ids_after_riangulation.size();
+    common::MultiThreadedProgressBar evaluator_progress_bar;
+    std::function<void(const std::vector<size_t>&)> evaluator =
+        [&landmark_ids_after_riangulation, map,
+         &evaluator_progress_bar](const std::vector<size_t>& batch) {
+          evaluator_progress_bar.setNumElements(batch.size());
+          size_t num_processed = 0u;
+          for (size_t idx : batch) {
+            CHECK_LT(idx, landmark_ids_after_riangulation.size());
+            const vi_map::LandmarkId& landmark_id =
+                landmark_ids_after_riangulation[idx];
+            CHECK(landmark_id.isValid());
+            vi_map::Landmark& landmark = map->getLandmark(landmark_id);
+            landmark.setQuality(
+                vi_map::isLandmarkWellConstrained(
+                    *map, landmark, kEvaluateLandmarkQuality)
+                    ? vi_map::Landmark::Quality::kGood
+                    : vi_map::Landmark::Quality::kBad);
+            evaluator_progress_bar.update(++num_processed);
+          }
+        };
+
+    VLOG(1) << "Evaluating quality of landmarks of " << num_landmarks
+            << " landmarks of mission " << mission_id.hexString();
+    common::ParallelProcess(
+        num_landmarks_after_triangulation, evaluator, kAlwaysParallelize,
+        num_threads);
   }
 }
 
@@ -168,7 +200,7 @@ void findTracksOfInferiorDuplicateLandmarkObservations(
     observations_with_track_id[keypoint] = track_id;
   }
 
-  std::vector<int> outlier_track_ids;
+  std::set<int> outlier_track_ids;
   static constexpr int kMaxNumSameLandmarkId = 1;
   for (auto it = frames_with_observations.begin();
        it != frames_with_observations.end(); ++it) {
@@ -205,12 +237,7 @@ void findTracksOfInferiorDuplicateLandmarkObservations(
       }
       // Mark the track ids of the observations with non minimal
       // reprojection error as outliers
-      if (std::find(
-              outlier_track_ids.begin(), outlier_track_ids.end(),
-              observations_with_track_id[keypoint]) ==
-          outlier_track_ids.end()) {
-        outlier_track_ids.push_back(observations_with_track_id[keypoint]);
-      }
+      outlier_track_ids.insert(observations_with_track_id[keypoint]);
     }
   }
 
