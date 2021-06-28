@@ -32,7 +32,6 @@ void evaluateLandmarkQuality(
     const vi_map::MissionIdList& mission_ids, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
   constexpr bool kEvaluateLandmarkQuality = true;
-
   for (const vi_map::MissionId& mission_id : mission_ids) {
     CHECK(map->hasMission(mission_id));
 
@@ -157,20 +156,15 @@ void findTracksOfInferiorDuplicateLandmarkObservations(
   std::unordered_map<vi_map::KeypointIdentifier, int>
       observations_with_track_id;
   for (const auto& keypoint : landmark_observations) {
-    vi_map::KeypointIdentifierList& frame_observation =
-        frames_with_observations[keypoint.frame_id];
-    frame_observation.push_back(keypoint);
+    frames_with_observations[keypoint.frame_id].emplace_back(keypoint);
     const pose_graph::VertexId& vertex_id = keypoint.frame_id.vertex_id;
     CHECK(vertex_id.isValid());
     CHECK(map.hasVertex(vertex_id));
     const vi_map::Vertex& vertex = map.getVertex(vertex_id);
     CHECK(vertex.hasVisualNFrame());
-    CHECK(vertex.getVisualFrame(keypoint.frame_id.frame_index).isValid());
     const int track_id = vertex.getVisualFrame(keypoint.frame_id.frame_index)
                              .getTrackId(keypoint.keypoint_index);
-    vi_map::KeypointIdentifierList& track_id_observations =
-        track_ids_with_observations[track_id];
-    track_id_observations.push_back(keypoint);
+    track_ids_with_observations[track_id].emplace_back(keypoint);
     observations_with_track_id[keypoint] = track_id;
   }
 
