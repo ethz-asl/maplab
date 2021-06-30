@@ -93,6 +93,7 @@ RepresentativeNodeVector LidarPartitioner::getRepresentativesForSubmap(
     // Insert a new representative node if it is not already present.
     RepresentativeNode current_node(T_M_B_vector[0], ts_pc_ns, submap_id);
     current_node.setPointCloud(pc);
+    current_node.setLocalIndex({static_cast<uint32_t>(i)});
     if (std::find(
             processed_lidar_scans.cbegin(), processed_lidar_scans.cend(),
             current_node) == processed_lidar_scans.cend()) {
