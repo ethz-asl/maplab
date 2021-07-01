@@ -890,75 +890,76 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
                      << "encountered an error!";
         }
       }
-      // Full optimization
-      ////////////////////
-      // This does not scale, and never will, so it is important that # we limit
-      // the runtime by setting the --ba_max_time_seconds flag.
-      {
-        vi_map::VIMapManager::MapWriteAccess map =
-            map_manager_.getMapWriteAccess(kMergedMapKey);
-        vi_map::MissionIdList mission_ids;
-        map->getAllMissionIds(&mission_ids);
-
-        {
-          std::lock_guard<std::mutex> merge_status_lock(
-              running_merging_process_mutex_);
-          running_merging_process_ = "optimization";
-        }
-        const vi_map::MissionIdSet missions_to_optimize(
-            mission_ids.begin(), mission_ids.end());
-        // We only want to get these once, such that if the gflags get modified
-        // later the optimization settings for the submaps remain the same.
-        map_optimization::ViProblemOptions options =
-            map_optimization::ViProblemOptions::initFromGFlags();
-
-        // Restore previous trust region.
-        if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  // NOLINT
-          // Reset the trust region if N submaps have been added in
-          // the meantime.
-          const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
-          const uint32_t num_submaps_since_reset =
-              num_submaps_merged - num_submaps_at_last_trust_region_reset;
-          const uint32_t reset_every_n =
-              FLAGS_maplab_server_reset_trust_region_radius_every_nth_submap;
-          if (reset_every_n != 0u && num_submaps_since_reset >= reset_every_n) {
-            optimization_trust_region_radius_ =
-                FLAGS_ba_initial_trust_region_radius;
-            num_submaps_at_last_trust_region_reset = num_submaps_merged;
-          }
-          options.solver_options.initial_trust_region_radius =
-              optimization_trust_region_radius_;
-        }
-
-        map_optimization::VIMapOptimizer optimizer(
-            nullptr /*no plotter for optimization*/,
-            false /*signal handler enabled*/);
-
-        map_optimization::OptimizationProblemResult result;
-        if (!optimizer.optimize(
-                options, missions_to_optimize, map.get(), &result)) {
-          LOG(ERROR) << "[MaplabServerNode] MapMerging - "
-                     << "Failure in optimization.";
-        } else {
-          if (!result.iteration_summaries.empty()) {
-            optimization_trust_region_radius_ =
-                result.iteration_summaries.back().trust_region_radius;
-          } else {
-            LOG(ERROR) << "[MaplabServerNode] Unable to extract final trust "
-                       << "region of previous global optimization iteration! "
-                       << "Setting to default value ("
-                       << FLAGS_ba_initial_trust_region_radius << ").";
-            optimization_trust_region_radius_ =
-                FLAGS_ba_initial_trust_region_radius;
-          }
-        }
-      }
     }
   }
 #else
   LOG(WARNING)
       << "Dense mapping constraints are experimental on old compilers.";
 #endif
+
+// Full optimization
+////////////////////
+// This does not scale, and never will, so it is important that # we limit
+// the runtime by setting the --ba_max_time_seconds flag.
+{
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager_.getMapWriteAccess(kMergedMapKey);
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+
+  {
+    std::lock_guard<std::mutex> merge_status_lock(
+        running_merging_process_mutex_);
+    running_merging_process_ = "optimization";
+  }
+  const vi_map::MissionIdSet missions_to_optimize(
+      mission_ids.begin(), mission_ids.end());
+  // We only want to get these once, such that if the gflags get modified
+  // later the optimization settings for the submaps remain the same.
+  map_optimization::ViProblemOptions options =
+      map_optimization::ViProblemOptions::initFromGFlags();
+
+  // Restore previous trust region.
+  if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  // NOLINT
+    // Reset the trust region if N submaps have been added in
+    // the meantime.
+    const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
+    const uint32_t num_submaps_since_reset =
+        num_submaps_merged - num_submaps_at_last_trust_region_reset;
+    const uint32_t reset_every_n =
+        FLAGS_maplab_server_reset_trust_region_radius_every_nth_submap;
+    if (reset_every_n != 0u && num_submaps_since_reset >= reset_every_n) {
+      optimization_trust_region_radius_ =
+          FLAGS_ba_initial_trust_region_radius;
+      num_submaps_at_last_trust_region_reset = num_submaps_merged;
+    }
+    options.solver_options.initial_trust_region_radius =
+        optimization_trust_region_radius_;
+  }
+
+  map_optimization::VIMapOptimizer optimizer(
+      nullptr /*no plotter for optimization*/,
+      false /*signal handler enabled*/);
+
+  map_optimization::OptimizationProblemResult result;
+  if (!optimizer.optimize(
+          options, missions_to_optimize, map.get(), &result)) {
+    LOG(ERROR) << "[MaplabServerNode] MapMerging - "
+               << "Failure in optimization.";
+  } else {
+    if (!result.iteration_summaries.empty()) {
+      optimization_trust_region_radius_ =
+          result.iteration_summaries.back().trust_region_radius;
+    } else {
+      LOG(ERROR) << "[MaplabServerNode] Unable to extract final trust "
+                 << "region of previous global optimization iteration! "
+                 << "Setting to default value ("
+                 << FLAGS_ba_initial_trust_region_radius << ").";
+      optimization_trust_region_radius_ =
+          FLAGS_ba_initial_trust_region_radius;
+    }
+  }
+}
 
 /// Sparse Graph Update.
 {
