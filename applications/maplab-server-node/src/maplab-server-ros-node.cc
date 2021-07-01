@@ -106,7 +106,7 @@ MaplabServerRosNode::MaplabServerRosNode(
       maplab_msgs::Verification::Response&)>
       verification_callback =
           boost::bind(&MaplabServerRosNode::verificationCallback, this, _1, _2);
-      map_lookup_srv_ = nh_.advertiseService("verification", verification_callback);
+  verification_srv_ = nh_.advertiseService("verification", verification_callback);
 
   boost::function<void(const transfolder_msgs::RobotSubfoldersArrayConstPtr&)>
       submap_loading_callback =
