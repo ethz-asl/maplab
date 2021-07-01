@@ -9,11 +9,10 @@
 
 namespace vi_map {
 class VIMap;
-typedef std::pair<vi_map::KeypointIdentifier, int> KeypointWithTrackId;
-typedef std::vector<KeypointWithTrackId> KeypointWithTrackIdList;
+typedef std::unordered_map<vi_map::KeypointIdentifier, int>
+    KeypointToTrackIdMap;
 typedef std::unordered_map<int, vi_map::KeypointIdentifierList>
-    TrackKeypointMap;
-typedef std::vector<TrackKeypointMap> TrackKeypointMapList;
+    TrackIdToKeypointsMap;
 }  // namespace vi_map
 
 namespace vi_map_helpers {
@@ -26,15 +25,13 @@ void evaluateLandmarkQuality(
 void resetLandmarkQualityToUnknown(
     const vi_map::MissionIdList& mission_ids, vi_map::VIMap* map);
 void findTracksOfInferiorDuplicateLandmarkObservations(
-    const vi_map::VIMap& map, const vi_map::Landmark& landmark,
-    vi_map::TrackKeypointMap* tracks_with_keypoints);
+    const vi_map::VIMap& map, const vi_map::MissionId& mission_id,
+    const vi_map::Landmark& landmark,
+    vi_map::TrackIdToKeypointsMap* track_ids_with_keypoints,
+    std::mutex* track_ids_with_keypoints_mutex);
 void detachTracksFromLandmarks(
-    const vi_map::TrackKeypointMap& tracks_with_keypoints, vi_map::VIMap* map);
-void initializeNewLandmarksFromTracks(
-    const vi_map::TrackKeypointMap& tracks_with_keypoints,
-    const vi_map::MissionId& mission_id, vi_map::VIMap* map,
-    vi_map::LandmarkIdList* new_landmark_ids);
-
+    const vi_map::TrackIdToKeypointsMap& track_ids_with_keypoints,
+    vi_map::VIMap* map);
 }  // namespace vi_map_helpers
 
 #endif  // VI_MAP_HELPERS_VI_MAP_LANDMARK_QUALITY_EVALUATION_H_
