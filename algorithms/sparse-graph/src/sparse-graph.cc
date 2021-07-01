@@ -58,7 +58,7 @@ std::size_t SparseGraph::getMissionGraphSize(const std::string& map_key) const
     noexcept {
   auto mission_it = mission_graphs_.find(map_key);
   if (mission_it == mission_graphs_.end()) {
-    LOG(WARNING) << "Unknown map key " << map_key << " provided.";
+    LOG(WARNING) << "[SparseGraph] nknown map key " << map_key << " provided.";
     return 0;
   }
   return mission_it->second.size();
@@ -151,7 +151,7 @@ std::vector<std::size_t> SparseGraph::findVertexInGraph(
     // Find submap for the id.
     const MissionGraph* mission_graph;
     if (!findMissionGraphForId(id, &mission_graph)) {
-      LOG(WARNING) << "Found no mission graph for id = " << id;
+      LOG(WARNING) << "[SparseGraph] Found no mission graph for id = " << id;
       continue;
     }
     CHECK_NOTNULL(mission_graph);
@@ -338,7 +338,7 @@ SparseGraph::getAllVerticesPerSubmap() const noexcept {
     }
     const MissionGraph* mission_graph;
     if (!findMissionGraphForId(id, &mission_graph)) {
-      LOG(WARNING) << "Found no mission graph for id = " << id;
+      LOG(WARNING) << "[SparseGraph] Found no mission graph for id = " << id;
       continue;
     }
     CHECK_NOTNULL(mission_graph);
@@ -370,7 +370,7 @@ pose_graph::VertexIdList SparseGraph::getAllMissionVertices() const noexcept {
     const uint32_t id = node.getAssociatedSubmapId();
     const MissionGraph* mission_graph;
     if (!findMissionGraphForId(id, &mission_graph)) {
-      LOG(WARNING) << "Found no mission graph for id = " << id;
+      LOG(WARNING) << "[SparseGraph] Found no mission graph for id = " << id;
       continue;
     }
     CHECK_NOTNULL(mission_graph);
@@ -507,7 +507,8 @@ void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
     const MissionGraph* mission_graph;
     std::string robot_name;
     if (!findMissionGraphForId(submap_id, &mission_graph, &robot_name)) {
-      LOG(WARNING) << "Found no mission graph for id = " << submap_id;
+      LOG(WARNING) << "[SparseGraph] Found no mission graph for id = "
+                   << submap_id;
       continue;
     }
     CHECK_NOTNULL(mission_graph);
@@ -524,8 +525,9 @@ bool SparseGraph::publishSubmap(
   CHECK_NOTNULL(map);
   const uint32_t submap_id = node.getAssociatedSubmapId();
   if (submap_id >= submap_id_) {
-    LOG(ERROR) << "Trying to publish a submap that doesn't exist (" << submap_id
-               << " vs. " << std::to_string(submap_id_) << ").";
+    LOG(ERROR)
+        << "[SparseGraph] Trying to publish a submap that doesn't exist ("
+        << submap_id << " vs. " << std::to_string(submap_id_) << ").";
     return false;
   }
   // Build the dense submap.
@@ -563,8 +565,9 @@ std::vector<RepresentativeNode> SparseGraph::getNodesForSubmap(
     const uint32_t submap_id) const {
   std::vector<RepresentativeNode> nodes;
   if (submap_id >= submap_id_) {
-    LOG(ERROR) << "Trying to operate on a submap that doesn't exist ("
-               << submap_id << " vs. " << std::to_string(submap_id_) << ").";
+    LOG(ERROR)
+        << "[SparseGraph] Trying to operate on a submap that doesn't exist ("
+        << submap_id << " vs. " << std::to_string(submap_id_) << ").";
     return nodes;
   }
 
