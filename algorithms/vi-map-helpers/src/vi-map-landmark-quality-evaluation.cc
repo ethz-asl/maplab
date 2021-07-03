@@ -45,27 +45,36 @@ void evaluateLandmarkQuality(
     const bool kAlwaysParallelize = false;
     common::MultiThreadedProgressBar progress_bar;
 
-    vi_map::TrackIdToKeypointsMap outlier_track_ids_with_observations;
-    std::mutex outlier_track_ids_mutex;
+    size_t num_bad_tracks = 0u;
+    size_t num_bad_observations = 0u;
+    std::mutex stats_counter_mutex;
 
     // Detect invalid landmark observations and their respective tracks
     std::function<void(const std::vector<size_t>&)> detector =
-        [&landmark_ids, map, &mission_id, &progress_bar,
-         &outlier_track_ids_with_observations,
-         &outlier_track_ids_mutex](const std::vector<size_t>& batch) {
+        [&landmark_ids, map, &mission_id, &progress_bar, &num_bad_tracks,
+         &num_bad_observations,
+         &stats_counter_mutex](const std::vector<size_t>& batch) {
           progress_bar.setNumElements(batch.size());
           size_t num_processed = 0u;
+          size_t thread_num_bad_tracks = 0u;
+          size_t thread_num_bad_observations = 0u;
           for (size_t idx : batch) {
             CHECK_LT(idx, landmark_ids.size());
             const vi_map::LandmarkId& landmark_id = landmark_ids[idx];
             CHECK(landmark_id.isValid());
             vi_map::Landmark& landmark = map->getLandmark(landmark_id);
 
-            findTracksOfInferiorDuplicateLandmarkObservations(
-                *map, mission_id, landmark,
-                &outlier_track_ids_with_observations, &outlier_track_ids_mutex);
+            findAndDetachInferiorQualityTracks(
+                map, mission_id, &landmark, &thread_num_bad_tracks,
+                &thread_num_bad_observations);
 
             progress_bar.update(++num_processed);
+          }
+
+          {
+            std::lock_guard<std::mutex> lock(stats_counter_mutex);
+            num_bad_tracks += thread_num_bad_tracks;
+            num_bad_observations += thread_num_bad_observations;
           }
         };
 
@@ -73,12 +82,20 @@ void evaluateLandmarkQuality(
             << mission_id.hexString();
     common::ParallelProcess(
         num_landmarks, detector, kAlwaysParallelize, num_threads);
+    VLOG(1) << "Removed " << num_bad_tracks << " bad tracks and "
+            << num_bad_observations << " observations.";
 
-    if (outlier_track_ids_with_observations.size() > 0u) {
-      detachTracksFromLandmarks(outlier_track_ids_with_observations, map);
+    if (num_bad_tracks > 0u || num_bad_observations > 0u) {
       const size_t num_new_landmarks =
           manipulation.initializeLandmarksFromUnusedFeatureTracksOfMission(
               mission_id);
+      if (num_bad_tracks != num_new_landmarks) {
+        LOG(WARNING) << "The number of detached tracks and new initialized "
+                     << "landmarks should match but doesnt' (" << num_bad_tracks
+                     << " vs " << num_new_landmarks << "). This might be ok if "
+                     << "there were other uninitialized landmarks in the map "
+                     << "for another reason.";
+      }
       landmark_triangulation::retriangulateLandmarksOfMission(mission_id, map);
     }
 
@@ -151,14 +168,22 @@ void resetLandmarkQualityToUnknown(
   }
 }
 
-void findTracksOfInferiorDuplicateLandmarkObservations(
-    const vi_map::VIMap& map, const vi_map::MissionId& mission_id,
-    const vi_map::Landmark& landmark,
-    vi_map::TrackIdToKeypointsMap* track_ids_with_keypoints,
-    std::mutex* track_ids_with_keypoints_mutex) {
-  const vi_map::KeypointIdentifierList& landmark_observations =
-      landmark.getObservations();
+void findAndDetachInferiorQualityTracks(
+    vi_map::VIMap* map, const vi_map::MissionId& mission_id,
+    vi_map::Landmark* landmark, size_t* num_bad_tracks,
+    size_t* num_bad_observations) {
+  CHECK_NOTNULL(map);
+  CHECK_NOTNULL(landmark);
+  CHECK(mission_id.isValid());
+  CHECK_NOTNULL(landmark);
+  CHECK_NOTNULL(num_bad_tracks);
+  CHECK_NOTNULL(num_bad_observations);
 
+  const vi_map::KeypointIdentifierList& landmark_observations =
+      landmark->getObservations();
+
+  // Preprocess the observations of the landmark to obtain per frame and per
+  // track information
   std::unordered_map<
       vi_map::VisualFrameIdentifier, vi_map::KeypointIdentifierList>
       frames_with_observations;
@@ -167,7 +192,9 @@ void findTracksOfInferiorDuplicateLandmarkObservations(
   for (const auto& keypoint : landmark_observations) {
     const pose_graph::VertexId& vertex_id = keypoint.frame_id.vertex_id;
     CHECK(vertex_id.isValid());
-    const vi_map::Vertex& vertex = map.getVertex(vertex_id);
+    const vi_map::Vertex& vertex = map->getVertex(vertex_id);
+
+    // We only care about observations for a specific mission
     if (vertex.getMissionId() != mission_id) {
       continue;
     }
@@ -177,8 +204,13 @@ void findTracksOfInferiorDuplicateLandmarkObservations(
                              .getTrackId(keypoint.keypoint_index);
 
     frames_with_observations[keypoint.frame_id].emplace_back(keypoint);
-    track_id_to_observations[track_id].emplace_back(keypoint);
     observation_to_track_id[keypoint] = track_id;
+
+    // Only store information for keypoints that have a valid track id since if
+    // they are bad then the whole track needs to be detached from the landmark
+    if (track_id != -1) {
+      track_id_to_observations[track_id].emplace_back(keypoint);
+    }
   }
 
   std::unordered_set<int> outlier_track_ids;
@@ -186,14 +218,13 @@ void findTracksOfInferiorDuplicateLandmarkObservations(
   for (auto it = frames_with_observations.begin();
        it != frames_with_observations.end(); ++it) {
     // If the landmark is only observed once nothing has to be done.
-
     if (it->second.size() <= kMaxNumSameLandmarkId) {
       continue;
     }
 
-    const vi_map::Vertex& vertex = map.getVertex(it->first.vertex_id);
+    const vi_map::Vertex& vertex = map->getVertex(it->first.vertex_id);
     const Eigen::Vector3d& p_C_fi =
-        map.getLandmark_p_C_fi(landmark.id(), vertex, it->first.frame_index);
+        map->getLandmark_p_C_fi(landmark->id(), vertex, it->first.frame_index);
 
     vi_map::KeypointIdentifier min_error_keypoint;
 
@@ -218,42 +249,36 @@ void findTracksOfInferiorDuplicateLandmarkObservations(
         continue;
       }
 
-      // Mark the track ids of the observations with non minimal
-      // reprojection error as outliers
-      outlier_track_ids.insert(observation_to_track_id[keypoint]);
-    }
-  }
+      // The removal here can be parallelized since each track belongs only
+      // to one landmark and there is no collisions with other threads
+      const int track_id = observation_to_track_id[keypoint];
+      if (track_id == -1) {
+        vi_map::Vertex& keypoint_vertex =
+            map->getVertex(keypoint.frame_id.vertex_id);
+        landmark->removeObservation(keypoint);
+        keypoint_vertex.setObservedLandmarkId(keypoint, vi_map::LandmarkId());
+        ++(*num_bad_observations);
+      } else {
+        if (outlier_track_ids.count(track_id) > 0u) {
+          continue;
+        }
 
-  // Store the outlier track ids with the respective observations
-  {
-    std::lock_guard<std::mutex> lock(*track_ids_with_keypoints_mutex);
-    for (const int outlier_track_id : outlier_track_ids) {
-      track_ids_with_keypoints->emplace(
-          outlier_track_id, track_id_to_observations[outlier_track_id]);
-    }
-  }
-}
+        const vi_map::KeypointIdentifierList& outlier_keypoints =
+            track_id_to_observations[track_id];
+        for (const vi_map::KeypointIdentifier& keypoint : outlier_keypoints) {
+          vi_map::Vertex& keypoint_vertex =
+              map->getVertex(keypoint.frame_id.vertex_id);
+          landmark->removeObservation(keypoint);
+          keypoint_vertex.setObservedLandmarkId(keypoint, vi_map::LandmarkId());
+          ++(*num_bad_observations);
+        }
 
-void detachTracksFromLandmarks(
-    const vi_map::TrackIdToKeypointsMap& track_ids_with_keypoints,
-    vi_map::VIMap* map) {
-  // Remove all observations from the landmark and set their
-  // observed landmark invalid
-  static const vi_map::LandmarkId invalid_landmark_id;
-  for (auto it = track_ids_with_keypoints.begin();
-       it != track_ids_with_keypoints.end(); ++it) {
-    for (const auto& keypoint : it->second) {
-      const pose_graph::VertexId& vertex_id = keypoint.frame_id.vertex_id;
-      CHECK(vertex_id.isValid());
-      CHECK(map->hasVertex(vertex_id));
-      vi_map::Vertex& vertex = map->getVertex(vertex_id);
-      const vi_map::LandmarkId previously_observed_landmark_id =
-          vertex.getObservedLandmarkId(keypoint);
-      vi_map::Landmark& previously_observed_landmark =
-          map->getLandmark(previously_observed_landmark_id);
-      previously_observed_landmark.removeObservation(keypoint);
-      vertex.setObservedLandmarkId(keypoint, invalid_landmark_id);
-      CHECK(!previously_observed_landmark.hasObservation(keypoint));
+        ++(*num_bad_tracks);
+
+        // Mark this track as already processed so that if another observation
+        // with the same track id would cause a removal it will be skipped
+        outlier_track_ids.insert(track_id);
+      }
     }
   }
 }
