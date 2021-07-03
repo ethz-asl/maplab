@@ -13,8 +13,8 @@
 namespace vi_map {
 
 enum FeatureType : int {
-  kBRISK,
-  kSIFT
+  kBRISK = 0,
+  kSIFT = 1
 };
 
 std::string FeatureTypeToString(FeatureType feature_type);

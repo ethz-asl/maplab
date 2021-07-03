@@ -1,23 +1,22 @@
 #include "visualization/viwls-graph-plotter.h"
 
+#include <algorithm>
 #include <aslam/common/memory.h>
 #include <aslam/common/time.h>
+#include <functional>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <limits>
 #include <maplab-common/parallel-process.h>
 #include <sensors/sensor-types.h>
+#include <string>
 #include <tf/tf.h>
 #include <tf/transform_broadcaster.h>
+#include <unordered_map>
+#include <unordered_set>
 #include <vi-map/vertex.h>
 #include <vi-map/viwls-edge.h>
 #include <visualization_msgs/MarkerArray.h>
-
-#include <algorithm>
-#include <functional>
-#include <limits>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
 
 #include "visualization/color-palette.h"
 #include "visualization/color.h"
@@ -27,6 +26,8 @@
 DEFINE_bool(
     vis_color_by_mission, true,
     "Color landmarks and pose-graph edges by mission.");
+DEFINE_bool(
+    vis_color_by_landmark_type, false, "Color landmarks by feature type");
 DEFINE_bool(
     vis_color_mission_with_unknown_baseframe_transformation, true,
     "Whether or not to color missions with unknown baseframe transformation.");
@@ -796,6 +797,9 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
                 (sphere.position(2) + FLAGS_vis_color_by_height_offset_m) /
                 FLAGS_vis_color_by_height_period_m);
         sphere.color = getPaletteColor(color_index, palette);
+      } else if (FLAGS_vis_color_by_landmark_type) {
+        const size_t index = FLAGS_vis_color_salt * landmark.getFeatureType();
+        sphere.color = getPaletteColor(index, palette);
       } else if (FLAGS_vis_color_by_mission) {
         const vi_map::VIMission& mission =
             map.getMission(vertex.getMissionId());
