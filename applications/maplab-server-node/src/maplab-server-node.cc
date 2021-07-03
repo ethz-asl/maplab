@@ -118,6 +118,11 @@ DEFINE_bool(
     "within and "
     "across missions.");
 
+DEFINE_double(
+    maplab_server_min_distance_m_before_llc, 1.,
+    "If greater than 0, lidar loop closure is only performed for missions with"
+    "max distance larger than this.");
+
 DEFINE_int32(
     maplab_server_perform_global_admc_every_nth, -1,
     "If enabled, the global LiDAR LC search will be performed every nth map "
@@ -882,12 +887,24 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
           running_merging_process_ = "lidar loop closure";
         }
 
-        const dense_mapping::Config config =
-            dense_mapping::Config::fromGflags();
-        if (!dense_mapping::addDenseMappingConstraintsToMap(
-                config, mission_ids, map.get())) {
-          LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
-                     << "encountered an error!";
+        vi_map::MissionIdList mission_ids_for_llc;
+        if (FLAGS_maplab_server_min_distance_m_before_llc > 0.0) {
+          for (const vi_map::MissionId& mission_id : mission_ids) {
+            if (map.get()->isMaxDistanceLargerThan(
+                    mission_id,
+                    FLAGS_maplab_server_min_distance_m_before_llc)) {
+              mission_ids_for_llc.emplace_back(mission_id);
+            }
+          }
+        }
+        if (!mission_ids_for_llc.empty()) {
+          const dense_mapping::Config config =
+              dense_mapping::Config::fromGflags();
+          if (!dense_mapping::addDenseMappingConstraintsToMap(
+                  config, mission_ids_for_llc, map.get())) {
+            LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                       << "encountered an error!";
+          }
         }
       }
     }
@@ -1517,6 +1534,25 @@ void MaplabServerNode::runSubmapProcessing(
     map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
   }
 
+  // Submap Optimization
+  //////////////////////
+  {
+    {
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] = "optimization";
+    }
+    const vi_map::MissionIdSet missions_to_optimize(
+        missions_to_process.begin(), missions_to_process.end());
+    // We only want to get these once, such that if the gflags get modified
+    // later the optimization settings for the submaps remain the same.
+    map_optimization::ViProblemOptions options =
+        map_optimization::ViProblemOptions::initFromGFlags();
+    map_optimization::VIMapOptimizer optimizer(
+        nullptr /*no plotter for optimization*/,
+        false /*signal handler enabled*/);
+    optimizer.optimize(options, missions_to_optimize, map.get());
+  }
+
   // Lidar local constraints/loop closure
   ///////////////////////////////////////
   // Searches for nearby dense map data (e.g. lidar scans) within the submap
@@ -1528,12 +1564,18 @@ void MaplabServerNode::runSubmapProcessing(
       std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
       running_submap_process_[submap_process.map_hash] = "lidar loop closure";
     }
-
-    const dense_mapping::Config config = dense_mapping::Config::fromGflags();
-    if (!dense_mapping::addDenseMappingConstraintsToMap(
-            config, missions_to_process, map.get())) {
-      LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
-                 << "encountered an error!";
+    bool perform_llc = true;
+    if (FLAGS_maplab_server_min_distance_m_before_llc > 0.0) {
+      perform_llc = map.get()->isMaxDistanceLargerThan(
+          submap_mission_id, FLAGS_maplab_server_min_distance_m_before_llc);
+    }
+    if (perform_llc) {
+      const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+      if (!dense_mapping::addDenseMappingConstraintsToMap(
+              config, missions_to_process, map.get())) {
+        LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                   << "encountered an error!";
+      }
     }
   }
 #endif
