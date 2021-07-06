@@ -253,7 +253,8 @@ void VIMappingTestApp::addCorruptDuplicateLandmarkObservations(int every_nth) {
     const vi_map::KeypointIdentifierList& landmark_observations =
         landmark.getObservations();
     for (const auto& keypoint : landmark_observations) {
-      const pose_graph::VertexId& vertex_id = keypoint.frame_id.vertex_id;
+      const pose_graph::VertexId vertex_id = keypoint.frame_id.vertex_id;
+      const pose_graph::VertexId& vertex_id_bu = keypoint.frame_id.vertex_id;
       if (index % every_nth != 0 || !keypoint.isValid() ||
           !vertex_id.isValid()) {
         ++index;
@@ -279,8 +280,8 @@ void VIMappingTestApp::addCorruptDuplicateLandmarkObservations(int every_nth) {
           corrupted_keypoint, 2, &frame);
       vertex.addObservedLandmarkId(frame_idx, landmark_id);
 
+      CHECK_EQ(vertex_id, vertex_id_bu);
       landmark.addObservation(vertex_id, frame_idx, corrupted_keypoint_idx);
-
       ++index;
     }
   }
