@@ -2,6 +2,7 @@
 
 #include <random>
 
+#include <aslam/tracker/tracking-helpers.h>
 #include <gtest/gtest.h>
 #include <map-manager/map-manager.h>
 #include <maplab-common/test/testing-predicates.h>
@@ -231,6 +232,56 @@ void VIMappingTestApp::corruptCameraExtrinsics(
       Eigen::Quaterniond q_noise(1, q_dis(gen), q_dis(gen), q_dis(gen));
       q_noise.normalize();
       T_C_B.getRotation().toImplementation() *= q_noise;
+    }
+  }
+}
+
+void VIMappingTestApp::addCorruptDuplicateLandmarkObservations(int every_nth) {
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(map_key_);
+
+  // Get set of first two vertices that shouldn't be corrupted.
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+  pose_graph::VertexIdSet not_to_corrupt_vertices;
+  vi_map::LandmarkIdSet landmark_ids;
+  map->getAllLandmarkIds(&landmark_ids);
+  int index = 0;
+  for (const vi_map::LandmarkId& landmark_id : landmark_ids) {
+    vi_map::Landmark& landmark = map->getLandmark(landmark_id);
+    const vi_map::KeypointIdentifierList& landmark_observations =
+        landmark.getObservations();
+    for (const auto& keypoint : landmark_observations) {
+      const pose_graph::VertexId& vertex_id = keypoint.frame_id.vertex_id;
+      if (index % every_nth != 0 || !keypoint.isValid() ||
+          !vertex_id.isValid()) {
+        ++index;
+        continue;
+      }
+
+      CHECK(map->hasVertex(vertex_id));
+      vi_map::Vertex& vertex = map->getVertex(vertex_id);
+      const unsigned int frame_idx =
+          static_cast<unsigned int>(keypoint.frame_id.frame_index);
+      aslam::VisualFrame& frame = vertex.getVisualFrame(frame_idx);
+
+      const Eigen::Vector2d observation_point =
+          frame.getKeypointMeasurement(keypoint.keypoint_index);
+      const Eigen::Vector2d noise(10, 10);
+      const Eigen::Vector2d corrupted_point = observation_point + noise;
+
+      Eigen::Matrix2Xd corrupted_keypoint(2, 1);
+      corrupted_keypoint.col(0) = observation_point + noise;
+      const unsigned int corrupted_keypoint_idx =
+          static_cast<unsigned int>(frame.getNumKeypointMeasurements());
+      aslam::insertAdditionalKeypointsToVisualFrame(
+          corrupted_keypoint, 2, &frame);
+      vertex.addObservedLandmarkId(frame_idx, landmark_id);
+
+      landmark.addObservation(vertex_id, frame_idx, corrupted_keypoint_idx);
+
+      ++index;
     }
   }
 }
