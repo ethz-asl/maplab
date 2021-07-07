@@ -46,7 +46,7 @@ void SparseGraph::compute(
 void SparseGraph::publishLatestGraph(const vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
 
-  publishGraphForVisualization();
+  // publishGraphForVisualization();
   publishGraphForBuilding();
   publishTrajecotryForEvaluation();
   publishNewSubmaps(map);
@@ -58,7 +58,7 @@ std::size_t SparseGraph::getMissionGraphSize(const std::string& map_key) const
     noexcept {
   auto mission_it = mission_graphs_.find(map_key);
   if (mission_it == mission_graphs_.end()) {
-    LOG(WARNING) << "[SparseGraph] nknown map key " << map_key << " provided.";
+    LOG(WARNING) << "[SparseGraph] Unknown map key " << map_key << " provided.";
     return 0;
   }
   return mission_it->second.size();
@@ -77,8 +77,10 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
   const double search_radius = 6.0;
 
   // Create LC edge map.
+  /*
   std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>> lc_edges =
       computeLoopClosureEdgeMap(map);
+      */
 
   // Iterate over the sparse graph.
   for (std::size_t i = 0u; i < n_nodes; ++i) {
@@ -99,17 +101,17 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
           continue;
         }
         const double w_d = computeDistanceBetweenNodes(i, j);
-        const double w_c = computeCoObservability(map, i, j);
-        const double w_l = computeLoopClosureEdgeWeight(lc_edges, i, j);
+        // const double w_c = computeCoObservability(map, i, j);
+        // const double w_l = computeLoopClosureEdgeWeight(lc_edges, i, j);
 
         // Ensure that the weights are normalized.
         CHECK(w_d >= 0.0 && w_d <= 1.0);
-        CHECK(w_c >= 0.0 && w_c <= 1.0);
-        CHECK(w_l >= 0.0 && w_l <= 1.0);
+        // CHECK(w_c >= 0.0 && w_c <= 1.0);
+        // CHECK(w_l >= 0.0 && w_l <= 1.0);
 
         // Set the weights for the adjacency
         // which is a symmetric and undirected adjacency matrix.
-        adjacency_matrix_(i, j) = w_d + w_c + w_l;
+        adjacency_matrix_(i, j) = w_d;
         adjacency_matrix_(j, i) = adjacency_matrix_(i, j);
       }
     }
@@ -432,7 +434,7 @@ void SparseGraph::publishGraphForBuilding() const {
     }
   }
 
-  graph_msg.header.stamp = ros::Time::now();
+  graph_msg.header.stamp = ts_ros;
   graph_msg.header.seq = pub_seq_;
   visualization::RVizVisualizationSink::publish(
       "sparse_graph/graph", graph_msg);
@@ -463,7 +465,7 @@ void SparseGraph::publishTrajecotryForEvaluation() const {
     traj_msg.nodes.emplace_back(node_msg);
   }
 
-  traj_msg.header.stamp = ros::Time::now();
+  traj_msg.header.stamp = ts_ros;
   traj_msg.header.seq = pub_seq_;
   visualization::RVizVisualizationSink::publish(
       "sparse_graph/trajectory", traj_msg);
@@ -485,7 +487,7 @@ void SparseGraph::publishGraphForVisualization() const {
     node_msg.header.seq = node.getAssociatedSubmapId();
     graph_msg.poses.emplace_back(node_msg);
   }
-  graph_msg.header.stamp = ros::Time::now();
+  graph_msg.header.stamp = ts_ros;
   graph_msg.header.seq = pub_seq_;
   visualization::RVizVisualizationSink::publish(
       "sparse_graph/viz_graph", graph_msg);
@@ -539,6 +541,7 @@ bool SparseGraph::publishSubmap(
   std::vector<maplab_msgs::DenseNode> dense_nodes =
       map_builder.buildMapFromNodes(nodes, mission_id);
   if (dense_nodes.empty()) {
+    // LOG(ERROR) << "Dense nodes are empty";
     return false;
   }
   maplab_msgs::Submap submap_msg;
@@ -547,7 +550,6 @@ bool SparseGraph::publishSubmap(
   submap_msg.robot_name = robot_name;
   submap_msg.id = submap_id;
   submap_msg.nodes = dense_nodes;
-  submap_msg.mission_id = mission_id.shortHex();
 
   visualization::RVizVisualizationSink::publish(
       "sparse_graph/submap", submap_msg);
