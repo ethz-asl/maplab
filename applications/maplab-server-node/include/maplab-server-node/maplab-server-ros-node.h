@@ -75,6 +75,8 @@ class MaplabServerRosNode {
 
   void visualizeMap();
 
+  void triggerSparseGraphUpdate(const ros::TimerEvent& event);
+
  private:
   // ROS stuff.
   ros::NodeHandle nh_;
@@ -109,6 +111,9 @@ class MaplabServerRosNode {
   // to returning them by service. This is mainly for introspection such that
   // the operator can see whether the query makes sense.
   ros::Publisher dense_map_query_result_;
+
+  ros::Timer sparse_graph_timer_;
+  ros::Duration time_between_sparse_graph_update_requests_;
 };
 
 }  // namespace maplab

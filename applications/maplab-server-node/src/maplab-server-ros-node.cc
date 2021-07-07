@@ -48,6 +48,10 @@ DEFINE_string(
     "Topic on which the map update notification message is received, it "
     "contains the robot name and the map folder of the new map update.");
 
+DEFINE_double(
+    maplab_server_trigger_sparse_graph_update_every_s, 20,
+    "Time between sparse graph update requests.");
+
 namespace maplab {
 
 MaplabServerRosNode::MaplabServerRosNode()
@@ -106,7 +110,8 @@ MaplabServerRosNode::MaplabServerRosNode(
       maplab_msgs::Verification::Response&)>
       verification_callback =
           boost::bind(&MaplabServerRosNode::verificationCallback, this, _1, _2);
-  verification_srv_ = nh_.advertiseService("verification", verification_callback);
+  verification_srv_ =
+      nh_.advertiseService("verification", verification_callback);
 
   boost::function<void(const transfolder_msgs::RobotSubfoldersArrayConstPtr&)>
       submap_loading_callback =
@@ -132,6 +137,15 @@ MaplabServerRosNode::MaplabServerRosNode(
 
   dense_map_query_result_ =
       nh_.advertise<sensor_msgs::PointCloud2>("dense_map_query_result", 1);
+
+  CHECK_GT(FLAGS_maplab_server_trigger_sparse_graph_update_every_s, 0.0);
+  time_between_sparse_graph_update_requests_ =
+      ros::Duration(FLAGS_maplab_server_trigger_sparse_graph_update_every_s);
+  boost::function<void(const ros::TimerEvent&)> sparse_graph_timer_callback =
+      boost::bind(&MaplabServerRosNode::triggerSparseGraphUpdate, this, _1);
+  sparse_graph_timer_ = nh_.createTimer(
+      ros::Duration(time_between_sparse_graph_update_requests_),
+      sparse_graph_timer_callback);
 
   maplab_server_node_->registerStatusCallback(
       [this](const std::string status_string) {
@@ -407,6 +421,19 @@ void MaplabServerRosNode::visualizeMap() {
   CHECK_NOTNULL(maplab_server_node_);
   LOG(INFO) << "[MaplabServerRosNode] Visualizing merged map.";
   maplab_server_node_->visualizeMap();
+}
+
+void MaplabServerRosNode::triggerSparseGraphUpdate(
+    const ros::TimerEvent& event) {
+  CHECK_NOTNULL(maplab_server_node_);
+  LOG(INFO) << "[MaplabServerRosNode] Trigger Sparse Graph Update.";
+  if (maplab_server_node_->computeSparseGraph()) {
+    LOG(INFO) << "[MaplabServerRosNode] Updated Sparse Graph.";
+  } else {
+    LOG(INFO) << "[MaplabServerRosNode] No Sparse Graph Update available.";
+  }
+  sparse_graph_timer_.setPeriod(
+      ros::Duration(time_between_sparse_graph_update_requests_), true);
 }
 
 }  // namespace maplab

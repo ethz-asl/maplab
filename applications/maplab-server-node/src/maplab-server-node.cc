@@ -150,6 +150,7 @@ MaplabServerNode::MaplabServerNode()
       total_num_merged_submaps_(0u),
       time_of_last_map_backup_s_(0.0),
       is_running_(false),
+      update_sparse_graph_(false),
       initial_map_path_(FLAGS_maplab_server_initial_map_path) {
   if (!FLAGS_ros_free) {
     visualization::RVizVisualizationSink::init();
@@ -976,39 +977,6 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
           FLAGS_ba_initial_trust_region_radius;
     }
   }
-}
-
-/// Sparse Graph Update.
-{
-  vi_map::VIMapManager::MapReadAccess map_read =
-      map_manager_.getMapReadAccess(kMergedMapKey);
-  {
-    std::lock_guard<std::mutex> merge_status_lock(
-        running_merging_process_mutex_);
-    running_merging_process_ = "Computing sparse graph.";
-  }
-  // Sparsify the graph and get latest estimations.
-  const vi_map::VIMap* cmap = CHECK_NOTNULL(map_read.get());
-  spg::LidarPartitioner partitioner(*cmap);
-
-  // Sparsify the graph and get latest estimations.
-  sparsified_graph_.compute(cmap, &partitioner);
-  sparsified_graph_.computeAdjacencyMatrix(cmap);
-}
-
-{
-  {
-    std::lock_guard<std::mutex> merge_status_lock(
-        running_merging_process_mutex_);
-    running_merging_process_ = "Publish sparse graph";
-  }
-
-  vi_map::VIMapManager::MapReadAccess map_read =
-      map_manager_.getMapReadAccess(kMergedMapKey);
-  const vi_map::VIMap* cmap = CHECK_NOTNULL(map_read.get());
-
-  sparsified_graph_.publishLatestGraph(cmap);
-  sparsified_graph_.writeResultsToFile();
 }
 
   // Reset merging thread status.
@@ -2031,6 +1999,7 @@ void MaplabServerNode::replacePublicMap() {
     public_map.get()->deepCopy(map_manager_.getMap(kMergedMapKey));
     public_map_manager_.addMap(kMergedMapPublicKey, public_map);
   }
+  update_sparse_graph_ = true;
 }
 
 MaplabServerNode::RobotMissionInformation::RobotMissionInformation(
@@ -2150,7 +2119,7 @@ MaplabServerNode::VerificationStatus MaplabServerNode::verifySubmap(
 
   // Get all mission IDs.
   vi_map::VIMapManager::MapWriteAccess map =
-      map_manager_.getMapWriteAccess(kMergedMapKey);
+      map_manager_.getMapWriteAccess(kMergedMapPublicKey);
   vi_map::MissionIdList mission_ids;
   map->getAllMissionIds(&mission_ids);
 
@@ -2181,6 +2150,28 @@ MaplabServerNode::VerificationStatus MaplabServerNode::verifySubmap(
   }
   */
   return VerificationStatus::kSuccess;
+}
+
+bool MaplabServerNode::computeSparseGraph() {
+  if (!update_sparse_graph_.load()) {
+    return false;
+  }
+  update_sparse_graph_ = false;
+  /// Sparse Graph Update.
+  vi_map::VIMapManager::MapReadAccess map_read =
+      map_manager_.getMapReadAccess(kMergedMapPublicKey);
+
+  // Sparsify the graph and get latest estimations.
+  const vi_map::VIMap* cmap = CHECK_NOTNULL(map_read.get());
+  spg::LidarPartitioner partitioner(*cmap);
+
+  // Sparsify the graph and get latest estimations.
+  sparsified_graph_.compute(cmap, &partitioner);
+  sparsified_graph_.computeAdjacencyMatrix(cmap);
+
+  sparsified_graph_.publishLatestGraph(cmap);
+  sparsified_graph_.writeResultsToFile();
+  return true;
 }
 
 }  // namespace maplab

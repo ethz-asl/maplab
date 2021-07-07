@@ -102,6 +102,8 @@ class MaplabServerNode final {
       const Eigen::Vector3d& center_G, const double radius_m,
       resources::PointCloud* point_cloud_G);
 
+  bool computeSparseGraph();
+
   enum class VerificationStatus : int {
     kFailure = -1,
     kSuccess = 0,
@@ -233,6 +235,7 @@ class MaplabServerNode final {
   std::atomic<double> optimization_trust_region_radius_;
   // Keep strack of the total number of merged submaps into the global map.
   std::atomic<uint32_t> total_num_merged_submaps_;
+  std::atomic<bool> update_sparse_graph_;
 
   // Server status and map management variables
   // Accessed by all threads to map between robot names and missions.
