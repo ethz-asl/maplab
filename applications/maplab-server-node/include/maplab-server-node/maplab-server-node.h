@@ -183,8 +183,12 @@ class MaplabServerNode final {
     // server. This correction can then be used to coorect any poses that were
     // expressed in the odometry frame that was used to build the map
     // initially.
-    std::map<int64_t, aslam::Transformation> T_M_B_submaps_input;
-    std::map<int64_t, aslam::Transformation> T_G_M_submaps_input;
+    std::unordered_map<
+        vi_map::MissionId, std::map<int64_t, aslam::Transformation>>
+        T_M_B_submaps_input;
+    std::unordered_map<
+        vi_map::MissionId, std::map<int64_t, aslam::Transformation>>
+        T_G_M_submaps_input;
 
     std::unordered_map<vi_map::MissionId, std::vector<std::string>>
         mission_ids_to_submap_keys;

@@ -567,7 +567,17 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
         << "[MaplabServerNode] Received map lookup with empty robot name!";
     return MapLookupStatus::kNoSuchMission;
   }
+  if (timestamp_ns < 0) {
+    LOG(WARNING)
+        << "[MaplabServerNode] Received map lookup with invalid timestamp: "
+        << timestamp_ns << "ns";
+    return MapLookupStatus::kPoseNeverAvailable;
+  }
+
   vi_map::MissionId submap_mission_id;
+  const landmark_triangulation::PoseInterpolator pose_interpolator;
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager_.getMapReadAccess(kMergedMapPublicKey);
   {
     std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
     if (robot_to_mission_id_map_.count(robot_name) == 0u) {
@@ -580,127 +590,129 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
     const RobotMissionInformation& robot_info =
         robot_to_mission_id_map_.at(robot_name);
 
-    submap_mission_id =
-        robot_info.mission_ids_with_baseframe_status.front().first;
-
-    if (!submap_mission_id.isValid()) {
-      LOG(ERROR)
-          << "[MaplabServerNode] Received map lookup with valid robot name ("
-          << robot_name
-          << "), but an invalid mission id is associated with it!";
+    bool mission_found = false;
+    for (auto& mission_info : robot_info.mission_ids_with_baseframe_status) {
+      submap_mission_id = mission_info.first;
+      if (!submap_mission_id.isValid()) {
+        continue;
+      }
+      landmark_triangulation::VertexToTimeStampMap vertex_to_time_map;
+      int64_t min_timestamp_ns;
+      int64_t max_timestamp_ns;
+      pose_interpolator.getVertexToTimeStampMap(
+          *map, submap_mission_id, &vertex_to_time_map, &min_timestamp_ns,
+          &max_timestamp_ns);
+      if (timestamp_ns > max_timestamp_ns) {
+        if (submap_mission_id ==
+            robot_info.mission_ids_with_baseframe_status.front().first) {
+          LOG(WARNING) << "[MaplabServerNode] Received map lookup with "
+                          "timestamp that is not yet available: "
+                       << aslam::time::timeNanosecondsToString(timestamp_ns)
+                       << " - most recent map time: "
+                       << aslam::time::timeNanosecondsToString(
+                              max_timestamp_ns);
+          return MapLookupStatus::kPoseNotAvailableYet;
+        }
+      } else if (timestamp_ns < min_timestamp_ns) {
+        if (submap_mission_id ==
+            robot_info.mission_ids_with_baseframe_status.back().first) {
+          LOG(WARNING)
+              << "[MaplabServerNode] Received map lookup with "
+                 "timestamp that is before the selected robot mission, this "
+                 "position will never be available: "
+              << aslam::time::timeNanosecondsToString(timestamp_ns)
+              << " - earliest map time: "
+              << aslam::time::timeNanosecondsToString(min_timestamp_ns);
+          return MapLookupStatus::kPoseNeverAvailable;
+        }
+      } else {
+        mission_found = true;
+        break;
+      }
+    }
+    if (!mission_found) {
+      LOG(ERROR) << "[MaplabServerNode] Received map lookup with valid robot "
+                 << "name (" << robot_name
+                 << "), but no valid mission that contains timestamp: "
+                 << aslam::time::timeNanosecondsToString(timestamp_ns);
       return MapLookupStatus::kNoSuchMission;
     }
-  }
-
-  if (timestamp_ns < 0) {
-    LOG(WARNING)
-        << "[MaplabServerNode] Received map lookup with invalid timestamp: "
-        << timestamp_ns << "ns";
-    return MapLookupStatus::kPoseNeverAvailable;
   }
 
   CHECK(submap_mission_id.isValid());
-  {
-    vi_map::VIMapManager::MapReadAccess map =
-        map_manager_.getMapReadAccess(kMergedMapPublicKey);
 
-    if (!map->hasMission(submap_mission_id)) {
-      LOG(ERROR)
-          << "[MaplabServerNode] Received map lookup with valid robot name ("
-          << robot_name
-          << "), but a mission id is associated with it that is not part of "
-          << "the map (yet)!";
-      return MapLookupStatus::kNoSuchMission;
-    }
+  if (!map->hasMission(submap_mission_id)) {
+    LOG(ERROR)
+        << "[MaplabServerNode] Received map lookup with valid robot name ("
+        << robot_name
+        << "), but a mission id is associated with it that is not part of "
+        << "the map (yet)!";
+    return MapLookupStatus::kNoSuchMission;
+  }
 
-    const vi_map::VIMission& mission = map->getMission(submap_mission_id);
+  const vi_map::VIMission& mission = map->getMission(submap_mission_id);
 
-    aslam::SensorId sensor_id;
-    if (sensor_type == vi_map::SensorType::kNCamera) {
-      if (!mission.hasNCamera()) {
-        LOG(WARNING) << "[MaplabServerNode] Received map lookup with NCamera "
-                     << "sensor, but there is no such sensor in the map!";
-        return MapLookupStatus::kNoSuchSensor;
-      }
-      sensor_id = mission.getNCameraId();
-    } else if (sensor_type == vi_map::SensorType::kImu) {
-      if (!mission.hasImu()) {
-        LOG(WARNING) << "[MaplabServerNode] Received map lookup with IMU "
-                     << "sensor, but there is no such sensor in the map!";
-        return MapLookupStatus::kNoSuchSensor;
-      }
-      sensor_id = mission.getImuId();
-    } else if (sensor_type == vi_map::SensorType::kLidar) {
-      if (!mission.hasLidar()) {
-        LOG(WARNING) << "[MaplabServerNode] Received map lookup with Lidar "
-                     << "sensor, but there is no such sensor in the map!";
-        return MapLookupStatus::kNoSuchSensor;
-      }
-      sensor_id = mission.getLidarId();
-    } else if (sensor_type == vi_map::SensorType::kOdometry6DoF) {
-      if (!mission.hasOdometry6DoFSensor()) {
-        LOG(WARNING) << "[MaplabServerNode] Received map lookup with Odometry "
-                     << "sensor, but there is no such sensor in the map!";
-        return MapLookupStatus::kNoSuchSensor;
-      }
-      sensor_id = mission.getOdometry6DoFSensor();
-    } else if (sensor_type == vi_map::SensorType::kPointCloudMapSensor) {
-      if (!mission.hasPointCloudMap()) {
-        LOG(WARNING) << "[MaplabServerNode] Received map lookup with "
-                     << "PointCloudMap sensor, but there is no such sensor"
-                     << "in the map!";
-        return MapLookupStatus::kNoSuchSensor;
-      }
-      sensor_id = mission.getPointCloudMapSensorId();
-    } else {
-      LOG(WARNING)
-          << "[MaplabServerNode] Received map lookup with invalid sensor!";
+  aslam::SensorId sensor_id;
+  if (sensor_type == vi_map::SensorType::kNCamera) {
+    if (!mission.hasNCamera()) {
+      LOG(WARNING) << "[MaplabServerNode] Received map lookup with NCamera "
+                   << "sensor, but there is no such sensor in the map!";
       return MapLookupStatus::kNoSuchSensor;
     }
-    const aslam::Transformation& T_B_S =
-        map->getSensorManager().getSensor_T_B_S(sensor_id);
-
-    const aslam::Transformation& T_G_M =
-        map->getMissionBaseFrameForMission(submap_mission_id).get_T_G_M();
-
-    landmark_triangulation::VertexToTimeStampMap vertex_to_time_map;
-    int64_t min_timestamp_ns;
-    int64_t max_timestamp_ns;
-    const landmark_triangulation::PoseInterpolator pose_interpolator;
-    pose_interpolator.getVertexToTimeStampMap(
-        *map, submap_mission_id, &vertex_to_time_map, &min_timestamp_ns,
-        &max_timestamp_ns);
-    if (timestamp_ns < min_timestamp_ns) {
-      LOG(WARNING) << "[MaplabServerNode] Received map lookup with timestamp "
-                      "that is before the selected robot mission, this "
-                      "position will never be available: "
-                   << aslam::time::timeNanosecondsToString(timestamp_ns)
-                   << " - earliest map time: "
-                   << aslam::time::timeNanosecondsToString(min_timestamp_ns);
-      return MapLookupStatus::kPoseNeverAvailable;
-    } else if (timestamp_ns > max_timestamp_ns) {
-      LOG(WARNING) << "[MaplabServerNode] Received map lookup with timestamp "
-                      "that is not yet available: "
-                   << aslam::time::timeNanosecondsToString(timestamp_ns)
-                   << " - most recent map time: "
-                   << aslam::time::timeNanosecondsToString(max_timestamp_ns);
-      return MapLookupStatus::kPoseNotAvailableYet;
+    sensor_id = mission.getNCameraId();
+  } else if (sensor_type == vi_map::SensorType::kImu) {
+    if (!mission.hasImu()) {
+      LOG(WARNING) << "[MaplabServerNode] Received map lookup with IMU "
+                   << "sensor, but there is no such sensor in the map!";
+      return MapLookupStatus::kNoSuchSensor;
     }
-
-    Eigen::Matrix<int64_t, 1, Eigen::Dynamic> timestamps_ns =
-        Eigen::Matrix<int64_t, 1, 1>::Constant(timestamp_ns);
-
-    aslam::TransformationVector T_M_B_vector;
-    pose_interpolator.getPosesAtTime(
-        *map, submap_mission_id, timestamps_ns, &T_M_B_vector);
-    CHECK_EQ(static_cast<int>(T_M_B_vector.size()), timestamps_ns.cols());
-
-    const aslam::Transformation T_G_B = T_G_M * T_M_B_vector[0];
-    const aslam::Transformation T_G_S = T_G_B * T_B_S;
-
-    *p_G = T_G_S * p_S;
-    *sensor_p_G = T_G_S * Eigen::Vector3d::Zero();
+    sensor_id = mission.getImuId();
+  } else if (sensor_type == vi_map::SensorType::kLidar) {
+    if (!mission.hasLidar()) {
+      LOG(WARNING) << "[MaplabServerNode] Received map lookup with Lidar "
+                   << "sensor, but there is no such sensor in the map!";
+      return MapLookupStatus::kNoSuchSensor;
+    }
+    sensor_id = mission.getLidarId();
+  } else if (sensor_type == vi_map::SensorType::kOdometry6DoF) {
+    if (!mission.hasOdometry6DoFSensor()) {
+      LOG(WARNING) << "[MaplabServerNode] Received map lookup with Odometry "
+                   << "sensor, but there is no such sensor in the map!";
+      return MapLookupStatus::kNoSuchSensor;
+    }
+    sensor_id = mission.getOdometry6DoFSensor();
+  } else if (sensor_type == vi_map::SensorType::kPointCloudMapSensor) {
+    if (!mission.hasPointCloudMap()) {
+      LOG(WARNING) << "[MaplabServerNode] Received map lookup with "
+                   << "PointCloudMap sensor, but there is no such sensor"
+                   << "in the map!";
+      return MapLookupStatus::kNoSuchSensor;
+    }
+    sensor_id = mission.getPointCloudMapSensorId();
+  } else {
+    LOG(WARNING)
+        << "[MaplabServerNode] Received map lookup with invalid sensor!";
+    return MapLookupStatus::kNoSuchSensor;
   }
+  const aslam::Transformation& T_B_S =
+      map->getSensorManager().getSensor_T_B_S(sensor_id);
+
+  const aslam::Transformation& T_G_M =
+      map->getMissionBaseFrameForMission(submap_mission_id).get_T_G_M();
+
+  Eigen::Matrix<int64_t, 1, Eigen::Dynamic> timestamps_ns =
+      Eigen::Matrix<int64_t, 1, 1>::Constant(timestamp_ns);
+
+  aslam::TransformationVector T_M_B_vector;
+  pose_interpolator.getPosesAtTime(
+      *map, submap_mission_id, timestamps_ns, &T_M_B_vector);
+  CHECK_EQ(static_cast<int>(T_M_B_vector.size()), timestamps_ns.cols());
+
+  const aslam::Transformation T_G_B = T_G_M * T_M_B_vector[0];
+  const aslam::Transformation T_G_S = T_G_B * T_B_S;
+
+  *p_G = T_G_S * p_S;
+  *sensor_p_G = T_G_S * Eigen::Vector3d::Zero();
   return MapLookupStatus::kSuccess;
 }
 
@@ -1033,12 +1045,12 @@ void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
           last_vertex.getMinTimestampNanoseconds();
 
       if (pose_correction_publisher_callback_ && baseframe_is_known) {
-        const auto it_T_M_B = robot_info.T_M_B_submaps_input.find(
+        const auto it_T_M_B = robot_info.T_M_B_submaps_input[mission_id].find(
             current_last_vertex_timestamp_ns);
-        const auto it_T_G_M = robot_info.T_G_M_submaps_input.find(
+        const auto it_T_G_M = robot_info.T_G_M_submaps_input[mission_id].find(
             current_last_vertex_timestamp_ns);
-        if (it_T_M_B != robot_info.T_M_B_submaps_input.end() &&
-            it_T_G_M != robot_info.T_G_M_submaps_input.end()) {
+        if (it_T_M_B != robot_info.T_M_B_submaps_input[mission_id].end() &&
+            it_T_G_M != robot_info.T_G_M_submaps_input[mission_id].end()) {
           const aslam::Transformation T_G_curr_B_curr =
               T_G_M_latest * T_M_B_latest;
           const aslam::Transformation T_G_curr_M_curr = T_G_M_latest;
@@ -1059,7 +1071,7 @@ void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
           {
             std::stringstream ss;
             ss << "\nT_G_M_submaps_input:";
-            for (auto entry : robot_info.T_G_M_submaps_input) {
+            for (auto entry : robot_info.T_G_M_submaps_input[mission_id]) {
               ss << " - " << entry.first << "ns\n";
             }
             LOG(INFO) << ss.str();
@@ -1067,7 +1079,7 @@ void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
           {
             std::stringstream ss;
             ss << "\nT_M_B_submaps_input:";
-            for (auto entry : robot_info.T_M_B_submaps_input) {
+            for (auto entry : robot_info.T_M_B_submaps_input[mission_id]) {
               ss << " - " << entry.first << "ns\n";
             }
             LOG(INFO) << ss.str();
@@ -1407,8 +1419,11 @@ void MaplabServerNode::updateRobotInfoBasedOnSubmap(
 
         mission_id_to_robot_map_[submap_mission_id] = submap_process.robot_name;
 
-        robot_info.T_G_M_submaps_input[last_vertex_timestamp_ns] = T_G_M_submap;
-        robot_info.T_M_B_submaps_input[last_vertex_timestamp_ns] =
+        robot_info
+            .T_G_M_submaps_input[submap_mission_id][last_vertex_timestamp_ns] =
+            T_G_M_submap;
+        robot_info
+            .T_M_B_submaps_input[submap_mission_id][last_vertex_timestamp_ns] =
             T_M_B_last_vertex;
 
       } else {
@@ -2007,7 +2022,6 @@ MaplabServerNode::RobotMissionInformation::RobotMissionInformation(
         robot_mission_information_proto) {
   robot_name = robot_mission_information_proto.robot_name();
   CHECK(!robot_name.empty());
-  size_t total_submaps = 0u;
   const size_t num_missions =
       static_cast<size_t>(robot_mission_information_proto.mission_infos_size());
   for (size_t idx = 0u; idx < num_missions; ++idx) {
@@ -2019,33 +2033,30 @@ MaplabServerNode::RobotMissionInformation::RobotMissionInformation(
         std::make_pair(mission_id, mission_info_proto.baseframe_status()));
     const size_t num_submaps =
         static_cast<size_t>(mission_info_proto.included_submap_keys_size());
-    total_submaps += num_submaps;
     for (size_t submap_idx = 0u; submap_idx < num_submaps; ++submap_idx) {
       std::vector<std::string>& submap_keys =
           mission_ids_to_submap_keys[mission_id];
       submap_keys.push_back(
           mission_info_proto.included_submap_keys(submap_idx));
     }
-  }
-  const size_t num_t_m_b =
-      robot_mission_information_proto.t_m_b_submaps_input_size();
-  const size_t num_t_g_m =
-      robot_mission_information_proto.t_g_m_submaps_input_size();
-  CHECK_EQ(num_t_m_b, num_t_g_m);
-  CHECK_EQ(num_t_m_b, total_submaps);
-  for (size_t idx = 0u; idx < num_t_m_b; ++idx) {
-    const maplab_server_node::proto::StampedTransformation stamped_T_M_B =
-        robot_mission_information_proto.t_m_b_submaps_input(idx);
-    pose::Transformation& T_M_B =
-        T_M_B_submaps_input[stamped_T_M_B.timestamp_ns()];
-    common::eigen_proto::deserialize(stamped_T_M_B.t_a_b(), &T_M_B);
-  }
-  for (size_t idx = 0u; idx < num_t_g_m; ++idx) {
-    const maplab_server_node::proto::StampedTransformation stamped_T_G_M =
-        robot_mission_information_proto.t_g_m_submaps_input(idx);
-    pose::Transformation& T_G_M =
-        T_G_M_submaps_input[stamped_T_G_M.timestamp_ns()];
-    common::eigen_proto::deserialize(stamped_T_G_M.t_a_b(), &T_G_M);
+    const size_t num_t_m_b = mission_info_proto.t_m_b_submaps_input_size();
+    const size_t num_t_g_m = mission_info_proto.t_g_m_submaps_input_size();
+    CHECK_EQ(num_t_m_b, num_t_g_m);
+    CHECK_EQ(num_t_m_b, num_submaps);
+    for (size_t idx = 0u; idx < num_t_m_b; ++idx) {
+      const maplab_server_node::proto::StampedTransformation stamped_T_M_B =
+          mission_info_proto.t_m_b_submaps_input(idx);
+      pose::Transformation& T_M_B =
+          T_M_B_submaps_input[mission_id][stamped_T_M_B.timestamp_ns()];
+      common::eigen_proto::deserialize(stamped_T_M_B.t_a_b(), &T_M_B);
+    }
+    for (size_t idx = 0u; idx < num_t_g_m; ++idx) {
+      const maplab_server_node::proto::StampedTransformation stamped_T_G_M =
+          mission_info_proto.t_g_m_submaps_input(idx);
+      pose::Transformation& T_G_M =
+          T_G_M_submaps_input[mission_id][stamped_T_G_M.timestamp_ns()];
+      common::eigen_proto::deserialize(stamped_T_G_M.t_a_b(), &T_G_M);
+    }
   }
 }
 
@@ -2080,26 +2091,25 @@ void MaplabServerNode::RobotMissionInformation::serialize(
     mission_info->set_baseframe_status(it->second);
     auto jt = mission_ids_to_submap_keys.find(mission_id);
     CHECK(jt != mission_ids_to_submap_keys.end());
-    CHECK(jt->second.size() == T_M_B_submaps_input.size());
+    CHECK(jt->second.size() == T_M_B_submaps_input.at(mission_id).size());
+    CHECK(jt->second.size() == T_G_M_submaps_input.at(mission_id).size());
     for (auto submap_key : jt->second) {
       mission_info->add_included_submap_keys(submap_key);
     }
-  }
-
-  for (auto it = T_M_B_submaps_input.begin(); it != T_M_B_submaps_input.end();
-       it++) {
-    auto stamped_T_M_B =
-        robot_mission_information_proto->add_t_m_b_submaps_input();
-    stamped_T_M_B->set_timestamp_ns(it->first);
-    common::eigen_proto::serialize(it->second, stamped_T_M_B->mutable_t_a_b());
-  }
-
-  for (auto it = T_G_M_submaps_input.begin(); it != T_G_M_submaps_input.end();
-       it++) {
-    auto stamped_T_G_M =
-        robot_mission_information_proto->add_t_g_m_submaps_input();
-    stamped_T_G_M->set_timestamp_ns(it->first);
-    common::eigen_proto::serialize(it->second, stamped_T_G_M->mutable_t_a_b());
+    for (auto it = T_M_B_submaps_input.at(mission_id).begin();
+         it != T_M_B_submaps_input.at(mission_id).end(); it++) {
+      auto stamped_T_M_B = mission_info->add_t_m_b_submaps_input();
+      stamped_T_M_B->set_timestamp_ns(it->first);
+      common::eigen_proto::serialize(
+          it->second, stamped_T_M_B->mutable_t_a_b());
+    }
+    for (auto it = T_G_M_submaps_input.at(mission_id).begin();
+         it != T_G_M_submaps_input.at(mission_id).end(); it++) {
+      auto stamped_T_G_M = mission_info->add_t_g_m_submaps_input();
+      stamped_T_G_M->set_timestamp_ns(it->first);
+      common::eigen_proto::serialize(
+          it->second, stamped_T_G_M->mutable_t_a_b());
+    }
   }
 }
 
