@@ -241,47 +241,76 @@ void VIMappingTestApp::addCorruptDuplicateLandmarkObservations(int every_nth) {
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(map_key_);
 
-  // Get set of first two vertices that shouldn't be corrupted.
-  vi_map::MissionIdList mission_ids;
-  map->getAllMissionIds(&mission_ids);
-  pose_graph::VertexIdSet not_to_corrupt_vertices;
-  vi_map::LandmarkIdSet landmark_ids;
+  vi_map::LandmarkIdList landmark_ids;
   map->getAllLandmarkIds(&landmark_ids);
-  int index = 0;
+
+  size_t index = 0;
+
   for (const vi_map::LandmarkId& landmark_id : landmark_ids) {
+    if (!landmark_id.isValid()) {
+      continue;
+    }
     vi_map::Landmark& landmark = map->getLandmark(landmark_id);
     const vi_map::KeypointIdentifierList& landmark_observations =
         landmark.getObservations();
-    for (const auto& keypoint : landmark_observations) {
-      const pose_graph::VertexId vertex_id = keypoint.frame_id.vertex_id;
-      const pose_graph::VertexId& vertex_id_bu = keypoint.frame_id.vertex_id;
+    for (size_t idx = 0u; idx < landmark_observations.size(); ++idx) {
+      const vi_map::KeypointIdentifier& keypoint = landmark_observations[idx];
+      const pose_graph::VertexId& vertex_id = keypoint.frame_id.vertex_id;
       if (index % every_nth != 0 || !keypoint.isValid() ||
           !vertex_id.isValid()) {
         ++index;
         continue;
       }
 
-      CHECK(map->hasVertex(vertex_id));
+      // Search for the observation with the largest pixel distance from the
+      // keypoint in this frame.
       vi_map::Vertex& vertex = map->getVertex(vertex_id);
-      const unsigned int frame_idx =
-          static_cast<unsigned int>(keypoint.frame_id.frame_index);
-      aslam::VisualFrame& frame = vertex.getVisualFrame(frame_idx);
-
-      const Eigen::Vector2d observation_point =
+      const aslam::VisualFrame& frame =
+          vertex.getVisualFrame(keypoint.frame_id.frame_index);
+      const Eigen::Vector2d& keypoint_measurement =
           frame.getKeypointMeasurement(keypoint.keypoint_index);
-      const Eigen::Vector2d noise(10, 10);
-      const Eigen::Vector2d corrupted_point = observation_point + noise;
+      double max_distance = 0.0;
+      size_t max_distance_idx;
+      for (size_t measurement_idx = 0u;
+           measurement_idx < frame.getNumKeypointMeasurements();
+           ++measurement_idx) {
+        const Eigen::Vector2d& other_measurement =
+            frame.getKeypointMeasurement(measurement_idx);
+        const double distance =
+            (keypoint_measurement - other_measurement).norm();
+        if (distance > max_distance) {
+          max_distance = distance;
+          max_distance_idx = measurement_idx;
+        }
+      }
 
-      Eigen::Matrix2Xd corrupted_keypoint(2, 1);
-      corrupted_keypoint.col(0) = observation_point + noise;
-      const unsigned int corrupted_keypoint_idx =
-          static_cast<unsigned int>(frame.getNumKeypointMeasurements());
-      aslam::insertAdditionalKeypointsToVisualFrame(
-          corrupted_keypoint, 2, &frame);
-      vertex.addObservedLandmarkId(frame_idx, landmark_id);
+      const vi_map::LandmarkId& max_distance_landmark_id =
+          vertex.getObservedLandmarkId(
+              keypoint.frame_id.frame_index, max_distance_idx);
 
-      CHECK_EQ(vertex_id, vertex_id_bu);
-      landmark.addObservation(vertex_id, frame_idx, corrupted_keypoint_idx);
+      // No work to do here.
+      if (max_distance_landmark_id == landmark_id) {
+        continue;
+      }
+
+      // Set the maximum distance observation to the same landmark and do
+      // the bookkeeping.
+      vi_map::KeypointIdentifier max_distance_keypoint = keypoint;
+      max_distance_keypoint.keypoint_index = max_distance_idx;
+      if (max_distance_landmark_id.isValid()) {
+        const pose_graph::VertexId& storing_vertex_id =
+            map->getLandmarkStoreVertexId(max_distance_landmark_id);
+        // In this case we skip for simplicity, so we don't have to rearrange
+        // the landmark store.
+        if (vertex_id == storing_vertex_id) {
+          continue;
+        }
+        vi_map::Landmark& max_distance_landmark =
+            map->getLandmark(max_distance_landmark_id);
+        max_distance_landmark.removeObservation(max_distance_keypoint);
+      }
+      vertex.setObservedLandmarkId(max_distance_keypoint, landmark_id);
+      landmark.addObservation(max_distance_keypoint);
       ++index;
     }
   }
