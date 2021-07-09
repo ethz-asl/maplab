@@ -367,7 +367,8 @@ void VIMapManipulation::removeVerticesAndIncomingEdges(
 
 size_t VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfMission(
     const vi_map::MissionId& mission_id,
-    const pose_graph::VertexId& starting_vertex_id) {
+    const pose_graph::VertexId& starting_vertex_id,
+    vi_map::LandmarkIdList* initialized_landmark_ids) {
   CHECK(mission_id.isValid());
   pose_graph::VertexIdList all_vertices_in_missions;
   map_.getAllVertexIdsInMissionAlongGraph(
@@ -380,15 +381,23 @@ size_t VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfMission(
       all_vertices_in_missions, &track_id_to_landmark_id);
 
   const size_t num_new_landmarks = map_.numLandmarks() - num_landmarks_initial;
+  if (initialized_landmark_ids) {
+    for (const auto& track_index_with_landmark_id : track_id_to_landmark_id) {
+      initialized_landmark_ids->emplace_back(
+          track_index_with_landmark_id.second);
+    }
+    CHECK_EQ(initialized_landmark_ids->size(), num_new_landmarks);
+  }
   return num_new_landmarks;
 }
 
 size_t VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfMission(
-    const vi_map::MissionId& mission_id) {
+    const vi_map::MissionId& mission_id,
+    vi_map::LandmarkIdList* initialized_landmark_ids) {
   const vi_map::VIMission& mission = map_.getMission(mission_id);
   const pose_graph::VertexId& starting_vertex_id = mission.getRootVertexId();
   return initializeLandmarksFromUnusedFeatureTracksOfMission(
-      mission_id, starting_vertex_id);
+      mission_id, starting_vertex_id, initialized_landmark_ids);
 }
 
 void VIMapManipulation::

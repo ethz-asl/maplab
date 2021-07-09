@@ -26,11 +26,16 @@
 #include "vi-map/unique-id.h"
 #include "vi-map/vi_map.pb.h"
 
+namespace visual_inertial_mapping {
+class VIMappingTestApp;
+}
+
 namespace vi_map {
 
 class Vertex : public pose_graph::Vertex {
   friend class MapConsistencyCheckTest;              // Test.
   friend class VertexResourcesTest;                  // Test.
+  friend class visual_inertial_mapping::VIMappingTestApp;
   FRIEND_TEST(MapConsistencyCheckTest, mapInconsistentMissingBackLink);
   friend class VIMap;
 

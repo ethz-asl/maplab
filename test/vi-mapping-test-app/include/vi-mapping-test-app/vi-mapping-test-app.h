@@ -45,6 +45,8 @@ class VIMappingTestApp {
   // stepping through the list with the step size provided to the function.
   void addLoopClosureEdges(const size_t add_lc_edge_between_every_nth_vertex);
 
+  void addCorruptDuplicateLandmarkObservations(int every_nth);
+
   pose_graph::EdgeId addWrongLoopClosureEdge();
 
   // This function adds absolute 6DoF constraints that correspond exactly to the

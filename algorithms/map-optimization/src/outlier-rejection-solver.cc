@@ -4,6 +4,7 @@
 #include <ceres/ceres.h>
 #include <gflags/gflags.h>
 #include <maplab-common/parallel-process.h>
+#include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 
 DEFINE_int32(
     ba_outlier_rejection_reject_every_n_iters, 3,
@@ -28,24 +29,6 @@ DEFINE_bool(
 namespace map_optimization {
 
 namespace {
-
-double computeSquaredReprojectionError(
-    const vi_map::Vertex& vertex, const int frame_idx, const int keypoint_idx,
-    const Eigen::Vector3d& landmark_p_C) {
-  Eigen::Vector2d reprojected_point;
-  aslam::ProjectionResult projection_result =
-      vertex.getCamera(frame_idx)->project3(landmark_p_C, &reprojected_point);
-
-  if (projection_result == aslam::ProjectionResult::KEYPOINT_VISIBLE ||
-      projection_result ==
-          aslam::ProjectionResult::KEYPOINT_OUTSIDE_IMAGE_BOX) {
-    return (reprojected_point -
-            vertex.getVisualFrame(frame_idx).getKeypointMeasurement(
-                keypoint_idx))
-        .squaredNorm();
-  }
-  return std::numeric_limits<double>::max();
-}
 
 void findOutlierLandmarks(
     const vi_map::VIMap& map, const vi_map::LandmarkIdSet& landmark_ids_set,
@@ -100,7 +83,7 @@ void findOutlierLandmarks(
 
             if (use_reprojection_error) {
               const double reprojection_error_sq =
-                  computeSquaredReprojectionError(
+                  vi_map_helpers::computeSquaredReprojectionError(
                       observer_vertex, frame_idx, keypoint_id.keypoint_index,
                       p_C_fi);
               if (observer_vertex.getMissionId() == landmark_store_mission_id &&

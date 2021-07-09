@@ -72,10 +72,12 @@ class VIMapManipulation {
   // up. Since it's typically expected that landmarks are stored at the first
   // observation, you should pass in the vertices in order.
   size_t initializeLandmarksFromUnusedFeatureTracksOfMission(
-      const vi_map::MissionId& mission_id);
+      const vi_map::MissionId& mission_id,
+      vi_map::LandmarkIdList* initialized_landmark_ids = nullptr);
   size_t initializeLandmarksFromUnusedFeatureTracksOfMission(
       const vi_map::MissionId& mission_id,
-      const pose_graph::VertexId& starting_vertex_id);
+      const pose_graph::VertexId& starting_vertex_id,
+      vi_map::LandmarkIdList* initialized_landmark_ids = nullptr);
   void initializeLandmarksFromUnusedFeatureTracksOfOrderedVertices(
       const pose_graph::VertexIdList& ordered_vertex_ids,
       TrackIndexToLandmarkIdMap* trackid_landmarkid_map);
