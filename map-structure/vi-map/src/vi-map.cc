@@ -14,7 +14,7 @@
 #include "vi-map/vi-map-serialization.h"
 
 DEFINE_bool(
-    disable_consistency_check, false,
+    disable_consistency_check, true,
     "If enabled, no consistency checks are run.");
 
 namespace vi_map {
@@ -43,7 +43,9 @@ void VIMap::deepCopy(const VIMap& other) {
   clear();
   CHECK(mergeAllMissionsFromMapWithoutResources(other));
   ResourceMap::deepCopy(other);
-  //  CHECK(checkMapConsistency(other));
+  if (!FLAGS_disable_consistency_check) {
+    CHECK(checkMapConsistency(other));
+  }
 }
 
 bool VIMap::mergeAllMissionsFromMapWithoutResources(
