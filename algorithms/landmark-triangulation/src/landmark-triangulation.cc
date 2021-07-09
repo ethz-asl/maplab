@@ -142,7 +142,7 @@ void retriangulateLandmarksOfVertex(
     if (included_landmark_ids) {
       if (std::find(
               included_landmark_ids->begin(), included_landmark_ids->end(),
-              landmark.id()) != included_landmark_ids->end()) {
+              landmark.id()) == included_landmark_ids->end()) {
         continue;
       }
     }
@@ -328,7 +328,8 @@ void retriangulateLandmarksOfMission(
     const vi_map::LandmarkIdList* const included_landmark_ids) {
   FrameToPoseMap interpolated_frame_poses;
   interpolateVisualFramePoses(mission_id, *map, &interpolated_frame_poses);
-  retriangulateLandmarksOfMission(mission_id, interpolated_frame_poses, map);
+  retriangulateLandmarksOfMission(
+      mission_id, interpolated_frame_poses, map, included_landmark_ids);
 }
 
 void retriangulateLandmarksAlongMissionAfterVertex(
