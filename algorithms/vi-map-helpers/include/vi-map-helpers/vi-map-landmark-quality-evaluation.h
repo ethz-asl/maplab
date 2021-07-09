@@ -25,7 +25,8 @@ void resetLandmarkQualityToUnknown(
     const vi_map::MissionIdList& mission_ids, vi_map::VIMap* map);
 void findAndDetachInferiorQualityTracks(
     vi_map::VIMap* map, const vi_map::MissionId& mission_id,
-    vi_map::Landmark* landmark, size_t* num_bad_tracks, size_t* num_bad_observations);
+    vi_map::Landmark* landmark, size_t* num_bad_tracks,
+    size_t* num_bad_observations);
 }  // namespace vi_map_helpers
 
 #endif  // VI_MAP_HELPERS_VI_MAP_LANDMARK_QUALITY_EVALUATION_H_

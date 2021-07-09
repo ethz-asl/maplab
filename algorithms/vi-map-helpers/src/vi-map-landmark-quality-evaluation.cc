@@ -47,27 +47,31 @@ void evaluateLandmarkQuality(
 
     size_t num_bad_tracks = 0u;
     size_t num_bad_observations = 0u;
+    vi_map::LandmarkIdList updated_landmark_ids;
     std::mutex stats_counter_mutex;
 
     // Detect invalid landmark observations and their respective tracks
     std::function<void(const std::vector<size_t>&)> detector =
         [&landmark_ids, map, &mission_id, &progress_bar, &num_bad_tracks,
-         &num_bad_observations,
+         &num_bad_observations, &updated_landmark_ids,
          &stats_counter_mutex](const std::vector<size_t>& batch) {
           progress_bar.setNumElements(batch.size());
           size_t num_processed = 0u;
           size_t thread_num_bad_tracks = 0u;
           size_t thread_num_bad_observations = 0u;
+          vi_map::LandmarkIdList thread_updated_landmark_ids;
           for (size_t idx : batch) {
             CHECK_LT(idx, landmark_ids.size());
             const vi_map::LandmarkId& landmark_id = landmark_ids[idx];
             CHECK(landmark_id.isValid());
             vi_map::Landmark& landmark = map->getLandmark(landmark_id);
-
+            const size_t thread_num_bad_tracks_before = thread_num_bad_tracks;
             findAndDetachInferiorQualityTracks(
                 map, mission_id, &landmark, &thread_num_bad_tracks,
                 &thread_num_bad_observations);
-
+            if (thread_num_bad_tracks > thread_num_bad_tracks_before) {
+              thread_updated_landmark_ids.emplace_back(landmark_id);
+            }
             progress_bar.update(++num_processed);
           }
 
@@ -75,6 +79,9 @@ void evaluateLandmarkQuality(
             std::lock_guard<std::mutex> lock(stats_counter_mutex);
             num_bad_tracks += thread_num_bad_tracks;
             num_bad_observations += thread_num_bad_observations;
+            updated_landmark_ids.insert(
+                updated_landmark_ids.end(), thread_updated_landmark_ids.begin(),
+                thread_updated_landmark_ids.end());
           }
         };
 
@@ -84,11 +91,11 @@ void evaluateLandmarkQuality(
         num_landmarks, detector, kAlwaysParallelize, num_threads);
     VLOG(1) << "Removed " << num_bad_tracks << " bad tracks and "
             << num_bad_observations << " observations.";
-
     if (num_bad_tracks > 0u || num_bad_observations > 0u) {
+      vi_map::LandmarkIdList new_landmark_ids;
       const size_t num_new_landmarks =
           manipulation.initializeLandmarksFromUnusedFeatureTracksOfMission(
-              mission_id);
+              mission_id, &new_landmark_ids);
       if (num_bad_tracks != num_new_landmarks) {
         LOG(WARNING) << "The number of detached tracks and new initialized "
                      << "landmarks should match but doesnt' (" << num_bad_tracks
@@ -96,7 +103,11 @@ void evaluateLandmarkQuality(
                      << "there were other uninitialized landmarks in the map "
                      << "for another reason.";
       }
-      landmark_triangulation::retriangulateLandmarksOfMission(mission_id, map);
+      updated_landmark_ids.insert(
+          updated_landmark_ids.end(), new_landmark_ids.begin(),
+          new_landmark_ids.end());
+      landmark_triangulation::retriangulateLandmarksOfMission(
+          mission_id, map, &updated_landmark_ids);
     }
 
     progress_bar.reset();
