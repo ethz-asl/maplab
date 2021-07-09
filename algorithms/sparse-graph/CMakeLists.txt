@@ -30,6 +30,7 @@ cs_add_library(${PROJECT_NAME}
   src/partitioners/lidar-partitioner.cc
   src/common/representative-node.cc
   src/common/utils.cc
+  src/common/sparse-graph-gflags.cc
 )
 
 ##########

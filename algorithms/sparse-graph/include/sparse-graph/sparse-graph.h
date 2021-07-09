@@ -77,7 +77,7 @@ class SparseGraph {
   std::vector<RepresentativeNode> sparse_graph_;
   Eigen::MatrixXd adjacency_matrix_;
   std::atomic<uint32_t> pub_seq_;
-  std::vector<uint32_t> pub_submap_ids;
+  std::vector<uint32_t> pub_submap_ids_;
 };
 
 }  // namespace spg

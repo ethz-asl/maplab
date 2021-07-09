@@ -2141,7 +2141,6 @@ MaplabServerNode::VerificationStatus MaplabServerNode::verifySubmap(
     return VerificationStatus::kFailure;
   }
 
-  /*
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager_.getMapWriteAccess(kMergedMapKey);
   vi_map::MissionIdList mission_ids;
@@ -2158,7 +2157,6 @@ MaplabServerNode::VerificationStatus MaplabServerNode::verifySubmap(
     LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
                << "encountered an error!";
   }
-  */
   return VerificationStatus::kSuccess;
 }
 

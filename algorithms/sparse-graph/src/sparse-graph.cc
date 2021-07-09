@@ -18,6 +18,7 @@
 #include <visualization/common-rviz-visualization.h>
 #include <visualization/rviz-visualization-sink.h>
 
+#include "sparse-graph/common/sparse-graph-gflags.h"
 #include "sparse-graph/common/utils.h"
 #include "sparse-graph/dense-map-builder.h"
 
@@ -100,18 +101,20 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
         if (i == j) {
           continue;
         }
-        const double w_d = computeDistanceBetweenNodes(i, j);
-        // const double w_c = computeCoObservability(map, i, j);
-        // const double w_l = computeLoopClosureEdgeWeight(lc_edges, i, j);
+        double weight = computeDistanceBetweenNodes(i, j);
+        if (FLAGS_sparse_graph_include_co_observability_weight) {
+          weight += computeCoObservability(map, i, j);
+        }
+        if (FLAGS_sparse_graph_include_lc_edge_weight) {
+          weight += computeLoopClosureEdgeWeight(lc_edges, i, j);
+        }
 
         // Ensure that the weights are normalized.
-        CHECK(w_d >= 0.0 && w_d <= 1.0);
-        // CHECK(w_c >= 0.0 && w_c <= 1.0);
-        // CHECK(w_l >= 0.0 && w_l <= 1.0);
+        CHECK(weight >= 0.0 && weight <= 3.0);
 
         // Set the weights for the adjacency
         // which is a symmetric and undirected adjacency matrix.
-        adjacency_matrix_(i, j) = w_d;
+        adjacency_matrix_(i, j) = weight;
         adjacency_matrix_(j, i) = adjacency_matrix_(i, j);
       }
     }
@@ -498,7 +501,7 @@ void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
   if (sparse_graph_.empty()) {
     return;
   }
-  pub_submap_ids.clear();
+  pub_submap_ids_.clear();
   for (const RepresentativeNode& node : sparse_graph_) {
     const uint32_t submap_id = node.getAssociatedSubmapId();
     if (wasSubmapPublished(submap_id)) {
@@ -516,7 +519,7 @@ void SparseGraph::publishNewSubmaps(const vi_map::VIMap* map) {
     CHECK_NOTNULL(mission_graph);
 
     if (publishSubmap(map, node, *mission_graph, robot_name)) {
-      pub_submap_ids.emplace_back(submap_id);
+      pub_submap_ids_.emplace_back(submap_id);
     }
   }
 }
@@ -559,8 +562,8 @@ bool SparseGraph::publishSubmap(
 
 bool SparseGraph::wasSubmapPublished(const uint32_t submap_id) const {
   const auto it =
-      std::find(pub_submap_ids.cbegin(), pub_submap_ids.cend(), submap_id);
-  return it != pub_submap_ids.cend();
+      std::find(pub_submap_ids_.cbegin(), pub_submap_ids_.cend(), submap_id);
+  return it != pub_submap_ids_.cend();
 }
 
 std::vector<RepresentativeNode> SparseGraph::getNodesForSubmap(
