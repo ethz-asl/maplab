@@ -78,10 +78,10 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
   const double search_radius = 6.0;
 
   // Create LC edge map.
-  /*
-  std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>> lc_edges =
-      computeLoopClosureEdgeMap(map);
-      */
+  std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>> lc_edges;
+  if (FLAGS_sparse_graph_include_lc_edge_weight) {
+    lc_edges = computeLoopClosureEdgeMap(map);
+  }
 
   // Iterate over the sparse graph.
   for (std::size_t i = 0u; i < n_nodes; ++i) {
