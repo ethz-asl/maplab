@@ -127,7 +127,7 @@ bool applyConstraintsToMap(
   return true;
 }
 
-static uint32_t removeConstraintsFromVertex(
+uint32_t removeConstraintsFromVertex(
     const pose_graph::VertexId& vertex_id, vi_map::VIMap* map_ptr) {
   CHECK_NOTNULL(map_ptr);
   const vi_map::Vertex& vertex = map_ptr->getVertex(vertex_id);
