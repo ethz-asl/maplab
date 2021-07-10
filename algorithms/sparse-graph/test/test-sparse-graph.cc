@@ -28,7 +28,7 @@ TEST_F(SparseGraphTest, TestEmptyMissionMap) {
   pose_graph::VertexIdList all_vertices;
   const std::string map_key = "foo";
 
-  SparseGraph graph(map);
+  SparseGraph graph;
   graph.addVerticesToMissionGraph(map_key, all_vertices);
 
   EXPECT_EQ(0u, graph.getMissionGraphSize(map_key));
@@ -40,7 +40,7 @@ TEST_F(SparseGraphTest, TestMissionMapSingleStorage) {
   pose_graph::VertexIdList all_vertices = createRandomIds(n_vertices);
   const std::string map_key = "foo";
 
-  SparseGraph graph(map);
+  SparseGraph graph;
   graph.addVerticesToMissionGraph(map_key, all_vertices);
 
   EXPECT_EQ(n_vertices, graph.getMissionGraphSize(map_key));
@@ -53,7 +53,7 @@ TEST_F(SparseGraphTest, TestMissionMapMultipleStorage) {
   pose_graph::VertexIdList all_vertices_2 = createRandomIds(n_vertices);
   const std::string map_key = "foo";
 
-  SparseGraph graph(map);
+  SparseGraph graph;
   graph.addVerticesToMissionGraph(map_key, all_vertices_1);
   graph.addVerticesToMissionGraph(map_key, all_vertices_2);
 
