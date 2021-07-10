@@ -27,7 +27,7 @@ class LandmarkIndex {
   friend ::LoopClosureHandlerTest;       // Test.
   friend class MapConsistencyCheckTest;  // Test.
   friend class SixDofVIMapGenerator;     // Test.
-
+ public:
   LandmarkIndex() {}
 
   void shallowCopyFrom(const LandmarkIndex& other) {

@@ -57,9 +57,8 @@ class MaplabServerNode final {
   ~MaplabServerNode();
 
   // Once the node is started, the configuration cannot be changed anymore.
-  void start(const bool& load_previous_state);
+  void start(const bool& load_previous_state = false);
   void shutdown();
-
 
   bool loadAndProcessMissingSubmaps(
       const std::unordered_map<std::string, std::vector<std::string>>&
@@ -126,9 +125,10 @@ class MaplabServerNode final {
     return total_num_merged_submaps_.load();
   }
 
- protected:
   bool loadAndProcessSubmap(
       const std::string& robot_name, const std::string& submap_path);
+
+ protected:
   // Status thread functions:
   void printAndPublishServerStatus();
 
