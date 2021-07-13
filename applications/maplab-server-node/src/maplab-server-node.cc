@@ -234,7 +234,6 @@ void MaplabServerNode::start(const bool& load_previous_state) {
                 << "with key '" << kMergedMapKey << "'";
 
         runOneIterationOfMapMergingAlgorithms();
-
         publishDenseMap();
 
         publishMostRecentVertexPoseAndCorrection();
@@ -2003,7 +2002,8 @@ bool MaplabServerNode::loadRobotMissionsInfo() {
 }
 
 void MaplabServerNode::replacePublicMap() {
-  std::lock_guard<std::mutex> lock(mutex_);
+  vi_map::VIMapManager::MapReadAccess merged_map =
+      map_manager_.getMapReadAccess(kMergedMapKey);
   if (public_map_manager_.hasMap(kMergedMapPublicKey)) {
     vi_map::VIMapManager::MapWriteAccess public_map =
         public_map_manager_.getMapWriteAccess(kMergedMapPublicKey);
