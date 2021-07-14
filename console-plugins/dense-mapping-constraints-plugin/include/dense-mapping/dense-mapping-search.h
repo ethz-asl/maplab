@@ -44,9 +44,21 @@ void findAllAlignmentCandidates(
     const vi_map::MissionIdList& mission_ids,
     MissionToAlignmentCandidatesMap* candidates_per_mission_ptr);
 
+bool findAlignmentCandidatesForSubmap(
+    const SearchConfig& config, const vi_map::VIMap& map,
+    const vi_map::MissionIdList& mission_ids,
+    const pose_graph::VertexIdList& vertices_in_submap,
+    MissionToAlignmentCandidatesMap* candidates_per_mission_ptr);
+
 bool searchForAlignmentCandidatePairs(
     const SearchConfig& config, const vi_map::VIMap& map,
     const vi_map::MissionIdList& mission_ids,
+    AlignmentCandidatePairs* candidate_pairs_ptr);
+
+bool searchForSubmapAlignmentCandidatePairs(
+    const SearchConfig& config, const vi_map::VIMap& map,
+    const vi_map::MissionIdList& mission_ids,
+    const pose_graph::VertexIdList& vertices_in_submap,
     AlignmentCandidatePairs* candidate_pairs_ptr);
 
 bool searchForConsecutiveAlignmentCandidatePairs(

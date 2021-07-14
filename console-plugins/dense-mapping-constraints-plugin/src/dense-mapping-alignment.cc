@@ -113,25 +113,25 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
     LOG(ERROR) << "Unable to retrieve resource for candidate A.";
     return false;
   }
-  if (!pointcloud_undistortion::undistortPointCloud(
-          map, pair.candidate_A.mission_id, pair.candidate_A.sensor_id,
-          pair.candidate_A.timestamp_ns, &candidate_resource_A)) {
-    LOG(WARNING) << "Could not undistort point cloud with timestamp "
-                 << pair.candidate_A.timestamp_ns;
-    return false;
-  }
+  // if (!pointcloud_undistortion::undistortPointCloud(
+  //         map, pair.candidate_A.mission_id, pair.candidate_A.sensor_id,
+  //         pair.candidate_A.timestamp_ns, &candidate_resource_A)) {
+  //   LOG(WARNING) << "Could not undistort point cloud with timestamp "
+  //                << pair.candidate_A.timestamp_ns;
+  //   return false;
+  // }
   if (!retrieveResourceForCandidate(
           pair.candidate_B, map, &candidate_resource_B)) {
     LOG(ERROR) << "Unable to retrieve resource for candidate B.";
     return false;
   }
-  if (!pointcloud_undistortion::undistortPointCloud(
-          map, pair.candidate_B.mission_id, pair.candidate_B.sensor_id,
-          pair.candidate_B.timestamp_ns, &candidate_resource_B)) {
-    LOG(WARNING) << "Could not undistort point cloud with timestamp "
-                 << pair.candidate_B.timestamp_ns;
-    return false;
-  }
+  // if (!pointcloud_undistortion::undistortPointCloud(
+  //         map, pair.candidate_B.mission_id, pair.candidate_B.sensor_id,
+  //         pair.candidate_B.timestamp_ns, &candidate_resource_B)) {
+  //   LOG(WARNING) << "Could not undistort point cloud with timestamp "
+  //                << pair.candidate_B.timestamp_ns;
+  //   return false;
+  // }
   const regbox::RegistrationResult result =
       (*aligner_ptr)
           ->align(
@@ -426,14 +426,15 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
               LOG(ERROR) << "Unable to retrieve resource for candidate A.";
               continue;
             }
-            if (!pointcloud_undistortion::undistortPointCloud(
-                    map, pair.candidate_A.mission_id,
-                    pair.candidate_A.sensor_id, pair.candidate_A.timestamp_ns,
-                    &candidate_resource_A)) {
-              LOG(WARNING) << "Could not undistort point cloud with timestamp "
-                           << pair.candidate_A.timestamp_ns;
-              continue;
-            }
+            // if (!pointcloud_undistortion::undistortPointCloud(
+            //         map, pair.candidate_A.mission_id,
+            //         pair.candidate_A.sensor_id,
+            //         pair.candidate_A.timestamp_ns, &candidate_resource_A)) {
+            //   LOG(WARNING) << "Could not undistort point cloud with timestamp
+            //   "
+            //                << pair.candidate_A.timestamp_ns;
+            //   continue;
+            // }
             aggregated_filtered_map = candidate_resource_A;
             aggregated_map = candidate_resource_A;
             aggregated_odom_map = candidate_resource_A;
@@ -447,13 +448,14 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
             LOG(ERROR) << "Unable to retrieve resource for candidate B.";
             return false;
           }
-          if (!pointcloud_undistortion::undistortPointCloud(
-                  map, pair.candidate_B.mission_id, pair.candidate_B.sensor_id,
-                  pair.candidate_B.timestamp_ns, &candidate_resource_B)) {
-            LOG(WARNING) << "Could not undistort point cloud with timestamp "
-                         << pair.candidate_B.timestamp_ns;
-            continue;
-          }
+          // if (!pointcloud_undistortion::undistortPointCloud(
+          //         map, pair.candidate_B.mission_id,
+          //         pair.candidate_B.sensor_id, pair.candidate_B.timestamp_ns,
+          //         &candidate_resource_B)) {
+          //   LOG(WARNING) << "Could not undistort point cloud with timestamp "
+          //                << pair.candidate_B.timestamp_ns;
+          //   continue;
+          // }
 
           AlignmentCandidatePair map_candidate_pair;
           createCandidatePair(

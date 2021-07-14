@@ -14,6 +14,7 @@
 #include <aslam/common/thread-pool.h>
 #include <map-manager/map-manager.h>
 #include <resources-common/point-cloud.h>
+#include <sparse-graph/sparse-graph.h>
 #include <vi-map/vi-map.h>
 #include <visualization/resource-visualization.h>
 #include <visualization/viwls-graph-plotter.h>
@@ -56,9 +57,8 @@ class MaplabServerNode final {
   ~MaplabServerNode();
 
   // Once the node is started, the configuration cannot be changed anymore.
-  void start(const bool& load_previous_state);
+  void start(const bool& load_previous_state = false);
   void shutdown();
-
 
   bool loadAndProcessMissingSubmaps(
       const std::unordered_map<std::string, std::vector<std::string>>&
@@ -101,6 +101,15 @@ class MaplabServerNode final {
       const Eigen::Vector3d& center_G, const double radius_m,
       resources::PointCloud* point_cloud_G);
 
+  bool computeSparseGraph();
+
+  enum class VerificationStatus : int {
+    kFailure = -1,
+    kSuccess = 0,
+    kNoSuchMission = 1,
+  };
+  VerificationStatus verifySubmap(const uint32_t submap_id);
+
   void visualizeMap();
 
   void registerPoseCorrectionPublisherCallback(
@@ -116,9 +125,10 @@ class MaplabServerNode final {
     return total_num_merged_submaps_.load();
   }
 
- protected:
   bool loadAndProcessSubmap(
       const std::string& robot_name, const std::string& submap_path);
+
+ protected:
   // Status thread functions:
   void printAndPublishServerStatus();
 
@@ -173,8 +183,12 @@ class MaplabServerNode final {
     // server. This correction can then be used to coorect any poses that were
     // expressed in the odometry frame that was used to build the map
     // initially.
-    std::map<int64_t, aslam::Transformation> T_M_B_submaps_input;
-    std::map<int64_t, aslam::Transformation> T_G_M_submaps_input;
+    std::unordered_map<
+        vi_map::MissionId, std::map<int64_t, aslam::Transformation>>
+        T_M_B_submaps_input;
+    std::unordered_map<
+        vi_map::MissionId, std::map<int64_t, aslam::Transformation>>
+        T_G_M_submaps_input;
 
     std::unordered_map<vi_map::MissionId, std::vector<std::string>>
         mission_ids_to_submap_keys;
@@ -225,6 +239,7 @@ class MaplabServerNode final {
   std::atomic<double> optimization_trust_region_radius_;
   // Keep strack of the total number of merged submaps into the global map.
   std::atomic<uint32_t> total_num_merged_submaps_;
+  std::atomic<bool> update_sparse_graph_;
 
   // Server status and map management variables
   // Accessed by all threads to map between robot names and missions.
@@ -286,6 +301,7 @@ class MaplabServerNode final {
   uint32_t num_full_map_merging_processings = 0u;
 
   std::string initial_map_path_;
+  spg::SparseGraph sparsified_graph_;
 };
 
 }  // namespace maplab

@@ -10,7 +10,11 @@
 #include <maplab-common/progress-bar.h>
 #include <visualization/viwls-graph-plotter.h>
 
+#include <algorithm>
+#include <fstream>
 #include <functional>
+#include <numeric>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -74,6 +78,7 @@ bool VIMapOptimizer::optimize(
   if (plotter_ != nullptr) {
     plotter_->visualizeMap(*map);
   }
+
   return true;
 }
 

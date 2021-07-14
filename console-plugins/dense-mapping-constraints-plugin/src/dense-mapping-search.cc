@@ -13,6 +13,8 @@
 #include <vi-map/vertex.h>
 #include <vi-map/vi-map.h>
 
+#include "dense-mapping/dense-mapping-external-interface.h"
+
 namespace dense_mapping {
 
 SearchConfig SearchConfig::fromGflags() {
@@ -298,6 +300,87 @@ void findAllAlignmentCandidates(
     VLOG(1) << "Found " << candidates.size() << " candidates in mission "
             << mission_id << ".";
   }
+}
+
+static Eigen::Vector3d computeSubmapCenter(
+    const pose_graph::VertexIdList& vertex_ids, const vi_map::VIMap& map) {
+  Eigen::Vector3d average_position = Eigen::Vector3d::Zero();
+  const std::size_t n_vertices = vertex_ids.size();
+  if (n_vertices == 0) {
+    return average_position;
+  }
+
+  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+    const vi_map::Vertex& vertex = map.getVertex(vertex_id);
+    average_position += vertex.get_p_M_I();
+  }
+  average_position /= n_vertices;
+  return average_position;
+}
+
+static void filterCandidatesBySubmap(
+    const Eigen::Vector3d& T_G_B_center,
+    const vi_map::MissionIdList& mission_ids,
+    MissionToAlignmentCandidatesMap* candidates_per_mission_ptr) {
+  CHECK(candidates_per_mission_ptr);
+
+  vi_map::MissionIdList::const_iterator it = mission_ids.cbegin();
+  for (; it != mission_ids.cend(); ++it) {
+    const vi_map::MissionId& mission_id = *it;
+    AlignmentCandidateList& candidates =
+        candidates_per_mission_ptr->at(mission_id);
+
+    const double eps = 10.0;
+    auto dist_comp = [&T_G_B_center,
+                      &eps](const AlignmentCandidate& candidate) {
+      const double distance =
+          (candidate.T_G_S_resource.getPosition() - T_G_B_center).lpNorm<2>();
+      return distance > eps;
+    };
+    candidates.erase(
+        std::remove_if(candidates.begin(), candidates.end(), dist_comp));
+  }
+}
+
+bool findAlignmentCandidatesForSubmap(
+    const SearchConfig& config, const vi_map::VIMap& map,
+    const vi_map::MissionIdList& mission_ids,
+    const pose_graph::VertexIdList& vertices_in_submap,
+    MissionToAlignmentCandidatesMap* candidates_per_mission_ptr) {
+  CHECK_NOTNULL(candidates_per_mission_ptr);
+
+  // Find all candidates in the map.
+  try {
+    findAllAlignmentCandidates(
+        config, map, mission_ids, candidates_per_mission_ptr);
+  } catch (std::exception& e) {
+    LOG(ERROR) << "Finding alignment pairs failed. Aborting.";
+    return false;
+  }
+
+  // Filter all candidates based on the submap center position.
+  const Eigen::Vector3d center_position =
+      computeSubmapCenter(vertices_in_submap, map);
+  filterCandidatesBySubmap(
+      center_position, mission_ids, candidates_per_mission_ptr);
+
+  return true;
+}
+
+bool searchForSubmapAlignmentCandidatePairs(
+    const SearchConfig& config, const vi_map::VIMap& map,
+    const vi_map::MissionIdList& mission_ids,
+    const pose_graph::VertexIdList& vertices_in_submap,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK_NOTNULL(candidate_pairs_ptr);
+  MissionToAlignmentCandidatesMap candidates_per_mission;
+  if (!findAlignmentCandidatesForSubmap(
+          config, map, mission_ids, vertices_in_submap,
+          &candidates_per_mission)) {
+    return false;
+  }
+
+  return true;
 }
 
 bool candidatesAreTemporallyTooFar(
@@ -702,7 +785,7 @@ bool searchForProximityBasedAlignmentCandidatePairsBetweenTwoMissions(
            squared_distance_to_candidate_pair_map) {
         ss << "\n - " << std::sqrt(pair_w_distance.first) << "m";
       }
-      VLOG(3) << ss.str();
+      VLOG(5) << ss.str();
     }
 
     // If enabled (param proximity_search_take_closest_n_candidates is greater
@@ -727,7 +810,8 @@ bool searchForProximityBasedAlignmentCandidatePairs(
   CHECK_NOTNULL(candidate_pairs_ptr);
 
   vi_map::MissionIdList::const_iterator it_A = mission_ids.cbegin();
-  for (; it_A != mission_ids.end(); ++it_A) {
+  vi_map::MissionIdList::const_iterator end_it_A = mission_ids.cend();
+  for (; it_A != end_it_A; ++it_A) {
     const vi_map::MissionId& mission_id_A = *it_A;
     const AlignmentCandidateList& candidates_A =
         candidates_per_mission.at(mission_id_A);
@@ -804,7 +888,7 @@ bool searchForProximityBasedAlignmentCandidatePairs(
 }
 
 bool searchGloballyForAlignmentCandidatePairsBetweenTwoMissions(
-    const SearchConfig& /*config*/, const vi_map::VIMap& /*map*/,
+    const SearchConfig& config, const vi_map::VIMap& /*map*/,
     const vi_map::MissionId& mission_A, const vi_map::MissionId& mission_B,
     const AlignmentCandidateList& /*candidates_A*/,
     const AlignmentCandidateList& /*candidates_B*/,
@@ -814,7 +898,11 @@ bool searchGloballyForAlignmentCandidatePairsBetweenTwoMissions(
   VLOG(1) << "Searching for global candidates between missions " << mission_A
           << " and " << mission_B;
 
-  // TODO(mfehr): implement.
+  ExternalInterface ext_interface(
+      config.enable_intra_mission_global_search,
+      config.enable_inter_mission_global_search);
+
+  ext_interface.poseLookupRequest();
 
   return true;
 }
