@@ -599,6 +599,8 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
           regbox::FLAGS_regbox_pcl_downsample_leaf_size_m);
       grid_filter.filter(map_points_in_current_fov_down_sampled);
       *aggregated_filtered_map_pcl += map_points_in_current_fov_down_sampled;
+      backend::convertPointCloudType(
+          *aggregated_filtered_map_pcl, &aggregated_filtered_map);
 
       if (FLAGS_dm_visualize_incremental_submap) {
         const std::string kSubMapFrame = "submap";
@@ -610,8 +612,6 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
             candidate_to_last_successful_pair.candidate_A.timestamp_ns);
         visualization::RVizVisualizationSink::publish(
             kSubMapPointCloudTopic, sub_map_points_msg);
-        backend::convertPointCloudType(
-            *aggregated_filtered_map_pcl, &aggregated_filtered_map);
         sensor_msgs::PointCloud2 map_points_msg;
         AlignmentCandidatePair odom_pair;
         createCandidatePair(

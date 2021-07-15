@@ -29,6 +29,7 @@ Config Config::forIncrementalSubmapAlignment() {
 
   config.search_config = SearchConfig::fromGflags();
   config.search_config.enable_incremental_submap_search = true;
+  config.search_config.min_mission_distance_m = 0.0;
   config.selection_config = SelectionConfig::fromGflags();
   config.alignment_config = AlignmentConfig::fromGflags();
   config.constraints_config = ConstraintsConfig::fromGflags();

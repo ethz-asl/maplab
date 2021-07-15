@@ -7,6 +7,7 @@
 
 // CANDIDATE SEARCH
 DECLARE_string(dm_resource_types);
+DECLARE_double(dm_candidate_search_min_vertex_mission_distance);
 
 DECLARE_bool(dm_candidate_search_enable_intra_mission_consecutive);
 DECLARE_double(dm_candidate_search_consecutive_max_delta_time_s);

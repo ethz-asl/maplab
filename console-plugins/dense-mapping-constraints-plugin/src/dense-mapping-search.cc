@@ -31,6 +31,9 @@ SearchConfig SearchConfig::fromGflags() {
         << "' is not supported by dense mapping.";
   }
 
+  config.min_mission_distance_m =
+      FLAGS_dm_candidate_search_min_vertex_mission_distance;
+
   config.enable_intra_mission_consecutive_search =
       FLAGS_dm_candidate_search_enable_intra_mission_consecutive;
 
@@ -157,14 +160,34 @@ void findAllAlignmentCandidates(
 
     // Get timestamps of all vertices.
     common::TemporalBuffer<pose_graph::VertexId> temporal_vertex_buffer;
+    int64_t skip_timestamps_earlier_than_ns = 0;
+    if (config.min_mission_distance_m > 0.0) {
+      skip_timestamps_earlier_than_ns = std::numeric_limits<int64_t>::max();
+    }
     {
       pose_graph::VertexIdList vertex_ids;
       map.getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
 
+      Eigen::Vector3d p_M_I_first_vertex;
+      if (!vertex_ids.empty()) {
+        p_M_I_first_vertex = map.getVertex(vertex_ids.front()).get_p_M_I();
+      } else {
+        continue;
+      }
       for (const pose_graph::VertexId& vertex_id : vertex_ids) {
-        const int64_t vertex_timestamp_ns =
-            map.getVertex(vertex_id).getMinTimestampNanoseconds();
+        const vi_map::Vertex& vertex = map.getVertex(vertex_id);
+        const int64_t vertex_timestamp_ns = vertex.getMinTimestampNanoseconds();
         temporal_vertex_buffer.addValue(vertex_timestamp_ns, vertex_id);
+        if (config.min_mission_distance_m > 0.0 &&
+            skip_timestamps_earlier_than_ns ==
+                std::numeric_limits<int64_t>::max()) {
+          // LOG(WARNING) << (p_M_I_first_vertex - vertex.get_p_M_I()).norm();
+          // if (vertex.get_p_M_I().norm() >
+          if ((p_M_I_first_vertex - vertex.get_p_M_I()).norm() >
+              config.min_mission_distance_m) {
+            skip_timestamps_earlier_than_ns = vertex_timestamp_ns;
+          }
+        }
       }
     }
 
@@ -225,6 +248,10 @@ void findAllAlignmentCandidates(
                 << ", "
                 << aslam::time::timeNanosecondsToString(max_timestamp_ns)
                 << "]";
+            continue;
+          }
+
+          if (timestamp_resource_ns < skip_timestamps_earlier_than_ns) {
             continue;
           }
 

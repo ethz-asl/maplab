@@ -888,26 +888,24 @@ bool VIMap::isMaxDistanceLargerThan(
     const vi_map::MissionId& mission_id, const double max_distance_m) const {
   CHECK_GE(max_distance_m, 0.0);
   const vi_map::VIMission& mission = getMission(mission_id);
-
   pose_graph::VertexIdList all_vertices_in_mission;
   getAllVertexIdsInMissionAlongGraph(mission_id, &all_vertices_in_mission);
+  if (all_vertices_in_mission.empty()) {
+    return false;
+  }
 
   const pose_graph::VertexId& first_vertex_id = all_vertices_in_mission.front();
   const vi_map::Vertex& first_vertex = getVertex(first_vertex_id);
-  const aslam::Transformation& T_M_B_first = first_vertex.get_T_M_I();
+  const Eigen::Vector3d& p_M_I_first = first_vertex.get_p_M_I();
 
   pose_graph::VertexId last_vertex_id;
   aslam::Transformation T_B_first_B_last;
 
-  for (uint32_t vertex_idx = 1u; vertex_idx < all_vertices_in_mission.size();
-       ++vertex_idx) {
-    last_vertex_id = all_vertices_in_mission[vertex_idx];
-    const vi_map::Vertex& last_vertex = getVertex(last_vertex_id);
-    const aslam::Transformation& T_M_B_last = last_vertex.get_T_M_I();
-    T_B_first_B_last = T_M_B_first.inverse() * T_M_B_last;
+  for (const pose_graph::VertexId& vertex_id : all_vertices_in_mission) {
+    const Eigen::Vector3d& p_M_I_current = getVertex(vertex_id).get_p_M_I();
 
     // Return if the distance is larger than the treshold
-    if (T_B_first_B_last.getPosition().norm() > max_distance_m) {
+    if ((p_M_I_first - p_M_I_current).norm() > max_distance_m) {
       return true;
     }
   }

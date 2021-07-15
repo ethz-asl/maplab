@@ -32,6 +32,8 @@ struct SearchConfig {
   bool enable_intra_mission_global_search;
   bool enable_inter_mission_global_search;
   bool enable_incremental_submap_search;
+
+  double min_mission_distance_m;
 };
 
 void createCandidatePair(
