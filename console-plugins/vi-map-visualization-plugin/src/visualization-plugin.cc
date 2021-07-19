@@ -109,6 +109,15 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
       "Publish all xyz + intensity point clouds.", common::Processing::Sync);
 
   addCommand(
+      {"visualize_xyzirt_pointclouds"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResource(
+            backend::ResourceType::kPointCloudXYZIRT);
+      },
+      "Publish all xyz + intensity, ring, time point clouds.",
+      common::Processing::Sync);
+
+  addCommand(
       {"visualize_xyzi_pointclouds_from_mission"},
       [this]() -> int {
         return visualizeReprojectedDepthResourceFromMission(

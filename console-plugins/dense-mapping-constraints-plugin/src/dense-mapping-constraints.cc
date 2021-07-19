@@ -127,4 +127,36 @@ bool applyConstraintsToMap(
   return true;
 }
 
+uint32_t removeConstraintsFromVertex(
+    const pose_graph::VertexId& vertex_id, vi_map::VIMap* map_ptr) {
+  CHECK_NOTNULL(map_ptr);
+  const vi_map::Vertex& vertex = map_ptr->getVertex(vertex_id);
+
+  pose_graph::EdgeIdSet outgoing_edges;
+  vertex.getOutgoingEdges(&outgoing_edges);
+
+  uint32_t num_removed = 0u;
+  for (const pose_graph::EdgeId& edge_id : outgoing_edges) {
+    const pose_graph::Edge& edge =
+        map_ptr->getEdgeAs<pose_graph::Edge>(edge_id);
+    if (edge.getType() == pose_graph::Edge::EdgeType::kLoopClosure) {
+      CHECK_EQ(edge.from(), vertex.id());
+      map_ptr->removeEdge(edge_id);
+      ++num_removed;
+    }
+  }
+  return num_removed;
+}
+
+bool removeAllConstraintsFromVertices(
+    const pose_graph::VertexIdList& vertex_ids, vi_map::VIMap* map_ptr) {
+  CHECK_NOTNULL(map_ptr);
+  uint32_t total_removed = 0u;
+  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+    total_removed += removeConstraintsFromVertex(vertex_id, map_ptr);
+  }
+  LOG(INFO) << "Removed " << total_removed << " dense mapping constraints.";
+  return total_removed > 0;
+}
+
 }  // namespace dense_mapping

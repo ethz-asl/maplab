@@ -24,6 +24,9 @@ DECLARE_int32(dm_candidate_search_proximity_take_closest_n_candidates);
 
 DECLARE_bool(dm_candidate_search_enable_intra_mission_global);
 DECLARE_bool(dm_candidate_search_enable_inter_mission_global);
+DECLARE_string(dm_candidate_search_external_global_service);
+DECLARE_int32(dm_candidate_search_external_n_nearest_neighbors);
+DECLARE_double(dm_candidate_search_external_min_confidence);
 
 // CANDIDATE SELECTION
 DECLARE_bool(dm_candidate_selection_recompute_all_constraints);

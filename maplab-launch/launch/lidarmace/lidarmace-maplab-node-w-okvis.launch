@@ -4,8 +4,10 @@
   <!--
   <node pkg="rosbag" type="play" name="rosbag" args="/media/berlukas/T7\ Touch/arche_11_2020-06-30-16-26-25_restamped.bag -q -d 4 -s 0 -r 0.5"/>
   <node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/arche/arche_08_2020-06-30-13-52-10_restamped.bag -q -d 4 -s 0 -r 0.5"/>
-  -->
   <node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/alice/arche_16_2020-06-30-17-57-19.bag -q -d 3 -s 0 -r 0.5"/>
+  <node pkg="rosbag" type="play" name="rosbag" args="/mnt/data/datasets/armasuisse/2021-03-26-11-46-28.bag -q -d 2 -s 13 -r 0.8"/>
+  -->
+  <node pkg="rosbag" type="play" name="rosbag" args="/media/berlukas/SSD_1TB/armasuisse/mission_02.bag -q -d 2 -s 35 -r 0.8"/>
 
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 
@@ -38,7 +40,7 @@
 		<!-- DENSE MAP -->
 		<param name="map_builder_save_point_cloud_maps_as_resources" value="true"/>
 		<param name="map_builder_save_point_clouds_as_resources" value="true"/>
-		<param name="map_builder_save_image_as_resources" value="false"/>
+		<param name="map_builder_save_image_as_resources" value="true"/>
 
 		<!-- MAPLAB_NODE_CONFIG -->
 		<param name="map_save_every_n_sec" value="0"/>
