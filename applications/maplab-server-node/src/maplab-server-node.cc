@@ -595,6 +595,12 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
       if (!submap_mission_id.isValid()) {
         continue;
       }
+      // This can happen if the mission was added to the map with key
+      // kMergedMapKey but is not yet included in the map with key
+      // kMergedMapPublicKey.
+      if (!map->hasMission(submap_mission_id)) {
+        continue;
+      }
       landmark_triangulation::VertexToTimeStampMap vertex_to_time_map;
       int64_t min_timestamp_ns;
       int64_t max_timestamp_ns;
