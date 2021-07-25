@@ -16,6 +16,7 @@ UNIQUE_ID_DEFINE_ID(MissionId);
 UNIQUE_ID_DEFINE_ID(MissionBaseFrameId);
 UNIQUE_ID_DEFINE_ID(LandmarkId);
 UNIQUE_ID_DEFINE_ID(ResourceId);
+UNIQUE_ID_DEFINE_ID(DenseSubmapId);
 
 struct VisualFrameIdentifier {
   pose_graph::VertexId vertex_id;
@@ -114,6 +115,7 @@ UNIQUE_ID_DEFINE_ID_HASH(vi_map::LandmarkId);
 UNIQUE_ID_DEFINE_ID_HASH(vi_map::MissionId);
 UNIQUE_ID_DEFINE_ID_HASH(vi_map::MissionBaseFrameId);
 UNIQUE_ID_DEFINE_ID_HASH(vi_map::ResourceId);
+UNIQUE_ID_DEFINE_ID_HASH(vi_map::DenseSubmapId);
 namespace std {
 
 template <>

@@ -33,6 +33,7 @@
 #include <sensors/wheel-odometry-sensor.h>
 
 #include "vi-map/cklam-edge.h"
+#include "vi-map/dense-submap-manager.h"
 #include "vi-map/landmark-index.h"
 #include "vi-map/landmark.h"
 #include "vi-map/laser-edge.h"
@@ -143,6 +144,9 @@ class VIMap : public backend::ResourceMap,
 
   inline const SensorManager& getSensorManager() const;
   inline SensorManager& getSensorManager();
+
+  inline const DenseSubmapManager& getDenseSubmapManager() const;
+  inline DenseSubmapManager& getDenseSubmapManager();
 
   inline size_t numVertices() const;
   inline size_t numVerticesInMission(const vi_map::MissionId& mission_id) const;
@@ -801,6 +805,7 @@ class VIMap : public backend::ResourceMap,
   MissionBaseFrameMap mission_base_frames;
   LandmarkIndex landmark_index;
   SensorManager sensor_manager_;
+  DenseSubmapManager dense_submap_manager_;
 
   // Adding new data? Don't forget to add it to deepCopy() and swap()!
 

@@ -32,6 +32,51 @@ AlignmentConfig AlignmentConfig::fromGflags() {
   return config;
 }
 
+template <typename ResourceDataType>
+void retrievePointCloudsForDenseSubmap(
+    const vi_map::VIMap& map, const int64_t timestamp_ns,
+    const vi_map::DenseSubmap& submap, ResourceDataType* submap_cloud) {
+  CHECK_NOTNULL(submap_cloud);
+  vi_map::StampedTransformationMap stamped_transforms;
+  submap.getStampedTransformsToClosestFrame(timestamp_ns, &stamped_transforms);
+  const vi_map::VIMission& mission = map.getMission(submap.getMissionId());
+  std::vector<resources::PointCloud> submap_clouds(stamped_transforms.size());
+  size_t idx = 0u;
+  for (auto it = stamped_transforms.begin(); it != stamped_transforms.end();
+       ++idx, ++it) {
+    if (!map.getSensorResource<ResourceDataType>(
+            mission, backend::ResourceType::kPointCloudXYZIRT,
+            submap.getSensorId(), it->first, &submap_clouds[idx])) {
+      continue;
+    }
+    submap_clouds[idx].applyTransformation(it->second);
+  }
+  submap_cloud->append(submap_clouds);
+}
+template <typename ResourceDataType>
+bool candidatesQualifyForDenseSubmap(
+    const AlignmentCandidate candidate_B, const AlignmentCandidate candidate_A,
+    const vi_map::VIMap& map, ResourceDataType* candidate_resource) {
+  vi_map::DenseSubmap submap;
+  LOG(WARNING) << "TEST FOR QUALIFY";
+  if (!map.getDenseSubmapManager().getClosestDenseSubmap(
+          candidate_B.mission_id, candidate_B.timestamp_ns, &submap)) {
+    return false;
+  }
+  LOG(WARNING) << "MINMAX";
+  int64_t min_timestamp_ns;
+  int64_t max_timestamp_ns;
+  submap.getMinAndMaxTimestampNs(&min_timestamp_ns, &max_timestamp_ns);
+  if (min_timestamp_ns <= candidate_A.timestamp_ns &&
+      max_timestamp_ns >= candidate_A.timestamp_ns) {
+    return false;
+  }
+  LOG(WARNING) << "RETRIEVE";
+  retrievePointCloudsForDenseSubmap(
+      map, candidate_B.timestamp_ns, submap, candidate_resource);
+  return true;
+}
+
 bool alignmentDeviatesTooMuchFromInitialGuess(
     const AlignmentConfig& config, const AlignmentCandidatePair& pair) {
   // Only need to check pairs that have not already failed.
@@ -120,8 +165,11 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
   //                << pair.candidate_A.timestamp_ns;
   //   return false;
   // }
-  if (!retrieveResourceForCandidate(
-          pair.candidate_B, map, &candidate_resource_B)) {
+  if (candidatesQualifyForDenseSubmap(
+          pair.candidate_B, pair.candidate_A, map, &candidate_resource_B)) {
+    LOG(WARNING) << "QUALIFYYYY";
+  } else if (!retrieveResourceForCandidate(
+                 pair.candidate_B, map, &candidate_resource_B)) {
     LOG(ERROR) << "Unable to retrieve resource for candidate B.";
     return false;
   }
@@ -324,8 +372,8 @@ bool computeAlignmentForCandidatePairs(
 }
 
 bool computeAlignmentForIncrementalSubmapCandidatePairs(
-    const AlignmentConfig& config, const vi_map::VIMap& map,
-    const AlignmentCandidatePairs& candidate_pairs,
+    const AlignmentConfig& config,
+    const AlignmentCandidatePairs& candidate_pairs, vi_map::VIMap* vi_map_ptr,
     AlignmentCandidatePairs* aligned_candidate_pairs) {
   CHECK_NOTNULL(aligned_candidate_pairs);
 
@@ -358,6 +406,7 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
     }
   }
 
+  std::unique_ptr<vi_map::DenseSubmap> dense_submap;
   resources::PointCloud aggregated_filtered_map;
   resources::PointCloud aggregated_map;
   resources::PointCloud aggregated_odom_map;
@@ -422,7 +471,7 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
           resources::PointCloud candidate_resource_A;
           if (aggregated_filtered_map.empty()) {
             if (!retrieveResourceForCandidate(
-                    pair.candidate_A, map, &candidate_resource_A)) {
+                    pair.candidate_A, *vi_map_ptr, &candidate_resource_A)) {
               LOG(ERROR) << "Unable to retrieve resource for candidate A.";
               continue;
             }
@@ -435,6 +484,10 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
             //                << pair.candidate_A.timestamp_ns;
             //   continue;
             // }
+            dense_submap.reset(new vi_map::DenseSubmap(
+                pair.candidate_A.mission_id, pair.candidate_A.sensor_id));
+            dense_submap->addTransformationToSubmap(
+                pair.candidate_A.timestamp_ns, aslam::Transformation());
             aggregated_filtered_map = candidate_resource_A;
             aggregated_map = candidate_resource_A;
             aggregated_odom_map = candidate_resource_A;
@@ -444,7 +497,7 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
           }
 
           if (!retrieveResourceForCandidate(
-                  pair.candidate_B, map, &candidate_resource_B)) {
+                  pair.candidate_B, *vi_map_ptr, &candidate_resource_B)) {
             LOG(ERROR) << "Unable to retrieve resource for candidate B.";
             return false;
           }
@@ -539,7 +592,8 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
         ids_in_submap.push_back(submap_pair.candidate_A.closest_vertex_id);
         aligned_candidate_pairs->insert(submap_pair);
       }
-
+      dense_submap->addTransformationToSubmap(
+          submap_pair.candidate_A.timestamp_ns, submap_pair.T_SB_SA_final);
       pcl::PointCloud<pcl::PointXYZ> points_to_add_downsampled;
       pcl::VoxelGrid<pcl::PointXYZ> grid_filter;
       grid_filter.setInputCloud(registered_candidate_cloud_pcl);
@@ -633,6 +687,9 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
     progress_bar.update(++processed_pairs);
   }
 
+  if (dense_submap->size() > 2u) {
+    vi_map_ptr->getDenseSubmapManager().addDenseSubmap(*dense_submap);
+  }
   VLOG(1) << "Done.";
 
   VLOG(1) << "Successfully aligned " << successful_alignments << "/"

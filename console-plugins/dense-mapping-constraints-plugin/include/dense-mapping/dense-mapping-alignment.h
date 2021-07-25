@@ -38,8 +38,8 @@ bool computeAlignmentForCandidatePairsImpl(
     AlignmentCandidatePair* aligned_pair);
 
 bool computeAlignmentForIncrementalSubmapCandidatePairs(
-    const AlignmentConfig& config, const vi_map::VIMap& map,
-    const AlignmentCandidatePairs& candidate_pairs,
+    const AlignmentConfig& config,
+    const AlignmentCandidatePairs& candidate_pairs, vi_map::VIMap* vi_map_ptr,
     AlignmentCandidatePairs* aligned_candidate_pairs);
 
 }  // namespace dense_mapping

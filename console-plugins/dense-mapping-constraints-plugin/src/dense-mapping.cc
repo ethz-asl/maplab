@@ -63,7 +63,7 @@ bool addDenseMappingConstraintsToMap(
   AlignmentCandidatePairs aligned_candidates;
   if (config.search_config.enable_incremental_submap_search) {
     if (!computeAlignmentForIncrementalSubmapCandidatePairs(
-            config.alignment_config, *vi_map_ptr, candidates,
+            config.alignment_config, candidates, vi_map_ptr,
             &aligned_candidates)) {
       LOG(ERROR) << "Computing the alignment of the candidates failed!";
       return false;

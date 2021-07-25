@@ -1192,6 +1192,14 @@ SensorManager& VIMap::getSensorManager() {
   return sensor_manager_;
 }
 
+const DenseSubmapManager& VIMap::getDenseSubmapManager() const {
+  return dense_submap_manager_;
+}
+
+DenseSubmapManager& VIMap::getDenseSubmapManager() {
+  return dense_submap_manager_;
+}
+
 template <typename Edge, vi_map::Edge::EdgeType EdgeType>
 size_t VIMap::mergeEdgesOfNeighboringVertices(
     const pose_graph::VertexId& merge_into_vertex_id,

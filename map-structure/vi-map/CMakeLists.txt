@@ -9,6 +9,7 @@ PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 
 SET(VI_MAP_SOURCE src/check-map-consistency.cc
                   src/cklam-edge.cc
+                  src/dense-submap-manager.cc
                   src/edge.cc
                   src/landmark-quality-metrics.cc
                   src/landmark-store.cc

@@ -3286,6 +3286,9 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
     submap_edge.copyEdgeInto(&edge_copy);
     addEdge(vi_map::Edge::UniquePtr(edge_copy));
   }
+
+  // Merge dense submaps
+  dense_submap_manager_.merge(submap.getDenseSubmapManager());
   return true;
 }
 
