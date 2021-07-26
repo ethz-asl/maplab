@@ -426,14 +426,14 @@ void MaplabServerRosNode::visualizeMap() {
 void MaplabServerRosNode::triggerSparseGraphUpdate(
     const ros::TimerEvent& event) {
   CHECK_NOTNULL(maplab_server_node_);
-  LOG(INFO) << "[MaplabServerRosNode] Trigger Sparse Graph Update.";
-  if (maplab_server_node_->computeSparseGraph()) {
-    LOG(INFO) << "[MaplabServerRosNode] Updated Sparse Graph.";
-  } else {
-    LOG(INFO) << "[MaplabServerRosNode] No Sparse Graph Update available.";
-  }
-  sparse_graph_timer_.setPeriod(
-      ros::Duration(time_between_sparse_graph_update_requests_), true);
+  // LOG(INFO) << "[MaplabServerRosNode] Trigger Sparse Graph Update.";
+  // if (maplab_server_node_->computeSparseGraph()) {
+  //   LOG(INFO) << "[MaplabServerRosNode] Updated Sparse Graph.";
+  // } else {
+  //   LOG(INFO) << "[MaplabServerRosNode] No Sparse Graph Update available.";
+  // }
+  // sparse_graph_timer_.setPeriod(
+  //     ros::Duration(time_between_sparse_graph_update_requests_), true);
 }
 
 }  // namespace maplab
