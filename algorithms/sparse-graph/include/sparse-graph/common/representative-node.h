@@ -30,6 +30,8 @@ class RepresentativeNode {
   bool isActive() const noexcept;
 
   double distanceTo(const RepresentativeNode& rhs) const noexcept;
+  aslam::Transformation transformTo(const RepresentativeNode& rhs) const
+      noexcept;
 
   std::vector<uint32_t> getLocalIndex() const noexcept;
   void setLocalIndex(const std::vector<uint32_t>& local_index);

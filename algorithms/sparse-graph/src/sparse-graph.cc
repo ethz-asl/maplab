@@ -50,6 +50,7 @@ void SparseGraph::publishLatestGraph(const vi_map::VIMap* map) {
   // publishGraphForVisualization();
   publishGraphForBuilding();
   publishTrajecotryForEvaluation();
+  publishTrajecotryPath();
   publishNewSubmaps(map);
 
   ++pub_seq_;
@@ -454,7 +455,6 @@ void SparseGraph::publishTrajecotryForEvaluation() const {
     const uint32_t submap_id = node.getAssociatedSubmapId();
     const std::string name = getKeyForSubmapId(submap_id);
     const double residual = node.getResidual();
-    const aslam::Transformation pose = node.getPose();
     ts_ros = Utils::CreateRosTimestamp(node.getTimestampNanoseconds());
 
     geometry_msgs::PoseStamped pose_msg;
@@ -468,10 +468,37 @@ void SparseGraph::publishTrajecotryForEvaluation() const {
     traj_msg.nodes.emplace_back(node_msg);
   }
 
-  traj_msg.header.stamp = ts_ros;
+  traj_msg.header.stamp = ros::Time::now();
   traj_msg.header.seq = pub_seq_;
   visualization::RVizVisualizationSink::publish(
       "sparse_graph/trajectory", traj_msg);
+}
+
+void SparseGraph::publishTrajecotryPath() const {
+  const std::string& mission_frame = "darpa";
+  ros::Time ts_ros;
+  std::unordered_map<std::string, nav_msgs::Path> path_per_robot;
+  for (const RepresentativeNode& node : sparse_graph_) {
+    if (!node.isActive()) {
+      continue;
+    }
+    const uint32_t submap_id = node.getAssociatedSubmapId();
+    const std::string name = getKeyForSubmapId(submap_id);
+    geometry_msgs::PoseStamped pose_msg;
+    ts_ros = Utils::CreateRosTimestamp(node.getTimestampNanoseconds());
+    tf::poseStampedKindrToMsg(node.getPose(), ts_ros, mission_frame, &pose_msg);
+
+    path_per_robot[name].poses.emplace_back(pose_msg);
+  }
+
+  for (auto& robot_and_path : path_per_robot) {
+    std::stringstream ss;
+    ss << "sparse_graph/" << robot_and_path.first << "/trajectory";
+    robot_and_path.second.header.frame_id = mission_frame;
+    robot_and_path.second.header.stamp = ros::Time::now();
+    visualization::RVizVisualizationSink::publish(
+        ss.str(), robot_and_path.second);
+  }
 }
 
 void SparseGraph::publishGraphForVisualization() const {

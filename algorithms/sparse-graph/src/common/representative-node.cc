@@ -57,6 +57,11 @@ double RepresentativeNode::distanceTo(const RepresentativeNode& rhs) const
   return (pose_.getPosition() - rhs.pose_.getPosition()).lpNorm<2>();
 }
 
+aslam::Transformation RepresentativeNode::transformTo(
+    const RepresentativeNode& rhs) const noexcept {
+  return pose_.inverse() * rhs.pose_;
+}
+
 std::vector<uint32_t> RepresentativeNode::getLocalIndex() const noexcept {
   return local_index_;
 }
