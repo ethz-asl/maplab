@@ -92,16 +92,24 @@ RepresentativeNodeVector LidarPartitioner::getRepresentativesForSubmap(
 
     // Insert a new representative node if it is not already present.
     RepresentativeNode current_node(T_M_B_vector[0], ts_pc_ns, submap_id);
-    current_node.setPointCloud(pc);
-    current_node.setLocalIndex({static_cast<uint32_t>(i)});
-    if (std::find(
-            processed_lidar_scans.cbegin(), processed_lidar_scans.cend(),
-            current_node) == processed_lidar_scans.cend()) {
+    if (shouldInsertNode(processed_lidar_scans, current_node)) {
+      current_node.setPointCloud(pc);
+      current_node.setLocalIndex({static_cast<uint32_t>(i)});
       processed_lidar_scans.emplace_back(std::move(current_node));
     }
   }
 
   return processed_lidar_scans;
+}
+
+bool LidarPartitioner::shouldInsertNode(
+    const RepresentativeNodeVector& nodes,
+    const RepresentativeNode& cur_node) const noexcept {
+  if (nodes.empty()) {
+    return true;
+  }
+  const RepresentativeNode& last_node = nodes.back();
+  return false;
 }
 
 }  // namespace spg

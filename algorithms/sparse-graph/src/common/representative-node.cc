@@ -52,6 +52,11 @@ bool RepresentativeNode::isActive() const noexcept {
   return is_active_;
 }
 
+double RepresentativeNode::distanceTo(const RepresentativeNode& rhs) const
+    noexcept {
+  return (pose_.getPosition() - rhs.pose_.getPosition()).lpNorm<2>();
+}
+
 std::vector<uint32_t> RepresentativeNode::getLocalIndex() const noexcept {
   return local_index_;
 }

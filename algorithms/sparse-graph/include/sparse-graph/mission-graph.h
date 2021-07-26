@@ -1,8 +1,8 @@
 #ifndef SPARSE_GRAPH_MISSION_GRAPH_H_
 #define SPARSE_GRAPH_MISSION_GRAPH_H_
 
-#include <unordered_map>
 #include <mutex>
+#include <unordered_map>
 #include <vector>
 
 #include <vi-map/vi-map.h>
