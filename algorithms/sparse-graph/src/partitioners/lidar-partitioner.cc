@@ -7,6 +7,8 @@
 
 #include <glog/logging.h>
 
+#include "sparse-graph/common/sparse-graph-gflags.h"
+
 namespace spg {
 
 LidarPartitioner::LidarPartitioner(const vi_map::VIMap& map)
@@ -109,6 +111,10 @@ bool LidarPartitioner::shouldInsertNode(
     return true;
   }
   const RepresentativeNode& last_node = nodes.back();
+  if (last_node.distanceTo(cur_node) >
+      FLAGS_sparse_graph_min_distance_to_last_node_m) {
+    return true;
+  }
   return false;
 }
 
