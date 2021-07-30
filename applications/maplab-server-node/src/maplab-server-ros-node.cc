@@ -248,9 +248,8 @@ bool MaplabServerRosNode::reinitGflagsCallback(
     std_srvs::Empty::Response& /*response*/) {  // NOLINT
   LOG(INFO)
       << "[MaplabServerRosNode] Received reinitialize gflags service call...";
-  ros_common::parserInstance<ros_common::GflagsParser>().parseFromRosParams(
-      nh_private_);
-  return true;
+  return ros_common::parserInstance<ros_common::GflagsParser>()
+      .parseFromRosParams(nh_private_);
 }
 
 bool MaplabServerRosNode::publishPoseCorrection(
