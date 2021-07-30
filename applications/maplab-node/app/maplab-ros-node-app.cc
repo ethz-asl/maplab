@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
   if (ros_common::parserInstance<ros_common::GflagsParser>().parseFromRosParams(
           nh_private)) {
     LOG(ERROR) << "Unable to set up Gflags using rosparams! "
-               << "Using default parameters."
+               << "Using default parameters.";
   }
 
   maplab::MaplabRosNode maplab_node(nh, nh_private);
