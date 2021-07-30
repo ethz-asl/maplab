@@ -27,8 +27,8 @@ int main(int argc, char** argv) {
 
   // Initialize singleton and parse the current rosparams.
   ros_common::parserInstance<ros_common::GflagsParser>(argv[0]);
-  if (ros_common::parserInstance<ros_common::GflagsParser>().parseFromRosParams(
-          nh_private)) {
+  if (!ros_common::parserInstance<ros_common::GflagsParser>()
+           .parseFromRosParams(nh_private)) {
     LOG(ERROR) << "Unable to set up Gflags using rosparams! "
                << "Using default parameters.";
   }
