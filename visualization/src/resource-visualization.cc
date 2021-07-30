@@ -310,9 +310,10 @@ void visualizeReprojectedDepthResource(
 
         uint8_t r = 0u, g = 0u, b = 0u;
         if (FLAGS_vis_pointcloud_color_random) {
-          r = rand() % 256;
-          g = rand() % 256;
-          b = rand() % 256;
+          uint32_t seed = time(NULL);
+          r = rand_r(&seed) % 256;
+          g = rand_r(&seed) % 256;
+          b = rand_r(&seed) % 256;
         }
 
         ++point_cloud_counter;
@@ -460,9 +461,10 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
 
         uint8_t r = 0u, g = 0u, b = 0u;
         if (FLAGS_vis_pointcloud_color_random) {
-          r = rand() % 256;
-          g = rand() % 256;
-          b = rand() % 256;
+          uint32_t seed = time(NULL);
+          r = rand_r(&seed) % 256;
+          g = rand_r(&seed) % 256;
+          b = rand_r(&seed) % 256;
         }
 
         ++point_cloud_counter;
