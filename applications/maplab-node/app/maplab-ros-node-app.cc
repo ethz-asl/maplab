@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "maplab_node");
   ros::NodeHandle nh, nh_private("~");
 
-  // Initialize singleton and parse the current rosparams
+  // Initialize singleton and parse the current rosparams.
   ros_common::parserInstance<ros_common::GflagsParser>(argv[0]);
   if (ros_common::parserInstance<ros_common::GflagsParser>().parseFromRosParams(
           nh_private)) {
