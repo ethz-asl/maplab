@@ -75,6 +75,12 @@ MaplabServerRosNode::MaplabServerRosNode(
           boost::bind(&MaplabServerRosNode::saveMapCallback, this, _1, _2);
   save_map_srv_ = nh_.advertiseService("save_map", save_map_callback);
 
+  boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
+      reinit_gflags_callback =
+          boost::bind(&MaplabServerRosNode::reinitGflagsCallback, this, _1, _2);
+  reinit_gflags_srv_ =
+      nh_.advertiseService("reinit_gflags", reinit_gflags_callback);
+
   boost::function<bool(
       maplab_msgs::BatchMapLookup::Request&,
       maplab_msgs::BatchMapLookup::Response&)>

@@ -87,6 +87,7 @@ class MaplabServerRosNode {
   ros::NodeHandle nh_private_;
 
   ros::ServiceServer save_map_srv_;
+  ros::ServiceServer reinit_gflags_srv_;
   ros::ServiceServer map_lookup_srv_;
   ros::ServiceServer delete_mission_srv_;
   ros::ServiceServer delete_all_robot_missions_srv_;
