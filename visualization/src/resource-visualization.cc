@@ -617,7 +617,7 @@ void visualizeReprojectedDepthResourcePerRobot(
                 accumulated_point_cloud_G,
                 filtered_accumulated_point_cloud_G.get());
           } else if (
-              FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
+              FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {  // NOLINT
             filtered_accumulated_point_cloud_G =
                 std::make_shared<resources::PointCloud>();
             applyBeautification(
