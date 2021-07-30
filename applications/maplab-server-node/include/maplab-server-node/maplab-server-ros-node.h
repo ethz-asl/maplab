@@ -45,6 +45,10 @@ class MaplabServerRosNode {
       std_srvs::Empty::Request& request,     // NOLINT
       std_srvs::Empty::Response& response);  // NOLINT
 
+  bool reinitGflagsCallback(
+      std_srvs::Empty::Request& request,     // NOLINT
+      std_srvs::Empty::Response& response);  // NOLINT
+
   // Look up the current global frame position of a point in sensor frame.
   bool mapLookupCallback(
       maplab_msgs::BatchMapLookup::Request& requests,     // NOLINT

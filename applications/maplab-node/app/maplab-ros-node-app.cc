@@ -25,7 +25,9 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "maplab_node");
   ros::NodeHandle nh, nh_private("~");
 
-  ros_common::parseGflagsFromRosParams(argv[0], nh_private);
+  ros_common::parserInstance<GflagsParser>(argv[0]);
+  ros_common::parserInstance<GflagsParser>().parseGflagsFromRosParams(
+      nh_private);
 
   maplab::MaplabRosNode maplab_node(nh, nh_private);
 

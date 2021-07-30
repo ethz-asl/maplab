@@ -18,6 +18,7 @@
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
+#include <maplab-ros-common/gflags-interface.h>
 #include <maplab_msgs/MapLookupRequest.h>
 #include <maplab_msgs/MapLookupResponse.h>
 #include <maplab_msgs/VerificationCheckRequest.h>
@@ -234,6 +235,16 @@ bool MaplabServerRosNode::saveMapCallback(
     std_srvs::Empty::Response& /*response*/) {  // NOLINT
   LOG(INFO) << "[MaplabServerRosNode] Received save map service call...";
   return saveMap();
+}
+
+bool MaplabServerRosNode::reinitGflagsCallback(
+    std_srvs::Empty::Request& /*request*/,      // NOLINT
+    std_srvs::Empty::Response& /*response*/) {  // NOLINT
+  LOG(INFO)
+      << "[MaplabServerRosNode] Received reinitialize gflags service call...";
+  ros_common::parserInstance<ros_common::GflagsParser>().parseFromRosParams(
+      nh_private_);
+  return true;
 }
 
 bool MaplabServerRosNode::publishPoseCorrection(
