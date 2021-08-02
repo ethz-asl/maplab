@@ -27,6 +27,8 @@ class VOFeatureTrackingPipeline : public FeatureTrackingPipeline {
       const FeatureTrackingDetectorSettings& detector_settings);
   virtual ~VOFeatureTrackingPipeline();
 
+  void initializeFirstNFrame(aslam::VisualNFrame* nframe_k);
+
   void trackFeaturesNFrame(
       const aslam::Quaternion& q_Bkp1_Bk, aslam::VisualNFrame* nframe_kp1,
       aslam::VisualNFrame* nframe_k,
@@ -59,7 +61,7 @@ class VOFeatureTrackingPipeline : public FeatureTrackingPipeline {
   /// Thread pool for tracking and track extraction.
   std::unique_ptr<aslam::ThreadPool> thread_pool_;
 
-  bool has_feature_extraction_been_performed_on_first_nframe_;
+  bool first_nframe_initialized_;
 
   const FeatureTrackingExtractorSettings extractor_settings_;
   const FeatureTrackingDetectorSettings detector_settings_;

@@ -82,6 +82,11 @@ class StreamMapBuilder {
       const vi_map::ExternalFeaturesMeasurement::ConstPtr&
           external_features_measurement);
 
+  void setExternalFeaturesSyncToleranceNs(
+      int64_t external_features_sync_tolerance_ns) {
+    external_features_sync_tolerance_ns_ = external_features_sync_tolerance_ns;
+  }
+
   template <typename PointCloudType>
   void attachPointCloudMap(
       const vi_map::PointCloudMapSensorMeasurement<PointCloudType>&
@@ -147,10 +152,6 @@ class StreamMapBuilder {
   // checked.
   std::atomic<int64_t> oldest_vertex_timestamp_ns_;
   std::atomic<int64_t> newest_vertex_timestamp_ns_;
-  // TODO(smauq): find more elegant solution than this by modifying the tracker
-  // code in aslam to deal with the multiple feature types. Also not dealing
-  // nicely with submapping at the moment!!!
-  std::atomic<int64_t> second_newest_vertex_timestamp_ns_;
 
   vi_map_helpers::VIMapQueries queries_;
   vi_map_helpers::VIMapManipulation manipulation_;
@@ -197,6 +198,7 @@ class StreamMapBuilder {
 
   common::TemporalBuffer<vi_map::ExternalFeaturesMeasurement::ConstPtr>
       external_features_measurement_temporal_buffer_;
+  int64_t external_features_sync_tolerance_ns_;
 
   static constexpr size_t kKeepNMostRecentImages = 10u;
 };

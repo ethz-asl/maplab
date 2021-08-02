@@ -12,12 +12,12 @@ constexpr char kYamlFieldNameHasScales[] = "has_scales";
 constexpr char kYamlFieldNameHasTrackIds[] = "has_track_ids";
 constexpr char kYamlFieldNameFeatureType[] = "feature_type";
 
-constexpr const char* kBRISKIdentifier = "BRISK";
+constexpr const char* kBinaryIdentifier = "Binary";
 constexpr const char* kSIFTIdentifier = "SIFT";
 
 std::string FeatureTypeToString(FeatureType feature_type) {
-  if (feature_type == FeatureType::kBRISK) {
-    return std::string(kBRISKIdentifier);
+  if (feature_type == FeatureType::kBinary) {
+    return std::string(kBinaryIdentifier);
   } else if (feature_type == FeatureType::kSIFT) {
     return std::string(kSIFTIdentifier);
   } else {
@@ -32,8 +32,8 @@ FeatureType StringToFeatureType(const std::string& feature_string) {
     return std::strcmp(lhs, rhs) == 0;
   };
 
-  if (equals(feature_c_string, kBRISKIdentifier)) {
-    return FeatureType::kBRISK;
+  if (equals(feature_c_string, kBinaryIdentifier)) {
+    return FeatureType::kBinary;
   } else if (equals(feature_c_string, kSIFTIdentifier)) {
     return FeatureType::kSIFT;
   } else {

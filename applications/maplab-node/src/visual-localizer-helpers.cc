@@ -101,7 +101,7 @@ void subselectStructureMatches(
         summary_map::getMaxDisparityRadAngleOfLandmarkObservationBundle(
             map, map_cached_lookup, match.landmark_result);
 
-    const Eigen::Block<Eigen::Matrix2Xd, 2, 1> keypoint =
+    const Eigen::Block<const Eigen::Matrix2Xd, 2, 1> keypoint =
         nframe.getFrame(match.frame_index_query)
             .getKeypointMeasurement(match.keypoint_index_query);
     CHECK_LT(match.frame_index_query, grid_per_camera.size());

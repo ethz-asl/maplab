@@ -67,12 +67,12 @@ StreamMapBuilder::StreamMapBuilder(
     : map_(CHECK_NOTNULL(map)),
       oldest_vertex_timestamp_ns_(aslam::time::getInvalidTime()),
       newest_vertex_timestamp_ns_(aslam::time::getInvalidTime()),
-      second_newest_vertex_timestamp_ns_(aslam::time::getInvalidTime()),
       queries_(*map),
       manipulation_(map),
       mission_id_(aslam::createRandomId<vi_map::MissionId>()),
       found_wheel_odometry_origin_(false),
-      is_first_baseframe_estimate_processed_(false) {
+      is_first_baseframe_estimate_processed_(false),
+      external_features_sync_tolerance_ns_(aslam::time::getInvalidTime()) {
   // Clone sensor manager into the new map.
   map_->getSensorManager().merge(sensor_manager);
 
@@ -210,6 +210,9 @@ void StreamMapBuilder::apply(
   nframe_to_insert->setNCameras(
       map_->getSensorManager().getSensorPtr<aslam::NCamera>(ncamera_id));
 
+  newest_vertex_timestamp_ns_.store(
+      nframe_to_insert->getMinTimestampNanoseconds());
+
   if (!last_vertex_.isValid()) {
     oldest_vertex_timestamp_ns_.store(
         nframe_to_insert->getMinTimestampNanoseconds());
@@ -218,9 +221,6 @@ void StreamMapBuilder::apply(
     done_current_vertex_wheel_odometry_ = false;
   } else {
     CHECK(mission_id_.isValid());
-    second_newest_vertex_timestamp_ns_.store(newest_vertex_timestamp_ns_);
-    newest_vertex_timestamp_ns_.store(
-        nframe_to_insert->getMinTimestampNanoseconds());
     if (!is_first_baseframe_estimate_processed_ &&
         (update.localization_state == common::LocalizationState::kLocalized ||
          update.localization_state ==
@@ -1007,20 +1007,24 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
 }
 
 void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
-  if (map_->numVertices() < 3u ||
+  if (map_->numVertices() < 1u ||
       external_features_measurement_temporal_buffer_.empty()) {
     return;
   }
 
-  const int64_t newest_vertex_time_ns =
-      second_newest_vertex_timestamp_ns_.load();
+  CHECK(aslam::time::isValidTime(external_features_sync_tolerance_ns_))
+      << "External features sync tolerance has to be set separately by calling "
+      << "setExternalFeaturesSyncToleranceNs() beforehand. This should ideally "
+      << "match the nframe sync tolerance.";
+
+  const int64_t newest_vertex_time_ns = newest_vertex_timestamp_ns_.load();
   const int64_t oldest_vertex_time_ns = oldest_vertex_timestamp_ns_.load();
   CHECK(aslam::time::isValidTime(newest_vertex_time_ns));
   CHECK(aslam::time::isValidTime(oldest_vertex_time_ns));
 
   const size_t dropped_constraints =
       external_features_measurement_temporal_buffer_.removeItemsBefore(
-          oldest_vertex_time_ns);
+          oldest_vertex_time_ns - external_features_sync_tolerance_ns_);
   if (dropped_constraints > 0u) {
     LOG(WARNING) << "[StreamMapBuilder] Dropped " << dropped_constraints
                  << " external feature measurements, because they are before "
@@ -1030,7 +1034,9 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
   std::vector<vi_map::ExternalFeaturesMeasurement::ConstPtr> measurements;
   external_features_measurement_temporal_buffer_
       .getValuesFromIncludingToIncluding(
-          oldest_vertex_time_ns, newest_vertex_time_ns, &measurements);
+          oldest_vertex_time_ns - external_features_sync_tolerance_ns_,
+          newest_vertex_time_ns + external_features_sync_tolerance_ns_,
+          &measurements);
 
   const size_t processed_measurements =
       external_features_measurement_temporal_buffer_.removeItemsBefore(
@@ -1042,8 +1048,12 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
   for (const vi_map::ExternalFeaturesMeasurement::ConstPtr measurement_ptr :
        measurements) {
     CHECK(measurement_ptr);
-    CHECK_LE(measurement_ptr->getTimestampNanoseconds(), newest_vertex_time_ns);
-    CHECK_GE(measurement_ptr->getTimestampNanoseconds(), oldest_vertex_time_ns);
+    CHECK_LE(
+        measurement_ptr->getTimestampNanoseconds(),
+        newest_vertex_time_ns + external_features_sync_tolerance_ns_);
+    CHECK_GE(
+        measurement_ptr->getTimestampNanoseconds(),
+        oldest_vertex_time_ns - external_features_sync_tolerance_ns_);
     const vi_map::ExternalFeaturesMeasurement& external_features_measurement =
         *measurement_ptr;
 
@@ -1056,17 +1066,16 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
     const int64_t timestamp_ns_measurement =
         external_features_measurement.getTimestampNanoseconds();
 
-    constexpr int64_t kMaxInterpolationTimeNs = aslam::time::milliseconds(500);
     pose_graph::VertexId closest_vertex_id;
     uint64_t delta_ns = 0u;
     if (!queries_.getClosestVertexIdByTimestamp(
-            timestamp_ns_measurement, kMaxInterpolationTimeNs,
+            timestamp_ns_measurement, external_features_sync_tolerance_ns_,
             &closest_vertex_id, &delta_ns)) {
       LOG(WARNING)
           << "[StreamMapBuilder] Could not attach external features "
           << "measurement, because the timestamp is not close enough to "
           << "a vertex in the pose graph (delta = " << delta_ns << "ns > "
-          << kMaxInterpolationTimeNs
+          << external_features_sync_tolerance_ns_
           << "ns)! timestamp_ns: " << timestamp_ns_measurement << ".";
       continue;
     }
@@ -1084,6 +1093,8 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
         external_features_sensor.getTargetCameraIndex();
     aslam::VisualFrame::Ptr frame =
         closest_vertex.getVisualFrameShared(target_camera_index);
+
+    frame->lock();
 
     Eigen::Matrix2Xd keypoint_measurements;
     external_features_measurement.getKeypointMeasurements(
@@ -1128,12 +1139,13 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
       frame->extendTrackIds(track_ids);
     }
 
+    frame->unlock();
+
     closest_vertex.expandVisualObservationContainersIfNecessary();
 
-    /*VLOG(3) << "[StreamMapBuilder] Attached a new external features "
-            << "measurement for vertex " << closest_vertex_id << ", which now "
-            << "has " << closest_vertex.getNumAbsolute6DoFMeasurements()
-            << " such constraints.";*/
+    // Make info message more verbose
+    VLOG(3) << "[StreamMapBuilder] Attached a new external features "
+            << "measurement for vertex " << closest_vertex_id;
   }
 }
 

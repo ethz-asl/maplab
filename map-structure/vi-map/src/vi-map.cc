@@ -451,7 +451,7 @@ void VIMap::getStatisticsOfMission(
           vertex.isVisualFrameValid(frame_idx)) {
         for (const FeatureType& feature_type : feature_types) {
           (*num_observations)[feature_type] +=
-              vertex.getVisualFrame(frame_idx).getNumDescriptorsOfType(
+              vertex.getVisualFrame(frame_idx).getNumKeypointMeasurementsOfType(
                   feature_type);
         }
       }

@@ -13,7 +13,8 @@
 namespace vi_map {
 
 enum FeatureType : int {
-  kBRISK = 0,
+  kBinary = 0,  // Describes the standard maplab binary features which
+                // are either BRISK / FREAK depending on the flag
   kSIFT = 1
 };
 

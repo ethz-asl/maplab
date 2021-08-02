@@ -57,6 +57,8 @@ DEFINE_int32(
     "If set to 0, edges are added between all vertices, if set to -1, no "
     "odometry edges are added.");
 
+DECLARE_int64(vio_nframe_sync_tolerance_ns);
+
 namespace maplab {
 MapBuilderFlow::MapBuilderFlow(
     const vi_map::SensorManager& sensor_manager,
@@ -86,6 +88,12 @@ MapBuilderFlow::MapBuilderFlow(
           external_resource_folder_);
     }
   }
+
+  if (sensor_manager.hasSensorOfType(vi_map::SensorType::kExternalFeatures)) {
+    stream_map_builder_.setExternalFeaturesSyncToleranceNs(
+        FLAGS_vio_nframe_sync_tolerance_ns);
+  }
+
   CHECK(!last_vertex_of_previous_map_saving_.isValid());
 }
 
