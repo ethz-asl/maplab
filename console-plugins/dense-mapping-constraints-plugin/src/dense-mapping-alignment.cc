@@ -58,12 +58,10 @@ bool candidatesQualifyForDenseSubmap(
     const AlignmentCandidate candidate_B, const AlignmentCandidate candidate_A,
     const vi_map::VIMap& map, ResourceDataType* candidate_resource) {
   vi_map::DenseSubmap submap;
-  LOG(WARNING) << "TEST FOR QUALIFY";
   if (!map.getDenseSubmapManager().getClosestDenseSubmap(
           candidate_B.mission_id, candidate_B.timestamp_ns, &submap)) {
     return false;
   }
-  LOG(WARNING) << "MINMAX";
   int64_t min_timestamp_ns;
   int64_t max_timestamp_ns;
   submap.getMinAndMaxTimestampNs(&min_timestamp_ns, &max_timestamp_ns);
@@ -71,7 +69,6 @@ bool candidatesQualifyForDenseSubmap(
       max_timestamp_ns >= candidate_A.timestamp_ns) {
     return false;
   }
-  LOG(WARNING) << "RETRIEVE";
   retrievePointCloudsForDenseSubmap(
       map, candidate_B.timestamp_ns, submap, candidate_resource);
   return true;
@@ -167,7 +164,6 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
   // }
   if (candidatesQualifyForDenseSubmap(
           pair.candidate_B, pair.candidate_A, map, &candidate_resource_B)) {
-    LOG(WARNING) << "QUALIFYYYY";
   } else if (!retrieveResourceForCandidate(
                  pair.candidate_B, map, &candidate_resource_B)) {
     LOG(ERROR) << "Unable to retrieve resource for candidate B.";
@@ -184,6 +180,14 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
       (*aligner_ptr)
           ->align(
               candidate_resource_B, candidate_resource_A, pair.T_SB_SA_init);
+
+  sensor_msgs::PointCloud2 submap_points_msg;
+  backend::convertPointCloudType(candidate_resource_B, &submap_points_msg);
+  candidate_resource_B.appendTransformed(
+      candidate_resource_A, result.get_T_target_source());
+  submap_points_msg.header.frame_id = "submap";
+  visualization::RVizVisualizationSink::publish(
+      "retrieved_submaps", submap_points_msg);
   *aligned_pair_ptr = candidatePairFromRegistrationResult(pair, result);
   return true;
 }
