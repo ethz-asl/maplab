@@ -1987,10 +1987,7 @@ bool MaplabServerNode::saveRobotTrajectories() {
   // Get the path to the merged map folder.
   const std::string kFilename = "vertex_poses_velocities_biases.csv";
   const std::string filepath =
-      FLAGS_pose_export_file.empty()
-          ? common::concatenateFolderAndFileName(map->getMapFolder(), kFilename)
-          : FLAGS_pose_export_file;
-  CHECK(!filepath.empty());
+      common::concatenateFolderAndFileName(map->getMapFolder(), kFilename);
 
   // Get one reference sensor id.
   aslam::SensorId reference_sensor_id;
@@ -2004,7 +2001,8 @@ bool MaplabServerNode::saveRobotTrajectories() {
   }
   if (!reference_sensor_id.isValid()) {
     LOG(ERROR) << "[MaplabServerNode] Could not find a mission with a valid "
-                  "IMU." return false;
+                  "IMU.";
+    return false;
   }
   const std::string kFormat = "asl";
   data_import_export::exportPosesVelocitiesAndBiasesToCsv(
