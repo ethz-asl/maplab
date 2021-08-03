@@ -310,9 +310,10 @@ void visualizeReprojectedDepthResource(
 
         uint8_t r = 0u, g = 0u, b = 0u;
         if (FLAGS_vis_pointcloud_color_random) {
-          r = rand() % 256;
-          g = rand() % 256;
-          b = rand() % 256;
+          uint32_t seed = time(NULL);
+          r = rand_r(&seed) % 256;
+          g = rand_r(&seed) % 256;
+          b = rand_r(&seed) % 256;
         }
 
         ++point_cloud_counter;
@@ -460,9 +461,10 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
 
         uint8_t r = 0u, g = 0u, b = 0u;
         if (FLAGS_vis_pointcloud_color_random) {
-          r = rand() % 256;
-          g = rand() % 256;
-          b = rand() % 256;
+          uint32_t seed = time(NULL);
+          r = rand_r(&seed) % 256;
+          g = rand_r(&seed) % 256;
+          b = rand_r(&seed) % 256;
         }
 
         ++point_cloud_counter;
@@ -562,66 +564,85 @@ void visualizeReprojectedDepthResourcePerRobot(
       !(FLAGS_vis_pointcloud_accumulated_before_publishing &&
         FLAGS_vis_pointcloud_publish_in_sensor_frame_with_tf));
 
-  // Accumulate all the point clouds of the robot missoins. If there are no
-  // missions in the map, a empty point cloud will be published.
-  for (const auto& kv : robot_name_to_mission_ids_map) {
-    const std::string& robot_name = kv.first;
-    const vi_map::MissionIdList& mission_ids = kv.second;
+  // Accumulate all the point clouds of the robot missions. If there are no
+  // missions in the map, an empty point cloud will be published.
+  std::function<void(const std::vector<size_t>&)>
+      pointcloud_visualization_function = [&vi_map, &input_resource_type,
+                                           &robot_name_to_mission_ids_map](
+                                              const std::vector<size_t>&
+                                                  batch) {
+        for (size_t idx : batch) {
+          auto kv = robot_name_to_mission_ids_map.begin();
+          std::advance(kv, idx);
+          const std::string& robot_name = kv->first;
+          const vi_map::MissionIdList& mission_ids = kv->second;
 
-    if (robot_name.empty()) {
-      LOG(ERROR) << "Cannot visualize point clouds for robot missions, because "
-                 << "the robot name is empty (name: '" << robot_name << "')";
-      continue;
-    }
+          if (robot_name.empty()) {
+            LOG(ERROR)
+                << "Cannot visualize point clouds for robot missions, because "
+                << "the robot name is empty (name: '" << robot_name << "')";
+            continue;
+          }
 
-    resources::PointCloud accumulated_point_cloud_G;
-    for (const vi_map::MissionId& mission_id : mission_ids) {
-      if (!mission_id.isValid()) {
-        LOG(ERROR) << "Cannot visualize one mission of robot '" << robot_name
-                   << "' since the provided mission id is invalid!'";
-        continue;
-      }
+          resources::PointCloud accumulated_point_cloud_G;
+          for (const vi_map::MissionId& mission_id : mission_ids) {
+            if (!mission_id.isValid()) {
+              LOG(ERROR) << "Cannot visualize one mission of robot '"
+                         << robot_name
+                         << "' since the provided mission id is invalid!'";
+              continue;
+            }
 
-      if (!vi_map.hasMission(mission_id)) {
-        LOG(ERROR) << "Cannot visualize one mission of robot '" << robot_name
-                   << "' since the provided mission id ('" << mission_id
-                   << "') is not in the map!'";
-        continue;
-      }
-      createAndAppendAccumulatedPointCloudMessageForMission(
-          input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G);
-    }
+            if (!vi_map.hasMission(mission_id)) {
+              LOG(ERROR) << "Cannot visualize one mission of robot '"
+                         << robot_name << "' since the provided mission id ('"
+                         << mission_id << "') is not in the map!'";
+              continue;
+            }
+            createAndAppendAccumulatedPointCloudMessageForMission(
+                input_resource_type, mission_id, vi_map,
+                &accumulated_point_cloud_G);
+          }
 
-    if (accumulated_point_cloud_G.empty()) {
-      LOG(WARNING) << "Accumulated reprojected depth resource of robot "
-                   << robot_name << " is empty, not publishing.";
-      continue;
-    }
+          if (accumulated_point_cloud_G.empty()) {
+            LOG(WARNING) << "Accumulated reprojected depth resource of robot "
+                         << robot_name << " is empty, not publishing.";
+            continue;
+          }
 
-    std::shared_ptr<resources::PointCloud> filtered_accumulated_point_cloud_G;
-    if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
-      filtered_accumulated_point_cloud_G =
-          std::make_shared<resources::PointCloud>();
-      applyVoxelGridFilter(
-          accumulated_point_cloud_G, filtered_accumulated_point_cloud_G.get());
-    } else if (
-        FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {
-      filtered_accumulated_point_cloud_G =
-          std::make_shared<resources::PointCloud>();
-      applyBeautification(
-          accumulated_point_cloud_G, filtered_accumulated_point_cloud_G.get());
-    } else {
-      filtered_accumulated_point_cloud_G =
-          std::make_shared<resources::PointCloud>(
-              std::move(accumulated_point_cloud_G));
-    }
-    sensor_msgs::PointCloud2 ros_point_cloud_G;
-    subsamplePointCloudForRosIfNecessary(
-        *filtered_accumulated_point_cloud_G, &ros_point_cloud_G);
-    // Publish accumulated point cloud in global frame.
-    publishPointCloudInGlobalFrame(
-        robot_name /*topic prefix*/, &ros_point_cloud_G);
-  }
+          std::shared_ptr<resources::PointCloud>
+              filtered_accumulated_point_cloud_G;
+          if (FLAGS_vis_pointcloud_filter_dense_map_before_publishing) {
+            filtered_accumulated_point_cloud_G =
+                std::make_shared<resources::PointCloud>();
+            applyVoxelGridFilter(
+                accumulated_point_cloud_G,
+                filtered_accumulated_point_cloud_G.get());
+          } else if (
+              FLAGS_vis_pointcloud_filter_beautify_dense_map_before_publishing) {  // NOLINT
+            filtered_accumulated_point_cloud_G =
+                std::make_shared<resources::PointCloud>();
+            applyBeautification(
+                accumulated_point_cloud_G,
+                filtered_accumulated_point_cloud_G.get());
+          } else {
+            filtered_accumulated_point_cloud_G =
+                std::make_shared<resources::PointCloud>(
+                    std::move(accumulated_point_cloud_G));
+          }
+          sensor_msgs::PointCloud2 ros_point_cloud_G;
+          subsamplePointCloudForRosIfNecessary(
+              *filtered_accumulated_point_cloud_G, &ros_point_cloud_G);
+          // Publish accumulated point cloud in global frame.
+          publishPointCloudInGlobalFrame(
+              robot_name /*topic prefix*/, &ros_point_cloud_G);
+        }
+      };
+  static constexpr bool kAlwaysParallelize = true;
+  const size_t num_threads = common::getNumHardwareThreads();
+  common::ParallelProcess(
+      robot_name_to_mission_ids_map.size(), pointcloud_visualization_function,
+      kAlwaysParallelize, num_threads);
 }
 
 void visualizeReprojectedDepthResourceFromMission(

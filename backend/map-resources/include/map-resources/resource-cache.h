@@ -33,15 +33,16 @@ class ResourceCache {
   friend struct CacheStatistic;
 
  public:
-  ResourceCache() {}
+  ResourceCache() : config_(ResourceCache::Config::fromGflags()) {}
 
   enum class Strategy { kFIFO = 0u };
 
   struct Config {
+    static Config fromGflags();
     size_t allocated_cache_size = 0u;
-    size_t max_cache_size = 100u;
     bool cache_newest_resource = false;
     Strategy strategy = Strategy::kFIFO;
+    size_t max_cache_size;
   };
 
   explicit ResourceCache(const Config& cache_config) : config_(cache_config) {}
