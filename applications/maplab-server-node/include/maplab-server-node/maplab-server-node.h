@@ -157,6 +157,8 @@ class MaplabServerNode final {
 
   bool saveRobotMissionsInfo(const backend::SaveConfig& config);
 
+  bool saveRobotTrajectories();
+
   bool loadRobotMissionsInfo();
 
   void replacePublicMap();

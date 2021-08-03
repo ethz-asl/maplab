@@ -23,6 +23,7 @@
 #include <sparse-graph/partitioners/all-partitioner.h>
 #include <sparse-graph/partitioners/lidar-partitioner.h>
 #include <vi-map-basic-plugin/vi-map-basic-plugin.h>
+#include <vi-map-data-import-export/export-vertex-data.h>
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/landmark-quality-metrics.h>
@@ -523,6 +524,7 @@ bool MaplabServerNode::saveMap() {
     bool save_map = map_manager_.saveMapToFolder(
         kMergedMapKey, FLAGS_maplab_server_merged_map_folder, config);
     save_map &= saveRobotMissionsInfo(config);
+
     return save_map;
   } else {
     return false;
@@ -1964,6 +1966,50 @@ bool MaplabServerNode::saveRobotMissionsInfo(
       FLAGS_maplab_server_merged_map_folder, kRobotMissionsInfoFileName,
       server_info_proto, kIsTextFormat);
   return true;
+}
+
+bool MaplabServerNode::saveRobotTrajectories() {
+  if (!map_manager_.hasMap(kMergedMapKey)) {
+    LOG(ERROR) << "[MaplabServerNode] Map manager does not contain the global "
+                  "merged map.";
+    return false;
+  }
+  // Get map and mission ids.
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager_.getMapReadAccess(kMergedMapKey);
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+  if (mission_ids.empty()) {
+    LOG(ERROR) << "[MaplabServerNode] There are no missions available in the "
+                  "merged map.";
+    return false;
+  }
+  // Get the path to the merged map folder.
+  const std::string kFilename = "vertex_poses_velocities_biases.csv";
+  const std::string filepath =
+      FLAGS_pose_export_file.empty()
+          ? common::concatenateFolderAndFileName(map->getMapFolder(), kFilename)
+          : FLAGS_pose_export_file;
+  CHECK(!filepath.empty());
+
+  // Get one reference sensor id.
+  aslam::SensorId reference_sensor_id;
+  // Pick first valid IMU from mission
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    const vi_map::VIMission& mission = map->getMission(mission_id);
+    if (mission.hasImu()) {
+      reference_sensor_id = mission.getImuId();
+      break;
+    }
+  }
+  if (!reference_sensor_id.isValid()) {
+    LOG(ERROR) << "[MaplabServerNode] Could not find a mission with a valid "
+                  "IMU." return false;
+  }
+  const std::string kFormat = "asl";
+  data_import_export::exportPosesVelocitiesAndBiasesToCsv(
+      *map, mission_ids, reference_sensor_id, filepath, kFormat);
+  return common::kSuccess;
 }
 
 bool MaplabServerNode::loadRobotMissionsInfo() {
