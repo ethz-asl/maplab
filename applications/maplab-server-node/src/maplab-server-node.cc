@@ -524,7 +524,7 @@ bool MaplabServerNode::saveMap() {
     bool save_map = map_manager_.saveMapToFolder(
         kMergedMapKey, FLAGS_maplab_server_merged_map_folder, config);
     save_map &= saveRobotMissionsInfo(config);
-
+    save_map &= saveRobotTrajectories();
     return save_map;
   } else {
     return false;
@@ -2007,7 +2007,7 @@ bool MaplabServerNode::saveRobotTrajectories() {
   const std::string kFormat = "asl";
   data_import_export::exportPosesVelocitiesAndBiasesToCsv(
       *map, mission_ids, reference_sensor_id, filepath, kFormat);
-  return common::kSuccess;
+  return true;
 }
 
 bool MaplabServerNode::loadRobotMissionsInfo() {
