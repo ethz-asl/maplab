@@ -158,12 +158,17 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
     return false;
   }
 
-  if (candidatesQualifyForDenseSubmap(
-          pair.candidate_B, pair.candidate_A, map, &candidate_resource_B)) {
-  } else if (!retrieveResourceForCandidate(
-                 pair.candidate_B, map, &candidate_resource_B)) {
-    LOG(ERROR) << "Unable to retrieve resource for candidate B.";
-    return false;
+  bool use_dense_submap = false;
+  if (FLAGS_dm_candidate_alignment_use_incremental_submab_alignment) {
+    use_dense_submap = candidatesQualifyForDenseSubmap(
+        pair.candidate_B, pair.candidate_A, map, &candidate_resource_B);
+  }
+  if (!use_dense_submap) {
+    if (!retrieveResourceForCandidate(
+            pair.candidate_B, map, &candidate_resource_B)) {
+      LOG(ERROR) << "Unable to retrieve resource for candidate B.";
+      return false;
+    }
   }
 
   const regbox::RegistrationResult result =
@@ -171,7 +176,7 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
           ->align(
               candidate_resource_B, candidate_resource_A, pair.T_SB_SA_init);
 
-  if (FLAGS_dm_visualize_incremental_submap) {
+  if (use_dense_submap && FLAGS_dm_visualize_incremental_submap) {
     sensor_msgs::PointCloud2 submap_points_msg;
     backend::convertPointCloudType(candidate_resource_B, &submap_points_msg);
     candidate_resource_B.appendTransformed(
