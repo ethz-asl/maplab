@@ -25,7 +25,6 @@
   <depend>maplab_common</depend>
   <depend>minkindr_conversions</depend>
   <depend>opencv3_catkin</depend>
-  <depend>pointcloud_undistortion</depend>
   <depend>pcl_ros</depend>
   <depend>posegraph</depend>
   <depend>roscpp</depend>

@@ -17,7 +17,6 @@
 #include <maplab-common/progress-bar.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <pointcloud-undistortion/undistortion.h>
 #include <vi-map/vertex.h>
 #include <vi-map/vi-map.h>
 #include <visualization/color-palette.h>
@@ -447,24 +446,32 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
   uint32_t point_cloud_counter = 0u;
 
   srand(time(NULL));
-  std::vector<PointCloudWithMissionInformation> point_clouds_with_infos;
-  depth_integration::IntegrationFunctionPointCloudMaplabWithIds
-      integration_function = [&vi_map, &point_clouds_with_infos,
-                              &point_cloud_counter](
-                                 const int64_t timestamp_ns,
-                                 const vi_map::MissionId& mission_id,
-                                 const aslam::SensorId& sensor_id,
-                                 const aslam::Transformation& T_G_S,
-                                 const resources::PointCloud& points_S) {
+  std::vector<resources::PointCloud> point_clouds_G;
+  depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
+      [&point_clouds_G, &point_cloud_counter](
+          const aslam::Transformation& T_G_S,
+          const resources::PointCloud& points_S) {
         if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
             (point_cloud_counter % FLAGS_vis_pointcloud_visualize_every_nth !=
              0u)) {
           ++point_cloud_counter;
           return;
         }
-        point_clouds_with_infos.push_back(
-            {points_S, timestamp_ns, mission_id, sensor_id, T_G_S});
+
+        uint8_t r = 0u, g = 0u, b = 0u;
+        if (FLAGS_vis_pointcloud_color_random) {
+          r = rand() % 256;
+          g = rand() % 256;
+          b = rand() % 256;
+        }
+
         ++point_cloud_counter;
+
+        point_clouds_G.push_back(points_S);
+        point_clouds_G.back().applyTransformation(T_G_S);
+        if (FLAGS_vis_pointcloud_color_random) {
+          point_clouds_G.back().colorizePointCloud(r, g, b);
+        }
         return;
       };
 
@@ -474,55 +481,6 @@ void createAndAppendAccumulatedPointCloudMessageForMission(
       mission_ids, input_resource_type,
       FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
       integration_function);
-
-  std::vector<resources::PointCloud> point_clouds_G(
-      point_clouds_with_infos.size());
-
-  static constexpr bool kAlwaysParallelize = true;
-  const size_t num_threads = common::getNumHardwareThreads();
-  std::function<void(const std::vector<size_t>&)> evaluator =
-      [&vi_map, &point_clouds_with_infos,
-       &point_clouds_G](const std::vector<size_t>& batch) {
-        for (size_t idx : batch) {
-          const resources::PointCloud& points_S =
-              point_clouds_with_infos[idx].points_S;
-          const vi_map::MissionId& mission_id =
-              point_clouds_with_infos[idx].mission_id;
-          const aslam::SensorId& sensor_id =
-              point_clouds_with_infos[idx].sensor_id;
-          const int64_t timestamp_ns =
-              point_clouds_with_infos[idx].timestamp_ns;
-          point_clouds_G[idx] = points_S;
-          if (points_S.hasTimes() && mission_id.isValid() &&
-              sensor_id.isValid()) {
-            // if (!pointcloud_undistortion::undistortPointCloud(
-            //         vi_map, mission_id, sensor_id, timestamp_ns,
-            //         &point_clouds_G[idx])) {
-            //   LOG(WARNING) << "Could not undistort point cloud with timestamp
-            //   "
-            //                << timestamp_ns;
-            //   point_clouds_G[idx] = resources::PointCloud();
-            //   return;
-            // }
-          }
-
-          point_clouds_G[idx].applyTransformation(
-              point_clouds_with_infos[idx].T_G_S);
-          if (FLAGS_vis_pointcloud_color_random) {
-            uint8_t r = 0u, g = 0u, b = 0u;
-            if (FLAGS_vis_pointcloud_color_random) {
-              unsigned int seed = static_cast<unsigned int>(idx);
-              r = rand_r(&seed) % 256;
-              g = rand_r(&seed) % 256;
-              b = rand_r(&seed) % 256;
-            }
-            point_clouds_G[idx].colorizePointCloud(r, g, b);
-          }
-        }
-      };
-  common::ParallelProcess(
-      point_clouds_with_infos.size(), evaluator, kAlwaysParallelize,
-      num_threads);
   accumulated_point_cloud_G->append(point_clouds_G);
 }
 

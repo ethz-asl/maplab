@@ -7,7 +7,6 @@
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <pointcloud-undistortion/undistortion.h>
 #include <registration-toolbox/common/base-controller.h>
 #include <registration-toolbox/mock-controller.h>
 #include <registration-toolbox/model/registration-result.h>
@@ -33,12 +32,15 @@ AlignmentConfig AlignmentConfig::fromGflags() {
 }
 
 template <typename ResourceDataType>
-void retrievePointCloudsForDenseSubmap(
+bool retrievePointCloudsForDenseSubmap(
     const vi_map::VIMap& map, const int64_t timestamp_ns,
     const vi_map::DenseSubmap& submap, ResourceDataType* submap_cloud) {
   CHECK_NOTNULL(submap_cloud);
   vi_map::StampedTransformationMap stamped_transforms;
-  submap.getStampedTransformsToClosestFrame(timestamp_ns, &stamped_transforms);
+  if (!submap.getStampedTransformsToResourceFrameAtTimestamp(timestamp_ns,
+      &stamped_transforms)) {
+    return false;
+  }
   const vi_map::VIMission& mission = map.getMission(submap.getMissionId());
   std::vector<resources::PointCloud> submap_clouds(stamped_transforms.size());
   size_t idx = 0u;
@@ -52,6 +54,7 @@ void retrievePointCloudsForDenseSubmap(
     submap_clouds[idx].applyTransformation(it->second);
   }
   submap_cloud->append(submap_clouds);
+  return true;
 }
 template <typename ResourceDataType>
 bool candidatesQualifyForDenseSubmap(
@@ -69,9 +72,8 @@ bool candidatesQualifyForDenseSubmap(
       max_timestamp_ns >= candidate_A.timestamp_ns) {
     return false;
   }
-  retrievePointCloudsForDenseSubmap(
+  return retrievePointCloudsForDenseSubmap(
       map, candidate_B.timestamp_ns, submap, candidate_resource);
-  return true;
 }
 
 bool alignmentDeviatesTooMuchFromInitialGuess(
@@ -155,13 +157,7 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
     LOG(ERROR) << "Unable to retrieve resource for candidate A.";
     return false;
   }
-  // if (!pointcloud_undistortion::undistortPointCloud(
-  //         map, pair.candidate_A.mission_id, pair.candidate_A.sensor_id,
-  //         pair.candidate_A.timestamp_ns, &candidate_resource_A)) {
-  //   LOG(WARNING) << "Could not undistort point cloud with timestamp "
-  //                << pair.candidate_A.timestamp_ns;
-  //   return false;
-  // }
+
   if (candidatesQualifyForDenseSubmap(
           pair.candidate_B, pair.candidate_A, map, &candidate_resource_B)) {
   } else if (!retrieveResourceForCandidate(
@@ -169,25 +165,21 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
     LOG(ERROR) << "Unable to retrieve resource for candidate B.";
     return false;
   }
-  // if (!pointcloud_undistortion::undistortPointCloud(
-  //         map, pair.candidate_B.mission_id, pair.candidate_B.sensor_id,
-  //         pair.candidate_B.timestamp_ns, &candidate_resource_B)) {
-  //   LOG(WARNING) << "Could not undistort point cloud with timestamp "
-  //                << pair.candidate_B.timestamp_ns;
-  //   return false;
-  // }
+
   const regbox::RegistrationResult result =
       (*aligner_ptr)
           ->align(
               candidate_resource_B, candidate_resource_A, pair.T_SB_SA_init);
 
-  sensor_msgs::PointCloud2 submap_points_msg;
-  backend::convertPointCloudType(candidate_resource_B, &submap_points_msg);
-  candidate_resource_B.appendTransformed(
+  if (FLAGS_dm_visualize_incremental_submap) {
+    sensor_msgs::PointCloud2 submap_points_msg;
+    backend::convertPointCloudType(candidate_resource_B, &submap_points_msg);
+    candidate_resource_B.appendTransformed(
       candidate_resource_A, result.get_T_target_source());
-  submap_points_msg.header.frame_id = "submap";
-  visualization::RVizVisualizationSink::publish(
+    submap_points_msg.header.frame_id = "submap";
+    visualization::RVizVisualizationSink::publish(
       "retrieved_submaps", submap_points_msg);
+  }
   *aligned_pair_ptr = candidatePairFromRegistrationResult(pair, result);
   return true;
 }
@@ -479,15 +471,7 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
               LOG(ERROR) << "Unable to retrieve resource for candidate A.";
               continue;
             }
-            // if (!pointcloud_undistortion::undistortPointCloud(
-            //         map, pair.candidate_A.mission_id,
-            //         pair.candidate_A.sensor_id,
-            //         pair.candidate_A.timestamp_ns, &candidate_resource_A)) {
-            //   LOG(WARNING) << "Could not undistort point cloud with timestamp
-            //   "
-            //                << pair.candidate_A.timestamp_ns;
-            //   continue;
-            // }
+
             dense_submap.reset(new vi_map::DenseSubmap(
                 pair.candidate_A.mission_id, pair.candidate_A.sensor_id));
             dense_submap->addTransformationToSubmap(
@@ -505,14 +489,6 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
             LOG(ERROR) << "Unable to retrieve resource for candidate B.";
             return false;
           }
-          // if (!pointcloud_undistortion::undistortPointCloud(
-          //         map, pair.candidate_B.mission_id,
-          //         pair.candidate_B.sensor_id, pair.candidate_B.timestamp_ns,
-          //         &candidate_resource_B)) {
-          //   LOG(WARNING) << "Could not undistort point cloud with timestamp "
-          //                << pair.candidate_B.timestamp_ns;
-          //   continue;
-          // }
 
           AlignmentCandidatePair map_candidate_pair;
           createCandidatePair(

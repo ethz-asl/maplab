@@ -36,7 +36,7 @@ class DenseSubmap {
     return sensor_id_;
   }
 
-  void getStampedTransformsToClosestFrame(
+  bool getStampedTransformsToResourceFrameAtTimestamp(
       const int64_t timestamp_ns,
       StampedTransformationMap* stamped_transforms) const;
 
@@ -58,7 +58,7 @@ class DenseSubmapManager {
  public:
   DenseSubmapManager() {}
   void addDenseSubmap(const DenseSubmap& submap);
-  bool getClosestDenseSubmapStampedTransforms(
+  bool getStampedTransformsToResourceFrameAtTimestamp(
       const MissionId& mission_id, const int64_t timestamp_ns,
       StampedTransformationMap* stamped_transforms) const;
   void merge(const DenseSubmapManager& other) {

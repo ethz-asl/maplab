@@ -26,13 +26,6 @@ typedef std::function<void(
     IntegrationFunctionPointCloudMaplab;
 
 typedef std::function<void(
-    const int64_t /*timestamp*/, const vi_map::MissionId& /*mission_id*/,
-    const aslam::SensorId& /*sensor_id*/,
-    const aslam::Transformation /*T_G_S*/&,
-    const resources::PointCloud& /*points_S*/)>
-    IntegrationFunctionPointCloudMaplabWithIds;
-
-typedef std::function<void(
     const int64_t /*ts_ns*/, const aslam::Transformation /*T_G_S*/&,
     const resources::PointCloud& /*points_S*/)>
     IntegrationFunctionPointCloudMaplabWithTs;
@@ -105,8 +98,7 @@ void integrateAllDepthResourcesOfType(
 // the integration function and calls it.
 template <typename IntegrationFunctionType>
 void integratePointCloud(
-    const int64_t timestamp_ns, const vi_map::MissionId& mission_id,
-    const aslam::SensorId& sensor_id, const aslam::Transformation& T_G_C,
+    const int64_t timestamp_ns, const aslam::Transformation& T_G_C,
     const resources::PointCloud& points_C,
     IntegrationFunctionType integration_function);
 

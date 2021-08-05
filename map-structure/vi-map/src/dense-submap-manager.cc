@@ -7,12 +7,11 @@ void DenseSubmap::addTransformationToSubmap(
   T_S0_S_map_[timestamp_ns] = T_S0_S;
 }
 
-void DenseSubmap::getStampedTransformsToClosestFrame(
+bool DenseSubmap::getStampedTransformsToResourceFrameAtTimestamp(
     const int64_t timestamp_ns,
     StampedTransformationMap* stamped_transforms) const {
   int64_t min_difference_ns = std::numeric_limits<int64_t>::max();
   int64_t closest_timestamp_ns;
-  size_t closest_idx;
   for (const auto& stamped_transform : T_S0_S_map_) {
     const int64_t difference_ns =
         std::abs(stamped_transform.first - timestamp_ns);
@@ -21,14 +20,17 @@ void DenseSubmap::getStampedTransformsToClosestFrame(
       min_difference_ns = difference_ns;
     }
   }
+  if (T_S0_S_map_.find(timestamp_ns) == T_S0_S_map_.end()) {
+    return false;
+  }
   const aslam::Transformation& T_S0_S_base =
-      T_S0_S_map_.at(closest_timestamp_ns);
+      T_S0_S_map_.at(timestamp_ns);
   std::vector<resources::PointCloud> clouds_T_S_base(T_S0_S_map_.size());
-  size_t idx = 0u;
-  for (auto it = T_S0_S_map_.begin(); it != T_S0_S_map_.end(); ++idx, ++it) {
+  for (auto it = T_S0_S_map_.begin(); it != T_S0_S_map_.end(); ++it) {
     stamped_transforms->insert(
         std::make_pair(it->first, T_S0_S_base.inverse() * it->second));
   }
+  return true;
 }
 
 bool DenseSubmap::getMinAndMaxTimestampNs(
@@ -48,7 +50,7 @@ void DenseSubmapManager::addDenseSubmap(const DenseSubmap& submap) {
   mission_id_to_submap_ids_[submap.getMissionId()].push_back(submap_id);
 }
 
-bool DenseSubmapManager::getClosestDenseSubmapStampedTransforms(
+bool DenseSubmapManager::getStampedTransformsToResourceFrameAtTimestamp(
     const MissionId& mission_id, const int64_t timestamp_ns,
     StampedTransformationMap* stamped_transforms) const {
   for (const DenseSubmapId& submap_id :
@@ -61,9 +63,8 @@ bool DenseSubmapManager::getClosestDenseSubmapStampedTransforms(
       continue;
     }
     if (min_timestamp_ns <= timestamp_ns && max_timestamp_ns >= timestamp_ns) {
-      dense_submap.getStampedTransformsToClosestFrame(
+      return dense_submap.getStampedTransformsToResourceFrameAtTimestamp(
           timestamp_ns, stamped_transforms);
-      return true;
     }
   }
   return false;

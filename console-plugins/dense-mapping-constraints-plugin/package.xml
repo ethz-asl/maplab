@@ -18,7 +18,6 @@
   <depend>map_resources</depend>
   <depend>maplab_common</depend>
   <depend>maplab_test_data</depend>
-  <depend>pointcloud_undistortion</depend>
   <depend>vi_map</depend>
   <depend>visualization</depend>
   <depend>vi_mapping_test_app</depend>
