@@ -81,6 +81,12 @@ MaplabServerRosNode::MaplabServerRosNode(
   reinit_gflags_srv_ =
       nh_.advertiseService("reinit_gflags", reinit_gflags_callback);
 
+  boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
+      whitelist_missions_callback = boost::bind(
+          &MaplabServerRosNode::whitelistAllMissionsCallback, this, _1, _2);
+  whitelist_missions_srv_ =
+      nh_.advertiseService("whitelistAllMissions", whitelist_missions_callback);
+
   boost::function<bool(
       maplab_msgs::BatchMapLookup::Request&,
       maplab_msgs::BatchMapLookup::Response&)>
@@ -250,6 +256,15 @@ bool MaplabServerRosNode::reinitGflagsCallback(
       << "[MaplabServerRosNode] Received reinitialize gflags service call...";
   return ros_common::parserInstance<ros_common::GflagsParser>()
       .parseFromRosParams(nh_private_);
+}
+
+bool MaplabServerRosNode::whitelistAllMissionsCallback(
+    std_srvs::Empty::Request& /*request*/,      // NOLINT
+    std_srvs::Empty::Response& /*response*/) {  // NOLINT
+  LOG(INFO) << "[MaplabServerRosNode] Received whitelist all missions service "
+               "call...";
+
+  return maplab_server_node_->clearBlacklist();
 }
 
 bool MaplabServerRosNode::publishPoseCorrection(

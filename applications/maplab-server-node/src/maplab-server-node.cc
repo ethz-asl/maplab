@@ -116,8 +116,15 @@ DEFINE_bool(
 DEFINE_bool(
     maplab_server_enable_lidar_loop_closure, false,
     "If enabled, lidar loop closure & mapping is used to derrive constraints "
-    "within and "
-    "across missions.");
+    "within and across missions.");
+
+DEFINE_bool(
+    maplab_server_enable_sparse_graph_computation, false,
+    "If enabled, the mapping server will build and publish the sparse graph.");
+
+DEFINE_bool(
+    maplab_server_enable_visualization, true,
+    "If enabled, the mapping server will publish the results.");
 
 DEFINE_double(
     maplab_server_min_distance_m_before_llc, 1.,
@@ -532,6 +539,9 @@ bool MaplabServerNode::saveMap() {
 }
 
 void MaplabServerNode::visualizeMap() {
+  if (!FLAGS_maplab_server_enable_visualization) {
+    return;
+  }
   std::lock_guard<std::mutex> lock(mutex_);
   if (plotter_) {
     if (map_manager_.hasMap(kMergedMapPublicKey)) {
@@ -1621,6 +1631,9 @@ void MaplabServerNode::registerStatusCallback(
 }
 
 void MaplabServerNode::publishDenseMap() {
+  if (!FLAGS_maplab_server_enable_visualization) {
+    return;
+  }
   if (!map_manager_.hasMap(kMergedMapKey)) {
     return;
   }
@@ -1779,6 +1792,16 @@ bool MaplabServerNode::deleteAllRobotMissions(
   }
 }
 
+bool MaplabServerNode::clearBlacklist() {
+  bool success = true;
+  {
+    std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
+    blacklisted_missions_.clear();
+    success &= blacklisted_missions_.empty();
+  }
+  return success;
+}
+
 bool MaplabServerNode::deleteBlacklistedMissions() {
   if (!map_manager_.hasMap(kMergedMapKey)) {
     return false;
@@ -1876,9 +1899,12 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
   // If we deleted all of the missions, we need to reset the state of the
   // merged map.
   if (num_missions_in_merged_map_after_deletion == 0u) {
+    std::lock_guard<std::mutex> lock(save_map_mutex_);
     LOG(INFO) << "[MaplabServerNode] Merged map is empty after deleting "
               << "mission, delete merged map as well.";
+    // Check if currently save the merged map.
     map_manager_.deleteMap(kMergedMapKey);
+    total_num_merged_submaps_ = 0;
 
     // Return false to reset the 'received_first_submap' variable.
     return false;
@@ -2195,6 +2221,9 @@ MaplabServerNode::VerificationStatus MaplabServerNode::verifySubmap(
 }
 
 bool MaplabServerNode::computeSparseGraph() {
+  if (!FLAGS_maplab_server_enable_sparse_graph_computation) {
+    return false;
+  }
   if (!update_sparse_graph_.load()) {
     return false;
   }

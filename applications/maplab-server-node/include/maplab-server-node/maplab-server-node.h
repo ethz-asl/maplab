@@ -94,6 +94,8 @@ class MaplabServerNode final {
   bool deleteAllRobotMissions(
       const std::string& robot_name, std::string* status_message);
 
+  bool clearBlacklist();
+
   // Returns an accumulation of the dense map data in global frame within a
   // radius around a center.
   bool getDenseMapInRange(
