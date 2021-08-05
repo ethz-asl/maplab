@@ -37,8 +37,8 @@ bool retrievePointCloudsForDenseSubmap(
     const vi_map::DenseSubmap& submap, ResourceDataType* submap_cloud) {
   CHECK_NOTNULL(submap_cloud);
   vi_map::StampedTransformationMap stamped_transforms;
-  if (!submap.getStampedTransformsToResourceFrameAtTimestamp(timestamp_ns,
-      &stamped_transforms)) {
+  if (!submap.getStampedTransformsToResourceFrameAtTimestamp(
+          timestamp_ns, &stamped_transforms)) {
     return false;
   }
   const vi_map::VIMission& mission = map.getMission(submap.getMissionId());
@@ -175,10 +175,10 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
     sensor_msgs::PointCloud2 submap_points_msg;
     backend::convertPointCloudType(candidate_resource_B, &submap_points_msg);
     candidate_resource_B.appendTransformed(
-      candidate_resource_A, result.get_T_target_source());
+        candidate_resource_A, result.get_T_target_source());
     submap_points_msg.header.frame_id = "submap";
     visualization::RVizVisualizationSink::publish(
-      "retrieved_submaps", submap_points_msg);
+        "retrieved_submaps", submap_points_msg);
   }
   *aligned_pair_ptr = candidatePairFromRegistrationResult(pair, result);
   return true;

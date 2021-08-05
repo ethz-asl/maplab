@@ -23,8 +23,7 @@ bool DenseSubmap::getStampedTransformsToResourceFrameAtTimestamp(
   if (T_S0_S_map_.find(timestamp_ns) == T_S0_S_map_.end()) {
     return false;
   }
-  const aslam::Transformation& T_S0_S_base =
-      T_S0_S_map_.at(timestamp_ns);
+  const aslam::Transformation& T_S0_S_base = T_S0_S_map_.at(timestamp_ns);
   std::vector<resources::PointCloud> clouds_T_S_base(T_S0_S_map_.size());
   for (auto it = T_S0_S_map_.begin(); it != T_S0_S_map_.end(); ++it) {
     stamped_transforms->insert(
