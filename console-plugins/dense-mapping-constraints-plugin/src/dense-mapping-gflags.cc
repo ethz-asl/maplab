@@ -9,7 +9,7 @@ DEFINE_string(
     "Defines the resource types that are used to derive the dense mapping "
     "constraints. Provide a CSV string with the resource type numbers.");
 DEFINE_double(
-    dm_candidate_search_min_vertex_mission_distance, 0.0,
+    dm_candidate_search_min_vertex_mission_distance, 1.0,
     "Minimum distance of first vertex that is used for candidate search. "
     "Candidates before this vertex are skipped.");
 

@@ -118,11 +118,6 @@ DEFINE_bool(
     "within and "
     "across missions.");
 
-DEFINE_double(
-    maplab_server_min_distance_m_before_llc, 1.,
-    "If greater than 0, lidar loop closure is only performed for missions with"
-    "max distance larger than this.");
-
 DEFINE_int32(
     maplab_server_perform_global_admc_every_nth, -1,
     "If enabled, the global LiDAR LC search will be performed every nth map "
@@ -593,6 +588,12 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
     for (auto& mission_info : robot_info.mission_ids_with_baseframe_status) {
       submap_mission_id = mission_info.first;
       if (!submap_mission_id.isValid()) {
+        continue;
+      }
+      // This can happen if the mission was added to the map with key
+      // kMergedMapKey but is not yet included in the map with key
+      // kMergedMapPublicKey.
+      if (!map->hasMission(submap_mission_id)) {
         continue;
       }
       landmark_triangulation::VertexToTimeStampMap vertex_to_time_map;
@@ -1536,7 +1537,8 @@ void MaplabServerNode::runSubmapProcessing(
     bool perform_llc = true;
     if (FLAGS_dm_candidate_search_min_vertex_mission_distance > 0.0) {
       perform_llc = map.get()->isMaxDistanceLargerThan(
-          submap_mission_id, FLAGS_maplab_server_min_distance_m_before_llc);
+          submap_mission_id,
+          FLAGS_dm_candidate_search_min_vertex_mission_distance);
     }
     if (perform_llc) {
       const dense_mapping::Config config =
