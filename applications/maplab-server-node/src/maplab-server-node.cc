@@ -23,6 +23,7 @@
 #include <sparse-graph/partitioners/all-partitioner.h>
 #include <sparse-graph/partitioners/lidar-partitioner.h>
 #include <vi-map-basic-plugin/vi-map-basic-plugin.h>
+#include <vi-map-data-import-export/export-vertex-data.h>
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/landmark-quality-metrics.h>
@@ -115,8 +116,15 @@ DEFINE_bool(
 DEFINE_bool(
     maplab_server_enable_lidar_loop_closure, false,
     "If enabled, lidar loop closure & mapping is used to derrive constraints "
-    "within and "
-    "across missions.");
+    "within and across missions.");
+
+DEFINE_bool(
+    maplab_server_enable_sparse_graph_computation, false,
+    "If enabled, the mapping server will build and publish the sparse graph.");
+
+DEFINE_bool(
+    maplab_server_enable_visualization, true,
+    "If enabled, the mapping server will publish the results.");
 
 DEFINE_double(
     maplab_server_min_distance_m_before_llc, 1.,
@@ -523,6 +531,7 @@ bool MaplabServerNode::saveMap() {
     bool save_map = map_manager_.saveMapToFolder(
         kMergedMapKey, FLAGS_maplab_server_merged_map_folder, config);
     save_map &= saveRobotMissionsInfo(config);
+    save_map &= saveRobotTrajectories();
     return save_map;
   } else {
     return false;
@@ -530,6 +539,9 @@ bool MaplabServerNode::saveMap() {
 }
 
 void MaplabServerNode::visualizeMap() {
+  if (!FLAGS_maplab_server_enable_visualization) {
+    return;
+  }
   std::lock_guard<std::mutex> lock(mutex_);
   if (plotter_) {
     if (map_manager_.hasMap(kMergedMapPublicKey)) {
@@ -1619,6 +1631,9 @@ void MaplabServerNode::registerStatusCallback(
 }
 
 void MaplabServerNode::publishDenseMap() {
+  if (!FLAGS_maplab_server_enable_visualization) {
+    return;
+  }
   if (!map_manager_.hasMap(kMergedMapKey)) {
     return;
   }
@@ -1777,6 +1792,16 @@ bool MaplabServerNode::deleteAllRobotMissions(
   }
 }
 
+bool MaplabServerNode::clearBlacklist() {
+  bool success = true;
+  {
+    std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
+    blacklisted_missions_.clear();
+    success &= blacklisted_missions_.empty();
+  }
+  return success;
+}
+
 bool MaplabServerNode::deleteBlacklistedMissions() {
   if (!map_manager_.hasMap(kMergedMapKey)) {
     return false;
@@ -1874,9 +1899,12 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
   // If we deleted all of the missions, we need to reset the state of the
   // merged map.
   if (num_missions_in_merged_map_after_deletion == 0u) {
+    std::lock_guard<std::mutex> lock(save_map_mutex_);
     LOG(INFO) << "[MaplabServerNode] Merged map is empty after deleting "
               << "mission, delete merged map as well.";
+    // Check if currently save the merged map.
     map_manager_.deleteMap(kMergedMapKey);
+    total_num_merged_submaps_ = 0;
 
     // Return false to reset the 'received_first_submap' variable.
     return false;
@@ -1963,6 +1991,48 @@ bool MaplabServerNode::saveRobotMissionsInfo(
   common::proto_serialization_helper::serializeProtoToFile(
       FLAGS_maplab_server_merged_map_folder, kRobotMissionsInfoFileName,
       server_info_proto, kIsTextFormat);
+  return true;
+}
+
+bool MaplabServerNode::saveRobotTrajectories() {
+  if (!map_manager_.hasMap(kMergedMapKey)) {
+    LOG(ERROR) << "[MaplabServerNode] Map manager does not contain the global "
+                  "merged map.";
+    return false;
+  }
+  // Get map and mission ids.
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager_.getMapReadAccess(kMergedMapKey);
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+  if (mission_ids.empty()) {
+    LOG(ERROR) << "[MaplabServerNode] There are no missions available in the "
+                  "merged map.";
+    return false;
+  }
+  // Get the path to the merged map folder.
+  const std::string kFilename = "vertex_poses_velocities_biases.csv";
+  const std::string filepath =
+      common::concatenateFolderAndFileName(map->getMapFolder(), kFilename);
+
+  // Get one reference sensor id.
+  aslam::SensorId reference_sensor_id;
+  // Pick first valid IMU from mission
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    const vi_map::VIMission& mission = map->getMission(mission_id);
+    if (mission.hasImu()) {
+      reference_sensor_id = mission.getImuId();
+      break;
+    }
+  }
+  if (!reference_sensor_id.isValid()) {
+    LOG(ERROR) << "[MaplabServerNode] Could not find a mission with a valid "
+                  "IMU.";
+    return false;
+  }
+  const std::string kFormat = "asl";
+  data_import_export::exportPosesVelocitiesAndBiasesToCsv(
+      *map, mission_ids, reference_sensor_id, filepath, kFormat);
   return true;
 }
 
@@ -2151,6 +2221,9 @@ MaplabServerNode::VerificationStatus MaplabServerNode::verifySubmap(
 }
 
 bool MaplabServerNode::computeSparseGraph() {
+  if (!FLAGS_maplab_server_enable_sparse_graph_computation) {
+    return false;
+  }
   if (!update_sparse_graph_.load()) {
     return false;
   }

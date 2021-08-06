@@ -18,6 +18,7 @@
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
+#include <maplab-ros-common/gflags-interface.h>
 #include <maplab_msgs/MapLookupRequest.h>
 #include <maplab_msgs/MapLookupResponse.h>
 #include <maplab_msgs/VerificationCheckRequest.h>
@@ -73,6 +74,18 @@ MaplabServerRosNode::MaplabServerRosNode(
       save_map_callback =
           boost::bind(&MaplabServerRosNode::saveMapCallback, this, _1, _2);
   save_map_srv_ = nh_.advertiseService("save_map", save_map_callback);
+
+  boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
+      reinit_gflags_callback =
+          boost::bind(&MaplabServerRosNode::reinitGflagsCallback, this, _1, _2);
+  reinit_gflags_srv_ =
+      nh_.advertiseService("reinit_gflags", reinit_gflags_callback);
+
+  boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
+      whitelist_missions_callback = boost::bind(
+          &MaplabServerRosNode::whitelistAllMissionsCallback, this, _1, _2);
+  whitelist_missions_srv_ =
+      nh_.advertiseService("whitelistAllMissions", whitelist_missions_callback);
 
   boost::function<bool(
       maplab_msgs::BatchMapLookup::Request&,
@@ -234,6 +247,24 @@ bool MaplabServerRosNode::saveMapCallback(
     std_srvs::Empty::Response& /*response*/) {  // NOLINT
   LOG(INFO) << "[MaplabServerRosNode] Received save map service call...";
   return saveMap();
+}
+
+bool MaplabServerRosNode::reinitGflagsCallback(
+    std_srvs::Empty::Request& /*request*/,      // NOLINT
+    std_srvs::Empty::Response& /*response*/) {  // NOLINT
+  LOG(INFO)
+      << "[MaplabServerRosNode] Received reinitialize gflags service call...";
+  return ros_common::parserInstance<ros_common::GflagsParser>()
+      .parseFromRosParams(nh_private_);
+}
+
+bool MaplabServerRosNode::whitelistAllMissionsCallback(
+    std_srvs::Empty::Request& /*request*/,      // NOLINT
+    std_srvs::Empty::Response& /*response*/) {  // NOLINT
+  LOG(INFO) << "[MaplabServerRosNode] Received whitelist all missions service "
+               "call...";
+
+  return maplab_server_node_->clearBlacklist();
 }
 
 bool MaplabServerRosNode::publishPoseCorrection(
