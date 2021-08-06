@@ -19,7 +19,6 @@ vi_map::MissionIdList Utils::GetMissionIds(
   vi_map::MissionIdList mission_ids;
   for (const pose_graph::VertexId vertex_id : vertices) {
     if (!map->hasVertex(vertex_id)) {
-      LOG(ERROR) << "Vertex " << vertex_id << " not found.";
       continue;
     }
     const vi_map::Vertex& vertex = map->getVertex(vertex_id);

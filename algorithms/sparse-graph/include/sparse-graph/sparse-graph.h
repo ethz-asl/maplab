@@ -69,6 +69,7 @@ class SparseGraph {
 
   void publishGraphForBuilding() const;
   void publishTrajecotryForEvaluation() const;
+  void publishTrajecotryPath() const;
   void publishGraphForVisualization() const;
   void publishNewSubmaps(const vi_map::VIMap* map);
 

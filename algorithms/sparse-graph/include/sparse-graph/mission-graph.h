@@ -1,6 +1,7 @@
 #ifndef SPARSE_GRAPH_MISSION_GRAPH_H_
 #define SPARSE_GRAPH_MISSION_GRAPH_H_
 
+#include <mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -41,6 +42,7 @@ class MissionGraph {
 
  private:
   std::unordered_map<uint32_t, pose_graph::VertexIdList> all_vertex_partitions_;
+  mutable std::recursive_mutex partition_mutex_;
 };
 
 }  // namespace spg
