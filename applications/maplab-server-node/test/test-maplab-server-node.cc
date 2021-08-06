@@ -8,6 +8,7 @@
 #include <maplab-common/parallel-process.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
+#include <transfolder_msgs/RobotSubfoldersArray.h>
 
 #include <maplab-server-node/maplab-server-node.h>
 #include <maplab-server-node/maplab-server-ros-node.h>
@@ -95,41 +96,20 @@ TEST_F(MaplabServerNodeTest, DISABLED_TestMaplabServerRosNodeLocal) {
   MaplabServerRosNode maplab_server_ros_node;
 
   maplab_server_ros_node.start();
-
-  diagnostic_msgs::KeyValuePtr key_value_msg(new diagnostic_msgs::KeyValue());
-
-  key_value_msg->key = kRobotName;
-
-  key_value_msg->value = kSubmap0;
-  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  key_value_msg->value = kSubmap1;
-  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  key_value_msg->value = kSubmap2;
-  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  key_value_msg->value = kSubmap3;
-  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  key_value_msg->value = kSubmap4;
-  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  key_value_msg->value = kSubmap5;
-  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  key_value_msg->value = kSubmap6;
-  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  key_value_msg->value = kSubmap7;
-  maplab_server_ros_node.submapLoadingCallback(key_value_msg);
+  transfolder_msgs::RobotSubfoldersArrayPtr subfolders(
+      new transfolder_msgs::RobotSubfoldersArray);
+  transfolder_msgs::RobotSubfolders subfolder;
+  subfolder.robot_name = kRobotName;
+  subfolder.absolute_subfolder_paths.emplace_back(kSubmap0);
+  subfolder.absolute_subfolder_paths.emplace_back(kSubmap1);
+  subfolder.absolute_subfolder_paths.emplace_back(kSubmap2);
+  subfolder.absolute_subfolder_paths.emplace_back(kSubmap3);
+  subfolder.absolute_subfolder_paths.emplace_back(kSubmap4);
+  subfolder.absolute_subfolder_paths.emplace_back(kSubmap5);
+  subfolder.absolute_subfolder_paths.emplace_back(kSubmap6);
+  subfolder.absolute_subfolder_paths.emplace_back(kSubmap7);
+  subfolders->robots_with_subfolders.emplace_back(subfolder);
+  maplab_server_ros_node.submapLoadingCallback(subfolders);
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   maplab_server_ros_node.visualizeMap();

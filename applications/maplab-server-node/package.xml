@@ -38,4 +38,6 @@
 	<depend>vi_map_data_import_export_plugin</depend>
 	<depend>vi_map_summarization_plugin</depend>
 	<depend>vi_map_visualization_plugin</depend>
+	<depend>transfolder_msgs</depend>
+	<depend>sparse_graph</depend>
 </package>

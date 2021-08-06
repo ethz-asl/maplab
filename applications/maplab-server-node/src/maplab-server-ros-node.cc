@@ -18,19 +18,40 @@
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
+#include <maplab-ros-common/gflags-interface.h>
 #include <maplab_msgs/MapLookupRequest.h>
 #include <maplab_msgs/MapLookupResponse.h>
+#include <maplab_msgs/VerificationCheckRequest.h>
+#include <maplab_msgs/VerificationCheckResponse.h>
 #include <resources-common/point-cloud.h>
+
+#include <transfolder_msgs/QueryAllSubfolders.h>
 
 #include "maplab-server-node/maplab-server-node.h"
 
 DEFINE_int32(
-    maplab_server_map_update_topic_queue_size, 100, "Size of ROS subscriber.");
+    maplab_server_map_update_topic_queue_size, 1000, "Size of ROS subscriber.");
 
 DEFINE_string(
     maplab_server_map_update_topic, "map_update_notification",
     "Topic on which the map update notification message is received, it "
     "contains the robot name and the map folder of the new map update.");
+
+DEFINE_string(
+    maplab_server_transfolder_query_all_subfolders_service,
+    "get_all_subfolders",
+    "Topic on which the map update notification message is received, it "
+    "contains the robot name and the map folder of the new map update.");
+
+DEFINE_string(
+    maplab_server_restore_previous_state_param_name,
+    "/maplab_server/restore_state",
+    "Topic on which the map update notification message is received, it "
+    "contains the robot name and the map folder of the new map update.");
+
+DEFINE_double(
+    maplab_server_trigger_sparse_graph_update_every_s, 20,
+    "Time between sparse graph update requests.");
 
 namespace maplab {
 
@@ -53,6 +74,18 @@ MaplabServerRosNode::MaplabServerRosNode(
       save_map_callback =
           boost::bind(&MaplabServerRosNode::saveMapCallback, this, _1, _2);
   save_map_srv_ = nh_.advertiseService("save_map", save_map_callback);
+
+  boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
+      reinit_gflags_callback =
+          boost::bind(&MaplabServerRosNode::reinitGflagsCallback, this, _1, _2);
+  reinit_gflags_srv_ =
+      nh_.advertiseService("reinit_gflags", reinit_gflags_callback);
+
+  boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
+      whitelist_missions_callback = boost::bind(
+          &MaplabServerRosNode::whitelistAllMissionsCallback, this, _1, _2);
+  whitelist_missions_srv_ =
+      nh_.advertiseService("whitelistAllMissions", whitelist_missions_callback);
 
   boost::function<bool(
       maplab_msgs::BatchMapLookup::Request&,
@@ -85,7 +118,15 @@ MaplabServerRosNode::MaplabServerRosNode(
   get_dense_map_in_range_srv_ = nh_.advertiseService(
       "get_dense_map_in_range", get_dense_map_in_range_callback);
 
-  boost::function<void(const diagnostic_msgs::KeyValueConstPtr&)>
+  boost::function<bool(
+      maplab_msgs::Verification::Request&,
+      maplab_msgs::Verification::Response&)>
+      verification_callback =
+          boost::bind(&MaplabServerRosNode::verificationCallback, this, _1, _2);
+  verification_srv_ =
+      nh_.advertiseService("verification", verification_callback);
+
+  boost::function<void(const transfolder_msgs::RobotSubfoldersArrayConstPtr&)>
       submap_loading_callback =
           boost::bind(&MaplabServerRosNode::submapLoadingCallback, this, _1);
   map_update_notification_sub_ = nh_.subscribe(
@@ -109,6 +150,15 @@ MaplabServerRosNode::MaplabServerRosNode(
 
   dense_map_query_result_ =
       nh_.advertise<sensor_msgs::PointCloud2>("dense_map_query_result", 1);
+
+  CHECK_GT(FLAGS_maplab_server_trigger_sparse_graph_update_every_s, 0.0);
+  time_between_sparse_graph_update_requests_ =
+      ros::Duration(FLAGS_maplab_server_trigger_sparse_graph_update_every_s);
+  boost::function<void(const ros::TimerEvent&)> sparse_graph_timer_callback =
+      boost::bind(&MaplabServerRosNode::triggerSparseGraphUpdate, this, _1);
+  sparse_graph_timer_ = nh_.createTimer(
+      ros::Duration(time_between_sparse_graph_update_requests_),
+      sparse_graph_timer_callback);
 
   maplab_server_node_->registerStatusCallback(
       [this](const std::string status_string) {
@@ -134,26 +184,41 @@ bool MaplabServerRosNode::start() {
   LOG(INFO) << "[MaplabServerRosNode] Starting...";
   // Start the pipeline. The ROS spinner will handle SIGINT for us and abort
   // the application on CTRL+C.
+  bool restore_server_state;
+  nh_.param<bool>(
+      FLAGS_maplab_server_restore_previous_state_param_name,
+      restore_server_state, false);
+  maplab_server_node_->start(restore_server_state);
   maplab_spinner_.start();
-  maplab_server_node_->start();
+  if (restore_server_state) {
+    ros::ServiceClient query_all_subfolders_client =
+        nh_.serviceClient<transfolder_msgs::QueryAllSubfolders>(
+            FLAGS_maplab_server_transfolder_query_all_subfolders_service, true);
+    if (query_all_subfolders_client.waitForExistence(ros::Duration(1))) {
+      transfolder_msgs::QueryAllSubfolders subfolder_msg;
+      query_all_subfolders_client.call(subfolder_msg);
+    }
+  }
+  nh_.setParam(FLAGS_maplab_server_restore_previous_state_param_name, true);
   return true;
 }
 
 void MaplabServerRosNode::submapLoadingCallback(
-    const diagnostic_msgs::KeyValueConstPtr& msg) {
+    const transfolder_msgs::RobotSubfoldersArrayConstPtr& msg) {
   CHECK(msg);
-  const std::string robot_name = msg->key;
-  std::string map_path = msg->value;
-  common::simplifyPath(&map_path);
 
-  if (!common::pathExists(map_path)) {
-    LOG(ERROR) << "[MaplabServerRosNode] Received map notification for robot '"
-               << robot_name << "' and local map folder '" << map_path
-               << "', but the folder does not exist!";
-    return;
+  std::unordered_map<std::string, std::vector<std::string>>
+      robot_to_submap_paths;
+  for (auto robot_msg : msg->robots_with_subfolders) {
+    const std::string robot_name = robot_msg.robot_name;
+    std::vector<std::string>& robot_submap_paths =
+        robot_to_submap_paths[robot_name];
+    for (auto absolute_subfolder_path : robot_msg.absolute_subfolder_paths) {
+      robot_submap_paths.push_back(absolute_subfolder_path);
+    }
   }
 
-  maplab_server_node_->loadAndProcessSubmap(robot_name, map_path);
+  maplab_server_node_->loadAndProcessMissingSubmaps(robot_to_submap_paths);
 }
 
 bool MaplabServerRosNode::saveMap(const std::string& map_folder) {
@@ -182,6 +247,24 @@ bool MaplabServerRosNode::saveMapCallback(
     std_srvs::Empty::Response& /*response*/) {  // NOLINT
   LOG(INFO) << "[MaplabServerRosNode] Received save map service call...";
   return saveMap();
+}
+
+bool MaplabServerRosNode::reinitGflagsCallback(
+    std_srvs::Empty::Request& /*request*/,      // NOLINT
+    std_srvs::Empty::Response& /*response*/) {  // NOLINT
+  LOG(INFO)
+      << "[MaplabServerRosNode] Received reinitialize gflags service call...";
+  return ros_common::parserInstance<ros_common::GflagsParser>()
+      .parseFromRosParams(nh_private_);
+}
+
+bool MaplabServerRosNode::whitelistAllMissionsCallback(
+    std_srvs::Empty::Request& /*request*/,      // NOLINT
+    std_srvs::Empty::Response& /*response*/) {  // NOLINT
+  LOG(INFO) << "[MaplabServerRosNode] Received whitelist all missions service "
+               "call...";
+
+  return maplab_server_node_->clearBlacklist();
 }
 
 bool MaplabServerRosNode::publishPoseCorrection(
@@ -344,9 +427,44 @@ bool MaplabServerRosNode::getDenseMapInRangeCallback(
   return true;
 }
 
+bool MaplabServerRosNode::verificationCallback(
+    maplab_msgs::Verification::Request& request,      // NOLINT
+    maplab_msgs::Verification::Response& response) {  // NOLINT
+  CHECK_NOTNULL(maplab_server_node_);
+  const maplab_msgs::VerificationCheckRequest& check_request =
+      request.verify_request;
+  const std::string& robot_name = check_request.robot_name;
+  const std::vector<uint32_t>& submap_ids = check_request.submap_ids;
+  LOG(INFO) << "[MaplabServerRosNode] Received verification from " << robot_name
+            << " with " << submap_ids.size() << " submap ids.";
+
+  // Reverify the submaps
+  for (const uint32_t submap_id : submap_ids) {
+    const int submap_status =
+        static_cast<int>(maplab_server_node_->verifySubmap(submap_id));
+    response.status_response.status.emplace_back(submap_status);
+  }
+
+  return true;
+}
+
 void MaplabServerRosNode::visualizeMap() {
+  CHECK_NOTNULL(maplab_server_node_);
   LOG(INFO) << "[MaplabServerRosNode] Visualizing merged map.";
   maplab_server_node_->visualizeMap();
+}
+
+void MaplabServerRosNode::triggerSparseGraphUpdate(
+    const ros::TimerEvent& event) {
+  CHECK_NOTNULL(maplab_server_node_);
+  LOG(INFO) << "[MaplabServerRosNode] Trigger Sparse Graph Update.";
+  if (maplab_server_node_->computeSparseGraph()) {
+    LOG(INFO) << "[MaplabServerRosNode] Updated Sparse Graph.";
+  } else {
+    LOG(INFO) << "[MaplabServerRosNode] No Sparse Graph Update available.";
+  }
+  sparse_graph_timer_.setPeriod(
+      ros::Duration(time_between_sparse_graph_update_requests_), true);
 }
 
 }  // namespace maplab

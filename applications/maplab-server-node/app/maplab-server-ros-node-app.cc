@@ -30,7 +30,13 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "maplab_server_node");
   ros::NodeHandle nh, nh_private("~");
 
-  ros_common::parseGflagsFromRosParams(argv[0], nh_private);
+  // Initialize singleton and parse the current rosparams.
+  ros_common::parserInstance<ros_common::GflagsParser>(argv[0]);
+  if (!ros_common::parserInstance<ros_common::GflagsParser>()
+           .parseFromRosParams(nh_private)) {
+    LOG(ERROR) << "Unable to set up Gflags using rosparams! "
+               << "Using default parameters.";
+  }
 
   maplab::MaplabServerRosNode maplab_server_node(nh, nh_private);
 

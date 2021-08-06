@@ -32,10 +32,13 @@ static const std::string kPointCloud2ColorG = "g";
 static const std::string kPointCloud2ColorB = "b";
 static const std::string kPointCloud2ColorA = "a";
 static const std::string kPointCloud2Ring = "ring";
-static const std::string kPointCloud2Time = "time";
+static const std::string kPointCloud2TimeV1 = "time";
+static const std::string kPointCloud2TimeV2 = "t";
 
 static PointCloud2Visitor<float> intensity_visitor;
+static PointCloud2Visitor<float> time_visitor;
 static PointCloud2Visitor<uint32_t> label_visitor;
+static PointCloud2Visitor<uint32_t> ring_visitor;
 
 inline sensor_msgs::PointField getScalarField(
     const sensor_msgs::PointCloud2& point_cloud) {
@@ -73,7 +76,7 @@ inline sensor_msgs::PointField getRingField(
 inline sensor_msgs::PointField getTimeField(
     const sensor_msgs::PointCloud2& point_cloud) {
   for (const sensor_msgs::PointField& field : point_cloud.fields) {
-    if (field.name == kPointCloud2Time) {
+    if (field.name == kPointCloud2TimeV1 || field.name == kPointCloud2TimeV2) {
       return field;
     }
   }
@@ -713,7 +716,7 @@ void getRingFromPointCloud(
 
   PointCloud2ConstIteratorVariant var =
       getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
-  *ring = boost::apply_visitor(label_visitor.setIndex(index), var);
+  *ring = boost::apply_visitor(ring_visitor.setIndex(index), var);
 }
 
 template <>
@@ -732,7 +735,7 @@ void addTimeToPointCloud(
   CHECK_NOTNULL(point_cloud);
   CHECK_GE(std::numeric_limits<int>::max(), index * point_cloud->point_step);
   sensor_msgs::PointCloud2Iterator<float> it_time(
-      *point_cloud, kPointCloud2Time);
+      *point_cloud, kPointCloud2TimeV1);
 
   it_time += index;
 
@@ -760,7 +763,7 @@ void getTimeFromPointCloud(
 
   PointCloud2ConstIteratorVariant var =
       getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
-  *time_s = boost::apply_visitor(label_visitor.setIndex(index), var);
+  *time_s = boost::apply_visitor(time_visitor.setIndex(index), var);
 }
 
 template <>
@@ -872,7 +875,7 @@ void resizePointCloud(
 
   if (has_time) {
     offset = addPointField(
-        *point_cloud, kPointCloud2Time, 1, sensor_msgs::PointField::FLOAT32,
+        *point_cloud, kPointCloud2TimeV1, 1, sensor_msgs::PointField::FLOAT32,
         offset);
     // The offset adds 3x 4bytes for padding, to get a better memory
     // alignment.

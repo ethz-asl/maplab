@@ -127,7 +127,7 @@ void integrateAllFrameDepthResourcesOfType(
       // Get number of frames for this vertex
       const size_t num_frames = vertex.numFrames();
       for (size_t frame_idx = 0u; frame_idx < num_frames; ++frame_idx) {
-        VLOG(3) << "Vertex " << vertex_id << " / Frame " << frame_idx;
+        VLOG(7) << "Vertex " << vertex_id << " / Frame " << frame_idx;
 
         if (!vi_map.hasFrameResource(vertex, frame_idx, input_resource_type)) {
           continue;
