@@ -28,7 +28,7 @@ class Landmark {
 
   Landmark()
       : quality_(Quality::kUnknown),
-        feature_type_(kBinary),
+        feature_type_(FeatureType::kBinary),
         B_position_(Eigen::Vector3d::Zero()) {}
 
   Landmark(const Landmark& lhs) {

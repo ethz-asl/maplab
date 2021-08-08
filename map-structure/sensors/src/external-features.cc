@@ -16,13 +16,13 @@ constexpr const char* kBinaryIdentifier = "Binary";
 constexpr const char* kSIFTIdentifier = "SIFT";
 
 std::string FeatureTypeToString(FeatureType feature_type) {
+  CHECK(feature_type != FeatureType::kInvalid);
   if (feature_type == FeatureType::kBinary) {
     return std::string(kBinaryIdentifier);
   } else if (feature_type == FeatureType::kSIFT) {
     return std::string(kSIFTIdentifier);
-  } else {
-    LOG(FATAL) << "Unknown feature type!";
   }
+  LOG(FATAL) << "Unknown feature type!";
 }
 
 FeatureType StringToFeatureType(const std::string& feature_string) {
@@ -36,9 +36,8 @@ FeatureType StringToFeatureType(const std::string& feature_string) {
     return FeatureType::kBinary;
   } else if (equals(feature_c_string, kSIFTIdentifier)) {
     return FeatureType::kSIFT;
-  } else {
-    LOG(FATAL) << "Unknown feature type!";
   }
+  LOG(FATAL) << "Unknown feature type!";
 }
 
 ExternalFeatures::ExternalFeatures()

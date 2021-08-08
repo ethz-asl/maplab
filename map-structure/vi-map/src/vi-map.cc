@@ -406,7 +406,8 @@ void VIMap::getStatisticsOfMission(
   num_unknown_landmarks_per_camera->resize(num_cameras);
   total_num_landmarks_per_camera->resize(num_cameras);
 
-  for (const FeatureType& feature_type : feature_types) {
+  for (const FeatureType& feature_type_ : feature_types) {
+    const int feature_type = static_cast<int>(feature_type_);
     (*num_landmarks)[feature_type] = 0u;
     (*num_observations)[feature_type] = 0u;
 
@@ -449,7 +450,8 @@ void VIMap::getStatisticsOfMission(
     for (unsigned int frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
       if (vertex.isVisualFrameSet(frame_idx) &&
           vertex.isVisualFrameValid(frame_idx)) {
-        for (const FeatureType& feature_type : feature_types) {
+        for (const FeatureType& feature_type_ : feature_types) {
+          const int feature_type = static_cast<int>(feature_type_);
           (*num_observations)[feature_type] +=
               vertex.getVisualFrame(frame_idx).getNumKeypointMeasurementsOfType(
                   feature_type);
@@ -458,7 +460,8 @@ void VIMap::getStatisticsOfMission(
     }
   }
 
-  for (const FeatureType& feature_type : feature_types) {
+  for (const FeatureType& feature_type_ : feature_types) {
+    const int feature_type = static_cast<int>(feature_type_);
     for (size_t frame_idx = 0; frame_idx < num_cameras; ++frame_idx) {
       (*num_landmarks)[feature_type] +=
           (*total_num_landmarks_per_camera)[frame_idx][feature_type];
@@ -602,25 +605,28 @@ std::string VIMap::printMapStatistics(
     stats_text << std::endl;
     print_aligned("NCamera Sensor:", ncamera_id.hexString(), 1);
     print_aligned(" - Landmarks:", "", 1);
-    for (const FeatureType& feature_type : feature_types) {
+    for (const FeatureType& feature_type_ : feature_types) {
+      const int feature_type = static_cast<int>(feature_type_);
       print_aligned(
-          "     " + FeatureTypeToString(feature_type),
+          "     " + FeatureTypeToString(feature_type_),
           std::to_string(num_landmarks[feature_type]), 1);
     }
 
     print_aligned(" - Observations:", "", 1);
-    for (const FeatureType& feature_type : feature_types) {
+    for (const FeatureType& feature_type_ : feature_types) {
+      const int feature_type = static_cast<int>(feature_type_);
       print_aligned(
-          "     " + FeatureTypeToString(feature_type),
+          "     " + FeatureTypeToString(feature_type_),
           std::to_string(num_observations[feature_type]), 1);
     }
 
     print_aligned(" - Landmarks by first observer backlink:", "", 1);
     for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
       print_aligned("   - Camera " + std::to_string(camera_idx) + ":", "", 1);
-      for (const FeatureType& feature_type : feature_types) {
+      for (const FeatureType& feature_type_ : feature_types) {
+        const int feature_type = static_cast<int>(feature_type_);
         print_aligned(
-            "       " + FeatureTypeToString(feature_type),
+            "       " + FeatureTypeToString(feature_type_),
             std::to_string(
                 total_num_landmarks_per_camera[camera_idx][feature_type]) +
                 " (g:" +
@@ -826,7 +832,8 @@ std::string VIMap::printMapAccumulatedStatistics() const {
 
   std::set<FeatureType> feature_types;
   getMapFeatureTypes(&feature_types);
-  for (const FeatureType& feature_type : feature_types) {
+  for (const FeatureType& feature_type_ : feature_types) {
+    const int feature_type = static_cast<int>(feature_type_);
     total_num_landmarks[feature_type] = 0u;
     total_num_observations[feature_type] = 0u;
     total_num_good_landmarks[feature_type] = 0u;
@@ -855,7 +862,8 @@ std::string VIMap::printMapAccumulatedStatistics() const {
     CHECK_EQ(num_frames, num_bad_landmarks_per_camera.size());
     CHECK_EQ(num_frames, num_unknown_landmarks_per_camera.size());
 
-    for (const FeatureType& feature_type : feature_types) {
+    for (const FeatureType& feature_type_ : feature_types) {
+      const int feature_type = static_cast<int>(feature_type_);
       for (size_t frame_idx = 0u; frame_idx < num_frames; ++frame_idx) {
         total_num_good_landmarks[feature_type] +=
             num_good_landmarks_per_camera[frame_idx][feature_type];
@@ -895,9 +903,10 @@ std::string VIMap::printMapAccumulatedStatistics() const {
   print_aligned("Number of missions:", std::to_string(numMissions()), 1);
   print_aligned("Vertices:", std::to_string(total_num_vertices), 1);
   print_aligned("Visual Landmarks:", "", 1);
-  for (const FeatureType& feature_type : feature_types) {
+  for (const FeatureType& feature_type_ : feature_types) {
+    const int feature_type = static_cast<int>(feature_type_);
     print_aligned(
-        "   " + FeatureTypeToString(feature_type),
+        "   " + FeatureTypeToString(feature_type_),
         std::to_string(total_num_landmarks[feature_type]) +
             " (g:" + std::to_string(total_num_good_landmarks[feature_type]) +
             " b:" + std::to_string(total_num_bad_landmarks[feature_type]) +
@@ -906,9 +915,10 @@ std::string VIMap::printMapAccumulatedStatistics() const {
         1);
   }
   print_aligned("Visual Observations:", "", 1);
-  for (const FeatureType& feature_type : feature_types) {
+  for (const FeatureType& feature_type_ : feature_types) {
+    const int feature_type = static_cast<int>(feature_type_);
     print_aligned(
-        "   " + FeatureTypeToString(feature_type),
+        "   " + FeatureTypeToString(feature_type_),
         std::to_string(total_num_observations[feature_type]), 1);
   }
   print_aligned(

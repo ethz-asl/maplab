@@ -148,10 +148,17 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
     visualization::RVizVisualizationSink::publish(topic, image);
   }
 
+  // The default detector / tracker with always insert descriptors of type
+  // kBinary = 0 for both BRISK and FREAK
+  constexpr int descriptor_type =
+      static_cast<int>(vi_map::FeatureType::kBinary);
+
   CHECK(frame_k->hasKeypointMeasurements());
   CHECK(frame_k->hasDescriptors());
+  CHECK(frame_k->hasDescriptorType(descriptor_type));
   CHECK(frame_kp1->hasKeypointMeasurements());
   CHECK(frame_kp1->hasDescriptors());
+  CHECK(frame_kp1->hasDescriptorType(descriptor_type));
 
   // Get the relative motion of the camera using the extrinsics of the camera
   // system.
@@ -162,10 +169,6 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
   aslam::FrameToFrameMatchesWithScore matches_with_score_kp1_k;
   trackers_[camera_idx]->track(
       q_Ckp1_Ck, *frame_k, frame_kp1, &matches_with_score_kp1_k);
-
-  // The default detector / tracker with always insert descriptors of type
-  // kBinary = 0 for both BRISK and FREAK
-  constexpr int descriptor_type = vi_map::FeatureType::kBinary;
 
   // The tracker will return the indices with respect to the tracked feature
   // block, so here we renormalize them so that the rest of the code can deal

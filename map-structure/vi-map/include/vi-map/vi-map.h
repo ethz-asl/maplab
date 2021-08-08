@@ -320,7 +320,7 @@ class VIMap : public backend::ResourceMap,
   void addNewLandmark(
       const LandmarkId& predefined_landmark_id,
       const KeypointIdentifier& first_observation,
-      FeatureType feature_type = kBinary);
+      FeatureType feature_type = FeatureType::kBinary);
 
   /// Add a new observation to an existing landmark by providing information
   /// about the vertex, frame and keypoint index of the observation.
