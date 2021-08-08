@@ -27,7 +27,11 @@ DEFINE_bool(
     vis_color_by_mission, true,
     "Color landmarks and pose-graph edges by mission.");
 DEFINE_bool(
-    vis_color_by_landmark_type, false, "Color landmarks by feature type");
+    vis_color_by_landmark_type, false, "Color landmarks by feature type.");
+DEFINE_string(
+    vis_show_only_landmark_type, "",
+    "Only show landmarks with a certain feature type. Empty string means all "
+    "landmark types are displayed.");
 DEFINE_bool(
     vis_color_mission_with_unknown_baseframe_transformation, true,
     "Whether or not to color missions with unknown baseframe transformation.");
@@ -699,6 +703,12 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
       << "sure you have set the "
       << "'-vis_color_landmarks_by_number_of_observations' flag appropriately.";
 
+  vi_map::FeatureType show_feature_type = vi_map::FeatureType::kInvalid;
+  if (!FLAGS_vis_show_only_landmark_type.empty()) {
+    show_feature_type =
+        vi_map::StringToFeatureType(FLAGS_vis_show_only_landmark_type);
+  }
+
   for (const pose_graph::VertexId& vertex_id : storing_vertices) {
     const vi_map::Vertex& vertex = map.getVertex(vertex_id);
     CHECK_EQ(vertex.getMissionId(), mission_id)
@@ -721,6 +731,10 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
                 FLAGS_vis_landmarks_min_number_of_observer_missions)) {
           continue;
         }
+      }
+      if (show_feature_type != vi_map::FeatureType::kInvalid &&
+          landmark.getFeatureType() != show_feature_type) {
+        continue;
       }
       visualization::Sphere sphere;
       Eigen::Vector3d LM_p_fi =
@@ -798,7 +812,8 @@ void ViwlsGraphRvizPlotter::appendLandmarksToSphereVector(
                 FLAGS_vis_color_by_height_period_m);
         sphere.color = getPaletteColor(color_index, palette);
       } else if (FLAGS_vis_color_by_landmark_type) {
-        const size_t index = FLAGS_vis_color_salt * landmark.getFeatureType();
+        const size_t index =
+            FLAGS_vis_color_salt * static_cast<int>(landmark.getFeatureType());
         sphere.color = getPaletteColor(index, palette);
       } else if (FLAGS_vis_color_by_mission) {
         const vi_map::VIMission& mission =
