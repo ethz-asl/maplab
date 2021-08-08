@@ -505,6 +505,12 @@ void DataSourceRostopic::externalFeaturesCallback(
   external_features_measurement =
       convertRosFeatureMsgToMaplabExternalFeatures(msg, sensor_id);
 
+  // Apply the IMU to camera time shift.
+  if (FLAGS_imu_to_camera_time_offset_ns != 0) {
+    *(external_features_measurement->getTimestampNanosecondsMutable()) +=
+        FLAGS_imu_to_camera_time_offset_ns;
+  }
+
   invokeExternalFeaturesCallbacks(external_features_measurement);
 }
 
