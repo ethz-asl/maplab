@@ -524,9 +524,11 @@ bool MaplabServerNode::saveMap() {
             << FLAGS_maplab_server_merged_map_folder << "'.";
   if (map_manager_.hasMap(kMergedMapKey)) {
     auto config = vi_map::parseSaveConfigFromGFlags();
-    const bool save_map = map_manager_.saveMapToFolder(
+    bool save_map = map_manager_.saveMapToFolder(
         kMergedMapKey, FLAGS_maplab_server_merged_map_folder, config);
-    return save_map & saveRobotMissionsInfo(config);
+    save_map &= saveRobotMissionsInfo(config);
+    save_map &= saveRobotTrajectories();
+    return save_map;
   } else {
     return false;
   }
