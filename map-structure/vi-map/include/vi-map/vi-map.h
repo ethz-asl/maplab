@@ -524,6 +524,9 @@ class VIMap : public backend::ResourceMap,
   void getDistanceTravelledPerMission(
       const vi_map::MissionId& id, double* distance) const;
 
+  bool isMaxDistanceLargerThan(
+      const vi_map::MissionId& mission_id, const double max_distance_m) const;
+
   bool getEarliestMissionStartTimeNs(int64_t* start_time_ns) const;
 
   void getStatisticsOfMission(

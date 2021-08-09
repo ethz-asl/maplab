@@ -9,14 +9,14 @@ message MaplabServerNodeInfo {
 message RobotMissionInfo {
   required string robot_name = 1;
   repeated MissionInfo mission_infos = 2;
-  repeated StampedTransformation T_M_B_submaps_input = 4;
-  repeated StampedTransformation T_G_M_submaps_input = 5;
 }
 
 message MissionInfo {
   required aslam.proto.Id mission_id = 1;
   required bool baseframe_status = 2;
   repeated string included_submap_keys = 3;
+  repeated StampedTransformation T_M_B_submaps_input = 4;
+  repeated StampedTransformation T_G_M_submaps_input = 5;
 }
 
 message StampedTransformation {

@@ -1,6 +1,20 @@
 #include "map-resources/resource-cache.h"
 
+#include <gflags/gflags.h>
+
+DEFINE_int64(
+    resources_max_cache_size, 100,
+    "Maximum number of resources that is stored in cache."
+    "If more resources are loaded, the oldest resources are removed "
+    "from the cache.");
+
 namespace backend {
+
+ResourceCache::Config ResourceCache::Config::fromGflags() {
+  ResourceCache::Config config;
+  config.max_cache_size = FLAGS_resources_max_cache_size;
+  return config;
+}
 
 template <>
 typename ResourceCache::Cache<cv::Mat>::ResourceDequePtr&

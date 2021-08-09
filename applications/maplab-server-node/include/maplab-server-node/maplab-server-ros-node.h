@@ -11,6 +11,7 @@
 #include <maplab_msgs/DeleteAllRobotMissions.h>
 #include <maplab_msgs/DeleteMission.h>
 #include <maplab_msgs/GetDenseMapInRange.h>
+#include <maplab_msgs/Verification.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 #include <std_srvs/Empty.h>
@@ -44,6 +45,14 @@ class MaplabServerRosNode {
       std_srvs::Empty::Request& request,     // NOLINT
       std_srvs::Empty::Response& response);  // NOLINT
 
+  bool reinitGflagsCallback(
+      std_srvs::Empty::Request& request,     // NOLINT
+      std_srvs::Empty::Response& response);  // NOLINT
+
+  bool whitelistAllMissionsCallback(
+      std_srvs::Empty::Request& request,     // NOLINT
+      std_srvs::Empty::Response& response);  // NOLINT
+
   // Look up the current global frame position of a point in sensor frame.
   bool mapLookupCallback(
       maplab_msgs::BatchMapLookup::Request& requests,     // NOLINT
@@ -61,6 +70,10 @@ class MaplabServerRosNode {
       maplab_msgs::GetDenseMapInRange::Request& request,     // NOLINT
       maplab_msgs::GetDenseMapInRange::Response& response);  // NOLINT
 
+  bool verificationCallback(
+      maplab_msgs::Verification::Request& requests,     // NOLINT
+      maplab_msgs::Verification::Response& responses);  // NOLINT
+
   bool publishPoseCorrection(
       const int64_t timestamp_ns, const std::string& robot_name,
       const aslam::Transformation& T_G_curr_B_curr,
@@ -70,16 +83,21 @@ class MaplabServerRosNode {
 
   void visualizeMap();
 
+  void triggerSparseGraphUpdate(const ros::TimerEvent& event);
+
  private:
   // ROS stuff.
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
 
   ros::ServiceServer save_map_srv_;
+  ros::ServiceServer reinit_gflags_srv_;
+  ros::ServiceServer whitelist_missions_srv_;
   ros::ServiceServer map_lookup_srv_;
   ros::ServiceServer delete_mission_srv_;
   ros::ServiceServer delete_all_robot_missions_srv_;
   ros::ServiceServer get_dense_map_in_range_srv_;
+  ros::ServiceServer verification_srv_;
 
   // State for running for maplab.
   ros::AsyncSpinner maplab_spinner_;
@@ -103,6 +121,9 @@ class MaplabServerRosNode {
   // to returning them by service. This is mainly for introspection such that
   // the operator can see whether the query makes sense.
   ros::Publisher dense_map_query_result_;
+
+  ros::Timer sparse_graph_timer_;
+  ros::Duration time_between_sparse_graph_update_requests_;
 };
 
 }  // namespace maplab

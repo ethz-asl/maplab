@@ -20,7 +20,10 @@
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
 #include <signal.h>
+#include <sparse-graph/partitioners/all-partitioner.h>
+#include <sparse-graph/partitioners/lidar-partitioner.h>
 #include <vi-map-basic-plugin/vi-map-basic-plugin.h>
+#include <vi-map-data-import-export/export-vertex-data.h>
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/landmark-quality-metrics.h>
@@ -113,8 +116,20 @@ DEFINE_bool(
 DEFINE_bool(
     maplab_server_enable_lidar_loop_closure, false,
     "If enabled, lidar loop closure & mapping is used to derrive constraints "
-    "within and "
-    "across missions.");
+    "within and across missions.");
+
+DEFINE_bool(
+    maplab_server_enable_sparse_graph_computation, false,
+    "If enabled, the mapping server will build and publish the sparse graph.");
+
+DEFINE_bool(
+    maplab_server_enable_visualization, true,
+    "If enabled, the mapping server will publish the results.");
+
+DEFINE_double(
+    maplab_server_min_distance_m_before_llc, 1.,
+    "If greater than 0, lidar loop closure is only performed for missions with"
+    "max distance larger than this.");
 
 DEFINE_int32(
     maplab_server_perform_global_admc_every_nth, -1,
@@ -143,6 +158,7 @@ MaplabServerNode::MaplabServerNode()
       total_num_merged_submaps_(0u),
       time_of_last_map_backup_s_(0.0),
       is_running_(false),
+      update_sparse_graph_(false),
       initial_map_path_(FLAGS_maplab_server_initial_map_path) {
   if (!FLAGS_ros_free) {
     visualization::RVizVisualizationSink::init();
@@ -226,7 +242,6 @@ void MaplabServerNode::start(const bool load_previous_state) {
                 << "with key '" << kMergedMapKey << "'";
 
         runOneIterationOfMapMergingAlgorithms();
-
         publishDenseMap();
 
         publishMostRecentVertexPoseAndCorrection();
@@ -518,6 +533,9 @@ bool MaplabServerNode::saveMap() {
 }
 
 void MaplabServerNode::visualizeMap() {
+  if (!FLAGS_maplab_server_enable_visualization) {
+    return;
+  }
   std::lock_guard<std::mutex> lock(mutex_);
   if (plotter_) {
     if (map_manager_.hasMap(kMergedMapPublicKey)) {
@@ -554,7 +572,17 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
         << "[MaplabServerNode] Received map lookup with empty robot name!";
     return MapLookupStatus::kNoSuchMission;
   }
+  if (timestamp_ns < 0) {
+    LOG(WARNING)
+        << "[MaplabServerNode] Received map lookup with invalid timestamp: "
+        << timestamp_ns << "ns";
+    return MapLookupStatus::kPoseNeverAvailable;
+  }
+
   vi_map::MissionId submap_mission_id;
+  const landmark_triangulation::PoseInterpolator pose_interpolator;
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager_.getMapReadAccess(kMergedMapPublicKey);
   {
     std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
     if (robot_to_mission_id_map_.count(robot_name) == 0u) {
@@ -567,127 +595,135 @@ MaplabServerNode::MapLookupStatus MaplabServerNode::mapLookup(
     const RobotMissionInformation& robot_info =
         robot_to_mission_id_map_.at(robot_name);
 
-    submap_mission_id =
-        robot_info.mission_ids_with_baseframe_status.front().first;
-
-    if (!submap_mission_id.isValid()) {
-      LOG(ERROR)
-          << "[MaplabServerNode] Received map lookup with valid robot name ("
-          << robot_name
-          << "), but an invalid mission id is associated with it!";
+    bool mission_found = false;
+    for (auto& mission_info : robot_info.mission_ids_with_baseframe_status) {
+      submap_mission_id = mission_info.first;
+      if (!submap_mission_id.isValid()) {
+        continue;
+      }
+      // This can happen if the mission was added to the map with key
+      // kMergedMapKey but is not yet included in the map with key
+      // kMergedMapPublicKey.
+      if (!map->hasMission(submap_mission_id)) {
+        continue;
+      }
+      landmark_triangulation::VertexToTimeStampMap vertex_to_time_map;
+      int64_t min_timestamp_ns;
+      int64_t max_timestamp_ns;
+      pose_interpolator.getVertexToTimeStampMap(
+          *map, submap_mission_id, &vertex_to_time_map, &min_timestamp_ns,
+          &max_timestamp_ns);
+      if (timestamp_ns > max_timestamp_ns) {
+        if (submap_mission_id ==
+            robot_info.mission_ids_with_baseframe_status.front().first) {
+          LOG(WARNING) << "[MaplabServerNode] Received map lookup with "
+                          "timestamp that is not yet available: "
+                       << aslam::time::timeNanosecondsToString(timestamp_ns)
+                       << " - most recent map time: "
+                       << aslam::time::timeNanosecondsToString(
+                              max_timestamp_ns);
+          return MapLookupStatus::kPoseNotAvailableYet;
+        }
+      } else if (timestamp_ns < min_timestamp_ns) {
+        if (submap_mission_id ==
+            robot_info.mission_ids_with_baseframe_status.back().first) {
+          LOG(WARNING)
+              << "[MaplabServerNode] Received map lookup with "
+                 "timestamp that is before the selected robot mission, this "
+                 "position will never be available: "
+              << aslam::time::timeNanosecondsToString(timestamp_ns)
+              << " - earliest map time: "
+              << aslam::time::timeNanosecondsToString(min_timestamp_ns);
+          return MapLookupStatus::kPoseNeverAvailable;
+        }
+      } else {
+        mission_found = true;
+        break;
+      }
+    }
+    if (!mission_found) {
+      LOG(ERROR) << "[MaplabServerNode] Received map lookup with valid robot "
+                 << "name (" << robot_name
+                 << "), but no valid mission that contains timestamp: "
+                 << aslam::time::timeNanosecondsToString(timestamp_ns);
       return MapLookupStatus::kNoSuchMission;
     }
-  }
-
-  if (timestamp_ns < 0) {
-    LOG(WARNING)
-        << "[MaplabServerNode] Received map lookup with invalid timestamp: "
-        << timestamp_ns << "ns";
-    return MapLookupStatus::kPoseNeverAvailable;
   }
 
   CHECK(submap_mission_id.isValid());
-  {
-    vi_map::VIMapManager::MapReadAccess map =
-        map_manager_.getMapReadAccess(kMergedMapPublicKey);
 
-    if (!map->hasMission(submap_mission_id)) {
-      LOG(ERROR)
-          << "[MaplabServerNode] Received map lookup with valid robot name ("
-          << robot_name
-          << "), but a mission id is associated with it that is not part of "
-          << "the map (yet)!";
-      return MapLookupStatus::kNoSuchMission;
-    }
+  if (!map->hasMission(submap_mission_id)) {
+    LOG(ERROR)
+        << "[MaplabServerNode] Received map lookup with valid robot name ("
+        << robot_name
+        << "), but a mission id is associated with it that is not part of "
+        << "the map (yet)!";
+    return MapLookupStatus::kNoSuchMission;
+  }
 
-    const vi_map::VIMission& mission = map->getMission(submap_mission_id);
+  const vi_map::VIMission& mission = map->getMission(submap_mission_id);
 
-    aslam::SensorId sensor_id;
-    if (sensor_type == vi_map::SensorType::kNCamera) {
-      if (!mission.hasNCamera()) {
-        LOG(WARNING) << "[MaplabServerNode] Received map lookup with NCamera "
-                     << "sensor, but there is no such sensor in the map!";
-        return MapLookupStatus::kNoSuchSensor;
-      }
-      sensor_id = mission.getNCameraId();
-    } else if (sensor_type == vi_map::SensorType::kImu) {
-      if (!mission.hasImu()) {
-        LOG(WARNING) << "[MaplabServerNode] Received map lookup with IMU "
-                     << "sensor, but there is no such sensor in the map!";
-        return MapLookupStatus::kNoSuchSensor;
-      }
-      sensor_id = mission.getImuId();
-    } else if (sensor_type == vi_map::SensorType::kLidar) {
-      if (!mission.hasLidar()) {
-        LOG(WARNING) << "[MaplabServerNode] Received map lookup with Lidar "
-                     << "sensor, but there is no such sensor in the map!";
-        return MapLookupStatus::kNoSuchSensor;
-      }
-      sensor_id = mission.getLidarId();
-    } else if (sensor_type == vi_map::SensorType::kOdometry6DoF) {
-      if (!mission.hasOdometry6DoFSensor()) {
-        LOG(WARNING) << "[MaplabServerNode] Received map lookup with Odometry "
-                     << "sensor, but there is no such sensor in the map!";
-        return MapLookupStatus::kNoSuchSensor;
-      }
-      sensor_id = mission.getOdometry6DoFSensor();
-    } else if (sensor_type == vi_map::SensorType::kPointCloudMapSensor) {
-      if (!mission.hasPointCloudMap()) {
-        LOG(WARNING) << "[MaplabServerNode] Received map lookup with "
-                     << "PointCloudMap sensor, but there is no such sensor"
-                     << "in the map!";
-        return MapLookupStatus::kNoSuchSensor;
-      }
-      sensor_id = mission.getPointCloudMapSensorId();
-    } else {
-      LOG(WARNING)
-          << "[MaplabServerNode] Received map lookup with invalid sensor!";
+  aslam::SensorId sensor_id;
+  if (sensor_type == vi_map::SensorType::kNCamera) {
+    if (!mission.hasNCamera()) {
+      LOG(WARNING) << "[MaplabServerNode] Received map lookup with NCamera "
+                   << "sensor, but there is no such sensor in the map!";
       return MapLookupStatus::kNoSuchSensor;
     }
-    const aslam::Transformation& T_B_S =
-        map->getSensorManager().getSensor_T_B_S(sensor_id);
-
-    const aslam::Transformation& T_G_M =
-        map->getMissionBaseFrameForMission(submap_mission_id).get_T_G_M();
-
-    landmark_triangulation::VertexToTimeStampMap vertex_to_time_map;
-    int64_t min_timestamp_ns;
-    int64_t max_timestamp_ns;
-    const landmark_triangulation::PoseInterpolator pose_interpolator;
-    pose_interpolator.getVertexToTimeStampMap(
-        *map, submap_mission_id, &vertex_to_time_map, &min_timestamp_ns,
-        &max_timestamp_ns);
-    if (timestamp_ns < min_timestamp_ns) {
-      LOG(WARNING) << "[MaplabServerNode] Received map lookup with timestamp "
-                      "that is before the selected robot mission, this "
-                      "position will never be available: "
-                   << aslam::time::timeNanosecondsToString(timestamp_ns)
-                   << " - earliest map time: "
-                   << aslam::time::timeNanosecondsToString(min_timestamp_ns);
-      return MapLookupStatus::kPoseNeverAvailable;
-    } else if (timestamp_ns > max_timestamp_ns) {
-      LOG(WARNING) << "[MaplabServerNode] Received map lookup with timestamp "
-                      "that is not yet available: "
-                   << aslam::time::timeNanosecondsToString(timestamp_ns)
-                   << " - most recent map time: "
-                   << aslam::time::timeNanosecondsToString(max_timestamp_ns);
-      return MapLookupStatus::kPoseNotAvailableYet;
+    sensor_id = mission.getNCameraId();
+  } else if (sensor_type == vi_map::SensorType::kImu) {
+    if (!mission.hasImu()) {
+      LOG(WARNING) << "[MaplabServerNode] Received map lookup with IMU "
+                   << "sensor, but there is no such sensor in the map!";
+      return MapLookupStatus::kNoSuchSensor;
     }
-
-    Eigen::Matrix<int64_t, 1, Eigen::Dynamic> timestamps_ns =
-        Eigen::Matrix<int64_t, 1, 1>::Constant(timestamp_ns);
-
-    aslam::TransformationVector T_M_B_vector;
-    pose_interpolator.getPosesAtTime(
-        *map, submap_mission_id, timestamps_ns, &T_M_B_vector);
-    CHECK_EQ(static_cast<int>(T_M_B_vector.size()), timestamps_ns.cols());
-
-    const aslam::Transformation T_G_B = T_G_M * T_M_B_vector[0];
-    const aslam::Transformation T_G_S = T_G_B * T_B_S;
-
-    *p_G = T_G_S * p_S;
-    *sensor_p_G = T_G_S * Eigen::Vector3d::Zero();
+    sensor_id = mission.getImuId();
+  } else if (sensor_type == vi_map::SensorType::kLidar) {
+    if (!mission.hasLidar()) {
+      LOG(WARNING) << "[MaplabServerNode] Received map lookup with Lidar "
+                   << "sensor, but there is no such sensor in the map!";
+      return MapLookupStatus::kNoSuchSensor;
+    }
+    sensor_id = mission.getLidarId();
+  } else if (sensor_type == vi_map::SensorType::kOdometry6DoF) {
+    if (!mission.hasOdometry6DoFSensor()) {
+      LOG(WARNING) << "[MaplabServerNode] Received map lookup with Odometry "
+                   << "sensor, but there is no such sensor in the map!";
+      return MapLookupStatus::kNoSuchSensor;
+    }
+    sensor_id = mission.getOdometry6DoFSensor();
+  } else if (sensor_type == vi_map::SensorType::kPointCloudMapSensor) {
+    if (!mission.hasPointCloudMap()) {
+      LOG(WARNING) << "[MaplabServerNode] Received map lookup with "
+                   << "PointCloudMap sensor, but there is no such sensor"
+                   << "in the map!";
+      return MapLookupStatus::kNoSuchSensor;
+    }
+    sensor_id = mission.getPointCloudMapSensorId();
+  } else {
+    LOG(WARNING)
+        << "[MaplabServerNode] Received map lookup with invalid sensor!";
+    return MapLookupStatus::kNoSuchSensor;
   }
+  const aslam::Transformation& T_B_S =
+      map->getSensorManager().getSensor_T_B_S(sensor_id);
+
+  const aslam::Transformation& T_G_M =
+      map->getMissionBaseFrameForMission(submap_mission_id).get_T_G_M();
+
+  Eigen::Matrix<int64_t, 1, Eigen::Dynamic> timestamps_ns =
+      Eigen::Matrix<int64_t, 1, 1>::Constant(timestamp_ns);
+
+  aslam::TransformationVector T_M_B_vector;
+  pose_interpolator.getPosesAtTime(
+      *map, submap_mission_id, timestamps_ns, &T_M_B_vector);
+  CHECK_EQ(static_cast<int>(T_M_B_vector.size()), timestamps_ns.cols());
+
+  const aslam::Transformation T_G_B = T_G_M * T_M_B_vector[0];
+  const aslam::Transformation T_G_S = T_G_B * T_B_S;
+
+  *p_G = T_G_S * p_S;
+  *sensor_p_G = T_G_S * Eigen::Vector3d::Zero();
   return MapLookupStatus::kSuccess;
 }
 
@@ -846,68 +882,6 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
     }
   }
 
-  // Full optimization
-  ////////////////////
-  // This does not scale, and never will, so it is important that # we limit
-  // the runtime by setting the --ba_max_time_seconds flag.
-  {
-    vi_map::VIMapManager::MapWriteAccess map =
-        map_manager_.getMapWriteAccess(kMergedMapKey);
-    vi_map::MissionIdList mission_ids;
-    map->getAllMissionIds(&mission_ids);
-
-    {
-      std::lock_guard<std::mutex> merge_status_lock(
-          running_merging_process_mutex_);
-      running_merging_process_ = "optimization";
-    }
-    const vi_map::MissionIdSet missions_to_optimize(
-        mission_ids.begin(), mission_ids.end());
-    // We only want to get these once, such that if the gflags get modified
-    // later the optimization settings for the submaps remain the same.
-    map_optimization::ViProblemOptions options =
-        map_optimization::ViProblemOptions::initFromGFlags();
-
-    // Restore previous trust region.
-    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  // NOLINT
-      // Reset the trust region if N submaps have been added in the meantime.
-      const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
-      const uint32_t num_submaps_since_reset =
-          num_submaps_merged - num_submaps_at_last_trust_region_reset;
-      const uint32_t reset_every_n =
-          FLAGS_maplab_server_reset_trust_region_radius_every_nth_submap;
-      if (reset_every_n != 0u && num_submaps_since_reset >= reset_every_n) {
-        optimization_trust_region_radius_ =
-            FLAGS_ba_initial_trust_region_radius;
-        num_submaps_at_last_trust_region_reset = num_submaps_merged;
-      }
-      options.solver_options.initial_trust_region_radius =
-          optimization_trust_region_radius_;
-    }
-
-    map_optimization::VIMapOptimizer optimizer(
-        nullptr /*no plotter for optimization*/,
-        false /*signal handler enabled*/);
-
-    map_optimization::OptimizationProblemResult result;
-    if (!optimizer.optimize(
-            options, missions_to_optimize, map.get(), &result)) {
-      LOG(ERROR) << "[MaplabServerNode] MapMerging - Failure in optimization.";
-    } else {
-      if (!result.iteration_summaries.empty()) {
-        optimization_trust_region_radius_ =
-            result.iteration_summaries.back().trust_region_radius;
-      } else {
-        LOG(ERROR) << "[MaplabServerNode] Unable to extract final trust region "
-                   << "of previous global optimization iteration! Setting to "
-                   << "default value (" << FLAGS_ba_initial_trust_region_radius
-                   << ").";
-        optimization_trust_region_radius_ =
-            FLAGS_ba_initial_trust_region_radius;
-      }
-    }
-  }
-
   // Lidar local constraints/loop closure
   ///////////////////////////////////////
   // Searches for nearby dense map data (e.g. lidar scans) within and across
@@ -937,74 +911,23 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
           running_merging_process_ = "lidar loop closure";
         }
 
-        const dense_mapping::Config config =
-            dense_mapping::Config::fromGflags();
-        if (!dense_mapping::addDenseMappingConstraintsToMap(
-                config, mission_ids, map.get())) {
-          LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
-                     << "encountered an error!";
-        }
-      }
-      // Full optimization
-      ////////////////////
-      // This does not scale, and never will, so it is important that # we limit
-      // the runtime by setting the --ba_max_time_seconds flag.
-      {
-        vi_map::VIMapManager::MapWriteAccess map =
-            map_manager_.getMapWriteAccess(kMergedMapKey);
-        vi_map::MissionIdList mission_ids;
-        map->getAllMissionIds(&mission_ids);
-
-        {
-          std::lock_guard<std::mutex> merge_status_lock(
-              running_merging_process_mutex_);
-          running_merging_process_ = "optimization";
-        }
-        const vi_map::MissionIdSet missions_to_optimize(
-            mission_ids.begin(), mission_ids.end());
-        // We only want to get these once, such that if the gflags get modified
-        // later the optimization settings for the submaps remain the same.
-        map_optimization::ViProblemOptions options =
-            map_optimization::ViProblemOptions::initFromGFlags();
-
-        // Restore previous trust region.
-        if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  // NOLINT
-          // Reset the trust region if N submaps have been added in
-          // the meantime.
-          const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
-          const uint32_t num_submaps_since_reset =
-              num_submaps_merged - num_submaps_at_last_trust_region_reset;
-          const uint32_t reset_every_n =
-              FLAGS_maplab_server_reset_trust_region_radius_every_nth_submap;
-          if (reset_every_n != 0u && num_submaps_since_reset >= reset_every_n) {
-            optimization_trust_region_radius_ =
-                FLAGS_ba_initial_trust_region_radius;
-            num_submaps_at_last_trust_region_reset = num_submaps_merged;
+        vi_map::MissionIdList mission_ids_for_llc;
+        if (FLAGS_maplab_server_min_distance_m_before_llc > 0.0) {
+          for (const vi_map::MissionId& mission_id : mission_ids) {
+            if (map.get()->isMaxDistanceLargerThan(
+                    mission_id,
+                    FLAGS_maplab_server_min_distance_m_before_llc)) {
+              mission_ids_for_llc.emplace_back(mission_id);
+            }
           }
-          options.solver_options.initial_trust_region_radius =
-              optimization_trust_region_radius_;
         }
-
-        map_optimization::VIMapOptimizer optimizer(
-            nullptr /*no plotter for optimization*/,
-            false /*signal handler enabled*/);
-
-        map_optimization::OptimizationProblemResult result;
-        if (!optimizer.optimize(
-                options, missions_to_optimize, map.get(), &result)) {
-          LOG(ERROR) << "[MaplabServerNode] MapMerging - "
-                     << "Failure in optimization.";
-        } else {
-          if (!result.iteration_summaries.empty()) {
-            optimization_trust_region_radius_ =
-                result.iteration_summaries.back().trust_region_radius;
-          } else {
-            LOG(ERROR) << "[MaplabServerNode] Unable to extract final trust "
-                       << "region of previous global optimization iteration! "
-                       << "Setting to default value ("
-                       << FLAGS_ba_initial_trust_region_radius << ").";
-            optimization_trust_region_radius_ =
-                FLAGS_ba_initial_trust_region_radius;
+        if (!mission_ids_for_llc.empty()) {
+          const dense_mapping::Config config =
+              dense_mapping::Config::fromGflags();
+          if (!dense_mapping::addDenseMappingConstraintsToMap(
+                  config, mission_ids_for_llc, map.get())) {
+            LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                       << "encountered an error!";
           }
         }
       }
@@ -1015,12 +938,77 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
       << "Dense mapping constraints are experimental on old compilers.";
 #endif
 
+  // Full optimization
+  ////////////////////
+  // This does not scale, and never will, so it is important that # we limit
+  // the runtime by setting the --ba_max_time_seconds flag.
+  {
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager_.getMapWriteAccess(kMergedMapKey);
+    vi_map::MissionIdList mission_ids;
+    map->getAllMissionIds(&mission_ids);
+
+    {
+      std::lock_guard<std::mutex> merge_status_lock(
+          running_merging_process_mutex_);
+      running_merging_process_ = "optimization";
+    }
+    const vi_map::MissionIdSet missions_to_optimize(
+        mission_ids.begin(), mission_ids.end());
+    // We only want to get these once, such that if the gflags get modified
+    // later the optimization settings for the submaps remain the same.
+    map_optimization::ViProblemOptions options =
+        map_optimization::ViProblemOptions::initFromGFlags();
+
+    // Restore previous trust region.
+    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {  // NOLINT
+      // Reset the trust region if N submaps have been added in
+      // the meantime.
+      const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
+      const uint32_t num_submaps_since_reset =
+          num_submaps_merged - num_submaps_at_last_trust_region_reset;
+      const uint32_t reset_every_n =
+          FLAGS_maplab_server_reset_trust_region_radius_every_nth_submap;
+      if (reset_every_n != 0u && num_submaps_since_reset >= reset_every_n) {
+        optimization_trust_region_radius_ =
+            FLAGS_ba_initial_trust_region_radius;
+        num_submaps_at_last_trust_region_reset = num_submaps_merged;
+      }
+      options.solver_options.initial_trust_region_radius =
+          optimization_trust_region_radius_;
+    }
+
+    map_optimization::VIMapOptimizer optimizer(
+        nullptr /*no plotter for optimization*/,
+        false /*signal handler enabled*/);
+
+    map_optimization::OptimizationProblemResult result;
+    if (!optimizer.optimize(
+            options, missions_to_optimize, map.get(), &result)) {
+      LOG(ERROR) << "[MaplabServerNode] MapMerging - "
+                 << "Failure in optimization.";
+    } else {
+      if (!result.iteration_summaries.empty()) {
+        optimization_trust_region_radius_ =
+            result.iteration_summaries.back().trust_region_radius;
+      } else {
+        LOG(ERROR) << "[MaplabServerNode] Unable to extract final trust "
+                   << "region of previous global optimization iteration! "
+                   << "Setting to default value ("
+                   << FLAGS_ba_initial_trust_region_radius << ").";
+        optimization_trust_region_radius_ =
+            FLAGS_ba_initial_trust_region_radius;
+      }
+    }
+  }
+
   // Reset merging thread status.
   {
     std::lock_guard<std::mutex> merge_status_lock(
         running_merging_process_mutex_);
     running_merging_process_ = "";
   }
+
   ++num_full_map_merging_processings;
 }
 
@@ -1068,12 +1056,12 @@ void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
           last_vertex.getMinTimestampNanoseconds();
 
       if (pose_correction_publisher_callback_ && baseframe_is_known) {
-        const auto it_T_M_B = robot_info.T_M_B_submaps_input.find(
+        const auto it_T_M_B = robot_info.T_M_B_submaps_input[mission_id].find(
             current_last_vertex_timestamp_ns);
-        const auto it_T_G_M = robot_info.T_G_M_submaps_input.find(
+        const auto it_T_G_M = robot_info.T_G_M_submaps_input[mission_id].find(
             current_last_vertex_timestamp_ns);
-        if (it_T_M_B != robot_info.T_M_B_submaps_input.end() &&
-            it_T_G_M != robot_info.T_G_M_submaps_input.end()) {
+        if (it_T_M_B != robot_info.T_M_B_submaps_input[mission_id].end() &&
+            it_T_G_M != robot_info.T_G_M_submaps_input[mission_id].end()) {
           const aslam::Transformation T_G_curr_B_curr =
               T_G_M_latest * T_M_B_latest;
           const aslam::Transformation T_G_curr_M_curr = T_G_M_latest;
@@ -1094,7 +1082,7 @@ void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
           {
             std::stringstream ss;
             ss << "\nT_G_M_submaps_input:";
-            for (auto entry : robot_info.T_G_M_submaps_input) {
+            for (auto entry : robot_info.T_G_M_submaps_input[mission_id]) {
               ss << " - " << entry.first << "ns\n";
             }
             LOG(INFO) << ss.str();
@@ -1102,7 +1090,7 @@ void MaplabServerNode::publishMostRecentVertexPoseAndCorrection() {
           {
             std::stringstream ss;
             ss << "\nT_M_B_submaps_input:";
-            for (auto entry : robot_info.T_M_B_submaps_input) {
+            for (auto entry : robot_info.T_M_B_submaps_input[mission_id]) {
               ss << " - " << entry.first << "ns\n";
             }
             LOG(INFO) << ss.str();
@@ -1231,7 +1219,7 @@ bool MaplabServerNode::appendAvailableSubmaps() {
               << "The first submap does not have exactly one mission, but "
               << mission_ids.size() << "! Something went wrong!";
         }
-      }
+      }  // namespace maplab
 
       found_new_submaps = true;
     } else {
@@ -1281,9 +1269,12 @@ void MaplabServerNode::printAndPublishServerStatus() {
     ss << "\033c";
   }
   ss << "\n"
-     << "==================================================================\n";
-  ss << "=                   MaplabServerNode Status                      =\n";
-  ss << "==================================================================\n";
+     << "=================================================================="
+        "\n";
+  ss << "=                   MaplabServerNode Status                      "
+        "=\n";
+  ss << "=================================================================="
+        "\n";
   {
     std::lock_guard<std::mutex> lock(submap_processing_queue_mutex_);
     if (submap_processing_queue_.empty()) {
@@ -1440,8 +1431,11 @@ void MaplabServerNode::updateRobotInfoBasedOnSubmap(
 
         mission_id_to_robot_map_[submap_mission_id] = submap_process.robot_name;
 
-        robot_info.T_G_M_submaps_input[last_vertex_timestamp_ns] = T_G_M_submap;
-        robot_info.T_M_B_submaps_input[last_vertex_timestamp_ns] =
+        robot_info
+            .T_G_M_submaps_input[submap_mission_id][last_vertex_timestamp_ns] =
+            T_G_M_submap;
+        robot_info
+            .T_M_B_submaps_input[submap_mission_id][last_vertex_timestamp_ns] =
             T_M_B_last_vertex;
 
       } else {
@@ -1524,6 +1518,16 @@ void MaplabServerNode::runSubmapProcessing(
           mission_id_A, map.get());
     }
   }
+  // Filter outliers from absolute constraints
+  ////////////////////////////////////////////
+  if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
+    {
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] =
+          "abs constraints outlier rejection";
+    }
+    map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
+  }
 
   // Submap Optimization
   //////////////////////
@@ -1544,17 +1548,6 @@ void MaplabServerNode::runSubmapProcessing(
     optimizer.optimize(options, missions_to_optimize, map.get());
   }
 
-  // Filter outliers from absolute constraints
-  ////////////////////////////////////////////
-  if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
-    {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] =
-          "abs constraints outlier rejection";
-    }
-    map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
-  }
-
   // Lidar local constraints/loop closure
   ///////////////////////////////////////
   // Searches for nearby dense map data (e.g. lidar scans) within the submap
@@ -1566,12 +1559,18 @@ void MaplabServerNode::runSubmapProcessing(
       std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
       running_submap_process_[submap_process.map_hash] = "lidar loop closure";
     }
-
-    const dense_mapping::Config config = dense_mapping::Config::fromGflags();
-    if (!dense_mapping::addDenseMappingConstraintsToMap(
-            config, missions_to_process, map.get())) {
-      LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
-                 << "encountered an error!";
+    bool perform_llc = true;
+    if (FLAGS_maplab_server_min_distance_m_before_llc > 0.0) {
+      perform_llc = map.get()->isMaxDistanceLargerThan(
+          submap_mission_id, FLAGS_maplab_server_min_distance_m_before_llc);
+    }
+    if (perform_llc) {
+      const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+      if (!dense_mapping::addDenseMappingConstraintsToMap(
+              config, missions_to_process, map.get())) {
+        LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                   << "encountered an error!";
+      }
     }
   }
 #endif
@@ -1595,6 +1594,22 @@ void MaplabServerNode::runSubmapProcessing(
     optimizer.optimize(options, missions_to_optimize, map.get());
   }
 
+  // Sparse Graph Generation
+  //////////////////////////
+  {
+    {
+      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+      running_submap_process_[submap_process.map_hash] =
+          "sparse graph generation";
+    }
+    const vi_map::MissionId& mission_id = missions_to_process.front();
+    pose_graph::VertexIdList all_vertices_in_mission;
+    map.get()->getAllVertexIdsInMissionAlongGraph(
+        mission_id, &all_vertices_in_mission);
+    sparsified_graph_.addVerticesToMissionGraph(
+        submap_process.robot_name, all_vertices_in_mission);
+  }
+
   // Remove processing status of submap
   {
     std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
@@ -1611,6 +1626,9 @@ void MaplabServerNode::registerStatusCallback(
 }
 
 void MaplabServerNode::publishDenseMap() {
+  if (!FLAGS_maplab_server_enable_visualization) {
+    return;
+  }
   if (!map_manager_.hasMap(kMergedMapKey)) {
     return;
   }
@@ -1769,6 +1787,16 @@ bool MaplabServerNode::deleteAllRobotMissions(
   }
 }
 
+bool MaplabServerNode::clearBlacklist() {
+  bool success = true;
+  {
+    std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
+    blacklisted_missions_.clear();
+    success &= blacklisted_missions_.empty();
+  }
+  return success;
+}
+
 bool MaplabServerNode::deleteBlacklistedMissions() {
   if (!map_manager_.hasMap(kMergedMapKey)) {
     return false;
@@ -1843,8 +1871,8 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
           ++it;
         }
 
-        // If this was the only/last mission of that robot, remove the entry and
-        // also publish an empty point cloud to the dense map topic.
+        // If this was the only/last mission of that robot, remove the entry
+        // and also publish an empty point cloud to the dense map topic.
         if (robot_mission_info.mission_ids_with_baseframe_status.empty()) {
           robot_to_mission_id_map_.erase(robot_name);
 
@@ -1863,12 +1891,15 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
   }  // Limits the scope of the lock on the merged map, such that it can
      // be deleted down below.
 
-  // If we deleted all of the missions, we need to reset the state of the merged
-  // map.
+  // If we deleted all of the missions, we need to reset the state of the
+  // merged map.
   if (num_missions_in_merged_map_after_deletion == 0u) {
+    std::lock_guard<std::mutex> lock(save_map_mutex_);
     LOG(INFO) << "[MaplabServerNode] Merged map is empty after deleting "
               << "mission, delete merged map as well.";
+    // Check if currently save the merged map.
     map_manager_.deleteMap(kMergedMapKey);
+    total_num_merged_submaps_ = 0;
 
     // Return false to reset the 'received_first_submap' variable.
     return false;
@@ -1958,6 +1989,48 @@ bool MaplabServerNode::saveRobotMissionsInfo(
   return true;
 }
 
+bool MaplabServerNode::saveRobotTrajectories() {
+  if (!map_manager_.hasMap(kMergedMapKey)) {
+    LOG(ERROR) << "[MaplabServerNode] Map manager does not contain the global "
+                  "merged map.";
+    return false;
+  }
+  // Get map and mission ids.
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager_.getMapReadAccess(kMergedMapKey);
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+  if (mission_ids.empty()) {
+    LOG(ERROR) << "[MaplabServerNode] There are no missions available in the "
+                  "merged map.";
+    return false;
+  }
+  // Get the path to the merged map folder.
+  const std::string kFilename = "vertex_poses_velocities_biases.csv";
+  const std::string filepath =
+      common::concatenateFolderAndFileName(map->getMapFolder(), kFilename);
+
+  // Get one reference sensor id.
+  aslam::SensorId reference_sensor_id;
+  // Pick first valid IMU from mission
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    const vi_map::VIMission& mission = map->getMission(mission_id);
+    if (mission.hasImu()) {
+      reference_sensor_id = mission.getImuId();
+      break;
+    }
+  }
+  if (!reference_sensor_id.isValid()) {
+    LOG(ERROR) << "[MaplabServerNode] Could not find a mission with a valid "
+                  "IMU.";
+    return false;
+  }
+  const std::string kFormat = "asl";
+  data_import_export::exportPosesVelocitiesAndBiasesToCsv(
+      *map, mission_ids, reference_sensor_id, filepath, kFormat);
+  return true;
+}
+
 bool MaplabServerNode::loadRobotMissionsInfo() {
   CHECK(!initial_map_path_.empty());
   const std::string file_path = common::concatenateFolderAndFileName(
@@ -2000,17 +2073,19 @@ bool MaplabServerNode::loadRobotMissionsInfo() {
 }
 
 void MaplabServerNode::replacePublicMap() {
-  std::lock_guard<std::mutex> lock(mutex_);
+  vi_map::VIMapManager::MapReadAccess merged_map =
+      map_manager_.getMapReadAccess(kMergedMapKey);
   if (public_map_manager_.hasMap(kMergedMapPublicKey)) {
     vi_map::VIMapManager::MapWriteAccess public_map =
         public_map_manager_.getMapWriteAccess(kMergedMapPublicKey);
     public_map.get()->deepCopy(map_manager_.getMap(kMergedMapKey));
   } else {
     AlignedUniquePtr<vi_map::VIMap> public_map =
-      aligned_unique<vi_map::VIMap>();
+        aligned_unique<vi_map::VIMap>();
     public_map.get()->deepCopy(map_manager_.getMap(kMergedMapKey));
     public_map_manager_.addMap(kMergedMapPublicKey, public_map);
   }
+  update_sparse_graph_ = true;
 }
 
 MaplabServerNode::RobotMissionInformation::RobotMissionInformation(
@@ -2018,7 +2093,6 @@ MaplabServerNode::RobotMissionInformation::RobotMissionInformation(
         robot_mission_information_proto) {
   robot_name = robot_mission_information_proto.robot_name();
   CHECK(!robot_name.empty());
-  size_t total_submaps = 0u;
   const size_t num_missions =
       static_cast<size_t>(robot_mission_information_proto.mission_infos_size());
   for (size_t idx = 0u; idx < num_missions; ++idx) {
@@ -2030,33 +2104,30 @@ MaplabServerNode::RobotMissionInformation::RobotMissionInformation(
         std::make_pair(mission_id, mission_info_proto.baseframe_status()));
     const size_t num_submaps =
         static_cast<size_t>(mission_info_proto.included_submap_keys_size());
-    total_submaps += num_submaps;
     for (size_t submap_idx = 0u; submap_idx < num_submaps; ++submap_idx) {
       std::vector<std::string>& submap_keys =
           mission_ids_to_submap_keys[mission_id];
       submap_keys.push_back(
           mission_info_proto.included_submap_keys(submap_idx));
     }
-  }
-  const size_t num_t_m_b =
-      robot_mission_information_proto.t_m_b_submaps_input_size();
-  const size_t num_t_g_m =
-      robot_mission_information_proto.t_g_m_submaps_input_size();
-  CHECK_EQ(num_t_m_b, num_t_g_m);
-  CHECK_EQ(num_t_m_b, total_submaps);
-  for (size_t idx = 0u; idx < num_t_m_b; ++idx) {
-    const maplab_server_node::proto::StampedTransformation stamped_T_M_B =
-        robot_mission_information_proto.t_m_b_submaps_input(idx);
-    pose::Transformation& T_M_B =
-        T_M_B_submaps_input[stamped_T_M_B.timestamp_ns()];
-    common::eigen_proto::deserialize(stamped_T_M_B.t_a_b(), &T_M_B);
-  }
-  for (size_t idx = 0u; idx < num_t_g_m; ++idx) {
-    const maplab_server_node::proto::StampedTransformation stamped_T_G_M =
-        robot_mission_information_proto.t_g_m_submaps_input(idx);
-    pose::Transformation& T_G_M =
-        T_G_M_submaps_input[stamped_T_G_M.timestamp_ns()];
-    common::eigen_proto::deserialize(stamped_T_G_M.t_a_b(), &T_G_M);
+    const size_t num_t_m_b = mission_info_proto.t_m_b_submaps_input_size();
+    const size_t num_t_g_m = mission_info_proto.t_g_m_submaps_input_size();
+    CHECK_EQ(num_t_m_b, num_t_g_m);
+    CHECK_EQ(num_t_m_b, num_submaps);
+    for (size_t idx = 0u; idx < num_t_m_b; ++idx) {
+      const maplab_server_node::proto::StampedTransformation stamped_T_M_B =
+          mission_info_proto.t_m_b_submaps_input(idx);
+      pose::Transformation& T_M_B =
+          T_M_B_submaps_input[mission_id][stamped_T_M_B.timestamp_ns()];
+      common::eigen_proto::deserialize(stamped_T_M_B.t_a_b(), &T_M_B);
+    }
+    for (size_t idx = 0u; idx < num_t_g_m; ++idx) {
+      const maplab_server_node::proto::StampedTransformation stamped_T_G_M =
+          mission_info_proto.t_g_m_submaps_input(idx);
+      pose::Transformation& T_G_M =
+          T_G_M_submaps_input[mission_id][stamped_T_G_M.timestamp_ns()];
+      common::eigen_proto::deserialize(stamped_T_G_M.t_a_b(), &T_G_M);
+    }
   }
 }
 
@@ -2091,27 +2162,81 @@ void MaplabServerNode::RobotMissionInformation::serialize(
     mission_info->set_baseframe_status(it->second);
     auto jt = mission_ids_to_submap_keys.find(mission_id);
     CHECK(jt != mission_ids_to_submap_keys.end());
-    CHECK(jt->second.size() == T_M_B_submaps_input.size());
+    CHECK(jt->second.size() == T_M_B_submaps_input.at(mission_id).size());
+    CHECK(jt->second.size() == T_G_M_submaps_input.at(mission_id).size());
     for (auto submap_key : jt->second) {
       mission_info->add_included_submap_keys(submap_key);
     }
+    for (auto it = T_M_B_submaps_input.at(mission_id).begin();
+         it != T_M_B_submaps_input.at(mission_id).end(); it++) {
+      auto stamped_T_M_B = mission_info->add_t_m_b_submaps_input();
+      stamped_T_M_B->set_timestamp_ns(it->first);
+      common::eigen_proto::serialize(
+          it->second, stamped_T_M_B->mutable_t_a_b());
+    }
+    for (auto it = T_G_M_submaps_input.at(mission_id).begin();
+         it != T_G_M_submaps_input.at(mission_id).end(); it++) {
+      auto stamped_T_G_M = mission_info->add_t_g_m_submaps_input();
+      stamped_T_G_M->set_timestamp_ns(it->first);
+      common::eigen_proto::serialize(
+          it->second, stamped_T_G_M->mutable_t_a_b());
+    }
+  }
+}
+
+MaplabServerNode::VerificationStatus MaplabServerNode::verifySubmap(
+    const uint32_t submap_id) {
+  // The verification only supports LiDAR loop closures.
+  if (!FLAGS_maplab_server_enable_lidar_loop_closure) {
+    return VerificationStatus::kFailure;
   }
 
-  for (auto it = T_M_B_submaps_input.cbegin(); it != T_M_B_submaps_input.cend();
-       ++it) {
-    auto stamped_T_M_B =
-        robot_mission_information_proto->add_t_m_b_submaps_input();
-    stamped_T_M_B->set_timestamp_ns(it->first);
-    common::eigen_proto::serialize(it->second, stamped_T_M_B->mutable_t_a_b());
+  // Retrieve the vertices of the submap.
+  const pose_graph::VertexIdList submap_ids =
+      sparsified_graph_.getVerticesForSubmap(submap_id);
+  if (submap_ids.empty()) {
+    return VerificationStatus::kFailure;
   }
 
-  for (auto it = T_G_M_submaps_input.cbegin(); it != T_G_M_submaps_input.cend();
-       ++it) {
-    auto stamped_T_G_M =
-        robot_mission_information_proto->add_t_g_m_submaps_input();
-    stamped_T_G_M->set_timestamp_ns(it->first);
-    common::eigen_proto::serialize(it->second, stamped_T_G_M->mutable_t_a_b());
+  // Get all mission IDs.
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager_.getMapWriteAccess(kMergedMapPublicKey);
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+
+  const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+  if (!dense_mapping::verifyDenseMappingConstraintsFromSubmap(
+          config, mission_ids, submap_ids, map.get())) {
+    LOG(ERROR) << "[MaplabServerNode] Removing dense mapping constraints "
+               << "encountered an error!";
+    return VerificationStatus::kFailure;
   }
+
+  return VerificationStatus::kSuccess;
+}
+
+bool MaplabServerNode::computeSparseGraph() {
+  if (!FLAGS_maplab_server_enable_sparse_graph_computation) {
+    return false;
+  }
+  if (!update_sparse_graph_.load()) {
+    return false;
+  }
+  update_sparse_graph_ = false;
+  /// Sparse Graph Update.
+  vi_map::VIMapManager::MapReadAccess map_read =
+      map_manager_.getMapReadAccess(kMergedMapPublicKey);
+
+  // Sparsify the graph and get latest estimations.
+  const vi_map::VIMap* cmap = CHECK_NOTNULL(map_read.get());
+  spg::LidarPartitioner partitioner(*cmap);
+
+  // Sparsify the graph and get latest estimations.
+  sparsified_graph_.compute(cmap, &partitioner);
+  sparsified_graph_.computeAdjacencyMatrix(cmap);
+
+  sparsified_graph_.publishLatestGraph(cmap);
+  return true;
 }
 
 }  // namespace maplab
