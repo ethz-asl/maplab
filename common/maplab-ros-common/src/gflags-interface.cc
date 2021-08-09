@@ -6,7 +6,7 @@
 
 namespace ros_common {
 
-void parseGflagsFromRosParams(
+bool parseGflagsFromRosParams(
     const char* program_name, const ros::NodeHandle& nh_private) {
   std::vector<google::CommandLineFlagInfo> flags;
   google::GetAllFlags(&flags);
@@ -48,10 +48,20 @@ void parseGflagsFromRosParams(
     }
   }
   const std::string ros_param_gflag_file = ss.str();
-  CHECK(google::ReadFlagsFromString(
-      ros_param_gflag_file, program_name, false /*errors_are_fatal*/));
+  if (!google::ReadFlagsFromString(
+          ros_param_gflag_file, program_name, false /*errors_are_fatal*/)) {
+    return false;
+  }
   LOG(INFO) << "\n\nThe following Gflags have been set using ROS params:\n"
             << ros_param_gflag_file << "\n";
+  return true;
+}
+
+GflagsParser::GflagsParser(const char* program_name)
+    : program_name_(program_name) {}
+
+bool GflagsParser::parseFromRosParams(const ros::NodeHandle& nh_private) const {
+  return ros_common::parseGflagsFromRosParams(program_name_, nh_private);
 }
 
 }  // namespace ros_common

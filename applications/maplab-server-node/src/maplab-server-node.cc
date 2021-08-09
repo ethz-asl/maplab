@@ -23,6 +23,7 @@
 #include <sparse-graph/partitioners/all-partitioner.h>
 #include <sparse-graph/partitioners/lidar-partitioner.h>
 #include <vi-map-basic-plugin/vi-map-basic-plugin.h>
+#include <vi-map-data-import-export/export-vertex-data.h>
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/landmark-quality-metrics.h>
@@ -115,8 +116,20 @@ DEFINE_bool(
 DEFINE_bool(
     maplab_server_enable_lidar_loop_closure, false,
     "If enabled, lidar loop closure & mapping is used to derrive constraints "
-    "within and "
-    "across missions.");
+    "within and across missions.");
+
+DEFINE_bool(
+    maplab_server_enable_sparse_graph_computation, false,
+    "If enabled, the mapping server will build and publish the sparse graph.");
+
+DEFINE_bool(
+    maplab_server_enable_visualization, true,
+    "If enabled, the mapping server will publish the results.");
+
+DEFINE_double(
+    maplab_server_min_distance_m_before_llc, 1.,
+    "If greater than 0, lidar loop closure is only performed for missions with"
+    "max distance larger than this.");
 
 DEFINE_int32(
     maplab_server_perform_global_admc_every_nth, -1,
@@ -159,7 +172,7 @@ MaplabServerNode::~MaplabServerNode() {
   }
 }
 
-void MaplabServerNode::start(const bool& load_previous_state) {
+void MaplabServerNode::start(const bool load_previous_state) {
   std::lock_guard<std::mutex> lock(mutex_);
   LOG(INFO) << "[MaplabServerNode] Starting...";
 
@@ -342,22 +355,22 @@ bool MaplabServerNode::loadAndProcessMissingSubmaps(
   std::lock_guard<std::mutex> robot_lock(robot_to_mission_id_map_mutex_);
   // We have to compare which submaps are already included in the merged map
   // and which ones have to be loaded.
-  for (auto it = robot_to_submap_paths.begin();
-       it != robot_to_submap_paths.end(); it++) {
+  for (auto it = robot_to_submap_paths.cbegin();
+       it != robot_to_submap_paths.cend(); ++it) {
     const std::string& robot_name = it->first;
     for (std::string submap_path : it->second) {
       const size_t map_hash = std::hash<std::string>{}(submap_path);
       const std::string map_key = robot_name + "_" + std::to_string(map_hash);
 
       // If the submap is already queued for processing we continue.
-      bool already_included_in_submap_queue = false;
-      for (auto queue_it = submap_processing_queue_.cbegin();
-           queue_it != submap_processing_queue_.cend(); ++queue_it) {
-        if (queue_it->map_key == map_key) {
-          already_included_in_submap_queue = true;
-          break;
-        }
-      }
+      const bool already_included_in_submap_queue =
+          std::find_if(
+              submap_processing_queue_.cbegin(),
+              submap_processing_queue_.cend(),
+              [&map_key](const SubmapProcess& process) {
+                return process.map_key == map_key;
+              }) != submap_processing_queue_.cend();
+
       if (already_included_in_submap_queue) {
         continue;
       }
@@ -366,21 +379,20 @@ bool MaplabServerNode::loadAndProcessMissingSubmaps(
       auto robot_mission_info = robot_to_mission_id_map_.find(robot_name);
       // If the robot is not present in the merged map, this means we have to
       // load and process all submaps of this robot.
-      if (robot_mission_info != robot_to_mission_id_map_.end()) {
-        for (auto mission_it =
-                 robot_mission_info->second.mission_ids_to_submap_keys.begin();
-             mission_it !=
-             robot_mission_info->second.mission_ids_to_submap_keys.end();
-             mission_it++) {
-          auto const& key_it = std::find(
-              mission_it->second.begin(), mission_it->second.end(), map_key);
-          // If the submap key is already included, continue. Otherwise load
-          // and process the new submap.
-          if (key_it != mission_it->second.end()) {
-            already_included_in_map = true;
-            break;
-          }
-        }
+      if (robot_mission_info != robot_to_mission_id_map_.cend()) {
+        already_included_in_map =
+            std::find_if(
+                robot_mission_info->second.mission_ids_to_submap_keys.cbegin(),
+                robot_mission_info->second.mission_ids_to_submap_keys.cend(),
+                [&map_key](const auto& mission_it) {
+                  // If the submap key is already included, continue. Otherwise
+                  // load and process the new submap.
+                  return std::find(
+                             mission_it.second.cbegin(),
+                             mission_it.second.cend(),
+                             map_key) != mission_it.second.cend();
+                }) !=
+            robot_mission_info->second.mission_ids_to_submap_keys.cend();
       }
 
       if (already_included_in_map) {
@@ -415,9 +427,6 @@ bool MaplabServerNode::loadAndProcessSubmap(
   VLOG(1) << "[MaplabServerNode] launching SubmapProcessing thread for "
           << "submap at '" << submap_path << "'.";
 
-  // std::lock_guard<std::mutex>
-  // submap_queue_lock(submap_processing_queue_mutex_); Add new element at the
-  // back.
   submap_processing_queue_.emplace_back();
 
   SubmapProcess& submap_process = submap_processing_queue_.back();
@@ -518,6 +527,7 @@ bool MaplabServerNode::saveMap() {
     bool save_map = map_manager_.saveMapToFolder(
         kMergedMapKey, FLAGS_maplab_server_merged_map_folder, config);
     save_map &= saveRobotMissionsInfo(config);
+    save_map &= saveRobotTrajectories();
     return save_map;
   } else {
     return false;
@@ -525,6 +535,9 @@ bool MaplabServerNode::saveMap() {
 }
 
 void MaplabServerNode::visualizeMap() {
+  if (!FLAGS_maplab_server_enable_visualization) {
+    return;
+  }
   std::lock_guard<std::mutex> lock(mutex_);
   if (plotter_) {
     if (map_manager_.hasMap(kMergedMapPublicKey)) {
@@ -1241,8 +1254,9 @@ bool MaplabServerNode::appendAvailableSubmaps() {
 void MaplabServerNode::printAndPublishServerStatus() {
   std::stringstream ss;
 
-  if (FLAGS_maplab_server_clear_at_status_print)
+  if (FLAGS_maplab_server_clear_at_status_print) {
     ss << "\033c";
+  }
   ss << "\n"
      << "=================================================================="
         "\n";
@@ -1605,6 +1619,9 @@ void MaplabServerNode::registerStatusCallback(
 }
 
 void MaplabServerNode::publishDenseMap() {
+  if (!FLAGS_maplab_server_enable_visualization) {
+    return;
+  }
   if (!map_manager_.hasMap(kMergedMapKey)) {
     return;
   }
@@ -1763,6 +1780,16 @@ bool MaplabServerNode::deleteAllRobotMissions(
   }
 }
 
+bool MaplabServerNode::clearBlacklist() {
+  bool success = true;
+  {
+    std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
+    blacklisted_missions_.clear();
+    success &= blacklisted_missions_.empty();
+  }
+  return success;
+}
+
 bool MaplabServerNode::deleteBlacklistedMissions() {
   if (!map_manager_.hasMap(kMergedMapKey)) {
     return false;
@@ -1860,9 +1887,12 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
   // If we deleted all of the missions, we need to reset the state of the
   // merged map.
   if (num_missions_in_merged_map_after_deletion == 0u) {
+    std::lock_guard<std::mutex> lock(save_map_mutex_);
     LOG(INFO) << "[MaplabServerNode] Merged map is empty after deleting "
               << "mission, delete merged map as well.";
+    // Check if currently save the merged map.
     map_manager_.deleteMap(kMergedMapKey);
+    total_num_merged_submaps_ = 0;
 
     // Return false to reset the 'received_first_submap' variable.
     return false;
@@ -1938,8 +1968,8 @@ bool MaplabServerNode::saveRobotMissionsInfo(
 
   std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
 
-  for (auto it = robot_to_mission_id_map_.begin();
-       it != robot_to_mission_id_map_.end(); it++) {
+  for (auto it = robot_to_mission_id_map_.cbegin();
+       it != robot_to_mission_id_map_.cend(); ++it) {
     auto robot_mission_information_proto =
         server_info_proto.add_robot_mission_infos();
     it->second.serialize(robot_mission_information_proto);
@@ -1949,6 +1979,48 @@ bool MaplabServerNode::saveRobotMissionsInfo(
   common::proto_serialization_helper::serializeProtoToFile(
       FLAGS_maplab_server_merged_map_folder, kRobotMissionsInfoFileName,
       server_info_proto, kIsTextFormat);
+  return true;
+}
+
+bool MaplabServerNode::saveRobotTrajectories() {
+  if (!map_manager_.hasMap(kMergedMapKey)) {
+    LOG(ERROR) << "[MaplabServerNode] Map manager does not contain the global "
+                  "merged map.";
+    return false;
+  }
+  // Get map and mission ids.
+  vi_map::VIMapManager::MapReadAccess map =
+      map_manager_.getMapReadAccess(kMergedMapKey);
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+  if (mission_ids.empty()) {
+    LOG(ERROR) << "[MaplabServerNode] There are no missions available in the "
+                  "merged map.";
+    return false;
+  }
+  // Get the path to the merged map folder.
+  const std::string kFilename = "vertex_poses_velocities_biases.csv";
+  const std::string filepath =
+      common::concatenateFolderAndFileName(map->getMapFolder(), kFilename);
+
+  // Get one reference sensor id.
+  aslam::SensorId reference_sensor_id;
+  // Pick first valid IMU from mission
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    const vi_map::VIMission& mission = map->getMission(mission_id);
+    if (mission.hasImu()) {
+      reference_sensor_id = mission.getImuId();
+      break;
+    }
+  }
+  if (!reference_sensor_id.isValid()) {
+    LOG(ERROR) << "[MaplabServerNode] Could not find a mission with a valid "
+                  "IMU.";
+    return false;
+  }
+  const std::string kFormat = "asl";
+  data_import_export::exportPosesVelocitiesAndBiasesToCsv(
+      *map, mission_ids, reference_sensor_id, filepath, kFormat);
   return true;
 }
 
@@ -1981,8 +2053,8 @@ bool MaplabServerNode::loadRobotMissionsInfo() {
     robot_to_mission_id_map_.emplace(robot_name, robot_mission_info_proto);
     const RobotMissionInformation& robot_mission_info =
         robot_to_mission_id_map_[robot_name];
-    for (auto it = robot_mission_info.mission_ids_to_submap_keys.begin();
-         it != robot_mission_info.mission_ids_to_submap_keys.end(); it++) {
+    for (auto it = robot_mission_info.mission_ids_to_submap_keys.cbegin();
+         it != robot_mission_info.mission_ids_to_submap_keys.cend(); ++it) {
       mission_id_to_robot_map_[it->first] = robot_mission_info.robot_name;
       total_num_merged_submaps_ += it->second.size();
     }
@@ -2056,9 +2128,9 @@ bool MaplabServerNode::RobotMissionInformation::addSubmapKey(
     const vi_map::MissionId& mission_id, const std::string& submap_key) {
   auto& mission_included_submap_keys = mission_ids_to_submap_keys[mission_id];
   if (std::find(
-          mission_included_submap_keys.begin(),
-          mission_included_submap_keys.end(),
-          submap_key) == mission_included_submap_keys.end()) {
+          mission_included_submap_keys.cbegin(),
+          mission_included_submap_keys.cend(),
+          submap_key) == mission_included_submap_keys.cend()) {
     mission_included_submap_keys.push_back(submap_key);
     return true;
   } else {
@@ -2075,8 +2147,8 @@ void MaplabServerNode::RobotMissionInformation::serialize(
   robot_mission_information_proto->set_robot_name(robot_name);
   const size_t num_missions = mission_ids_with_baseframe_status.size();
   CHECK_EQ(num_missions, mission_ids_to_submap_keys.size());
-  for (auto it = mission_ids_with_baseframe_status.begin();
-       it != mission_ids_with_baseframe_status.end(); it++) {
+  for (auto it = mission_ids_with_baseframe_status.cbegin();
+       it != mission_ids_with_baseframe_status.cend(); ++it) {
     auto mission_info = robot_mission_information_proto->add_mission_infos();
     const vi_map::MissionId& mission_id = it->first;
     mission_id.serialize(mission_info->mutable_mission_id());
@@ -2137,6 +2209,9 @@ MaplabServerNode::VerificationStatus MaplabServerNode::verifySubmap(
 }
 
 bool MaplabServerNode::computeSparseGraph() {
+  if (!FLAGS_maplab_server_enable_sparse_graph_computation) {
+    return false;
+  }
   if (!update_sparse_graph_.load()) {
     return false;
   }

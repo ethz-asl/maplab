@@ -57,7 +57,7 @@ class MaplabServerNode final {
   ~MaplabServerNode();
 
   // Once the node is started, the configuration cannot be changed anymore.
-  void start(const bool& load_previous_state = false);
+  void start(const bool load_previous_state = false);
   void shutdown();
 
   bool loadAndProcessMissingSubmaps(
@@ -93,6 +93,8 @@ class MaplabServerNode final {
   // that arrive will be discarded.
   bool deleteAllRobotMissions(
       const std::string& robot_name, std::string* status_message);
+
+  bool clearBlacklist();
 
   // Returns an accumulation of the dense map data in global frame within a
   // radius around a center.
@@ -156,6 +158,8 @@ class MaplabServerNode final {
   bool isSubmapBlacklisted(const std::string& map_key);
 
   bool saveRobotMissionsInfo(const backend::SaveConfig& config);
+
+  bool saveRobotTrajectories();
 
   bool loadRobotMissionsInfo();
 
