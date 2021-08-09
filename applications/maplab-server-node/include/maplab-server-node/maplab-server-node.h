@@ -57,7 +57,7 @@ class MaplabServerNode final {
   ~MaplabServerNode();
 
   // Once the node is started, the configuration cannot be changed anymore.
-  void start(const bool& load_previous_state = false);
+  void start(const bool load_previous_state = false);
   void shutdown();
 
   bool loadAndProcessMissingSubmaps(
