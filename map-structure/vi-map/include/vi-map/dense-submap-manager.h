@@ -9,6 +9,7 @@
 #include <aslam/common/unique-id.h>
 #include <map-resources/temporal-resource-id-buffer.h>
 #include "vi-map/unique-id.h"
+#include "vi-map/vi_map.pb.h"
 
 namespace vi_map {
 typedef std::map<int64_t, aslam::Transformation> StampedTransformationMap;
@@ -47,6 +48,10 @@ class DenseSubmap {
     return T_S0_S_map_.size();
   }
 
+  void serialize(vi_map::proto::DenseSubmap* proto) const;
+  void deserialize(
+      const DenseSubmapId& submap_id, const vi_map::proto::DenseSubmap& proto);
+
  private:
   DenseSubmapId submap_id_;
   MissionId mission_id_;
@@ -75,6 +80,21 @@ class DenseSubmapManager {
   bool getClosestDenseSubmap(
       const MissionId& mission_id, const int64_t timestamp_ns,
       DenseSubmap* submap) const;
+
+  size_t numDenseSubmaps() const {
+    return submaps_.size();
+  }
+
+  void getDenseSubmapIds(std::vector<DenseSubmapId>* ids) const {
+    CHECK_NOTNULL(ids);
+    for (const auto& it : mission_id_to_submap_ids_) {
+      ids->insert(ids->begin(), it.second.begin(), it.second.end());
+    }
+  }
+
+  const DenseSubmap& getDenseSubmap(const DenseSubmapId& id) const {
+    return submaps_[submap_id_to_idx_.at(id)];
+  }
 
  private:
   std::unordered_map<MissionId, std::vector<DenseSubmapId>>

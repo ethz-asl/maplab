@@ -1,5 +1,7 @@
 #include "vi-map/dense-submap-manager.h"
 
+#include <maplab-common/eigen-proto.h>
+
 namespace vi_map {
 
 void DenseSubmap::addTransformationToSubmap(
@@ -40,6 +42,31 @@ bool DenseSubmap::getMinAndMaxTimestampNs(
   *min_timestamp_ns = T_S0_S_map_.begin()->first;
   *max_timestamp_ns = T_S0_S_map_.rbegin()->first;
   return true;
+}
+
+void DenseSubmap::serialize(vi_map::proto::DenseSubmap* proto) const {
+  CHECK_NOTNULL(proto);
+  mission_id_.serialize(proto->mutable_mission_id());
+  sensor_id_.serialize(proto->mutable_sensor_id());
+  for (const auto& it : T_S0_S_map_) {
+    auto stamped_T_S0_S = proto->add_stamped_t_s0_s();
+    stamped_T_S0_S->set_timestamp_ns(it.first);
+    common::eigen_proto::serialize(it.second, stamped_T_S0_S->mutable_t_a_b());
+  }
+}
+
+void DenseSubmap::deserialize(
+    const DenseSubmapId& submap_id, const vi_map::proto::DenseSubmap& proto) {
+  submap_id_ = submap_id;
+  mission_id_.deserialize(proto.mission_id());
+  sensor_id_.deserialize(proto.sensor_id());
+  const size_t num_t_s0_s = proto.stamped_t_s0_s_size();
+  for (size_t idx = 0u; idx < num_t_s0_s; ++idx) {
+    const vi_map::proto::StampedTransformation stamped_T_S0_S =
+        proto.stamped_t_s0_s(idx);
+    aslam::Transformation& T_S0_S = T_S0_S_map_[stamped_T_S0_S.timestamp_ns()];
+    common::eigen_proto::deserialize(stamped_T_S0_S.t_a_b(), &T_S0_S);
+  }
 }
 
 void DenseSubmapManager::addDenseSubmap(const DenseSubmap& submap) {
@@ -84,6 +111,10 @@ bool DenseSubmapManager::getClosestDenseSubmapId(
     const MissionId& mission_id, const int64_t timestamp_ns,
     DenseSubmapId* submap_id) const {
   CHECK_NOTNULL(submap_id);
+  if (mission_id_to_submap_ids_.find(mission_id) ==
+      mission_id_to_submap_ids_.end()) {
+    return false;
+  }
   for (const DenseSubmapId& id : mission_id_to_submap_ids_.at(mission_id)) {
     int64_t min_timestamp_ns;
     int64_t max_timestamp_ns;

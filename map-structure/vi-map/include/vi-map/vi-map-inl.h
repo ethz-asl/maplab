@@ -1200,6 +1200,9 @@ DenseSubmapManager& VIMap::getDenseSubmapManager() {
   return dense_submap_manager_;
 }
 
+size_t VIMap::numDenseSubmaps() const {
+  return dense_submap_manager_.numDenseSubmaps();
+}
 template <typename Edge, vi_map::Edge::EdgeType EdgeType>
 size_t VIMap::mergeEdgesOfNeighboringVertices(
     const pose_graph::VertexId& merge_into_vertex_id,

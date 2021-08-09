@@ -147,6 +147,7 @@ class VIMap : public backend::ResourceMap,
 
   inline const DenseSubmapManager& getDenseSubmapManager() const;
   inline DenseSubmapManager& getDenseSubmapManager();
+  inline size_t numDenseSubmaps() const;
 
   inline size_t numVertices() const;
   inline size_t numVerticesInMission(const vi_map::MissionId& mission_id) const;

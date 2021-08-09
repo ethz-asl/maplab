@@ -26,6 +26,7 @@ constexpr char kFileNameVertices[] = "vertices";
 constexpr char kFileNameEdges[] = "edges";
 constexpr char kFileNameMissions[] = "missions";
 constexpr char kFileNameLandmarkIndex[] = "landmark_index";
+constexpr char kFileNameDenseSubmaps[] = "dense_submaps";
 
 constexpr char kYamlSensorsFilename[] = "sensors.yaml";
 
@@ -64,6 +65,9 @@ void serializeMissionsAndBaseframes(
     const vi_map::VIMap& map, vi_map::proto::VIMap* proto);
 void serializeLandmarkIndex(
     const vi_map::VIMap& map, vi_map::proto::VIMap* proto);
+size_t serializeDenseSubmaps(
+    const vi_map::VIMap& map, const size_t start_index,
+    const size_t dense_submaps_per_proto, vi_map::proto::VIMap* proto);
 
 void serializeSensorManagerToArray(
     const vi_map::VIMap& map, network::RawMessageData* raw_data);
@@ -74,6 +78,8 @@ void deserializeEdges(const vi_map::proto::VIMap& proto, vi_map::VIMap* map);
 void deserializeMissionsAndBaseframes(
     const vi_map::proto::VIMap& proto, vi_map::VIMap* map);
 void deserializeLandmarkIndex(
+    const vi_map::proto::VIMap& proto, vi_map::VIMap* map);
+void deserializeDenseSubmaps(
     const vi_map::proto::VIMap& proto, vi_map::VIMap* map);
 
 void deserializeSensorManagerFromArray(
