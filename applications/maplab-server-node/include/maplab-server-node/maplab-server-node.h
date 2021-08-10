@@ -47,6 +47,12 @@ struct SubmapProcess {
   // Is true if submap has been merged into global map.
   bool is_merged = false;
 
+  bool is_intermediate_process = false;
+
+  std::string intermediate_map_key;
+
+  std::vector<std::string> included_submap_keys;
+
   mutable std::mutex mutex;
 };
 
