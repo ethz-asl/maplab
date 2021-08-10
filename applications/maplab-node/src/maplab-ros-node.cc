@@ -262,7 +262,8 @@ bool MaplabRosNode::saveMapCallback(
 bool MaplabRosNode::goIdleCallback(
     std_srvs::Empty::Request& request,      // NOLINT
     std_srvs::Empty::Response& response) {  // NOLINT
-  shutdown();
+  message_flow_->shutdown();
+  message_flow_->waitUntilIdle();
   return true;
 }
 
