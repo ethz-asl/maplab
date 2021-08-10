@@ -163,6 +163,11 @@ MaplabRosNode::MaplabRosNode(
       save_map_callback =
           boost::bind(&MaplabRosNode::saveMapCallback, this, _1, _2);
   save_map_srv_ = nh_.advertiseService("save_map", save_map_callback);
+
+  boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
+      go_idle_callback =
+          boost::bind(&MaplabRosNode::goIdleCallback, this, _1, _2);
+  go_idle_srv_ = nh_.advertiseService("go_idle", go_idle_callback);
 }
 
 bool MaplabRosNode::run() {
@@ -252,6 +257,13 @@ bool MaplabRosNode::saveMapCallback(
     std_srvs::Empty::Request& /*request*/,      // NOLINT
     std_srvs::Empty::Response& /*response*/) {  // NOLINT
   return saveMapAndContinueMapping();
+}
+
+bool MaplabRosNode::goIdleCallback(
+    std_srvs::Empty::Request& request,      // NOLINT
+    std_srvs::Empty::Response& response) {  // NOLINT
+  shutdown();
+  return true;
 }
 
 // Optional output.

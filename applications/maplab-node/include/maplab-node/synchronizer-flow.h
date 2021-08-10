@@ -188,6 +188,9 @@ class SynchronizerFlow {
   }
 
   void shutdown() {
+    if (message_flow_ != nullptr) {
+      message_flow_->shutdown();
+    }
     synchronizer_.shutdown();
   }
 
