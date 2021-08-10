@@ -48,6 +48,10 @@ class MaplabRosNode {
       std_srvs::Empty::Request& request,     // NOLINT
       std_srvs::Empty::Response& response);  // NOLINT
 
+  bool goIdleCallback(
+      std_srvs::Empty::Request& request,     // NOLINT
+      std_srvs::Empty::Response& response);  // NOLINT
+
   // Optional output.
   std::string printDeliveryQueueStatistics() const;
 
@@ -57,6 +61,7 @@ class MaplabRosNode {
   ros::NodeHandle nh_private_;
 
   ros::ServiceServer save_map_srv_;
+  ros::ServiceServer go_idle_srv_;
 
   // Settings.
   std::string map_output_folder_;

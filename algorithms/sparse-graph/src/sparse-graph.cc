@@ -411,12 +411,12 @@ std::string SparseGraph::getKeyForSubmapId(const uint32_t submap_id) const {
 
 void SparseGraph::publishGraphForBuilding() const {
   maplab_msgs::Graph graph_msg;
-  ros::Time ts_ros;
   for (const RepresentativeNode& node : sparse_graph_) {
     if (!node.isActive()) {
       continue;
     }
-    ts_ros = Utils::CreateRosTimestamp(node.getTimestampNanoseconds());
+    ros::Time ts_ros =
+        Utils::CreateRosTimestamp(node.getTimestampNanoseconds());
     const aslam::Transformation pose = node.getPose();
     const Eigen::Vector3d position = pose.getPosition();
     const uint32_t submap_id = node.getAssociatedSubmapId();
@@ -438,7 +438,7 @@ void SparseGraph::publishGraphForBuilding() const {
     }
   }
 
-  graph_msg.header.stamp = ts_ros;
+  graph_msg.header.stamp = ros::Time::now();
   graph_msg.header.seq = pub_seq_;
   visualization::RVizVisualizationSink::publish(
       "sparse_graph/graph", graph_msg);
@@ -455,7 +455,8 @@ void SparseGraph::publishTrajecotryForEvaluation() const {
     const uint32_t submap_id = node.getAssociatedSubmapId();
     const std::string name = getKeyForSubmapId(submap_id);
     const double residual = node.getResidual();
-    ts_ros = Utils::CreateRosTimestamp(node.getTimestampNanoseconds());
+    ros::Time ts_ros =
+        Utils::CreateRosTimestamp(node.getTimestampNanoseconds());
 
     geometry_msgs::PoseStamped pose_msg;
     tf::poseStampedKindrToMsg(node.getPose(), ts_ros, mission_frame, &pose_msg);

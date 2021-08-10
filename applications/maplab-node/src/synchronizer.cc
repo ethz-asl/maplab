@@ -31,8 +31,12 @@ DEFINE_int64(
     "forward-propagate using the IMU.");
 DEFINE_bool(
     enable_synchronizer_statistics, false,
-    "If enable, the synchronizer will keep data about the latency and other "
+    "If enabled, the synchronizer will keep data about the latency and other "
     "key properties of the data it synchronizes.");
+DEFINE_bool(
+    enable_synchronizer_automatic_shudown, true,
+    "If enabled, the synchronizer will automatically shutdown when there has "
+    "been no new incoming data for few seconds.");
 
 namespace maplab {
 
@@ -850,10 +854,13 @@ void Synchronizer::checkIfMessagesAreIncomingWorker() {
             << "received in the last " << kMaxTimeBeforeWarningS << " seconds.";
 
         if (received_first_odometry_message_.load()) {
-          LOG(WARNING) << "[MaplabNode-Synchronizer] Either the data sources "
-                       << "has stopped publishing odometry estimates or there "
-                          "has been a data drop. Triggering shutdown!";
-          invokeEndOfDataCallbacks();
+          if (FLAGS_enable_synchronizer_automatic_shudown) {
+            LOG(WARNING)
+                << "[MaplabNode-Synchronizer] Either the data sources "
+                << "has stopped publishing odometry estimates or there "
+                   "has been a data drop. Triggering shutdown!";
+            invokeEndOfDataCallbacks();
+          }
           continue;
         } else {
           LOG(WARNING) << "[MaplabNode-Synchronizer] Check if the topic is "
