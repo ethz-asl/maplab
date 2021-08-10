@@ -1457,44 +1457,56 @@ void MaplabServerNode::updateRobotInfoBasedOnSubmap(
 
 void MaplabServerNode::runSubmapProcessing(
     const SubmapProcess& submap_process) {
+  if (submap_process.is_intermediate_process) {
+    CHECK(map_manager_.mergeSubmapIntoBaseMap(
+        kMergedMapKey, submap_process.map_key));
+
+    // Remove submap.
+    map_manager_.deleteMap(submap_process.map_key);
+  }
+
   vi_map::VIMapManager::MapWriteAccess map =
-      map_manager_.getMapWriteAccess(submap_process.map_key);
+      submap_process.is_intermediate_process
+          ? map_manager_.getMapWriteAccess(submap_process.intermediate_map_key)
+          : map_manager_.getMapWriteAccess(submap_process.map_key);
   vi_map::MissionIdList missions_to_process;
   map->getAllMissionIds(&missions_to_process);
   CHECK_EQ(missions_to_process.size(), 1u);
   const vi_map::MissionId& submap_mission_id = missions_to_process[0];
 
-  // Stationary submap fixing
-  ///////////////////////////
-  if (FLAGS_maplab_server_stationary_submaps_fix_with_lc_edge) {
-    std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-    running_submap_process_[submap_process.map_hash] =
-        "add_lc_edge_for_stationary_submaps";
-    vi_map_helpers::VIMapManipulation manipulation(map.get());
-    if (manipulation.constrainStationarySubmapWithLoopClosureEdge(
-            FLAGS_maplab_stationary_submaps_max_translation_m,
-            FLAGS_maplab_stationary_submaps_max_rotation_rad)) {
-      LOG(WARNING) << "[MaplabServerNode] Submap '" << submap_process.map_key
-                   << "'is stationary, adding additional constraint between "
-                   << "first and last vertex!";
-    }
-  }
-
-  // Evaluate landmark quality
-  ////////////////////////////
-  {
-    {
+  if (!submap_process.is_intermediate_process) {
+    // Stationary submap fixing
+    ///////////////////////////
+    if (FLAGS_maplab_server_stationary_submaps_fix_with_lc_edge) {
       std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
       running_submap_process_[submap_process.map_hash] =
-          "landmark quality evaluation";
+          "add_lc_edge_for_stationary_submaps";
+      vi_map_helpers::VIMapManipulation manipulation(map.get());
+      if (manipulation.constrainStationarySubmapWithLoopClosureEdge(
+              FLAGS_maplab_stationary_submaps_max_translation_m,
+              FLAGS_maplab_stationary_submaps_max_rotation_rad)) {
+        LOG(WARNING) << "[MaplabServerNode] Submap '" << submap_process.map_key
+                     << "'is stationary, adding additional constraint between "
+                     << "first and last vertex!";
+      }
     }
-    if (FLAGS_vi_map_landmark_quality_min_observers > 2) {
-      LOG(WARNING) << "[MaplabServerNode] Minimum required landmark observers "
-                   << "is set to "
-                   << FLAGS_vi_map_landmark_quality_min_observers
-                   << ",  this might be too stricht if keyframing is enabled.";
+
+    // Evaluate landmark quality
+    ////////////////////////////
+    {
+      {
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_[submap_process.map_hash] =
+            "landmark quality evaluation";
+      }
+      if (FLAGS_vi_map_landmark_quality_min_observers > 2) {
+        LOG(WARNING)
+            << "[MaplabServerNode] Minimum required landmark observers "
+            << "is set to " << FLAGS_vi_map_landmark_quality_min_observers
+            << ",  this might be too stricht if keyframing is enabled.";
+      }
+      vi_map_helpers::evaluateLandmarkQuality(missions_to_process, map.get());
     }
-    vi_map_helpers::evaluateLandmarkQuality(missions_to_process, map.get());
   }
 
   // Visual Loop Closure
@@ -1520,34 +1532,37 @@ void MaplabServerNode::runSubmapProcessing(
           mission_id_A, map.get());
     }
   }
-  // Filter outliers from absolute constraints
-  ////////////////////////////////////////////
-  if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
-    {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] =
-          "abs constraints outlier rejection";
-    }
-    map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
-  }
 
-  // Submap Optimization
-  //////////////////////
-  {
-    {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] = "optimization";
+  if (!submap_process.is_intermediate_process) {
+    // Filter outliers from absolute constraints
+    ////////////////////////////////////////////
+    if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
+      {
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_[submap_process.map_hash] =
+            "abs constraints outlier rejection";
+      }
+      map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
     }
-    const vi_map::MissionIdSet missions_to_optimize(
-        missions_to_process.begin(), missions_to_process.end());
-    // We only want to get these once, such that if the gflags get modified
-    // later the optimization settings for the submaps remain the same.
-    map_optimization::ViProblemOptions options =
-        map_optimization::ViProblemOptions::initFromGFlags();
-    map_optimization::VIMapOptimizer optimizer(
-        nullptr /*no plotter for optimization*/,
-        false /*signal handler enabled*/);
-    optimizer.optimize(options, missions_to_optimize, map.get());
+
+    // Submap Optimization
+    //////////////////////
+    {
+      {
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_[submap_process.map_hash] = "optimization";
+      }
+      const vi_map::MissionIdSet missions_to_optimize(
+          missions_to_process.begin(), missions_to_process.end());
+      // We only want to get these once, such that if the gflags get modified
+      // later the optimization settings for the submaps remain the same.
+      map_optimization::ViProblemOptions options =
+          map_optimization::ViProblemOptions::initFromGFlags();
+      map_optimization::VIMapOptimizer optimizer(
+          nullptr /*no plotter for optimization*/,
+          false /*signal handler enabled*/);
+      optimizer.optimize(options, missions_to_optimize, map.get());
+    }
   }
 
   // Lidar local constraints/loop closure
@@ -1599,23 +1614,25 @@ void MaplabServerNode::runSubmapProcessing(
   // Sparse Graph Generation
   //////////////////////////
   {
+    if (FLAGS_maplab_server_enable_sparse_graph_computation) {
+      {
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_[submap_process.map_hash] =
+            "sparse graph generation";
+      }
+      const vi_map::MissionId& mission_id = missions_to_process.front();
+      pose_graph::VertexIdList all_vertices_in_mission;
+      map.get()->getAllVertexIdsInMissionAlongGraph(
+          mission_id, &all_vertices_in_mission);
+      sparsified_graph_.addVerticesToMissionGraph(
+          submap_process.robot_name, all_vertices_in_mission);
+    }
+
+    // Remove processing status of submap
     {
       std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] =
-          "sparse graph generation";
+      running_submap_process_.erase(submap_process.map_hash);
     }
-    const vi_map::MissionId& mission_id = missions_to_process.front();
-    pose_graph::VertexIdList all_vertices_in_mission;
-    map.get()->getAllVertexIdsInMissionAlongGraph(
-        mission_id, &all_vertices_in_mission);
-    sparsified_graph_.addVerticesToMissionGraph(
-        submap_process.robot_name, all_vertices_in_mission);
-  }
-
-  // Remove processing status of submap
-  {
-    std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-    running_submap_process_.erase(submap_process.map_hash);
   }
 }
 
