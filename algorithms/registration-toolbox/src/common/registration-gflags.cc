@@ -4,9 +4,14 @@ namespace regbox {
 
 // Alignment method independent flags
 DEFINE_double(
-    regbox_fixed_covariance, 1e-2,
-    "Fixed covariance value for "
-    "registration results.");
+    regbox_fixed_covariance_translation_m, 1e-2,
+    "Fixed covariance value for the translational part of registration results "
+    "in meteres.");
+
+DEFINE_double(
+    regbox_fixed_covariance_rotation_rad, 1e-1,
+    "Fixed covariance value for the rotational part of registration results "
+    "in radians.");
 
 // pcl config
 DEFINE_double(

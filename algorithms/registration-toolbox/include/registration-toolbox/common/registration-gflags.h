@@ -7,7 +7,8 @@
 namespace regbox {
 
 // Alignment method independent flags
-DECLARE_double(regbox_fixed_covariance);
+DECLARE_double(regbox_fixed_covariance_translation_m);
+DECLARE_double(regbox_fixed_covariance_rotation_rad);
 
 // pcl config
 DECLARE_double(regbox_pcl_downsample_leaf_size_m);
