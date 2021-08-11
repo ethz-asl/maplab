@@ -20,6 +20,8 @@ SelectionConfig SelectionConfig::fromGflags() {
       FLAGS_dm_candidate_selection_recompute_invalid_constraints;
   config.constraint_min_switch_variable_value =
       FLAGS_dm_candidate_selection_min_switch_variable_value;
+  config.max_distance_between_nodes =
+      FLAGS_dm_candidate_selection_max_distance_between_nodes;
 
   // LC edge generic filtering.
   config.max_number_of_candidates =
@@ -55,11 +57,14 @@ bool hasGoodLoopClosureEdgeFromAToB(
       continue;
     }
 
-    const bool is_good_edge =
+    bool is_good_edge =
         edge.getSwitchVariable() >= config.constraint_min_switch_variable_value;
+    is_good_edge &= edge.get_T_A_B().getPosition().norm() <=
+                    config.max_distance_between_nodes;
 
-    // If the edge is not good and we want to recompute bad ones, or if we want
-    // to recompute them regardless, we add them to the set to be removed later.
+    // If the edge is not good and we want to recompute bad ones, or if we
+    // want to recompute them regardless, we add them to the set to be
+    // removed later.
     if ((!is_good_edge && config.recompute_invalid_constraints) ||
         config.recompute_all_constraints) {
       constraints_to_delete_edge_ids->insert(edge_id);

@@ -107,6 +107,9 @@ DEFINE_string(
 DEFINE_double(
     dm_candidate_selection_prioritize_recent_candidates, 0.0,
     "Defines the percentage of fixed recent candidates [0,1].");
+DEFINE_double(
+    dm_candidate_selection_max_distance_between_nodes, 10.0,
+    "Defines the max distance between two candidate nodes.");
 
 // ALIGNMENTS
 DEFINE_double(

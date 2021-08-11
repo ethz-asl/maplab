@@ -35,6 +35,7 @@ DECLARE_double(dm_candidate_selection_min_switch_variable_value);
 DECLARE_int32(dm_candidate_selection_max_number_of_candidates);
 DECLARE_string(dm_candidate_selection_filter_strategy);
 DECLARE_double(dm_candidate_selection_prioritize_recent_candidates);
+DECLARE_double(dm_candidate_selection_max_distance_between_nodes);
 
 // ALIGNMENT
 DECLARE_double(dm_candidate_alignment_max_delta_position_to_initial_guess_m);
