@@ -54,6 +54,8 @@ struct SubmapProcess {
   std::vector<std::string> included_submap_keys;
 
   mutable std::mutex mutex;
+
+  std::atomic<bool> is_running;
 };
 
 class MaplabServerNode final {
@@ -63,7 +65,7 @@ class MaplabServerNode final {
   ~MaplabServerNode();
 
   // Once the node is started, the configuration cannot be changed anymore.
-  void start(const bool& load_previous_state = false);
+  void start(const bool load_previous_state = false);
   void shutdown();
 
   bool loadAndProcessMissingSubmaps(
@@ -268,7 +270,9 @@ class MaplabServerNode final {
   // this queue. After the completion of the submap processing, the merging
   // threads extracts the finished submaps and adds them to the global map.
   std::mutex submap_processing_queue_mutex_;
-  std::deque<SubmapProcess> submap_processing_queue_;
+  std::map<std::string, std::deque<SubmapProcess>> submap_processing_queue_;
+  std::map<std::string, std::deque<SubmapProcess>>
+      intermediate_processing_queue_;
 
   // Callbacks
   ////////////
