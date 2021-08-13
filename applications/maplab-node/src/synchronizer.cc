@@ -34,7 +34,7 @@ DEFINE_bool(
     "If enabled, the synchronizer will keep data about the latency and other "
     "key properties of the data it synchronizes.");
 DEFINE_bool(
-    enable_synchronizer_automatic_shudown, true,
+    enable_synchronizer_automatic_shutdown, true,
     "If enabled, the synchronizer will automatically shutdown when there has "
     "been no new incoming data for few seconds.");
 
@@ -854,7 +854,7 @@ void Synchronizer::checkIfMessagesAreIncomingWorker() {
             << "received in the last " << kMaxTimeBeforeWarningS << " seconds.";
 
         if (received_first_odometry_message_.load()) {
-          if (FLAGS_enable_synchronizer_automatic_shudown) {
+          if (FLAGS_enable_synchronizer_automatic_shutdown) {
             LOG(WARNING)
                 << "[MaplabNode-Synchronizer] Either the data sources "
                 << "has stopped publishing odometry estimates or there "

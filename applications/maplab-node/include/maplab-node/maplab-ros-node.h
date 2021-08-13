@@ -79,6 +79,9 @@ class MaplabRosNode {
 
   // Publisher that sends the path of the map ever time it is saved.
   ros::Publisher map_update_pub_;
+
+  // Publisher that sends the amount of submaps.
+  ros::Publisher submap_counter_pub_;
 };
 
 }  // namespace maplab

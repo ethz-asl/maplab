@@ -8,6 +8,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <ros/ros.h>
+#include <std_msgs/Int32.h>
 #include <std_msgs/String.h>
 
 #include <aslam/cameras/ncamera.h>
@@ -95,6 +96,8 @@ MaplabRosNode::MaplabRosNode(
   // Set up publishers.
   map_update_pub_ =
       nh_.advertise<std_msgs::String>("map_update_notification", 1);
+
+  submap_counter_pub_ = nh_.advertise<std_msgs::Int32>("submap_counter", 1);
 
   LOG(INFO) << "[MaplabROSNode] Initializing message flow...";
   message_flow_.reset(
@@ -201,7 +204,6 @@ bool MaplabRosNode::saveMap(
         if (FLAGS_map_split_map_into_submaps_when_saving_periodically) {
           ss << map_folder << "/"
              << "submap_" << map_counter_;
-          ++map_counter_;
         } else {
           ss << map_folder << "/final_map";
         }
@@ -211,7 +213,6 @@ bool MaplabRosNode::saveMap(
         if (FLAGS_map_split_map_into_submaps_when_saving_periodically) {
           ss << map_folder << "/"
              << "submap_" << map_counter_;
-          ++map_counter_;
         } else {
           ss << map_folder << "/partial_map_" << map_counter_;
         }
@@ -224,9 +225,14 @@ bool MaplabRosNode::saveMap(
     if (maplab_node_->saveMapAndOptionallyOptimize(
             map_folder_updated, FLAGS_map_overwrite_enabled,
             FLAGS_map_compute_localization_map, stop_mapping)) {
+      ++map_counter_;
       std_msgs::String map_folder_msg;
       map_folder_msg.data = map_folder_updated;
       map_update_pub_.publish(map_folder_msg);
+      std_msgs::Int32 submap_counter_msg;
+      submap_counter_msg.data = map_counter_;
+      submap_counter_pub_.publish(submap_counter_msg);
+
       return true;
     }
   }
