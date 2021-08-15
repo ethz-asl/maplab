@@ -98,7 +98,11 @@ RegistrationResult LpmAlignment::createResultFromTransformation(
       isValidCovariance(lpm_cov)) {
     result.set_T_target_source_covariance(lpm_cov);
   } else {
-    const Eigen::MatrixXd fixed_cov = Eigen::MatrixXd::Identity(6, 6) * 1e-2;
+    Eigen::MatrixXd fixed_cov = Eigen::MatrixXd::Identity(6, 6);
+    fixed_cov.block(0, 0, 3, 3) = fixed_cov.block(0, 0, 3, 3) *
+                                  FLAGS_regbox_fixed_covariance_translation_m;
+    fixed_cov.block(3, 3, 3, 3) = fixed_cov.block(3, 3, 3, 3) *
+                                  FLAGS_regbox_fixed_covariance_rotation_rad;
     result.set_T_target_source_covariance(fixed_cov);
   }
   result.hasConverged(accept_match && !T.hasNaN());

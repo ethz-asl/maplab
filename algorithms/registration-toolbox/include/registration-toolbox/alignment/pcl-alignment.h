@@ -2,6 +2,7 @@
 #define REGISTRATION_TOOLBOX_ALIGNMENT_PCL_ALIGNMENT_H_
 #define PCL_NO_PRECOMPILE
 
+#include <algorithm>
 #include <limits>
 
 #include <glog/logging.h>
@@ -95,18 +96,23 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
   is_converged &= fitness_score <= FLAGS_regbox_pcl_max_fitness_score_m;
   const Eigen::Matrix4f T_f = aligner_.getFinalTransformation();
   const Eigen::Matrix4d T = T_f.cast<double>();
-  const Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6) * 1e-2;
+  Eigen::MatrixXd fixed_cov = Eigen::MatrixXd::Identity(6, 6);
+  fixed_cov.block(0, 0, 3, 3) =
+      fixed_cov.block(0, 0, 3, 3) * FLAGS_regbox_fixed_covariance_translation_m;
+  fixed_cov.block(3, 3, 3, 3) =
+      fixed_cov.block(3, 3, 3, 3) * FLAGS_regbox_fixed_covariance_rotation_rad;
 
   if (T.topLeftCorner<3, 3>().normalized().squaredNorm() <=
       static_cast<double>(1) +
           kindr::minimal::EPS<double>::normalization_value()) {
     return RegistrationResult(
-        transformed, cov, this->convertEigenToKindr(T),
+        transformed, fixed_cov, this->convertEigenToKindr(T),
         aligner_.hasConverged() & is_converged);
   } else {
     LOG(ERROR)
         << "PCL registration gave invalid rotation matrix, returning prior.";
-    return RegistrationResult(transformed, cov, prior_T_target_source, false);
+    return RegistrationResult(
+        transformed, fixed_cov, prior_T_target_source, false);
   }
 }
 
@@ -123,33 +129,30 @@ void PclAlignment<T_alignment, T_point>::downSamplePointCloud(
   // point cloud fit into memory and otherwise skips downsampling, we have to
   // split the point cloud into multiple volumes that are small enough to fit.
 
-  size_t volume_level = 1;
+  std::uint64_t volume_level = 1u;
 
   T_point min_point;
   T_point max_point;
   pcl::getMinMax3D(*cloud, min_point, max_point);
-  const std::int64_t dx = static_cast<std::int64_t>(
-                              (max_point.x - min_point.x) * inverse_grid_size) +
-                          1;
-  const std::int64_t dy = static_cast<std::int64_t>(
-                              (max_point.y - min_point.y) * inverse_grid_size) +
-                          1;
-  const std::int64_t dz = static_cast<std::int64_t>(
-                              (max_point.z - min_point.z) * inverse_grid_size) +
-                          1;
-  const std::int64_t dxdydz = dx * dy * dz;
+  const std::uint64_t dx =
+      std::max(std::ceil((max_point.x - min_point.x) * inverse_grid_size), 1.f);
+  const std::uint64_t dy =
+      std::max(std::ceil((max_point.y - min_point.y) * inverse_grid_size), 1.f);
+  const std::uint64_t dz =
+      std::max(std::ceil((max_point.z - min_point.z) * inverse_grid_size), 1.f);
+  const std::uint64_t dxdydz = dx * dy * dz;
   // Find amount of levels that we have to split the pointcloud into
   bool indices_fit_in_voxel_grid = false;
   while (!indices_fit_in_voxel_grid) {
     if ((dxdydz / (volume_level * volume_level * volume_level)) <
-        static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max())) {
+        static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max())) {
       indices_fit_in_voxel_grid = true;
     } else {
-      volume_level++;
+      ++volume_level;
     }
   }
 
-  for (size_t x_level = 0; x_level < volume_level; ++x_level) {
+  for (std::uint64_t x_level = 0u; x_level < volume_level; ++x_level) {
     const float min_x = min_point.x + (max_point.x - min_point.x) *
                                           static_cast<float>(x_level) /
                                           static_cast<float>(volume_level);
@@ -157,14 +160,14 @@ void PclAlignment<T_alignment, T_point>::downSamplePointCloud(
                                           static_cast<float>(x_level + 1) /
                                           static_cast<float>(volume_level);
 
-    for (size_t y_level = 0; y_level < volume_level; ++y_level) {
+    for (std::uint64_t y_level = 0u; y_level < volume_level; ++y_level) {
       const float min_y = min_point.y + (max_point.y - min_point.y) *
                                             static_cast<float>(y_level) /
                                             static_cast<float>(volume_level);
       const float max_y = min_point.y + (max_point.y - min_point.y) *
                                             static_cast<float>(y_level + 1) /
                                             static_cast<float>(volume_level);
-      for (size_t z_level = 0; z_level < volume_level; ++z_level) {
+      for (std::uint64_t z_level = 0u; z_level < volume_level; ++z_level) {
         const float min_z = min_point.z + (max_point.z - min_point.z) *
                                               static_cast<float>(z_level) /
                                               static_cast<float>(volume_level);
