@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <string>
 
+#include <diagnostic_msgs/KeyValue.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <ros/ros.h>
@@ -96,6 +97,9 @@ MaplabRosNode::MaplabRosNode(
   map_update_pub_ =
       nh_.advertise<std_msgs::String>("map_update_notification", 1);
 
+  submap_counter_pub_ =
+      nh_.advertise<diagnostic_msgs::KeyValue>("submap_counter", 1);
+
   LOG(INFO) << "[MaplabROSNode] Initializing message flow...";
   message_flow_.reset(
       message_flow::MessageFlow::create<message_flow::MessageDispatcherFifo>(
@@ -163,6 +167,11 @@ MaplabRosNode::MaplabRosNode(
       save_map_callback =
           boost::bind(&MaplabRosNode::saveMapCallback, this, _1, _2);
   save_map_srv_ = nh_.advertiseService("save_map", save_map_callback);
+
+  boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
+      go_idle_callback =
+          boost::bind(&MaplabRosNode::goIdleCallback, this, _1, _2);
+  go_idle_srv_ = nh_.advertiseService("go_idle", go_idle_callback);
 }
 
 bool MaplabRosNode::run() {
@@ -196,7 +205,6 @@ bool MaplabRosNode::saveMap(
         if (FLAGS_map_split_map_into_submaps_when_saving_periodically) {
           ss << map_folder << "/"
              << "submap_" << map_counter_;
-          ++map_counter_;
         } else {
           ss << map_folder << "/final_map";
         }
@@ -206,7 +214,6 @@ bool MaplabRosNode::saveMap(
         if (FLAGS_map_split_map_into_submaps_when_saving_periodically) {
           ss << map_folder << "/"
              << "submap_" << map_counter_;
-          ++map_counter_;
         } else {
           ss << map_folder << "/partial_map_" << map_counter_;
         }
@@ -219,9 +226,17 @@ bool MaplabRosNode::saveMap(
     if (maplab_node_->saveMapAndOptionallyOptimize(
             map_folder_updated, FLAGS_map_overwrite_enabled,
             FLAGS_map_compute_localization_map, stop_mapping)) {
+      ++map_counter_;
       std_msgs::String map_folder_msg;
       map_folder_msg.data = map_folder_updated;
       map_update_pub_.publish(map_folder_msg);
+      diagnostic_msgs::KeyValue submap_counter_msg;
+      if (nh_.getNamespace().size() > 1u) {
+        submap_counter_msg.key = nh_.getNamespace().substr(1);
+      }
+      submap_counter_msg.value = std::to_string(map_counter_);
+      submap_counter_pub_.publish(submap_counter_msg);
+
       return true;
     }
   }
@@ -252,6 +267,14 @@ bool MaplabRosNode::saveMapCallback(
     std_srvs::Empty::Request& /*request*/,      // NOLINT
     std_srvs::Empty::Response& /*response*/) {  // NOLINT
   return saveMapAndContinueMapping();
+}
+
+bool MaplabRosNode::goIdleCallback(
+    std_srvs::Empty::Request& request,      // NOLINT
+    std_srvs::Empty::Response& response) {  // NOLINT
+  message_flow_->shutdown();
+  message_flow_->waitUntilIdle();
+  return true;
 }
 
 // Optional output.
