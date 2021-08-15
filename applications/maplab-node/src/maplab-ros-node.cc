@@ -5,10 +5,10 @@
 #include <signal.h>
 #include <string>
 
+#include <diagnostic_msgs/KeyValue.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <ros/ros.h>
-#include <std_msgs/Int32.h>
 #include <std_msgs/String.h>
 
 #include <aslam/cameras/ncamera.h>
@@ -97,7 +97,8 @@ MaplabRosNode::MaplabRosNode(
   map_update_pub_ =
       nh_.advertise<std_msgs::String>("map_update_notification", 1);
 
-  submap_counter_pub_ = nh_.advertise<std_msgs::Int32>("submap_counter", 1);
+  submap_counter_pub_ =
+      nh_.advertise<diagnostic_msgs::KeyValue>("submap_counter", 1);
 
   LOG(INFO) << "[MaplabROSNode] Initializing message flow...";
   message_flow_.reset(
@@ -229,8 +230,11 @@ bool MaplabRosNode::saveMap(
       std_msgs::String map_folder_msg;
       map_folder_msg.data = map_folder_updated;
       map_update_pub_.publish(map_folder_msg);
-      std_msgs::Int32 submap_counter_msg;
-      submap_counter_msg.data = map_counter_;
+      diagnostic_msgs::KeyValue submap_counter_msg;
+      if (nh_.getNamespace().size() > 1u) {
+        submap_counter_msg.key = nh_.getNamespace().substr(1);
+      }
+      submap_counter_msg.value = std::to_string(map_counter_);
       submap_counter_pub_.publish(submap_counter_msg);
 
       return true;
