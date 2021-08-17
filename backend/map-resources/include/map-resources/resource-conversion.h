@@ -149,6 +149,8 @@ uint32_t getPointStep(
     const bool has_color, const bool /*has_normals*/, const bool has_scalar,
     const bool has_labels, const bool has_rings, const bool has_time);
 
+void ignoreFieldsFromPointCloud(resources::PointCloud* point_cloud);
+
 }  // namespace backend
 
 #include "map-resources/resource-conversion-inl.h"

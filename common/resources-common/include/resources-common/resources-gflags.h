@@ -9,5 +9,5 @@ DECLARE_bool(resources_compress_pointclouds);
 DECLARE_bool(resources_pointcloud_compression_add_indices);
 DECLARE_int32(resources_pointcloud_compression_speed);
 DECLARE_int32(resources_pointcloud_compression_quantization_bits);
-
+DECLARE_string(resources_pointcloud_ignore_fields);
 #endif  // RESOURCES_COMMON_RESOURCES_GFLAGS_H_

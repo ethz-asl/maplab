@@ -13,3 +13,8 @@ DEFINE_int32(resources_pointcloud_compression_speed, 0, "Draco encoder speed");
 DEFINE_int32(
     resources_pointcloud_compression_quantization_bits, 13,
     "Amount of quantization bits used for draco pointcloud compression.");
+DEFINE_string(
+    resources_pointcloud_ignore_fields, "",
+    "Fields that should be "
+    "ignored from point cloud input. Options are: 'normals, scalars, color, "
+    "labels, rings, time' and any combination of these separated by a comma.");

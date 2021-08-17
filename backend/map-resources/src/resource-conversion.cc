@@ -1078,4 +1078,32 @@ bool hasTimeInformation(const resources::PointCloud& point_cloud) {
   return !point_cloud.times.empty();
 }
 
+void ignoreFieldsFromPointCloud(resources::PointCloud* point_cloud) {
+  CHECK_NOTNULL(point_cloud);
+  std::vector<std::string> fields_in_flag;
+  const std::string kDelimiter = ",";
+  common::tokenizeString(
+      FLAGS_resources_pointcloud_ignore_fields, kDelimiter, &fields_in_flag);
+  const std::unordered_set<std::string> fields_to_ignore(
+      fields_in_flag.begin(), fields_in_flag.end());
+  if (fields_to_ignore.count("normals") > 0u) {
+    point_cloud->normals.clear();
+  }
+  if (fields_to_ignore.count("scalars") > 0u) {
+    point_cloud->scalars.clear();
+  }
+  if (fields_to_ignore.count("color") > 0u) {
+    point_cloud->colors.clear();
+  }
+  if (fields_to_ignore.count("labels") > 0u) {
+    point_cloud->labels.clear();
+  }
+  if (fields_to_ignore.count("rings") > 0u) {
+    point_cloud->rings.clear();
+  }
+  if (fields_to_ignore.count("time") > 0u) {
+    point_cloud->times.clear();
+  }
+}
+
 }  // namespace backend

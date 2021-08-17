@@ -304,6 +304,7 @@ void StreamMapBuilder::attachPointCloudMap(
   backend::convertPointCloudType<PointCloudType, resources::PointCloud>(
       pointcloud_map_measurement.getPointCloud(), &point_cloud);
 
+  backend::ignoreFieldsFromPointCloud(&point_cloud);
   backend::ResourceType point_cloud_type =
       backend::getResourceTypeForPointCloud(point_cloud);
   vi_map::VIMission& mission = map_->getMission(mission_id_);
