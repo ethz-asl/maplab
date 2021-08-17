@@ -382,7 +382,7 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
 
   common::ProgressBar progress_bar(num_pairs);
 
-  VLOG(1) << "Processing " << num_pairs << "submap alignment candidates...";
+  VLOG(1) << "Processing " << num_pairs << " submap alignment candidates...";
 
   // Introspection
   size_t processed_pairs = 0u;
@@ -431,7 +431,6 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
       [](const AlignmentCandidatePair& a, const AlignmentCandidatePair& b) {
         return a.candidate_A.timestamp_ns < b.candidate_A.timestamp_ns;
       });
-
   for (auto it = temporally_ordered_pairs.cbegin();
        it != temporally_ordered_pairs.cend(); ++it) {
     const AlignmentCandidatePair& pair = *it;
@@ -671,16 +670,17 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
     }
     progress_bar.update(++processed_pairs);
   }
-
-  if (dense_submap->size() > 2u) {
-    vi_map_ptr->getDenseSubmapManager().addDenseSubmap(*dense_submap);
-  }
   VLOG(1) << "Done.";
 
-  VLOG(1) << "Successfully aligned " << successful_alignments << "/"
-          << num_pairs << " candidates.";
-
-  return true;
+  if (dense_submap && dense_submap->size() > 2u) {
+    vi_map_ptr->getDenseSubmapManager().addDenseSubmap(*dense_submap);
+    VLOG(1) << "Successfully aligned " << successful_alignments << "/"
+            << num_pairs << " candidates.";
+    return true;
+  } else {
+    VLOG(1) << "Incremental submap alignment did not succeed.";
+    return false;
+  }
 }
 
 }  // namespace dense_mapping
