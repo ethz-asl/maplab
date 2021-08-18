@@ -34,7 +34,9 @@ AlignmentConfig AlignmentConfig::fromGflags() {
 template <typename ResourceDataType>
 bool retrievePointCloudsForDenseSubmap(
     const vi_map::VIMap& map, const int64_t timestamp_ns,
-    const vi_map::DenseSubmap& submap, ResourceDataType* submap_cloud) {
+    const vi_map::DenseSubmap& submap,
+    const backend::ResourceType resource_type,
+    ResourceDataType* submap_cloud) {
   CHECK_NOTNULL(submap_cloud);
   vi_map::StampedTransformationMap stamped_transforms;
   if (!submap.getStampedTransformsToResourceFrameAtTimestamp(
@@ -47,13 +49,16 @@ bool retrievePointCloudsForDenseSubmap(
   for (auto it = stamped_transforms.begin(); it != stamped_transforms.end();
        ++idx, ++it) {
     if (!map.getSensorResource<ResourceDataType>(
-            mission, backend::ResourceType::kPointCloudXYZIRT,
+            mission, resource_type,
             submap.getSensorId(), it->first, &submap_clouds[idx])) {
       continue;
     }
     submap_clouds[idx].applyTransformation(it->second);
   }
   submap_cloud->append(submap_clouds);
+  if (submap_cloud->empty()){
+    return false;
+  }
   return true;
 }
 template <typename ResourceDataType>
@@ -73,7 +78,8 @@ bool candidatesQualifyForDenseSubmap(
     return false;
   }
   return retrievePointCloudsForDenseSubmap(
-      map, candidate_B.timestamp_ns, submap, candidate_resource);
+      map, candidate_B.timestamp_ns, submap, candidate_B.resource_type,
+      candidate_resource);
 }
 
 bool alignmentDeviatesTooMuchFromInitialGuess(
