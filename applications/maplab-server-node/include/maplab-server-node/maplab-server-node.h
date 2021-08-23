@@ -52,10 +52,13 @@ struct SubmapProcess {
   std::string intermediate_map_key;
 
   std::vector<std::string> included_submap_keys;
+  pose_graph::VertexIdList last_submap_vertices;
 
   mutable std::mutex mutex;
 
-  std::atomic<bool> is_running;
+  std::vector<SubmapProcess*> dependend_processes;
+
+  size_t count;
 };
 
 class MaplabServerNode final {
@@ -145,6 +148,8 @@ class MaplabServerNode final {
   // Submap processing functions:
   void updateRobotInfoBasedOnSubmap(const SubmapProcess& submap_process);
   void runSubmapProcessing(const SubmapProcess& submap_process);
+  void runIntermediateProcessing(SubmapProcess* submap_process);
+  void addIntermediateMapProcesses();
 
   // Map merging function:
 
@@ -211,6 +216,8 @@ class MaplabServerNode final {
   //////////
   // Threadpool to individuall and concurrently process incomming submaps.
   aslam::ThreadPool submap_loading_thread_pool_;
+  // Threadpool to individuall and concurrently process incomming submaps.
+  aslam::ThreadPool intermediate_thread_pool_;
   // Single merging thread that attaches processed submaps to the global map and
   // optimizes it.
   std::thread submap_merging_thread_;
@@ -273,6 +280,8 @@ class MaplabServerNode final {
   std::map<std::string, std::deque<SubmapProcess>> submap_processing_queue_;
   std::map<std::string, std::deque<SubmapProcess>>
       intermediate_processing_queue_;
+  std::atomic<size_t> intermediate_counter_;
+  std::vector<std::string> submaps_in_intermediate_;
 
   // Callbacks
   ////////////
