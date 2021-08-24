@@ -181,8 +181,6 @@ void findAllAlignmentCandidates(
         if (config.min_mission_distance_m > 0.0 &&
             skip_timestamps_earlier_than_ns ==
                 std::numeric_limits<int64_t>::max()) {
-          // LOG(WARNING) << (p_M_I_first_vertex - vertex.get_p_M_I()).norm();
-          // if (vertex.get_p_M_I().norm() >
           if ((p_M_I_first_vertex - vertex.get_p_M_I()).norm() >
               config.min_mission_distance_m) {
             skip_timestamps_earlier_than_ns = vertex_timestamp_ns;
