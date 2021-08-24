@@ -468,9 +468,22 @@ void MaplabServerNode::addIntermediateMapProcesses() {
 
         const size_t kSubmapLoadingExclusivityGroup =
             aslam::ThreadPool::kGroupdIdNonExclusiveTask;
-
+        {
+          std::lock_guard<std::mutex> status_lock(
+              running_intermediate_process_mutex_);
+          running_intermediate_process_[intermediate_process.map_hash] =
+              "queued";
+        }
         intermediate_thread_pool_.enqueueOrdered(
             kSubmapLoadingExclusivityGroup, [&intermediate_process, this]() {
+              std::lock_guard<std::mutex> intermediate_process_lock(
+                  intermediate_process.mutex);
+              {
+                std::lock_guard<std::mutex> status_lock(
+                    running_intermediate_process_mutex_);
+                running_intermediate_process_[intermediate_process.map_hash] =
+                    "waiting for submap processes";
+              }
               bool submaps_processed = false;
               while (!submaps_processed) {
                 submaps_processed = true;
@@ -485,7 +498,12 @@ void MaplabServerNode::addIntermediateMapProcesses() {
               }
               runIntermediateProcessing(&intermediate_process);
               intermediate_process.is_processed = true;
-
+              {
+                std::lock_guard<std::mutex> status_lock(
+                    running_intermediate_process_mutex_);
+                running_intermediate_process_[intermediate_process.map_hash] =
+                    "ready to merge";
+              }
               VLOG(3) << "[MaplabServerNode] SubmapProcessing - finished "
                          "processing "
                          "intermediate map with key '"
@@ -1422,6 +1440,12 @@ bool MaplabServerNode::appendAvailableSubmaps() {
     for (const auto& merged_intermediate_key : merged_intermediate_keys) {
       if (robot_intermediate_processing_queue.front().intermediate_map_key ==
           merged_intermediate_key) {
+        {
+          std::lock_guard<std::mutex> status_lock(
+              running_intermediate_process_mutex_);
+          running_intermediate_process_.erase(
+              robot_intermediate_processing_queue.front().map_hash);
+        }
         robot_intermediate_processing_queue.pop_front();
       } else {
         break;
@@ -1527,7 +1551,25 @@ void MaplabServerNode::printAndPublishServerStatus() {
          << " - process: " << comm.second << "\n";
     }
   }
-
+  ss << "================================================================"
+     << "==\n";
+  ss << " - Intermediate map threads: ";
+  {
+    std::lock_guard<std::mutex> status_lock(
+        running_intermediate_process_mutex_);
+    if (running_intermediate_process_.size() > 0) {
+      ss << "\n";
+      for (const std::pair<const size_t, std::string>& comm :
+           running_intermediate_process_) {
+        ss << "   - submap " << std::to_string(comm.first)
+           << " - process: " << comm.second << "\n";
+      }
+    } else {
+      ss << "no\n";
+    }
+  }
+  ss << "================================================================"
+     << "==\n";
   ss << " - Active merging thread: ";
   if (merging_thread_busy_.load()) {
     ss << "yes\n";
@@ -1832,6 +1874,11 @@ void MaplabServerNode::runIntermediateProcessing(
     submap_process->last_submap_vertices.push_back(
         map->getLastVertexIdOfMission(submap_mission_id));
   }
+  {
+    std::lock_guard<std::mutex> status_lock(
+        running_intermediate_process_mutex_);
+    running_intermediate_process_[submap_process->map_hash] = "Submap merging";
+  }
   for (size_t idx = 1u; idx < submap_process->included_submap_keys.size();
        ++idx) {
     CHECK(map_manager_.mergeSubmapIntoBaseMap(
@@ -1853,11 +1900,12 @@ void MaplabServerNode::runIntermediateProcessing(
   if (FLAGS_maplab_server_enable_visual_loop_closure) {
     const vi_map::MissionIdSet mission_ids(
         missions_to_process.begin(), missions_to_process.end());
-    // {
-    //   std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-    //   running_submap_process_[submap_process->map_hash] = "visual loop
-    //   closure";
-    // }
+    {
+      std::lock_guard<std::mutex> status_lock(
+          running_intermediate_process_mutex_);
+      running_intermediate_process_[submap_process->map_hash] =
+          "visual loop closure";
+    }
     vi_map::MissionIdSet::const_iterator mission_ids_end = mission_ids.cend();
     for (vi_map::MissionIdSet::const_iterator it = mission_ids.cbegin();
          it != mission_ids_end; ++it) {
@@ -1880,11 +1928,12 @@ void MaplabServerNode::runIntermediateProcessing(
   // constraints. These are added as loop closures between vertices.
 #if __GNUC__ > 5
   if (FLAGS_maplab_server_enable_lidar_loop_closure) {
-    // {
-    //   std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-    //   running_submap_process_[submap_process->map_hash] = "lidar loop
-    //   closure";
-    // }
+    {
+      std::lock_guard<std::mutex> status_lock(
+          running_intermediate_process_mutex_);
+      running_intermediate_process_[submap_process->map_hash] =
+          "lidar loop closure";
+    }
     bool perform_llc = true;
     if (FLAGS_maplab_server_min_distance_m_before_llc > 0.0) {
       perform_llc = map.get()->isMaxDistanceLargerThan(
@@ -1903,10 +1952,11 @@ void MaplabServerNode::runIntermediateProcessing(
   // Submap Optimization
   //////////////////////
   {
-    // {
-    //   std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-    //   running_submap_process_[submap_process->map_hash] = "optimization";
-    // }
+    {
+      std::lock_guard<std::mutex> status_lock(
+          running_intermediate_process_mutex_);
+      running_intermediate_process_[submap_process->map_hash] = "optimization";
+    }
     const vi_map::MissionIdSet missions_to_optimize(
         missions_to_process.begin(), missions_to_process.end());
     // We only want to get these once, such that if the gflags get modified

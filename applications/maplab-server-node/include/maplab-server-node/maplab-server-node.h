@@ -248,6 +248,8 @@ class MaplabServerNode final {
   // Accessed by submap and status threads.
   std::mutex running_submap_process_mutex_;
   std::map<size_t, std::string> running_submap_process_;
+  std::mutex running_intermediate_process_mutex_;
+  std::map<size_t, std::string> running_intermediate_process_;
 
   // Merging thread status variables
   // Accessed by merging and status thread.
