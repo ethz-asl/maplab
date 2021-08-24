@@ -2900,7 +2900,9 @@ bool VIMap::mergeAllSubmapsFromMapWithoutResources(
 
   if (first_submap_vertex_id != last_base_vertex_id) {
     LOG(ERROR) << "The first vertex of the submap and the last vertex of the "
-                  "base map are not the same!";
+                  "base map are not the same! Last base: "
+               << last_base_vertex_id
+               << " First sub: " << first_submap_vertex_id;
     // TODO(mfehr): In order to prevent loosing this submap in case we have
     // lost an intermediate submap (so attaching is not possible), we could
     // simply duplicate the submap mission (= gets new ids) and add it as a

@@ -144,9 +144,13 @@ DEFINE_bool(
     maplab_server_clear_at_status_print, true,
     "If true, the terminal output will be cleared at every status print.");
 
+DEFINE_int32(n_submaps_intermediate, 2, "");
+
 namespace maplab {
 MaplabServerNode::MaplabServerNode()
     : submap_loading_thread_pool_(
+          FLAGS_maplab_server_submap_loading_thread_pool_size),
+      intermediate_thread_pool_(
           FLAGS_maplab_server_submap_loading_thread_pool_size),
       plotter_(nullptr),
       shut_down_requested_(false),
@@ -156,6 +160,7 @@ MaplabServerNode::MaplabServerNode()
       optimization_trust_region_radius_(FLAGS_ba_initial_trust_region_radius),
       received_first_submap_(false),
       total_num_merged_submaps_(0u),
+      intermediate_counter_(0u),
       time_of_last_map_backup_s_(0.0),
       is_running_(false),
       update_sparse_graph_(false),
@@ -363,13 +368,19 @@ bool MaplabServerNode::loadAndProcessMissingSubmaps(
       const std::string map_key = robot_name + "_" + std::to_string(map_hash);
 
       // If the submap is already queued for processing we continue.
-      const bool already_included_in_submap_queue =
+      bool already_included_in_submap_queue =
           std::find_if(
-              submap_processing_queue_.cbegin(),
-              submap_processing_queue_.cend(),
+              submap_processing_queue_[robot_name].cbegin(),
+              submap_processing_queue_[robot_name].cend(),
               [&map_key](const SubmapProcess& process) {
-                return process.map_key == map_key;
-              }) != submap_processing_queue_.cend();
+                bool included = false;
+                included |= process.map_key == map_key;
+                included |= std::find(
+                                process.included_submap_keys.begin(),
+                                process.included_submap_keys.end(),
+                                map_key) != process.included_submap_keys.end();
+                return included;
+              }) != submap_processing_queue_[robot_name].cend();
 
       if (already_included_in_submap_queue) {
         continue;
@@ -409,7 +420,81 @@ bool MaplabServerNode::loadAndProcessMissingSubmaps(
       loadAndProcessSubmap(robot_name, submap_path);
     }
   }
+
+  addIntermediateMapProcesses();
+
   return true;
+}
+
+void MaplabServerNode::addIntermediateMapProcesses() {
+  for (auto it = robot_to_mission_id_map_.cbegin();
+       it != robot_to_mission_id_map_.cend(); ++it) {
+    const std::string& robot_name = it->first;
+    const int robot_submap_queue_size =
+        submap_processing_queue_[robot_name].size();
+    for (int idx = 0u; idx < robot_submap_queue_size; ++idx) {
+      SubmapProcess& process = submap_processing_queue_[robot_name][idx];
+      if (std::find(
+              submaps_in_intermediate_.begin(), submaps_in_intermediate_.end(),
+              process.map_key) != submaps_in_intermediate_.end()) {
+        continue;
+      }
+      if (idx < static_cast<int>(robot_submap_queue_size) -
+                    FLAGS_n_submaps_intermediate) {
+        intermediate_processing_queue_[robot_name].emplace_back();
+        SubmapProcess& intermediate_process =
+            intermediate_processing_queue_[robot_name].back();
+        intermediate_process.robot_name = process.robot_name;
+        intermediate_process.is_loaded = true;
+        intermediate_process.intermediate_map_key = process.map_key;
+
+        intermediate_process.map_hash = process.map_hash;
+        intermediate_process.map_key = process.map_key;
+        intermediate_process.is_intermediate_process = true;
+        for (int pro_idx = 0u; pro_idx < FLAGS_n_submaps_intermediate;
+             ++pro_idx) {
+          SubmapProcess& tmp_process =
+              submap_processing_queue_[robot_name][idx + pro_idx];
+          intermediate_process.included_submap_keys.push_back(
+              tmp_process.map_key);
+          intermediate_process.dependend_processes.emplace_back();
+          intermediate_process.dependend_processes.back() = &tmp_process;
+          submaps_in_intermediate_.push_back(tmp_process.map_key);
+        }
+        intermediate_process.is_processed = false;
+        intermediate_process.count = intermediate_counter_.load();
+        ++intermediate_counter_;
+        idx += FLAGS_n_submaps_intermediate;
+
+        const size_t kSubmapLoadingExclusivityGroup =
+            aslam::ThreadPool::kGroupdIdNonExclusiveTask;
+
+        intermediate_thread_pool_.enqueueOrdered(
+            kSubmapLoadingExclusivityGroup, [&intermediate_process, this]() {
+              bool submaps_processed = false;
+              while (!submaps_processed) {
+                submaps_processed = true;
+                for (const auto& submap_process :
+                     intermediate_process.dependend_processes) {
+                  submaps_processed &= submap_process->is_processed;
+                }
+                if (!submaps_processed) {
+                  std::this_thread::sleep_for(
+                      std::chrono::seconds(kSecondsToSleepBetweenAttempts));
+                }
+              }
+              runIntermediateProcessing(&intermediate_process);
+              intermediate_process.is_processed = true;
+
+              VLOG(3) << "[MaplabServerNode] SubmapProcessing - finished "
+                         "processing "
+                         "intermediate map with key '"
+                      << intermediate_process.intermediate_map_key << "'.";
+              return true;
+            });
+      }
+    }
+  }
 }
 
 bool MaplabServerNode::loadAndProcessSubmap(
@@ -426,10 +511,8 @@ bool MaplabServerNode::loadAndProcessSubmap(
 
   VLOG(1) << "[MaplabServerNode] launching SubmapProcessing thread for "
           << "submap at '" << submap_path << "'.";
-
-  submap_processing_queue_.emplace_back();
-
-  SubmapProcess& submap_process = submap_processing_queue_.back();
+  submap_processing_queue_[robot_name].emplace_back();
+  SubmapProcess& submap_process = submap_processing_queue_[robot_name].back();
   submap_process.path = submap_path;
   submap_process.robot_name = robot_name;
   submap_process.map_hash = std::hash<std::string>{}(submap_path);
@@ -441,7 +524,6 @@ bool MaplabServerNode::loadAndProcessSubmap(
   // such that submaps that arrive later can be loaded and processed in
   // parallel.
   const size_t kSubmapLoadingExclusivityGroup =
-      // std::hash<std::string>{}(submap_process.robot_name);
       aslam::ThreadPool::kGroupdIdNonExclusiveTask;
   submap_loading_thread_pool_.enqueueOrdered(
       kSubmapLoadingExclusivityGroup, [&submap_process, this]() {
@@ -475,7 +557,6 @@ bool MaplabServerNode::loadAndProcessSubmap(
         }
         CHECK(map_manager_.loadMapFromFolder(
             submap_process.path, submap_process.map_key));
-
         submap_process.is_loaded = true;
 
         VLOG(3) << "[MaplabServerNode] SubmapProcessing - finished loading "
@@ -509,6 +590,7 @@ bool MaplabServerNode::loadAndProcessSubmap(
       });
 
   VLOG(1) << "[MaplabServerNode] SubmapProcessing - thread launched.";
+
   return true;
 }
 
@@ -1121,133 +1203,243 @@ void MaplabServerNode::saveMapEveryInterval() {
 
 bool MaplabServerNode::appendAvailableSubmaps() {
   bool found_new_submaps = false;
-
   std::lock_guard<std::mutex> lock(submap_processing_queue_mutex_);
-  while (!submap_processing_queue_.empty() && !shut_down_requested_.load()) {
-    SubmapProcess& submap_process = submap_processing_queue_.front();
-
-    // Try to lock the submap_process struct, if we fail this means
-    // something is still processing so we need to stop and try again
-    // later.
-    if (!submap_process.mutex.try_lock()) {
-      break;
-    }
-    // Check if submap has finished loading.
-    if (!submap_process.is_loaded) {
-      // Give up and try again later.
-      submap_process.mutex.unlock();
-      break;
-    }
-
-    // Check if submap has finished processing as well.
-    if (!submap_process.is_processed) {
-      // Give up and try again later.
-      submap_process.mutex.unlock();
-      break;
-    }
-
-    // Check if submap is blacklisted and delete it.
-    CHECK(!submap_process.map_key.empty());
-    CHECK(map_manager_.hasMap(submap_process.map_key));
-    vi_map::MissionId submap_mission_id;
-    {
-      vi_map::VIMapManager::MapReadAccess submap =
-          map_manager_.getMapReadAccess(submap_process.map_key);
-      CHECK_EQ(submap->numMissions(), 1u);
-      submap_mission_id = submap->getIdOfFirstMission();
-    }
-    if (isSubmapBlacklisted(submap_process.map_key)) {
-      LOG(WARNING) << "[MaplabServerNode] MapMerging - Received a new submap "
-                   << "of deleted mission " << submap_mission_id
-                   << ", will discard it.";
-
-      // Delete map from manager.
-      map_manager_.deleteMap(submap_process.map_key);
-
-      // Erase submap processing status.
-      {
-        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-        running_submap_process_.erase(submap_process.map_hash);
-      }
-
-      // Unlock and delete the submap process struct.
-      submap_process.mutex.unlock();
-      submap_processing_queue_.pop_front();
-      continue;
-    }
-
-    VLOG(3) << "[MaplabServerNode] MapMerging - submap with key '"
-            << submap_process.map_key << "' is ready to be merged.";
-
-    // If we don't have a merged map yet, simply rename the submap into
-    // the merged map.
-    {
-      std::lock_guard<std::mutex> merge_status_lock(
-          running_merging_process_mutex_);
-      running_merging_process_ = "merging submap";
-    }
-
-    if (!map_manager_.hasMap(kMergedMapKey)) {
-      VLOG(3) << "[MaplabServerNode] MapMerging - first submap is "
-                 "used to initalize merged map with key '"
-              << kMergedMapKey << "'.";
-      updateRobotInfoBasedOnSubmap(submap_process);
-      map_manager_.renameMap(submap_process.map_key, kMergedMapKey);
-
-      // If enabled, set first mission baseframe to known.
-      if (FLAGS_maplab_server_set_first_robot_map_baseframe_to_known) {
-        vi_map::VIMapManager::MapWriteAccess map =
-            map_manager_.getMapWriteAccess(kMergedMapKey);
-        vi_map::MissionIdList mission_ids;
-        map->getAllMissionIds(&mission_ids);
-        if (mission_ids.size() == 1u) {
-          map->getMissionBaseFrameForMission(mission_ids[0])
-              .set_is_T_G_M_known(true /*set to known*/);
-        } else {
-          LOG(ERROR)
-              << "The first submap does not have exactly one mission, but "
-              << mission_ids.size() << "! Something went wrong!";
-        }
-      }  // namespace maplab
-
-      found_new_submaps = true;
-    } else {
-      LOG(INFO) << "[MaplabServerNode] MapMerging - merge submap '"
-                << submap_process.map_key << "' into "
-                << "merged map with key '" << kMergedMapKey << "'";
-
-      // TODO(mfehr): make this more robust: if merging fails, either
-      // try again later or load as new mission so we don't loose the
-      // data.
-      CHECK(map_manager_.mergeSubmapIntoBaseMap(
-          kMergedMapKey, submap_process.map_key));
-
-      updateRobotInfoBasedOnSubmap(submap_process);
-      // Remove submap.
-      map_manager_.deleteMap(submap_process.map_key);
-    }
-
-    {
-      std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
-      RobotMissionInformation& robot_info =
-          robot_to_mission_id_map_[submap_process.robot_name];
-      robot_info.addSubmapKey(submap_mission_id, submap_process.map_key);
-    }
-
-    CHECK(map_manager_.hasMap(kMergedMapKey));
-    CHECK(!map_manager_.hasMap(submap_process.map_key));
-
-    submap_process.is_merged = true;
-
-    // Unlock the submap process struct.
-    submap_process.mutex.unlock();
-
-    // Remove the struct from the list of processed submaps.
-    submap_processing_queue_.pop_front();
-
-    ++total_num_merged_submaps_;
+  std::vector<std::string> robot_names;
+  for (auto it = submap_processing_queue_.begin();
+       it != submap_processing_queue_.end(); ++it) {
+    robot_names.push_back(it->first);
   }
 
+  for (const auto& robot_name : robot_names) {
+    std::vector<std::string> submap_keys_in_intermediate;
+    auto& robot_submap_processing_queue = submap_processing_queue_[robot_name];
+    auto& robot_intermediate_processing_queue =
+        intermediate_processing_queue_[robot_name];
+    std::deque<SubmapProcess*> submaps_to_merge;
+
+    for (auto process = robot_intermediate_processing_queue.begin();
+         process != robot_intermediate_processing_queue.end(); ++process) {
+      submap_keys_in_intermediate.insert(
+          submap_keys_in_intermediate.end(),
+          process->included_submap_keys.cbegin(),
+          process->included_submap_keys.cend());
+      submaps_to_merge.emplace_back();
+      submaps_to_merge.back() = &(*process);
+    }
+
+    for (auto process = robot_submap_processing_queue.begin();
+         process != robot_submap_processing_queue.end(); ++process) {
+      if (std::find(
+              submap_keys_in_intermediate.begin(),
+              submap_keys_in_intermediate.end(),
+              process->map_key) == submap_keys_in_intermediate.end()) {
+          submaps_to_merge.emplace_back();
+          submaps_to_merge.back() = &(*process);
+      }
+    }
+
+    std::vector<std::string> merged_submap_keys;
+    std::vector<std::string> merged_intermediate_keys;
+    while (!submaps_to_merge.empty() && !shut_down_requested_.load()) {
+      SubmapProcess* submap_process = submaps_to_merge.front();
+      // Try to lock the submap_process struct, if we fail this means
+      // something is still processing so we need to stop and try again
+      // later.
+      if (!submap_process->mutex.try_lock()) {
+        break;
+      }
+      // Check if submap has finished loading.
+      if (!submap_process->is_loaded) {
+        // Give up and try again later.
+        submap_process->mutex.unlock();
+        break;
+      }
+
+      // Check if submap has finished processing as well.
+      if (!submap_process->is_processed) {
+        // Give up and try again later.
+        submap_process->mutex.unlock();
+        break;
+      }
+
+      // Check if submap is blacklisted and delete it.
+      CHECK(!submap_process->map_key.empty());
+      CHECK(map_manager_.hasMap(submap_process->map_key));
+      vi_map::MissionId submap_mission_id;
+      {
+        vi_map::VIMapManager::MapReadAccess submap =
+            map_manager_.getMapReadAccess(submap_process->map_key);
+        CHECK_EQ(submap->numMissions(), 1u);
+        submap_mission_id = submap->getIdOfFirstMission();
+      }
+      if (isSubmapBlacklisted(submap_process->map_key)) {
+        LOG(WARNING) << "[MaplabServerNode] MapMerging - Received a new submap "
+                     << "of deleted mission " << submap_mission_id
+                     << ", will discard it.";
+
+        // Delete map from manager.
+        map_manager_.deleteMap(submap_process->map_key);
+
+        // Erase submap processing status.
+        {
+          std::lock_guard<std::mutex> status_lock(
+              running_submap_process_mutex_);
+          running_submap_process_.erase(submap_process->map_hash);
+        }
+
+        // Unlock and delete the submap process struct.
+        submap_process->mutex.unlock();
+        robot_submap_processing_queue.pop_front();
+        submaps_to_merge.pop_front();
+        continue;
+      }
+
+      VLOG(3) << "[MaplabServerNode] MapMerging - submap with key '"
+              << submap_process->map_key << "' is ready to be merged.";
+
+      // If we don't have a merged map yet, simply rename the submap into
+      // the merged map.
+      {
+        std::lock_guard<std::mutex> merge_status_lock(
+            running_merging_process_mutex_);
+        running_merging_process_ = "merging submap";
+      }
+      if (!map_manager_.hasMap(kMergedMapKey)) {
+        VLOG(3) << "[MaplabServerNode] MapMerging - first submap is "
+                   "used to initalize merged map with key '"
+                << kMergedMapKey << "'.";
+        updateRobotInfoBasedOnSubmap(*submap_process);
+        LOG(INFO) << "[MaplabServerNode] MapMerging - merge submap '"
+                  << submap_process->map_key << "' into "
+                  << "merged map with key '" << kMergedMapKey << "'";
+        if (submap_process->is_intermediate_process) {
+          map_manager_.renameMap(
+              submap_process->intermediate_map_key, kMergedMapKey);
+          merged_submap_keys.insert(
+              merged_submap_keys.begin(),
+              submap_process->included_submap_keys.begin(),
+              submap_process->included_submap_keys.end());
+          merged_intermediate_keys.push_back(
+              submap_process->intermediate_map_key);
+        } else {
+          map_manager_.renameMap(submap_process->map_key, kMergedMapKey);
+          merged_submap_keys.push_back(submap_process->map_key);
+        }
+
+        // If enabled, set first mission baseframe to known.
+        if (FLAGS_maplab_server_set_first_robot_map_baseframe_to_known) {
+          vi_map::VIMapManager::MapWriteAccess map =
+              map_manager_.getMapWriteAccess(kMergedMapKey);
+          vi_map::MissionIdList mission_ids;
+          map->getAllMissionIds(&mission_ids);
+          if (mission_ids.size() == 1u) {
+            map->getMissionBaseFrameForMission(mission_ids[0])
+                .set_is_T_G_M_known(true /*set to known*/);
+          } else {
+            LOG(ERROR)
+                << "The first submap does not have exactly one mission, but "
+                << mission_ids.size() << "! Something went wrong!";
+          }
+        }  // namespace maplab
+
+        found_new_submaps = true;
+      } else {
+        // TODO(mfehr): make this more robust: if merging fails, either
+        // try again later or load as new mission so we don't loose the
+        // data.
+        if (submap_process->is_intermediate_process) {
+          LOG(INFO) << "[MaplabServerNode] MapMerging - merge intermediate map "
+                    << "'" << submap_process->intermediate_map_key << "' into "
+                    << "merged map with key '" << kMergedMapKey << "'";
+          CHECK(map_manager_.mergeSubmapIntoBaseMap(
+              kMergedMapKey, submap_process->intermediate_map_key));
+        } else {
+          LOG(INFO) << "[MaplabServerNode] MapMerging - merge submap '"
+                    << submap_process->map_key << "' into "
+                    << "merged map with key '" << kMergedMapKey << "'";
+          CHECK(map_manager_.mergeSubmapIntoBaseMap(
+              kMergedMapKey, submap_process->map_key));
+        }
+        if (submap_process->is_intermediate_process) {
+          merged_submap_keys.insert(
+              merged_submap_keys.end(),
+              submap_process->included_submap_keys.begin(),
+              submap_process->included_submap_keys.end());
+          merged_intermediate_keys.push_back(
+              submap_process->intermediate_map_key);
+        } else {
+          merged_submap_keys.push_back(submap_process->map_key);
+        }
+        updateRobotInfoBasedOnSubmap(*submap_process);
+        // Remove submap.
+        if (submap_process->is_intermediate_process) {
+          for (const auto& included_submap_key :
+               submap_process->included_submap_keys) {
+            map_manager_.deleteMap(included_submap_key);
+          }
+        } else {
+          map_manager_.deleteMap(submap_process->map_key);
+        }
+      }
+
+      {
+        std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+        RobotMissionInformation& robot_info =
+            robot_to_mission_id_map_[submap_process->robot_name];
+        if (submap_process->is_intermediate_process) {
+          for (const auto& map_key : submap_process->included_submap_keys) {
+            robot_info.addSubmapKey(submap_mission_id, map_key);
+          }
+        } else {
+          robot_info.addSubmapKey(submap_mission_id, submap_process->map_key);
+        }
+      }
+
+      CHECK(map_manager_.hasMap(kMergedMapKey));
+
+      if (submap_process->is_intermediate_process) {
+        for (const auto& included_submap_key :
+             submap_process->included_submap_keys) {
+          CHECK(!map_manager_.hasMap(included_submap_key));
+        }
+      } else {
+        CHECK(!map_manager_.hasMap(submap_process->map_key));
+      }
+
+      submap_process->is_merged = true;
+
+      // Unlock the submap process struct.
+      submap_process->mutex.unlock();
+
+      // Remove the struct from the list of processed submaps.
+      found_new_submaps = true;
+      total_num_merged_submaps_ +=
+          submap_process->is_intermediate_process
+              ? submap_process->included_submap_keys.size()
+              : 1u;
+      submaps_to_merge.pop_front();
+    }
+    for (const auto& merged_intermediate_key : merged_intermediate_keys) {
+      if (robot_intermediate_processing_queue.front().intermediate_map_key ==
+          merged_intermediate_key) {
+        robot_intermediate_processing_queue.pop_front();
+      } else {
+        break;
+      }
+    }
+
+    while (!robot_submap_processing_queue.empty()) {
+      const std::string& submap_key =
+          robot_submap_processing_queue.front().map_key;
+      if (std::find(
+              merged_submap_keys.begin(), merged_submap_keys.end(),
+              submap_key) != merged_submap_keys.end()) {
+        robot_submap_processing_queue.pop_front();
+      } else {
+        break;
+      }
+    }
+  }
   return found_new_submaps;
 }
 
@@ -1269,43 +1461,55 @@ void MaplabServerNode::printAndPublishServerStatus() {
     if (submap_processing_queue_.empty()) {
       ss << " - No submaps to process or merge...\n";
     } else {
-      for (const SubmapProcess& submap_process : submap_processing_queue_) {
-        ss << " - " << submap_process.robot_name << " - map '"
-           << submap_process.map_key << "'\t: ";
+      for (const auto& robot_submap_processing_queue :
+           submap_processing_queue_) {
+        for (const SubmapProcess& submap_process :
+             robot_submap_processing_queue.second) {
+          if (submap_process.is_intermediate_process) {
+            ss << " - " << submap_process.robot_name << " - map '"
+               << submap_process.map_key << "inter"
+               << "'\t: ";
+          } else {
+            ss << " - " << submap_process.robot_name << " - map '"
+               << submap_process.map_key << "'\t: ";
+          }
 
-        bool was_locked_by_other_process = false;
-        if (submap_process.mutex.try_lock()) {
-          ss << "(unlocked)";
-          was_locked_by_other_process = false;
-        } else {
-          was_locked_by_other_process = true;
-          ss << "(locked)";
-        }
+          bool was_locked_by_other_process = false;
+          if (submap_process.mutex.try_lock()) {
+            ss << "(unlocked)";
+            was_locked_by_other_process = false;
+          } else {
+            was_locked_by_other_process = true;
+            ss << "(locked)";
+          }
 
-        if (submap_process.is_merged && was_locked_by_other_process) {
-          ss << " merged\n";
-        } else if (submap_process.is_merged && !was_locked_by_other_process) {
-          LOG(ERROR) << "[MaplabServerNode] A submap process cannot be "
-                        "merged and "
-                     << "unlocked at the same time! Something is wrong!";
-          ss << " ERROR!\n";
-        } else if (submap_process.is_processed && was_locked_by_other_process) {
-          ss << " merging...\n";
-        } else if (
-            submap_process.is_processed && !was_locked_by_other_process) {
-          ss << " ready to merge\n";
-        } else if (submap_process.is_loaded && was_locked_by_other_process) {
-          ss << " processing...\n";
-        } else if (submap_process.is_loaded && !was_locked_by_other_process) {
-          ss << " queued for processing\n";
-        } else if (!submap_process.is_loaded && was_locked_by_other_process) {
-          ss << " loading...\n";
-        } else if (!submap_process.is_loaded && !was_locked_by_other_process) {
-          ss << " queued for loading\n";
-        }
+          if (submap_process.is_merged && was_locked_by_other_process) {
+            ss << " merged\n";
+          } else if (submap_process.is_merged && !was_locked_by_other_process) {
+            LOG(ERROR) << "[MaplabServerNode] A submap process cannot be "
+                          "merged and "
+                       << "unlocked at the same time! Something is wrong!";
+            ss << " ERROR!\n";
+          } else if (
+              submap_process.is_processed && was_locked_by_other_process) {
+            ss << " merging...\n";
+          } else if (
+              submap_process.is_processed && !was_locked_by_other_process) {
+            ss << " ready to merge\n";
+          } else if (submap_process.is_loaded && was_locked_by_other_process) {
+            ss << " processing...\n";
+          } else if (submap_process.is_loaded && !was_locked_by_other_process) {
+            ss << " queued for processing\n";
+          } else if (!submap_process.is_loaded && was_locked_by_other_process) {
+            ss << " loading...\n";
+          } else if (
+              !submap_process.is_loaded && !was_locked_by_other_process) {
+            ss << " queued for loading\n";
+          }
 
-        if (!was_locked_by_other_process) {
-          submap_process.mutex.unlock();
+          if (!was_locked_by_other_process) {
+            submap_process.mutex.unlock();
+          }
         }
       }
     }
@@ -1379,60 +1583,66 @@ void MaplabServerNode::updateRobotInfoBasedOnSubmap(
     const vi_map::MissionId& submap_mission_id = mission_ids[0];
     CHECK(submap_mission_id.isValid());
 
-    const pose_graph::VertexId last_vertex_id =
-        map->getLastVertexIdOfMission(submap_mission_id);
+    pose_graph::VertexIdList last_submap_vertices;
+    if (submap_process.is_intermediate_process) {
+      last_submap_vertices = submap_process.last_submap_vertices;
+    } else {
+      last_submap_vertices.push_back(
+          map->getLastVertexIdOfMission(submap_mission_id));
+    }
 
-    const vi_map::Vertex& last_vertex = map->getVertex(last_vertex_id);
+    for (const auto& last_vertex_id : last_submap_vertices) {
+      const vi_map::Vertex& last_vertex = map->getVertex(last_vertex_id);
 
-    const aslam::Transformation& T_G_M_submap =
-        map->getMissionBaseFrameForMission(submap_mission_id).get_T_G_M();
-    const aslam::Transformation& T_M_B_last_vertex = last_vertex.get_T_M_I();
-    const int64_t last_vertex_timestamp_ns =
-        last_vertex.getMinTimestampNanoseconds();
+      const aslam::Transformation& T_G_M_submap =
+          map->getMissionBaseFrameForMission(submap_mission_id).get_T_G_M();
+      const aslam::Transformation& T_M_B_last_vertex = last_vertex.get_T_M_I();
+      const int64_t last_vertex_timestamp_ns =
+          last_vertex.getMinTimestampNanoseconds();
 
-    {
       std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+      {
+        if (!submap_process.robot_name.empty()) {
+          RobotMissionInformation& robot_info =
+              robot_to_mission_id_map_[submap_process.robot_name];
 
-      if (!submap_process.robot_name.empty()) {
-        RobotMissionInformation& robot_info =
-            robot_to_mission_id_map_[submap_process.robot_name];
-
-        bool new_robot = false;
-        if (robot_info.mission_ids_with_baseframe_status.empty()) {
-          robot_info.mission_ids_with_baseframe_status.emplace_front(
-              submap_mission_id, false);
-          new_robot = true;
-        } else if (
-            robot_info.mission_ids_with_baseframe_status.front().first !=
-            submap_mission_id) {
-          robot_info.mission_ids_with_baseframe_status.emplace_front(
-              submap_mission_id, false);
-          new_robot = true;
-        }
-        // Reset trust region of optimization if a new robot has started
-        // streaming.
-        if (new_robot) {
-          if (FLAGS_maplab_server_reset_trust_region_radius_if_new_robot) {
-            optimization_trust_region_radius_ =
-                FLAGS_ba_initial_trust_region_radius;
+          bool new_robot = false;
+          if (robot_info.mission_ids_with_baseframe_status.empty()) {
+            robot_info.mission_ids_with_baseframe_status.emplace_front(
+                submap_mission_id, false);
+            new_robot = true;
+          } else if (
+              robot_info.mission_ids_with_baseframe_status.front().first !=
+              submap_mission_id) {
+            robot_info.mission_ids_with_baseframe_status.emplace_front(
+                submap_mission_id, false);
+            new_robot = true;
           }
+          // Reset trust region of optimization if a new robot has started
+          // streaming.
+          if (new_robot) {
+            if (FLAGS_maplab_server_reset_trust_region_radius_if_new_robot) {
+              optimization_trust_region_radius_ =
+                  FLAGS_ba_initial_trust_region_radius;
+            }
+          }
+
+          mission_id_to_robot_map_[submap_mission_id] =
+              submap_process.robot_name;
+
+          robot_info.T_G_M_submaps_input[submap_mission_id]
+                                        [last_vertex_timestamp_ns] =
+              T_G_M_submap;
+          robot_info.T_M_B_submaps_input[submap_mission_id]
+                                        [last_vertex_timestamp_ns] =
+              T_M_B_last_vertex;
+        } else {
+          LOG(ERROR) << "[MaplabServerNode] Submap with key "
+                     << submap_process.map_key
+                     << " does not have a robot name associated with it! "
+                     << "This might make some service calls such as the map "
+                     << "lookup service impossible.";
         }
-
-        mission_id_to_robot_map_[submap_mission_id] = submap_process.robot_name;
-
-        robot_info
-            .T_G_M_submaps_input[submap_mission_id][last_vertex_timestamp_ns] =
-            T_G_M_submap;
-        robot_info
-            .T_M_B_submaps_input[submap_mission_id][last_vertex_timestamp_ns] =
-            T_M_B_last_vertex;
-
-      } else {
-        LOG(ERROR) << "[MaplabServerNode] Submap with key "
-                   << submap_process.map_key
-                   << " does not have a robot name associated with it! "
-                   << "This might make some service calls such as the map "
-                   << "lookup service impossible.";
       }
     }
   } else {
@@ -1607,6 +1817,106 @@ void MaplabServerNode::runSubmapProcessing(
   {
     std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
     running_submap_process_.erase(submap_process.map_hash);
+  }
+}
+
+void MaplabServerNode::runIntermediateProcessing(
+    SubmapProcess* submap_process) {
+  vi_map::MissionId submap_mission_id;
+  {
+    vi_map::VIMapManager::MapReadAccess map =
+        map_manager_.getMapReadAccess(submap_process->included_submap_keys[0]);
+    vi_map::MissionIdList missions_to_process;
+    map->getAllMissionIds(&missions_to_process);
+    submap_mission_id = missions_to_process[0];
+    submap_process->last_submap_vertices.push_back(
+        map->getLastVertexIdOfMission(submap_mission_id));
+  }
+  for (size_t idx = 1u; idx < submap_process->included_submap_keys.size();
+       ++idx) {
+    CHECK(map_manager_.mergeSubmapIntoBaseMap(
+        submap_process->included_submap_keys[0],
+        submap_process->included_submap_keys[idx]));
+    vi_map::VIMapManager::MapReadAccess map =
+        map_manager_.getMapReadAccess(submap_process->included_submap_keys[0]);
+    submap_process->last_submap_vertices.push_back(
+        map->getLastVertexIdOfMission(submap_mission_id));
+  }
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager_.getMapWriteAccess(submap_process->intermediate_map_key);
+  vi_map::MissionIdList missions_to_process;
+  map->getAllMissionIds(&missions_to_process);
+  CHECK_EQ(missions_to_process.size(), 1u);
+
+  // Visual Loop Closure
+  //////////////////////
+  if (FLAGS_maplab_server_enable_visual_loop_closure) {
+    const vi_map::MissionIdSet mission_ids(
+        missions_to_process.begin(), missions_to_process.end());
+    // {
+    //   std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+    //   running_submap_process_[submap_process->map_hash] = "visual loop
+    //   closure";
+    // }
+    vi_map::MissionIdSet::const_iterator mission_ids_end = mission_ids.cend();
+    for (vi_map::MissionIdSet::const_iterator it = mission_ids.cbegin();
+         it != mission_ids_end; ++it) {
+      const vi_map::MissionId& mission_id_A = *it;
+      CHECK(mission_id_A.isValid());
+      loop_detector_node::LoopDetectorNode loop_detector;
+      if (plotter_) {
+        loop_detector.instantiateVisualizer();
+      }
+      loop_detector.addMissionToDatabase(mission_id_A, *map);
+      loop_detector.detectLoopClosuresAndMergeLandmarks(
+          mission_id_A, map.get());
+    }
+  }
+
+  // Lidar local constraints/loop closure
+  ///////////////////////////////////////
+  // Searches for nearby dense map data (e.g. lidar scans) within the submap
+  // mission and uses point cloud registration algorithms to derive relative
+  // constraints. These are added as loop closures between vertices.
+#if __GNUC__ > 5
+  if (FLAGS_maplab_server_enable_lidar_loop_closure) {
+    // {
+    //   std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+    //   running_submap_process_[submap_process->map_hash] = "lidar loop
+    //   closure";
+    // }
+    bool perform_llc = true;
+    if (FLAGS_maplab_server_min_distance_m_before_llc > 0.0) {
+      perform_llc = map.get()->isMaxDistanceLargerThan(
+          submap_mission_id, FLAGS_maplab_server_min_distance_m_before_llc);
+    }
+    if (perform_llc) {
+      const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+      if (!dense_mapping::addDenseMappingConstraintsToMap(
+              config, missions_to_process, map.get())) {
+        LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                   << "encountered an error!";
+      }
+    }
+  }
+#endif
+  // Submap Optimization
+  //////////////////////
+  {
+    // {
+    //   std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+    //   running_submap_process_[submap_process->map_hash] = "optimization";
+    // }
+    const vi_map::MissionIdSet missions_to_optimize(
+        missions_to_process.begin(), missions_to_process.end());
+    // We only want to get these once, such that if the gflags get modified
+    // later the optimization settings for the submaps remain the same.
+    map_optimization::ViProblemOptions options =
+        map_optimization::ViProblemOptions::initFromGFlags();
+    map_optimization::VIMapOptimizer optimizer(
+        nullptr /*no plotter for optimization*/,
+        false /*signal handler enabled*/);
+    optimizer.optimize(options, missions_to_optimize, map.get());
   }
 }
 
