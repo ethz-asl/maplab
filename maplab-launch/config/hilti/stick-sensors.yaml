@@ -16,7 +16,7 @@ sensors:
   - id:                                    bbf123479caf7592b35518478a2fe08d
     sensor_type:                           LIDAR
     description:                           "Lidarmace - Ouster OS0"
-    topic:                                 /os_sensor/os1_lidar
+    topic:                                 /os_cloud_node/points
 
   - id:                                    acbb23479caf7592b35518478a2fe08f
     sensor_type:                           ODOMETRY_6DOF
@@ -55,7 +55,7 @@ sensors:
                 - -0.0041727433
                 - 0.0030288415
                 - -0.0012784168
-        T_B_C:
+        T_C_B:
           rows:                            4
           cols:                            4
           data:
@@ -91,7 +91,7 @@ sensors:
                 - 0.0160363324
                 - -0.0170339468
                 - 0.0050095489
-        T_B_C:
+        T_C_B:
           rows:                            4
           cols:                            4
           data:
@@ -128,7 +128,7 @@ sensors:
                 - -0.0023244164
                 - -0.0005553017
                 - 0.0002238156
-        T_B_C:
+        T_C_B:
           rows:                            4
           cols:                            4
           data:
@@ -167,7 +167,7 @@ sensors:
                 - 0.000366189
                 - -0.0008241712
                 - -0.0002216933
-        T_B_C:
+        T_C_B:
           rows:                            4
           cols:                            4
           data:
@@ -203,7 +203,7 @@ sensors:
                 - 0.0010964136
                 - -0.0027765896
                 - 0.0006435363
-        T_B_C:
+        T_C_B:
           rows:                            4
           cols:                            4
           data:
