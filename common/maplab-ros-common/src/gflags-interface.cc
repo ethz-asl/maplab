@@ -61,7 +61,7 @@ GflagsParser::GflagsParser(const char* program_name)
     : program_name_(program_name) {}
 
 bool GflagsParser::parseFromRosParams(const ros::NodeHandle& nh_private) const {
-  return ros_common::parseGflagsFromRosParams(program_name_, nh_private);
+  return parseGflagsFromRosParams(program_name_, nh_private);
 }
 
 }  // namespace ros_common

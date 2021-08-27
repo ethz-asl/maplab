@@ -136,6 +136,11 @@ DEFINE_int32(
     "If enabled, the global LiDAR LC search will be performed every nth map "
     "merging iterations.");
 
+DEFINE_int32(
+    maplab_server_perform_global_visual_lc_every_nth, -1,
+    "If enabled, the global visual loop closure search will be performed every "
+    "nth map merging iterations.");
+
 DEFINE_string(
     maplab_server_initial_map_path, "",
     "If not empty, the server will be initialized with the map at this path.");
@@ -838,48 +843,58 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   // reprojection error of the landmarks. This is safer, more accurate, but
   // also weaker, and will likely not close very large loops.
   if (FLAGS_maplab_server_enable_visual_loop_closure) {
-    vi_map::VIMapManager::MapWriteAccess map =
-        map_manager_.getMapWriteAccess(kMergedMapKey);
-    vi_map::MissionIdList mission_ids;
-    map->getAllMissionIds(&mission_ids);
-
-    {
-      std::lock_guard<std::mutex> merge_status_lock(
-          running_merging_process_mutex_);
-      running_merging_process_ = "visual loop closure";
+    bool perform_loop_closure = true;
+    if (FLAGS_maplab_server_perform_global_visual_lc_every_nth > 0) {
+      const uint32_t n_processing =
+          num_full_map_merging_processings %
+          FLAGS_maplab_server_perform_global_visual_lc_every_nth;
+      perform_loop_closure = n_processing == 0;
     }
-    vi_map::MissionIdList::const_iterator mission_ids_end = mission_ids.cend();
-    for (vi_map::MissionIdList::const_iterator it = mission_ids.cbegin();
-         it != mission_ids_end; ++it) {
-      const vi_map::MissionId& mission_id_A = *it;
+    if (perform_loop_closure) {
+      vi_map::VIMapManager::MapWriteAccess map =
+          map_manager_.getMapWriteAccess(kMergedMapKey);
+      vi_map::MissionIdList mission_ids;
+      map->getAllMissionIds(&mission_ids);
 
-      const bool baseframe_A_is_known =
-          map->getMissionBaseFrameForMission(mission_id_A).is_T_G_M_known();
-
-      CHECK(mission_id_A.isValid());
-      loop_detector_node::LoopDetectorNode loop_detector;
-      if (plotter_) {
-        loop_detector.instantiateVisualizer();
+      {
+        std::lock_guard<std::mutex> merge_status_lock(
+            running_merging_process_mutex_);
+        running_merging_process_ = "visual loop closure";
       }
-      loop_detector.addMissionToDatabase(mission_id_A, *map);
-      for (vi_map::MissionIdList::const_iterator jt = it; jt != mission_ids_end;
-           ++jt) {
-        const vi_map::MissionId& mission_id_B = *jt;
+      vi_map::MissionIdList::const_iterator mission_ids_end =
+          mission_ids.cend();
+      for (vi_map::MissionIdList::const_iterator it = mission_ids.cbegin();
+           it != mission_ids_end; ++it) {
+        const vi_map::MissionId& mission_id_A = *it;
 
-        const bool baseframe_B_is_known =
-            map->getMissionBaseFrameForMission(mission_id_B).is_T_G_M_known();
+        const bool baseframe_A_is_known =
+            map->getMissionBaseFrameForMission(mission_id_A).is_T_G_M_known();
 
-        // Don't merge landmarks across missions unless their baseframe is
-        // already known. Leave the alignment to the map anchoring first.
-        // Otherwise the loop closure will deform the map and rigid baseframe
-        // alignment is not possible anymore.
-        if (mission_id_A != mission_id_B) {
-          if (!(baseframe_A_is_known && baseframe_B_is_known)) {
-            continue;
-          }
+        CHECK(mission_id_A.isValid());
+        loop_detector_node::LoopDetectorNode loop_detector;
+        if (plotter_) {
+          loop_detector.instantiateVisualizer();
         }
+        loop_detector.addMissionToDatabase(mission_id_A, *map);
+        for (vi_map::MissionIdList::const_iterator jt = it;
+             jt != mission_ids_end; ++jt) {
+          const vi_map::MissionId& mission_id_B = *jt;
 
-        loop_detector.detectLoopClosuresAndMergeLandmarks(*jt, map.get());
+          const bool baseframe_B_is_known =
+              map->getMissionBaseFrameForMission(mission_id_B).is_T_G_M_known();
+
+          // Don't merge landmarks across missions unless their baseframe is
+          // already known. Leave the alignment to the map anchoring first.
+          // Otherwise the loop closure will deform the map and rigid baseframe
+          // alignment is not possible anymore.
+          if (mission_id_A != mission_id_B) {
+            if (!(baseframe_A_is_known && baseframe_B_is_known)) {
+              continue;
+            }
+          }
+
+          loop_detector.detectLoopClosuresAndMergeLandmarks(*jt, map.get());
+        }
       }
     }
   }
