@@ -49,6 +49,6 @@
 		<param name="map_save_every_n_sec" value="0"/>
 		<param name="map_run_keyframing_when_saving" value="false"/>
 		<param name="image_apply_clahe_histogram_equalization" value="false"/>
-		<param name="map_output_folder" value="/tmp/lidarmace/submaps/"/>
+		<param name="map_output_folder" value="/tmp/hiltistick/submaps/"/>
 	</node>
 </launch>
