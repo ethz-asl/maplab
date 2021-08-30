@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-  <node pkg="rosbag" type="play" name="rosbag" args="/home/berlukas/Documents/data/hilti/lab/LAB_Survey_1.bag -q -d 2 -s 0 -r 0.5"/>
+  <node pkg="rosbag" type="play" name="rosbag" args="/media/berlukas/Data/data/datasets/Hilti/Lab/LAB_Survey_2.bag -q -d 2 -s 0 -r 0.4"/>
 
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 
