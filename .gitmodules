@@ -105,4 +105,4 @@
 	url = git@github.com:ethz-asl/libpointmatcher.git
 [submodule "dependencies/internal/maplab_features"]
 	path = dependencies/internal/maplab_features
-	url = https://github.com/ethz-asl/maplab_features
+	url = git@github.com:ethz-asl/maplab_features.git
