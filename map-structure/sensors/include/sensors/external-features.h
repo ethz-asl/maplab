@@ -16,7 +16,7 @@ enum class FeatureType : int {
   kInvalid = -1,
   kBinary = 0,    // Describes the standard maplab binary features which
                   // are either BRISK / FREAK depending on the flag
-  kSIFT = 1
+  kR2D2 = 1
 };
 
 std::string FeatureTypeToString(FeatureType feature_type);

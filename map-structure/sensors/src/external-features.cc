@@ -13,14 +13,14 @@ constexpr char kYamlFieldNameHasTrackIds[] = "has_track_ids";
 constexpr char kYamlFieldNameFeatureType[] = "feature_type";
 
 constexpr const char* kBinaryIdentifier = "Binary";
-constexpr const char* kSIFTIdentifier = "SIFT";
+constexpr const char* kR2D2Identifier = "R2D2";
 
 std::string FeatureTypeToString(FeatureType feature_type) {
   CHECK(feature_type != FeatureType::kInvalid);
   if (feature_type == FeatureType::kBinary) {
     return std::string(kBinaryIdentifier);
-  } else if (feature_type == FeatureType::kSIFT) {
-    return std::string(kSIFTIdentifier);
+  } else if (feature_type == FeatureType::kR2D2) {
+    return std::string(kR2D2Identifier);
   }
   LOG(FATAL) << "Unknown feature type!";
 }
@@ -34,8 +34,8 @@ FeatureType StringToFeatureType(const std::string& feature_string) {
 
   if (equals(feature_c_string, kBinaryIdentifier)) {
     return FeatureType::kBinary;
-  } else if (equals(feature_c_string, kSIFTIdentifier)) {
-    return FeatureType::kSIFT;
+  } else if (equals(feature_c_string, kR2D2Identifier)) {
+    return FeatureType::kR2D2;
   }
   LOG(FATAL) << "Unknown feature type!";
 }
