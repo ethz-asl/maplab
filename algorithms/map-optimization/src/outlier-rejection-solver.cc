@@ -143,7 +143,7 @@ ceres::TerminationType solveStep(
   CHECK_NOTNULL(callback);
   // 'result' can be a nullptr.
 
-  timing::TimerImpl timer_solve_inner("BA: Solve Interal");
+  timing::TimerImpl timer_solve_local("BA: Solve Local");
   ceres::Problem problem(ceres_error_terms::getDefaultProblemOptions());
   ceres_error_terms::buildCeresProblemFromProblemInformation(
       optimization_problem->getProblemInformationMutable(), &problem);
@@ -159,33 +159,28 @@ ceres::TerminationType solveStep(
 
   // Disable the default Ceres output.
   local_options.minimizer_progress_to_stdout = false;
+  local_options.max_num_iterations = num_iters;
   local_options.update_state_every_iteration = true;
-  if (max_solver_time_s) {
-    double remaining_time = *max_solver_time_s;
-    local_options.max_num_iterations = 1;
-    for (int idx = 0; idx < num_iters; ++idx) {
-      ceres::Solver::Summary summary;
-      ceres::Solve(local_options, &problem, &summary);
-      if (result != nullptr) {
-        result->solver_summaries.emplace_back(summary);
-      }
-      remaining_time -= timer_solve_inner.Stop();
-      if (remaining_time < 0 || idx == num_iters - 1) {
-        return summary.termination_type;
-      }
-      timer_solve_inner.Start();
-    }
-  } else {
-    local_options.max_num_iterations = num_iters;
-    ceres::Solver::Summary summary;
-    ceres::Solve(local_options, &problem, &summary);
 
-    // Save the solver summary of each iteration.
-    if (result != nullptr) {
-      result->solver_summaries.emplace_back(summary);
+  ceres::Solver::Summary summary;
+  if (max_solver_time_s) {
+    const double remaining_time_s =
+        *max_solver_time_s - timer_solve_local.Stop();
+    if (remaining_time_s > 0.) {
+      local_options.max_solver_time_in_seconds = remaining_time_s;
+      // Do at least one interation.
+    } else {
+      local_options.max_num_iterations = 1;
     }
-    return summary.termination_type;
   }
+
+  ceres::Solve(local_options, &problem, &summary);
+
+  // Save the solver summary of each iteration.
+  if (result != nullptr) {
+    result->solver_summaries.emplace_back(summary);
+  }
+  return summary.termination_type;
 }
 
 void rejectOutliers(
