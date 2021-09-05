@@ -138,6 +138,9 @@ static void filter_candidates_randomly(
 
   // Create a vector of candidate iterators.
   const std::size_t n_candidates = candidate_pairs_ptr->size();
+  if (n_candidates < n_remaining_candidates_to_keep) {
+    return;
+  }
   std::vector<AlignmentCandidatePairs::iterator> v(n_candidates);
   std::iota(v.begin(), v.end(), candidate_pairs_ptr->begin());
 
