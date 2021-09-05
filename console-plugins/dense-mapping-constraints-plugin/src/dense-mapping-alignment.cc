@@ -451,6 +451,11 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
     AlignmentCandidatePairs* aligned_candidate_pairs) {
   CHECK_NOTNULL(aligned_candidate_pairs);
 
+  if (candidate_pairs.empty()) {
+    VLOG(1) << "Incremental submap candidates are empty.";
+    return false;
+  }
+
   const size_t num_pairs = candidate_pairs.size();
 
   common::ProgressBar progress_bar(num_pairs);
@@ -480,28 +485,6 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
     }
   }
 
-  std::unique_ptr<vi_map::DenseSubmap> dense_submap;
-
-  // Filtered aggregated map for the incremental alignment.
-  resources::PointCloud aggregated_filtered_map;
-  // Aggregated map of all points using the transfomration of the incremental
-  // alignment.
-  resources::PointCloud aggregated_map;
-
-  // The first successful candidate is used as the frame of the incremental map.
-  AlignmentCandidate map_base_candidate;
-  // The last candidate that was successfully added to the incremental map.
-  AlignmentCandidate last_successful_candidate;
-  // The transformation of the last successful candidate point cloud
-  // to the map
-  aslam::Transformation T_map_last_successful_candidate;
-
-  // Do the work.
-  backend::ResourceType current_resource_type = backend::ResourceType::kCount;
-  std::vector<pose_graph::VertexId> ids_in_submap;
-
-  // Move iterator to the start idx, since for an unordered_map we cannot
-  // access it by index directly.
   std::vector<AlignmentCandidatePair> temporally_ordered_pairs;
   for (auto it = candidate_pairs.cbegin(); it != candidate_pairs.cend(); ++it) {
     temporally_ordered_pairs.push_back(*it);
@@ -514,190 +497,236 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
         return a.candidate_A.timestamp_ns < b.candidate_A.timestamp_ns;
       });
 
-  for (auto it = temporally_ordered_pairs.cbegin();
-       it != temporally_ordered_pairs.cend(); ++it) {
-    const AlignmentCandidatePair& pair = *it;
-    const backend::ResourceType resource_type_A =
-        pair.candidate_A.resource_type;
-    const backend::ResourceType resource_type_B =
-        pair.candidate_B.resource_type;
-
-    if (resource_type_A != resource_type_B) {
-      LOG(FATAL)
-          << "Alignment of different resource types is not supported, "
-             "type A: '"
-          << backend::ResourceTypeNames[static_cast<int>(resource_type_A)]
-          << "(" << static_cast<int>(resource_type_A) << ")' vs. type B: '"
-          << backend::ResourceTypeNames[static_cast<int>(resource_type_B)]
-          << "(" << static_cast<int>(resource_type_B) << ")'.";
+  std::vector<std::vector<AlignmentCandidatePair>> candidates_per_dense_submap(
+      1);
+  size_t dense_submap_counter = 0u;
+  size_t dense_submap_start_time_ns =
+      temporally_ordered_pairs[0].candidate_A.timestamp_ns;
+  for (const auto& pair : temporally_ordered_pairs) {
+    if (pair.candidate_A.timestamp_ns - dense_submap_start_time_ns >
+        kSecondsToNanoSeconds *
+            FLAGS_dm_candidate_alignment_incremental_submap_length_s) {
+      candidates_per_dense_submap.emplace_back();
+      dense_submap_counter += 1;
+      dense_submap_start_time_ns = pair.candidate_A.timestamp_ns;
     }
+    candidates_per_dense_submap[dense_submap_counter].push_back(pair);
+  }
 
-    if (current_resource_type != resource_type_A) {
-      current_resource_type = resource_type_A;
-    }
+  bool added_dense_incremental_submaps = false;
+  for (const auto& submap_candidates : candidates_per_dense_submap) {
+    std::unique_ptr<vi_map::DenseSubmap> dense_submap;
 
-    // Consecutive pair from candidate search.
-    AlignmentCandidatePair submap_pair;
-    // Pair between current candidate and last successful candidate.
-    AlignmentCandidatePair candidate_to_last_successful_pair;
-    // Pointcloud of current candidate.
-    resources::PointCloud candidate_resource_B;
-    bool aligned_without_error = false;
+    // Filtered aggregated map for the incremental alignment.
+    resources::PointCloud aggregated_filtered_map;
+    // Aggregated map of all points using the transfomration of the incremental
+    // alignment.
+    resources::PointCloud aggregated_map;
 
-    // Launch a resource type specific alignment.
-    switch (current_resource_type) {
-      case backend::ResourceType::kPointCloudXYZ:
-      // Fall through intended.
-      case backend::ResourceType::kPointCloudXYZI:
-      // Fall through intended.
-      case backend::ResourceType::kPointCloudXYZIRT:
-      // Fall through intended.
-      case backend::ResourceType::kPointCloudXYZRGBN:
-        try {
-          // Extract depth resource.
-          resources::PointCloud candidate_resource_A;
-          if (aggregated_filtered_map.empty()) {
+    // The first successful candidate is used as the frame of the incremental
+    // map.
+    AlignmentCandidate map_base_candidate;
+    // The last candidate that was successfully added to the incremental map.
+    AlignmentCandidate last_successful_candidate;
+    // The transformation of the last successful candidate point cloud
+    // to the map
+    aslam::Transformation T_map_last_successful_candidate;
+
+    // Do the work.
+    backend::ResourceType current_resource_type = backend::ResourceType::kCount;
+    std::vector<pose_graph::VertexId> ids_in_submap;
+
+    for (auto it = submap_candidates.cbegin(); it != submap_candidates.cend();
+         ++it) {
+      const AlignmentCandidatePair& pair = *it;
+      const backend::ResourceType resource_type_A =
+          pair.candidate_A.resource_type;
+      const backend::ResourceType resource_type_B =
+          pair.candidate_B.resource_type;
+
+      if (resource_type_A != resource_type_B) {
+        LOG(FATAL)
+            << "Alignment of different resource types is not supported, "
+               "type A: '"
+            << backend::ResourceTypeNames[static_cast<int>(resource_type_A)]
+            << "(" << static_cast<int>(resource_type_A) << ")' vs. type B: '"
+            << backend::ResourceTypeNames[static_cast<int>(resource_type_B)]
+            << "(" << static_cast<int>(resource_type_B) << ")'.";
+      }
+
+      if (current_resource_type != resource_type_A) {
+        current_resource_type = resource_type_A;
+      }
+
+      // Consecutive pair from candidate search.
+      AlignmentCandidatePair submap_pair;
+      // Pair between current candidate and last successful candidate.
+      AlignmentCandidatePair candidate_to_last_successful_pair;
+      // Pointcloud of current candidate.
+      resources::PointCloud candidate_resource_B;
+      bool aligned_without_error = false;
+
+      // Launch a resource type specific alignment.
+      switch (current_resource_type) {
+        case backend::ResourceType::kPointCloudXYZ:
+        // Fall through intended.
+        case backend::ResourceType::kPointCloudXYZI:
+        // Fall through intended.
+        case backend::ResourceType::kPointCloudXYZIRT:
+        // Fall through intended.
+        case backend::ResourceType::kPointCloudXYZRGBN:
+          try {
+            // Extract depth resource.
+            resources::PointCloud candidate_resource_A;
+            if (aggregated_filtered_map.empty()) {
+              if (!retrieveResourceForCandidate(
+                      pair.candidate_A, *vi_map_ptr, &candidate_resource_A)) {
+                LOG(ERROR) << "Unable to retrieve resource for candidate A.";
+                continue;
+              }
+              dense_submap.reset(new vi_map::DenseSubmap(
+                  pair.candidate_A.mission_id, pair.candidate_A.sensor_id));
+              dense_submap->addTransformationToSubmap(
+                  pair.candidate_A.timestamp_ns, aslam::Transformation());
+              aggregated_filtered_map = candidate_resource_A;
+              if (FLAGS_dm_visualize_incremental_submap) {
+                aggregated_map = candidate_resource_A;
+              }
+              map_base_candidate = pair.candidate_A;
+              ids_in_submap.push_back(map_base_candidate.closest_vertex_id);
+              last_successful_candidate = map_base_candidate;
+            }
+
             if (!retrieveResourceForCandidate(
-                    pair.candidate_A, *vi_map_ptr, &candidate_resource_A)) {
-              LOG(ERROR) << "Unable to retrieve resource for candidate A.";
+                    pair.candidate_B, *vi_map_ptr, &candidate_resource_B)) {
+              LOG(ERROR) << "Unable to retrieve resource for candidate B.";
               continue;
             }
-            dense_submap.reset(new vi_map::DenseSubmap(
-                pair.candidate_A.mission_id, pair.candidate_A.sensor_id));
-            dense_submap->addTransformationToSubmap(
-                pair.candidate_A.timestamp_ns, aslam::Transformation());
-            aggregated_filtered_map = candidate_resource_A;
-            if (FLAGS_dm_visualize_incremental_submap) {
-              aggregated_map = candidate_resource_A;
-            }
-            map_base_candidate = pair.candidate_A;
-            ids_in_submap.push_back(map_base_candidate.closest_vertex_id);
-            last_successful_candidate = map_base_candidate;
+
+            // Pair between base candidate and current candidate used for
+            // constraint.
+            AlignmentCandidatePair map_candidate_pair;
+            createCandidatePair(
+                pair.candidate_B, map_base_candidate, &map_candidate_pair);
+
+            // Pair between current and last successful candidate to retrieve
+            // initial transform guess.
+            createCandidatePair(
+                pair.candidate_B, last_successful_candidate,
+                &candidate_to_last_successful_pair);
+
+            map_candidate_pair.T_SB_SA_init =
+                T_map_last_successful_candidate *
+                candidate_to_last_successful_pair.T_SB_SA_init;
+
+            const regbox::RegistrationResult result = aligner->align(
+                aggregated_filtered_map, candidate_resource_B,
+                map_candidate_pair.T_SB_SA_init);
+
+            const aslam::Transformation T_map_candidate_aligned =
+                result.get_T_target_source();
+
+            submap_pair =
+                candidatePairFromRegistrationResult(map_candidate_pair, result);
+
+            // This transform is used to compare against the incremental initial
+            // guess.
+            candidate_to_last_successful_pair.T_SB_SA_final =
+                T_map_last_successful_candidate.inverse() *
+                T_map_candidate_aligned;
+
+            candidate_to_last_successful_pair.success = submap_pair.success;
+            aligned_without_error = submap_pair.success;
+          } catch (const std::exception&) {
+            aligned_without_error = false;
           }
+          break;
+        default:
+          LOG(FATAL) << "Incremental Submap Alignment is not implemented for "
+                     << "type "
+                     << backend::ResourceTypeNames[static_cast<int>(
+                            current_resource_type)];
+          return false;
+      }
 
-          if (!retrieveResourceForCandidate(
-                  pair.candidate_B, *vi_map_ptr, &candidate_resource_B)) {
-            LOG(ERROR) << "Unable to retrieve resource for candidate B.";
-            continue;
-          }
+      // In case there was an error inside the alignment function, we skip
+      // the rest.
+      if (!aligned_without_error) {
+        LOG(WARNING) << "Alignment between Incremental Submap and candidate ("
+                     << aslam::time::timeNanosecondsToString(
+                            pair.candidate_B.timestamp_ns)
+                     << ") encountered and error!";
+        progress_bar.update(++processed_pairs);
+        continue;
+      }
 
-          // Pair between base candidate and current candidate used for
-          // constraint.
-          AlignmentCandidatePair map_candidate_pair;
-          createCandidatePair(
-              pair.candidate_B, map_base_candidate, &map_candidate_pair);
+      // Some simple sanity checks to overrule the success of the alignment if
+      // necessary,
+      if (alignmentDeviatesTooMuchFromInitialGuess(
+              config, candidate_to_last_successful_pair)) {
+        LOG(WARNING)
+            << "Alignment between candidat for time "
+            << candidate_to_last_successful_pair.candidate_A.timestamp_ns
+            << " and candidates for time "
+            << candidate_to_last_successful_pair.candidate_B.timestamp_ns
+            << std::endl;
 
-          // Pair between current and last successful candidate to retrieve
-          // initial transform guess.
-          createCandidatePair(
-              pair.candidate_B, last_successful_candidate,
-              &candidate_to_last_successful_pair);
+        candidate_to_last_successful_pair.success = false;
+        submap_pair.success = false;
+      }
 
-          map_candidate_pair.T_SB_SA_init =
-              T_map_last_successful_candidate *
-              candidate_to_last_successful_pair.T_SB_SA_init;
+      // Only keep pair if successful.
+      if (submap_pair.success) {
+        // Transform candidate cloud into incremental map frame.
+        resources::PointCloud registered_candidate_cloud = candidate_resource_B;
+        registered_candidate_cloud.applyTransformation(
+            submap_pair.T_SB_SA_final);
 
-          const regbox::RegistrationResult result = aligner->align(
-              aggregated_filtered_map, candidate_resource_B,
-              map_candidate_pair.T_SB_SA_init);
-
-          const aslam::Transformation T_map_candidate_aligned =
-              result.get_T_target_source();
-
-          submap_pair =
-              candidatePairFromRegistrationResult(map_candidate_pair, result);
-
-          // This transform is used to compare against the incremental initial
-          // guess.
-          candidate_to_last_successful_pair.T_SB_SA_final =
-              T_map_last_successful_candidate.inverse() *
-              T_map_candidate_aligned;
-
-          candidate_to_last_successful_pair.success = submap_pair.success;
-          aligned_without_error = submap_pair.success;
-        } catch (const std::exception&) {
-          aligned_without_error = false;
+        // We only add a new constraint if no constraint to this candidate
+        // vertex exists yet to avoid multiple constraints between the same
+        // vertices.
+        if (std::find(
+                ids_in_submap.begin(), ids_in_submap.end(),
+                submap_pair.candidate_A.closest_vertex_id) ==
+            ids_in_submap.end()) {
+          ids_in_submap.push_back(submap_pair.candidate_A.closest_vertex_id);
+          aligned_candidate_pairs->insert(submap_pair);
         }
-        break;
-      default:
-        LOG(FATAL) << "Incremental Submap Alignment is not implemented for "
-                   << "type "
-                   << backend::ResourceTypeNames[static_cast<int>(
-                          current_resource_type)];
-        return false;
-    }
 
-    // In case there was an error inside the alignment function, we skip
-    // the rest.
-    if (!aligned_without_error) {
-      LOG(WARNING) << "Alignment between Incremental Submap and candidate ("
-                   << aslam::time::timeNanosecondsToString(
-                          pair.candidate_B.timestamp_ns)
-                   << ") encountered and error!";
+        dense_submap->addTransformationToSubmap(
+            submap_pair.candidate_A.timestamp_ns, submap_pair.T_SB_SA_final);
+        ++successful_alignments;
+        last_successful_candidate = submap_pair.candidate_A;
+        T_map_last_successful_candidate = submap_pair.T_SB_SA_final;
+
+        // Add the new points to the incremental submaps and voxel filter it.
+        addSubmapAndDownsample(
+            registered_candidate_cloud, &aggregated_filtered_map);
+
+        if (FLAGS_dm_visualize_incremental_submap) {
+          aggregated_map.append(registered_candidate_cloud);
+          const std::string kSubMapFrame = "submap";
+          sensor_msgs::PointCloud2 map_points_msg;
+
+          backend::convertPointCloudType(aggregated_map, &map_points_msg);
+          map_points_msg.header.frame_id = kSubMapFrame;
+          visualization::RVizVisualizationSink::publish(
+              "aggregated_points", map_points_msg);
+          sensor_msgs::PointCloud2 odom_points_msg;
+        }
+      }
       progress_bar.update(++processed_pairs);
-      continue;
     }
+    VLOG(1) << "Done.";
 
-    // Some simple sanity checks to overrule the success of the alignment if
-    // necessary,
-    if (alignmentDeviatesTooMuchFromInitialGuess(
-            config, candidate_to_last_successful_pair)) {
-      LOG(WARNING) << "Alignment between candidat for time "
-                   << candidate_to_last_successful_pair.candidate_A.timestamp_ns
-                   << " and candidates for time "
-                   << candidate_to_last_successful_pair.candidate_B.timestamp_ns
-                   << std::endl;
-
-      candidate_to_last_successful_pair.success = false;
-      submap_pair.success = false;
+    if (dense_submap && dense_submap->size() > 2u) {
+      vi_map_ptr->getDenseSubmapManager().addDenseSubmap(*dense_submap);
+      VLOG(1) << "Successfully aligned " << successful_alignments << "/"
+              << num_pairs << " candidates.";
+      added_dense_incremental_submaps = true;
     }
-
-    // Only keep pair if successful.
-    if (submap_pair.success) {
-      // Transform candidate cloud into incremental map frame.
-      resources::PointCloud registered_candidate_cloud = candidate_resource_B;
-      registered_candidate_cloud.applyTransformation(submap_pair.T_SB_SA_final);
-
-      // We only add a new constraint if no constraint to this candidate vertex
-      // exists yet to avoid multiple constraints between the same vertices.
-      if (std::find(
-              ids_in_submap.begin(), ids_in_submap.end(),
-              submap_pair.candidate_A.closest_vertex_id) ==
-          ids_in_submap.end()) {
-        ids_in_submap.push_back(submap_pair.candidate_A.closest_vertex_id);
-        aligned_candidate_pairs->insert(submap_pair);
-      }
-
-      dense_submap->addTransformationToSubmap(
-          submap_pair.candidate_A.timestamp_ns, submap_pair.T_SB_SA_final);
-      ++successful_alignments;
-      last_successful_candidate = submap_pair.candidate_A;
-      T_map_last_successful_candidate = submap_pair.T_SB_SA_final;
-
-      // Add the new points to the incremental submaps and voxel filter it.
-      addSubmapAndDownsample(
-          registered_candidate_cloud, &aggregated_filtered_map);
-
-      if (FLAGS_dm_visualize_incremental_submap) {
-        aggregated_map.append(registered_candidate_cloud);
-        const std::string kSubMapFrame = "submap";
-        sensor_msgs::PointCloud2 map_points_msg;
-
-        backend::convertPointCloudType(aggregated_map, &map_points_msg);
-        map_points_msg.header.frame_id = kSubMapFrame;
-        visualization::RVizVisualizationSink::publish(
-            "aggregated_points", map_points_msg);
-        sensor_msgs::PointCloud2 odom_points_msg;
-      }
-    }
-    progress_bar.update(++processed_pairs);
   }
-  VLOG(1) << "Done.";
-
-  if (dense_submap && dense_submap->size() > 2u) {
-    vi_map_ptr->getDenseSubmapManager().addDenseSubmap(*dense_submap);
-    VLOG(1) << "Successfully aligned " << successful_alignments << "/"
-            << num_pairs << " candidates.";
+  if (added_dense_incremental_submaps) {
     return true;
   } else {
     VLOG(1) << "Incremental submap alignment did not succeed.";

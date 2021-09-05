@@ -125,7 +125,10 @@ DEFINE_bool(
     dm_candidate_alignment_use_incremental_submab_alignment, true,
     "If enabled, an incremental map is built and alignment is performed "
     "against it");
-
+DEFINE_double(
+    dm_candidate_alignment_incremental_submap_length_s, 10,
+    "Maximum duration "
+    "of one incremental dense submap in seconds.");
 // CONSTRAINTS
 DEFINE_double(
     dm_constraint_switch_variable_value, 1.0,

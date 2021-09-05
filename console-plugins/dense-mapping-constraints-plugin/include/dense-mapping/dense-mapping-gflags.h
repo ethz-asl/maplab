@@ -40,7 +40,7 @@ DECLARE_double(dm_candidate_alignment_max_delta_position_to_initial_guess_m);
 DECLARE_double(dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg);
 DECLARE_string(dm_candidate_alignment_type);
 DECLARE_bool(dm_candidate_alignment_use_incremental_submab_alignment);
-
+DECLARE_double(dm_candidate_alignment_incremental_submap_length_s);
 // CONSTRAINTS
 DECLARE_double(dm_constraint_switch_variable_value);
 DECLARE_double(dm_constraint_switch_variable_sigma);
