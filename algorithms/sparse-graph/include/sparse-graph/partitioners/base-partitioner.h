@@ -19,6 +19,10 @@ class BasePartitioner {
       const pose_graph::VertexIdList& vertices, const uint64_t submap_id) = 0;
 
  protected:
+  bool shouldInsertNode(
+      const RepresentativeNodeVector& nodes,
+      const RepresentativeNode& cur_node) const noexcept;
+
   const vi_map::VIMap& map_;
 };
 

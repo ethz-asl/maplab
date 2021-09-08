@@ -17,9 +17,6 @@ class LidarPartitioner : public BasePartitioner {
 
  private:
   void initializeSensorMapping();
-  bool shouldInsertNode(
-      const RepresentativeNodeVector& nodes,
-      const RepresentativeNode& cur_node) const noexcept;
 
   const backend::ResourceType point_cloud_resource_type_;
   typedef std::unordered_map<aslam::SensorId, backend::TemporalResourceIdBuffer>
