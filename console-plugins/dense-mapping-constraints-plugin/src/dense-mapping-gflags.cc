@@ -107,6 +107,10 @@ DEFINE_string(
 DEFINE_double(
     dm_candidate_selection_prioritize_recent_candidates, 0.0,
     "Defines the percentage of fixed recent candidates [0,1].");
+DEFINE_bool(
+    dm_candidate_selection_prioritize_recent_proximity_candidates, false,
+    "If true throws out consecutive candidates from the fixed recent "
+    "candidates.");
 
 // ALIGNMENTS
 DEFINE_double(

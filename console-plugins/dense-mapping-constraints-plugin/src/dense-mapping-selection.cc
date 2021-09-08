@@ -131,8 +131,8 @@ static void filter_candidates_based_on_quality(
 }
 
 static void remove_consecutive_candidates(
-    std::vector<AlignmentCandidatePairs::iterator>* v,
-    const std::size_t n_reserved_candidates) {
+    const std::size_t n_reserved_candidates,
+    std::vector<AlignmentCandidatePairs::iterator>* v) {
   CHECK_NOTNULL(v);
   auto it = v->begin();
   auto it_end = v->begin() + n_reserved_candidates;
@@ -161,6 +161,9 @@ static void filter_candidates_randomly(
     const int64_t newest_rhs_ts_ns = rhs->getNewestTimestamp();
     return newest_lhs_ts_ns > newest_rhs_ts_ns;
   };
+  if (FLAGS_dm_candidate_selection_prioritize_recent_proximity_candidates) {
+    remove_consecutive_candidates(n_reserved_candidates, &v);
+  }
 
   // Sort the iterators to access the most recent ones.
   // Shuffle the remaining iterators.
