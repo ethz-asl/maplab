@@ -130,6 +130,19 @@ static void filter_candidates_based_on_quality(
           << " bad prior constraints.";
 }
 
+static void remove_consecutive_candidates(
+    std::vector<AlignmentCandidatePairs::iterator>* v,
+    const std::size_t n_reserved_candidates) {
+  CHECK_NOTNULL(v);
+  auto it = v->begin();
+  auto it_end = v->begin() + n_reserved_candidates;
+  for (; it != it_end; ++it) {
+    if ((*it)->type == ConstraintType::consecutive) {
+      it = std::rotate(it, it + 1, v->end());
+    }
+  }
+}
+
 static void filter_candidates_randomly(
     const std::size_t n_remaining_candidates_to_keep,
     const std::size_t n_reserved_candidates,
