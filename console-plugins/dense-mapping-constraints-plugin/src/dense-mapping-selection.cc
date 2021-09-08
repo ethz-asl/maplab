@@ -135,10 +135,14 @@ static void remove_consecutive_candidates(
     std::vector<AlignmentCandidatePairs::iterator>* v) {
   CHECK_NOTNULL(v);
   auto it = v->begin();
-  auto it_end = v->begin() + n_reserved_candidates;
-  for (; it != it_end; ++it) {
+  for (std::size_t i = 0u; i < n_reserved_candidates; ++i) {
+    if (it == v->end()) {
+      break;
+    }
     if ((*it)->type == ConstraintType::consecutive) {
-      it = std::rotate(it, it + 1, v->end());
+      std::rotate(it, it + 1, v->end());
+    } else {
+      ++it;
     }
   }
 }
@@ -161,13 +165,13 @@ static void filter_candidates_randomly(
     const int64_t newest_rhs_ts_ns = rhs->getNewestTimestamp();
     return newest_lhs_ts_ns > newest_rhs_ts_ns;
   };
-  if (FLAGS_dm_candidate_selection_prioritize_recent_proximity_candidates) {
-    remove_consecutive_candidates(n_reserved_candidates, &v);
-  }
 
   // Sort the iterators to access the most recent ones.
   // Shuffle the remaining iterators.
   std::sort(v.begin(), v.end(), sorter);
+  if (FLAGS_dm_candidate_selection_prioritize_recent_proximity_candidates) {
+    remove_consecutive_candidates(n_reserved_candidates, &v);
+  }
   std::shuffle(
       v.begin() + n_reserved_candidates, v.end(),
       std::mt19937{std::random_device{}()});
