@@ -130,7 +130,7 @@ static void filter_candidates_based_on_quality(
           << " bad prior constraints.";
 }
 
-static void remove_consecutive_candidates(
+static void remove_consecutive_candidates_from_priority(
     const std::size_t n_reserved_candidates,
     std::vector<AlignmentCandidatePairs::iterator>* v) {
   CHECK_NOTNULL(v);
@@ -170,7 +170,7 @@ static void filter_candidates_randomly(
   // Shuffle the remaining iterators.
   std::sort(v.begin(), v.end(), sorter);
   if (FLAGS_dm_candidate_selection_prioritize_recent_proximity_candidates) {
-    remove_consecutive_candidates(n_reserved_candidates, &v);
+    remove_consecutive_candidates_from_priority(n_reserved_candidates, &v);
   }
   std::shuffle(
       v.begin() + n_reserved_candidates, v.end(),
