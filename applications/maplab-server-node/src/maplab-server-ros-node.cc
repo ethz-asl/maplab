@@ -326,7 +326,7 @@ bool MaplabServerRosNode::stopOperatingCallback(
   LOG(INFO) << "[MaplabServerRosNode] Received stop operating service "
                "call...";
   maplab_server_node_->stopOperating();
-  return maplab_server_node_->isOperating();
+  return !maplab_server_node_->isOperating();
 }
 
 bool MaplabServerRosNode::publishPoseCorrection(
