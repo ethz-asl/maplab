@@ -2256,4 +2256,16 @@ bool MaplabServerNode::computeSparseGraph() {
   return true;
 }
 
+bool MaplabServerNode::isAcceptingNewSubmaps() const {
+  return accept_new_submaps_;
+}
+
+void MaplabServerNode::rejectNewSubmaps() {
+  accept_new_submaps_ = false;
+}
+
+void MaplabServerNode::acceptNewSubmaps() {
+  accept_new_submaps_ = true;
+}
+
 }  // namespace maplab

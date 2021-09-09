@@ -87,6 +87,18 @@ MaplabServerRosNode::MaplabServerRosNode(
   whitelist_missions_srv_ =
       nh_.advertiseService("whitelistAllMissions", whitelist_missions_callback);
 
+  boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
+      accept_submaps_callback = boost::bind(
+          &MaplabServerRosNode::acceptNewSubmapsCallback, this, _1, _2);
+  accept_new_submaps_srv_ =
+      nh_.advertiseService("accept_new_submaps", accept_submaps_callback);
+
+  boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
+      reject_submaps_callback = boost::bind(
+          &MaplabServerRosNode::rejectNewSubmapsCallback, this, _1, _2);
+  reject_new_submaps_srv_ =
+      nh_.advertiseService("reject_new_submaps", reject_submaps_callback);
+
   boost::function<bool(
       maplab_msgs::BatchMapLookup::Request&,
       maplab_msgs::BatchMapLookup::Response&)>
@@ -265,6 +277,26 @@ bool MaplabServerRosNode::whitelistAllMissionsCallback(
                "call...";
 
   return maplab_server_node_->clearBlacklist();
+}
+
+bool MaplabServerRosNode::acceptNewSubmapsCallback(
+    std_srvs::Empty::Request& /*request*/,      // NOLINT
+    std_srvs::Empty::Response& /*response*/) {  // NOLINT
+  LOG(INFO) << "[MaplabServerRosNode] Received accept new submaps service "
+               "call...";
+
+  maplab_server_node_->acceptNewSubmaps();
+  return maplab_server_node_->isAcceptingNewSubmaps();
+}
+
+bool MaplabServerRosNode::rejectNewSubmapsCallback(
+    std_srvs::Empty::Request& /*request*/,      // NOLINT
+    std_srvs::Empty::Response& /*response*/) {  // NOLINT
+  LOG(INFO) << "[MaplabServerRosNode] Received reject new submaps service "
+               "call...";
+
+  maplab_server_node_->rejectNewSubmaps();
+  return !maplab_server_node_->isAcceptingNewSubmaps();
 }
 
 bool MaplabServerRosNode::publishPoseCorrection(

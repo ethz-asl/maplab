@@ -130,6 +130,10 @@ class MaplabServerNode final {
   bool loadAndProcessSubmap(
       const std::string& robot_name, const std::string& submap_path);
 
+  bool isAcceptingNewSubmaps() const;
+  void rejectNewSubmaps();
+  void acceptNewSubmaps();
+
  protected:
   // Status thread functions:
   void printAndPublishServerStatus();
@@ -306,6 +310,7 @@ class MaplabServerNode final {
 
   std::string initial_map_path_;
   spg::SparseGraph sparsified_graph_;
+  bool accept_new_submaps_ = true;
 };
 
 }  // namespace maplab
