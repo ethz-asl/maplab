@@ -238,9 +238,10 @@ void MaplabServerNode::start(const bool load_previous_state) {
       }
 
       merging_thread_busy_ = true;
-
-      received_first_submap_ =
-          received_first_submap_.load() | appendAvailableSubmaps();
+      if (accept_new_submaps_) {
+        received_first_submap_ =
+            received_first_submap_.load() | appendAvailableSubmaps();
+      }
 
       if (received_first_submap_.load()) {
         VLOG(3) << "[MaplabServerNode] MapMerging - processing global map "
