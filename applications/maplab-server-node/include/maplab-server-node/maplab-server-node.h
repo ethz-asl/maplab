@@ -134,6 +134,10 @@ class MaplabServerNode final {
   void rejectNewSubmaps();
   void acceptNewSubmaps();
 
+  bool isOperating() const;
+  void stopOperating();
+  void startOperating();
+
  protected:
   // Status thread functions:
   void printAndPublishServerStatus();
@@ -293,7 +297,7 @@ class MaplabServerNode final {
   double time_of_last_map_backup_s_;
   // Exclusively accessed by the merging thread, keeps track of number of
   // submaps at the the last time the trust region has been
-  // reset.
+  // reset./re
   uint32_t num_submaps_at_last_trust_region_reset = 0u;
 
   // Protects the server from concurrent access from the outside.
@@ -311,6 +315,7 @@ class MaplabServerNode final {
   std::string initial_map_path_;
   spg::SparseGraph sparsified_graph_;
   bool accept_new_submaps_ = true;
+  bool operating_mode_ = true;
 };
 
 }  // namespace maplab

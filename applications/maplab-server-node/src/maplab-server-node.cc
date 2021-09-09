@@ -2269,4 +2269,14 @@ void MaplabServerNode::acceptNewSubmaps() {
   accept_new_submaps_ = true;
 }
 
+bool MaplabServerNode::isOperating() const {
+  return operating_mode_;
+}
+void MaplabServerNode::stopOperating() {
+  operating_mode_ = false;
+}
+void MaplabServerNode::startOperating() {
+  operating_mode_ = true;
+}
+
 }  // namespace maplab
