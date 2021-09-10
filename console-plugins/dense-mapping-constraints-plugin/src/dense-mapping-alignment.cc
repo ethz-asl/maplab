@@ -35,8 +35,7 @@ template <typename ResourceDataType>
 bool retrievePointCloudsForDenseSubmap(
     const vi_map::VIMap& map, const int64_t timestamp_ns,
     const vi_map::DenseSubmap& submap,
-    const backend::ResourceType resource_type,
-    ResourceDataType* submap_cloud) {
+    const backend::ResourceType resource_type, ResourceDataType* submap_cloud) {
   CHECK_NOTNULL(submap_cloud);
   vi_map::StampedTransformationMap stamped_transforms;
   if (!submap.getStampedTransformsToResourceFrameAtTimestamp(
@@ -49,8 +48,8 @@ bool retrievePointCloudsForDenseSubmap(
   for (auto it = stamped_transforms.begin(); it != stamped_transforms.end();
        ++idx, ++it) {
     if (!map.getSensorResource<ResourceDataType>(
-            mission, resource_type,
-            submap.getSensorId(), it->first, &submap_clouds[idx])) {
+            mission, resource_type, submap.getSensorId(), it->first,
+            &submap_clouds[idx])) {
       continue;
     }
     submap_clouds[idx].applyTransformation(it->second);

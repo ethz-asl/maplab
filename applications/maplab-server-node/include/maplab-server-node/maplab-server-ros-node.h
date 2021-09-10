@@ -53,6 +53,22 @@ class MaplabServerRosNode {
       std_srvs::Empty::Request& request,     // NOLINT
       std_srvs::Empty::Response& response);  // NOLINT
 
+  bool acceptNewSubmapsCallback(
+      std_srvs::Empty::Request& request,     // NOLINT
+      std_srvs::Empty::Response& response);  // NOLINT
+
+  bool rejectNewSubmapsCallback(
+      std_srvs::Empty::Request& request,     // NOLINT
+      std_srvs::Empty::Response& response);  // NOLINT
+
+  bool startOperatingCallback(
+      std_srvs::Empty::Request& request,     // NOLINT
+      std_srvs::Empty::Response& response);  // NOLINT
+
+  bool stopOperatingCallback(
+      std_srvs::Empty::Request& request,     // NOLINT
+      std_srvs::Empty::Response& response);  // NOLINT
+
   // Look up the current global frame position of a point in sensor frame.
   bool mapLookupCallback(
       maplab_msgs::BatchMapLookup::Request& requests,     // NOLINT
@@ -98,6 +114,10 @@ class MaplabServerRosNode {
   ros::ServiceServer delete_all_robot_missions_srv_;
   ros::ServiceServer get_dense_map_in_range_srv_;
   ros::ServiceServer verification_srv_;
+  ros::ServiceServer accept_new_submaps_srv_;
+  ros::ServiceServer reject_new_submaps_srv_;
+  ros::ServiceServer start_operating_srv_;
+  ros::ServiceServer stop_operating_srv_;
 
   // State for running for maplab.
   ros::AsyncSpinner maplab_spinner_;

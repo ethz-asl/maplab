@@ -238,15 +238,18 @@ void MaplabServerNode::start(const bool load_previous_state) {
       }
 
       merging_thread_busy_ = true;
-
-      received_first_submap_ =
-          received_first_submap_.load() | appendAvailableSubmaps();
+      if (accept_new_submaps_) {
+        received_first_submap_ =
+            received_first_submap_.load() | appendAvailableSubmaps();
+      }
 
       if (received_first_submap_.load()) {
         VLOG(3) << "[MaplabServerNode] MapMerging - processing global map "
                 << "with key '" << kMergedMapKey << "'";
 
-        runOneIterationOfMapMergingAlgorithms();
+        if (operating_mode_) {
+          runOneIterationOfMapMergingAlgorithms();
+        }
         publishDenseMap();
 
         publishMostRecentVertexPoseAndCorrection();
@@ -1482,140 +1485,143 @@ void MaplabServerNode::runSubmapProcessing(
     }
   }
 
-  // Evaluate landmark quality
-  ////////////////////////////
-  {
+  if (operating_mode_) {
+    // Evaluate landmark quality
+    ////////////////////////////
     {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] =
-          "landmark quality evaluation";
-    }
-    if (FLAGS_vi_map_landmark_quality_min_observers > 2) {
-      LOG(WARNING) << "[MaplabServerNode] Minimum required landmark observers "
-                   << "is set to "
-                   << FLAGS_vi_map_landmark_quality_min_observers
-                   << ",  this might be too stricht if keyframing is enabled.";
-    }
-    vi_map_helpers::evaluateLandmarkQuality(missions_to_process, map.get());
-  }
-
-  // Visual Loop Closure
-  //////////////////////
-  if (FLAGS_maplab_server_enable_visual_loop_closure) {
-    const vi_map::MissionIdSet mission_ids(
-        missions_to_process.begin(), missions_to_process.end());
-    {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] = "visual loop closure";
-    }
-    vi_map::MissionIdSet::const_iterator mission_ids_end = mission_ids.cend();
-    for (vi_map::MissionIdSet::const_iterator it = mission_ids.cbegin();
-         it != mission_ids_end; ++it) {
-      const vi_map::MissionId& mission_id_A = *it;
-      CHECK(mission_id_A.isValid());
-      loop_detector_node::LoopDetectorNode loop_detector;
-      if (plotter_) {
-        loop_detector.instantiateVisualizer();
+      {
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_[submap_process.map_hash] =
+            "landmark quality evaluation";
       }
-      loop_detector.addMissionToDatabase(mission_id_A, *map);
-      loop_detector.detectLoopClosuresAndMergeLandmarks(
-          mission_id_A, map.get());
+      if (FLAGS_vi_map_landmark_quality_min_observers > 2) {
+        LOG(WARNING)
+            << "[MaplabServerNode] Minimum required landmark observers "
+            << "is set to " << FLAGS_vi_map_landmark_quality_min_observers
+            << ",  this might be too stricht if keyframing is enabled.";
+      }
+      vi_map_helpers::evaluateLandmarkQuality(missions_to_process, map.get());
     }
-  }
-  // Filter outliers from absolute constraints
-  ////////////////////////////////////////////
-  if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
-    {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] =
-          "abs constraints outlier rejection";
-    }
-    map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
-  }
 
-  // Submap Optimization
-  //////////////////////
-  {
-    {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] = "optimization";
+    // Visual Loop Closure
+    //////////////////////
+    if (FLAGS_maplab_server_enable_visual_loop_closure) {
+      const vi_map::MissionIdSet mission_ids(
+          missions_to_process.begin(), missions_to_process.end());
+      {
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_[submap_process.map_hash] =
+            "visual loop closure";
+      }
+      vi_map::MissionIdSet::const_iterator mission_ids_end = mission_ids.cend();
+      for (vi_map::MissionIdSet::const_iterator it = mission_ids.cbegin();
+           it != mission_ids_end; ++it) {
+        const vi_map::MissionId& mission_id_A = *it;
+        CHECK(mission_id_A.isValid());
+        loop_detector_node::LoopDetectorNode loop_detector;
+        if (plotter_) {
+          loop_detector.instantiateVisualizer();
+        }
+        loop_detector.addMissionToDatabase(mission_id_A, *map);
+        loop_detector.detectLoopClosuresAndMergeLandmarks(
+            mission_id_A, map.get());
+      }
     }
-    const vi_map::MissionIdSet missions_to_optimize(
-        missions_to_process.begin(), missions_to_process.end());
-    // We only want to get these once, such that if the gflags get modified
-    // later the optimization settings for the submaps remain the same.
-    map_optimization::ViProblemOptions options =
-        map_optimization::ViProblemOptions::initFromGFlags();
-    map_optimization::VIMapOptimizer optimizer(
-        nullptr /*no plotter for optimization*/,
-        false /*signal handler enabled*/);
-    optimizer.optimize(options, missions_to_optimize, map.get());
-  }
+    // Filter outliers from absolute constraints
+    ////////////////////////////////////////////
+    if (FLAGS_maplab_server_remove_outliers_in_absolute_pose_constraints) {
+      {
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_[submap_process.map_hash] =
+            "abs constraints outlier rejection";
+      }
+      map_anchoring::removeOutliersInAbsolute6DoFConstraints(map.get());
+    }
 
-  // Lidar local constraints/loop closure
-  ///////////////////////////////////////
-  // Searches for nearby dense map data (e.g. lidar scans) within the submap
-  // mission and uses point cloud registration algorithms to derive relative
-  // constraints. These are added as loop closures between vertices.
+    // Submap Optimization
+    //////////////////////
+    {
+      {
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_[submap_process.map_hash] = "optimization";
+      }
+      const vi_map::MissionIdSet missions_to_optimize(
+          missions_to_process.begin(), missions_to_process.end());
+      // We only want to get these once, such that if the gflags get modified
+      // later the optimization settings for the submaps remain the same.
+      map_optimization::ViProblemOptions options =
+          map_optimization::ViProblemOptions::initFromGFlags();
+      map_optimization::VIMapOptimizer optimizer(
+          nullptr /*no plotter for optimization*/,
+          false /*signal handler enabled*/);
+      optimizer.optimize(options, missions_to_optimize, map.get());
+    }
+
+    // Lidar local constraints/loop closure
+    ///////////////////////////////////////
+    // Searches for nearby dense map data (e.g. lidar scans) within the submap
+    // mission and uses point cloud registration algorithms to derive relative
+    // constraints. These are added as loop closures between vertices.
 #if __GNUC__ > 5
-  if (FLAGS_maplab_server_enable_lidar_loop_closure) {
-    {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] = "lidar loop closure";
-    }
-    bool perform_llc = true;
-    if (FLAGS_dm_candidate_search_min_vertex_mission_distance > 0.0) {
-      perform_llc = map.get()->isMaxDistanceLargerThan(
-          submap_mission_id,
-          FLAGS_dm_candidate_search_min_vertex_mission_distance);
-    }
-    if (perform_llc) {
-      const dense_mapping::Config config =
-          FLAGS_dm_candidate_alignment_use_incremental_submab_alignment
-              ? dense_mapping::Config::forIncrementalSubmapAlignment()
-              : dense_mapping::Config::fromGflags();
-      if (!dense_mapping::addDenseMappingConstraintsToMap(
-              config, missions_to_process, map.get())) {
-        LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
-                   << "encountered an error!";
+    if (FLAGS_maplab_server_enable_lidar_loop_closure) {
+      {
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_[submap_process.map_hash] = "lidar loop closure";
+      }
+      bool perform_llc = true;
+      if (FLAGS_dm_candidate_search_min_vertex_mission_distance > 0.0) {
+        perform_llc = map.get()->isMaxDistanceLargerThan(
+            submap_mission_id,
+            FLAGS_dm_candidate_search_min_vertex_mission_distance);
+      }
+      if (perform_llc) {
+        const dense_mapping::Config config =
+            FLAGS_dm_candidate_alignment_use_incremental_submab_alignment
+                ? dense_mapping::Config::forIncrementalSubmapAlignment()
+                : dense_mapping::Config::fromGflags();
+        if (!dense_mapping::addDenseMappingConstraintsToMap(
+                config, missions_to_process, map.get())) {
+          LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                     << "encountered an error!";
+        }
       }
     }
-  }
 #endif
 
-  // Submap Optimization
-  //////////////////////
-  {
+    // Submap Optimization
+    //////////////////////
     {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] = "optimization";
+      {
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_[submap_process.map_hash] = "optimization";
+      }
+      const vi_map::MissionIdSet missions_to_optimize(
+          missions_to_process.begin(), missions_to_process.end());
+      // We only want to get these once, such that if the gflags get modified
+      // later the optimization settings for the submaps remain the same.
+      map_optimization::ViProblemOptions options =
+          map_optimization::ViProblemOptions::initFromGFlags();
+      map_optimization::VIMapOptimizer optimizer(
+          nullptr /*no plotter for optimization*/,
+          false /*signal handler enabled*/);
+      optimizer.optimize(options, missions_to_optimize, map.get());
     }
-    const vi_map::MissionIdSet missions_to_optimize(
-        missions_to_process.begin(), missions_to_process.end());
-    // We only want to get these once, such that if the gflags get modified
-    // later the optimization settings for the submaps remain the same.
-    map_optimization::ViProblemOptions options =
-        map_optimization::ViProblemOptions::initFromGFlags();
-    map_optimization::VIMapOptimizer optimizer(
-        nullptr /*no plotter for optimization*/,
-        false /*signal handler enabled*/);
-    optimizer.optimize(options, missions_to_optimize, map.get());
-  }
 
-  // Sparse Graph Generation
-  //////////////////////////
-  {
+    // Sparse Graph Generation
+    //////////////////////////
     {
-      std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
-      running_submap_process_[submap_process.map_hash] =
-          "sparse graph generation";
+      {
+        std::lock_guard<std::mutex> status_lock(running_submap_process_mutex_);
+        running_submap_process_[submap_process.map_hash] =
+            "sparse graph generation";
+      }
+      const vi_map::MissionId& mission_id = missions_to_process.front();
+      pose_graph::VertexIdList all_vertices_in_mission;
+      map.get()->getAllVertexIdsInMissionAlongGraph(
+          mission_id, &all_vertices_in_mission);
+      sparsified_graph_.addVerticesToMissionGraph(
+          submap_process.robot_name, all_vertices_in_mission);
     }
-    const vi_map::MissionId& mission_id = missions_to_process.front();
-    pose_graph::VertexIdList all_vertices_in_mission;
-    map.get()->getAllVertexIdsInMissionAlongGraph(
-        mission_id, &all_vertices_in_mission);
-    sparsified_graph_.addVerticesToMissionGraph(
-        submap_process.robot_name, all_vertices_in_mission);
   }
 
   // Remove processing status of submap
@@ -2245,6 +2251,28 @@ bool MaplabServerNode::computeSparseGraph() {
 
   sparsified_graph_.publishLatestGraph(cmap);
   return true;
+}
+
+bool MaplabServerNode::isAcceptingNewSubmaps() const {
+  return accept_new_submaps_;
+}
+
+void MaplabServerNode::rejectNewSubmaps() {
+  accept_new_submaps_ = false;
+}
+
+void MaplabServerNode::acceptNewSubmaps() {
+  accept_new_submaps_ = true;
+}
+
+bool MaplabServerNode::isOperating() const {
+  return operating_mode_;
+}
+void MaplabServerNode::stopOperating() {
+  operating_mode_ = false;
+}
+void MaplabServerNode::startOperating() {
+  operating_mode_ = true;
 }
 
 }  // namespace maplab
