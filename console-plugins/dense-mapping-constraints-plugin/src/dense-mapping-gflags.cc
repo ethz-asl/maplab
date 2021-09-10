@@ -3,13 +3,15 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-namespace dense_mapping {
-
 // CANDIDATE SEARCH
 DEFINE_string(
     dm_resource_types, "16,17,21,24",
     "Defines the resource types that are used to derive the dense mapping "
     "constraints. Provide a CSV string with the resource type numbers.");
+DEFINE_double(
+    dm_candidate_search_min_vertex_mission_distance, 1.0,
+    "Minimum distance of first vertex that is used for candidate search. "
+    "Candidates before this vertex are skipped.");
 
 // CANDIDATE SEARCH - CONSECUTIVE
 DEFINE_bool(
@@ -119,7 +121,14 @@ DEFINE_double(
 DEFINE_string(
     dm_candidate_alignment_type, "PclGIcp",
     "Alignment type that is used for the pointcloud registration");
-
+DEFINE_bool(
+    dm_candidate_alignment_use_incremental_submab_alignment, true,
+    "If enabled, an incremental map is built and alignment is performed "
+    "against it");
+DEFINE_double(
+    dm_candidate_alignment_incremental_submap_length_s, 10,
+    "Maximum duration "
+    "of one incremental dense submap in seconds.");
 // CONSTRAINTS
 DEFINE_double(
     dm_constraint_switch_variable_value, 1.0,
@@ -130,4 +139,7 @@ DEFINE_double(
     "Sigma of switch variable of loop closure edge that is used to "
     "enforce the dense mapping constraint.");
 
-}  // namespace dense_mapping
+// VISUALIZATION
+DEFINE_bool(
+    dm_visualize_incremental_submap, false,
+    "If enabled, the incremental map is visualized");

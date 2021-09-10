@@ -927,25 +927,12 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
               running_merging_process_mutex_);
           running_merging_process_ = "lidar loop closure";
         }
-
-        vi_map::MissionIdList mission_ids_for_llc;
-        if (FLAGS_maplab_server_min_distance_m_before_llc > 0.0) {
-          for (const vi_map::MissionId& mission_id : mission_ids) {
-            if (map.get()->isMaxDistanceLargerThan(
-                    mission_id,
-                    FLAGS_maplab_server_min_distance_m_before_llc)) {
-              mission_ids_for_llc.emplace_back(mission_id);
-            }
-          }
-        }
-        if (!mission_ids_for_llc.empty()) {
-          const dense_mapping::Config config =
-              dense_mapping::Config::fromGflags();
-          if (!dense_mapping::addDenseMappingConstraintsToMap(
-                  config, mission_ids_for_llc, map.get())) {
-            LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
-                       << "encountered an error!";
-          }
+        const dense_mapping::Config config =
+            dense_mapping::Config::fromGflags();
+        if (!dense_mapping::addDenseMappingConstraintsToMap(
+                config, mission_ids, map.get())) {
+          LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "
+                     << "encountered an error!";
         }
       }
     }
@@ -1577,12 +1564,16 @@ void MaplabServerNode::runSubmapProcessing(
       running_submap_process_[submap_process.map_hash] = "lidar loop closure";
     }
     bool perform_llc = true;
-    if (FLAGS_maplab_server_min_distance_m_before_llc > 0.0) {
+    if (FLAGS_dm_candidate_search_min_vertex_mission_distance > 0.0) {
       perform_llc = map.get()->isMaxDistanceLargerThan(
-          submap_mission_id, FLAGS_maplab_server_min_distance_m_before_llc);
+          submap_mission_id,
+          FLAGS_dm_candidate_search_min_vertex_mission_distance);
     }
     if (perform_llc) {
-      const dense_mapping::Config config = dense_mapping::Config::fromGflags();
+      const dense_mapping::Config config =
+          FLAGS_dm_candidate_alignment_use_incremental_submab_alignment
+              ? dense_mapping::Config::forIncrementalSubmapAlignment()
+              : dense_mapping::Config::fromGflags();
       if (!dense_mapping::addDenseMappingConstraintsToMap(
               config, missions_to_process, map.get())) {
         LOG(ERROR) << "[MaplabServerNode] Adding dense mapping constraints "

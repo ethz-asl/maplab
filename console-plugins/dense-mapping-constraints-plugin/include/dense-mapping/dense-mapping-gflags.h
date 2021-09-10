@@ -5,10 +5,9 @@
 #include <glog/logging.h>
 #include <vi-map/vi-map.h>
 
-namespace dense_mapping {
-
 // CANDIDATE SEARCH
 DECLARE_string(dm_resource_types);
+DECLARE_double(dm_candidate_search_min_vertex_mission_distance);
 
 DECLARE_bool(dm_candidate_search_enable_intra_mission_consecutive);
 DECLARE_double(dm_candidate_search_consecutive_max_delta_time_s);
@@ -40,12 +39,14 @@ DECLARE_double(dm_candidate_selection_prioritize_recent_candidates);
 DECLARE_double(dm_candidate_alignment_max_delta_position_to_initial_guess_m);
 DECLARE_double(dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg);
 DECLARE_string(dm_candidate_alignment_type);
-
+DECLARE_bool(dm_candidate_alignment_use_incremental_submab_alignment);
+DECLARE_double(dm_candidate_alignment_incremental_submap_length_s);
 // CONSTRAINTS
 DECLARE_double(dm_constraint_switch_variable_value);
 DECLARE_double(dm_constraint_switch_variable_sigma);
 DECLARE_double(dm_candidate_selection_min_switch_variable_value);
 
-}  // namespace dense_mapping
+// VISUALIZATION
+DECLARE_bool(dm_visualize_incremental_submap);
 
 #endif  // DENSE_MAPPING_DENSE_MAPPING_GFLAGS_H_
