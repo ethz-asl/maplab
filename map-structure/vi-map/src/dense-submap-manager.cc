@@ -12,6 +12,7 @@ void DenseSubmap::addTransformationToSubmap(
 bool DenseSubmap::getStampedTransformsToResourceFrameAtTimestamp(
     const int64_t timestamp_ns,
     StampedTransformationMap* stamped_transforms) const {
+  CHECK_NOTNULL(stamped_transforms);
   int64_t min_difference_ns = std::numeric_limits<int64_t>::max();
   int64_t closest_timestamp_ns;
   for (const auto& stamped_transform : T_S0_S_map_) {
@@ -36,6 +37,8 @@ bool DenseSubmap::getStampedTransformsToResourceFrameAtTimestamp(
 
 bool DenseSubmap::getMinAndMaxTimestampNs(
     int64_t* min_timestamp_ns, int64_t* max_timestamp_ns) const {
+  CHECK_NOTNULL(min_timestamp_ns);
+  CHECK_NOTNULL(max_timestamp_ns);
   if (T_S0_S_map_.empty()) {
     return false;
   }
@@ -79,6 +82,7 @@ void DenseSubmapManager::addDenseSubmap(const DenseSubmap& submap) {
 bool DenseSubmapManager::getStampedTransformsToResourceFrameAtTimestamp(
     const MissionId& mission_id, const int64_t timestamp_ns,
     StampedTransformationMap* stamped_transforms) const {
+  CHECK_NOTNULL(stamped_transforms);
   for (const DenseSubmapId& submap_id :
        mission_id_to_submap_ids_.at(mission_id)) {
     int64_t min_timestamp_ns;
@@ -99,6 +103,7 @@ bool DenseSubmapManager::getStampedTransformsToResourceFrameAtTimestamp(
 bool DenseSubmapManager::getClosestDenseSubmap(
     const MissionId& mission_id, const int64_t timestamp_ns,
     DenseSubmap* submap) const {
+  CHECK_NOTNULL(submap);
   DenseSubmapId closest_id;
   if (!getClosestDenseSubmapId(mission_id, timestamp_ns, &closest_id)) {
     return false;
