@@ -29,6 +29,7 @@ void serializeToProtoAndCallFunction(
       metadata.begin(), metadata.end());
   std::atomic_size_t counter_vertex_files_atomic(0u);
   std::atomic_size_t counter_edges_files_atomic(0u);
+  std::atomic_size_t counter_dense_submap_files_atomic(0u);
   auto serialize_function = [&](const std::vector<size_t>& range) {
     size_t num_processed_tasks = 0u;
     progress_bar.setNumElements(range.size());
@@ -57,6 +58,13 @@ void serializeToProtoAndCallFunction(
         case VIMapFileType::kLandmarkIndex:
           serializeLandmarkIndex(map, &proto);
           break;
+        case VIMapFileType::kDenseSubmaps:
+          const size_t dense_submap_index = counter_dense_submap_files_atomic++;
+          serializeDenseSubmaps(
+              map,
+              dense_submap_index *
+                  backend::SaveConfig::kDenseSubmapsPerProtoFile,
+              backend::SaveConfig::kDenseSubmapsPerProtoFile, &proto);
       }
 
       CHECK(function(entry.second, proto));
@@ -115,6 +123,11 @@ void deserializeFromProtoFromFunction(
       case VIMapFileType::kLandmarkIndex: {
         std::unique_lock<std::mutex> lock(map_mutex);
         deserializeLandmarkIndex(proto, map);
+        break;
+      }
+      case VIMapFileType::kDenseSubmaps: {
+        std::unique_lock<std::mutex> lock(map_mutex);
+        deserializeDenseSubmaps(proto, map);
         break;
       }
     }

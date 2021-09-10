@@ -31,6 +31,9 @@ SearchConfig SearchConfig::fromGflags() {
         << "' is not supported by dense mapping.";
   }
 
+  config.min_mission_distance_m =
+      FLAGS_dm_candidate_search_min_vertex_mission_distance;
+
   config.enable_intra_mission_consecutive_search =
       FLAGS_dm_candidate_search_enable_intra_mission_consecutive;
 
@@ -76,6 +79,15 @@ bool searchForAlignmentCandidatePairs(
   } catch (std::exception& e) {
     LOG(ERROR) << "Finding alignment pairs failed. Aborting.";
     return false;
+  }
+
+  if (config.enable_incremental_submap_search) {
+    if (!searchForIncrementalSubmapAlignmentCandidatePairs(
+            config, mission_ids, candidates_per_mission, candidate_pairs_ptr)) {
+      return false;
+    } else {
+      return true;
+    }
   }
 
   if (config.enable_intra_mission_consecutive_search) {
@@ -148,14 +160,32 @@ void findAllAlignmentCandidates(
 
     // Get timestamps of all vertices.
     common::TemporalBuffer<pose_graph::VertexId> temporal_vertex_buffer;
+    int64_t skip_timestamps_earlier_than_ns = 0;
+    if (config.min_mission_distance_m > 0.0) {
+      skip_timestamps_earlier_than_ns = std::numeric_limits<int64_t>::max();
+    }
     {
       pose_graph::VertexIdList vertex_ids;
       map.getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
 
+      Eigen::Vector3d p_M_I_first_vertex;
+      if (!vertex_ids.empty()) {
+        p_M_I_first_vertex = map.getVertex(vertex_ids.front()).get_p_M_I();
+      } else {
+        continue;
+      }
       for (const pose_graph::VertexId& vertex_id : vertex_ids) {
-        const int64_t vertex_timestamp_ns =
-            map.getVertex(vertex_id).getMinTimestampNanoseconds();
+        const vi_map::Vertex& vertex = map.getVertex(vertex_id);
+        const int64_t vertex_timestamp_ns = vertex.getMinTimestampNanoseconds();
         temporal_vertex_buffer.addValue(vertex_timestamp_ns, vertex_id);
+        if (config.min_mission_distance_m > 0.0 &&
+            skip_timestamps_earlier_than_ns ==
+                std::numeric_limits<int64_t>::max()) {
+          if ((p_M_I_first_vertex - vertex.get_p_M_I()).norm() >
+              config.min_mission_distance_m) {
+            skip_timestamps_earlier_than_ns = vertex_timestamp_ns;
+          }
+        }
       }
     }
 
@@ -216,6 +246,10 @@ void findAllAlignmentCandidates(
                 << ", "
                 << aslam::time::timeNanosecondsToString(max_timestamp_ns)
                 << "]";
+            continue;
+          }
+
+          if (timestamp_resource_ns < skip_timestamps_earlier_than_ns) {
             continue;
           }
 
@@ -437,6 +471,89 @@ void addCandidatePair(
   AlignmentCandidatePair pair;
   createCandidatePair(candidate_A, candidate_B, &pair);
   candidate_pairs_ptr->emplace(pair);
+}
+
+bool searchForIncrementalSubmapAlignmentCandidatePairs(
+    const SearchConfig& config, const vi_map::MissionIdList& mission_ids,
+    const MissionToAlignmentCandidatesMap& candidates_per_mission,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK_NOTNULL(candidate_pairs_ptr);
+
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    if (candidates_per_mission.count(mission_id) == 0u) {
+      continue;
+    }
+
+    VLOG(1) << "Searching for Submap candidates in mission " << mission_id;
+
+    const AlignmentCandidateList& candidates =
+        candidates_per_mission.at(mission_id);
+
+    const size_t num_candidates = candidates.size();
+    if (num_candidates < 2u) {
+      return true;
+    }
+
+    const AlignmentCandidate* candidate_A = nullptr;
+    const AlignmentCandidate* candidate_B = nullptr;
+
+    size_t current_idx = 0u;
+    while (current_idx < num_candidates) {
+      // If we have not set a first candidate yet, we need to do now and move
+      // on.
+      if (candidate_A == nullptr) {
+        CHECK_LT(current_idx, num_candidates);
+        candidate_A = &(candidates[current_idx]);
+        candidate_B = nullptr;
+        VLOG(5) << aslam::time::timeNanosecondsToString(
+                       candidate_A->timestamp_ns)
+                << " - none (init)";
+
+        ++current_idx;
+        continue;
+      }
+
+      // Fetch current candidate for B.
+      CHECK_LT(current_idx, num_candidates);
+      const AlignmentCandidate* current_candidate = &(candidates[current_idx]);
+
+      // Now we should have two candidates to compare.
+      CHECK_NOTNULL(current_candidate);
+      CHECK_NOTNULL(candidate_A);
+
+      VLOG(5) << aslam::time::timeNanosecondsToString(candidate_A->timestamp_ns)
+              << " - "
+              << aslam::time::timeNanosecondsToString(
+                     current_candidate->timestamp_ns);
+
+      // For consecutive constraints we don't want to mix sensors, since we
+      // expect the candidates to be in temporal order for each sensor. The
+      // candidate list however will include all sensor data for a single
+      // sensor/type in temporal order, but not across sensor/type.
+      if (candidate_A->sensor_id != current_candidate->sensor_id ||
+          candidate_A->resource_type != current_candidate->resource_type) {
+        candidate_A = current_candidate;
+        candidate_B = nullptr;
+
+        ++current_idx;
+        continue;
+      }
+      CHECK_LT(candidate_A->timestamp_ns, current_candidate->timestamp_ns);
+      candidate_B = current_candidate;
+      // If we alread had a candidate B, we take the two candidates and
+      // create a candidate pair and move on.
+      addCandidatePair(*candidate_A, *candidate_B, candidate_pairs_ptr);
+      candidate_A = candidate_B;
+      candidate_B = nullptr;
+      CHECK_NOTNULL(candidate_A);
+
+      ++current_idx;
+      continue;
+    }
+  }
+  VLOG(1) << "Found " << candidate_pairs_ptr->size() << "candidates for "
+          << "incremental submap matching";
+  return true;
 }
 
 bool searchForConsecutiveAlignmentCandidatePairs(

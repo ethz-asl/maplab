@@ -137,11 +137,13 @@ void findOutlierLandmarks(
 ceres::TerminationType solveStep(
     const ceres::Solver::Options& solver_options, int num_iters,
     OptimizationProblem* optimization_problem,
-    OutlierRejectionCallback* callback, OptimizationProblemResult* result) {
+    OutlierRejectionCallback* callback, OptimizationProblemResult* result,
+    const double* max_solver_time_s = nullptr) {
   CHECK_NOTNULL(optimization_problem);
   CHECK_NOTNULL(callback);
   // 'result' can be a nullptr.
 
+  timing::TimerImpl timer_solve_local("BA: Solve Local");
   ceres::Problem problem(ceres_error_terms::getDefaultProblemOptions());
   ceres_error_terms::buildCeresProblemFromProblemInformation(
       optimization_problem->getProblemInformationMutable(), &problem);
@@ -161,6 +163,17 @@ ceres::TerminationType solveStep(
   local_options.update_state_every_iteration = true;
 
   ceres::Solver::Summary summary;
+  if (max_solver_time_s) {
+    const double remaining_time_s =
+        *max_solver_time_s - timer_solve_local.Stop();
+    if (remaining_time_s > 0.) {
+      local_options.max_solver_time_in_seconds = remaining_time_s;
+      // Do at least one interation.
+    } else {
+      local_options.max_num_iterations = 1;
+    }
+  }
+
   ceres::Solve(local_options, &problem, &summary);
 
   // Save the solver summary of each iteration.
@@ -267,7 +280,8 @@ ceres::TerminationType solveWithOutlierRejection(
 
     timing::Timer timer_solve("BA: Solve");
     termination_type = solveStep(
-        solver_options, step_iters, optimization_problem, &callback, result);
+        solver_options, step_iters, optimization_problem, &callback, result,
+        &max_solver_time_s);
 
     timing::Timer timer_copy("BA: CopyDataToMap");
     optimization_problem->getOptimizationStateBufferMutable()

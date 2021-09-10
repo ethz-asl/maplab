@@ -31,7 +31,15 @@ struct SearchConfig {
 
   bool enable_intra_mission_global_search;
   bool enable_inter_mission_global_search;
+  bool enable_incremental_submap_search;
+
+  double min_mission_distance_m;
 };
+
+void createCandidatePair(
+    const AlignmentCandidate& candidate_A,
+    const AlignmentCandidate& candidate_B,
+    AlignmentCandidatePair* candidate_pair_ptr);
 
 void findAllAlignmentCandidates(
     const SearchConfig& config, const vi_map::VIMap& map,
@@ -91,6 +99,11 @@ bool searchGloballyForAlignmentCandidatePairsBetweenTwoMissions(
     const vi_map::MissionId& mission_A, const vi_map::MissionId& mission_B,
     const AlignmentCandidateList& candidates_A,
     const AlignmentCandidateList& candidates_B,
+    AlignmentCandidatePairs* candidate_pairs_ptr);
+
+bool searchForIncrementalSubmapAlignmentCandidatePairs(
+    const SearchConfig& config, const vi_map::MissionIdList& mission_ids,
+    const MissionToAlignmentCandidatesMap& candidates_per_mission,
     AlignmentCandidatePairs* candidate_pairs_ptr);
 
 }  // namespace dense_mapping

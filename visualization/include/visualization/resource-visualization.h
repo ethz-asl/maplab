@@ -56,43 +56,39 @@ DECLARE_int32(vis_pointcloud_sequential_speedup);
 
 namespace visualization {
 
-  struct SequentialPointCloud {
-    resources::PointCloud point_cloud;
-    LineSegment edge;
-    Pose pose;
-    uint16_t mission;
-  };
+struct SequentialPointCloud {
+  resources::PointCloud point_cloud;
+  LineSegment edge;
+  Pose pose;
+  uint16_t mission;
+};
 
-  bool visualizeCvMatResources(
-          const vi_map::VIMap& map, backend::ResourceType type);
-  typedef std::unordered_map<aslam::CameraId, aslam::Camera::Ptr> CameraCache;
+bool visualizeCvMatResources(
+    const vi_map::VIMap& map, backend::ResourceType type);
+typedef std::unordered_map<aslam::CameraId, aslam::Camera::Ptr> CameraCache;
 
-  void visualizeReprojectedDepthResource(
-          const backend::ResourceType type,
-          const vi_map::MissionIdList& mission_ids,
-          const vi_map::VIMap& map);
+void visualizeReprojectedDepthResource(
+    const backend::ResourceType type, const vi_map::MissionIdList& mission_ids,
+    const vi_map::VIMap& map);
 
-  void visualizeReprojectedDepthResourcePerRobot(
-          const backend::ResourceType input_resource_type,
-          const std::unordered_map<std::string, vi_map::MissionIdList>
-          robot_name_to_mission_ids_map,
-          const vi_map::VIMap& vi_map);
+void visualizeReprojectedDepthResourcePerRobot(
+    const backend::ResourceType input_resource_type,
+    const std::unordered_map<std::string, vi_map::MissionIdList>
+        robot_name_to_mission_ids_map,
+    const vi_map::VIMap& vi_map);
 
-  void visualizeReprojectedDepthResourceFromMission(
-          const backend::ResourceType type,
-          const vi_map::MissionIdList& mission_ids,
-          const vi_map::VIMap& map);
+void visualizeReprojectedDepthResourceFromMission(
+    const backend::ResourceType type, const vi_map::MissionIdList& mission_ids,
+    const vi_map::VIMap& map);
 
-  void visualizeReprojectedDepthResourceSequentially(
-          const backend::ResourceType type,
-          const vi_map::MissionIdList& mission_ids,
-          const vi_map::VIMap& map);
+void visualizeReprojectedDepthResourceSequentially(
+    const backend::ResourceType type, const vi_map::MissionIdList& mission_ids,
+    const vi_map::VIMap& map);
 
-  void getOpenCvWindowsForNCamera(
-          const aslam::NCamera& n_camera,
-          std::vector<std::string>* named_windows);
+void getOpenCvWindowsForNCamera(
+    const aslam::NCamera& n_camera, std::vector<std::string>* named_windows);
 
-  void destroyAllWindows(const std::vector<std::string>& windows_names);
+void destroyAllWindows(const std::vector<std::string>& windows_names);
 
 }  // namespace visualization
 

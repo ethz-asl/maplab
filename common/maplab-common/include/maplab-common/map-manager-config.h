@@ -42,10 +42,12 @@ struct SaveConfig {
   /// anymore.
   static constexpr size_t kVerticesPerProtoFile = 200u;
   static constexpr size_t kEdgesPerProtoFile = 30000u;
+  static constexpr size_t kDenseSubmapsPerProtoFile = 200u;
 };
 
 static_assert(SaveConfig::kVerticesPerProtoFile > 0u, "");
 static_assert(SaveConfig::kEdgesPerProtoFile > 0u, "");
+static_assert(SaveConfig::kDenseSubmapsPerProtoFile > 0u, "");
 
 }  // namespace backend
 
