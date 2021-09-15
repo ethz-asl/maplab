@@ -38,7 +38,7 @@ struct SearchConfig {
 
 void createCandidatePair(
     const AlignmentCandidate& candidate_A,
-    const AlignmentCandidate& candidate_B,
+    const AlignmentCandidate& candidate_B, const ConstraintType& type,
     AlignmentCandidatePair* candidate_pair_ptr);
 
 void findAllAlignmentCandidates(

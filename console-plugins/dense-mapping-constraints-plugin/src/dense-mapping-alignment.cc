@@ -606,12 +606,14 @@ bool computeAlignmentForIncrementalSubmapCandidatePairs(
             // constraint.
             AlignmentCandidatePair map_candidate_pair;
             createCandidatePair(
-                pair.candidate_B, map_base_candidate, &map_candidate_pair);
+                pair.candidate_B, map_base_candidate,
+                ConstraintType::incremental, &map_candidate_pair);
 
             // Pair between current and last successful candidate to retrieve
             // initial transform guess.
             createCandidatePair(
                 pair.candidate_B, last_successful_candidate,
+                ConstraintType::incremental,
                 &candidate_to_last_successful_pair);
 
             map_candidate_pair.T_SB_SA_init =
