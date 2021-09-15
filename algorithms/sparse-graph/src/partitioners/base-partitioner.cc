@@ -9,7 +9,7 @@ namespace spg {
 bool BasePartitioner::shouldInsertNode(
     const RepresentativeNodeVector& nodes,
     const RepresentativeNode& cur_node) const noexcept {
-  if (nodes.empty()) {
+  if (FLAGS_sparse_graph_add_every_node || nodes.empty()) {
     return true;
   }
   const RepresentativeNode& last_node = nodes.back();

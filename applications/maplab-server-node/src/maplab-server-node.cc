@@ -2231,8 +2231,8 @@ bool MaplabServerNode::computeSparseGraph() {
 
   // Sparsify the graph and get latest estimations.
   const vi_map::VIMap* cmap = CHECK_NOTNULL(map_read.get());
-  // spg::LidarPartitioner partitioner(*cmap);
-  spg::AllPartitioner partitioner(*cmap);
+  spg::LidarPartitioner partitioner(*cmap);
+  // spg::AllPartitioner partitioner(*cmap);
 
   // Sparsify the graph and get latest estimations.
   sparsified_graph_.compute(cmap, &partitioner);
