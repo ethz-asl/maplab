@@ -453,7 +453,7 @@ bool candidatesAreSpatiallyTooFar(
 
 void createCandidatePair(
     const AlignmentCandidate& candidate_A,
-    const AlignmentCandidate& candidate_B,
+    const AlignmentCandidate& candidate_B, const ConstraintType& type,
     AlignmentCandidatePair* candidate_pair_ptr) {
   CHECK_NOTNULL(candidate_pair_ptr);
   candidate_pair_ptr->candidate_A = candidate_A;
@@ -465,11 +465,11 @@ void createCandidatePair(
 
 void addCandidatePair(
     const AlignmentCandidate& candidate_A,
-    const AlignmentCandidate& candidate_B,
+    const AlignmentCandidate& candidate_B, const ConstraintType& type,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
   CHECK_NOTNULL(candidate_pairs_ptr);
   AlignmentCandidatePair pair;
-  createCandidatePair(candidate_A, candidate_B, &pair);
+  createCandidatePair(candidate_A, candidate_B, type, &pair);
   candidate_pairs_ptr->emplace(pair);
 }
 
@@ -651,7 +651,9 @@ bool searchForConsecutiveAlignmentCandidatePairs(
 
         // If we alread had a candidate B, we take the two candidates and
         // create a candidate pair and move on.
-        addCandidatePair(*candidate_A, *candidate_B, candidate_pairs_ptr);
+        addCandidatePair(
+            *candidate_A, *candidate_B, ConstraintType::consecutive,
+            candidate_pairs_ptr);
         candidate_A = candidate_B;
         candidate_B = nullptr;
         CHECK_NOTNULL(candidate_A);
@@ -797,7 +799,8 @@ bool searchForProximityBasedAlignmentCandidatePairsBetweenTwoMissions(
 
       // Create candidate pair and save it ordered by distance;
       AlignmentCandidatePair pair;
-      createCandidatePair(candidate_A, candidate_B, &pair);
+      createCandidatePair(
+          candidate_A, candidate_B, ConstraintType::proximity, &pair);
       squared_distance_to_candidate_pair_map.emplace(
           squared_distances(idx_B), std::move(pair));
     }
