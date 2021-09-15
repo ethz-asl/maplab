@@ -1079,6 +1079,10 @@ bool hasTimeInformation(const resources::PointCloud& point_cloud) {
 }
 
 void ignoreFieldsFromPointCloud(resources::PointCloud* point_cloud) {
+  if (FLAGS_resources_pointcloud_ignore_fields.empty()) {
+    return;
+  }
+
   CHECK_NOTNULL(point_cloud);
   std::vector<std::string> fields_in_flag;
   const std::string kDelimiter = ",";
