@@ -542,7 +542,9 @@ bool searchForIncrementalSubmapAlignmentCandidatePairs(
       candidate_B = current_candidate;
       // If we alread had a candidate B, we take the two candidates and
       // create a candidate pair and move on.
-      addCandidatePair(*candidate_A, *candidate_B, candidate_pairs_ptr);
+      addCandidatePair(
+          *candidate_A, *candidate_B, ConstraintType::incremental,
+          candidate_pairs_ptr);
       candidate_A = candidate_B;
       candidate_B = nullptr;
       CHECK_NOTNULL(candidate_A);

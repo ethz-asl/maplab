@@ -23,7 +23,7 @@ static std::unordered_set<backend::ResourceType, backend::ResourceTypeHash>
                             backend::ResourceType::kPointCloudXYZL,
                             backend::ResourceType::kPointCloudXYZIRT};
 
-enum class ConstraintType { consecutive, proximity, global };
+enum class ConstraintType { consecutive, proximity, incremental, global };
 
 struct AlignmentCandidate {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
