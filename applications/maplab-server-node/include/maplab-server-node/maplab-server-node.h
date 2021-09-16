@@ -95,9 +95,7 @@ class MaplabServerNode final {
       const std::string& robot_name, std::string* status_message);
 
   bool clearBlacklist();
-  bool clearPreviousBlacklistForRobot(
-      const std::string& robot_name, std::string* status_message);
-  bool clearCurrentBlacklistForRobot(
+  bool clearBlacklistForRobot(
       const std::string& robot_name, std::string* status_message);
 
   // Returns an accumulation of the dense map data in global frame within a

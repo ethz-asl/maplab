@@ -53,11 +53,7 @@ class MaplabServerRosNode {
       std_srvs::Empty::Request& request,     // NOLINT
       std_srvs::Empty::Response& response);  // NOLINT
 
-  bool whitelistPreviousRobotCallback(
-      maplab_msgs::DeleteAllRobotMissions::Request& request,     // NOLINT
-      maplab_msgs::DeleteAllRobotMissions::Response& response);  // NOLINT
-
-  bool whitelistCurrentRobotCallback(
+  bool whitelistRobotCallback(
       maplab_msgs::DeleteAllRobotMissions::Request& request,     // NOLINT
       maplab_msgs::DeleteAllRobotMissions::Response& response);  // NOLINT
 
@@ -117,8 +113,7 @@ class MaplabServerRosNode {
   ros::ServiceServer save_map_srv_;
   ros::ServiceServer reinit_gflags_srv_;
   ros::ServiceServer whitelist_missions_srv_;
-  ros::ServiceServer whitelist_current_robot_srv_;
-  ros::ServiceServer whitelist_previous_robot_srv_;
+  ros::ServiceServer whitelist_robot_srv_;
   ros::ServiceServer map_lookup_srv_;
   ros::ServiceServer delete_mission_srv_;
   ros::ServiceServer delete_all_robot_missions_srv_;
