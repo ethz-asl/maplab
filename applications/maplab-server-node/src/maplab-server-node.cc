@@ -141,6 +141,11 @@ DEFINE_int32(
     "If enabled, the global visual loop closure search will be performed every "
     "nth map merging iterations.");
 
+DEFINE_int32(
+    maplab_server_perform_global_opt_every_nth, -1,
+    "If enabled, the global optiimzation will be performed every nth map "
+    "merging iterations.");
+
 DEFINE_string(
     maplab_server_initial_map_path, "",
     "If not empty, the server will be initialized with the map at this path.");
@@ -949,7 +954,14 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
   ////////////////////
   // This does not scale, and never will, so it is important that # we limit
   // the runtime by setting the --ba_max_time_seconds flag.
-  {
+  bool perform_global_opt = true;
+  if (FLAGS_maplab_server_perform_global_opt_every_nth > 0) {
+    const uint32_t n_processing =
+        num_full_map_merging_processings %
+        FLAGS_maplab_server_perform_global_opt_every_nth;
+    perform_global_opt = n_processing == 0;
+  }
+  if (perform_global_opt) {
     vi_map::VIMapManager::MapWriteAccess map =
         map_manager_.getMapWriteAccess(kMergedMapKey);
     vi_map::MissionIdList mission_ids;
@@ -1171,7 +1183,7 @@ bool MaplabServerNode::appendAvailableSubmaps() {
     {
       vi_map::VIMapManager::MapReadAccess submap =
           map_manager_.getMapReadAccess(submap_process.map_key);
-      CHECK_EQ(submap->nummissions(), 1u);
+      CHECK_EQ(submap->numMissions(), 1u);
       submap_mission_id = submap->getIdOfFirstMission();
     }
     if (isSubmapBlacklisted(submap_process.map_key)) {
