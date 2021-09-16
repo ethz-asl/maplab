@@ -1813,7 +1813,69 @@ bool MaplabServerNode::clearBlacklist() {
   return success;
 }
 
-bool MaplabServerNode::clearBlacklistForRobot(
+bool MaplabServerNode::clearPreviousBlacklistForRobot(
+    const std::string& robot_name, std::string* status_message) {
+  CHECK_NOTNULL(status_message);
+  std::unordered_set<std::string> current_missions;
+  std::stringstream ss;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::stringstream ss;
+    if (robot_name.empty()) {
+      ss << "Robot name is empty, cannot find associated missions to whitelist "
+         << "them!";
+      *status_message = ss.str();
+      LOG(ERROR) << "[MaplabServerNode] " << *status_message;
+      return false;
+    }
+
+    // Retrieve all missions associated with this robot.
+    uint32_t num_matching_missions = 0u;
+    {
+      std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+      for (const auto& kv : mission_id_to_robot_map_) {
+        if (kv.second == robot_name) {
+          if (!kv.first.isValid()) {
+            continue;
+          }
+          current_missions.insert(kv.first.hexString());
+          ++num_matching_missions;
+        }
+      }
+    }
+
+    if (num_matching_missions == 0u) {
+      ss << "No mission matches the provided robot name   "
+         << "('" << robot_name << "')";
+      *status_message = ss.str();
+      LOG(ERROR) << "[MaplabServerNode] " << *status_message;
+      return false;
+    }
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
+    ss << "Will whitelist all missions of robot " << robot_name << ": ";
+    for (const auto mission_robot : blacklisted_missions_) {
+      const std::string& mission_string = mission_robot.second;
+      if (mission_string != robot_name) {
+        continue;
+      }
+      if (current_missions.find(mission_string) != current_missions.cend()) {
+        continue;
+      }
+      *status_message += mission_string + " ";
+
+      blacklisted_missions_.erase(
+          blacklisted_missions_.find(mission_robot.first));
+    }
+    *status_message = ss.str();
+    LOG(INFO) << "[MaplabServerNode] " << *status_message;
+    return true;
+  }
+}
+
+bool MaplabServerNode::clearCurrentBlacklistForRobot(
     const std::string& robot_name, std::string* status_message) {
   CHECK_NOTNULL(status_message);
   std::unordered_set<vi_map::MissionId> missions_to_whitelist;

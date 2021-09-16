@@ -90,10 +90,18 @@ MaplabServerRosNode::MaplabServerRosNode(
   boost::function<bool(
       maplab_msgs::DeleteAllRobotMissions::Request&,
       maplab_msgs::DeleteAllRobotMissions::Response&)>
-      whitelist_robot_callback = boost::bind(
-          &MaplabServerRosNode::whitelistRobotCallback, this, _1, _2);
-  whitelist_robot_srv_ =
-      nh_.advertiseService("whitelistRobot", whitelist_robot_callback);
+      whitelist_current_robot_callback = boost::bind(
+          &MaplabServerRosNode::whitelistCurrentRobotCallback, this, _1, _2);
+  whitelist_current_robot_srv_ = nh_.advertiseService(
+      "whitelistCurrentRobot", whitelist_current_robot_callback);
+
+  boost::function<bool(
+      maplab_msgs::DeleteAllRobotMissions::Request&,
+      maplab_msgs::DeleteAllRobotMissions::Response&)>
+      whitelist_previous_robot_callback = boost::bind(
+          &MaplabServerRosNode::whitelistPreviousRobotCallback, this, _1, _2);
+  whitelist_current_robot_srv_ = nh_.advertiseService(
+      "whitelistPreviousRobot", whitelist_previous_robot_callback);
 
   boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
       accept_submaps_callback = boost::bind(
@@ -299,14 +307,28 @@ bool MaplabServerRosNode::whitelistAllMissionsCallback(
   return maplab_server_node_->clearBlacklist();
 }
 
-bool MaplabServerRosNode::whitelistRobotCallback(
+bool MaplabServerRosNode::whitelistPreviousRobotCallback(
     maplab_msgs::DeleteAllRobotMissions::Request& request,      // NOLINT
     maplab_msgs::DeleteAllRobotMissions::Response& response) {  // NOLINT
   const std::string& robot_name = request.robot_name.data;
-  LOG(INFO) << "[MaplabServerRosNode] Received whitelist mission service "
-               "call for robot: "
-            << robot_name;
-  response.success.data = maplab_server_node_->clearBlacklistForRobot(
+  LOG(INFO)
+      << "[MaplabServerRosNode] Received whitelist previous mission service "
+         "call for robot: "
+      << robot_name;
+  response.success.data = maplab_server_node_->clearPreviousBlacklistForRobot(
+      robot_name, &response.message.data);
+  return true;
+}
+
+bool MaplabServerRosNode::whitelistCurrentRobotCallback(
+    maplab_msgs::DeleteAllRobotMissions::Request& request,      // NOLINT
+    maplab_msgs::DeleteAllRobotMissions::Response& response) {  // NOLINT
+  const std::string& robot_name = request.robot_name.data;
+  LOG(INFO)
+      << "[MaplabServerRosNode] Received whitelist current mission service "
+         "call for robot: "
+      << robot_name;
+  response.success.data = maplab_server_node_->clearCurrentBlacklistForRobot(
       robot_name, &response.message.data);
   return true;
 }
