@@ -1769,7 +1769,9 @@ bool MaplabServerNode::deleteAllRobotMissions(
     std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
     for (const auto& kv : mission_id_to_robot_map_) {
       if (kv.second == robot_name) {
-        CHECK(kv.first.isValid());
+        if (!kv.first.isValid()) {
+          continue;
+        }
         missions_to_delete.insert(kv.first);
         ++num_matching_missions;
       }
@@ -1809,6 +1811,60 @@ bool MaplabServerNode::clearBlacklist() {
     success &= blacklisted_missions_.empty();
   }
   return success;
+}
+
+bool MaplabServerNode::clearBlacklistForRobot(
+    const std::string& robot_name, std::string* status_message) {
+  CHECK_NOTNULL(status_message);
+  std::unordered_set<vi_map::MissionId> missions_to_whitelist;
+  std::stringstream ss;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::stringstream ss;
+    if (robot_name.empty()) {
+      ss << "Robot name is empty, cannot find associated missions to whitelist "
+         << "them!";
+      *status_message = ss.str();
+      LOG(ERROR) << "[MaplabServerNode] " << *status_message;
+      return false;
+    }
+
+    // Retrieve all missions associated with this robot.
+    uint32_t num_matching_missions = 0u;
+    {
+      std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+      for (const auto& kv : mission_id_to_robot_map_) {
+        if (kv.second == robot_name) {
+          if (!kv.first.isValid()) {
+            continue;
+          }
+          missions_to_whitelist.insert(kv.first);
+          ++num_matching_missions;
+        }
+      }
+    }
+
+    if (num_matching_missions == 0u) {
+      ss << "No mission matches the provided robot name   "
+         << "('" << robot_name << "')";
+      *status_message = ss.str();
+      LOG(ERROR) << "[MaplabServerNode] " << *status_message;
+      return false;
+    }
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
+    ss << "Will whitelist all missions of robot " << robot_name << ": ";
+    for (const vi_map::MissionId& mission_to_whitelist :
+         missions_to_whitelist) {
+      *status_message += mission_to_whitelist.hexString() + " ";
+      blacklisted_missions_.erase(mission_to_whitelist);
+    }
+    *status_message = ss.str();
+    LOG(INFO) << "[MaplabServerNode] " << *status_message;
+    return true;
+  }
 }
 
 bool MaplabServerNode::deleteBlacklistedMissions() {

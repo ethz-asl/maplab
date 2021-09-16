@@ -87,6 +87,14 @@ MaplabServerRosNode::MaplabServerRosNode(
   whitelist_missions_srv_ =
       nh_.advertiseService("whitelistAllMissions", whitelist_missions_callback);
 
+  boost::function<bool(
+      maplab_msgs::DeleteAllRobotMissions::Request&,
+      maplab_msgs::DeleteAllRobotMissions::Response&)>
+      whitelist_robot_callback = boost::bind(
+          &MaplabServerRosNode::whitelistRobotCallback, this, _1, _2);
+  whitelist_robot_srv_ =
+      nh_.advertiseService("whitelistRobot", whitelist_robot_callback);
+
   boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
       accept_submaps_callback = boost::bind(
           &MaplabServerRosNode::acceptNewSubmapsCallback, this, _1, _2);
@@ -289,6 +297,18 @@ bool MaplabServerRosNode::whitelistAllMissionsCallback(
                "call...";
 
   return maplab_server_node_->clearBlacklist();
+}
+
+bool MaplabServerRosNode::whitelistRobotCallback(
+    maplab_msgs::DeleteAllRobotMissions::Request& request,      // NOLINT
+    maplab_msgs::DeleteAllRobotMissions::Response& response) {  // NOLINT
+  const std::string& robot_name = request.robot_name.data;
+  LOG(INFO) << "[MaplabServerRosNode] Received whitelist mission service "
+               "call for robot: "
+            << robot_name;
+  response.success.data = maplab_server_node_->clearBlacklistForRobot(
+      robot_name, &response.message.data);
+  return true;
 }
 
 bool MaplabServerRosNode::acceptNewSubmapsCallback(
