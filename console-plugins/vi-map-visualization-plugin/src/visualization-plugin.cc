@@ -135,6 +135,15 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
       common::Processing::Sync);
 
   addCommand(
+      {"visualize_xyzirt_pointclouds_sequentially"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResourceSequentially(
+            backend::ResourceType::kPointCloudXYZIRT);
+      },
+      "Incrementally builds and visualizes xyz + intensity dense maps.",
+      common::Processing::Sync);
+
+  addCommand(
       {"visualize_xyzrgbn_pointclouds"},
       [this]() -> int {
         return visualizeReprojectedDepthResource(

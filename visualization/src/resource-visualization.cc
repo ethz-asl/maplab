@@ -686,12 +686,18 @@ void visualizeReprojectedDepthResourceSequentially(
   uint16_t mission_counter = 0u;
   const std::string mission_prefix = "mission_";
   for (const vi_map::MissionId& mission_id : mission_ids) {
+    const std::string& mission_string = mission_id.shortHex();
+    VLOG(1) << "mission string is " << mission_string;
+    if (!FLAGS_vis_pointcloud_mission_id.empty() &&
+        mission_string != FLAGS_vis_pointcloud_mission_id) {
+      continue;
+    }
     visualization::Color color;
     visualization::GetRandomRGBColor(&color);
     createPointCloudMessageVectorForMission(
         input_resource_type, mission_id, vi_map, mission_counter, color,
         &incremental_resources);
-    mission_topic_prefix.emplace_back(mission_prefix + mission_id.shortHex());
+    mission_topic_prefix.emplace_back(mission_prefix + mission_string);
     ++mission_counter;
   }
   // Publish the point clouds.
