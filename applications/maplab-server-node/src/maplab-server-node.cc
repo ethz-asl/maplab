@@ -1843,14 +1843,6 @@ bool MaplabServerNode::clearPreviousBlacklistForRobot(
         }
       }
     }
-
-    if (num_matching_missions == 0u) {
-      ss << "No mission matches the provided robot name   "
-         << "('" << robot_name << "')";
-      *status_message = ss.str();
-      LOG(ERROR) << "[MaplabServerNode] " << *status_message;
-      return false;
-    }
   }
 
   {

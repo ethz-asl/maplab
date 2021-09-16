@@ -100,7 +100,7 @@ MaplabServerRosNode::MaplabServerRosNode(
       maplab_msgs::DeleteAllRobotMissions::Response&)>
       whitelist_previous_robot_callback = boost::bind(
           &MaplabServerRosNode::whitelistPreviousRobotCallback, this, _1, _2);
-  whitelist_current_robot_srv_ = nh_.advertiseService(
+  whitelist_previous_robot_srv_ = nh_.advertiseService(
       "whitelistPreviousRobot", whitelist_previous_robot_callback);
 
   boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
