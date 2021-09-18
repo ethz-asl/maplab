@@ -17,10 +17,10 @@ cameras:
           -0.003388226217, 0.999993471212, -0.001255968084, -0.005930631162279414,
            0.0, 0.0, 0.0, 1.0],
         image_dimension: [1440, 1080],
-        distortion_coefficients: [-0.0392852639, -0.0023244164, -0.0005553017, 0.0002238156],
+        distortion_coefficients: [-0.0465180371, 0.0160363324, -0.0170339468, 0.0050095489],
         distortion_type: equidistant,
-        focal_length: [702.3538912351, 702.1759854802],
-        principal_point: [718.7749348353, 535.2856167618]}
+        focal_length: [696.7174426776, 696.4862496732],
+        principal_point: [708.4206218964, 535.6712007522]}
 
 
 camera_params:
@@ -59,13 +59,13 @@ numImuFrames: 3 # number of frames linked by most recent nonlinear IMU error ter
 ceres_options:
     minIterations: 3   # minimum number of iterations always performed
     maxIterations: 10  # never do more than these, even if not converged
-    timeLimit: 0.05    # [s] negative values will set the an unlimited time limit
+    timeLimit: 0.1     # [s] negative values will set the an unlimited time limit
 
 # detection
 detection_options:
     threshold: 40.0      # detection threshold. By default the uniformity radius in pixels
     octaves: 0           # number of octaves for detection. 0 means single-scale at highest resolution
-    maxNoKeypoints: 400  # restrict to a maximum of this many keypoints per image (strongest ones)
+    maxNoKeypoints: 800  # restrict to a maximum of this many keypoints per image (strongest ones)
 
 # delay of images [s]:
 imageDelay: 0.0  # in case you are using a custom setup, you will have to calibrate this. 0 for the VISensor.

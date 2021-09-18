@@ -9,6 +9,7 @@
     <remap from="/camera0" to="/alphasense/cam0/image_raw" />
     <remap from="/camera1" to="/alphasense/cam1/image_raw" />
     <remap from="/imu" to="/alphasense/imu" />
+		<remap from="/okvis_node/okvis_maplab_odometry" to="/odometry/maplab_odom_T_M_I"/>
   </node>
 
 	<!-- MAPLAB -->

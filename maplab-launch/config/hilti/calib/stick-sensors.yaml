@@ -21,7 +21,7 @@ sensors:
   - id:                                    acbb23479caf7592b35518478a2fe08f
     sensor_type:                           ODOMETRY_6DOF
     description:                           "OKVIS"
-    topic:                                 /okvis_node/okvis_maplab_odometry
+    topic:                                 /odometry/maplab_odom_T_M_I
 
   - id:                                    4af1bac2a7c5fad79f09e49e3b96d87c
     sensor_type:                           NCAMERA
