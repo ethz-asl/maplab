@@ -230,7 +230,9 @@ size_t VIMap::numLandmarksInIndex() const {
 }
 
 bool VIMap::hasLandmark(const vi_map::LandmarkId& id) const {
-  CHECK(id.isValid());
+  if (!id.isValid()) {
+    return false;
+  }
   return landmark_index.hasLandmark(id);
 }
 
