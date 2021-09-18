@@ -122,6 +122,10 @@ void PclAlignment<T_alignment, T_point>::downSamplePointCloud(
     const PclPointCloudPtr<T_point>& cloud_ds) {
   CHECK_NOTNULL(cloud);
   CHECK_NOTNULL(cloud_ds);
+  if (cloud->points.size() == 0) {
+    *cloud = *cloud_ds;
+    return;
+  }
 
   const float inverse_grid_size = 1. / FLAGS_regbox_pcl_downsample_leaf_size_m;
 
