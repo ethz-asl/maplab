@@ -8,6 +8,9 @@ DEFINE_bool(
 DEFINE_bool(
     sparse_graph_include_lc_edge_weight, false,
     "If true, the adjacency edge weights include loop closure edge weights.");
+DEFINE_bool(
+    sparse_graph_add_every_node, false,
+    "Always adds the node to the partitioner. Mainly for debugging.");
 DEFINE_double(
     sparse_graph_min_distance_to_last_node_m, 1.0,
     "Minimum distance to the last node.");

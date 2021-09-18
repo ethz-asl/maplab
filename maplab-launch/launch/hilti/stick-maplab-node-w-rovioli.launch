@@ -1,7 +1,8 @@
 <?xml version="1.0"?>
 
 <launch>
-  <!--node pkg="rosbag" type="play" name="rosbag" args="/mnt/scratch2/hilti/Construction_Site_2.bag -q -d 2 -s 0 -r 0.4"/-->
+  <!-- <node pkg="rosbag" type="play" name="rosbag" args="/media/berlukas/Data/data/datasets/Hilti/Lab/LAB_Survey_2.bag -q -d 2 -s 0 -r 0.4"/> -->
+  <node pkg="rosbag" type="play" name="rosbag" args="/media/berlukas/Data/data/datasets/Hilti/Basement_1/Basement_1.bag -q -d 2 -s 0 -r 0.4"/>
 
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 
@@ -15,7 +16,7 @@
 			<!-- ROBOT SPECIFIC PARAMS -->
 			<!-- SENSORS -->
 			<param name="sensor_calibration_file" value="$(find maplab_launch)/config/hilti/stick-sensors.yaml"/>
-			<param name="imu_to_camera_time_offset_ns" value="0"/>
+			<param name="imu_to_camera_time_offset_ns" value="0.0"/>
 			<param name="vio_camera_topic_suffix" value="image_raw"/>
 
 			<!-- ROVIOLI CONFIG -->
@@ -38,16 +39,16 @@
 		<!-- ROBOT SPECIFIC PARAMS -->
 		<!-- SENSORS -->
 		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/hilti/stick-sensors.yaml"/>
-		<param name="imu_to_camera_time_offset_ns" value="0"/>
-		<param name="imu_to_lidar_time_offset_ns" value="0"/>
+		<param name="imu_to_camera_time_offset_ns" value="0.0"/>
+		<param name="imu_to_lidar_time_offset_ns" value="0.0"/>
 		<param name="vio_camera_topic_suffix" value="image_raw"/>
 
 		<!-- DENSE MAP -->
 		<param name="map_builder_save_point_clouds_as_resources" value="true"/>
-		<param name="map_builder_save_image_as_resources" value="true"/>
+		<param name="map_builder_save_image_as_resources" value="false"/>
 
 		<!-- MAPLAB_NODE_CONFIG -->
-		<param name="map_save_every_n_sec" value="0"/>
+		<param name="map_save_every_n_sec" value="10"/>
 		<param name="map_run_keyframing_when_saving" value="false"/>
 		<param name="image_apply_clahe_histogram_equalization" value="false"/>
 		<param name="map_output_folder" value="/tmp/hiltistick/submaps/"/>

@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+
+<!-- Requires:
+  - ethz-asl/maplab (develop)
+  - ethz-asl/transfolder
+-->
+
+<launch>
+
+	<arg name="euroc_attach_images" default="false"/>
+	<arg name="euroc_save_map_every_n_sec" default="20"/>
+	<arg name="euroc_clahe" default="false"/>
+	<arg name="euroc_playback_speed" default="1.0"/>
+	<arg name="euroc_remove_bad_landmarks" default="true"/>
+	<arg name="euroc_bags_folder" default="/media/berlukas/Data/data/datasets/EuRoc/"/>
+	<arg name="euroc_root_map_directory" default="/tmp/maplab_node/"/>
+
+	<arg name="group_A" default="true"/>
+	<arg name="group_B" default="true"/>
+
+	<!-- ================================== MH_01 ================================================== -->
+	<group if="$(arg group_A)">
+		<arg name="euroc_robot_name" default="euroc_mh_1"/>
+
+		<node pkg="rosbag" type="play" name="rosbag_$(arg euroc_robot_name)" args="$(arg euroc_bags_folder)/MH_01_easy.bag -q -d 2 -s 0 -r $(arg euroc_playback_speed)">
+			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0"/>
+			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw"/>
+			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw"/>
+		</node>
+
+		<include file="$(find maplab_node)/launch/maplab_node_w_rovioli/maplab_node_rovioli.launch">
+			<arg name="robot_name" default="$(arg euroc_robot_name)"/>
+  		<arg name="maplab_verbosity" default="1"/>
+			<arg name="maplab_sensor_calibration_file" default="$(find maplab_launch)/config/euroc/euroc-stereo-mh-1.yaml"/>
+			<arg name="maplab_save_map_every_n_sec" default="$(arg euroc_save_map_every_n_sec)"/>
+			<arg name="maplab_keyframe_when_saving" default="true"/>
+			<arg name="maplab_image_topic_suffix" default="image_raw"/>
+			<arg name="maplab_attach_images" default="$(arg euroc_attach_images)"/>
+			<arg name="maplab_map_folder" default="$(arg euroc_root_map_directory)/$(arg euroc_robot_name)/"/>
+			<arg name="maplab_apply_clahe" default="$(arg euroc_clahe)"/>
+			<arg name="maplab_remove_bad_landmarks" default="$(arg euroc_remove_bad_landmarks)"/>
+		</include>
+
+    <node name="transfolder_sender_$(arg euroc_robot_name)" type="sender_node" pkg="transfolder" output="screen" args="-alsologtostderr">
+
+      <param name="new_subfolder_notification_topic_name" value="/$(arg euroc_robot_name)/map_update_notification"/>
+      <param name="new_subfolder_notification_topic_queue_size" value="10000"/>
+
+      <param name="file_transfer_status_service_name" value="/transfolder/file_transfer_status"/>
+      <param name="sender_queue_handling_period_s" value="0.5"/>
+
+      <param name="robot_root_directory" value="$(arg euroc_root_map_directory)/$(arg euroc_robot_name)"/>
+      <param name="robot_name" value="$(arg euroc_robot_name)"/>
+
+      <param name="base_station_root_directory" value="/home/berlukas/maplab_submaps" />
+      <param name="base_station_username" value="berlukas" />
+      <param name="base_station_ip_address" value="localhost" />
+      <!-- <param name="additional_rsync_args" value="-a -P -e &quot;ssh -T -c aes128-ctr -o Compression=no -x&quot;"/> -->
+      <param name="additional_rsync_args" value="--progress"/>
+    </node>
+	</group>
+
+</launch>
