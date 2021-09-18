@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-  <node pkg="rosbag" type="play" name="rosbag" args="/media/berlukas/Data/data/datasets/Hilti/Lab/LAB_Survey_2.bag -q -d 2 -s 0 -r 0.4"/>
+  <!--node pkg="rosbag" type="play" name="rosbag" args="/mnt/scratch2/hilti/Construction_Site_2.bag -q -d 2 -s 0 -r 0.4"/-->
 
 	<node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/>
 
@@ -29,6 +29,7 @@
 	</group>
 
 	<!-- MAPLAB -->
+	<?ignore
 	<node name="maplab_node" pkg="maplab_node" type="maplab_node" output="screen" clear_params="true">
 
 		<!-- GENERAL PARAMS -->
@@ -37,8 +38,8 @@
 		<!-- ROBOT SPECIFIC PARAMS -->
 		<!-- SENSORS -->
 		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/hilti/stick-sensors.yaml"/>
-		<param name="imu_to_camera_time_offset_ns" value="1903666"/>
-		<param name="imu_to_lidar_time_offset_ns" value="0.0"/>
+		<param name="imu_to_camera_time_offset_ns" value="0"/>
+		<param name="imu_to_lidar_time_offset_ns" value="0"/>
 		<param name="vio_camera_topic_suffix" value="image_raw"/>
 
 		<!-- DENSE MAP -->
@@ -51,4 +52,5 @@
 		<param name="image_apply_clahe_histogram_equalization" value="false"/>
 		<param name="map_output_folder" value="/tmp/hiltistick/submaps/"/>
 	</node>
+	?>
 </launch>

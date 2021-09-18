@@ -1,0 +1,109 @@
+# MAPLAB NODE CONFIGURATION
+
+###############################################################################
+########################### ! READ THIS CAREFULLY ! ###########################
+###############################################################################
+# These ROS parameters here correspond to the gflags in the code and affect   #
+# all code/commands in the maplab_node process. This file should only contain #
+# parameters that are in common across all robots. Robot specific settings    #
+# should be exposed by the robot.launch file and set in the robot specific    #
+# launch file.                                                                #
+###############################################################################
+
+# DATA SOURCE [rosbag, rostopic]
+################################
+datasource_type:                                                        "rostopic"
+datasource_rosbag:                                                      ""
+
+# MAP BUILDING
+##############
+map_save_on_shutdown:                                                   true
+map_overwrite_enabled:                                                  false
+map_compute_localization_map:                                           false
+map_run_keyframing_when_saving:                                         false
+map_remove_bad_landmarks:                                               false
+map_initialize_and_triangulate_landmarks_when_saving:                   true
+map_split_map_into_submaps_when_saving_periodically:                    true
+map_add_unique_timestamp_prefix_for_save_map_folder:                    true
+# VIO:                                                                  these might be some settings that could be set individually for each
+# robot if necessary, as they depend on the sensors and motion.
+vio_nframe_sync_tolerance_ns:                                           500000
+vio_nframe_sync_max_output_frequency_hz:                                20
+# To reduce the cost of spawning threads and processing each imu measurement
+# individually, the IMU messages can be batched. Setting this frequency to <=0 disables batching.
+maplab_batch_imu_measurements_at_frequency:                             20
+# If the odometry fed to the maplab_node has a high frequency, throttling is adviced.
+maplab_throttle_frequency_odometry:                                     20
+
+# ATTACHING RESOURCES TO MAP
+############################
+map_builder_save_image_as_resources:                                    false
+map_builder_save_point_clouds_as_resources:                             false
+map_builder_save_point_clouds_as_range_image_camera_id:                 ""
+map_builder_save_point_clouds_as_range_image_including_intensity_image: false
+map_builder_save_point_cloud_maps_as_resources:                         false
+
+# KEYFRAMING
+############
+kf_distance_threshold_m:                                                0.5
+kf_rotation_threshold_deg:                                              20
+kf_every_nth_vertex:                                                    20
+# Set minimum common landmarks to zero, since we use odmetry constraints and
+# are not dependent on the fact that there are common landmarks.
+kf_min_shared_landmarks_obs:                                            10
+
+# FEATURE DETECTOR SETTINGS
+###########################
+# Pyramid level factor and number of levels.
+feature_tracking_detector_orb_pyramid_levels: 3 # Default:              1
+feature_tracking_detector_orb_scale_factor: 1.3 # Default:              1.2
+# How many features to detect.
+feature_tracking_detector_orb_num_features:                             2500 # Default 2000
+# Less picky about what is considered a keypoint,
+# intensity difference between center and pixels on circle around keypoint.
+feature_tracking_detector_orb_fast_threshold: 10 # Default:             20
+# Minimum keypoint score, cannot make stricter, since most images are already
+# very weak in these blurry low-light images.
+feature_tracking_detector_orb_score_lower_bound: 5e-7 # Default:        1e-7
+# Dont' change, but since the image boarder padding depends on this param, we fix
+# it here.
+feature_tracking_detector_orb_patch_size:                               20
+# Reduce image boarder to patch size.
+min_tracking_distance_to_image_border_px: 30 # Default:                 30
+# Maximum number of features.
+feature_tracking_detector_max_feature_count: 1500 # Default:            700
+
+# BRISK number of octaves.
+feature_tracker_simple_pipeline_brisk_num_octaves: 2 # Default:         1
+
+# FEATURE TRACKER SETTINGS (a gyro-assisted LK tracker is used!)
+# If set to 0, pyramids are not used (single level), if set to 1, two levels
+# are used, and so on. If pyramids are passed to the input then the algorithm
+# will use as many levels as possible but not more than this threshold.
+gyro_lk_max_pyramid_levels: 2 # Default:                                1
+
+# Apply an adaptive histogram equalization (CLAHE) to provide better images.
+image_apply_clahe_histogram_equalization:                               false # Default: false
+image_clahe_clip_limit:                                                 2 # Default 2
+image_clahe_grid_size:                                                  8 # Default: 8
+
+# RESOURCES
+###############
+resources_compress_pointclouds:                                         true
+
+# VISUALIZATION
+###############
+publish_debug_markers:                                                  false
+vis_default_namespace:                                                  maplab_rviz
+detection_visualize_keypoints:                                          false
+feature_tracker_visualize_feature_tracks:                               true
+feature_tracker_visualize_keypoint_matches:                             true
+feature_tracker_visualize_keypoints:                                    false
+feature_tracker_visualize_keypoints_individual_frames:                  false
+
+# DEBUGGING AND LOGGING
+#######################
+alsologtostderr:                                                        true
+colorlogtostderr:                                                       true
+v: 1
+exprt_estimated_poses_to_csv:                                           ""
