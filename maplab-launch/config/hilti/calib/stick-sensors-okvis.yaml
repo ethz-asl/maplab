@@ -52,20 +52,20 @@ imu_params:
          0.0000, 0.0000, 0.0000, 1.0000]
 
 # Estimator parameters
-numKeyframes: 5 # number of keyframes in optimisation window
-numImuFrames: 3 # number of frames linked by most recent nonlinear IMU error terms
+numKeyframes: 8 # number of keyframes in optimisation window
+numImuFrames: 4 # number of frames linked by most recent nonlinear IMU error terms
 
 # ceres optimization options
 ceres_options:
-    minIterations: 3   # minimum number of iterations always performed
-    maxIterations: 10  # never do more than these, even if not converged
-    timeLimit: 0.1     # [s] negative values will set the an unlimited time limit
+    minIterations: 5   # minimum number of iterations always performed
+    maxIterations: 40  # never do more than these, even if not converged
+    timeLimit: 0.5     # [s] negative values will set the an unlimited time limit
 
 # detection
 detection_options:
     threshold: 40.0      # detection threshold. By default the uniformity radius in pixels
     octaves: 0           # number of octaves for detection. 0 means single-scale at highest resolution
-    maxNoKeypoints: 800  # restrict to a maximum of this many keypoints per image (strongest ones)
+    maxNoKeypoints: 1000 # restrict to a maximum of this many keypoints per image (strongest ones)
 
 # delay of images [s]:
 imageDelay: 0.0  # in case you are using a custom setup, you will have to calibrate this. 0 for the VISensor.
@@ -78,7 +78,7 @@ useDriver: false
 
 # some options for how and what to publish -- optional in ROS-free version
 publishing_options:
-    publish_rate: 10                   # rate at which odometry updates are published only works properly if imu_rate/publish_rate is an integer!!
+    publish_rate: 15                   # rate at which odometry updates are published only works properly if imu_rate/publish_rate is an integer!!
     publishLandmarks: false            # select, if you want to publish landmarks at all
     landmarkQualityThreshold: 1.0e-2   # landmark with lower quality will not be published
     maximumLandmarkQuality: 0.05       # landmark with higher quality will be published with the maximum colour intensity
