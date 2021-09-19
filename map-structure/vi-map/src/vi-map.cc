@@ -1309,14 +1309,14 @@ void VIMap::getVertex_p_G_I_ForVertexSet(
 void VIMap::addLandmarkIndexReference(
     const vi_map::LandmarkId& landmark_id,
     const pose_graph::VertexId& storing_vertex_id) {
-  if (landmark_id.isValid()) {
+  if (!landmark_id.isValid()) {
     LOG(ERROR) << "Landmark " << landmark_id << " is not valid";
     return;
   }
   if (!getVertex(storing_vertex_id).hasStoredLandmark(landmark_id)) {
-      LOG(ERROR) << "Landmark " << landmark_id << " not found in vertex "
-                 << storing_vertex_id << "!";
-      return;
+    LOG(ERROR) << "Landmark " << landmark_id << " not found in vertex "
+               << storing_vertex_id << "!";
+    return;
   }
 
   landmark_index.addLandmarkAndVertexReference(landmark_id, storing_vertex_id);
