@@ -13,17 +13,14 @@ SET(VI_MAP_SOURCE src/check-map-consistency.cc
                   src/landmark-quality-metrics.cc
                   src/landmark-store.cc
                   src/landmark.cc
-                  src/laser-edge.cc
                   src/loopclosure-edge.cc
                   src/mission-baseframe.cc
                   src/mission.cc
                   src/pose-graph.cc
                   src/sensor-manager.cc
                   src/sensor-utils.cc
-                  src/structure-loopclosure-edge.cc
                   src/test/vi-map-generator.cc
                   src/test/vi-map-test-helpers.cc
-                  src/trajectory-edge.cc
                   src/transformation-edge.cc
                   src/vertex.cc
                   src/vi-map-serialization.cc
