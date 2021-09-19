@@ -27,7 +27,8 @@
 
 #include <transfolder_msgs/QueryAllSubfolders.h>
 
-#include "maplab-server-node/maplab-server-node.h"
+#include <maplab-server-node/maplab-server-gflags.h>
+#include <maplab-server-node/maplab-server-node.h>
 
 DEFINE_int32(
     maplab_server_map_update_topic_queue_size, 1000, "Size of ROS subscriber.");

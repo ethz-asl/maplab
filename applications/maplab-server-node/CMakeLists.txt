@@ -16,8 +16,9 @@ PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 # LIBRARIES #
 #############
 cs_add_library(${PROJECT_NAME}_lib
-	src/maplab-server-node.cc
   src/maplab-server-ros-node.cc
+	src/maplab-server-node.cc
+	src/maplab-server-gflags.cc
 	${PROTO_SRCS})
 
 #######

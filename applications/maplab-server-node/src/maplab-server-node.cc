@@ -33,6 +33,8 @@
 #include <memory>
 #include <string>
 
+#include <maplab-server-node/maplab-server-gflags.h>
+
 DECLARE_bool(ros_free);
 DECLARE_uint64(vi_map_landmark_quality_min_observers);
 
@@ -119,10 +121,6 @@ DEFINE_bool(
     "within and across missions.");
 
 DEFINE_bool(
-    maplab_server_enable_sparse_graph_computation, false,
-    "If enabled, the mapping server will build and publish the sparse graph.");
-
-DEFINE_bool(
     maplab_server_enable_visualization, true,
     "If enabled, the mapping server will publish the results.");
 
@@ -155,6 +153,7 @@ DEFINE_bool(
     "If true, the terminal output will be cleared at every status print.");
 
 namespace maplab {
+
 MaplabServerNode::MaplabServerNode()
     : submap_loading_thread_pool_(
           FLAGS_maplab_server_submap_loading_thread_pool_size),
