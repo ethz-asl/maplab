@@ -183,14 +183,16 @@ MaplabServerRosNode::MaplabServerRosNode(
   dense_map_query_result_ =
       nh_.advertise<sensor_msgs::PointCloud2>("dense_map_query_result", 1);
 
-  CHECK_GT(FLAGS_maplab_server_trigger_sparse_graph_update_every_s, 0.0);
-  time_between_sparse_graph_update_requests_ =
-      ros::Duration(FLAGS_maplab_server_trigger_sparse_graph_update_every_s);
-  boost::function<void(const ros::TimerEvent&)> sparse_graph_timer_callback =
-      boost::bind(&MaplabServerRosNode::triggerSparseGraphUpdate, this, _1);
-  sparse_graph_timer_ = nh_.createTimer(
-      ros::Duration(time_between_sparse_graph_update_requests_),
-      sparse_graph_timer_callback);
+  if (FLAGS_maplab_server_enable_sparse_graph_computation) {
+    CHECK_GT(FLAGS_maplab_server_trigger_sparse_graph_update_every_s, 0.0);
+    time_between_sparse_graph_update_requests_ =
+        ros::Duration(FLAGS_maplab_server_trigger_sparse_graph_update_every_s);
+    boost::function<void(const ros::TimerEvent&)> sparse_graph_timer_callback =
+        boost::bind(&MaplabServerRosNode::triggerSparseGraphUpdate, this, _1);
+    sparse_graph_timer_ = nh_.createTimer(
+        ros::Duration(time_between_sparse_graph_update_requests_),
+        sparse_graph_timer_callback);
+  }
 
   maplab_server_node_->registerStatusCallback(
       [this](const std::string status_string) {
