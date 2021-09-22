@@ -35,7 +35,7 @@ maplab_batch_imu_measurements_at_frequency:                             20
 # If the odometry fed to the maplab_node has a high frequency, throttling is adviced.
 maplab_throttle_frequency_odometry:                                     20
 # Always add odometry edges between nodes
-map_add_odometry_edges_if_less_than_n_common_landmarks:                 0
+map_add_odometry_edges_if_less_than_n_common_landmarks:                 -1
 
 # ATTACHING RESOURCES TO MAP
 ############################
