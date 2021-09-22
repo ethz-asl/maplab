@@ -3,6 +3,7 @@
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
 #include <vi-map/vi-map.h>
+
 #include <vi-mapping-test-app/vi-mapping-test-app.h>
 
 #include "vi-map-helpers/test/vi-map-landmark-quality-check.h"
@@ -23,6 +24,7 @@ class ViMappingTest : public ::testing::Test {
   }
 
   virtual void corruptLandmarks();
+  virtual void addCorruptDuplicateLandmarkObservations();
   visual_inertial_mapping::VIMappingTestApp test_app_;
 };
 
@@ -31,6 +33,19 @@ void ViMappingTest::corruptLandmarks() {
   constexpr int kEveryNthToCorrupt = 1;
   test_app_.corruptLandmarkPositions(
       kLandmarkPositionStdDev, kEveryNthToCorrupt);
+}
+
+void ViMappingTest::addCorruptDuplicateLandmarkObservations() {
+  constexpr int kEveryNthToCorrupt = 20;
+  test_app_.addCorruptDuplicateLandmarkObservations(kEveryNthToCorrupt);
+}
+
+TEST_F(ViMappingTest, TestCorruptObservationCleanup) {
+  addCorruptDuplicateLandmarkObservations();
+  vi_map::VIMap* map = test_app_.getMapMutable();
+  EXPECT_FALSE(test_app_.isMapConsistent());
+  evaluateLandmarkQuality(map);
+  EXPECT_TRUE(test_app_.isMapConsistent());
 }
 
 TEST_F(ViMappingTest, TestLandmarkQualityEvaluation) {
@@ -49,7 +64,7 @@ TEST_F(ViMappingTest, TestLandmarkQualityEvaluation) {
   FLAGS_vi_map_landmark_quality_min_distance_from_closest_observer = 0.05;
 
   evaluateLandmarkQuality(map);
-  checkLandmarkQualityInView(*map, 0, 7627, 13592);
+  checkLandmarkQualityInView(*map, 0, 8087, 13711);
 }
 
 TEST_F(ViMappingTest, TestLandmarkQualityMetrics) {
