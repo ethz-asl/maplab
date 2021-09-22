@@ -1,9 +1,9 @@
 %YAML:1.0
 cameras:
      - {T_SC:
-        [ -0.002821475675, -0.003074758359, 0.999991292530, 0.05067834857850693,
-          -0.999995472623, -0.001037272511, -0.002824676859, 0.0458784339890185,
-          0.001045948678, -0.999994734950, -0.003071817799, -0.005943648304780761,
+        [ 0.999990861752, 0.000628464640, -0.004228645702, -0.052798019321,
+          -0.004226691177, -0.003079450931, -0.999986325938, -0.078374861539,
+          -0.000641477954, 0.999995060995, -0.003076766464, -0.026280993585,
            0.0, 0.0, 0.0, 1.0],
         image_dimension: [1440, 1080],
         distortion_coefficients: [-0.0395909069, -0.0041727433, 0.0030288415, -0.0012784168],
@@ -12,9 +12,9 @@ cameras:
         principal_point: [703.6097253263, 530.4665279367]}
 
      - {T_SC:
-        [ -0.002731256802, 0.001246716447, 0.999995492957, 0.0507054642910155,
-          0.999990530035, 0.003391641318, 0.002727014813, -0.060959522169800155,
-          -0.003388226217, 0.999993471212, -0.001255968084, -0.005930631162279414,
+        [ -0.999947769741, -0.002969883895, -0.009779446770, 0.054037084732,
+            0.009764748226, 0.004924013957, -0.999940200101, -0.079155584894,
+            0.003017860428, -0.999983466801, -0.004894756606, -0.026252820103,
            0.0, 0.0, 0.0, 1.0],
         image_dimension: [1440, 1080],
         distortion_coefficients: [-0.0465180371, 0.0160363324, -0.0170339468, 0.0050095489],
@@ -34,16 +34,16 @@ camera_params:
 imu_params:
     a_max: 150.0 # acceleration saturation [m/s^2]
     g_max: 7.5 # gyro saturation [rad/s]
-    sigma_g_c: 0.019 # gyro noise density [rad/s/sqrt(Hz)]
-    sigma_a_c: 0.019 # accelerometer noise density [m/s^2/sqrt(Hz)]
-    sigma_bg: 0.01 # gyro bias prior [rad/s]
+    sigma_g_c: 0.005 # gyro noise density [rad/s/sqrt(Hz)]
+    sigma_a_c: 0.01 # accelerometer noise density [m/s^2/sqrt(Hz)]
+    sigma_bg: 0.03 # gyro bias prior [rad/s]
     sigma_ba: 0.1 # accelerometer bias prior [m/s^2]
-    sigma_gw_c: 0.000266 # gyro drift noise density [rad/s^s/sqrt(Hz)]
-    sigma_aw_c: 0.0043 # accelerometer drift noise density [m/s^2/sqrt(Hz)]
+    sigma_gw_c: 4e-06 # gyro drift noise density [rad/s^s/sqrt(Hz)]
+    sigma_aw_c: 0.0002 # accelerometer drift noise density [m/s^2/sqrt(Hz)]
     tau: 3600.0 # reversion time constant, currently not in use [s]
     g: 9.808083883386614 # Earth's acceleration due to gravity [m/s^2]
     a0: [ 0.0, 0.0, 0.0 ] # Accelerometer bias [m/s^2]
-    imu_rate: 200
+    imu_rate: 830
     # tranform Body-Sensor (IMU)
     T_BS:
         [1.0000, 0.0000, 0.0000, 0.0000,
@@ -52,14 +52,14 @@ imu_params:
          0.0000, 0.0000, 0.0000, 1.0000]
 
 # Estimator parameters
-numKeyframes: 8 # number of keyframes in optimisation window
-numImuFrames: 4 # number of frames linked by most recent nonlinear IMU error terms
+numKeyframes: 16 # number of keyframes in optimisation window
+numImuFrames: 9  # number of frames linked by most recent nonlinear IMU error terms
 
 # ceres optimization options
 ceres_options:
-    minIterations: 5   # minimum number of iterations always performed
-    maxIterations: 40  # never do more than these, even if not converged
-    timeLimit: 0.5     # [s] negative values will set the an unlimited time limit
+    minIterations: 20    # minimum number of iterations always performed
+    maxIterations: 3000  # never do more than these, even if not converged
+    timeLimit: -1.0      # [s] negative values will set the an unlimited time limit
 
 # detection
 detection_options:
@@ -78,7 +78,7 @@ useDriver: false
 
 # some options for how and what to publish -- optional in ROS-free version
 publishing_options:
-    publish_rate: 15                   # rate at which odometry updates are published only works properly if imu_rate/publish_rate is an integer!!
+    publish_rate: 20                   # rate at which odometry updates are published only works properly if imu_rate/publish_rate is an integer!!
     publishLandmarks: false            # select, if you want to publish landmarks at all
     landmarkQualityThreshold: 1.0e-2   # landmark with lower quality will not be published
     maximumLandmarkQuality: 0.05       # landmark with higher quality will be published with the maximum colour intensity

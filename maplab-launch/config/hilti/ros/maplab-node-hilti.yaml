@@ -57,32 +57,32 @@ kf_min_shared_landmarks_obs:                                            10
 # FEATURE DETECTOR SETTINGS
 ###########################
 # Pyramid level factor and number of levels.
-feature_tracking_detector_orb_pyramid_levels: 3 # Default:              1
-feature_tracking_detector_orb_scale_factor: 1.3 # Default:              1.2
+# feature_tracking_detector_orb_pyramid_levels: 3 # Default:              1
+# feature_tracking_detector_orb_scale_factor: 1.3 # Default:              1.2
 # How many features to detect.
 feature_tracking_detector_orb_num_features:                             2500 # Default 2000
 # Less picky about what is considered a keypoint,
 # intensity difference between center and pixels on circle around keypoint.
-feature_tracking_detector_orb_fast_threshold: 10 # Default:             20
+# feature_tracking_detector_orb_fast_threshold: 10 # Default:             20
 # Minimum keypoint score, cannot make stricter, since most images are already
 # very weak in these blurry low-light images.
-feature_tracking_detector_orb_score_lower_bound: 5e-7 # Default:        1e-7
+# feature_tracking_detector_orb_score_lower_bound: 5e-7 # Default:        1e-7
 # Dont' change, but since the image boarder padding depends on this param, we fix
 # it here.
-feature_tracking_detector_orb_patch_size:                               20
+# feature_tracking_detector_orb_patch_size:                               20
 # Reduce image boarder to patch size.
-min_tracking_distance_to_image_border_px: 30 # Default:                 30
+# min_tracking_distance_to_image_border_px: 30 # Default:                 30
 # Maximum number of features.
-feature_tracking_detector_max_feature_count: 1500 # Default:            700
+feature_tracking_detector_max_feature_count: 1400 # Default:            700
 
 # BRISK number of octaves.
-feature_tracker_simple_pipeline_brisk_num_octaves: 2 # Default:         1
+# feature_tracker_simple_pipeline_brisk_num_octaves: 2 # Default:         1
 
 # FEATURE TRACKER SETTINGS (a gyro-assisted LK tracker is used!)
 # If set to 0, pyramids are not used (single level), if set to 1, two levels
 # are used, and so on. If pyramids are passed to the input then the algorithm
 # will use as many levels as possible but not more than this threshold.
-gyro_lk_max_pyramid_levels: 2 # Default:                                1
+# gyro_lk_max_pyramid_levels: 2 # Default:                                1
 
 # Apply an adaptive histogram equalization (CLAHE) to provide better images.
 image_apply_clahe_histogram_equalization:                               false # Default: false
