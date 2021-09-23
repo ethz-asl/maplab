@@ -19,4 +19,5 @@
   <depend>rosbag</depend>
   <depend>roscpp</depend>
   <depend>vi_map</depend>
+  <depend>landmark_triangulation</depend>
 </package>

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-  <arg name="robot_name" default=""/>
+  <arg name="robot_name" default="kolibri"/>
   <arg name="maplab_sensor_calibration_file" default=""/>
   <arg name="maplab_imu_to_camera_time_offset_ns" default="0"/>
   <arg name="maplab_image_topic_suffix" default=""/>
@@ -75,7 +75,7 @@
   		<arg name="map_run_keyframing_when_saving" default="$(arg maplab_keyframe_when_saving)"/>
       <arg name="map_remove_bad_landmarks" default="$(arg maplab_remove_bad_landmarks)"/>
   		<arg name="map_save_every_n_sec" default="$(arg maplab_save_map_every_n_sec)"/>
-  		<arg name="map_split_map_into_submaps_when_saving_periodically" default="true"/>
+  		<arg name="map_split_map_into_submaps_when_saving_periodically" default="false"/>
       <arg name="map_add_odometry_edges_if_less_than_n_common_landmarks" default="20"/>
 
   		<!-- ATTACHING RESOURCES TO MAP -->
