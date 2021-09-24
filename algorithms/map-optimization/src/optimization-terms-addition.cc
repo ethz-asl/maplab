@@ -14,6 +14,11 @@
 #include <vi-map-helpers/vi-map-queries.h>
 #include <vi-map/landmark-quality-metrics.h>
 
+DEFINE_double(
+    ba_wheel_odom_cov_tr, 0.001, "Wheel odom translation covariance.");
+DEFINE_double(
+    ba_wheel_odom_cov_rot, 0.005, "Wheel odom rotation covariance.");
+
 namespace map_optimization {
 
 void addVisualTermForKeypoint(
@@ -521,7 +526,7 @@ int addRelativePoseTermsForEdges(
   size_t num_residual_blocks_added_with_extrinsics = 0u;
 
   for (const pose_graph::EdgeId& edge_id : provided_edges) {
-    const pose_graph::Edge* edge = map->getEdgePtrAs<vi_map::Edge>(edge_id);
+    pose_graph::Edge* edge = map->getEdgePtrAs<vi_map::Edge>(edge_id);
     CHECK_NOTNULL(edge);
     CHECK(edge->getType() == edge_type);
     vi_map::Vertex& vertex_from = map->getVertex(edge->from());
@@ -531,11 +536,21 @@ int addRelativePoseTermsForEdges(
         << "The two vertices this edge connects don't belong to the same "
         << "mission.";
 
-    const vi_map::TransformationEdge& transformation_edge =
-        edge->getAs<vi_map::TransformationEdge>();
-    const aslam::Transformation& T_A_B = transformation_edge.get_T_A_B();
+    vi_map::TransformationEdge *transformation_edge =
+        dynamic_cast<vi_map::TransformationEdge*>(edge);
+    CHECK_NOTNULL(transformation_edge);
+    const aslam::Transformation& T_A_B = transformation_edge->get_T_A_B();
+    aslam::TransformationCovariance T_A_B_covariance_old =
+        transformation_edge->get_T_A_B_Covariance_p_q();
+    T_A_B_covariance_old(0, 0) = FLAGS_ba_wheel_odom_cov_tr;
+    T_A_B_covariance_old(1, 1) = FLAGS_ba_wheel_odom_cov_tr;
+    T_A_B_covariance_old(2, 2) = FLAGS_ba_wheel_odom_cov_tr;
+    T_A_B_covariance_old(3, 3) = FLAGS_ba_wheel_odom_cov_rot;
+    T_A_B_covariance_old(4, 4) = FLAGS_ba_wheel_odom_cov_rot;
+    T_A_B_covariance_old(5, 5) = FLAGS_ba_wheel_odom_cov_rot;
+    transformation_edge->set_T_A_B_Covariance_p_q(T_A_B_covariance_old);
     const aslam::TransformationCovariance& T_A_B_covariance =
-        transformation_edge.get_T_A_B_Covariance_p_q();
+        transformation_edge->get_T_A_B_Covariance_p_q();
 
     // optimization uses other quaternion convention, thus need to fetch
     // p_MI and not p_IM from buffer
@@ -562,7 +577,7 @@ int addRelativePoseTermsForEdges(
         vertex_to.id());
 
     // Account for sensor extrinsics.
-    const aslam::SensorId& sensor_id = transformation_edge.getSensorId();
+    const aslam::SensorId& sensor_id = transformation_edge->getSensorId();
     CHECK(sensor_id.isValid());
 
     double* sensor_extrinsics_q_SB__S_p_SB_JPL =
