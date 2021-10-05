@@ -104,10 +104,6 @@ class ViwlsGraphRvizPlotter {
       const Eigen::Vector3d& G_vertex_position,
       const Eigen::Matrix3Xd& G_landmarks) const;
 
-  void publishCamPredictions(
-      const vi_map_helpers::NearCameraPoseSampling& sampling,
-      const std::vector<double>& predictions);
-
   void visualizeSensorExtrinsics(const vi_map::VIMap& map);
 
   void publishReferenceMap() const;

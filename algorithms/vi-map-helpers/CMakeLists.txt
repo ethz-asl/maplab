@@ -6,7 +6,6 @@ catkin_simple(ALL_DEPS_REQUIRED)
 
 cs_add_library(${PROJECT_NAME}
   src/mission-clustering-coobservation.cc
-  src/near-camera-pose-sampling.cc
   src/spatial-database-vertex-id.cc
   src/vi-map-descriptor-utils.cc
   src/vi-map-geometry.cc
