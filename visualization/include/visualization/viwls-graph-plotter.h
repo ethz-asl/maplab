@@ -2,7 +2,6 @@
 #define VISUALIZATION_VIWLS_GRAPH_PLOTTER_H_
 
 #include <aslam/common/pose-types.h>
-#include <vi-map-helpers/near-camera-pose-sampling.h>
 #include <vi-map/mission-baseframe.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vi-map.h>
