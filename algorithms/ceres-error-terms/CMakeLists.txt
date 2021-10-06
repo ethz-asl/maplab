@@ -13,7 +13,6 @@ cs_add_library(${PROJECT_NAME}
   src/block-pose-prior-error-term-v2.cc
   src/ceres-signal-handler.cc
   src/inertial-error-term.cc
-  src/inertial-error-term-eigen.cc
   src/parameterization/quaternion-param-eigen.cc
   src/parameterization/quaternion-param-hamilton.cc
   src/parameterization/quaternion-param-jpl.cc
@@ -59,10 +58,6 @@ target_link_libraries(test_switchable_constraints_block_pose_baseframe_test ${PR
 catkin_add_gtest(test_inertial_term_test
   test/test_inertial_term_test.cc)
 target_link_libraries(test_inertial_term_test ${PROJECT_NAME})
-
-catkin_add_gtest(test_inertial_term_test_eigen
-  test/test_inertial_term_test_eigen.cc)
-target_link_libraries(test_inertial_term_test_eigen ${PROJECT_NAME})
 
 catkin_add_gtest(test_3keyframe_inertial_term_test
   test/test_3keyframe_inertial_term_test.cc)
