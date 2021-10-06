@@ -5,20 +5,6 @@
 
 namespace feature_tracking {
 
-struct SimpleBriskFeatureTrackingSettings {
-  SimpleBriskFeatureTrackingSettings();
-  virtual ~SimpleBriskFeatureTrackingSettings() = default;
-  const size_t num_octaves;
-  const double uniformity_radius;
-  const double absolute_threshold;
-  const size_t max_number_of_keypoints;
-  const bool rotation_invariant;
-  const bool scale_invariant;
-  const bool copy_images;
-  const int matching_descriptor_hamming_distance_threshold;
-  const double matching_image_space_distance_threshold_px;
-};
-
 struct FeatureTrackingExtractorSettings {
   enum class DescriptorType { kOcvFreak, kBrisk };
   FeatureTrackingExtractorSettings();
@@ -68,7 +54,6 @@ struct FeatureTrackingDetectorSettings {
   // be removed.
   float orb_detector_score_lower_bound;
   int orb_detector_fast_threshold;
-
 
   // Maximum number of keypoint to detect.
   size_t max_feature_count;
