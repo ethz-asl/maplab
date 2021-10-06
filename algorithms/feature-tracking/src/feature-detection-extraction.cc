@@ -2,8 +2,6 @@
 
 #include "feature-tracking/feature-detection-extraction.h"
 
-#include <aslam/common/statistics/statistics.h>
-#include <aslam/common/timer.h>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/tracker/tracking-helpers.h>
 #include <brisk/brisk.h>
@@ -85,8 +83,6 @@ void FeatureDetectorExtractor::detectAndExtractFeatures(
       camera_.getId(),
       CHECK_NOTNULL(frame->getCameraGeometry().get())->getId());
 
-  timing::Timer timer_detection("keypoint detection");
-
   std::vector<cv::KeyPoint> keypoints_cv;
   const cv::Mat& image = frame->getRawImage();
 
@@ -109,16 +105,11 @@ void FeatureDetectorExtractor::detectAndExtractFeatures(
     detector_->detect(image, keypoints_cv);
 
     if (detector_settings_.detector_use_nonmaxsuppression) {
-      timing::Timer timer_nms("non-maximum suppression");
       localNonMaximumSuppression(
           camera_.imageHeight(),
           detector_settings_.detector_nonmaxsuppression_radius,
           detector_settings_.detector_nonmaxsuppression_ratio_threshold,
           &keypoints_cv);
-
-      statistics::StatsCollector stat_nms(
-          "non-maximum suppression (1 image) in ms");
-      stat_nms.AddSample(timer_nms.Stop() * 1000);
     }
     cv::KeyPointsFilter::retainBest(
         keypoints_cv, detector_settings_.max_feature_count);
@@ -159,9 +150,6 @@ void FeatureDetectorExtractor::detectAndExtractFeatures(
       keypoint.angle = -1.0f;
     }
   }
-  timer_detection.Stop();
-
-  timing::Timer timer_extraction("descriptor extraction");
 
   // Compute the descriptors.
   cv::Mat descriptors_cv;
@@ -170,8 +158,6 @@ void FeatureDetectorExtractor::detectAndExtractFeatures(
   } else {
     descriptors_cv = cv::Mat(0, 0, CV_8UC1);
   }
-
-  timer_extraction.Stop();
 
   // Note: It is important that the values are set even if there are no
   // keypoints as downstream code may rely on the keypoints being set.
