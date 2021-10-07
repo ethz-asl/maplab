@@ -12,6 +12,21 @@ sensors:
     saturation_gyro_max_radps: 7.5
     gravity_magnitude_mps2: 9.81
 
+  - id: aabb23479caf7592b35518478a2fe08f
+    sensor_type: ODOMETRY_6DOF
+    description: "ROVIOLI in Odometry mode"
+    topic: /odometry/maplab_odom_T_M_I
+    T_St_Stp1_fixed_covariance:
+      rows: 6
+      cols: 6
+      data:
+        - [0.001,0,0,0,0,0]
+        - [0,0.001,0,0,0,0]
+        - [0,0,0.001,0,0,0]
+        - [0,0,0,0.0001,0,0]
+        - [0,0,0,0,0.0001,0]
+        - [0,0,0,0,0,0.0001]
+
   - id: 412eab8e4058621f7036b5e765dfe812
     sensor_type: NCAMERA
     description: "VISensor - Euroc - original_calibration"
@@ -28,10 +43,10 @@ sensors:
         - [0,0,0,0,0,0.01]
     cameras:
       - camera:
-          topic: /cam0
           id: 54812562fa109c40fe90b29a59dd7798
-          description: "VI-Sensor cam0 (MT9M034)"
           sensor_type: CAMERA
+          description: "VI-Sensor cam0 (MT9M034)"
+          topic: /cam0
           line-delay-nanoseconds: 0
           image_height: 480
           image_width: 752
@@ -45,8 +60,7 @@ sensors:
             parameters:
               cols: 1
               rows: 4
-              data: [-0.28340811217029355, 0.07395907389290132, 0.00019359502856909603,
-          1.7618711454538528e-05]
+              data: [-0.28340811217029355, 0.07395907389290132, 0.00019359502856909603, 1.7618711454538528e-05]
         T_B_C:
           cols: 4
           rows: 4
@@ -56,10 +70,10 @@ sensors:
                  0.0, 0.0, 0.0, 1.0]
 
       - camera:
-          topic: /cam1
           id: 54812562fa109c40fe90b29a59dd7723
-          description: "VI-Sensor cam1 (MT9M034)"
           sensor_type: CAMERA
+          description: "VI-Sensor cam1 (MT9M034)"
+          topic: /cam1
           line-delay-nanoseconds: 0
           image_height: 480
           image_width: 752
@@ -81,21 +95,6 @@ sensors:
                 0.999598781151, 0.0130119051815, 0.0251588363115, 0.0453689425024,
                -0.0253898008918, 0.0179005838253, 0.999517347078, 0.00786212447038,
                 0.0, 0.0, 0.0, 1.0]
-
-  - id: aabb23479caf7592b35518478a2fe08f
-    sensor_type: ODOMETRY_6DOF
-    description: "ROVIOLI in Odometry mode"
-    topic: /odometry/maplab_odom_T_M_I
-    T_St_Stp1_fixed_covariance:
-      rows: 6
-      cols: 6
-      data:
-        - [0.001,0,0,0,0,0]
-        - [0,0.001,0,0,0,0]
-        - [0,0,0.001,0,0,0]
-        - [0,0,0,0.0001,0,0]
-        - [0,0,0,0,0.0001,0]
-        - [0,0,0,0,0,0.0001]
 
 extrinsics:
   - sensor_id: 412eab8e4058621f7036b5e765dfe812
