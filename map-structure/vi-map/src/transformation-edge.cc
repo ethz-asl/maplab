@@ -8,8 +8,7 @@ TransformationEdge::TransformationEdge(vi_map::Edge::EdgeType edge_type)
     : vi_map::Edge(edge_type) {
   CHECK(
       edge_type == vi_map::Edge::EdgeType::kOdometry ||
-      edge_type == vi_map::Edge::EdgeType::kWheelOdometry ||
-      edge_type == vi_map::Edge::EdgeType::k6DoFGps)
+      edge_type == vi_map::Edge::EdgeType::kWheelOdometry)
       << "Invalid edge type. Only odometry, wheel odometry and GPS edges can "
       << "be transformation edges.";
 }

@@ -21,9 +21,9 @@ pygments_style = "sphinx"
 templates_path = ["_templates"]
 
 # Check https://holzhaus.github.io/sphinx-multiversion/master/configuration.html#tag-branch-remote-whitelists
-smv_tag_whitelist = r'^.*$'                   # Include all tags
-smv_branch_whitelist = r'^.*$'                # Include all branches
-smv_remote_whitelist = r'^.*$'                # Use branches from all remotes
+smv_tag_whitelist = None                          # Include no tags
+smv_branch_whitelist = r'^(develop|maplab20)$'   # Include develop and maplab 2.0 branch
+smv_remote_whitelist = r'^(origin|upstream)$'    # Use origin and upstream branches
 
 extensions = [
      'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark', 'sphinx_multiversion',
