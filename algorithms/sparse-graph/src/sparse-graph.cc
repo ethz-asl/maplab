@@ -199,6 +199,23 @@ double SparseGraph::computeDistanceBetweenNodes(
   return std::exp(-distance / (2.0 * sigma * sigma));
 }
 
+double SparseGraph::computeRotationalDiffBetweenNodes(
+    const std::size_t i, const std::size_t j) const noexcept {
+  const std::size_t n_nodes = sparse_graph_.size();
+  if (i > n_nodes || j > n_nodes) {
+    return 0.0;
+  }
+  const RepresentativeNode& node_i = sparse_graph_.at(i);
+  const RepresentativeNode& node_j = sparse_graph_.at(j);
+  const aslam::Transformation T_i_j = node_i.transformTo(node_j);
+
+  const double rotation =
+      std::abs(aslam::AngleAxis(T_i_j.getRotation()).angle());
+
+  const double epsilon = 0.001;
+  return 0.5 * (1 + std::cos(rotation)) + epsilon;
+}
+
 double SparseGraph::computeCoObservability(
     const vi_map ::VIMap* map, const std::size_t i, const std::size_t j) const
     noexcept {

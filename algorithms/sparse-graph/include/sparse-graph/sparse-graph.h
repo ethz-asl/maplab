@@ -46,6 +46,8 @@ class SparseGraph {
 
   double computeDistanceBetweenNodes(
       const std::size_t i, const std::size_t j) const noexcept;
+  double computeRotationalDiffBetweenNodes(
+      const std::size_t i, const std::size_t j) const noexcept;
   double computeCoObservability(
       const vi_map::VIMap* map, const std::size_t i, const std::size_t j) const
       noexcept;
