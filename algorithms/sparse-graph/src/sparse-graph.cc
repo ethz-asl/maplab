@@ -103,6 +103,9 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
           continue;
         }
         double weight = computeDistanceBetweenNodes(i, j);
+        if (FLAGS_sparse_graph_include_rotational_weight) {
+          weight += computeRotationalDiffBetweenNodes(i, j);
+        }
         if (FLAGS_sparse_graph_include_co_observability_weight) {
           weight += computeCoObservability(map, i, j);
         }

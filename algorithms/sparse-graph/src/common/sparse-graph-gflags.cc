@@ -3,6 +3,9 @@
 namespace spg {
 
 DEFINE_bool(
+    sparse_graph_include_rotational_weight, true,
+    "If true, the adjacency edge weights include co-observability weights.");
+DEFINE_bool(
     sparse_graph_include_co_observability_weight, false,
     "If true, the adjacency edge weights include co-observability weights.");
 DEFINE_bool(
