@@ -9,6 +9,7 @@ namespace spg {
 DECLARE_bool(sparse_graph_include_rotational_weight);
 DECLARE_bool(sparse_graph_include_co_observability_weight);
 DECLARE_bool(sparse_graph_include_lc_edge_weight);
+DECLARE_bool(sparse_graph_include_temporal_decay);
 DECLARE_double(sparse_graph_min_distance_to_last_node_m);
 DECLARE_double(sparse_graph_min_rotation_to_last_node_rad);
 

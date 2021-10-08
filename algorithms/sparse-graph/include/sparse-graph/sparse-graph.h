@@ -51,11 +51,12 @@ class SparseGraph {
   double computeCoObservability(
       const vi_map::VIMap* map, const std::size_t i, const std::size_t j) const
       noexcept;
-
   double computeLoopClosureEdgeWeight(
       const std::map<pose_graph::VertexId, std::vector<pose_graph::VertexId>>&
           lc_edges,
       const std::size_t i, const std::size_t j) const noexcept;
+  double computeTemporalDecay(const std::size_t i, const std::size_t j) const
+      noexcept;
 
   std::string getKeyForSubmapId(const uint32_t submap_id) const;
 

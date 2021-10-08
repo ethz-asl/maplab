@@ -57,6 +57,17 @@ double RepresentativeNode::distanceTo(const RepresentativeNode& rhs) const
   return (pose_.getPosition() - rhs.pose_.getPosition()).lpNorm<2>();
 }
 
+int64_t RepresentativeNode::temporalDifferenceInNSecTo(
+    const RepresentativeNode& rhs) const noexcept {
+  return std::abs(timestamp_ns_ - rhs.timestamp_ns_);
+}
+
+int64_t RepresentativeNode::temporalDifferenceInSecTo(
+    const RepresentativeNode& rhs) const noexcept {
+  const int64_t k_ns_per_s = 1e9;
+  return temporalDifferenceInNSecTo(rhs) / k_ns_per_s;
+}
+
 aslam::Transformation RepresentativeNode::transformTo(
     const RepresentativeNode& rhs) const noexcept {
   return pose_.inverse() * rhs.pose_;

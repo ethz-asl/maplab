@@ -30,6 +30,10 @@ class RepresentativeNode {
   bool isActive() const noexcept;
 
   double distanceTo(const RepresentativeNode& rhs) const noexcept;
+  int64_t temporalDifferenceInNSecTo(const RepresentativeNode& rhs) const
+      noexcept;
+  int64_t temporalDifferenceInSecTo(const RepresentativeNode& rhs) const
+      noexcept;
   aslam::Transformation transformTo(const RepresentativeNode& rhs) const
       noexcept;
 

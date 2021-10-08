@@ -112,6 +112,9 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
         if (FLAGS_sparse_graph_include_lc_edge_weight) {
           weight += computeLoopClosureEdgeWeight(lc_edges, i, j);
         }
+        if (FLAGS_sparse_graph_include_temporal_decay) {
+          weight *= computeTemporalDecay(i, j);
+        }
 
         // Ensure that the weights are normalized.
         CHECK(weight >= 0.0 && weight <= 3.0);
@@ -217,6 +220,21 @@ double SparseGraph::computeRotationalDiffBetweenNodes(
 
   const double epsilon = 0.001;
   return 0.5 * (1 + std::cos(rotation)) + epsilon;
+}
+double SparseGraph::computeTemporalDecay(
+    const std::size_t i, const std::size_t j) const noexcept {
+  const std::size_t n_nodes = sparse_graph_.size();
+  if (i > n_nodes || j > n_nodes) {
+    return 0.0;
+  }
+  const RepresentativeNode& node_i = sparse_graph_.at(i);
+  const RepresentativeNode& node_j = sparse_graph_.at(j);
+
+  const double ts_diff_s = node_i.temporalDifferenceInSecTo(node_j);
+
+  const double alpha = 1.5;
+  const double beta = 1000;
+  return alpha * std::exp(-ts_diff_s / beta);
 }
 
 double SparseGraph::computeCoObservability(
