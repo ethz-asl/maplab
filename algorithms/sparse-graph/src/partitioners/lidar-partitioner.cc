@@ -13,7 +13,7 @@ namespace spg {
 
 LidarPartitioner::LidarPartitioner(const vi_map::VIMap& map)
     : BasePartitioner(map),
-      point_cloud_resource_type_(backend::ResourceType::kPointCloudXYZIRT) {
+      point_cloud_resource_type_(backend::ResourceType::kPointCloudXYZ) {
   initializeSensorMapping();
 }
 
