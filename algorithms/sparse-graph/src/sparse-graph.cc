@@ -117,7 +117,7 @@ void SparseGraph::computeAdjacencyMatrix(const vi_map::VIMap* map) {
         }
 
         // Ensure that the weights are normalized.
-        CHECK(weight >= 0.0 && weight <= 3.0);
+        CHECK(weight >= 0.0);
 
         // Set the weights for the adjacency
         // which is a symmetric and undirected adjacency matrix.
