@@ -47,7 +47,7 @@ void evaluateLandmarkQuality(
 
     size_t num_bad_tracks = 0u;
     size_t num_bad_observations = 0u;
-    vi_map::LandmarkIdList updated_landmark_ids;
+    vi_map::LandmarkIdSet updated_landmark_ids;
     std::mutex stats_counter_mutex;
 
     // Detect invalid landmark observations and their respective tracks
@@ -59,7 +59,7 @@ void evaluateLandmarkQuality(
           size_t num_processed = 0u;
           size_t thread_num_bad_tracks = 0u;
           size_t thread_num_bad_observations = 0u;
-          vi_map::LandmarkIdList thread_updated_landmark_ids;
+          vi_map::LandmarkIdSet thread_updated_landmark_ids;
           for (size_t idx : batch) {
             CHECK_LT(idx, landmark_ids.size());
             const vi_map::LandmarkId& landmark_id = landmark_ids[idx];
@@ -70,7 +70,7 @@ void evaluateLandmarkQuality(
                 map, mission_id, &landmark, &thread_num_bad_tracks,
                 &thread_num_bad_observations);
             if (thread_num_bad_tracks > thread_num_bad_tracks_before) {
-              thread_updated_landmark_ids.emplace_back(landmark_id);
+              thread_updated_landmark_ids.emplace(landmark_id);
             }
             progress_bar.update(++num_processed);
           }
@@ -80,7 +80,7 @@ void evaluateLandmarkQuality(
             num_bad_tracks += thread_num_bad_tracks;
             num_bad_observations += thread_num_bad_observations;
             updated_landmark_ids.insert(
-                updated_landmark_ids.end(), thread_updated_landmark_ids.begin(),
+                thread_updated_landmark_ids.begin(),
                 thread_updated_landmark_ids.end());
           }
         };
@@ -104,8 +104,7 @@ void evaluateLandmarkQuality(
                      << "for another reason.";
       }
       updated_landmark_ids.insert(
-          updated_landmark_ids.end(), new_landmark_ids.begin(),
-          new_landmark_ids.end());
+          new_landmark_ids.begin(), new_landmark_ids.end());
       landmark_triangulation::retriangulateLandmarksOfMission(
           mission_id, map, &updated_landmark_ids);
     }

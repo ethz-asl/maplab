@@ -126,7 +126,7 @@ void interpolateVisualFramePoses(
 void retriangulateLandmarksOfVertex(
     const FrameToPoseMap& interpolated_frame_poses,
     pose_graph::VertexId storing_vertex_id, vi_map::VIMap* map,
-    const vi_map::LandmarkIdList* const included_landmark_ids = nullptr) {
+    const vi_map::LandmarkIdSet* const included_landmark_ids = nullptr) {
   CHECK_NOTNULL(map);
   vi_map::Vertex& storing_vertex = map->getVertex(storing_vertex_id);
   vi_map::LandmarkStore& landmark_store = storing_vertex.getLandmarks();
@@ -140,9 +140,8 @@ void retriangulateLandmarksOfVertex(
 
   for (vi_map::Landmark& landmark : landmark_store) {
     if (included_landmark_ids) {
-      if (std::find(
-              included_landmark_ids->begin(), included_landmark_ids->end(),
-              landmark.id()) == included_landmark_ids->end()) {
+      if (included_landmark_ids->find(landmark.id()) ==
+          included_landmark_ids->end()) {
         continue;
       }
     }
@@ -265,7 +264,7 @@ void retriangulateLandmarksOfMission(
     const vi_map::MissionId& mission_id,
     const pose_graph::VertexId& starting_vertex_id,
     const FrameToPoseMap& interpolated_frame_poses, vi_map::VIMap* map,
-    const vi_map::LandmarkIdList* const included_landmark_ids = nullptr) {
+    const vi_map::LandmarkIdSet* const included_landmark_ids = nullptr) {
   CHECK_NOTNULL(map);
 
   VLOG(1) << "Getting vertices of mission: " << mission_id;
@@ -304,7 +303,7 @@ void retriangulateLandmarksOfMission(
 void retriangulateLandmarksOfMission(
     const vi_map::MissionId& mission_id,
     const FrameToPoseMap& interpolated_frame_poses, vi_map::VIMap* map,
-    const vi_map::LandmarkIdList* const included_landmark_ids = nullptr) {
+    const vi_map::LandmarkIdSet* const included_landmark_ids = nullptr) {
   CHECK_NOTNULL(map);
   const vi_map::VIMission& mission = map->getMission(mission_id);
   const pose_graph::VertexId& starting_vertex_id = mission.getRootVertexId();
@@ -325,7 +324,7 @@ void retriangulateLandmarks(
 
 void retriangulateLandmarksOfMission(
     const vi_map::MissionId& mission_id, vi_map::VIMap* map,
-    const vi_map::LandmarkIdList* const included_landmark_ids) {
+    const vi_map::LandmarkIdSet* const included_landmark_ids) {
   FrameToPoseMap interpolated_frame_poses;
   interpolateVisualFramePoses(mission_id, *map, &interpolated_frame_poses);
   retriangulateLandmarksOfMission(
@@ -351,11 +350,11 @@ void retriangulateLandmarks(vi_map::VIMap* map) {
 
 void retriangulateLandmarksOfVertex(
     const pose_graph::VertexId& storing_vertex_id, vi_map::VIMap* map,
-    const vi_map::LandmarkIdList* const included_landmark_ids) {
+    const vi_map::LandmarkIdSet* const included_landmark_ids) {
   CHECK_NOTNULL(map);
   FrameToPoseMap empty_frame_to_pose_map;
   retriangulateLandmarksOfVertex(
-      empty_frame_to_pose_map, storing_vertex_id, map);
+      empty_frame_to_pose_map, storing_vertex_id, map, included_landmark_ids);
 }
 
 }  // namespace landmark_triangulation
