@@ -144,7 +144,9 @@ void removeInvalidLandmarkObservations(
     common::ParallelProcess(
         num_landmarks, detector, kAlwaysParallelize, num_threads);
     VLOG(1) << "Removed " << num_bad_tracks << " bad tracks and "
-            << num_bad_observations << " observations.";
+            << num_bad_observations
+            << " observations. Consider reevaluating "
+               "the landmark quality using 'elq'.";
     if (num_bad_tracks > 0u || num_bad_observations > 0u) {
       vi_map::LandmarkIdList new_landmark_ids;
       const size_t num_new_landmarks =
@@ -160,7 +162,7 @@ void removeInvalidLandmarkObservations(
       updated_landmark_ids.insert(
           new_landmark_ids.begin(), new_landmark_ids.end());
       landmark_triangulation::retriangulateLandmarksOfMission(
-          mission_id, map, &updated_landmark_ids);
+          mission_id, map, updated_landmark_ids, true);
     }
   }
 }
