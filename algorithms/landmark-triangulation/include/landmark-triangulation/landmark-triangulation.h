@@ -14,12 +14,16 @@ void retriangulateLandmarks(vi_map::VIMap* map);
 void retriangulateLandmarks(
     const vi_map::MissionIdList& mission_ids, vi_map::VIMap* map);
 void retriangulateLandmarksOfMission(
-    const vi_map::MissionId& mission_id, vi_map::VIMap* map);
+    const vi_map::MissionId& mission_id, vi_map::VIMap* map,
+    const vi_map::LandmarkIdSet& included_ids = vi_map::LandmarkIdSet(),
+    bool use_included_ids = false);
 void retriangulateLandmarksAlongMissionAfterVertex(
     const vi_map::MissionId& mission_id,
     const pose_graph::VertexId& starting_vertex_id, vi_map::VIMap* map);
 void retriangulateLandmarksOfVertex(
-    const pose_graph::VertexId& storing_vertex_id, vi_map::VIMap* map);
+    const pose_graph::VertexId& storing_vertex_id, vi_map::VIMap* map,
+    const vi_map::LandmarkIdSet& included_ids = vi_map::LandmarkIdSet(),
+    bool use_included_ids = false);
 
 }  // namespace landmark_triangulation
 #endif  // LANDMARK_TRIANGULATION_LANDMARK_TRIANGULATION_H_
