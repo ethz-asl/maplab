@@ -44,6 +44,7 @@ TEST_F(ViMappingTest, TestCorruptObservationCleanup) {
   addCorruptDuplicateLandmarkObservations();
   vi_map::VIMap* map = test_app_.getMapMutable();
   EXPECT_FALSE(test_app_.isMapConsistent());
+  removeInvalidLandmarkObservations(map);
   evaluateLandmarkQuality(map);
   EXPECT_TRUE(test_app_.isMapConsistent());
 }
@@ -64,7 +65,7 @@ TEST_F(ViMappingTest, TestLandmarkQualityEvaluation) {
   FLAGS_vi_map_landmark_quality_min_distance_from_closest_observer = 0.05;
 
   evaluateLandmarkQuality(map);
-  checkLandmarkQualityInView(*map, 0, 8087, 13711);
+  checkLandmarkQualityInView(*map, 0, 7627, 13592);
 }
 
 TEST_F(ViMappingTest, TestLandmarkQualityMetrics) {
