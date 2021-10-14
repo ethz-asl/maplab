@@ -25,6 +25,9 @@ DEFINE_string(pose_export_file, "", "File to export poses to.");
 DEFINE_string(
     pose_export_reference_sensor_id, "",
     "Sensor id defining in what coordinate frame to express the vertex poses.");
+DEFINE_bool(
+    interpolate_to_imu_timestamps, false,
+    "If true, poses are interpolated and exported at IMU timestamps.");
 
 namespace data_import_export {
 
@@ -205,8 +208,10 @@ int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv(
     LOG(ERROR) << "Sensor does not exist";
     return common::kStupidUserError;
   }
+
   data_import_export::exportPosesVelocitiesAndBiasesToCsv(
-      *map, mission_ids, reference_sensor_id, filepath, format);
+      *map, mission_ids, reference_sensor_id, filepath, format,
+      FLAGS_interpolate_to_imu_timestamps);
   return common::kSuccess;
 }
 
