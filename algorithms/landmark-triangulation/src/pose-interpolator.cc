@@ -148,11 +148,11 @@ void PoseInterpolator::computeRequestedPosesInRange(
   const Eigen::Matrix<double, 4, 1>& q_I_M_from =
       T_M_I.getRotation().toImplementation().coeffs();
   const Eigen::Matrix<double, 3, 1>& p_M_I_from = T_M_I.getPosition();
-  const Eigen::Matrix<double, 3, 1>& v_M_from = vertex_from.get_v_M();
+  const Eigen::Matrix<double, 3, 1>& v_M_I_from = vertex_from.get_v_M();
   const Eigen::Matrix<double, 3, 1>& b_g_from = vertex_from.getGyroBias();
   const Eigen::Matrix<double, 3, 1>& b_a_from = vertex_from.getAccelBias();
 
-  current_state << q_I_M_from, b_g_from, v_M_from, b_a_from, p_M_I_from;
+  current_state << q_I_M_from, b_g_from, v_M_I_from, b_a_from, p_M_I_from;
 
   // Store the value where we start integration.
   StateLinearizationPoint state_linearization_point_begin;

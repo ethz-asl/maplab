@@ -38,14 +38,13 @@ char convertSensorTypeToFrameIdentifier(const vi_map::SensorType sensor_type) {
 void writeLineToCsv(
     const std::string& format, const vi_map::MissionId& mission_id,
     const pose_graph::VertexId& vertex_id, const int64_t timestamp_nanoseconds,
-    const Eigen::Vector3d& p_G_S,
-    const kindr::minimal::RotationQuaternion& q_G_S,
-    const aslam::Transformation& T_M_S, const Eigen::Vector3d& v_M,
-    const Eigen::Vector3d& gyro_bias, const Eigen::Vector3d& acc_bias,
-    common::FileLogger* csv_file) {
+    const aslam::Transformation& T_G_S, const aslam::Transformation& T_M_S,
+    const Eigen::Vector3d& v_M, const Eigen::Vector3d& gyro_bias,
+    const Eigen::Vector3d& acc_bias, common::FileLogger* csv_file) {
   const Eigen::Vector3d& p_M_S = T_M_S.getPosition();
   const kindr::minimal::RotationQuaternion& q_M_S = T_M_S.getRotation();
-
+  const Eigen::Vector3d& p_G_S = T_G_S.getPosition();
+  const kindr::minimal::RotationQuaternion& q_G_S = T_G_S.getRotation();
   if (format == "asl") {
     const std::string kDelimiter = ", ";
     csv_file->writeDataWithDelimiterAndNewLine(
@@ -69,16 +68,6 @@ int exportPosesVelocitiesAndBiasesToCsv(
     const std::string& pose_export_file,
     const std::string& format /* = "asl" */,
     const bool use_imu_timestamps /* = false */) {
-  pose_graph::VertexIdList vertex_ids;
-  for (const vi_map::MissionId& mission_id : mission_ids) {
-    CHECK(mission_id.isValid());
-    pose_graph::VertexIdList vertex_ids_along_mission_graph;
-    map.getAllVertexIdsInMissionAlongGraph(
-        mission_id, &vertex_ids_along_mission_graph);
-    vertex_ids.insert(
-        vertex_ids.end(), vertex_ids_along_mission_graph.begin(),
-        vertex_ids_along_mission_graph.end());
-  }
 
   if (pose_export_file.empty()) {
     LOG(ERROR) << "Need to specify file path with the flag -pose_export_file.";
@@ -132,73 +121,89 @@ int exportPosesVelocitiesAndBiasesToCsv(
     return common::kStupidUserError;
   }
 
-  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
-    CHECK(vertex_id.isValid());
-    const vi_map::Vertex& vertex = map.getVertex(vertex_id);
-    const vi_map::MissionId& mission_id = vertex.getMissionId();
+  for (const vi_map::MissionId& mission_id : mission_ids) {
     CHECK(mission_id.isValid());
-    if (use_imu_timestamps) {
-      const aslam::Transformation& T_G_M =
-          map.getMissionBaseFrameForMission(mission_id).get_T_G_M();
-      const landmark_triangulation::PoseInterpolator pose_interpolator;
-      pose_graph::EdgeIdSet outgoing_edges;
-      vertex.getOutgoingEdges(&outgoing_edges);
-      pose_graph::EdgeId outgoing_imu_edge_id;
-      for (const pose_graph::EdgeId& edge_id : outgoing_edges) {
-        if (map.getEdgeType(edge_id) == pose_graph::Edge::EdgeType::kViwls) {
-          outgoing_imu_edge_id = edge_id;
+    pose_graph::VertexIdList vertex_ids_along_mission_graph;
+    map.getAllVertexIdsInMissionAlongGraph(
+        mission_id, &vertex_ids_along_mission_graph);
+    const size_t num_vertices_in_mission =
+        vertex_ids_along_mission_graph.size();
+    for (size_t idx = 0u; idx < num_vertices_in_mission; ++idx) {
+      const pose_graph::VertexId& vertex_id =
+          vertex_ids_along_mission_graph[idx];
+      CHECK(vertex_id.isValid());
+      const vi_map::Vertex& vertex = map.getVertex(vertex_id);
+      const vi_map::MissionId& mission_id = vertex.getMissionId();
+      CHECK(mission_id.isValid());
+      if (use_imu_timestamps) {
+        const landmark_triangulation::PoseInterpolator pose_interpolator;
+        const aslam::Transformation& T_G_M =
+            map.getMissionBaseFrameForMission(mission_id).get_T_G_M();
+        pose_graph::EdgeIdSet outgoing_edges;
+        vertex.getOutgoingEdges(&outgoing_edges);
+        pose_graph::EdgeId outgoing_imu_edge_id;
+        for (const pose_graph::EdgeId& edge_id : outgoing_edges) {
+          if (map.getEdgeType(edge_id) == pose_graph::Edge::EdgeType::kViwls) {
+            outgoing_imu_edge_id = edge_id;
+            break;
+          }
+        }
+        // We must have reached the end of the graph.
+        if (!outgoing_imu_edge_id.isValid()) {
           break;
         }
-      }
-      // We must have reached the end of the graph.
-      if (!outgoing_imu_edge_id.isValid()) {
-        break;
-      }
 
-      const vi_map::ViwlsEdge& imu_edge =
-          map.getEdgeAs<vi_map::ViwlsEdge>(outgoing_imu_edge_id);
-      const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps =
-          imu_edge.getImuTimestamps();
-      aslam::TransformationVector imu_poses_vector;
-      std::vector<Eigen::Vector3d> velocity_vector;
-      std::vector<Eigen::Vector3d> accel_biases_vector;
-      std::vector<Eigen::Vector3d> gyro_biases_vector;
-      pose_interpolator.getPosesAtTime(
-          map, mission_id, imu_timestamps, &imu_poses_vector, &velocity_vector,
-          &gyro_biases_vector, &accel_biases_vector);
+        const vi_map::ViwlsEdge& imu_edge =
+            map.getEdgeAs<vi_map::ViwlsEdge>(outgoing_imu_edge_id);
+        Eigen::Matrix<int64_t, 1, Eigen::Dynamic> imu_timestamps =
+            imu_edge.getImuTimestamps();
+        if (idx + 2u < num_vertices_in_mission) {
+          // The last measurement of an IMU edge and the first measurement of
+          // the following IMU edge are the same, therefore we remove the first
+          // one to avoid duplicates unless it is the first vertex of the
+          // mission.
+          imu_timestamps.conservativeResize(imu_timestamps.cols() - 1u);
+        }
+        if (imu_timestamps.cols() == 0) {
+          continue;
+        }
+        aslam::TransformationVector imu_poses_vector;
+        std::vector<Eigen::Vector3d> velocity_vector;
+        std::vector<Eigen::Vector3d> accel_biases_vector;
+        std::vector<Eigen::Vector3d> gyro_biases_vector;
+        pose_interpolator.getPosesAtTime(
+            map, mission_id, imu_timestamps, &imu_poses_vector,
+            &velocity_vector, &gyro_biases_vector, &accel_biases_vector);
 
-      for (size_t idx = 0u; idx < imu_poses_vector.size(); ++idx) {
-        const int64_t timestamp_nanoseconds = imu_timestamps[idx];
-        const aslam::Transformation T_M_I = imu_poses_vector[idx];
-        const aslam::Transformation T_G_I = T_G_M * T_M_I;
+        for (size_t idx = 0u; idx < imu_poses_vector.size(); ++idx) {
+          const int64_t timestamp_nanoseconds = imu_timestamps[idx];
+          const aslam::Transformation& T_M_I = imu_poses_vector[idx];
+          const aslam::Transformation T_G_I = T_G_M * T_M_I;
+          const aslam::Transformation T_G_S = T_G_I * T_I_S;
+          const aslam::Transformation T_M_S = T_M_I * T_I_S;
+          const Eigen::Vector3d& v_M = velocity_vector[idx];
+          const Eigen::Vector3d& gyro_bias = gyro_biases_vector[idx];
+          const Eigen::Vector3d& acc_bias = accel_biases_vector[idx];
+          writeLineToCsv(
+              format, mission_id, vertex_id, timestamp_nanoseconds, T_G_S,
+              T_M_S, v_M, gyro_bias, acc_bias, &csv_file);
+        }
+      } else {
+        const int64_t timestamp_nanoseconds =
+            vertex.getMinTimestampNanoseconds();
+        const aslam::Transformation& T_G_I = map.getVertex_T_G_I(vertex_id);
         const aslam::Transformation T_G_S = T_G_I * T_I_S;
-        const Eigen::Vector3d& p_G_S = T_G_S.getPosition();
-        const kindr::minimal::RotationQuaternion& q_G_S = T_G_S.getRotation();
+        const aslam::Transformation& T_M_I = vertex.get_T_M_I();
         const aslam::Transformation T_M_S = T_M_I * T_I_S;
-        const Eigen::Vector3d& v_M = velocity_vector[idx];
-        const Eigen::Vector3d& gyro_bias = gyro_biases_vector[idx];
-        const Eigen::Vector3d& acc_bias = accel_biases_vector[idx];
+        const Eigen::Vector3d& v_M = vertex.get_v_M();
+        const Eigen::Vector3d& gyro_bias = vertex.getGyroBias();
+        const Eigen::Vector3d& acc_bias = vertex.getAccelBias();
         writeLineToCsv(
-            format, mission_id, vertex_id, timestamp_nanoseconds, p_G_S, q_G_S,
-            T_M_S, v_M, gyro_bias, acc_bias, &csv_file);
+            format, mission_id, vertex_id, timestamp_nanoseconds, T_G_S, T_M_S,
+            v_M, gyro_bias, acc_bias, &csv_file);
       }
-    } else {
-      const int64_t timestamp_nanoseconds = vertex.getMinTimestampNanoseconds();
-      const aslam::Transformation T_G_I = map.getVertex_T_G_I(vertex_id);
-      const aslam::Transformation T_G_S = T_G_I * T_I_S;
-      const Eigen::Vector3d& p_G_S = T_G_S.getPosition();
-      const kindr::minimal::RotationQuaternion& q_G_S = T_G_S.getRotation();
-      const aslam::Transformation& T_M_I = vertex.get_T_M_I();
-      const aslam::Transformation T_M_S = T_M_I * T_I_S;
-      const Eigen::Vector3d& v_M = vertex.get_v_M();
-      const Eigen::Vector3d& gyro_bias = vertex.getGyroBias();
-      const Eigen::Vector3d& acc_bias = vertex.getAccelBias();
-      writeLineToCsv(
-          format, mission_id, vertex_id, timestamp_nanoseconds, p_G_S, q_G_S,
-          T_M_S, v_M, gyro_bias, acc_bias, &csv_file);
     }
   }
-
   return common::kSuccess;
 }
 
