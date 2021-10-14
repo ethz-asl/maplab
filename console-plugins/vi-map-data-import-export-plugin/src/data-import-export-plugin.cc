@@ -169,7 +169,9 @@ int DataImportExportPlugin::exportPosesVelocitiesAndBiasesToCsv(
   }
   CHECK(!mission_ids.empty());
 
-  const std::string kFilename = "vertex_poses_velocities_biases.csv";
+  const std::string kASLFileName = "vertex_poses_velocities_biases.csv";
+  const std::string kRPGFileName = "stamped_traj_estimate.txt";
+  const std::string kFilename = format == "rpg" ? kRPGFileName : kASLFileName;
   const std::string filepath =
       FLAGS_pose_export_file.empty()
           ? common::concatenateFolderAndFileName(map->getMapFolder(), kFilename)
