@@ -10,7 +10,6 @@ struct FeatureTrackingExtractorSettings {
   FeatureTrackingExtractorSettings();
   DescriptorType convertStringToDescriptorType(
       const std::string& descriptor_string);
-  /// Type of descriptor used
   DescriptorType descriptor_type;
 
   /// Common settings of all descriptors.

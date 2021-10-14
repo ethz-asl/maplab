@@ -1,5 +1,6 @@
 #include "feature-tracking/vo-feature-tracking-pipeline.h"
 
+#include <aslam/common/timer.h>
 #include <aslam/geometric-vision/match-outlier-rejection-twopt.h>
 #include <aslam/matcher/match.h>
 #include <aslam/tracker/feature-tracker-gyro.h>
@@ -73,6 +74,7 @@ void VOFeatureTrackingPipeline::trackFeaturesNFrame(
   CHECK_GT(
       nframe_kp1->getMinTimestampNanoseconds(),
       nframe_k->getMinTimestampNanoseconds());
+  timing::Timer timer_eval("VOFeatureTrackingPipeline::trackFeaturesNFrame");
 
   const size_t num_cameras = nframe_kp1->getNumCameras();
   CHECK_EQ(num_cameras, trackers_.size());
@@ -95,6 +97,8 @@ void VOFeatureTrackingPipeline::trackFeaturesNFrame(
   }
   thread_pool_->waitForEmptyQueue();
   has_feature_extraction_been_performed_on_first_nframe_ = true;
+
+  timer_eval.Stop();
 }
 
 void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
@@ -102,6 +106,7 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
     aslam::VisualFrame* frame_kp1, aslam::VisualFrame* frame_k,
     aslam::FrameToFrameMatches* inlier_matches_kp1_k,
     aslam::FrameToFrameMatches* outlier_matches_kp1_k) {
+  timing::Timer timer("VOFeatureTrackingPipeline: trackFeaturesSingleCamera");
   CHECK_LE(camera_idx, track_managers_.size());
   CHECK_NOTNULL(frame_k);
   CHECK_NOTNULL(frame_kp1);
@@ -137,15 +142,21 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
       ncamera_->get_T_C_B(camera_idx).getRotation();
   aslam::Quaternion q_Ckp1_Ck = q_C_B * q_Bkp1_Bk * q_C_B.inverse();
 
+  statistics::StatsCollector stat_tracking("keypoint tracking (1 image) in ms");
+  timing::Timer timer_tracking("descriptor matching");
   aslam::FrameToFrameMatchesWithScore matches_with_score_kp1_k;
 
   trackers_[camera_idx]->track(
       q_Ckp1_Ck, *frame_k, frame_kp1, &matches_with_score_kp1_k);
+  stat_tracking.AddSample(timer_tracking.Stop() * 1000);
 
   // Remove outlier matches.
   aslam::FrameToFrameMatchesWithScore inlier_matches_with_score_kp1_k;
   aslam::FrameToFrameMatchesWithScore outlier_matches_with_score_kp1_k;
 
+  statistics::StatsCollector stat_ransac("Twopt RANSAC (1 image) in ms");
+  timing::Timer timer_ransac(
+      "VOFeatureTrackingPipeline: trackFeaturesSingleCamera - ransac");
   bool ransac_success = aslam::geometric_vision::
       rejectOutlierFeatureMatchesTranslationRotationSAC(
           *frame_kp1, *frame_k, q_Ckp1_Ck, matches_with_score_kp1_k,
@@ -153,6 +164,8 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
           FLAGS_feature_tracker_two_pt_ransac_threshold,
           FLAGS_feature_tracker_two_pt_ransac_max_iterations,
           &inlier_matches_with_score_kp1_k, &outlier_matches_with_score_kp1_k);
+
+  stat_ransac.AddSample(timer_ransac.Stop() * 1000);
 
   LOG_IF(WARNING, !ransac_success)
       << "Match outlier rejection RANSAC failed on camera " << camera_idx
@@ -163,6 +176,8 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
                                << " matches on camera " << camera_idx << ".";
 
   // Assign track ids.
+  timing::Timer timer_track_manager(
+      "VOFeatureTrackingPipeline: trackFeaturesSingleCamera - track manager");
   track_managers_[camera_idx]->applyMatchesToFrames(
       inlier_matches_with_score_kp1_k, frame_kp1, frame_k);
 
@@ -190,6 +205,7 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
                                       std::to_string(camera_idx);
     visualization::RVizVisualizationSink::publish(outlier_topic, outlier_image);
   }
+  timer_track_manager.Stop();
 }
 
 void VOFeatureTrackingPipeline::initialize(
