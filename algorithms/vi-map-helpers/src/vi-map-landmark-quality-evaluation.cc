@@ -87,7 +87,6 @@ void removeInvalidLandmarkObservations(
     const vi_map::MissionIdList& mission_ids, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
   VIMapManipulation manipulation(map);
-  constexpr bool kEvaluateLandmarkQuality = true;
   for (const vi_map::MissionId& mission_id : mission_ids) {
     CHECK(map->hasMission(mission_id));
 
@@ -158,7 +157,7 @@ void removeInvalidLandmarkObservations(
       updated_landmark_ids.insert(
           new_landmark_ids.begin(), new_landmark_ids.end());
       landmark_triangulation::retriangulateLandmarksOfMission(
-          mission_id, map, updated_landmark_ids, true);
+          mission_id, map, true, updated_landmark_ids);
       LOG(INFO) << "Removed " << num_bad_tracks << " bad tracks from mission "
                 << mission_id.hexString() << " and retriangulated "
                 << updated_landmark_ids.size() << " landmarks. Consider "
