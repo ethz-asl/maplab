@@ -74,35 +74,6 @@ DEFINE_uint64(
     "Max. number of features to detect. After the whole detection "
     "pipeline the number of features will be cut.");
 
-DEFINE_int32(
-    feature_tracker_simple_pipeline_brisk_num_octaves, 1,
-    "BRISK number of octaves parameter.");
-DEFINE_double(
-    feature_tracker_simple_pipeline_brisk_uniformity_radius, 0.0,
-    "BRISK uniformity radius parameter.");
-DEFINE_double(
-    feature_tracker_simple_pipeline_brisk_absolute_threshold, 45.0,
-    "BRISK absolute threshold parameter.");
-DEFINE_int32(
-    feature_tracker_simple_pipeline_max_num_keypoints, 1000,
-    "The maximum number of keypoints detected in a frame.");
-DEFINE_bool(
-    feature_tracker_simple_pipeline_brisk_rotation_invariant, false,
-    "BRISK rotation invariance parameter.");
-DEFINE_bool(
-    feature_tracker_simple_pipeline_brisk_scale_invariant, true,
-    "BRISK scale invariance parameter.");
-DEFINE_bool(
-    feature_tracker_simple_pipeline_brisk_copy_images, true,
-    "BRISK copy images parameter.");
-DEFINE_double(
-    feature_tracker_simple_pipeline_matcher_image_space_distance_threshold_px,
-    50.0,
-    "Search radius in image space for possible frame-to-frame keypoint "
-    "matches.");
-DEFINE_int32(
-    feature_tracker_simple_pipeline_matcher_descriptor_hamming_distance_threshold,
-    60, "Frame-matching: max descriptor distance between two keypoints.");
 DEFINE_uint64(
     min_tracking_distance_to_image_border_px, 30u,
     "Minimum tracking distance to the image border in pixels. Has to be "
@@ -127,9 +98,8 @@ DEFINE_uint64(
 namespace feature_tracking {
 
 FeatureTrackingExtractorSettings::FeatureTrackingExtractorSettings()
-    : descriptor_type(
-          convertStringToDescriptorType(
-              FLAGS_feature_tracking_descriptor_type)),
+    : descriptor_type(convertStringToDescriptorType(
+          FLAGS_feature_tracking_descriptor_type)),
       rotation_invariant(FLAGS_feature_tracking_descriptor_rotation_invariance),
       scale_invariant(FLAGS_feature_tracking_descriptor_scale_invariance),
       flip_descriptor(FLAGS_feature_tracking_flip_descriptors),
@@ -209,25 +179,6 @@ FeatureTrackingDetectorSettings::FeatureTrackingDetectorSettings()
   CHECK_GE(gridded_detector_cell_num_features, 0u);
   CHECK_GE(gridded_detector_num_grid_cols, 1u);
   CHECK_GE(gridded_detector_num_grid_rows, 1u);
-}
-
-SimpleBriskFeatureTrackingSettings::SimpleBriskFeatureTrackingSettings()
-    : num_octaves(FLAGS_feature_tracker_simple_pipeline_brisk_num_octaves),
-      uniformity_radius(
-          FLAGS_feature_tracker_simple_pipeline_brisk_uniformity_radius),
-      absolute_threshold(
-          FLAGS_feature_tracker_simple_pipeline_brisk_absolute_threshold),
-      max_number_of_keypoints(
-          FLAGS_feature_tracker_simple_pipeline_max_num_keypoints),
-      rotation_invariant(
-          FLAGS_feature_tracker_simple_pipeline_brisk_rotation_invariant),
-      scale_invariant(
-          FLAGS_feature_tracker_simple_pipeline_brisk_scale_invariant),
-      copy_images(FLAGS_feature_tracker_simple_pipeline_brisk_copy_images),
-      matching_descriptor_hamming_distance_threshold(
-          FLAGS_feature_tracker_simple_pipeline_matcher_descriptor_hamming_distance_threshold),
-      matching_image_space_distance_threshold_px(
-          FLAGS_feature_tracker_simple_pipeline_matcher_image_space_distance_threshold_px) {
 }
 
 }  // namespace feature_tracking

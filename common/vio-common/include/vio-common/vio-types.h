@@ -25,24 +25,6 @@ enum class EstimatorState : int {
   kInvalid
 };
 MAPLAB_DEFINE_ENUM_HASHING(EstimatorState, int);
-inline std::string convertEstimatorStateToString(const EstimatorState state) {
-  switch (state) {
-    case EstimatorState::kUninitialized:
-      return "Uninitialized";
-      break;
-    case EstimatorState::kStartup:
-      return "Start-Up";
-      break;
-    case EstimatorState::kRunning:
-      return "Running";
-      break;
-    default:
-      LOG(FATAL) << "Unknown estimator state: " << static_cast<int>(state)
-                 << '.';
-      break;
-  }
-  return "";
-}
 
 enum class MotionType : int { kInvalid, kRotationOnly, kGeneralMotion };
 MAPLAB_DEFINE_ENUM_HASHING(MotionType, int);
@@ -112,26 +94,6 @@ struct BatchedImuMeasurements {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   BatchedImuMeasurements() = default;
   Aligned<std::vector, ImuMeasurement> batch;
-};
-
-struct GpsLlhMeasurement {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MAPLAB_POINTER_TYPEDEFS(GpsLlhMeasurement);
-
-  GpsLlhMeasurement() = default;
-  // Timestamp in nanoseconds.
-  int64_t timestamp;
-  // Position of the receiver in decimal degree and meter.
-  Eigen::Vector3d gps_position_lat_lon_alt_deg_m;
-  Eigen::Matrix3d gps_position_lat_lon_alt_covariance;
-};
-
-enum MeasurementType {
-  kVision,
-  kGps,
-  kMagnetometer,
-  kStatic_pressure,
-  kDifferential_pressure
 };
 
 enum class UpdateType { kInvalid, kNormalUpdate, kZeroVelocityUpdate };
@@ -452,118 +414,5 @@ struct LinearInterpolationFunctor<Time, Eigen::Vector3d> {
 };
 }  // namespace common
 
-namespace vio {
-namespace constant {
-static const double kUninitializedVariance = 1.0e12;
-}
-
-class ViNodeCovariance {
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MAPLAB_POINTER_TYPEDEFS(ViNodeCovariance);
-
-  ViNodeCovariance(
-      const Eigen::Matrix3d& p_M_I_covariance,
-      const Eigen::Matrix3d& q_M_I_covariance,
-      const Eigen::Matrix3d& v_M_I_covariance,
-      const Eigen::Matrix3d& I_acc_bias_covariance,
-      const Eigen::Matrix3d& I_gyro_bias_covariance)
-      : p_M_I_covariance_(p_M_I_covariance),
-        q_M_I_covariance_(q_M_I_covariance),
-        v_M_I_covariance_(v_M_I_covariance),
-        I_acc_bias_covariance_(I_acc_bias_covariance),
-        I_gyro_bias_covariance_(I_gyro_bias_covariance) {}
-
-  ViNodeCovariance()
-      : p_M_I_covariance_(
-            Eigen::Matrix3d::Identity() * constant::kUninitializedVariance),
-        q_M_I_covariance_(
-            Eigen::Matrix3d::Identity() * constant::kUninitializedVariance),
-        v_M_I_covariance_(
-            Eigen::Matrix3d::Identity() * constant::kUninitializedVariance),
-        I_acc_bias_covariance_(
-            Eigen::Matrix3d::Identity() * constant::kUninitializedVariance),
-        I_gyro_bias_covariance_(
-            Eigen::Matrix3d::Identity() * constant::kUninitializedVariance) {}
-
-  virtual ~ViNodeCovariance() {}
-
-  inline const Eigen::Matrix3d& get_p_M_I_Covariance() const {
-    return p_M_I_covariance_;
-  }
-  inline const Eigen::Matrix3d& get_q_M_I_Covariance() const {
-    return q_M_I_covariance_;
-  }
-  inline const Eigen::Matrix3d& get_v_M_I_Covariance() const {
-    return v_M_I_covariance_;
-  }
-  inline const Eigen::Matrix3d& getAccBiasCovariance() const {
-    return I_acc_bias_covariance_;
-  }
-  inline const Eigen::Matrix3d& getGyroBiasCovariance() const {
-    return I_gyro_bias_covariance_;
-  }
-
-  inline void set_p_M_I_Covariance(const Eigen::Matrix3d& p_M_I_covariance) {
-    p_M_I_covariance_ = p_M_I_covariance;
-  }
-  inline void set_q_M_I_Covariance(const Eigen::Matrix3d& q_M_I_covariance) {
-    q_M_I_covariance_ = q_M_I_covariance;
-  }
-  inline void set_v_M_I_Covariance(const Eigen::Matrix3d& v_M_I_covariance) {
-    v_M_I_covariance_ = v_M_I_covariance;
-  }
-  inline void setAccBiasCovariance(
-      const Eigen::Matrix3d& I_acc_bias_covariance) {
-    I_acc_bias_covariance_ = I_acc_bias_covariance;
-  }
-  inline void setGyroBiasCovariance(
-      const Eigen::Matrix3d& I_gyro_bias_covariance) {
-    I_gyro_bias_covariance_ = I_gyro_bias_covariance;
-  }
-
- private:
-  /// Position covariance of body-frame origin expressed in the world frame. [m]
-  Eigen::Matrix3d p_M_I_covariance_;
-  /// Orientation covariance of body-frame wrt. the world frame expressed as
-  /// variance of the
-  /// corresponding Cayley-Klein parameters. [rad/s]
-  Eigen::Matrix3d q_M_I_covariance_;
-  /// The velocity of the body-frame origin expressed in the world frame. [m/s]
-  Eigen::Matrix3d v_M_I_covariance_;
-  /// The accelerometer bias covariance expressed in the IMU frame. [m/s^2]
-  Eigen::Matrix3d I_acc_bias_covariance_;
-  /// The gyroscope bias covariance expressed in the IMU frame. [rad/s]
-  Eigen::Matrix3d I_gyro_bias_covariance_;
-};
-
-class ViNodeStateAndCovariance final : public ViNodeState,
-                                       public ViNodeCovariance {
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MAPLAB_POINTER_TYPEDEFS(ViNodeStateAndCovariance);
-
-  ViNodeStateAndCovariance() : ViNodeState(), ViNodeCovariance() {}
-
-  ViNodeStateAndCovariance(
-      const aslam::Transformation& T_M_I, const Eigen::Vector3d& v_M_I,
-      const Eigen::Vector3d& accelerometer_bias,
-      const Eigen::Vector3d& gyro_bias, const Eigen::Matrix3d& p_M_I_covariance,
-      const Eigen::Matrix3d& q_M_I_covariance,
-      const Eigen::Matrix3d& v_M_I_covariance,
-      const Eigen::Matrix3d& I_acc_bias_covariance,
-      const Eigen::Matrix3d& I_gyro_bias_covariance)
-      : ViNodeState(T_M_I, v_M_I, accelerometer_bias, gyro_bias),
-        ViNodeCovariance(
-            p_M_I_covariance, q_M_I_covariance, v_M_I_covariance,
-            I_acc_bias_covariance, I_gyro_bias_covariance) {}
-
-  ViNodeStateAndCovariance(
-      const ViNodeState& state, const ViNodeCovariance& state_covariance)
-      : ViNodeState(state), ViNodeCovariance(state_covariance) {}
-
-  virtual ~ViNodeStateAndCovariance() {}
-};
-}  // namespace vio
 #include "./internal/vio-types-inl.h"
 #endif  // VIO_COMMON_VIO_TYPES_H_

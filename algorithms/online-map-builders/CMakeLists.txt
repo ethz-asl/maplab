@@ -11,9 +11,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -no-pie")
 ############
 cs_add_library(
     ${PROJECT_NAME}
-    src/keyframed-map-builder.cc
-    src/stream-map-builder.cc
-    src/stream-vio-map-builder.cc)
+    src/stream-map-builder.cc)
 
 ##########
 # EXPORT #

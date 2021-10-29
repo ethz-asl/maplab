@@ -5,7 +5,6 @@
 #include <maplab-common/test/testing-entrypoint.h>
 #include <vi-map/test/vi-map-generator.h>
 
-#include "vi-map-helpers/gps-vi-map-nearest-neighbor-lookup.h"
 #include "vi-map-helpers/vi-map-nearest-neighbor-lookup.h"
 
 namespace vi_map_helpers {

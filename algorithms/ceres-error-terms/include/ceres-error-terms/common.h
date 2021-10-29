@@ -25,11 +25,7 @@ inline bool isValidVisualErrorTermType(VisualErrorType type) {
 }
 
 static const int kResidualSize = 2;
-static const int kBearingBasedResidualSize = 1;
-
 static const int kOrientationBlockSize = 4;
-static const int kUnit3BlockSize = 4;
-static const int kInverseDepthBlockSize = 1;
 static const int kPositionBlockSize = 3;
 static const int kPoseBlockSize = 7;
 }  // namespace visual

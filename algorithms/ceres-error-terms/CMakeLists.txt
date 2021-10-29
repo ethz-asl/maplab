@@ -13,12 +13,8 @@ cs_add_library(${PROJECT_NAME}
   src/block-pose-prior-error-term-v2.cc
   src/ceres-signal-handler.cc
   src/inertial-error-term.cc
-  src/inertial-error-term-eigen.cc
-  src/parameterization/quaternion-param-eigen.cc
   src/parameterization/quaternion-param-hamilton.cc
   src/parameterization/quaternion-param-jpl.cc
-  src/parameterization/unit3-param.cc
-  src/pose-prior-error-term-eigen.cc
   src/pose-prior-error-term.cc
   src/position-error-term.cc
   src/problem-information.cc)
@@ -60,10 +56,6 @@ catkin_add_gtest(test_inertial_term_test
   test/test_inertial_term_test.cc)
 target_link_libraries(test_inertial_term_test ${PROJECT_NAME})
 
-catkin_add_gtest(test_inertial_term_test_eigen
-  test/test_inertial_term_test_eigen.cc)
-target_link_libraries(test_inertial_term_test_eigen ${PROJECT_NAME})
-
 catkin_add_gtest(test_3keyframe_inertial_term_test
   test/test_3keyframe_inertial_term_test.cc)
 target_link_libraries(test_3keyframe_inertial_term_test ${PROJECT_NAME})
@@ -86,18 +78,6 @@ target_link_libraries(test_six_dof_block_transformation_error_term
 catkin_add_gtest(test_six_dof_block_transformation_error_term_with_extrinsics
   test/test_six_dof_block_transformation_error_term_with_extrinsics.cc)
 target_link_libraries(test_six_dof_block_transformation_error_term_with_extrinsics ${PROJECT_NAME})
-
-catkin_add_gtest(test_unit3_parameterization
-  test/test_unit3_parameterization.cc)
-target_link_libraries(test_unit3_parameterization ${PROJECT_NAME})
-
-catkin_add_gtest(test_quaternion_parameterization_eigen
-  test/test_quaternion_eigen_parameterization.cc)
-target_link_libraries(test_quaternion_parameterization_eigen ${PROJECT_NAME})
-
-catkin_add_gtest(test_aid_error_term
-  test/test_aid_error_term.cc)
-target_link_libraries(test_aid_error_term ${PROJECT_NAME})
 
 cs_install()
 cs_export()

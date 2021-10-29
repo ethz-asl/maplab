@@ -32,44 +32,18 @@ class MapUpdateBuilder {
 
   void processTrackedNFrame(
       const vio::SynchronizedNFrame::ConstPtr& tracked_nframe);
-  void processLocalizationResult(
-      const common::LocalizationResult::ConstPtr& localization_result);
 
-  void clearSynchronizedNFrameImuQueue() {
-    // For unit tests.
-    TrackedNFrameQueue empty_queue;
-    tracked_nframe_queue_.swap(empty_queue);
-  }
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  private:
-  typedef std::queue<vio::SynchronizedNFrame::ConstPtr> TrackedNFrameQueue;
-  typedef Aligned<std::deque, OdometryEstimate::ConstPtr> OdometryEstimateQueue;
-
-  void findMatchAndPublish();
-  void interpolateViNodeState(
-      const int64_t timestamp_ns_a, const vio::ViNodeState& vi_node_a,
-      const int64_t timestamp_ns_b, const vio::ViNodeState& vi_node_b,
-      const int64_t timestamp_ns_interpolated,
-      vio::ViNodeState* vi_node_interpolated);
-
   // Already threadsafe.
   const vio_common::PoseLookupBuffer& T_M_B_buffer_;
 
-  std::mutex localization_buffer_mutex_;
-  common::TemporalBuffer<common::FusedLocalizationResult> localization_buffer_;
-
-  std::recursive_mutex queue_mutex_;
-  TrackedNFrameQueue tracked_nframe_queue_;
-  // These values indicate the timestamp of the last message in the given topic
-  // so that we can enforce that the timestamps are strictly monotonically
-  // increasing
-  std::atomic<int64_t> last_received_timestamp_tracked_nframe_queue_;
+  std::mutex process_nframe_mutex_;
+  // Enforce that the timestamps are strictly monotonically increasing
+  std::atomic<int64_t> last_received_timestamp_tracked_nframe_;
 
   MapUpdatePublishFunction map_update_publish_function_;
-
-  std::mutex mutex_last_localization_state_;
-  common::LocalizationState last_localization_state_;
 };
 
 }  // namespace maplab

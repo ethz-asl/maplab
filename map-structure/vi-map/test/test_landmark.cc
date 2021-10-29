@@ -31,35 +31,10 @@ class LandmarkTest : public ::testing::Test {
     }
   }
 
-  void allocateIncrementalAppearances() {
-    landmark_.allocateAppearances();
-    const size_t num_observations = landmark_.numberOfObservations();
-    for (size_t idx = 0u; idx < num_observations; ++idx) {
-      landmark_.setAppearance(idx, static_cast<int>(idx));
-    }
-  }
-
   Landmark landmark_;
 };
 
-bool verifyIncrementalAppearances(const Landmark& landmark) {
-  bool valid = true;
-
-  const size_t num_observations = landmark.numberOfObservations();
-
-  std::unordered_set<int> distinct_appearances;
-  landmark.getAllDistinctAppearances(&distinct_appearances);
-
-  valid &= distinct_appearances.size() == num_observations;
-  for (size_t idx = 0u; idx < num_observations; ++idx) {
-    valid &=
-        landmark.getAppearanceForObservationIndex(idx) == static_cast<int>(idx);
-    valid &= distinct_appearances.count(static_cast<int>(idx)) > 0;
-  }
-  return valid;
-}
-
-TEST_F(LandmarkTest, TestSerializationNoAppearances) {
+TEST_F(LandmarkTest, TestSerialization) {
   const size_t num_observations = 200u;
 
   KeypointIdentifierList observations;
@@ -68,9 +43,6 @@ TEST_F(LandmarkTest, TestSerializationNoAppearances) {
 
   landmark_.addObservations(observations);
   EXPECT_EQ(landmark_.numberOfObservations(), num_observations);
-  EXPECT_DEATH(landmark_.getAppearances(), "");
-  std::unordered_set<int> distinct_appearances;
-  EXPECT_DEATH(landmark_.getAllDistinctAppearances(&distinct_appearances), "");
 
   vi_map::proto::Landmark proto_landmark;
   landmark_.serialize(&proto_landmark);
@@ -82,47 +54,12 @@ TEST_F(LandmarkTest, TestSerializationNoAppearances) {
   EXPECT_EQ(
       proto_landmark.keypoint_indices_size(),
       static_cast<int>(num_observations));
-  EXPECT_EQ(proto_landmark.appearances_size(), 0);
 
   Landmark deserialized_landmark;
   deserialized_landmark.deserialize(proto_landmark);
-
-  EXPECT_DEATH(landmark_.getAppearances(), "");
 }
 
-TEST_F(LandmarkTest, TestSerializationWithAppearances) {
-  const size_t num_observations = 500u;
-
-  KeypointIdentifierList observations;
-  generateObservations(num_observations, &observations);
-  ASSERT_EQ(observations.size(), num_observations);
-
-  landmark_.addObservations(observations);
-  EXPECT_EQ(landmark_.numberOfObservations(), num_observations);
-
-  allocateIncrementalAppearances();
-
-  EXPECT_TRUE(verifyIncrementalAppearances(landmark_));
-
-  vi_map::proto::Landmark proto_landmark;
-  landmark_.serialize(&proto_landmark);
-
-  EXPECT_EQ(
-      proto_landmark.vertex_ids_size(), static_cast<int>(num_observations));
-  EXPECT_EQ(
-      proto_landmark.frame_indices_size(), static_cast<int>(num_observations));
-  EXPECT_EQ(
-      proto_landmark.keypoint_indices_size(),
-      static_cast<int>(num_observations));
-  EXPECT_EQ(proto_landmark.appearances_size(), num_observations);
-
-  Landmark deserialized_landmark;
-  deserialized_landmark.deserialize(proto_landmark);
-
-  EXPECT_TRUE(verifyIncrementalAppearances(deserialized_landmark));
-}
-
-TEST_F(LandmarkTest, TestClearObservationsAndAppearances) {
+TEST_F(LandmarkTest, TestClearObservations) {
   const size_t num_observations = 500u;
 
   KeypointIdentifierList observations;
@@ -135,17 +72,9 @@ TEST_F(LandmarkTest, TestClearObservationsAndAppearances) {
   landmark_.clearObservations();
   EXPECT_EQ(landmark_.numberOfObservations(), 0u);
   EXPECT_TRUE(landmark_.getObservations().empty());
-
-  landmark_.addObservations(observations);
-  allocateIncrementalAppearances();
-
-  EXPECT_EQ(landmark_.getAppearances().size(), num_observations);
-
-  landmark_.clearObservations();
-  EXPECT_DEATH(landmark_.getAppearances(), "");
 }
 
-TEST_F(LandmarkTest, TestRemovalOfObservationsByIndexNoAppearances) {
+TEST_F(LandmarkTest, TestRemovalOfObservationsByIndex) {
   const size_t num_observations = 5u;
 
   KeypointIdentifierList observations;
@@ -154,10 +83,6 @@ TEST_F(LandmarkTest, TestRemovalOfObservationsByIndexNoAppearances) {
 
   landmark_.addObservations(observations);
   EXPECT_EQ(landmark_.numberOfObservations(), num_observations);
-
-  EXPECT_DEATH(landmark_.getAppearances(), "");
-  std::unordered_set<int> distinct_appearances;
-  EXPECT_DEATH(landmark_.getAllDistinctAppearances(&distinct_appearances), "");
 
   KeypointIdentifierList reduced_observations = observations;
 
@@ -183,7 +108,7 @@ TEST_F(LandmarkTest, TestRemovalOfObservationsByIndexNoAppearances) {
   EXPECT_TRUE(landmark_.getObservations().empty());
 }
 
-TEST_F(LandmarkTest, TestRemovalOfObservationsByObservationNoAppearances) {
+TEST_F(LandmarkTest, TestRemovalOfObservationsByObservation) {
   const size_t num_observations = 5u;
 
   KeypointIdentifierList observations;
@@ -192,10 +117,6 @@ TEST_F(LandmarkTest, TestRemovalOfObservationsByObservationNoAppearances) {
 
   landmark_.addObservations(observations);
   EXPECT_EQ(landmark_.numberOfObservations(), num_observations);
-
-  EXPECT_DEATH(landmark_.getAppearances(), "");
-  std::unordered_set<int> distinct_appearances;
-  EXPECT_DEATH(landmark_.getAllDistinctAppearances(&distinct_appearances), "");
 
   KeypointIdentifierList reduced_observations = observations;
 
@@ -221,7 +142,7 @@ TEST_F(LandmarkTest, TestRemovalOfObservationsByObservationNoAppearances) {
   EXPECT_TRUE(landmark_.getObservations().empty());
 }
 
-TEST_F(LandmarkTest, TestRemovalOfObservationsByVertexNoAppearances) {
+TEST_F(LandmarkTest, TestRemovalOfObservationsByVertex) {
   const size_t num_observations = 5u;
 
   KeypointIdentifierList observations;
@@ -236,10 +157,6 @@ TEST_F(LandmarkTest, TestRemovalOfObservationsByVertexNoAppearances) {
 
   landmark_.addObservations(observations);
   EXPECT_EQ(landmark_.numberOfObservations(), num_observations);
-
-  EXPECT_DEATH(landmark_.getAppearances(), "");
-  std::unordered_set<int> distinct_appearances;
-  EXPECT_DEATH(landmark_.getAllDistinctAppearances(&distinct_appearances), "");
 
   KeypointIdentifierList reduced_observations = observations;
 
@@ -269,8 +186,7 @@ TEST_F(LandmarkTest, TestRemovalOfObservationsByVertexNoAppearances) {
   EXPECT_TRUE(landmark_.getObservations().empty());
 }
 
-TEST_F(
-    LandmarkTest, TestRemovalOfObservationsByVertexAndFrameIndexNoAppearances) {
+TEST_F(LandmarkTest, TestRemovalOfObservationsByVertexAndFrameIndex) {
   const size_t num_observations = 5u;
 
   KeypointIdentifierList observations;
@@ -285,10 +201,6 @@ TEST_F(
 
   landmark_.addObservations(observations);
   EXPECT_EQ(landmark_.numberOfObservations(), num_observations);
-
-  EXPECT_DEATH(landmark_.getAppearances(), "");
-  std::unordered_set<int> distinct_appearances;
-  EXPECT_DEATH(landmark_.getAllDistinctAppearances(&distinct_appearances), "");
 
   KeypointIdentifierList reduced_observations = observations;
 
@@ -336,209 +248,6 @@ TEST_F(
   // Vertices:     {}.
   // Frame Index:  {}.
   EXPECT_TRUE(landmark_.getObservations().empty());
-}
-
-TEST_F(LandmarkTest, TestRemovalOfObservationsByIndexWithAppearances) {
-  const size_t num_observations = 5u;
-
-  KeypointIdentifierList observations;
-  generateObservations(num_observations, &observations);
-  ASSERT_EQ(observations.size(), num_observations);
-
-  landmark_.addObservations(observations);
-  EXPECT_EQ(landmark_.numberOfObservations(), num_observations);
-
-  allocateIncrementalAppearances();
-
-  std::unordered_set<int> distinct_appearances;
-  landmark_.getAllDistinctAppearances(&distinct_appearances);
-  EXPECT_EQ(distinct_appearances.size(), num_observations);
-
-  std::vector<int> reduced_appearances = {0, 1, 2, 3, 4};
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  // Remove one by one using the index-based removal.
-  landmark_.removeObservation(1u);
-  reduced_appearances.erase(reduced_appearances.begin() + 1);
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  landmark_.removeObservation(3u);
-  reduced_appearances.erase(reduced_appearances.begin() + 3);
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  landmark_.removeObservation(0u);
-  reduced_appearances.erase(reduced_appearances.begin());
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  landmark_.removeObservation(1u);
-  reduced_appearances.erase(reduced_appearances.begin() + 1);
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  landmark_.removeObservation(0u);
-  reduced_appearances.erase(reduced_appearances.begin());
-  EXPECT_DEATH(landmark_.getAppearances(), "");
-}
-
-TEST_F(LandmarkTest, TestRemovalOfObservationsByObservationWithAppearances) {
-  const size_t num_observations = 5u;
-
-  KeypointIdentifierList observations;
-  generateObservations(num_observations, &observations);
-  ASSERT_EQ(observations.size(), num_observations);
-
-  landmark_.addObservations(observations);
-  EXPECT_EQ(landmark_.numberOfObservations(), num_observations);
-
-  allocateIncrementalAppearances();
-
-  std::unordered_set<int> distinct_appearances;
-  landmark_.getAllDistinctAppearances(&distinct_appearances);
-  EXPECT_EQ(distinct_appearances.size(), num_observations);
-
-  std::vector<int> reduced_appearances = {0, 1, 2, 3, 4};
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  // Remove one by one using the KeypointIdentifier.
-  landmark_.removeObservation(observations[2]);
-  reduced_appearances.erase(reduced_appearances.begin() + 2);
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-  // Apperances left: {0,1,3,4}.
-
-  landmark_.removeObservation(observations[3]);
-  reduced_appearances.erase(reduced_appearances.begin() + 2);
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-  // Apperances left: {0,1,4}.
-
-  landmark_.removeObservation(observations[0]);
-  reduced_appearances.erase(reduced_appearances.begin());
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-  // Apperances left: {1,4}.
-
-  landmark_.removeObservation(observations[4]);
-  reduced_appearances.erase(reduced_appearances.begin() + 1);
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-  // Apperances left: {1}.
-
-  landmark_.removeObservation(observations[1]);
-  reduced_appearances.erase(reduced_appearances.begin());
-  EXPECT_DEATH(landmark_.getAppearances(), "");
-}
-
-TEST_F(LandmarkTest, TestRemovalOfObservationsByVertexWithAppearances) {
-  const size_t num_observations = 5u;
-
-  KeypointIdentifierList observations;
-  generateObservations(num_observations, &observations);
-  ASSERT_EQ(observations.size(), num_observations);
-
-  // Set vertex of second and fifth equal.
-  observations[4].frame_id.vertex_id = observations[1].frame_id.vertex_id;
-
-  // Set vertex of first and third equal.
-  observations[2].frame_id.vertex_id = observations[0].frame_id.vertex_id;
-
-  landmark_.addObservations(observations);
-  EXPECT_EQ(landmark_.numberOfObservations(), num_observations);
-
-  allocateIncrementalAppearances();
-
-  std::unordered_set<int> distinct_appearances;
-  landmark_.getAllDistinctAppearances(&distinct_appearances);
-  EXPECT_EQ(distinct_appearances.size(), num_observations);
-
-  std::vector<int> reduced_appearances = {0, 1, 2, 3, 4};
-  // Observations: {0, 1, 2, 3, 4}.
-  // Vertices:     {a, b, a, d, b}.
-
-  // Remove by vertex.
-  landmark_.removeAllObservationsOfVertex(observations[2].frame_id.vertex_id);
-  // Observations: {1, 3, 4}.
-  // Vertices:     {b, d, b}.
-  reduced_appearances.erase(reduced_appearances.begin() + 2);
-  reduced_appearances.erase(reduced_appearances.begin());
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  landmark_.removeAllObservationsOfVertex(observations[3].frame_id.vertex_id);
-  // Observations: {1, 4}.
-  // Vertices:     {b, b}.
-  reduced_appearances.erase(reduced_appearances.begin() + 1);
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  landmark_.removeAllObservationsOfVertex(observations[4].frame_id.vertex_id);
-  // Observations: {}.
-  // Vertices:     {}.
-  EXPECT_DEATH(landmark_.getAppearances(), "");
-}
-
-TEST_F(
-    LandmarkTest,
-    TestRemovalOfObservationsByVertexAndFrameIndexWithAppearances) {
-  const size_t num_observations = 5u;
-
-  KeypointIdentifierList observations;
-  generateObservations(num_observations, &observations);
-  ASSERT_EQ(observations.size(), num_observations);
-
-  // Set vertex of second and fifth equal.
-  observations[4].frame_id.vertex_id = observations[1].frame_id.vertex_id;
-
-  // Set vertex of first and third equal.
-  observations[2].frame_id.vertex_id = observations[0].frame_id.vertex_id;
-
-  landmark_.addObservations(observations);
-  EXPECT_EQ(landmark_.numberOfObservations(), num_observations);
-
-  allocateIncrementalAppearances();
-
-  std::unordered_set<int> distinct_appearances;
-  landmark_.getAllDistinctAppearances(&distinct_appearances);
-  EXPECT_EQ(distinct_appearances.size(), num_observations);
-
-  std::vector<int> reduced_appearances = {0, 1, 2, 3, 4};
-
-  // Observations: {0, 1, 2, 3, 4}.
-  // Vertices:     {a, b, a, d, b}.
-  // Frame Index:  {0, 1, 0, 1, 0}.
-
-  // Remove by vertex.
-  landmark_.removeAllObservationsOfVertexAndFrame(
-      observations[2].frame_id.vertex_id, 0u);
-  // Observations: {1, 3, 4}.
-  // Vertices:     {b, d, b}.
-  // Frame Index:  {1, 1, 0}.
-  reduced_appearances.erase(reduced_appearances.begin() + 2);
-  reduced_appearances.erase(reduced_appearances.begin());
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  landmark_.removeAllObservationsOfVertexAndFrame(
-      observations[3].frame_id.vertex_id, 0u);  // (Nothing should happen.)
-  // Observations: {1, 3, 4}.
-  // Vertices:     {b, d, b}.
-  // Frame Index:  {1, 1, 0}.
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  landmark_.removeAllObservationsOfVertexAndFrame(
-      observations[3].frame_id.vertex_id, 1u);
-  // Observations: {1, 4}.
-  // Vertices:     {b, b}.
-  // Frame Index:  {1, 0}.
-  reduced_appearances.erase(reduced_appearances.begin() + 1);
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  landmark_.removeAllObservationsOfVertexAndFrame(
-      observations[4].frame_id.vertex_id, 0u);
-  // Observations: {1}.
-  // Vertices:     {b}.
-  // Frame Index:  {1}.
-  reduced_appearances.erase(reduced_appearances.begin() + 1);
-  EXPECT_EQ(landmark_.getAppearances(), reduced_appearances);
-
-  landmark_.removeAllObservationsOfVertexAndFrame(
-      observations[1].frame_id.vertex_id, 1u);
-  // Observations: {}.
-  // Vertices:     {}.
-  // Frame Index:  {}.
-  EXPECT_DEATH(landmark_.getAppearances(), "");
 }
 }  // namespace vi_map
 
