@@ -155,9 +155,6 @@ void LoopDetectorNode::convertFrameToProjectedImageOnlyUsingProvidedLandmarkIds(
 
   int num_valid_landmarks = 0;
   for (int i = 0; i < original_measurements.cols(); ++i) {
-    if (!map.hasLandmark(observed_landmark_ids[i])) {
-      continue;
-    }
     const bool is_landmark_id_valid = observed_landmark_ids[i].isValid();
     const bool is_landmark_valid =
         !skip_invalid_landmark_ids || is_landmark_id_valid;
@@ -165,7 +162,8 @@ void LoopDetectorNode::convertFrameToProjectedImageOnlyUsingProvidedLandmarkIds(
     const bool landmark_well_constrained =
         !skip_invalid_landmark_ids ||
         !FLAGS_lc_filter_underconstrained_landmarks ||
-        (is_landmark_id_valid && vi_map::isLandmarkWellConstrained(
+        (is_landmark_id_valid && map.hasLandmark(observed_landmark_ids[i]) &&
+         vi_map::isLandmarkWellConstrained(
              map, map.getLandmark(observed_landmark_ids[i])));
 
     if (skip_invalid_landmark_ids && is_landmark_id_valid) {
