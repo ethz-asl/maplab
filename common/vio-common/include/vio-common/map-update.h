@@ -23,7 +23,6 @@ struct MapUpdate {
   Eigen::Matrix<double, 6, Eigen::Dynamic> imu_measurements;
 
   ViNodeState vinode;
-  ViNodeCovariance vinode_covariance;
 
   // Localization update states.
   common::LocalizationState localization_state;

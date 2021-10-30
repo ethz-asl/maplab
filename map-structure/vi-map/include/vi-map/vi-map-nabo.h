@@ -1,6 +1,7 @@
 #ifndef VI_MAP_VI_MAP_NABO_H_
 #define VI_MAP_VI_MAP_NABO_H_
 
+#include <memory>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -12,7 +13,6 @@
 namespace vi_map {
 
 // "libnabo" wrapper for VIMap. Works for vertices or landmarks.
-// See SpatialDatabase for "all within radius" queries.
 // TODO(tcies) should this be consolidated with VectorizedMission?
 template <typename ObjectIdType>
 class VIMapNabo {
