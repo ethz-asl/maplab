@@ -65,7 +65,4 @@ publish_debug_markers: false
 vis_default_namespace: maplab_rviz
 export_estimated_poses_to_csv: ""
 detection_visualize_keypoints: false
-feature_tracker_visualize_feature_tracks: true
 feature_tracker_visualize_keypoint_matches: true
-feature_tracker_visualize_keypoints: false
-feature_tracker_visualize_keypoints_individual_frames: false

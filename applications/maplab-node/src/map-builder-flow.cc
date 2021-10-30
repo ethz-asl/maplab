@@ -197,6 +197,7 @@ void MapBuilderFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
               << "to map.";
         }
       });
+
   flow->registerSubscriber<message_flow_topics::SYNCED_POINTCLOUD_MAP>(
       kSubscriberNodeName, delivery_options,
       [this](const vi_map::RosPointCloudMapSensorMeasurement::ConstPtr&
@@ -229,6 +230,7 @@ void MapBuilderFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
           flow->registerPublisher<message_flow_topics::MAP_UPDATES>();
   map_update_builder_.registerMapUpdatePublishFunction(
       map_update_builder_publisher);
+
   flow->registerSubscriber<message_flow_topics::TRACKED_NFRAMES>(
       kSubscriberNodeName, delivery_options,
       [this](const vio::SynchronizedNFrame::ConstPtr& synchronized_nframe_imu) {
@@ -237,11 +239,6 @@ void MapBuilderFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
         }
         map_update_builder_.processTrackedNFrame(synchronized_nframe_imu);
       });
-  flow->registerSubscriber<message_flow_topics::FUSED_LOCALIZATION_RESULT>(
-      kSubscriberNodeName, delivery_options,
-      std::bind(
-          &MapUpdateBuilder::processLocalizationResult, &map_update_builder_,
-          std::placeholders::_1));
 }
 
 bool MapBuilderFlow::saveMapAndOptionallyOptimize(

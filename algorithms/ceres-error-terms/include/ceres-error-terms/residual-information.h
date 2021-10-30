@@ -22,7 +22,6 @@ enum class ResidualType {
   kLoopClosure,
   kSwitchVariable,
   kVelocityPrior,
-  k3DoFGPS,
   kGenericPrior,
 };
 
