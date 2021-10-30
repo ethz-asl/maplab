@@ -74,11 +74,30 @@ message LoopclosureEdge {
   optional double switch_variable_variance = 7;
 }
 
+message LaserEdge {
+  optional aslam.proto.Id from = 1;
+  optional aslam.proto.Id to = 2;
+  repeated int64 laser_timestamps_ns = 3;
+  repeated double laser_data_xyzi = 4;
+  optional aslam.proto.Id mission_id = 5;
+}
+
+message TrajectoryEdge {
+  optional aslam.proto.Id from = 1;
+  optional aslam.proto.Id to = 2;
+  repeated int64 trajectory_timestamps_ns = 3;
+  repeated double trajectory_G_T_I_pq = 4;
+  optional aslam.proto.Id mission_id = 5;
+  optional uint32 trajectory_identifier = 6;
+}
+
 message Edge {
   optional ViwlsEdge viwls = 1;
   optional TransformationEdge odometry = 2;
   optional LoopclosureEdge loopclosure = 3;
   optional TransformationEdge transformation = 4;
+  optional LaserEdge laser = 5;
+  optional TrajectoryEdge trajectory = 6;
   optional TransformationEdge wheel_odometry = 7;
 }
 

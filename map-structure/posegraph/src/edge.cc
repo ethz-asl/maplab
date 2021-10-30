@@ -30,6 +30,15 @@ std::string Edge::edgeTypeToString(const EdgeType edge_type) {
     case EdgeType::kLoopClosure:
       return "loop_closure";
       break;
+    case EdgeType::kStructureLoopClosure:
+      return "structure_loop_closure";
+      break;
+    case EdgeType::k6DoFGps:
+      return "6dofgps";
+      break;
+    case EdgeType::kTrajectory:
+      return "trajectory";
+      break;
     case EdgeType::kCklamImuLandmark:
       return "cklam_imu_landmark";
       break;
@@ -55,6 +64,12 @@ Edge::EdgeType Edge::stringToEdgeType(const std::string& edge_type) {
     return EdgeType::kOdometry;
   } else if (edge_type == "viwls") {
     return EdgeType::kViwls;
+  } else if (edge_type == "structure_loop_closure") {
+    return EdgeType::kStructureLoopClosure;
+  } else if (edge_type == "6dofgps") {
+    return EdgeType::k6DoFGps;
+  } else if (edge_type == "trajectory") {
+    return EdgeType::kTrajectory;
   } else if (edge_type == "cklam_imu_landmark") {
     return EdgeType::kCklamImuLandmark;
   } else if (edge_type == "wheel_odometry") {

@@ -3,7 +3,10 @@
 #include <aslam/common/memory.h>
 
 #include "vi-map/cklam-edge.h"
+#include "vi-map/laser-edge.h"
 #include "vi-map/loopclosure-edge.h"
+#include "vi-map/structure-loopclosure-edge.h"
+#include "vi-map/trajectory-edge.h"
 #include "vi-map/transformation-edge.h"
 #include "vi-map/vi_map.pb.h"
 #include "vi-map/viwls-edge.h"
@@ -27,6 +30,12 @@ void Edge::setTo(const pose_graph::VertexId& to) {
 
 void Edge::serialize(vi_map::proto::Edge* proto) const {
   CHECK_NOTNULL(proto);
+  if (getType() == pose_graph::Edge::EdgeType::kStructureLoopClosure) {
+    // do not serialize it!
+    CHECK(false) << "StructureLoopClosure edge serialization not supported. "
+                 << "The edges must be removed before the commit.";
+    return;
+  }
 
   if (getType() == pose_graph::Edge::EdgeType::kViwls) {
     const vi_map::ViwlsEdge& derived_edge =
@@ -40,6 +49,18 @@ void Edge::serialize(vi_map::proto::Edge* proto) const {
     const vi_map::LoopClosureEdge& derived_edge =
         static_cast<const vi_map::LoopClosureEdge&>(*this);
     derived_edge.serialize(proto->mutable_loopclosure());
+  } else if (getType() == pose_graph::Edge::EdgeType::k6DoFGps) {
+    const vi_map::TransformationEdge& derived_edge =
+        static_cast<const vi_map::TransformationEdge&>(*this);
+    derived_edge.serialize(proto->mutable_transformation());
+  } else if (getType() == pose_graph::Edge::EdgeType::kLaser) {
+    const vi_map::LaserEdge& derived_edge =
+        static_cast<const vi_map::LaserEdge&>(*this);
+    derived_edge.serialize(proto->mutable_laser());
+  } else if (getType() == pose_graph::Edge::EdgeType::kTrajectory) {
+    const vi_map::TrajectoryEdge& derived_edge =
+        static_cast<const vi_map::TrajectoryEdge&>(*this);
+    derived_edge.serialize(proto->mutable_trajectory());
   } else if (getType() == pose_graph::Edge::EdgeType::kWheelOdometry) {
     const vi_map::TransformationEdge& derived_edge =
         static_cast<const vi_map::TransformationEdge&>(*this);
@@ -69,6 +90,19 @@ Edge::UniquePtr Edge::deserialize(
         new vi_map::TransformationEdge(vi_map::Edge::EdgeType::kWheelOdometry));
     edge->deserialize(edge_id, proto.wheel_odometry());
     return Edge::UniquePtr(edge);
+  } else if (proto.has_transformation()) {
+    vi_map::TransformationEdge* edge(
+        new vi_map::TransformationEdge(vi_map::Edge::EdgeType::k6DoFGps));
+    edge->deserialize(edge_id, proto.transformation());
+    return Edge::UniquePtr(edge);
+  } else if (proto.has_laser()) {
+    vi_map::LaserEdge* edge(new vi_map::LaserEdge());
+    edge->deserialize(edge_id, proto.laser());
+    return Edge::UniquePtr(edge);
+  } else if (proto.has_trajectory()) {
+    vi_map::TrajectoryEdge* edge(new vi_map::TrajectoryEdge());
+    edge->deserialize(edge_id, proto.trajectory());
+    return Edge::UniquePtr(edge);
   } else {
     LOG(FATAL) << "Unknown edge type.";
     return nullptr;
@@ -81,7 +115,8 @@ void Edge::copyEdgeInto(Edge** new_edge) const {
   switch (edge_type_) {
     // TODO(ben): is kOdometry being used at alL?
     case pose_graph::Edge::EdgeType::kOdometry:
-    case pose_graph::Edge::EdgeType::kWheelOdometry: {
+    case pose_graph::Edge::EdgeType::kWheelOdometry:
+    case pose_graph::Edge::EdgeType::k6DoFGps: {
       copyEdge<TransformationEdge>(new_edge);
       break;
     }
@@ -91,6 +126,18 @@ void Edge::copyEdgeInto(Edge** new_edge) const {
     }
     case pose_graph::Edge::EdgeType::kViwls: {
       copyEdge<ViwlsEdge>(new_edge);
+      break;
+    }
+    case pose_graph::Edge::EdgeType::kStructureLoopClosure: {
+      copyEdge<StructureLoopclosureEdge>(new_edge);
+      break;
+    }
+    case pose_graph::Edge::EdgeType::kLaser: {
+      copyEdge<LaserEdge>(new_edge);
+      break;
+    }
+    case pose_graph::Edge::EdgeType::kTrajectory: {
+      copyEdge<TrajectoryEdge>(new_edge);
       break;
     }
     case pose_graph::Edge::EdgeType::kCklamImuLandmark: {

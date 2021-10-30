@@ -17,6 +17,7 @@ enum class ResidualType {
   kVisualBearingError,
   kInertial,
   kPosePrior,
+  k6DoFGPS,
   kOdometry,
   kLoopClosure,
   kSwitchVariable,

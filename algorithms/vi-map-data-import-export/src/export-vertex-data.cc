@@ -90,7 +90,7 @@ int exportPosesVelocitiesAndBiasesToCsv(
     const std::string kSensorFrameIdentifier =
         std::string(1, sensor_frame_identifier);
     csv_file.writeDataWithDelimiterAndNewLine(
-        kDelimiter, "# timestamp [s]", "p_G_" + kSensorFrameIdentifier + "x",
+        kDelimiter, "timestamp_ns", "p_G_" + kSensorFrameIdentifier + "x",
         "p_G_" + kSensorFrameIdentifier + "y",
         "p_G_" + kSensorFrameIdentifier + "z",
         "q_G_" + kSensorFrameIdentifier + "x",
@@ -130,8 +130,8 @@ int exportPosesVelocitiesAndBiasesToCsv(
           acc_bias[2]);
     } else if (format == "rpg") {
       csv_file.writeDataWithDelimiterAndNewLine(
-          kDelimiter, timestamp_nanoseconds * kNanoSecondsToSeconds, p_G_S[0],
-          p_G_S[1], p_G_S[2], q_G_S.x(), q_G_S.y(), q_G_S.z(), q_G_S.w());
+          kDelimiter, timestamp_nanoseconds, p_G_S[0], p_G_S[1], p_G_S[2],
+          q_G_S.x(), q_G_S.y(), q_G_S.z(), q_G_S.w());
     } else {
       LOG(ERROR) << "Invalid format " << format;
       return common::kStupidUserError;

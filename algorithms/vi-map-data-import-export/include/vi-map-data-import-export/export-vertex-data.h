@@ -14,7 +14,6 @@ int exportPosesVelocitiesAndBiasesToCsv(
     const aslam::SensorId& reference_sensor_id,
     const std::string& pose_export_file,
     const std::string& format = std::string("asl"));
-static const double kNanoSecondsToSeconds = 1e-9;
 }  // namespace data_import_export
 
 #endif  // VI_MAP_DATA_IMPORT_EXPORT_EXPORT_VERTEX_DATA_H_
