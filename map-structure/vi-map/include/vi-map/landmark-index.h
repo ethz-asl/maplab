@@ -40,15 +40,6 @@ class LandmarkIndex {
     index_.swap(other->index_);
   }
 
-  inline bool hasStoringVertexId(const LandmarkId& landmark_id) const {
-    if (!landmark_id.isValid()) {
-      return false;
-    }
-    std::lock_guard<std::mutex> lock(access_mutex_);
-    LandmarkToVertexMap::const_iterator it = index_.find(landmark_id);
-    return it != index_.end();
-  }
-
   inline pose_graph::VertexId getStoringVertexId(
       const LandmarkId& landmark_id) const {
     CHECK(landmark_id.isValid()) << "The landark is is not valid.";
