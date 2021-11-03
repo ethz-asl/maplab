@@ -62,6 +62,7 @@ SearchConfig SearchConfig::fromGflags() {
       FLAGS_dm_candidate_search_enable_inter_mission_global;
   config.enable_intra_mission_global_search =
       FLAGS_dm_candidate_search_enable_intra_mission_global;
+  config.enable_incremental_submap_search = false;
 
   return config;
 }

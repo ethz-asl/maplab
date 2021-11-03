@@ -68,7 +68,7 @@ int DenseMappingPlugin::addDenseMappingConstraints() const {
   }
 
   const Config config =
-      FLAGS_dm_candidate_alignment_use_incremental_submab_alignment
+      FLAGS_dm_candidate_alignment_use_incremental_submap_alignment
           ? Config::forIncrementalSubmapAlignment()
           : Config::fromGflags();
   timing::TimerImpl timer("add_dense_mapping_constraints");

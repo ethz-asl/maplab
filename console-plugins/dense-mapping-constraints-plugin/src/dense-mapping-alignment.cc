@@ -164,7 +164,7 @@ bool computeAlignmentForCandidatePairsImpl<resources::PointCloud>(
   }
 
   bool use_dense_submap = false;
-  if (FLAGS_dm_candidate_alignment_use_incremental_submab_alignment) {
+  if (FLAGS_dm_candidate_alignment_use_incremental_submap_alignment) {
     use_dense_submap = candidatesQualifyForDenseSubmap(
         pair.candidate_B, pair.candidate_A, map, &candidate_resource_B);
   }

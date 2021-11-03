@@ -1587,7 +1587,7 @@ void MaplabServerNode::runSubmapProcessing(
       }
       if (perform_llc) {
         const dense_mapping::Config config =
-            FLAGS_dm_candidate_alignment_use_incremental_submab_alignment
+            FLAGS_dm_candidate_alignment_use_incremental_submap_alignment
                 ? dense_mapping::Config::forIncrementalSubmapAlignment()
                 : dense_mapping::Config::fromGflags();
         if (!dense_mapping::addDenseMappingConstraintsToMap(
@@ -2279,7 +2279,8 @@ bool MaplabServerNode::computeSparseGraph() {
 
   // Sparsify the graph and get latest estimations.
   const vi_map::VIMap* cmap = CHECK_NOTNULL(map_read.get());
-  spg::LidarPartitioner partitioner(*cmap);
+  // spg::LidarPartitioner partitioner(*cmap);
+  spg::AllPartitioner partitioner(*cmap);
 
   // Sparsify the graph and get latest estimations.
   sparsified_graph_.compute(cmap, &partitioner);
