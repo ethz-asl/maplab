@@ -225,8 +225,38 @@ void VIMap::getAllLandmarkIds(LandmarkIdList* landmark_ids) const {
       landmark_ids->end(), landmark_set.begin(), landmark_set.end());
 }
 
+void VIMap::getAllSemanticLandmarkIds(
+    SemanticLandmarkIdSet* landmark_ids) const {
+  CHECK_NOTNULL(landmark_ids)->clear();
+  if (selected_missions_.empty()) {
+    semantic_landmark_index.getAllSemanticLandmarkIds(landmark_ids);
+  } else {
+    pose_graph::VertexIdList vertex_ids;
+    getAllVertexIds(&vertex_ids);
+    for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+      for (const vi_map::SemanticLandmark& landmark :
+           getVertex(vertex_id).getSemanticLandmarks()) {
+        landmark_ids->insert(landmark.id());
+      }
+    }
+  }
+}
+
+void VIMap::getAllSemanticLandmarkIds(
+    SemanticLandmarkIdList* landmark_ids) const {
+  CHECK_NOTNULL(landmark_ids)->clear();
+  SemanticLandmarkIdSet landmark_set;
+  getAllSemanticLandmarkIds(&landmark_set);
+  landmark_ids->insert(
+      landmark_ids->end(), landmark_set.begin(), landmark_set.end());
+}
+
 size_t VIMap::numLandmarksInIndex() const {
   return landmark_index.numLandmarks();
+}
+
+size_t VIMap::numSemanticLandmarksInIndex() const {
+  return semantic_landmark_index.numSemanticLandmarks();
 }
 
 bool VIMap::hasLandmark(const vi_map::LandmarkId& id) const {
@@ -234,10 +264,22 @@ bool VIMap::hasLandmark(const vi_map::LandmarkId& id) const {
   return landmark_index.hasLandmark(id);
 }
 
+bool VIMap::hasSemanticLandmark(const vi_map::SemanticLandmarkId& id) const {
+  CHECK(id.isValid());
+  return semantic_landmark_index.hasSemanticLandmark(id);
+}
+
 void VIMap::updateLandmarkIndexReference(
     const vi_map::LandmarkId& landmark_id,
     const pose_graph::VertexId& vertex_id) {
   landmark_index.updateVertexOfLandmark(landmark_id, vertex_id);
+}
+
+void VIMap::updateSemanticLandmarkIndexReference(
+    const vi_map::SemanticLandmarkId& landmark_id,
+    const pose_graph::VertexId& vertex_id) {
+  semantic_landmark_index.updateVertexOfSemanticLandmark(
+      landmark_id, vertex_id);
 }
 
 vi_map::Landmark& VIMap::getLandmark(const vi_map::LandmarkId& id) {
@@ -253,6 +295,24 @@ const vi_map::Landmark& VIMap::getLandmark(const vi_map::LandmarkId& id) const {
   const vi_map::Vertex& vertex =
       getVertex(landmark_index.getStoringVertexId(id));
   return vertex.getLandmarks().getLandmark(id);
+}
+
+vi_map::SemanticLandmark& VIMap::getSemanticLandmark(
+    const vi_map::SemanticLandmarkId& id) {
+  CHECK(id.isValid());
+
+  vi_map::Vertex& vertex =
+      getVertex(semantic_landmark_index.getStoringVertexId(id));
+  return vertex.getSemanticLandmarks().getSemanticLandmark(id);
+}
+
+const vi_map::SemanticLandmark& VIMap::getSemanticLandmark(
+    const vi_map::SemanticLandmarkId& id) const {
+  CHECK(id.isValid());
+
+  const vi_map::Vertex& vertex =
+      getVertex(semantic_landmark_index.getStoringVertexId(id));
+  return vertex.getSemanticLandmarks().getSemanticLandmark(id);
 }
 
 void VIMap::getObserverMissionsForLandmark(
@@ -276,6 +336,28 @@ void VIMap::getObserverMissionsForLandmark(
   });
 }
 
+void VIMap::getObserverMissionsForSemanticLandmark(
+    const vi_map::SemanticLandmarkId& landmark_id,
+    std::unordered_set<vi_map::MissionId>* missions) const {
+  CHECK_NOTNULL(missions);
+  CHECK(landmark_id.isValid());
+  CHECK(hasSemanticLandmark(landmark_id))
+      << "Semantic Landmark " << landmark_id << " not found!";
+  missions->clear();
+
+  const vi_map::SemanticLandmark& landmark = getSemanticLandmark(landmark_id);
+  landmark.forEachObservation(
+      [&](const SemanticObjectIdentifier& observer_backlink) {
+        const vi_map::Vertex& vertex =
+            getVertex(observer_backlink.frame_id.vertex_id);
+        const vi_map::MissionId& mission_id = vertex.getMissionId();
+        if (selected_missions_.empty() ||
+            selected_missions_.count(mission_id) > 0) {
+          missions->insert(mission_id);
+        }
+      });
+}
+
 void VIMap::getObserverVerticesForLandmark(
     const vi_map::LandmarkId& landmark_id,
     pose_graph::VertexIdSet* observer_vertices) const {
@@ -291,6 +373,22 @@ void VIMap::getObserverVerticesForLandmark(
   });
 }
 
+void VIMap::getObserverVerticesForSemanticLandmark(
+    const vi_map::SemanticLandmarkId& landmark_id,
+    pose_graph::VertexIdSet* observer_vertices) const {
+  CHECK_NOTNULL(observer_vertices)->clear();
+  CHECK(landmark_id.isValid());
+  CHECK(hasSemanticLandmark(landmark_id));
+
+  const vi_map::SemanticLandmark& landmark = getSemanticLandmark(landmark_id);
+  landmark.forEachObservation(
+      [&](const SemanticObjectIdentifier& observer_backlink) {
+        if (hasVertex(observer_backlink.frame_id.vertex_id)) {
+          observer_vertices->insert(observer_backlink.frame_id.vertex_id);
+        }
+      });
+}
+
 void VIMap::getVisualFrameIdentifiersForLandmark(
     const vi_map::LandmarkId& landmark_id,
     vi_map::VisualFrameIdentifierSet* observer_frames) const {
@@ -302,6 +400,34 @@ void VIMap::getVisualFrameIdentifiersForLandmark(
         const VisualFrameIdentifier& frame_id = observer_backlink.frame_id;
         CHECK(frame_id.isValid());
         observer_frames->emplace(frame_id);
+      });
+}
+
+void VIMap::getVisualFrameIdentifiersForSemanticLandmark(
+    const vi_map::SemanticLandmarkId& landmark_id,
+    vi_map::VisualFrameIdentifierSet* observer_frames) const {
+  CHECK_NOTNULL(observer_frames)->clear();
+
+  const vi_map::SemanticLandmark& landmark = getSemanticLandmark(landmark_id);
+  landmark.forEachObservation(
+      [&observer_frames](const SemanticObjectIdentifier& observer_backlink) {
+        const VisualFrameIdentifier& frame_id = observer_backlink.frame_id;
+        CHECK(frame_id.isValid());
+        observer_frames->emplace(frame_id);
+      });
+}
+
+/// Get all Semantic Object Identifiers for a given semantic landmark
+void VIMap::getSemanticObjectIdentifiersForSemanticLandmark(
+    const vi_map::SemanticLandmarkId& landmark_id,
+    vi_map::SemanticObjectIdentifierList* observer_ids) const {
+  CHECK_NOTNULL(observer_ids)->clear();
+
+  const vi_map::SemanticLandmark& landmark = getSemanticLandmark(landmark_id);
+  landmark.forEachObservation(
+      [&observer_ids](const SemanticObjectIdentifier& observer_backlink) {
+        CHECK(observer_backlink.isValid());
+        observer_ids->push_back(observer_backlink);
       });
 }
 
@@ -322,9 +448,35 @@ unsigned int VIMap::numLandmarkObserverMissions(
   return missions.size();
 }
 
+unsigned int VIMap::numSemanticLandmarkObserverMissions(
+    const vi_map::SemanticLandmarkId& landmark_id) const {
+  CHECK(landmark_id.isValid());
+  CHECK(hasSemanticLandmark(landmark_id));
+
+  std::unordered_set<vi_map::MissionId> missions;
+  const vi_map::SemanticLandmark& landmark = getSemanticLandmark(landmark_id);
+  landmark.forEachObservation(
+      [&](const SemanticObjectIdentifier& observer_backlink) {
+        if (hasVertex(observer_backlink.frame_id.vertex_id)) {
+          const vi_map::Vertex& vertex =
+              getVertex(observer_backlink.frame_id.vertex_id);
+          missions.insert(vertex.getMissionId());
+        }
+      });
+  return missions.size();
+}
+
 vi_map::Vertex& VIMap::getLandmarkStoreVertex(const vi_map::LandmarkId& id) {
   CHECK(id.isValid());
   const pose_graph::VertexId& vertex_id = landmark_index.getStoringVertexId(id);
+  return getVertex(vertex_id);
+}
+
+vi_map::Vertex& VIMap::getSemanticLandmarkStoreVertex(
+    const vi_map::SemanticLandmarkId& id) {
+  CHECK(id.isValid());
+  const pose_graph::VertexId& vertex_id =
+      semantic_landmark_index.getStoringVertexId(id);
   return getVertex(vertex_id);
 }
 
@@ -332,6 +484,14 @@ const vi_map::Vertex& VIMap::getLandmarkStoreVertex(
     const vi_map::LandmarkId& id) const {
   CHECK(id.isValid());
   const pose_graph::VertexId& vertex_id = landmark_index.getStoringVertexId(id);
+  return getVertex(vertex_id);
+}
+
+const vi_map::Vertex& VIMap::getSemanticLandmarkStoreVertex(
+    const vi_map::SemanticLandmarkId& id) const {
+  CHECK(id.isValid());
+  const pose_graph::VertexId& vertex_id =
+      semantic_landmark_index.getStoringVertexId(id);
   return getVertex(vertex_id);
 }
 
@@ -360,15 +520,38 @@ const vi_map::MissionId& VIMap::getMissionIdForLandmark(
   const vi_map::Vertex& vertex = getLandmarkStoreVertex(id);
   return vertex.getMissionId();
 }
+
+const vi_map::MissionId& VIMap::getMissionIdForSemanticLandmark(
+    const vi_map::SemanticLandmarkId& id) const {
+  CHECK(id.isValid());
+  const vi_map::Vertex& vertex = getSemanticLandmarkStoreVertex(id);
+  return vertex.getMissionId();
+}
+
 const vi_map::VIMission& VIMap::getMissionForLandmark(
     const vi_map::LandmarkId& id) const {
   CHECK(id.isValid());
   const vi_map::MissionId& mission_id = getMissionIdForLandmark(id);
   return getMission(mission_id);
 }
+
+const vi_map::VIMission& VIMap::getMissionForSemanticLandmark(
+    const vi_map::SemanticLandmarkId& id) const {
+  CHECK(id.isValid());
+  const vi_map::MissionId& mission_id = getMissionIdForSemanticLandmark(id);
+  return getMission(mission_id);
+}
+
 vi_map::VIMission& VIMap::getMissionForLandmark(const vi_map::LandmarkId& id) {
   CHECK(id.isValid());
   const vi_map::MissionId& mission_id = getMissionIdForLandmark(id);
+  return getMission(mission_id);
+}
+
+vi_map::VIMission& VIMap::getMissionForSemanticLandmark(
+    const vi_map::SemanticLandmarkId& id) {
+  CHECK(id.isValid());
+  const vi_map::MissionId& mission_id = getMissionIdForSemanticLandmark(id);
   return getMission(mission_id);
 }
 
@@ -390,11 +573,26 @@ Eigen::Vector3d VIMap::getLandmark_LM_p_fi(const vi_map::LandmarkId& id) const {
   return vertex.getLandmark_p_LM_fi(id);
 }
 
+Eigen::Vector3d VIMap::getSemanticLandmark_LM_p_fi(
+    const vi_map::SemanticLandmarkId& id) const {
+  CHECK(id.isValid());
+  const vi_map::Vertex& vertex = getSemanticLandmarkStoreVertex(id);
+  return vertex.getSemanticLandmark_p_LM_fi(id);
+}
+
 void VIMap::setLandmark_LM_p_fi(
     const vi_map::LandmarkId& landmark_id, const Eigen::Vector3d& LM_p_fi) {
   CHECK(landmark_id.isValid());
   vi_map::Vertex& vertex = getLandmarkStoreVertex(landmark_id);
   vertex.setLandmark_LM_p_fi(landmark_id, LM_p_fi);
+}
+
+void VIMap::setSemanticLandmark_LM_p_fi(
+    const vi_map::SemanticLandmarkId& landmark_id,
+    const Eigen::Vector3d& LM_p_fi) {
+  CHECK(landmark_id.isValid());
+  vi_map::Vertex& vertex = getSemanticLandmarkStoreVertex(landmark_id);
+  vertex.setSemanticLandmark_LM_p_fi(landmark_id, LM_p_fi);
 }
 
 Eigen::Vector3d VIMap::getLandmark_G_p_fi(const vi_map::LandmarkId& id) const {
@@ -403,6 +601,20 @@ Eigen::Vector3d VIMap::getLandmark_G_p_fi(const vi_map::LandmarkId& id) const {
   CHECK(landmark_index.hasLandmark(id));
   const vi_map::Vertex& vertex = getLandmarkStoreVertex(id);
   pose::Position3D LM_p_fi = vertex.getLandmark_p_LM_fi(id);
+  const vi_map::VIMission& mission = getMission(vertex.getMissionId());
+  const vi_map::MissionBaseFrame& mission_baseframe =
+      VIMap::getMissionBaseFrame(mission.getBaseFrameId());
+
+  return mission_baseframe.transformPointInMissionFrameToGlobalFrame(LM_p_fi);
+}
+
+Eigen::Vector3d VIMap::getSemanticLandmark_G_p_fi(
+    const vi_map::SemanticLandmarkId& id) const {
+  CHECK(id.isValid());
+
+  CHECK(semantic_landmark_index.hasSemanticLandmark(id));
+  const vi_map::Vertex& vertex = getSemanticLandmarkStoreVertex(id);
+  pose::Position3D LM_p_fi = vertex.getSemanticLandmark_p_LM_fi(id);
   const vi_map::VIMission& mission = getMission(vertex.getMissionId());
   const vi_map::MissionBaseFrame& mission_baseframe =
       VIMap::getMissionBaseFrame(mission.getBaseFrameId());
@@ -431,6 +643,27 @@ Eigen::Vector3d VIMap::getLandmark_p_I_fi(
   return I_p_fi;
 }
 
+Eigen::Vector3d VIMap::getSemanticLandmark_p_I_fi(
+    const vi_map::SemanticLandmarkId& landmark_id,
+    const vi_map::Vertex& observer_vertex) const {
+  CHECK(hasSemanticLandmark(landmark_id));
+  CHECK(hasVertex(observer_vertex.id()));
+
+  const Eigen::Vector3d& M_p_I = observer_vertex.get_p_M_I();
+  const Eigen::Quaterniond& M_q_I = observer_vertex.get_q_M_I();
+  Eigen::Vector3d G_p_fi = getSemanticLandmark_G_p_fi(landmark_id);
+
+  pose::Transformation M_T_I(M_q_I, M_p_I);
+
+  const vi_map::MissionBaseFrame& mission_baseframe =
+      getMissionBaseFrameForVertex(observer_vertex.id());
+  const Eigen::Vector3d M_p_fi =
+      mission_baseframe.transformPointInGlobalFrameToMissionFrame(G_p_fi);
+  const Eigen::Vector3d I_p_fi = M_T_I.inverse() * M_p_fi;
+
+  return I_p_fi;
+}
+
 Eigen::Vector3d VIMap::getLandmark_p_C_fi(
     const LandmarkId& landmark_id, const Vertex& observer_vertex,
     unsigned int frame_idx) const {
@@ -445,6 +678,29 @@ Eigen::Vector3d VIMap::getLandmark_p_C_fi(
   pose::Transformation M_T_I(M_q_I, M_p_I);
 
   Eigen::Vector3d G_p_fi = getLandmark_G_p_fi(landmark_id);
+
+  const vi_map::MissionBaseFrame& mission_baseframe =
+      getMissionBaseFrameForVertex(observer_vertex.id());
+  const Eigen::Vector3d M_p_fi =
+      mission_baseframe.transformPointInGlobalFrameToMissionFrame(G_p_fi);
+
+  return C_T_I * M_T_I.inverse() * M_p_fi;
+}
+
+Eigen::Vector3d VIMap::getSemanticLandmark_p_C_fi(
+    const SemanticLandmarkId& landmark_id, const Vertex& observer_vertex,
+    unsigned int frame_idx) const {
+  CHECK(hasSemanticLandmark(landmark_id));
+  CHECK(hasVertex(observer_vertex.id()));
+
+  const aslam::NCamera& ncamera =
+      getMissionNCamera(observer_vertex.getMissionId());
+  const pose::Transformation& C_T_I = ncamera.get_T_C_B(frame_idx);
+  const Eigen::Vector3d& M_p_I = observer_vertex.get_p_M_I();
+  const Eigen::Quaterniond& M_q_I = observer_vertex.get_q_M_I();
+  pose::Transformation M_T_I(M_q_I, M_p_I);
+
+  Eigen::Vector3d G_p_fi = getSemanticLandmark_G_p_fi(landmark_id);
 
   const vi_map::MissionBaseFrame& mission_baseframe =
       getMissionBaseFrameForVertex(observer_vertex.id());
@@ -506,6 +762,29 @@ void VIMap::getLandmarkDescriptors(
   });
 }
 
+inline void VIMap::getSemanticLandmarkDescriptors(
+    const SemanticLandmarkId& id, SemanticObjectDescriptorsType* result) const {
+  CHECK_NOTNULL(result);
+  const SemanticLandmark& landmark = getSemanticLandmark(id);
+
+  int index = 0;
+  landmark.forEachObservation(
+      [&](const SemanticObjectIdentifier& observer_backlink) {
+        const SemanticObjectDescriptorType descriptor =
+            getVertex(observer_backlink.frame_id.vertex_id)
+                .getVisualFrame(observer_backlink.frame_id.frame_index)
+                .getSemanticObjectDescriptors()
+                .col(observer_backlink.measurement_index);
+        if (index == 0) {
+          result->resize(descriptor.rows(), landmark.numberOfObservations());
+        } else {
+          CHECK_EQ(result->rows(), descriptor.rows());
+        }
+        result->col(index) = descriptor;
+        ++index;
+      });
+}
+
 void VIMap::getMissionLandmarkCounts(
     MissionToLandmarkCountMap* mission_to_landmark_count) const {
   CHECK_NOTNULL(mission_to_landmark_count);
@@ -528,6 +807,34 @@ void VIMap::getMissionLandmarkCounts(
     if (hasMission(vertex.getMissionId())) {
       (*mission_to_landmark_count)[vertex.getMissionId()] +=
           landmark_store.size();
+    }
+  }
+}
+
+void VIMap::getMissionSemanticLandmarkCounts(
+    MissionToSemanticLandmarkCountMap* mission_to_semantic_landmark_count)
+    const {
+  CHECK_NOTNULL(mission_to_semantic_landmark_count);
+  mission_to_semantic_landmark_count->clear();
+
+  // Put missions with zero landmark counts on the map.
+  vi_map::MissionIdList mission_ids;
+  getAllMissionIds(&mission_ids);
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    mission_to_semantic_landmark_count->insert(std::make_pair(mission_id, 0));
+  }
+
+  // Count landmarks by iterating through vertices/landmark stores.
+  pose_graph::VertexIdList vertex_ids;
+  posegraph.getAllVertexIds(&vertex_ids);
+  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+    const vi_map::Vertex& vertex = getVertex(vertex_id);
+    const vi_map::SemanticLandmarkStore& semantic_landmark_store =
+        vertex.getSemanticLandmarks();
+
+    if (hasMission(vertex.getMissionId())) {
+      (*mission_to_semantic_landmark_count)[vertex.getMissionId()] +=
+          semantic_landmark_store.size();
     }
   }
 }
@@ -727,6 +1034,32 @@ void VIMap::forEachLandmark(
   }
 }
 
+void VIMap::forEachSemanticLandmark(
+    const std::function<void(const SemanticLandmark&)>& action) const {
+  pose_graph::VertexIdList vertex_ids;
+  getAllVertexIds(&vertex_ids);
+  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+    const SemanticLandmarkStore& vertex_stored_semantic_landmarks =
+        getVertex(vertex_id).getSemanticLandmarks();
+    for (const SemanticLandmark& landmark : vertex_stored_semantic_landmarks) {
+      action(landmark);
+    }
+  }
+}
+
+void VIMap::forEachSemanticLandmark(
+    const std::function<void(SemanticLandmark*)>& action) {  // NOLINT
+  pose_graph::VertexIdList vertex_ids;
+  getAllVertexIds(&vertex_ids);
+  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+    SemanticLandmarkStore& vertex_stored_semantic_landmarks =
+        getVertex(vertex_id).getSemanticLandmarks();
+    for (SemanticLandmark& landmark : vertex_stored_semantic_landmarks) {
+      action(&landmark);
+    }
+  }
+}
+
 void VIMap::forEachVertex(
     const std::function<void(const Vertex&)>& action) const {
   pose_graph::VertexIdList vertex_ids;
@@ -765,6 +1098,27 @@ void VIMap::forEachLandmark(
   }
 }
 
+void VIMap::forEachSemanticLandmark(
+    const std::function<void(
+        const SemanticLandmarkId&, const SemanticLandmark&, const Vertex&,
+        const MissionBaseFrame&, size_t landmark_counter)>& action) const {
+  pose_graph::VertexIdList vertex_ids;
+  getAllVertexIds(&vertex_ids);
+  size_t landmark_counter = 0u;
+  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+    const Vertex& vertex = getVertex(vertex_id);
+    const MissionBaseFrame& mission_frame =
+        getMissionBaseFrameForVertex(vertex_id);
+    const SemanticLandmarkStore& vertex_stored_landmarks =
+        vertex.getSemanticLandmarks();
+    for (const SemanticLandmark& landmark : vertex_stored_landmarks) {
+      CHECK(landmark.id().isValid());
+      action(landmark.id(), landmark, vertex, mission_frame, landmark_counter);
+      ++landmark_counter;
+    }
+  }
+}
+
 void VIMap::removeLandmark(const LandmarkId landmark_id) {
   CHECK(hasLandmark(landmark_id));
 
@@ -792,6 +1146,35 @@ void VIMap::removeLandmark(const LandmarkId landmark_id) {
   }
   landmark_index.removeLandmark(landmark_id);
   store_vertex.getLandmarks().removeLandmark(landmark_id);
+}
+
+void VIMap::removeSemanticLandmark(const SemanticLandmarkId landmark_id) {
+  CHECK(hasSemanticLandmark(landmark_id));
+
+  vi_map::SemanticLandmark& landmark = getSemanticLandmark(landmark_id);
+  const pose_graph::VertexId& store_vertex_id =
+      semantic_landmark_index.getStoringVertexId(landmark_id);
+  vi_map::Vertex& store_vertex = getVertex(store_vertex_id);
+  CHECK(store_vertex.getSemanticLandmarks().hasSemanticLandmark(landmark_id));
+
+  // Invalidate all the keypoints seeing the landmark we will delete.
+  SemanticLandmarkId invalid_global_semantic_landmark_id;
+  invalid_global_semantic_landmark_id.setInvalid();
+
+  // Delete all the observations referencing THIS global landmark ID also.
+  // This is important for merged landmarks. We are just deleting one global
+  // ID, we should remove all backlinks from the store landmark that point to
+  // this specific one.
+  SemanticObjectIdentifierList observations = landmark.getObservations();
+  for (const SemanticObjectIdentifier& observation : observations) {
+    vi_map::Vertex& observer_vertex = getVertex(observation.frame_id.vertex_id);
+    observer_vertex.setObservedSemanticLandmarkId(
+        observation.frame_id.frame_index, observation.measurement_index,
+        invalid_global_semantic_landmark_id);
+    landmark.removeObservation(observation);
+  }
+  semantic_landmark_index.removeSemanticLandmark(landmark_id);
+  store_vertex.getSemanticLandmarks().removeSemanticLandmark(landmark_id);
 }
 
 void VIMap::addVertex(vi_map::Vertex::UniquePtr vertex_ptr) {
@@ -934,6 +1317,25 @@ void VIMap::getAllLandmarkIdsObservedAtVertices(
     vertex.getAllObservedLandmarkIds(&global_landmark_ids);
 
     for (const vi_map::LandmarkId& global_landmark_id : global_landmark_ids) {
+      if (global_landmark_id.isValid()) {
+        observed_landmarks->insert(global_landmark_id);
+      }
+    }
+  }
+}
+
+void VIMap::getAllSemanticLandmarkIdsObservedAtVertices(
+    const pose_graph::VertexIdSet& vertex_ids,
+    vi_map::SemanticLandmarkIdSet* observed_landmarks) const {
+  CHECK_NOTNULL(observed_landmarks)->clear();
+
+  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+    const vi_map::Vertex& vertex = getVertex(vertex_id);
+    vi_map::SemanticLandmarkIdList global_landmark_ids;
+    vertex.getAllObservedSemanticLandmarkIds(&global_landmark_ids);
+
+    for (const vi_map::SemanticLandmarkId& global_landmark_id :
+         global_landmark_ids) {
       if (global_landmark_id.isValid()) {
         observed_landmarks->insert(global_landmark_id);
       }

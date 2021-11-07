@@ -103,6 +103,30 @@ void FeatureTrackingPipeline::assignRawImagesToNFrame(
   }
 }
 
+void FeatureTrackingPipeline::assignColorImagesToNFrame(
+    const pose_graph::VertexId& vertex_id, vi_map::VIMap* map) const {
+  CHECK_NOTNULL(map)->hasVertex(vertex_id);
+  vi_map::Vertex& vertex = map->getVertex(vertex_id);
+  const aslam::VisualNFrame::Ptr& nframe = vertex.getVisualNFrameShared();
+  CHECK(nframe);
+  const size_t num_frames = nframe->getNumFrames();
+  // Set the raw images of nframe_kp1.
+  for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
+    cv::Mat image;
+    CHECK(map->getFrameResource(
+        vertex, frame_idx, backend::ResourceType::kRawColorImage, &image))
+        << "Vertex " << vertex_id << " does not have a raw image for frame "
+        << frame_idx;
+
+    if (FLAGS_feature_tracker_publish_raw_images) {
+      const std::string topic = feature_tracking_ros_base_topic_ +
+                                "camera_raw_" + std::to_string(frame_idx);
+      visualization::RVizVisualizationSink::publish(topic, image);
+    }
+    nframe->getFrameShared(frame_idx)->setColorImage(image);
+  }
+}
+
 void FeatureTrackingPipeline::extractAndTriangulateTerminatedFeatureTracks(
     const aslam::VisualNFrame::ConstPtr& nframe, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);

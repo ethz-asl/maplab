@@ -14,5 +14,5 @@ rosrun rovioli rovioli \
   --imu_parameters_maplab=$IMU_PARAMETERS_MAPLAB \
   --datasource_type="rostopic" \
   --save_map_folder="$LOCALIZATION_MAP_OUTPUT" \
-  --map_builder_save_image_as_resources=false \
+  --map_builder_save_tracking_image_as_resources=false \
   --optimize_map_to_localization_map=false $REST

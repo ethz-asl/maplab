@@ -1,7 +1,7 @@
 #include <chrono>
-#include <thread>
 #include <fstream>  // NOLINT
 #include <string>
+#include <thread>
 #include <unordered_set>
 
 #include <aslam/common/memory.h>
@@ -84,18 +84,16 @@ class MapManagerFileIOTest : public ::testing::Test {
 
   void saveFirstMapToFileSystem() {
     addFirstMapToStorage();
-    EXPECT_TRUE(
-        map_manager_.saveMapToFolder(
-            TestStrings::kFirstMapKey, kPathWithDefaultFileNameFirstEntry));
+    EXPECT_TRUE(map_manager_.saveMapToFolder(
+        TestStrings::kFirstMapKey, kPathWithDefaultFileNameFirstEntry));
     EXPECT_TRUE(common::pathExists(kPathToMapFileFirstEntry));
     EXPECT_TRUE(common::pathExists(kPathWithDefaultFileNameFirstEntry));
   }
 
   void saveSecondMapToFileSystem() {
     addSecondMapToStorage();
-    EXPECT_TRUE(
-        map_manager_.saveMapToFolder(
-            TestStrings::kSecondMapKey, kPathWithDefaultFileNameSecondEntry));
+    EXPECT_TRUE(map_manager_.saveMapToFolder(
+        TestStrings::kSecondMapKey, kPathWithDefaultFileNameSecondEntry));
     EXPECT_TRUE(common::pathExists(kPathToMapFileSecondEntry));
     EXPECT_TRUE(common::pathExists(kPathWithDefaultFileNameSecondEntry));
   }
@@ -183,12 +181,10 @@ TEST_F(MapManagerFileIOTest, SaveMapNonExistentKey) {
   addFirstMapToStorage();
 
   // Key doesn't exist.
-  EXPECT_FALSE(
-      map_manager_.saveMapToFolder(
-          TestStrings::kSecondMapKey, kPathWithFileName, dont_overwrite_files));
-  EXPECT_FALSE(
-      map_manager_.saveMapToFolder(
-          TestStrings::kSecondMapKey, kPathWithoutFileName));
+  EXPECT_FALSE(map_manager_.saveMapToFolder(
+      TestStrings::kSecondMapKey, kPathWithFileName, dont_overwrite_files));
+  EXPECT_FALSE(map_manager_.saveMapToFolder(
+      TestStrings::kSecondMapKey, kPathWithoutFileName));
   EXPECT_FALSE(common::fileExists(kPathToMapFilePathWithFileName));
   EXPECT_FALSE(common::pathExists(kPathWithFileName));
   EXPECT_FALSE(common::fileExists(kPathToMapFileSecondEntry));
@@ -198,37 +194,32 @@ TEST_F(MapManagerFileIOTest, SaveMapNonExistentKey) {
 // Save file in folder.
 TEST_F(MapManagerFileIOTest, SaveMapToFolder) {
   addFirstMapToStorage();
-  EXPECT_TRUE(
-      map_manager_.saveMapToFolder(
-          TestStrings::kFirstMapKey, kPathWithDefaultFileNameFirstEntry));
+  EXPECT_TRUE(map_manager_.saveMapToFolder(
+      TestStrings::kFirstMapKey, kPathWithDefaultFileNameFirstEntry));
   EXPECT_TRUE(common::pathExists(kPathWithoutFileName));
   EXPECT_TRUE(
       map_manager_.hasMapOnFileSystem(kPathWithDefaultFileNameFirstEntry));
   EXPECT_TRUE(common::pathExists(kPathWithDefaultFileNameFirstEntry));
 
   // Save file in folder, however file already exists.
-  EXPECT_FALSE(
-      map_manager_.saveMapToFolder(
-          TestStrings::kFirstMapKey, kPathWithDefaultFileNameFirstEntry));
-  EXPECT_TRUE(
-      map_manager_.saveMapToFolder(
-          TestStrings::kFirstMapKey, kPathWithDefaultFileNameFirstEntry,
-          force_overwrite_files));
+  EXPECT_FALSE(map_manager_.saveMapToFolder(
+      TestStrings::kFirstMapKey, kPathWithDefaultFileNameFirstEntry));
+  EXPECT_TRUE(map_manager_.saveMapToFolder(
+      TestStrings::kFirstMapKey, kPathWithDefaultFileNameFirstEntry,
+      force_overwrite_files));
 
   // Add second file.
   addSecondMapToStorage();
-  EXPECT_TRUE(
-      map_manager_.saveMapToFolder(
-          TestStrings::kSecondMapKey, kPathWithDefaultFileNameSecondEntry));
+  EXPECT_TRUE(map_manager_.saveMapToFolder(
+      TestStrings::kSecondMapKey, kPathWithDefaultFileNameSecondEntry));
   EXPECT_TRUE(
       map_manager_.hasMapOnFileSystem(kPathWithDefaultFileNameSecondEntry));
   EXPECT_TRUE(common::pathExists(kPathWithDefaultFileNameSecondEntry));
 
   // Overwrite first map.
-  EXPECT_TRUE(
-      map_manager_.saveMapToFolder(
-          TestStrings::kSecondMapKey, kPathWithDefaultFileNameFirstEntry,
-          force_overwrite_files));
+  EXPECT_TRUE(map_manager_.saveMapToFolder(
+      TestStrings::kSecondMapKey, kPathWithDefaultFileNameFirstEntry,
+      force_overwrite_files));
 }
 
 TEST_F(MapManagerFileIOTest, SaveMapToMapFolder) {
@@ -245,29 +236,25 @@ TEST_F(MapManagerFileIOTest, SaveMapToMapFolder) {
       common::pathExists(kPathWithDefaultFileNameFirstEntryAlternative));
   EXPECT_TRUE(common::pathExists(kPathToMapFileFirstEntryAlternative));
   EXPECT_FALSE(map_manager_.saveMapToMapFolder(TestStrings::kFirstMapKey));
-  EXPECT_TRUE(
-      map_manager_.saveMapToMapFolder(
-          TestStrings::kFirstMapKey, force_overwrite_files));
+  EXPECT_TRUE(map_manager_.saveMapToMapFolder(
+      TestStrings::kFirstMapKey, force_overwrite_files));
 }
 
 // Can't write to path.
 TEST_F(MapManagerFileIOTest, SaveMapToFileInvalidPath) {
   addFirstMapToStorage();
-  EXPECT_FALSE(
-      map_manager_.saveMapToFolder(
-          TestStrings::kFirstMapKey, kInvalidPath, dont_overwrite_files));
-  EXPECT_FALSE(
-      map_manager_.saveMapToFolder(
-          TestStrings::kFirstMapKey, kInvalidPath, force_overwrite_files));
+  EXPECT_FALSE(map_manager_.saveMapToFolder(
+      TestStrings::kFirstMapKey, kInvalidPath, dont_overwrite_files));
+  EXPECT_FALSE(map_manager_.saveMapToFolder(
+      TestStrings::kFirstMapKey, kInvalidPath, force_overwrite_files));
 }
 
 TEST_F(MapManagerFileIOTest, SaveMapToFolderInvalidPath) {
   addFirstMapToStorage();
   EXPECT_FALSE(
       map_manager_.saveMapToFolder(TestStrings::kFirstMapKey, kInvalidPath));
-  EXPECT_FALSE(
-      map_manager_.saveMapToFolder(
-          TestStrings::kFirstMapKey, kInvalidPath, force_overwrite_files));
+  EXPECT_FALSE(map_manager_.saveMapToFolder(
+      TestStrings::kFirstMapKey, kInvalidPath, force_overwrite_files));
 }
 
 TEST_F(MapManagerFileIOTest, SaveAllMaps) {
@@ -282,9 +269,8 @@ TEST_F(MapManagerFileIOTest, SaveAllMaps) {
 
   // Save all maps, with map already existing in path.
   EXPECT_FALSE(map_manager_.saveAllMapsToFolder(kPathWithoutFileName));
-  EXPECT_TRUE(
-      map_manager_.saveAllMapsToFolder(
-          kPathWithoutFileName, force_overwrite_files));
+  EXPECT_TRUE(map_manager_.saveAllMapsToFolder(
+      kPathWithoutFileName, force_overwrite_files));
   EXPECT_TRUE(common::pathExists(kPathWithDefaultFileNameFirstEntry));
   EXPECT_TRUE(common::pathExists(kPathWithDefaultFileNameSecondEntry));
 
@@ -370,9 +356,8 @@ TEST_F(MapManagerFileIOTest, LoadMapAutomaticKey) {
 // Load individual map, custom key.
 TEST_F(MapManagerFileIOTest, LoadMapCustomKey) {
   saveMapsToFileSystem();
-  EXPECT_TRUE(
-      map_manager_.loadMapFromFolder(
-          kPathWithDefaultFileNameFirstEntry, TestStrings::kSecondMapKey));
+  EXPECT_TRUE(map_manager_.loadMapFromFolder(
+      kPathWithDefaultFileNameFirstEntry, TestStrings::kSecondMapKey));
   map_manager_.getMap(TestStrings::kSecondMapKey);
 }
 
@@ -460,6 +445,8 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerialization) {
   vi_map::serialization::serializeEdges(*first_vi_map_, &edges_proto);
   vi_map::serialization::serializeLandmarkIndex(
       *first_vi_map_, &landmark_index_proto);
+  vi_map::serialization::serializeSemanticLandmarkIndex(
+      *first_vi_map_, &landmark_index_proto);
 
   vi_map::serialization::deserializeSensorManagerFromArray(
       sensor_manager_raw_data, second_vi_map_.get());
@@ -469,6 +456,8 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerialization) {
       vertices_proto, second_vi_map_.get());
   vi_map::serialization::deserializeEdges(edges_proto, second_vi_map_.get());
   vi_map::serialization::deserializeLandmarkIndex(
+      landmark_index_proto, second_vi_map_.get());
+  vi_map::serialization::deserializeSemanticLandmarkIndex(
       landmark_index_proto, second_vi_map_.get());
   EXPECT_TRUE(vi_map::test::compareVIMap(*first_vi_map_, *second_vi_map_));
 }
@@ -489,6 +478,8 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerializationManyVertices) {
   vi_map::serialization::serializeEdges(*first_vi_map_, &edges_proto);
   vi_map::serialization::serializeLandmarkIndex(
       *first_vi_map_, &landmark_index_proto);
+  vi_map::serialization::serializeSemanticLandmarkIndex(
+      *first_vi_map_, &landmark_index_proto);
 
   vi_map::serialization::deserializeSensorManagerFromArray(
       sensor_manager_raw_data, second_vi_map_.get());
@@ -498,6 +489,8 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerializationManyVertices) {
       vertices_proto, second_vi_map_.get());
   vi_map::serialization::deserializeEdges(edges_proto, second_vi_map_.get());
   vi_map::serialization::deserializeLandmarkIndex(
+      landmark_index_proto, second_vi_map_.get());
+  vi_map::serialization::deserializeSemanticLandmarkIndex(
       landmark_index_proto, second_vi_map_.get());
   EXPECT_TRUE(vi_map::test::compareVIMap(*first_vi_map_, *second_vi_map_));
 }
@@ -509,9 +502,8 @@ TEST_F(MapManagerFileIOTest, SaveLoadMapWithActualData) {
   map_manager_.deleteMap(TestStrings::kSecondMapKey);
 
   ASSERT_TRUE(common::pathExists(kPathWithDefaultFileNameFirstEntry));
-  EXPECT_TRUE(
-      map_manager_.loadMapFromFolder(
-          kPathWithDefaultFileNameFirstEntry, TestStrings::kSecondMapKey));
+  EXPECT_TRUE(map_manager_.loadMapFromFolder(
+      kPathWithDefaultFileNameFirstEntry, TestStrings::kSecondMapKey));
   ASSERT_TRUE(map_manager_.hasMap(TestStrings::kSecondMapKey));
 
   const vi_map::VIMap& original_map =
@@ -569,10 +561,9 @@ TEST_F(MapManagerFileIOTest, SaveLoadMapWithManyEdges) {
     pose_graph::EdgeId new_edge_id;
     aslam::generateId(&new_edge_id);
 
-    first_vi_map_->addEdge(
-        aligned_unique<vi_map::LoopClosureEdge>(
-            new_edge_id, from_vertex, to_vertex, kSwitchVariable,
-            kSwitchVariableVariance, T_A_B, T_A_B_covariance));
+    first_vi_map_->addEdge(aligned_unique<vi_map::LoopClosureEdge>(
+        new_edge_id, from_vertex, to_vertex, kSwitchVariable,
+        kSwitchVariableVariance, T_A_B, T_A_B_covariance));
   }
 
   saveMapsToFileSystemWithoutClearingStorage();
@@ -601,9 +592,8 @@ TEST_F(MapManagerFileIOTest, LoadMapWithFilenameWithSpaces) {
     const std::string file_path = kPathWithoutFileName + key;
     first_vi_map_.reset(new vi_map::VIMap());
     addFirstMapToStorage();
-    ASSERT_TRUE(
-        map_manager_.saveMapToFolder(
-            TestStrings::kFirstMapKey, file_path, dont_overwrite_files));
+    ASSERT_TRUE(map_manager_.saveMapToFolder(
+        TestStrings::kFirstMapKey, file_path, dont_overwrite_files));
     ASSERT_TRUE(common::pathExists(file_path));
 
     ASSERT_TRUE(map_manager_.loadMapFromFolder(file_path));
@@ -645,8 +635,8 @@ TEST_F(MapManagerFileIOTest, GetDefaultMapKeys) {
   map_manager_.getDefaultMapKeys(map_list, &map_keys);
   EXPECT_EQ(map_keys.size(), 2u);
 
-  std::unordered_set<std::string> map_keys_set(map_keys.begin(),
-                                               map_keys.end());
+  std::unordered_set<std::string> map_keys_set(
+      map_keys.begin(), map_keys.end());
   EXPECT_EQ(map_keys_set.size(), 2u);
   EXPECT_EQ(map_keys_set.count(TestStrings::kFirstMapKey), 1u);
   EXPECT_EQ(map_keys_set.count(TestStrings::kSecondMapKey), 1u);

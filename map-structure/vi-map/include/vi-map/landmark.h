@@ -107,7 +107,7 @@ class Landmark {
 
   void removeAllObservationsAccordingToPredicate(
       const std::function<bool(const KeypointIdentifier&)>&  // NOLINT
-      predicate);
+          predicate);
 
   void removeAllObservationsOfVertex(const pose_graph::VertexId& vertex_id);
 
@@ -123,8 +123,7 @@ class Landmark {
           << "The appearances "
           << "of landmark with store id " << id_.hexString() << " are not in "
           << "sync with the observations as their respective number of "
-             "elements "
-          << "differs.";
+          << "elements differs.";
       appearances_.erase(appearances_.begin() + index);
     }
     observations_.erase(observations_.begin() + index);

@@ -69,7 +69,7 @@ void ImuCameraSynchronizer::addCameraImage(
   time_last_camera_message_received_or_checked_ns_ =
       aslam::time::nanoSecondsSinceEpoch();
   if (!visual_pipeline_->processImageBlockingIfFull(
-          camera_index, image, timestamp, kMaxNFrameQueueSize)) {
+          camera_index, image, timestamp, "mono8", kMaxNFrameQueueSize)) {
     shutdown();
   }
 }

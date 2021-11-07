@@ -386,7 +386,7 @@ void Synchronizer::releaseCameraImages(
         << " into visual processing pipeline... (blocking if pipeline is full)";
     if (!visual_pipeline_->processImageBlockingIfFull(
             image_measurement->camera_index, image_measurement->image,
-            image_measurement->timestamp,
+            image_measurement->timestamp, image_measurement->encoding,
             FLAGS_vio_nframe_sync_max_queue_size)) {
       LOG(ERROR)
           << "[MaplabNode-Synchronizer] Failed to process an image of camera "

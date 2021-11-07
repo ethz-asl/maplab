@@ -25,7 +25,8 @@ struct Palette {
     kFalseColor1,
     kFalseColor2,
     kFalseColor3,
-    kFalseColorJet
+    kFalseColorJet,
+    kLinearGreen
   };
   visualization::Color colors[kNumColors];
 };

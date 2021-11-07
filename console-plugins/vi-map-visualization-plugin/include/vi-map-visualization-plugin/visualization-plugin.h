@@ -6,9 +6,9 @@
 #include <Eigen/Dense>
 #include <console-common/console-plugin-base.h>
 #include <console-common/console.h>
+#include <map-manager/map-manager.h>
 #include <string>
 #include <vi-map/vi-map.h>
-#include <map-manager/map-manager.h>
 
 namespace common {
 class Console;
@@ -28,6 +28,7 @@ class VisualizationPlugin : public common::ConsolePluginBase {
   void plotVIStatesOfMission(
       const vi_map::VIMap& map, const vi_map::MissionId& mission_id) const;
   int visualizeCvMatResources(backend::ResourceType type);
+  int visualizeBoundingBoxResources(backend::ResourceType type);
   int visualizeSensorExtrinsics() const;
   int visualizeLandmarkObserverRays() const;
   int visualizeReprojectedDepthResource(backend::ResourceType type);

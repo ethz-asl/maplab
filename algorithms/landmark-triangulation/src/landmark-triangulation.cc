@@ -9,6 +9,7 @@
 #include <maplab-common/multi-threaded-progress-bar.h>
 #include <maplab-common/parallel-process.h>
 #include <vi-map/landmark-quality-metrics.h>
+#include <vi-map/semantic-landmark-quality-metrics.h>
 #include <vi-map/vi-map.h>
 
 #include "landmark-triangulation/pose-interpolator.h"
@@ -253,6 +254,142 @@ void retriangulateLandmarksOfVertex(
   }
 }
 
+void retriangulateSemanticLandmarksOfVertex(
+    const FrameToPoseMap& interpolated_frame_poses,
+    pose_graph::VertexId storing_vertex_id, vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+  vi_map::Vertex& storing_vertex = map->getVertex(storing_vertex_id);
+  vi_map::SemanticLandmarkStore& landmark_store =
+      storing_vertex.getSemanticLandmarks();
+
+  const aslam::Transformation& T_M_I_storing = storing_vertex.get_T_M_I();
+  const aslam::Transformation& T_G_M_storing =
+      const_cast<const vi_map::VIMap*>(map)
+          ->getMissionBaseFrameForVertex(storing_vertex_id)
+          .get_T_G_M();
+  const aslam::Transformation T_G_I_storing = T_G_M_storing * T_M_I_storing;
+
+  for (vi_map::SemanticLandmark& landmark : landmark_store) {
+    // The following have one entry per measurement:
+    Eigen::Matrix3Xd G_bearing_vectors;
+    Eigen::Matrix3Xd p_G_C_vector;
+
+    landmark.setQuality(vi_map::SemanticLandmark::Quality::kBad);
+
+    const vi_map::SemanticObjectIdentifierList& observations =
+        landmark.getObservations();
+    if (observations.size() < 2u) {
+      statistics::StatsCollector stats(
+          "Semantic Landmark triangulation failed too few observations.");
+      stats.IncrementOne();
+      continue;
+    }
+
+    G_bearing_vectors.resize(Eigen::NoChange, observations.size());
+    p_G_C_vector.resize(Eigen::NoChange, observations.size());
+
+    int num_measurements = 0;
+    for (const vi_map::SemanticObjectIdentifier& observation : observations) {
+      const pose_graph::VertexId& observer_id = observation.frame_id.vertex_id;
+      CHECK(map->hasVertex(observer_id))
+          << "Observer " << observer_id << " of store semantic landmark "
+          << landmark.id() << " not in currently loaded map!";
+
+      const vi_map::Vertex& observer =
+          const_cast<const vi_map::VIMap*>(map)->getVertex(observer_id);
+      const aslam::VisualFrame& visual_frame =
+          observer.getVisualFrame(observation.frame_id.frame_index);
+      const aslam::Transformation& T_G_M_observer =
+          const_cast<const vi_map::VIMap*>(map)
+              ->getMissionBaseFrameForVertex(observer_id)
+              .get_T_G_M();
+
+      // If there are precomputed/interpolated T_M_I, use those.
+      aslam::Transformation T_G_I_observer;
+      FrameToPoseMap::const_iterator it =
+          interpolated_frame_poses.find(visual_frame.getId());
+      if (it != interpolated_frame_poses.end()) {
+        const aslam::Transformation& T_M_I_observer = it->second;
+        T_G_I_observer = T_G_M_observer * T_M_I_observer;
+      } else {
+        const aslam::Transformation& T_M_I_observer = observer.get_T_M_I();
+        T_G_I_observer = T_G_M_observer * T_M_I_observer;
+      }
+
+      Eigen::Vector4d object_measurement =
+          visual_frame.getSemanticObjectMeasurement(
+              observation.measurement_index);
+      Eigen::Vector2d measurement = object_measurement.block<2, 1>(0, 0);
+
+      Eigen::Vector3d C_bearing_vector;
+      bool projection_result =
+          observer.getCamera(observation.frame_id.frame_index)
+              ->backProject3(measurement, &C_bearing_vector);
+      if (!projection_result) {
+        statistics::StatsCollector stats(
+            "Landmark triangulation failed proj failed.");
+        stats.IncrementOne();
+        continue;
+      }
+
+      const aslam::CameraId& cam_id =
+          observer.getCamera(observation.frame_id.frame_index)->getId();
+      aslam::Transformation T_G_C =
+          (T_G_I_observer *
+           observer.getNCameras()->get_T_C_B(cam_id).inverse());
+      G_bearing_vectors.col(num_measurements) =
+          T_G_C.getRotationMatrix() * C_bearing_vector;
+      p_G_C_vector.col(num_measurements) = T_G_C.getPosition();
+      ++num_measurements;
+    }
+    G_bearing_vectors.conservativeResize(Eigen::NoChange, num_measurements);
+    p_G_C_vector.conservativeResize(Eigen::NoChange, num_measurements);
+
+    if (num_measurements < 2) {
+      statistics::StatsCollector stats(
+          "Semantic Landmark triangulation too few meas.");
+      stats.IncrementOne();
+      continue;
+    }
+
+    Eigen::Vector3d p_G_fi;
+    aslam::TriangulationResult triangulation_result =
+        aslam::linearTriangulateFromNViews(
+            G_bearing_vectors, p_G_C_vector, &p_G_fi);
+
+    if (triangulation_result.wasTriangulationSuccessful()) {
+      landmark.set_p_B(T_G_I_storing.inverse() * p_G_fi);
+      constexpr bool kReEvaluateQuality = true;
+      if (vi_map::isSemanticLandmarkWellConstrained(
+              *map, landmark, kReEvaluateQuality)) {
+        statistics::StatsCollector stats_good("Semantic Landmark good");
+        stats_good.IncrementOne();
+        landmark.setQuality(vi_map::SemanticLandmark::Quality::kGood);
+      } else {
+        statistics::StatsCollector stats(
+            "Semantic Landmark bad after triangulation");
+        stats.IncrementOne();
+      }
+    } else {
+      statistics::StatsCollector stats(
+          "Semantic Landmark triangulation failed");
+      stats.IncrementOne();
+      if (triangulation_result.status() ==
+          aslam::TriangulationResult::UNOBSERVABLE) {
+        statistics::StatsCollector stats(
+            "Semantic Landmark triangulation failed - unobservable");
+        stats.IncrementOne();
+      } else if (
+          triangulation_result.status() ==
+          aslam::TriangulationResult::UNINITIALIZED) {
+        statistics::StatsCollector stats(
+            "Semantic Landmark triangulation failed - uninitialized");
+        stats.IncrementOne();
+      }
+    }
+  }
+}
+
 void retriangulateLandmarksOfMission(
     const vi_map::MissionId& mission_id,
     const pose_graph::VertexId& starting_vertex_id,
@@ -300,6 +437,43 @@ void retriangulateLandmarksOfMission(
   retriangulateLandmarksOfMission(
       mission_id, starting_vertex_id, interpolated_frame_poses, map);
 }
+
+void retriangulateSemanticLandmarksOfMission(
+    const vi_map::MissionId& mission_id,
+    const FrameToPoseMap& interpolated_frame_poses, vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+
+  VLOG(1) << "Getting vertices of mission: " << mission_id;
+  pose_graph::VertexIdList relevant_vertex_ids;
+  map->getAllVertexIdsInMissionAlongGraph(mission_id, &relevant_vertex_ids);
+
+  const size_t num_vertices = relevant_vertex_ids.size();
+  VLOG(1) << "Retriangulating semantic landmarks of " << num_vertices
+          << " vertices.";
+
+  common::MultiThreadedProgressBar progress_bar;
+  std::function<void(const std::vector<size_t>&)> retriangulator =
+      [&relevant_vertex_ids, map, &progress_bar,
+       &interpolated_frame_poses](const std::vector<size_t>& batch) {
+        progress_bar.setNumElements(batch.size());
+        size_t num_processed = 0u;
+        for (size_t item : batch) {
+          CHECK_LT(item, relevant_vertex_ids.size());
+          retriangulateSemanticLandmarksOfVertex(
+              interpolated_frame_poses, relevant_vertex_ids[item], map);
+          progress_bar.update(++num_processed);
+        }
+      };
+
+  static constexpr bool kAlwaysParallelize = false;
+  constexpr size_t kMaxNumHardwareThreads = 8u;
+  const size_t available_num_threads = common::getNumHardwareThreads();
+  const size_t num_threads = (available_num_threads < kMaxNumHardwareThreads)
+                                 ? available_num_threads
+                                 : kMaxNumHardwareThreads;
+  common::ParallelProcess(
+      num_vertices, retriangulator, kAlwaysParallelize, num_threads);
+}
 }  // namespace
 
 void retriangulateLandmarks(
@@ -340,6 +514,37 @@ void retriangulateLandmarksOfVertex(
   CHECK_NOTNULL(map);
   FrameToPoseMap empty_frame_to_pose_map;
   retriangulateLandmarksOfVertex(
+      empty_frame_to_pose_map, storing_vertex_id, map);
+}
+
+void retriangulateSemanticLandmarks(
+    const vi_map::MissionIdList& mission_ids, vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    retriangulateSemanticLandmarksOfMission(mission_id, map);
+  }
+}
+
+void retriangulateSemanticLandmarksOfMission(
+    const vi_map::MissionId& mission_id, vi_map::VIMap* map) {
+  FrameToPoseMap interpolated_frame_poses;
+  interpolateVisualFramePoses(mission_id, *map, &interpolated_frame_poses);
+  retriangulateSemanticLandmarksOfMission(
+      mission_id, interpolated_frame_poses, map);
+}
+
+void retriangulateSemanticLandmarks(vi_map::VIMap* map) {
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+  retriangulateSemanticLandmarks(mission_ids, map);
+}
+
+void retriangulateSemanticLandmarksOfVertex(
+    const pose_graph::VertexId& storing_vertex_id, vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+  FrameToPoseMap empty_frame_to_pose_map;
+  retriangulateSemanticLandmarksOfVertex(
       empty_frame_to_pose_map, storing_vertex_id, map);
 }
 

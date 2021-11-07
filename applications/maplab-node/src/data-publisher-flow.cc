@@ -186,9 +186,11 @@ void DataPublisherFlow::visualizeMap(const vi_map::VIMap& vi_map) const {
   static constexpr bool kPublishEdges = true;
   static constexpr bool kPublishLandmarks = true;
   static constexpr bool kPublishAbsolute6DofConstraints = true;
+  static constexpr bool kPublishSemanticLandmarks = true;
   plotter_->visualizeMap(
       vi_map, kPublishBaseframes, kPublishVertices, kPublishEdges,
-      kPublishLandmarks, kPublishAbsolute6DofConstraints);
+      kPublishLandmarks, kPublishAbsolute6DofConstraints,
+      kPublishSemanticLandmarks);
 }
 
 void DataPublisherFlow::publishOdometryState(

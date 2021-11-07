@@ -17,8 +17,8 @@ void serializeVisualFrame(
 
   frame.getId().serialize(proto->mutable_id());
   proto->set_timestamp(frame.getTimestampNanoseconds());
-
-  if (frame.hasKeypointMeasurements()) {
+  if (frame.hasKeypointMeasurements() && 
+      frame.hasKeypointMeasurementUncertainties()) {
     ::common::eigen_proto::serialize(
         frame.getKeypointMeasurements(),
         proto->mutable_keypoint_measurements());
@@ -52,6 +52,51 @@ void serializeVisualFrame(
   } else {
     VLOG(200) << "Frame " << frame.getId() << " has no descriptors!";
   }
+
+  if (frame.hasSemanticObjectMeasurements() &&
+      frame.hasSemanticObjectMeasurementUncertainties() &&
+      frame.hasSemanticObjectDescriptors() &&
+      frame.hasSemanticObjectClassIds()) {
+    ::common::eigen_proto::serialize(
+        frame.getSemanticObjectMeasurements(),
+        proto->mutable_semantic_object_measurements());
+    ::common::eigen_proto::serialize(
+        frame.getSemanticObjectMeasurementUncertainties(),
+        proto->mutable_semantic_object_measurement_sigmas());
+    const aslam::VisualFrame::SemanticObjectDescriptorsT& sem_descriptors =
+        frame.getSemanticObjectDescriptors();
+    proto->set_semantic_object_descriptor_size(sem_descriptors.rows());
+    ::common::eigen_proto::serialize(
+          frame.getSemanticObjectDescriptors(),
+          proto->mutable_semantic_object_descriptors());
+    ::common::eigen_proto::serialize(
+          frame.getSemanticObjectClassIds(),
+          proto->mutable_semantic_object_class_ids());
+    // check serialized data col size
+    CHECK_EQ(
+        proto->semantic_object_measurement_sigmas_size(),
+        proto->semantic_object_measurements_size()/4);
+    if(proto->semantic_object_descriptor_size() > 0u){
+      CHECK_EQ(
+        proto->semantic_object_measurement_sigmas_size(),
+        proto->semantic_object_descriptors_size()/proto->semantic_object_descriptor_size());
+    }
+    CHECK_EQ(
+        proto->semantic_object_measurement_sigmas_size(),
+        proto->semantic_object_class_ids_size());
+    proto->set_is_valid(frame.isValid());
+    // it is optional to have track ids
+    if (frame.hasSemanticObjectTrackIds()) {
+      ::common::eigen_proto::serialize(
+          frame.getSemanticObjectTrackIds(),
+          proto->mutable_semantic_object_track_ids());
+      CHECK_EQ(
+        proto->semantic_object_measurement_sigmas_size(),
+        proto->semantic_object_track_ids_size());
+    }
+  } else {
+    VLOG(200) << "Frame " << frame.getId() << " has no semantic object descriptors!";
+  }
 }
 
 void deserializeVisualFrame(
@@ -65,12 +110,16 @@ void deserializeVisualFrame(
     const aslam::proto::VisualFrame& proto,
     const aslam::Camera::ConstPtr& camera, aslam::VisualFrame::Ptr* frame) {
   CHECK_NOTNULL(frame)->reset();
-
   aslam::FrameId frame_id;
   frame_id.deserialize(proto.id());
   // If the frame_id is invalid this frame has been un-set.
   if (frame_id.isValid()) {
+    // the deserialization creates the channel even if it is empty
     bool success = true;
+    *frame = aligned_shared<aslam::VisualFrame>();
+    aslam::VisualFrame& frame_ref = **frame;
+
+    // check for default keypoint measurements
     success &=
         (2 * proto.keypoint_measurement_sigmas_size() ==
          proto.keypoint_measurements_size());
@@ -80,9 +129,7 @@ void deserializeVisualFrame(
                proto.keypoint_descriptor_size() ==
            static_cast<unsigned int>(proto.keypoint_measurement_sigmas_size()));
     }
-
     CHECK(success) << "Inconsistent landmark Visual Frame field sizes.";
-
     Eigen::Map<const Eigen::Matrix2Xd> img_points_distorted(
         proto.keypoint_measurements().data(), 2,
         proto.keypoint_measurements_size() / 2);
@@ -94,15 +141,6 @@ void deserializeVisualFrame(
     Eigen::Map<const Eigen::VectorXi> track_ids(
         proto.track_ids().data(), proto.track_ids_size());
 
-    *frame = aligned_shared<aslam::VisualFrame>();
-    aslam::VisualFrame& frame_ref = **frame;
-
-    if (camera != nullptr) {
-      frame_ref.setCameraGeometry(camera);
-    }
-
-    frame_ref.setId(frame_id);
-    frame_ref.setTimestampNanoseconds(proto.timestamp());
     frame_ref.setKeypointMeasurements(img_points_distorted);
     frame_ref.setKeypointMeasurementUncertainties(uncertainties);
     if (scales.rows() != 0) {
@@ -113,14 +151,68 @@ void deserializeVisualFrame(
       CHECK_EQ(track_ids.rows(), uncertainties.rows());
       frame_ref.setTrackIds(track_ids);
     }
-
     // Need to set empty descriptors, otherwise getMutable call below fails.
     frame_ref.setDescriptors(aslam::VisualFrame::DescriptorsT());
     internal::deserializeDescriptors(proto, frame_ref.getDescriptorsMutable());
-
     CHECK(frame_ref.hasKeypointMeasurements());
     CHECK(frame_ref.hasKeypointMeasurementUncertainties());
     CHECK(frame_ref.hasDescriptors());
+    
+    // check for semantic measurements
+    CHECK_EQ(4 * proto.semantic_object_measurement_sigmas_size(),
+      proto.semantic_object_measurements_size());
+    CHECK_EQ(proto.semantic_object_measurement_sigmas_size(),
+      proto.semantic_object_class_ids_size());
+    if (proto.semantic_object_descriptor_size() != 0) {
+    CHECK_EQ(proto.semantic_object_descriptors().size() /
+      proto.semantic_object_descriptor_size(),
+      static_cast<unsigned int>(proto.semantic_object_measurement_sigmas_size()));
+    }
+    Eigen::Map<const Eigen::Matrix4Xd> semantic_object_measurements(
+      proto.semantic_object_measurements().data(), 4,
+      proto.semantic_object_measurements_size() / 4);
+    Eigen::Map<const Eigen::VectorXd> semantic_object_uncertainties(
+        proto.semantic_object_measurement_sigmas().data(),
+        proto.semantic_object_measurement_sigmas_size());
+    if (proto.semantic_object_descriptor_size() == 0) {
+      Eigen::Map<const aslam::VisualFrame::SemanticObjectDescriptorsT> semantic_object_descriptors(
+          0, 0, 0);
+      frame_ref.setSemanticObjectDescriptors(semantic_object_descriptors);
+    } else {
+      Eigen::Map<const aslam::VisualFrame::SemanticObjectDescriptorsT> semantic_object_descriptors(
+        proto.semantic_object_descriptors().data(),
+        proto.semantic_object_descriptor_size(),
+        proto.semantic_object_descriptors_size()/proto.semantic_object_descriptor_size());
+      frame_ref.setSemanticObjectDescriptors(semantic_object_descriptors);
+    }
+    Eigen::Map<const Eigen::VectorXi> semantic_object_class_ids(
+        proto.semantic_object_class_ids().data(),
+        proto.semantic_object_class_ids_size());
+    Eigen::Map<const Eigen::VectorXi> semantic_object_track_ids(
+        proto.semantic_object_track_ids().data(),
+        proto.semantic_object_track_ids_size());
+    frame_ref.setSemanticObjectMeasurements(semantic_object_measurements);
+    frame_ref.setSemanticObjectMeasurementUncertainties(semantic_object_uncertainties);
+    frame_ref.setSemanticObjectClassIds(semantic_object_class_ids);
+    
+    if (semantic_object_track_ids.rows() != 0) {
+      CHECK_EQ(semantic_object_track_ids.cols(),
+               semantic_object_uncertainties.cols());
+      frame_ref.setSemanticObjectTrackIds(semantic_object_track_ids);
+      CHECK(frame_ref.hasSemanticObjectTrackIds());
+    }
+    CHECK(frame_ref.hasSemanticObjectMeasurements());
+    CHECK(frame_ref.hasSemanticObjectMeasurementUncertainties());
+    CHECK(frame_ref.hasSemanticObjectDescriptors());
+    CHECK(frame_ref.hasSemanticObjectClassIds());
+
+    // checks for common things in a visual frame
+    if (camera != nullptr) {
+      frame_ref.setCameraGeometry(camera);
+    }
+
+    frame_ref.setId(frame_id);
+    frame_ref.setTimestampNanoseconds(proto.timestamp());
 
     if (proto.has_is_valid() && !proto.is_valid()) {
       frame_ref.invalidate();

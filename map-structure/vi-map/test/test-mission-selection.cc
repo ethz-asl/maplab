@@ -20,6 +20,7 @@ class VIMapMissionSelectionTest : public ::testing::Test {
     map_.getAllEdgeIds(&initial_edges_);
     map_.getAllVertexIds(&initial_vertices_);
     map_.getAllLandmarkIds(&initial_landmarks_);
+    map_.getAllSemanticLandmarkIds(&initial_semantic_landmarks_);
   }
 
   size_t numVertices() const {
@@ -30,6 +31,7 @@ class VIMapMissionSelectionTest : public ::testing::Test {
   pose_graph::VertexIdList initial_vertices_;
   pose_graph::EdgeIdList initial_edges_;
   vi_map::LandmarkIdSet initial_landmarks_;
+  vi_map::SemanticLandmarkIdSet initial_semantic_landmarks_;
   vi_map::MissionId initial_mission_;
 
  private:
@@ -78,16 +80,19 @@ TEST_F(VIMapMissionSelectionTest, DeselectMission) {
 TEST_F(VIMapMissionSelectionTest, DuplicatedSelectedMissionLandmarkCount) {
   map_.duplicateMission(initial_mission_);
   EXPECT_EQ(2u * initial_landmarks_.size(), map_.numLandmarks());
+  EXPECT_EQ(2u * initial_semantic_landmarks_.size(), map_.numSemanticLandmarks());
 
   vi_map::MissionIdSet initial_mission_set;
   initial_mission_set.emplace(initial_mission_);
   map_.selectMissions(initial_mission_set);
   EXPECT_EQ(initial_landmarks_.size(), map_.numLandmarks());
+  EXPECT_EQ(initial_semantic_landmarks_.size(), map_.numSemanticLandmarks());
 }
 
 TEST_F(VIMapMissionSelectionTest, DuplicatedSelectedMissionLandmarkIds) {
   map_.duplicateMission(initial_mission_);
   EXPECT_EQ(2u * initial_landmarks_.size(), map_.numLandmarks());
+  EXPECT_EQ(2u * initial_semantic_landmarks_.size(), map_.numSemanticLandmarks());
 
   vi_map::MissionIdSet initial_mission_set;
   initial_mission_set.emplace(initial_mission_);
@@ -98,6 +103,12 @@ TEST_F(VIMapMissionSelectionTest, DuplicatedSelectedMissionLandmarkIds) {
   for (const vi_map::LandmarkId& landmark_id : landmark_ids) {
     EXPECT_GT(initial_landmarks_.count(landmark_id), 0u);
     EXPECT_TRUE(map_.hasLandmark(landmark_id));
+  }
+  vi_map::SemanticLandmarkIdSet semantic_landmark_ids;
+  map_.getAllSemanticLandmarkIds(&semantic_landmark_ids);
+  for (const vi_map::SemanticLandmarkId& landmark_id : semantic_landmark_ids) {
+    EXPECT_GT(initial_semantic_landmarks_.count(landmark_id), 0u);
+    EXPECT_TRUE(map_.hasSemanticLandmark(landmark_id));
   }
 }
 

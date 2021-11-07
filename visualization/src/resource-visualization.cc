@@ -16,6 +16,8 @@
 #include <maplab-common/progress-bar.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <unordered_map>
 #include <vi-map/vertex.h>
 #include <vi-map/vi-map.h>
 #include <visualization/common-rviz-visualization.h>
@@ -62,6 +64,10 @@ DEFINE_double(
 DEFINE_bool(
     vis_pointcloud_color_random, false,
     "If enabled, every point cloud receives a random color.");
+
+DEFINE_double(
+    vis_bounding_box_confidence_threshold, 0.9,
+    "Only show bounding boxes above this threshold.");
 
 namespace visualization {
 
@@ -141,6 +147,97 @@ bool visualizeCvMatResources(
             cv::destroyWindow(cv_window_names.at(idx));
           }
         }
+      }
+      cv::waitKey(1000.0 / FLAGS_vis_resource_visualization_frequency);
+      progress_bar.increment();
+    }
+    destroyAllWindows(cv_window_names);
+    ++mission_num;
+  }
+  return true;
+}
+
+bool visualizeBoundingBoxResources(
+    const vi_map::VIMap& map, backend::ResourceType type) {
+  CHECK(type == backend::ResourceType::kObjectInstanceBoundingBoxes);
+  CHECK_GT(FLAGS_vis_resource_visualization_frequency, 0.0);
+  VLOG(1) << "INFO: Visualization will run at "
+          << FLAGS_vis_resource_visualization_frequency
+          << " Hz. Hold any key to speed up.";
+  CHECK_GT(FLAGS_vis_bounding_box_confidence_threshold, 0.0);
+  VLOG(1) << "INFO: Only bounding boxes with confidence above "
+          << FLAGS_vis_resource_visualization_frequency << " will be displayed";
+
+  cv::RNG rng(12345);  // for color generation
+
+  pose_graph::VertexIdList vertex_ids;
+  map.getAllVertexIds(&vertex_ids);
+  common::ProgressBar progress_bar(vertex_ids.size());
+  vi_map::MissionVertexIdList mission_to_vertex_ids;
+  map.getVertexIdsByMission(&mission_to_vertex_ids);
+
+  if (mission_to_vertex_ids.empty()) {
+    VLOG(1) << "No missions found!";
+    return true;
+  }
+
+  int mission_num = 0;
+  for (const vi_map::MissionVertexIdPair& mission_vertex_id_pair :
+       mission_to_vertex_ids) {
+    VLOG(1) << "## Mission " << (mission_num + 1) << " of "
+            << mission_to_vertex_ids.size() << " ##";
+
+    const aslam::NCamera& ncamera =
+        map.getMissionNCamera(mission_vertex_id_pair.first);
+    std::vector<std::string> cv_window_names;
+    std::unordered_set<std::string> cv_active_window_names;
+    getOpenCvWindowsForNCamera(ncamera, &cv_window_names);
+
+    for (const pose_graph::VertexId& vertex_id :
+         mission_vertex_id_pair.second) {
+      const vi_map::Vertex& vertex = map.getVertex(vertex_id);
+      const aslam::VisualNFrame& n_frame = vertex.getVisualNFrame();
+      for (uint idx = 0u; idx < n_frame.getNumFrames(); ++idx) {
+        cv::Mat image_resource;
+        resources::ObjectInstanceBoundingBoxes boxes;
+        if (!map.getFrameResource(
+                vertex, idx, backend::ResourceType::kRawColorImage,
+                &image_resource)) {
+          LOG(ERROR) << "Failed to Load raw color image for"
+                        "visualizeBoundingBoxResources()";
+          break;
+        }
+        cv_active_window_names.insert(cv_window_names.at(idx));
+        if (!map.getFrameResource(
+                vertex, idx,
+                backend::ResourceType::kObjectInstanceBoundingBoxes, &boxes)) {
+          LOG(ERROR) << "Failed to Load bounding boxes for"
+                        "visualizeBoundingBoxResources()";
+          break;
+        }
+        for (auto it = boxes.begin(); it != boxes.end(); ++it) {
+          if (it->confidence > FLAGS_vis_bounding_box_confidence_threshold) {
+            cv::Scalar color = cv::Scalar(
+                rng.uniform(0, 256), rng.uniform(0, 256), rng.uniform(0, 256));
+            rectangle(
+                image_resource, it->bounding_box.tl(), it->bounding_box.br(),
+                color, 2);
+            // adds text
+            cv::putText(
+                image_resource,
+                it->class_name +
+                    " inst: " + std::to_string(it->instance_number) +
+                    "score: " + std::to_string(it->confidence),
+                cv::Point(
+                    it->bounding_box.x, it->bounding_box.y - 4),  // Coordinates
+                cv::FONT_HERSHEY_COMPLEX_SMALL,                   // Font
+                0.5,     // Scale. 2.0 = 2x bigger
+                color,   // BGR Color
+                1,       // Line Thickness (Optional)
+                CV_AA);  // Anti-alias (Optional)
+          }
+        }
+        cv::imshow(cv_window_names.at(idx), image_resource);
       }
       cv::waitKey(1000.0 / FLAGS_vis_resource_visualization_frequency);
       progress_bar.increment();

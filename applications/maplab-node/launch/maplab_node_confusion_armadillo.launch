@@ -44,7 +44,7 @@
     <arg name="save_map_folder" default=""/>
     <arg name="overwrite_existing_map" default="false"/>
     <arg name="optimize_map_to_localization_map" default="false"/>
-    <arg name="map_builder_save_image_as_resources" default="false"/>
+    <arg name="map_builder_save_tracking_image_as_resources" default="false"/>
 
     <!-- VISUAL LOCALIZATION (DISABLED) -->
     <arg name="vio_localization_map_folder" default=""/>
@@ -103,7 +103,7 @@
     <arg name="map_save_on_shutdown" default="true"/>
     <arg name="map_overwrite_enabled" default="false"/>
     <arg name="map_compute_localization_map" default="false"/>
-    <arg name="map_builder_save_image_as_resources" default="false"/>
+    <arg name="map_builder_save_tracking_image_as_resources" default="false"/>
     <arg name="map_builder_save_point_clouds_as_resources" default="false"/>
 
     <!-- TF -->

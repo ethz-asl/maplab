@@ -40,14 +40,22 @@ class ViwlsGraph : public ::testing::Test {
   std::vector<aslam::FrameId> frame_ids_;
   std::vector<int64_t> frame_timestamps_;
 
+  // default keypoints data
   Eigen::Matrix2Xd img_points_distorted_;
   Eigen::VectorXd uncertainties_;
   aslam::VisualFrame::DescriptorsT descriptors_;
   std::vector<vi_map::LandmarkIdList> img_landmarks_;
 
+  // default semantic measurements data
+  Eigen::Matrix4Xd semantic_object_measurements_;
+  Eigen::VectorXd semantic_object_uncertainties_;
+  aslam::VisualFrame::SemanticObjectDescriptorsT semantic_object_descriptors_;
+  Eigen::VectorXi semantic_object_class_ids_;
+  std::vector<vi_map::SemanticLandmarkIdList> img_semantic_landmarks_;
+
   aslam::NCamera::Ptr cameras_;
 
-  static constexpr unsigned int kNumNFrames = 5;
+  static constexpr unsigned int kNumNFrames = 3;
 };
 
 void ViwlsGraph::serializeAndDeserialize() {
@@ -70,6 +78,7 @@ void ViwlsGraph::constructVertex() {
   biases_ << 1, 2, 3, 4, 5, 6;
 
   const int num_of_keypoints = 1000;
+  const int num_of_measurements = 20;
 
   img_points_distorted_.resize(2, num_of_keypoints);
   img_points_distorted_.setRandom();
@@ -85,6 +94,22 @@ void ViwlsGraph::constructVertex() {
     img_landmarks_[kVisualFrameIndex].push_back(landmark_id);
   }
 
+  semantic_object_measurements_.resize(4, num_of_measurements);
+  semantic_object_measurements_.setRandom();
+  semantic_object_uncertainties_.resize(num_of_measurements, 1);
+  semantic_object_uncertainties_.setRandom();
+  semantic_object_descriptors_.resize(4096, num_of_measurements);
+  semantic_object_descriptors_.setRandom();
+  semantic_object_class_ids_.resize(num_of_measurements, 1);
+  semantic_object_class_ids_.setRandom();
+
+  img_semantic_landmarks_.resize(kNumFrames);
+  for (int i = 0; i < num_of_measurements; ++i) {
+    vi_map::SemanticLandmarkId landmark_id;
+    common::generateId(&landmark_id);
+    img_semantic_landmarks_[kVisualFrameIndex].push_back(landmark_id);
+  }
+
   mission_id_.fromHexString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0");
   aslam::FrameId frame_id;
   frame_id.fromHexString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1");
@@ -95,8 +120,10 @@ void ViwlsGraph::constructVertex() {
 
   initial_vertex_ = aligned_unique<vi_map::Vertex>(
       vertex_id_, biases_, img_points_distorted_, uncertainties_, descriptors_,
-      img_landmarks_[kVisualFrameIndex], mission_id_, frame_id,
-      frame_timestamps_.back(), cameras_);
+      img_landmarks_[kVisualFrameIndex], semantic_object_measurements_,
+      semantic_object_uncertainties_, semantic_object_class_ids_,
+      semantic_object_descriptors_, img_semantic_landmarks_[kVisualFrameIndex],
+      mission_id_, frame_id, frame_timestamps_.back(), cameras_);
 
   position_ << 1, 2, 3;
   orientation_ = Eigen::Quaterniond(sqrt(2) / 2, 0, sqrt(2) / 2, 0);
@@ -134,8 +161,17 @@ void ViwlsGraph::constructVertexWithVisualNFrame() {
   uncertainties_.setRandom();
   descriptors_.resize(48, num_of_keypoints);
   descriptors_.setRandom();
-
   img_landmarks_.resize(kNumNFrames);
+
+  semantic_object_measurements_.resize(4, num_of_keypoints);
+  semantic_object_measurements_.setRandom();
+  semantic_object_uncertainties_.resize(num_of_keypoints, 1);
+  semantic_object_uncertainties_.setRandom();
+  semantic_object_descriptors_.resize(4096, num_of_keypoints);
+  semantic_object_descriptors_.setRandom();
+  semantic_object_class_ids_.resize(num_of_keypoints, 1);
+  semantic_object_class_ids_.setRandom();
+  img_semantic_landmarks_.resize(kNumNFrames);
 
   mission_id_.fromHexString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0");
   cameras_ = aslam::createTestNCamera(kNumNFrames);
@@ -154,6 +190,9 @@ void ViwlsGraph::constructVertexWithVisualNFrame() {
       vi_map::LandmarkId landmark_id;
       aslam::generateId(&landmark_id);
       img_landmarks_[i].push_back(landmark_id);
+      vi_map::SemanticLandmarkId semantic_landmark_id;
+      common::generateId(&semantic_landmark_id);
+      img_semantic_landmarks_[i].push_back(semantic_landmark_id);
     }
 
     aslam::VisualFrame::Ptr frame(new aslam::VisualFrame);
@@ -163,12 +202,18 @@ void ViwlsGraph::constructVertexWithVisualNFrame() {
     frame->setKeypointMeasurementUncertainties(uncertainties_);
     frame->setDescriptors(descriptors_);
     frame->setCameraGeometry(cameras_->getCameraShared(i));
+    frame->setSemanticObjectMeasurements(semantic_object_measurements_);
+    frame->setSemanticObjectMeasurementUncertainties(
+        semantic_object_uncertainties_);
+    frame->setSemanticObjectDescriptors(semantic_object_descriptors_);
+    frame->setSemanticObjectClassIds(semantic_object_class_ids_);
 
     visual_n_frame->setFrame(i, frame);
   }
 
   initial_vertex_ = aligned_unique<vi_map::Vertex>(
-      vertex_id_, biases_, visual_n_frame, img_landmarks_, mission_id_);
+      vertex_id_, biases_, visual_n_frame, img_landmarks_,
+      img_semantic_landmarks_, mission_id_);
 
   position_ << 1, 2, 3;
   orientation_ = Eigen::Quaterniond(sqrt(2) / 2, 0, sqrt(2) / 2, 0);
@@ -214,6 +259,13 @@ TEST_F(ViwlsGraph, ViwlsVertexWithSingleFrameSerializationTest) {
         vertex_from_msg_->getObservedLandmarkId(kVisualFrameIndex, i));
   }
 
+  for (unsigned int i = 0;
+       i < img_semantic_landmarks_[kVisualFrameIndex].size(); ++i) {
+    EXPECT_EQ(
+        img_semantic_landmarks_[kVisualFrameIndex][i],
+        vertex_from_msg_->getObservedSemanticLandmarkId(kVisualFrameIndex, i));
+  }
+
   aslam::VisualFrame& visual_frame =
       vertex_from_msg_->getVisualFrame(kVisualFrameIndex);
   EXPECT_EQ(visual_frame.getKeypointMeasurements(), img_points_distorted_);
@@ -241,6 +293,17 @@ TEST_F(ViwlsGraph, ViwlsVertexWithSingleFrameSerializationTest) {
       EXPECT_TRUE(found);
     }
   }
+  EXPECT_EQ(
+      visual_frame.getSemanticObjectMeasurements(),
+      semantic_object_measurements_);
+  EXPECT_EQ(
+      visual_frame.getSemanticObjectMeasurementUncertainties(),
+      semantic_object_uncertainties_);
+  EXPECT_EQ(
+      visual_frame.getSemanticObjectClassIds(), semantic_object_class_ids_);
+  EXPECT_EQ(
+      visual_frame.getSemanticObjectDescriptors(),
+      semantic_object_descriptors_);
 }
 
 TEST_F(ViwlsGraph, ViwlsVertexWithMultiFrameSerializationTest) {
@@ -266,6 +329,12 @@ TEST_F(ViwlsGraph, ViwlsVertexWithMultiFrameSerializationTest) {
           img_landmarks_[frame_idx][i],
           vertex_from_msg_->getObservedLandmarkId(frame_idx, i));
     }
+    for (unsigned int i = 0; i < img_semantic_landmarks_[frame_idx].size();
+         ++i) {
+      EXPECT_EQ(
+          img_semantic_landmarks_[frame_idx][i],
+          vertex_from_msg_->getObservedSemanticLandmarkId(frame_idx, i));
+    }
 
     aslam::VisualFrame& visual_frame =
         vertex_from_msg_->getVisualFrame(frame_idx);
@@ -276,6 +345,17 @@ TEST_F(ViwlsGraph, ViwlsVertexWithMultiFrameSerializationTest) {
     EXPECT_EQ(
         visual_frame.getKeypointMeasurementUncertainties(), uncertainties_);
     EXPECT_EQ(visual_frame.getDescriptors(), descriptors_);
+    EXPECT_EQ(
+        visual_frame.getSemanticObjectMeasurements(),
+        semantic_object_measurements_);
+    EXPECT_EQ(
+        visual_frame.getSemanticObjectMeasurementUncertainties(),
+        semantic_object_uncertainties_);
+    EXPECT_EQ(
+        visual_frame.getSemanticObjectClassIds(), semantic_object_class_ids_);
+    EXPECT_EQ(
+        visual_frame.getSemanticObjectDescriptors(),
+        semantic_object_descriptors_);
   }
 
   {  // Verify Absolute6DoFMeasurements
