@@ -103,3 +103,12 @@
 [submodule "dependencies/3rdparty/libpointmatcher"]
 	path = dependencies/3rdparty/libpointmatcher
 	url = git@github.com:ANYbotics/libpointmatcher.git
+[submodule "dependencies/3rdparty/mask_rcnn_ros_private"]
+	path = dependencies/3rdparty/mask_rcnn_ros_private
+	url = git@github.com:ethz-asl/mask_rcnn_ros_private.git
+[submodule "dependencies/3rdparty/deep_sort"]
+	path = dependencies/3rdparty/deep_sort
+	url = git@github.com:ethz-asl/deep_sort.git
+[submodule "dependencies/3rdparty/netvlad_tf_open"]
+	path = dependencies/3rdparty/netvlad_tf_open
+	url = git@github.com:ethz-asl/netvlad_tf_open.git
