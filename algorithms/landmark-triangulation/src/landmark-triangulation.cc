@@ -126,7 +126,8 @@ void interpolateVisualFramePoses(
 
 void retriangulateLandmarksOfVertex(
     const FrameToPoseMap& interpolated_frame_poses,
-    pose_graph::VertexId storing_vertex_id, vi_map::VIMap* map) {
+    pose_graph::VertexId storing_vertex_id, vi_map::VIMap* map,
+    bool only_included_ids, const vi_map::LandmarkIdSet& landmark_ids) {
   CHECK_NOTNULL(map);
   vi_map::Vertex& storing_vertex = map->getVertex(storing_vertex_id);
   vi_map::LandmarkStore& landmark_store = storing_vertex.getLandmarks();
@@ -139,6 +140,11 @@ void retriangulateLandmarksOfVertex(
   const aslam::Transformation T_G_I_storing = T_G_M_storing * T_M_I_storing;
 
   for (vi_map::Landmark& landmark : landmark_store) {
+    if (only_included_ids) {
+      if (landmark_ids.find(landmark.id()) == landmark_ids.end()) {
+        continue;
+      }
+    }
     // The following have one entry per measurement:
     Eigen::Matrix3Xd G_bearing_vectors;
     Eigen::Matrix3Xd p_G_C_vector;
@@ -393,7 +399,9 @@ void retriangulateSemanticLandmarksOfVertex(
 void retriangulateLandmarksOfMission(
     const vi_map::MissionId& mission_id,
     const pose_graph::VertexId& starting_vertex_id,
-    const FrameToPoseMap& interpolated_frame_poses, vi_map::VIMap* map) {
+    const FrameToPoseMap& interpolated_frame_poses, vi_map::VIMap* map,
+    bool only_included_ids = false,
+    const vi_map::LandmarkIdSet& landmark_ids = vi_map::LandmarkIdSet()) {
   CHECK_NOTNULL(map);
 
   VLOG(1) << "Getting vertices of mission: " << mission_id;
@@ -406,14 +414,16 @@ void retriangulateLandmarksOfMission(
 
   common::MultiThreadedProgressBar progress_bar;
   std::function<void(const std::vector<size_t>&)> retriangulator =
-      [&relevant_vertex_ids, map, &progress_bar,
+      [&relevant_vertex_ids, map, landmark_ids, only_included_ids,
+       &progress_bar,
        &interpolated_frame_poses](const std::vector<size_t>& batch) {
         progress_bar.setNumElements(batch.size());
         size_t num_processed = 0u;
         for (size_t item : batch) {
           CHECK_LT(item, relevant_vertex_ids.size());
           retriangulateLandmarksOfVertex(
-              interpolated_frame_poses, relevant_vertex_ids[item], map);
+              interpolated_frame_poses, relevant_vertex_ids[item], map,
+              only_included_ids, landmark_ids);
           progress_bar.update(++num_processed);
         }
       };
@@ -430,12 +440,14 @@ void retriangulateLandmarksOfMission(
 
 void retriangulateLandmarksOfMission(
     const vi_map::MissionId& mission_id,
-    const FrameToPoseMap& interpolated_frame_poses, vi_map::VIMap* map) {
+    const FrameToPoseMap& interpolated_frame_poses, vi_map::VIMap* map,
+    bool only_included_ids, const vi_map::LandmarkIdSet& landmark_ids) {
   CHECK_NOTNULL(map);
   const vi_map::VIMission& mission = map->getMission(mission_id);
   const pose_graph::VertexId& starting_vertex_id = mission.getRootVertexId();
   retriangulateLandmarksOfMission(
-      mission_id, starting_vertex_id, interpolated_frame_poses, map);
+      mission_id, starting_vertex_id, interpolated_frame_poses, map,
+      only_included_ids, landmark_ids);
 }
 
 void retriangulateSemanticLandmarksOfMission(
@@ -486,10 +498,13 @@ void retriangulateLandmarks(
 }
 
 void retriangulateLandmarksOfMission(
-    const vi_map::MissionId& mission_id, vi_map::VIMap* map) {
+    const vi_map::MissionId& mission_id, vi_map::VIMap* map,
+    bool only_included_ids, const vi_map::LandmarkIdSet& landmark_ids) {
   FrameToPoseMap interpolated_frame_poses;
   interpolateVisualFramePoses(mission_id, *map, &interpolated_frame_poses);
-  retriangulateLandmarksOfMission(mission_id, interpolated_frame_poses, map);
+  retriangulateLandmarksOfMission(
+      mission_id, interpolated_frame_poses, map, only_included_ids,
+      landmark_ids);
 }
 
 void retriangulateLandmarksAlongMissionAfterVertex(
@@ -510,11 +525,13 @@ void retriangulateLandmarks(vi_map::VIMap* map) {
 }
 
 void retriangulateLandmarksOfVertex(
-    const pose_graph::VertexId& storing_vertex_id, vi_map::VIMap* map) {
+    const pose_graph::VertexId& storing_vertex_id, vi_map::VIMap* map,
+    bool only_included_ids, const vi_map::LandmarkIdSet& landmark_ids) {
   CHECK_NOTNULL(map);
   FrameToPoseMap empty_frame_to_pose_map;
   retriangulateLandmarksOfVertex(
-      empty_frame_to_pose_map, storing_vertex_id, map);
+      empty_frame_to_pose_map, storing_vertex_id, map, only_included_ids,
+      landmark_ids);
 }
 
 void retriangulateSemanticLandmarks(

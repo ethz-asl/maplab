@@ -48,6 +48,10 @@ LandmarkManipulationPlugin::LandmarkManipulationPlugin(
       {"retriangulate_semantic_landmarks", "rtsl"},
       [this]() -> int { return retriangulateSemanticLandmarks(); },
       "Retriangulate all semantic landmarks.", common::Processing::Sync);
+  addCommand(
+      {"remove_invalid_observations", "rio"},
+      [this]() -> int { return removeInvalidLandmarkObservations(); },
+      "Removes invalid observations from landmarks.", common::Processing::Sync);
 }
 
 int LandmarkManipulationPlugin::retriangulateLandmarks() {
@@ -253,6 +257,35 @@ int LandmarkManipulationPlugin::retriangulateSemanticLandmarks() {
       mission_ids, map.get());
   return common::kSuccess;
 }
+
+int LandmarkManipulationPlugin::removeInvalidLandmarkObservations() {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids_to_process;
+  if (!FLAGS_map_mission.empty()) {
+    vi_map::MissionId mission_id;
+    map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
+    if (!mission_id.isValid()) {
+      return common::kStupidUserError;
+    } else {
+      mission_ids_to_process.emplace_back(mission_id);
+    }
+  } else {
+    map->getAllMissionIds(&mission_ids_to_process);
+  }
+
+  vi_map_helpers::removeInvalidLandmarkObservations(
+      mission_ids_to_process, map.get());
+  return common::kSuccess;
+}
+
 
 }  // namespace landmark_manipulation_plugin
 

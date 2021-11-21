@@ -26,6 +26,7 @@ class LandmarkManipulationPlugin : public common::ConsolePluginBaseWithPlotter {
   int removeBadLandmarks();
   int initTrackSemanticLandmarks();
   int retriangulateSemanticLandmarks();
+  int removeInvalidLandmarkObservations();
 };
 
 }  // namespace landmark_manipulation_plugin

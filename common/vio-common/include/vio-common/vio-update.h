@@ -34,7 +34,6 @@ struct VioUpdate {
   UpdateType vio_update_type;
   std::shared_ptr<const SynchronizedNFrameImu> keyframe_and_imudata;
   ViNodeState vinode;
-  ViNodeCovariance vinode_covariance;
 
   // Localization update states.
   common::LocalizationState localization_state;

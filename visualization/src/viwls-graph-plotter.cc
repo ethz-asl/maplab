@@ -1437,41 +1437,6 @@ void ViwlsGraphRvizPlotter::plotSlidingWindowLocalizationResult(
       kSlidingWindowLocalizationResultTopic);
 }
 
-void ViwlsGraphRvizPlotter::publishCamPredictions(
-    const vi_map_helpers::NearCameraPoseSampling& sampling,
-    const std::vector<double>& predictions) {
-  const size_t num_samples = sampling.size();
-  CHECK_EQ(num_samples, predictions.size());
-
-  std::vector<double> temp_predictions(predictions.begin(), predictions.end());
-  std::nth_element(
-      temp_predictions.begin(),
-      temp_predictions.begin() + (3 * temp_predictions.size() / 4),
-      temp_predictions.end());
-  const double upper_quartile =
-      temp_predictions[3 * temp_predictions.size() / 4];
-  CHECK_GT(upper_quartile, 0.);
-
-  aslam::TransformationVector T_G_Cs;
-  T_G_Cs.insert(T_G_Cs.end(), sampling.begin(), sampling.end());
-
-  std::vector<visualization::Color> colors(num_samples);
-  for (size_t sample_idx = 0u; sample_idx < num_samples; ++sample_idx) {
-    visualization::Color& color = colors[sample_idx];
-    color.red = static_cast<unsigned char>(
-        255.0 *
-        (1.0 - std::min(predictions[sample_idx] / upper_quartile, 1.0)));
-    color.green = static_cast<unsigned char>(
-        255.0 * (std::min(predictions[sample_idx] / upper_quartile, 1.0)));
-    color.blue = 0u;
-  }
-
-  const double kAlpha = 1.0;
-  visualization::publishTransformations(
-      T_G_Cs, colors, kAlpha, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
-      kCamPredictionTopic);
-}
-
 void ViwlsGraphRvizPlotter::visualizeSensorExtrinsics(
     const vi_map::VIMap& map) {
   const vi_map::SensorManager& sensor_manager = map.getSensorManager();

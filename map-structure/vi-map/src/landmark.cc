@@ -7,8 +7,6 @@
 
 namespace vi_map {
 
-constexpr int Landmark::kInvalidAppearance;
-
 double* Landmark::get_p_B_Mutable() {
   return B_position_.data();
 }
@@ -30,27 +28,15 @@ void Landmark::addObservation(
   backlink.frame_id.frame_index = frame_idx;
   backlink.keypoint_index = keypoint_index;
   observations_.push_back(backlink);
-  if (!appearances_.empty()) {
-    appearances_.emplace_back(-1);
-  }
 }
 
 void Landmark::addObservation(const KeypointIdentifier& keypoint_id) {
   observations_.push_back(keypoint_id);
-  if (!appearances_.empty()) {
-    appearances_.emplace_back(-1);
-  }
 }
 
 void Landmark::addObservations(const KeypointIdentifierList& new_observations) {
   observations_.insert(
       observations_.end(), new_observations.begin(), new_observations.end());
-  if (!appearances_.empty()) {
-    std::vector<int> invalid_appearances(new_observations.size(), -1);
-    appearances_.insert(
-        appearances_.end(), invalid_appearances.begin(),
-        invalid_appearances.end());
-  }
 }
 
 bool Landmark::hasObservation(
@@ -69,19 +55,12 @@ bool Landmark::hasObservation(
 void Landmark::removeAllObservationsAccordingToPredicate(
     const std::function<bool(const KeypointIdentifier&)>&  // NOLINT
         predicate) {
-  std::vector<int>::iterator appearance_iterator = appearances_.begin();
   KeypointIdentifierList::iterator observation_iterator = observations_.begin();
   while (observation_iterator != observations_.end()) {
     if (predicate(*observation_iterator)) {
       observation_iterator = observations_.erase(observation_iterator);
-      if (appearance_iterator != appearances_.end()) {
-        appearance_iterator = appearances_.erase(appearance_iterator);
-      }
     } else {
       ++observation_iterator;
-      if (appearance_iterator != appearances_.end()) {
-        ++appearance_iterator;
-      }
     }
   }
 }
@@ -153,87 +132,6 @@ void Landmark::forEachObservation(
   }
 }
 
-int Landmark::getAppearanceForObservationIndex(size_t observation_index) const {
-  CHECK(!appearances_.empty())
-      << "No appearances have been allocated. You "
-      << "first need to allocate appearances explicitly by calling "
-      << "allocateAppearances() and setAppearance(...).";
-  CHECK_LT(observation_index, appearances_.size());
-  CHECK_EQ(appearances_.size(), observations_.size())
-      << "The appearances of "
-      << "landmark with store id " << id_.hexString() << " are not in sync with"
-      << " the observations as their respective number of elements differs.";
-
-  return appearances_[observation_index];
-}
-
-void Landmark::setAppearance(size_t observation_index, int appearance) {
-  CHECK(!appearances_.empty())
-      << "No appearances have been allocated. You "
-      << "first need to allocate appearances explicitly by calling "
-      << "allocateAppearances() and setAppearance(...).";
-  CHECK_LT(observation_index, observations_.size())
-      << "No observation with "
-      << "index " << observation_index << " exists for landmark with store id "
-      << id_.hexString();
-  CHECK_EQ(appearances_.size(), observations_.size())
-      << "The appearances of "
-      << "landmark with store id " << id_.hexString() << " are in sync with the"
-      << " observations as their respective number of elements differs.";
-
-  appearances_[observation_index] = appearance;
-}
-
-void Landmark::allocateAppearances() {
-  CHECK(appearances_.empty()) << "Appearances have already been allocated.";
-  appearances_.resize(observations_.size(), kInvalidAppearance);
-}
-
-void Landmark::getAllDistinctAppearances(
-    std::unordered_set<int>* distinct_appearances) const {
-  CHECK_NOTNULL(distinct_appearances)->clear();
-  CHECK(!appearances_.empty())
-      << "No appearances have been allocated. You "
-      << "first need to allocate appearances explicitly by calling "
-      << "allocateAppearances() and setAppearance(...).";
-  CHECK_EQ(appearances_.size(), observations_.size())
-      << "The appearances of "
-      << "landmark with store id " << id_.hexString() << " are not in sync with"
-      << " the observations as their respective number of elements differs.";
-
-  distinct_appearances->reserve(appearances_.size());
-  for (int appearance : appearances_) {
-    if (appearance >= 0) {
-      distinct_appearances->insert(appearance);
-    }
-  }
-}
-
-void Landmark::getAllObservationsOfAppearance(
-    int appearance, KeypointIdentifierList* observations) const {
-  CHECK_NOTNULL(observations)->clear();
-  CHECK(!appearances_.empty())
-      << "No appearances have been allocated. You "
-      << "first need to allocate appearances explicitly by calling "
-      << "allocateAppearances() and setAppearance(...).";
-  CHECK_GE(appearance, 0);
-  CHECK_EQ(appearances_.size(), observations_.size())
-      << "The appearances of "
-      << "landmark with store id " << id_.hexString() << " are not in sync with"
-      << " the observations as their respective number of elements differs.";
-
-  const size_t num_observations = observations_.size();
-  CHECK_EQ(num_observations, appearances_.size());
-  observations->reserve(num_observations);
-
-  for (size_t observation_idx = 0u; observation_idx < num_observations;
-       ++observation_idx) {
-    if (appearances_[observation_idx] == appearance) {
-      observations->push_back(observations_[observation_idx]);
-    }
-  }
-}
-
 void Landmark::serialize(vi_map::proto::Landmark* proto) const {
   CHECK_NOTNULL(proto);
 
@@ -256,17 +154,6 @@ void Landmark::serialize(vi_map::proto::Landmark* proto) const {
       observation.frame_id.vertex_id.serialize(vertex_ids_proto->Add());
       frame_indices_proto->Add(observation.frame_id.frame_index);
       keypoint_indices_proto->Add(observation.keypoint_index);
-    }
-  }
-
-  {
-    const size_t num_appearances = appearances_.size();
-    google::protobuf::RepeatedField<google::protobuf::int32>*
-        appearances_proto = proto->mutable_appearances();
-    appearances_proto->Reserve(num_appearances);
-    for (unsigned int appearance_index = 0u; appearance_index < num_appearances;
-         ++appearance_index) {
-      appearances_proto->Add(appearances_[appearance_index]);
     }
   }
 
@@ -298,15 +185,6 @@ void Landmark::serialize(vi_map::proto::Landmark* proto) const {
 
 void Landmark::clearObservations() {
   observations_.clear();
-  appearances_.clear();
-}
-
-const std::vector<int>& Landmark::getAppearances() const {
-  CHECK(!appearances_.empty())
-      << "No appearances have been allocated. You "
-      << "first need to allocate appearances explicitly by calling "
-      << "allocateAppearances() and setAppearance(...).";
-  return appearances_;
 }
 
 void Landmark::deserialize(const vi_map::proto::Landmark& proto) {
@@ -325,11 +203,6 @@ void Landmark::deserialize(const vi_map::proto::Landmark& proto) {
         << "your map format is outdated.";
     backlink.frame_id.frame_index = proto.frame_indices(i);
     observations_[i] = backlink;
-  }
-
-  appearances_.resize(proto.appearances_size());
-  for (int i = 0; i < proto.appearances_size(); ++i) {
-    appearances_[i] = proto.appearances(i);
   }
 
   if (proto.has_quality()) {

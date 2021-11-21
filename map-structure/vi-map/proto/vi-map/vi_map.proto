@@ -96,7 +96,6 @@ message Landmark {
     kGood = 2;
   }
   optional Quality quality = 7 [default = kUnknown];
-  repeated int32 appearances = 8;
 }
 
 message SemanticLandmark {

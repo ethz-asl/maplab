@@ -26,9 +26,6 @@ static const int kAccelBiasBlockSize = 3;
 static const int kPositionBlockSize = 3;
 static const int kStatePoseBlockSize = 7;
 
-// New Eigen based error terms combine IMU biases
-static const int kImuBiasBlockSize = 6;
-
 static const int kImuReadingSize = 6;
 static const int kAccelReadingOffset = 0;
 static const int kGyroReadingOffset = 3;
