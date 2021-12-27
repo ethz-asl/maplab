@@ -389,9 +389,7 @@ class Vertex : public pose_graph::Vertex {
   bool hasAbsolute6DoFMeasurements() const;
   const std::vector<Absolute6DoFMeasurement>& getAbsolute6DoFMeasurements()
       const;
-  std::vector<Absolute6DoFMeasurement>& getAbsolute6DoFMeasuremgit @github.com
-      : ethz -
-      asl / deep_sort.gitents();
+  std::vector<Absolute6DoFMeasurement>& getAbsolute6DoFMeasurements();
   void addAbsolute6DoFMeasurement(const Absolute6DoFMeasurement& measurement);
 
  private:
