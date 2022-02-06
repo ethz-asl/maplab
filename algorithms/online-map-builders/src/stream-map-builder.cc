@@ -1040,7 +1040,7 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
 
   const size_t processed_measurements =
       external_features_measurement_temporal_buffer_.removeItemsBefore(
-          newest_vertex_time_ns);
+          newest_vertex_time_ns + external_features_sync_tolerance_ns_);
 
   VLOG(3) << "[StreamMapBuilder] Processing " << processed_measurements
           << " external feature measurements.";
