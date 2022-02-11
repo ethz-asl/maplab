@@ -12,6 +12,7 @@ constexpr char kYamlFieldNameHasScales[] = "has_scales";
 constexpr char kYamlFieldNameHasTrackIds[] = "has_track_ids";
 constexpr char kYamlFieldNameFeatureType[] = "feature_type";
 
+constexpr const char* kInvalidIdentifier = "Invalid";
 constexpr const char* kBinaryIdentifier = "Binary";
 constexpr const char* kR2D2Identifier = "R2D2";
 
@@ -32,7 +33,9 @@ FeatureType StringToFeatureType(const std::string& feature_string) {
     return std::strcmp(lhs, rhs) == 0;
   };
 
-  if (equals(feature_c_string, kBinaryIdentifier)) {
+  if (equals(feature_c_string, kInvalidIdentifier)) {
+    return FeatureType::kInvalid;
+  } else if (equals(feature_c_string, kBinaryIdentifier)) {
     return FeatureType::kBinary;
   } else if (equals(feature_c_string, kR2D2Identifier)) {
     return FeatureType::kR2D2;

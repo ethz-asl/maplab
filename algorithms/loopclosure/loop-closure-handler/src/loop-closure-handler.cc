@@ -169,10 +169,12 @@ bool addLoopClosureEdge(
 }
 
 LoopClosureHandler::LoopClosureHandler(
-    vi_map::VIMap* map, LandmarkToLandmarkMap* landmark_id_old_to_new)
+    vi_map::VIMap* map, LandmarkToLandmarkMap* landmark_id_old_to_new,
+    vi_map::FeatureType feature_type)
     : map_(CHECK_NOTNULL(map)),
       summary_map_(nullptr),
-      landmark_id_old_to_new_(CHECK_NOTNULL(landmark_id_old_to_new)) {}
+      landmark_id_old_to_new_(CHECK_NOTNULL(landmark_id_old_to_new)),
+      feature_type_(static_cast<int>(feature_type)) {}
 
 LoopClosureHandler::LoopClosureHandler(
     summary_map::LocalizationSummaryMap const* summary_map,
@@ -205,8 +207,25 @@ bool LoopClosureHandler::handleLoopClosure(
 
   inlier_constraints->query_vertex_id = query_vertex_id;
 
+  const aslam::VisualNFrame& n_frame = query_vertex.getVisualNFrame();
   std::vector<vi_map::LandmarkIdList> query_vertex_observed_landmark_ids;
-  query_vertex.getAllObservedLandmarkIds(&query_vertex_observed_landmark_ids);
+  for (int frame_idx = 0; frame_idx < n_frame.getNumFrames(); frame_idx++) {
+    const aslam::VisualFrame& frame = n_frame.getFrame(frame_idx);
+
+    vi_map::LandmarkIdList landmark_ids_all;
+    query_vertex.getFrameObservedLandmarkIds(frame_idx, &landmark_ids_all);
+
+    size_t block_start, block_size;
+    block_start = block_size = 0;
+    if (frame.hasDescriptorType(feature_type_)) {
+      frame.getDescriptorBlockTypeStartAndSize(
+          feature_type_, &block_start, &block_size);
+    }
+    vi_map::LandmarkIdList landmark_ids(
+        landmark_ids_all.begin() + block_start,
+        landmark_ids_all.begin() + block_start + block_size);
+    query_vertex_observed_landmark_ids.emplace_back(landmark_ids);
+  }
 
   return handleLoopClosure(
       query_vertex.getVisualNFrame(), query_vertex_observed_landmark_ids,
@@ -302,7 +321,8 @@ bool LoopClosureHandler::handleLoopClosure(
     CHECK(query_vertex_n_frame.isFrameSet(structure_match.frame_index_query));
     measurements.col(col_idx) =
         query_vertex_n_frame.getFrame(structure_match.frame_index_query)
-            .getKeypointMeasurement(structure_match.keypoint_index_query);
+            .getKeypointMeasurementOfType(
+                structure_match.keypoint_index_query, feature_type_);
     G_landmark_positions.col(col_idx) = getLandmark_p_G_fi(db_landmark_id);
     map_mutex->unlock();
 

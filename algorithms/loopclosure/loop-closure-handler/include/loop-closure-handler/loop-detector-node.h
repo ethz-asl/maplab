@@ -15,6 +15,7 @@
 #include <localization-summary-map/unique-id.h>
 #include <loopclosure-common/types.h>
 #include <maplab-common/file-serializable.h>
+#include <sensors/external-features.h>
 #include <vi-map/mission-baseframe.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vi-map.h>
@@ -62,8 +63,7 @@ class LoopDetectorNode final
   bool hasMissionInDatabase(const vi_map::MissionId& mission_id) const;
 
   void addLandmarkSetToDatabase(
-      const vi_map::LandmarkIdSet& landmark_id_set,
-      const vi_map::VIMap& map);
+      const vi_map::LandmarkIdSet& landmark_id_set, const vi_map::VIMap& map);
 
   void addLocalizationSummaryMapToDatabase(
       const summary_map::LocalizationSummaryMap& localization_summary_map);
@@ -208,6 +208,9 @@ class LoopDetectorNode final
   // A mapping from the merged landmark id (does not exist anymore) to the
   // landmark id it was merged into (and should exist).
   mutable LandmarkToLandmarkMap landmark_id_old_to_new_;
+
+  // Feature type this node deals with
+  int feature_type_;
 };
 
 }  // namespace loop_detector_node

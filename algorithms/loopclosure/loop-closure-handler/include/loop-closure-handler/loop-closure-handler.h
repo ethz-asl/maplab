@@ -12,6 +12,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest_prod.h>
 #include <localization-summary-map/localization-summary-map.h>
+#include <sensors/external-features.h>
 #include <vi-map-helpers/vi-map-nearest-neighbor-lookup.h>
 #include <vi-map/landmark.h>
 #include <vi-map/loop-constraint.h>
@@ -48,7 +49,8 @@ class LoopClosureHandler {
   friend class LoopClosureHandlerTest;
 
   explicit LoopClosureHandler(
-      vi_map::VIMap* map, LandmarkToLandmarkMap* landmark_id_old_to_new);
+      vi_map::VIMap* map, LandmarkToLandmarkMap* landmark_id_old_to_new,
+      vi_map::FeatureType feature_type = vi_map::FeatureType::kBinary);
 
   explicit LoopClosureHandler(
       summary_map::LocalizationSummaryMap const* summary_map,
@@ -129,6 +131,7 @@ class LoopClosureHandler {
   vi_map::VIMap* map_;
   summary_map::LocalizationSummaryMap const* summary_map_;
   LandmarkToLandmarkMap* landmark_id_old_to_new_;
+  int feature_type_;
 };
 }  // namespace loop_closure_handler
 

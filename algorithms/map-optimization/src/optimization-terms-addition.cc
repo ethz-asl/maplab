@@ -11,8 +11,12 @@
 #include <ceres-error-terms/visual-error-term.h>
 #include <ceres/ceres.h>
 #include <maplab-common/progress-bar.h>
+#include <sensors/external-features.h>
 #include <vi-map-helpers/vi-map-queries.h>
 #include <vi-map/landmark-quality-metrics.h>
+
+DEFINE_string(
+    ba_feature_type, "Invalid", "Type of features to use in bundle adjustment");
 
 namespace map_optimization {
 
@@ -213,6 +217,9 @@ int addVisualTermsForVertices(
   vi_map::VIMap* map = CHECK_NOTNULL(problem->getMapMutable());
   const vi_map::MissionIdSet& missions_to_optimize = problem->getMissionIds();
 
+  vi_map::FeatureType feature_type =
+      vi_map::StringToFeatureType(FLAGS_ba_feature_type);
+
   size_t num_visual_constraints = 0u;
   for (const pose_graph::VertexId& vertex_id : vertices) {
     vi_map::Vertex& vertex = map->getVertex(vertex_id);
@@ -265,6 +272,12 @@ int addVisualTermsForVertices(
 
         // Skip if the current landmark is not well constrained.
         if (!vi_map::isLandmarkWellConstrained(*map, landmark)) {
+          continue;
+        }
+
+        // Filter by feature type
+        if (feature_type != vi_map::FeatureType::kInvalid &&
+            landmark.getFeatureType() != feature_type) {
           continue;
         }
 

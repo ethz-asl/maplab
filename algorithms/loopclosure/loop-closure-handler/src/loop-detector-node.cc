@@ -51,6 +51,8 @@ DEFINE_int32(
     lc_mission_baseframe_ransac_num_interations, 2000,
     "Maximum number of iterations for mission baseframe RANSAC.");
 
+DEFINE_string(lc_feature_type, "Binary", "Type of features to loop close");
+
 namespace loop_detector_node {
 LoopDetectorNode::LoopDetectorNode()
     : use_random_pnp_seed_(FLAGS_lc_use_random_pnp_seed) {
@@ -59,6 +61,8 @@ LoopDetectorNode::LoopDetectorNode()
   loop_detector_ =
       std::make_shared<matching_based_loopclosure::MatchingBasedLoopDetector>(
           matching_engine_settings);
+  feature_type_ =
+      static_cast<int>(vi_map::StringToFeatureType(FLAGS_lc_feature_type));
 }
 
 const std::string LoopDetectorNode::serialization_filename_ =
@@ -138,15 +142,15 @@ void LoopDetectorNode::convertFrameToProjectedImageOnlyUsingProvidedLandmarkIds(
 
   CHECK_EQ(
       static_cast<int>(observed_landmark_ids.size()),
-      frame.getKeypointMeasurements().cols());
+      frame.getKeypointMeasurementsOfType(feature_type_).cols());
   CHECK_EQ(
       static_cast<int>(observed_landmark_ids.size()),
-      frame.getDescriptors().cols());
+      frame.getDescriptorsOfType(feature_type_).cols());
 
   const Eigen::Matrix2Xd& original_measurements =
-      frame.getKeypointMeasurements();
+      frame.getKeypointMeasurementsOfType(feature_type_);
   const aslam::VisualFrame::DescriptorsT& original_descriptors =
-      frame.getDescriptors();
+      frame.getDescriptorsOfType(feature_type_);
 
   aslam::VisualFrame::DescriptorsT valid_descriptors(
       original_descriptors.rows(), original_descriptors.cols());
@@ -283,19 +287,35 @@ void LoopDetectorNode::addVertexToDatabase(
   for (unsigned int frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
     if (vertex.isVisualFrameSet(frame_idx) &&
         vertex.isVisualFrameValid(frame_idx)) {
+      // Not all frames necessarily see all types of features
+      const aslam::VisualFrame& frame = vertex.getVisualFrame(frame_idx);
+      if (!frame.hasDescriptorType(feature_type_)) {
+        continue;
+      }
+
       std::shared_ptr<loop_closure::ProjectedImage> projected_image =
           std::make_shared<loop_closure::ProjectedImage>();
       constexpr bool kSkipInvalidLandmarkIds = true;
-      vi_map::LandmarkIdList landmark_ids;
-      vertex.getFrameObservedLandmarkIds(frame_idx, &landmark_ids);
+      vi_map::LandmarkIdList landmark_ids_all;
+      vertex.getFrameObservedLandmarkIds(frame_idx, &landmark_ids_all);
+
+      // Filter out landmarks that are not the target type.
+      // This works since the ordering of vertex landmark ids is the same
+      // as the ordering of keypoints in the visual frame.
+      size_t block_start, block_size;
+      frame.getDescriptorBlockTypeStartAndSize(
+          feature_type_, &block_start, &block_size);
+      vi_map::LandmarkIdList landmark_ids(
+          landmark_ids_all.begin() + block_start,
+          landmark_ids_all.begin() + block_start + block_size);
+
       VLOG(200) << "Frame " << frame_idx << " of vertex " << vertex_id
-                << " with "
-                << vertex.getVisualFrame(frame_idx).getDescriptors().cols()
+                << " with " << frame.getDescriptorsOfType(feature_type_).cols()
                 << " descriptors";
       convertFrameToProjectedImage(
-          map, vi_map::VisualFrameIdentifier(vertex.id(), frame_idx),
-          vertex.getVisualFrame(frame_idx), landmark_ids, vertex.getMissionId(),
-          kSkipInvalidLandmarkIds, projected_image.get());
+          map, vi_map::VisualFrameIdentifier(vertex.id(), frame_idx), frame,
+          landmark_ids, vertex.getMissionId(), kSkipInvalidLandmarkIds,
+          projected_image.get());
 
       loop_detector_->Insert(projected_image);
     }
@@ -805,14 +825,21 @@ void LoopDetectorNode::queryVertexInDatabase(
         query_vertex.isVisualFrameValid(frame_idx)) {
       const aslam::VisualFrame& frame = query_vertex.getVisualFrame(frame_idx);
       CHECK(frame.hasKeypointMeasurements());
-      if (frame.getNumKeypointMeasurements() == 0u) {
+      if (!frame.hasDescriptorType(feature_type_) ||
+          frame.getNumKeypointMeasurementsOfType(feature_type_) == 0u) {
         // Skip frame if zero measurements found.
         continue;
       }
 
-      std::vector<vi_map::LandmarkId> observed_landmark_ids;
-      query_vertex.getFrameObservedLandmarkIds(
-          frame_idx, &observed_landmark_ids);
+      std::vector<vi_map::LandmarkId> landmark_ids_all;
+      query_vertex.getFrameObservedLandmarkIds(frame_idx, &landmark_ids_all);
+      size_t block_start, block_size;
+      frame.getDescriptorBlockTypeStartAndSize(
+          feature_type_, &block_start, &block_size);
+      vi_map::LandmarkIdList landmark_ids(
+          landmark_ids_all.begin() + block_start,
+          landmark_ids_all.begin() + block_start + block_size);
+
       projected_image_ptr_list.push_back(
           std::make_shared<loop_closure::ProjectedImage>());
       const vi_map::VisualFrameIdentifier query_frame_id(
@@ -820,8 +847,8 @@ void LoopDetectorNode::queryVertexInDatabase(
       constexpr bool kSkipInvalidLandmarkIds = false;
       convertFrameToProjectedImage(
           *map, query_frame_id, query_vertex.getVisualFrame(frame_idx),
-          observed_landmark_ids, query_vertex.getMissionId(),
-          kSkipInvalidLandmarkIds, projected_image_ptr_list.back().get());
+          landmark_ids, query_vertex.getMissionId(), kSkipInvalidLandmarkIds,
+          projected_image_ptr_list.back().get());
     }
   }
   map_mutex->unlock();
@@ -1116,7 +1143,8 @@ bool LoopDetectorNode::handleLoopClosures(
   // Note: vertex_id_closest_to_structure_matches is optional and may be
   // NULL.
   loop_closure_handler::LoopClosureHandler handler(
-      map, &landmark_id_old_to_new_);
+      map, &landmark_id_old_to_new_,
+      static_cast<vi_map::FeatureType>(feature_type_));
   return handler.handleLoopClosure(
       constraint, merge_landmarks, add_lc_edges, num_inliers, inlier_ratio,
       T_G_I_ransac, inlier_constraints, landmark_pairs_merged,
