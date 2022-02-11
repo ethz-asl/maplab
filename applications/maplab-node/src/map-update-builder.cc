@@ -12,14 +12,15 @@ MapUpdateBuilder::MapUpdateBuilder(
 void MapUpdateBuilder::processTrackedNFrame(
     const vio::SynchronizedNFrame::ConstPtr& tracked_nframe) {
   CHECK(tracked_nframe != nullptr);
-  const int64_t timestamp_nframe_ns =
-      tracked_nframe->nframe->getMaxTimestampNanoseconds();
-  CHECK_GT(timestamp_nframe_ns, last_received_timestamp_tracked_nframe_.load());
 
   std::lock_guard<std::mutex> lock(process_nframe_mutex_);
-
   VLOG(3) << "[MaplabNode-MapUpdateBuilder] Received synchronized visual frame";
 
+  CHECK_GT(
+      tracked_nframe->nframe->getMaxTimestampNanoseconds(),
+      last_received_timestamp_tracked_nframe_.load());
+  const int64_t timestamp_nframe_ns =
+      tracked_nframe->nframe->getMinTimestampNanoseconds();
   vio::MapUpdate::Ptr map_update = aligned_shared<vio::MapUpdate>();
 
   // Try to find/interpolate an odometry estimate for this nframe.
