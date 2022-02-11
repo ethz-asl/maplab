@@ -41,6 +41,7 @@ class Landmark {
       observations_ = lhs.observations_;
       quality_ = lhs.quality_;
       B_position_ = lhs.B_position_;
+      feature_type_ = lhs.feature_type_;
 
       // Clone covariance if set.
       if (lhs.B_covariance_ != nullptr) {
