@@ -265,12 +265,6 @@ void MapBuilderFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
         }
         map_update_builder_.processTrackedNFrame(synchronized_nframe_imu);
       });
-
-  flow->registerSubscriber<message_flow_topics::FUSED_LOCALIZATION_RESULT>(
-      kSubscriberNodeName, delivery_options,
-      std::bind(
-          &MapUpdateBuilder::processLocalizationResult, &map_update_builder_,
-          std::placeholders::_1));
 }
 
 bool MapBuilderFlow::saveMapAndOptionallyOptimize(

@@ -201,9 +201,6 @@ OdometryEstimate::Ptr convertRosOdometryMsgToOdometryEstimate(
   }
   odometry_estimate->vinode.setGyroBias(gyro_bias);
 
-  // TODO(mfehr): We currently don't support this.
-  odometry_estimate->has_T_G_M = false;
-
   return odometry_estimate;
 }
 

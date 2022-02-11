@@ -12,6 +12,7 @@
 #include <maplab-common/macros.h>
 #include <posegraph/unique-id.h>
 
+#include "feature-tracking/feature-detection-extraction.h"
 #include "feature-tracking/feature-tracking-pipeline.h"
 
 namespace feature_tracking {
@@ -66,6 +67,7 @@ class VOFeatureTrackingPipeline : public FeatureTrackingPipeline {
   const FeatureTrackingExtractorSettings extractor_settings_;
   const FeatureTrackingDetectorSettings detector_settings_;
 };
+
 }  // namespace feature_tracking
 
 #endif  // FEATURE_TRACKING_VO_FEATURE_TRACKING_PIPELINE_H_

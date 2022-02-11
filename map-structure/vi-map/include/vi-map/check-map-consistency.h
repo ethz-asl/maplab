@@ -6,8 +6,6 @@
 
 namespace vi_map {
 class VIMap;
-bool isGpsReferenceVertex(
-    const vi_map::VIMap& vi_map, const pose_graph::VertexId& vertex_id);
 bool checkMapConsistency(const vi_map::VIMap& vi_map);
 bool checkPosegraphConsistency(
     const vi_map::VIMap& vi_map, const vi_map::MissionId& mission_id);

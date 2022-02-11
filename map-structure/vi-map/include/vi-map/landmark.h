@@ -41,8 +41,6 @@ class Landmark {
       observations_ = lhs.observations_;
       quality_ = lhs.quality_;
       B_position_ = lhs.B_position_;
-      appearances_ = lhs.appearances_;
-      feature_type_ = lhs.feature_type_;
 
       // Clone covariance if set.
       if (lhs.B_covariance_ != nullptr) {
@@ -128,15 +126,6 @@ class Landmark {
 
   inline void removeObservation(size_t index) {
     CHECK_LT(index, observations_.size());
-    if (!appearances_.empty()) {
-      CHECK_EQ(appearances_.size(), observations_.size())
-          << "The appearances "
-          << "of landmark with store id " << id_.hexString() << " are not in "
-          << "sync with the observations as their respective number of "
-             "elements "
-          << "differs.";
-      appearances_.erase(appearances_.begin() + index);
-    }
     observations_.erase(observations_.begin() + index);
   }
 
@@ -159,36 +148,6 @@ class Landmark {
   void forEachObservation(
       const std::function<void(const KeypointIdentifier&, const size_t)>&
           action) const;
-
-  // Returns the appearance for a given observation index. CHECK-fails, if
-  // no appearance have been allocated for the given observation index.
-  int getAppearanceForObservationIndex(size_t observation_index) const;
-
-  // Set the appearance for a given observation index. Allocates the appearance,
-  // if it has not been allocated yet.
-  void setAppearance(size_t observation_index, int appearance);
-
-  // Returns a set of all distinct appearances existing for this landmark.
-  void getAllDistinctAppearances(
-      std::unordered_set<int>* distinct_appearances) const;
-
-  // Returns all observations of this landmark with a given appearance.
-  void getAllObservationsOfAppearance(
-      int appearance, KeypointIdentifierList* observations) const;
-
-  // Allocate invalid appearances (-1) for all observations.
-  void allocateAppearances();
-
-  // Allows checking, if appearances have been allocated or not.
-  bool areAppearancesAllocated() const {
-    return !appearances_.empty();
-  }
-
-  // Returns the appearances vector.
-  const std::vector<int>& getAppearances() const;
-
-  static constexpr int kInvalidAppearance = -1;
-  static constexpr int kDefaultAppearance = 0;
 
   void serialize(vi_map::proto::Landmark* proto) const;
   void deserialize(const vi_map::proto::Landmark& proto);
@@ -217,9 +176,6 @@ class Landmark {
   KeypointIdentifierList observations_;
   Quality quality_;
   FeatureType feature_type_;
-
-  // Appearance vector, with one appearance per observation.
-  std::vector<int> appearances_;
 
   // Position and covariance w.r.t. landmark baseframe. The covariance is
   // optional to reduce the memory usage.

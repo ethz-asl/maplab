@@ -126,6 +126,7 @@ struct OusterPointType {
 } EIGEN_ALIGN16;
 }  // namespace pcl
 
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 // clang-format off
 POINT_CLOUD_REGISTER_POINT_STRUCT(
     pcl::OusterPointType,
@@ -137,7 +138,8 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
     (uint16_t, signal, intensity)
     (uint8_t, ring, ring))
 // clang-format on
-
+#endif // DOXYGEN_SHOULD_SKIP_THIS
+ 
 namespace vi_map {
 
 typedef LidarMeasurement<resources::PointCloud> MaplabLidarMeasurement;

@@ -15,9 +15,6 @@ struct OdometryEstimate {
   int64_t timestamp_ns;
   vio::ViNodeState vinode;
 
-  aslam::Transformation T_G_M;
-  bool has_T_G_M;
-
   // Mapping maplab camera index to the estimated camera extrinsics.
   AlignedUnorderedMap<size_t, aslam::Transformation>
       maplab_camera_index_to_T_C_B;

@@ -1,5 +1,6 @@
 #include "feature-tracking/vo-feature-tracking-pipeline.h"
 
+#include <aslam/common/timer.h>
 #include <aslam/geometric-vision/match-outlier-rejection-twopt.h>
 #include <aslam/matcher/match.h>
 #include <aslam/tracker/feature-tracker-gyro.h>
@@ -86,6 +87,7 @@ void VOFeatureTrackingPipeline::trackFeaturesNFrame(
       nframe_kp1->getMinTimestampNanoseconds(),
       nframe_k->getMinTimestampNanoseconds());
   CHECK(ncamera_.get() == nframe_kp1->getNCameraShared().get());
+  timing::Timer timer_eval("VOFeatureTrackingPipeline::trackFeaturesNFrame");
 
   const size_t num_cameras = nframe_kp1->getNumCameras();
   CHECK_EQ(num_cameras, trackers_.size());
@@ -122,6 +124,7 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
     aslam::VisualFrame* frame_kp1, aslam::VisualFrame* frame_k,
     aslam::FrameToFrameMatches* inlier_matches_kp1_k,
     aslam::FrameToFrameMatches* outlier_matches_kp1_k) {
+  timing::Timer timer("VOFeatureTrackingPipeline: trackFeaturesSingleCamera");
   CHECK_LE(camera_idx, track_managers_.size());
   CHECK_NOTNULL(frame_k);
   CHECK_NOTNULL(frame_kp1);
@@ -189,6 +192,9 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
   aslam::FrameToFrameMatchesWithScore inlier_matches_with_score_kp1_k;
   aslam::FrameToFrameMatchesWithScore outlier_matches_with_score_kp1_k;
 
+  statistics::StatsCollector stat_ransac("Twopt RANSAC (1 image) in ms");
+  timing::Timer timer_ransac(
+      "VOFeatureTrackingPipeline: trackFeaturesSingleCamera - ransac");
   bool ransac_success = aslam::geometric_vision::
       rejectOutlierFeatureMatchesTranslationRotationSAC(
           *frame_kp1, *frame_k, q_Ckp1_Ck, matches_with_score_kp1_k,
@@ -205,7 +211,9 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
                                << matches_with_score_kp1_k.size()
                                << " matches on camera " << camera_idx << ".";
 
-  // Assign track ids
+  // Assign track ids.
+  timing::Timer timer_track_manager(
+      "VOFeatureTrackingPipeline: trackFeaturesSingleCamera - track manager");
   track_managers_[camera_idx]->applyMatchesToFrames(
       inlier_matches_with_score_kp1_k, frame_kp1, frame_k);
 

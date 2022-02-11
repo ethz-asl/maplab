@@ -6,9 +6,6 @@ catkin_simple(ALL_DEPS_REQUIRED)
 
 cs_add_library(${PROJECT_NAME}
   src/mission-clustering-coobservation.cc
-  src/near-camera-pose-sampling.cc
-  src/spatial-database-vertex-id.cc
-  src/vi-map-descriptor-utils.cc
   src/vi-map-geometry.cc
   src/vi-map-landmark-quality-evaluation.cc
   src/vi-map-manipulation.cc
@@ -39,10 +36,6 @@ target_link_libraries(test_mission_observer_clustering ${PROJECT_NAME})
 catkin_add_gtest(test_queries_vertex_getter
   test/test_queries_vertex_getter.cc)
 target_link_libraries(test_queries_vertex_getter ${PROJECT_NAME})
-
-catkin_add_gtest(test_spatial_database_test
-  test/test_spatial_database_test.cc)
-target_link_libraries(test_spatial_database_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_nearest_neighbor_lookup_test
   test/test_nearest_neighbor_lookup_test.cc

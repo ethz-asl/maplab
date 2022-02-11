@@ -20,7 +20,6 @@
 	<depend>imu_integrator_rk4</depend>
 	<depend>localization_summary_map</depend>
 	<depend>maplab_common</depend>
-	<depend>protobuf_catkin</depend>
 	<depend>simulation</depend>
 	<depend>vi_map</depend>
 </package>
