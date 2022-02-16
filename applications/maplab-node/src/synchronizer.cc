@@ -763,8 +763,8 @@ void Synchronizer::releaseExternalFeatures(
     std::lock_guard<std::mutex> callback_lock(
         external_features_callback_mutex_);
     for (const std::function<void(
-             const vi_map::ExternalFeaturesMeasurement::ConstPtr&)>&
-             callback : external_features_callbacks_) {
+             const vi_map::ExternalFeaturesMeasurement::ConstPtr&)>& callback :
+         external_features_callbacks_) {
       callback(external_features_measurement);
     }
   }

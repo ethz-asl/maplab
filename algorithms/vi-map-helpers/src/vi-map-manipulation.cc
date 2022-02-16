@@ -446,8 +446,10 @@ void VIMapManipulation::initializeLandmarksFromUnusedFeatureTracksOfVertex(
       // Check whether this feature type has been encountered before
       // and insert a track index map if necessary
       const int feature_type = frame.getDescriptorType(keypoint_i);
+      const MultiTrackIndexKey track_index_key =
+          std::make_pair(frame_index, feature_type);
       TrackIndexToLandmarkIdMap& trackid_landmarkid_map =
-          (*multitrackid_landmarkid_map)[feature_type];
+          (*multitrackid_landmarkid_map)[track_index_key];
 
       // Check whether this track has already a global landmark id
       // associated.

@@ -196,8 +196,10 @@ class StreamMapBuilder {
   // frame.
   aslam::Transformation T_C_lidar_S_lidar_;
 
-  common::TemporalBuffer<vi_map::ExternalFeaturesMeasurement::ConstPtr>
-      external_features_measurement_temporal_buffer_;
+  std::unordered_map<
+      aslam::SensorId,
+      common::TemporalBuffer<vi_map::ExternalFeaturesMeasurement::ConstPtr>>
+      external_features_measurement_temporal_buffers_;
   int64_t external_features_sync_tolerance_ns_;
 
   static constexpr size_t kKeepNMostRecentImages = 10u;

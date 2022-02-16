@@ -4,6 +4,7 @@
 #include <posegraph/unique-id.h>
 #include <stddef.h>
 #include <unordered_map>
+#include <utility>
 
 #include "vi-map-helpers/vi-map-geometry.h"
 #include "vi-map-helpers/vi-map-queries.h"
@@ -17,7 +18,8 @@ namespace vi_map_helpers {
 class VIMapManipulation {
  public:
   typedef std::unordered_map<int, vi_map::LandmarkId> TrackIndexToLandmarkIdMap;
-  typedef std::unordered_map<int, TrackIndexToLandmarkIdMap>
+  typedef std::pair<int, int> MultiTrackIndexKey;
+  typedef std::map<MultiTrackIndexKey, TrackIndexToLandmarkIdMap>
       MultiTrackIndexToLandmarkIdMap;
 
   explicit VIMapManipulation(vi_map::VIMap* map);

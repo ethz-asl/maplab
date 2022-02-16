@@ -526,7 +526,9 @@ void StreamMapBuilder::bufferExternalFeaturesMeasurement(
   CHECK(external_features_measurement->isValid())
       << "[StreamMapBuilder] External features measurement invalid!";
 
-  external_features_measurement_temporal_buffer_.addValue(
+  const aslam::SensorId& sensor_id =
+      external_features_measurement->getSensorId();
+  external_features_measurement_temporal_buffers_[sensor_id].addValue(
       external_features_measurement->getTimestampNanoseconds(),
       external_features_measurement);
 }
@@ -1008,7 +1010,7 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
 
 void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
   if (map_->numVertices() < 1u ||
-      external_features_measurement_temporal_buffer_.empty()) {
+      external_features_measurement_temporal_buffers_.empty()) {
     return;
   }
 
@@ -1022,31 +1024,41 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
   CHECK(aslam::time::isValidTime(newest_vertex_time_ns));
   CHECK(aslam::time::isValidTime(oldest_vertex_time_ns));
 
-  const size_t dropped_constraints =
-      external_features_measurement_temporal_buffer_.removeItemsBefore(
-          oldest_vertex_time_ns - external_features_sync_tolerance_ns_);
+  size_t dropped_constraints = 0;
+  size_t processed_measurements = 0;
+  std::vector<vi_map::ExternalFeaturesMeasurement::ConstPtr> all_measurements;
+  for (auto& buffer_with_sensor_id :
+       external_features_measurement_temporal_buffers_) {
+    common::TemporalBuffer<vi_map::ExternalFeaturesMeasurement::ConstPtr>&
+        measurement_buffer = buffer_with_sensor_id.second;
+
+    dropped_constraints += measurement_buffer.removeItemsBefore(
+        oldest_vertex_time_ns - external_features_sync_tolerance_ns_);
+
+    std::vector<vi_map::ExternalFeaturesMeasurement::ConstPtr> measurements;
+    measurement_buffer.getValuesFromIncludingToIncluding(
+        oldest_vertex_time_ns - external_features_sync_tolerance_ns_,
+        newest_vertex_time_ns + external_features_sync_tolerance_ns_,
+        &measurements);
+
+    all_measurements.insert(
+        all_measurements.end(), measurements.begin(), measurements.end());
+
+    const size_t processed_measurements = measurement_buffer.removeItemsBefore(
+        newest_vertex_time_ns + external_features_sync_tolerance_ns_);
+  }
+
   if (dropped_constraints > 0u) {
     LOG(WARNING) << "[StreamMapBuilder] Dropped " << dropped_constraints
                  << " external feature measurements, because they are before "
                  << "the first vertex of the map.";
   }
 
-  std::vector<vi_map::ExternalFeaturesMeasurement::ConstPtr> measurements;
-  external_features_measurement_temporal_buffer_
-      .getValuesFromIncludingToIncluding(
-          oldest_vertex_time_ns - external_features_sync_tolerance_ns_,
-          newest_vertex_time_ns + external_features_sync_tolerance_ns_,
-          &measurements);
-
-  const size_t processed_measurements =
-      external_features_measurement_temporal_buffer_.removeItemsBefore(
-          newest_vertex_time_ns + external_features_sync_tolerance_ns_);
-
   VLOG(3) << "[StreamMapBuilder] Processing " << processed_measurements
           << " external feature measurements.";
 
   for (const vi_map::ExternalFeaturesMeasurement::ConstPtr measurement_ptr :
-       measurements) {
+       all_measurements) {
     CHECK(measurement_ptr);
     CHECK_LE(
         measurement_ptr->getTimestampNanoseconds(),
