@@ -43,13 +43,6 @@ LoopClosurePlugin::LoopClosurePlugin(
       "Generate the loop detector and serialize it.", common::Processing::Sync);
 
   addCommand(
-      {"align_for_eloc"},
-      [this]() -> int { return alignMissionsForEvaluation(); },
-      "Align and co-optimize missions without merging landmarks to "
-      "perform localization evaluation.",
-      common::Processing::Sync);
-
-  addCommand(
       {"train_projection_matrix"},
       [this]() -> int {
         std::string selected_map_key;
@@ -67,13 +60,6 @@ LoopClosurePlugin::LoopClosurePlugin(
       "Train a new descriptor projection matrix based on the selected map. Use "
       "--lc_projection_matrix_filename to specify the target file for the "
       "projecton matrix.",
-      common::Processing::Sync);
-
-  addCommand(
-      {"eloc", "evaluate_localization"},
-      [this]() -> int { return evaluateLocalization(); },
-      "Evaluation localization between a query and database missions. "
-      "Please align the missions first.",
       common::Processing::Sync);
 }
 
@@ -167,54 +153,6 @@ int LoopClosurePlugin::serializeLoopDetector() const {
   map->getMapFolder(&map_folder);
   CHECK(vi_map::serialization::hasMapOnFileSystem(map_folder));
   return generateLoopDetectorForVIMapAndSerialize(map_folder, *map);
-}
-
-int LoopClosurePlugin::alignMissionsForEvaluation() const {
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapWriteAccess map =
-      map_manager.getMapWriteAccess(selected_map_key);
-
-  vi_map::MissionId query_mission_id;
-  map->ensureMissionIdValid(FLAGS_map_mission, &query_mission_id);
-
-  if (!query_mission_id.isValid()) {
-    LOG(ERROR) << "The given mission \"" << FLAGS_map_mission
-               << "\" is not valid.";
-    return common::kUnknownError;
-  }
-
-  VILocalizationEvaluator evaluator(map.get(), getPlotterUnsafe());
-  evaluator.alignMissionsForEvaluation(query_mission_id);
-
-  return common::kSuccess;
-}
-
-int LoopClosurePlugin::evaluateLocalization() const {
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapWriteAccess map =
-      map_manager.getMapWriteAccess(selected_map_key);
-
-  vi_map::MissionId query_mission_id;
-  map->ensureMissionIdValid(FLAGS_map_mission, &query_mission_id);
-
-  if (!query_mission_id.isValid()) {
-    LOG(ERROR) << "The given mission \"" << FLAGS_map_mission
-               << "\" is not valid.";
-    return common::kUnknownError;
-  }
-
-  VILocalizationEvaluator evaluator(map.get(), getPlotterUnsafe());
-  evaluator.evaluateLocalizationPerformance(query_mission_id);
-
-  return common::kSuccess;
 }
 
 }  // namespace loop_closure_plugin

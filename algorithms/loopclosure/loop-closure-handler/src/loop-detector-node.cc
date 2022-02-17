@@ -441,45 +441,6 @@ void LoopDetectorNode::addLocalizationSummaryMapToDatabase(
   }
 }
 
-void LoopDetectorNode::addLandmarkSetToDatabase(
-    const vi_map::LandmarkIdSet& landmark_id_set, const vi_map::VIMap& map) {
-  typedef std::unordered_map<
-      vi_map::VisualFrameIdentifier, vi_map::LandmarkIdSet>
-      VisualFrameToGlobalLandmarkIdsMap;
-  VisualFrameToGlobalLandmarkIdsMap visual_frame_to_global_landmarks_map;
-
-  for (const vi_map::LandmarkId& landmark_id : landmark_id_set) {
-    const vi_map::Landmark& landmark = map.getLandmark(landmark_id);
-    landmark.forEachObservation(
-        [&](const vi_map::KeypointIdentifier& observer_backlink) {
-          visual_frame_to_global_landmarks_map[observer_backlink.frame_id]
-              .emplace(landmark_id);
-        });
-  }
-
-  for (const VisualFrameToGlobalLandmarkIdsMap::value_type&
-           frameid_and_landmarks : visual_frame_to_global_landmarks_map) {
-    const vi_map::VisualFrameIdentifier& frame_identifier =
-        frameid_and_landmarks.first;
-    const vi_map::Vertex& vertex = map.getVertex(frame_identifier.vertex_id);
-
-    vi_map::LandmarkIdList landmark_ids;
-    vertex.getFrameObservedLandmarkIds(
-        frame_identifier.frame_index, &landmark_ids);
-
-    std::shared_ptr<loop_closure::ProjectedImage> projected_image =
-        std::make_shared<loop_closure::ProjectedImage>();
-    constexpr bool kSkipInvalidLandmarkIds = true;
-    convertFrameToProjectedImageOnlyUsingProvidedLandmarkIds(
-        map, frame_identifier,
-        vertex.getVisualFrame(frame_identifier.frame_index), landmark_ids,
-        vertex.getMissionId(), kSkipInvalidLandmarkIds,
-        frameid_and_landmarks.second, projected_image.get());
-
-    loop_detector_->Insert(projected_image);
-  }
-}
-
 bool LoopDetectorNode::findNFrameInSummaryMapDatabase(
     const aslam::VisualNFrame& n_frame, const bool skip_untracked_keypoints,
     const summary_map::LocalizationSummaryMap& localization_summary_map,
@@ -626,57 +587,6 @@ void LoopDetectorNode::findNearestNeighborMatchesForNFrame(
   }
 
   *num_of_lc_matches = loop_closure::getNumberOfMatches(*frame_matches_list);
-}
-
-bool LoopDetectorNode::findVertexInDatabase(
-    const vi_map::Vertex& query_vertex, const bool merge_landmarks,
-    const bool add_lc_edges, vi_map::VIMap* map, pose::Transformation* T_G_I,
-    unsigned int* num_of_lc_matches,
-    vi_map::LoopClosureConstraint* inlier_constraint) const {
-  CHECK_NOTNULL(map);
-  CHECK_NOTNULL(T_G_I);
-  CHECK_NOTNULL(num_of_lc_matches);
-  CHECK_NOTNULL(inlier_constraint);
-
-  if (loop_detector_->NumEntries() == 0u) {
-    return false;
-  }
-
-  const size_t num_frames = query_vertex.numFrames();
-  loop_closure::ProjectedImagePtrList projected_image_ptr_list;
-  projected_image_ptr_list.reserve(num_frames);
-
-  for (size_t frame_idx = 0u; frame_idx < num_frames; ++frame_idx) {
-    if (query_vertex.isVisualFrameSet(frame_idx) &&
-        query_vertex.isVisualFrameValid(frame_idx)) {
-      vi_map::VisualFrameIdentifier query_frame_id(
-          query_vertex.id(), frame_idx);
-
-      std::vector<vi_map::LandmarkId> observed_landmark_ids;
-      query_vertex.getFrameObservedLandmarkIds(
-          frame_idx, &observed_landmark_ids);
-      projected_image_ptr_list.push_back(
-          std::make_shared<loop_closure::ProjectedImage>());
-      constexpr bool kSkipInvalidLandmarkIds = false;
-      convertFrameToProjectedImage(
-          *map, query_frame_id, query_vertex.getVisualFrame(frame_idx),
-          observed_landmark_ids, query_vertex.getMissionId(),
-          kSkipInvalidLandmarkIds, projected_image_ptr_list.back().get());
-    }
-  }
-
-  loop_closure::FrameToMatches frame_matches_list;
-  constexpr bool kParallelFindIfPossible = true;
-  loop_detector_->Find(
-      projected_image_ptr_list, kParallelFindIfPossible, &frame_matches_list);
-  *num_of_lc_matches = loop_closure::getNumberOfMatches(frame_matches_list);
-
-  timing::Timer timer_compute_relative("lc compute absolute transform");
-  bool ransac_ok = computeAbsoluteTransformFromFrameMatches(
-      frame_matches_list, merge_landmarks, add_lc_edges, map, T_G_I,
-      inlier_constraint, nullptr /*vertex_id_closest_to_structure_matches*/);
-  timer_compute_relative.Stop();
-  return ransac_ok;
 }
 
 bool LoopDetectorNode::computeAbsoluteTransformFromFrameMatches(

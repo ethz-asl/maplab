@@ -62,17 +62,8 @@ class LoopDetectorNode final
 
   bool hasMissionInDatabase(const vi_map::MissionId& mission_id) const;
 
-  void addLandmarkSetToDatabase(
-      const vi_map::LandmarkIdSet& landmark_id_set, const vi_map::VIMap& map);
-
   void addLocalizationSummaryMapToDatabase(
       const summary_map::LocalizationSummaryMap& localization_summary_map);
-
-  bool findVertexInDatabase(
-      const vi_map::Vertex& query_vertex, const bool merge_landmarks,
-      const bool add_lc_edges, vi_map::VIMap* map, pose::Transformation* T_G_I,
-      unsigned int* num_of_lc_matches,
-      vi_map::LoopClosureConstraint* inlier_constraint) const;
 
   bool findNFrameInDatabase(
       const aslam::VisualNFrame& n_frame, const bool skip_untracked_keypoints,
