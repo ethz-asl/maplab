@@ -4,6 +4,8 @@ project(resource_importer)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
+set(CMAKE_CXX_STANDARD 17)
+
 cs_add_library(${PROJECT_NAME}_lib src/message-conversion.cc
                                    src/simple-rosbag-reader.cc)
 
