@@ -165,7 +165,7 @@ class InvertedMultiIndexInterface : public IndexInterface {
   inline void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixBase<DerivedQuery>& query_features, int num_neighbors,
       const Eigen::MatrixBase<DerivedIndices>& indices_const,
-      const Eigen::MatrixBase<DerivedDistances>& distances_const) const {
+      const Eigen::MatrixBase<DerivedDistances>& distances_const) {
     Eigen::MatrixBase<DerivedIndices>& indices =
         internal::CastConstEigenMatrixToNonConst(indices_const);
     Eigen::MatrixBase<DerivedDistances>& distances =
@@ -190,7 +190,7 @@ class InvertedMultiIndexInterface : public IndexInterface {
 
   virtual void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixXf& query_features, int num_neighbors,
-      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) const {
+      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) {
     CHECK_NOTNULL(indices);
     CHECK_NOTNULL(distances);
     GetNNearestNeighborsForFeatures(
@@ -332,7 +332,7 @@ class InvertedMultiProductQuantizationIndexInterface : public IndexInterface {
   inline void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixBase<DerivedQuery>& query_features, int num_neighbors,
       const Eigen::MatrixBase<DerivedIndices>& indices_const,
-      const Eigen::MatrixBase<DerivedDistances>& distances_const) const {
+      const Eigen::MatrixBase<DerivedDistances>& distances_const) {
     Eigen::MatrixBase<DerivedIndices>& indices =
         internal::CastConstEigenMatrixToNonConst(indices_const);
     Eigen::MatrixBase<DerivedDistances>& distances =
@@ -356,7 +356,7 @@ class InvertedMultiProductQuantizationIndexInterface : public IndexInterface {
 
   virtual void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixXf& query_features, int num_neighbors,
-      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) const {
+      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) {
     CHECK_NOTNULL(indices);
     CHECK_NOTNULL(distances);
     GetNNearestNeighborsForFeatures(

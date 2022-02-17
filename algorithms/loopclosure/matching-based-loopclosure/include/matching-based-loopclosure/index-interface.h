@@ -35,7 +35,7 @@ class IndexInterface {
   // for every descriptor from the query_features matrix.
   virtual void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixXf& query_features, int num_neighbors,
-      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) const = 0;
+      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) = 0;
 };
 }  // namespace loop_closure
 #endif  // MATCHING_BASED_LOOPCLOSURE_INDEX_INTERFACE_H_

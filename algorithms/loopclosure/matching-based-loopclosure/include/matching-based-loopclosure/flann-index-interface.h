@@ -19,37 +19,43 @@ namespace loop_closure {
 class FLANNIndexInterface : public IndexInterface {
  public:
   FLANNIndexInterface() {
-    index_.reset(new cv::FlannBasedMatcher());
-    cumulative_count.emplace_back(0);
+    index_.reset(new cv::FlannBasedMatcher(
+        cv::makePtr<cv::flann::KDTreeIndexParams>(5),
+        cv::makePtr<cv::flann::SearchParams>(128)));
+    initialized_ = false;
   }
 
-  virtual int GetNumDescriptorsInIndex() const {
-    const size_t num_images = cumulative_count.size();
-    return cumulative_count[num_images - 1];
-  }
+  virtual int GetNumDescriptorsInIndex() const {}
 
   virtual void Clear() {
     std::lock_guard<std::mutex> lock(index_mutex_);
     index_->clear();
-    cumulative_count.clear();
-    cumulative_count.emplace_back(0);
+    index_images_.clear();
+    initialized_ = false;
   }
 
   virtual void AddDescriptors(const Eigen::MatrixXf& descriptors) {
+    // Skip empty insertions, since it messes with the later concatenation and
+    // doesn't affect the global indices of the descriptors
+    if (descriptors.cols() == 0) {
+      return;
+    }
+
     // First flip since the ordering is reversed in opencv
     Eigen::MatrixXf transpose = descriptors.transpose();
     cv::Mat cv_descriptors;
     cv::eigen2cv(transpose, cv_descriptors);
 
     std::lock_guard<std::mutex> lock(index_mutex_);
-    index_->add(cv_descriptors);
-    cumulative_count.emplace_back(
-        GetNumDescriptorsInIndex() + cv_descriptors.rows);
+    index_images_.emplace_back(cv_descriptors);
+    initialized_ = false;
   }
+
+  virtual void InitializeIndex() {}
 
   virtual void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixXf& query_features, int num_neighbors,
-      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) const {
+      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) {
     CHECK_NOTNULL(indices);
     CHECK_NOTNULL(distances);
 
@@ -58,11 +64,47 @@ class FLANNIndexInterface : public IndexInterface {
     cv::eigen2cv(transpose, cv_query);
 
     std::lock_guard<std::mutex> lock(index_mutex_);
+
+    if (!initialized_) {
+      const int kDescriptorBatchSize = 250000;
+      std::vector<cv::Mat> batched_index_images;
+      cumulative_count.clear();
+      cumulative_count.emplace_back(0);
+
+      int batch_start, batch_end, batch_size;
+      batch_start = batch_size = 0;
+      for (batch_end = 0; batch_end < index_images_.size(); batch_end++) {
+        CHECK(index_images_[batch_end].rows <= kDescriptorBatchSize);
+        if (batch_size + index_images_[batch_end].rows > kDescriptorBatchSize) {
+          batched_index_images.emplace_back(cv::Mat());
+          cv::vconcat(
+              &index_images_[batch_start], batch_end - batch_start,
+              batched_index_images.back());
+          cumulative_count.emplace_back(cumulative_count.back() + batch_size);
+
+          batch_start = batch_end;
+          batch_size = index_images_[batch_end].rows;
+        } else {
+          batch_size += index_images_[batch_end].rows;
+        }
+      }
+
+      // Insert final batch that never get done in the previous loop
+      batched_index_images.emplace_back(cv::Mat());
+      cv::vconcat(
+          &index_images_[batch_start], batch_end - batch_start,
+          batched_index_images.back());
+
+      index_->add(batched_index_images);
+      initialized_ = true;
+    }
+
     std::vector<std::vector<cv::DMatch>> knn_matches;
     index_->knnMatch(cv_query, knn_matches, num_neighbors);
 
     // TODO(smauq): Check that the eigen matrices are correctly preallocated
 
+    const std::vector<cv::Mat>& train = index_->getTrainDescriptors();
     for (size_t i = 0; i < knn_matches.size(); i++) {
       for (size_t j = 0; j < knn_matches[i].size(); j++) {
         const cv::DMatch& match = knn_matches[i][j];
@@ -89,7 +131,9 @@ class FLANNIndexInterface : public IndexInterface {
   }
 
  private:
+  bool initialized_;
   std::shared_ptr<cv::FlannBasedMatcher> index_;
+  std::vector<cv::Mat> index_images_;
   std::vector<int> cumulative_count;
   mutable std::mutex index_mutex_;
 };
