@@ -14,7 +14,6 @@
 
 #include "matching-based-loopclosure/helpers.h"
 #include "matching-based-loopclosure/index-interface.h"
-#include "matching-based-loopclosure/matching_based_loop_detector.pb.h"
 
 DECLARE_int32(lc_target_dimensionality);
 
@@ -213,24 +212,6 @@ class InvertedMultiIndexInterface : public IndexInterface {
     internal::ProjectDescriptors(
         descriptors, vocabulary_.projection_matrix_,
         vocabulary_.target_dimensionality_, projected_descriptors);
-  }
-
-  void serialize(
-      matching_based_loopclosure::proto::MatchingBasedLoopDetector::
-          InvertedMultiIndexInterface* proto_inverted_multi_index_interface)
-      const {
-    CHECK_NOTNULL(proto_inverted_multi_index_interface);
-    CHECK(index_);
-    index_->serialize(
-        proto_inverted_multi_index_interface->mutable_inverted_multi_index());
-  }
-
-  void deserialize(
-      const matching_based_loopclosure::proto::MatchingBasedLoopDetector::
-          InvertedMultiIndexInterface& proto_inverted_multi_index_interface) {
-    CHECK(index_);
-    index_->deserialize(
-        proto_inverted_multi_index_interface.inverted_multi_index());
   }
 
  private:

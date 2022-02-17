@@ -9,8 +9,6 @@
 #include <vi-map/vi-map.h>
 #include <visualization/viwls-graph-plotter.h>
 
-#include "loop-closure-plugin/loop-detector-serialization.h"
-#include "loop-closure-plugin/vi-localization-evaluator.h"
 #include "loop-closure-plugin/vi-map-merger.h"
 
 DECLARE_string(map_mission);
@@ -36,11 +34,6 @@ LoopClosurePlugin::LoopClosurePlugin(
       {"dlc", "delete_loopclosure_edges"},
       [this]() -> int { return deleteAllLoopClosureEdges(); },
       "Delete loop closure edges of all missions.", common::Processing::Sync);
-
-  addCommand(
-      {"sld", "serialize_loop_detector"},
-      [this]() -> int { return serializeLoopDetector(); },
-      "Generate the loop detector and serialize it.", common::Processing::Sync);
 
   addCommand(
       {"train_projection_matrix"},
@@ -138,21 +131,6 @@ int LoopClosurePlugin::deleteAllLoopClosureEdges() const {
   LOG(INFO) << "Removed " << number_of_loop_closure_edges_removed
             << " loop closures edges.";
   return common::kSuccess;
-}
-
-int LoopClosurePlugin::serializeLoopDetector() const {
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapReadAccess map =
-      map_manager.getMapReadAccess(selected_map_key);
-
-  std::string map_folder;
-  map->getMapFolder(&map_folder);
-  CHECK(vi_map::serialization::hasMapOnFileSystem(map_folder));
-  return generateLoopDetectorForVIMapAndSerialize(map_folder, *map);
 }
 
 }  // namespace loop_closure_plugin

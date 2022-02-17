@@ -22,7 +22,6 @@
 
 #include "loop-closure-handler/loop-closure-constraint.h"
 #include "loop-closure-handler/loop-closure-handler.h"
-#include "loop-closure-handler/loop_detector_node.pb.h"
 #include "loop-closure-handler/visualization/loop-closure-visualizer.h"
 
 namespace loop_detector {
@@ -36,8 +35,7 @@ struct ProjectedImage;
 namespace loop_detector_node {
 
 // Ability to mix data from multiple maps intended.
-class LoopDetectorNode final
-    : public common::FileSerializable<proto::LoopDetectorNode> {
+class LoopDetectorNode final {
  public:
   MAPLAB_POINTER_TYPEDEFS(LoopDetectorNode);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -91,13 +89,6 @@ class LoopDetectorNode final
   void clear();
 
   std::string printStatus() const;
-
-  void serialize(
-      proto::LoopDetectorNode* proto_loop_detector_node) const override;
-  void deserialize(
-      const proto::LoopDetectorNode& proto_loop_detector_node) override;
-
-  static const std::string& getDefaultSerializationFilename();
 
  private:
   typedef std::vector<size_t> SupsampledToFullIndexMap;

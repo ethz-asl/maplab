@@ -7,7 +7,6 @@ catkin_simple(ALL_DEPS_REQUIRED)
 add_definitions(-fPIC -shared)
 
 cs_add_library(${PROJECT_NAME} src/loop-closure-plugin.cc
-                               src/loop-detector-serialization.cc
                                src/vi-map-merger.cc)
 create_console_plugin(${PROJECT_NAME})
 

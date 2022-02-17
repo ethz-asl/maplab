@@ -1037,37 +1037,4 @@ void LoopDetectorNode::clear() {
   loop_detector_->Clear();
 }
 
-void LoopDetectorNode::serialize(
-    proto::LoopDetectorNode* proto_loop_detector_node) const {
-  CHECK_NOTNULL(proto_loop_detector_node);
-
-  for (const vi_map::MissionId& mission : missions_in_database_) {
-    mission.serialize(
-        CHECK_NOTNULL(proto_loop_detector_node->add_mission_ids()));
-  }
-
-  loop_detector_->serialize(
-      proto_loop_detector_node->mutable_matching_based_loop_detector());
-}
-
-void LoopDetectorNode::deserialize(
-    const proto::LoopDetectorNode& proto_loop_detector_node) {
-  const int num_missions = proto_loop_detector_node.mission_ids_size();
-  VLOG(1) << "Parsing loop detector with " << num_missions << " missions.";
-  for (int idx = 0; idx < num_missions; ++idx) {
-    vi_map::MissionId mission_id;
-    mission_id.deserialize(proto_loop_detector_node.mission_ids(idx));
-    CHECK(mission_id.isValid());
-    missions_in_database_.insert(mission_id);
-  }
-
-  CHECK(loop_detector_);
-  loop_detector_->deserialize(
-      proto_loop_detector_node.matching_based_loop_detector());
-}
-
-const std::string& LoopDetectorNode::getDefaultSerializationFilename() {
-  return serialization_filename_;
-}
-
 }  // namespace loop_detector_node

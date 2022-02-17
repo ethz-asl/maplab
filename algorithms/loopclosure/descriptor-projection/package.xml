@@ -15,7 +15,6 @@
   <depend>glog_catkin</depend>
   <depend>loopclosure_common</depend>
   <depend>maplab_common</depend>
-  <depend>protobuf_catkin</depend>
   <depend>vi_map</depend>
   <depend>vocabulary_tree</depend>
 </package>

@@ -8,7 +8,6 @@
 #include <loopclosure-common/types.h>
 
 #include "matching-based-loopclosure/helpers.h"
-#include "matching-based-loopclosure/matching_based_loop_detector.pb.h"
 
 namespace loop_detector {
 
@@ -43,13 +42,6 @@ class LoopDetector {
   virtual void Clear() = 0;
   virtual size_t NumEntries() const = 0;
   virtual int NumDescriptors() const = 0;
-
-  virtual void serialize(
-      matching_based_loopclosure::proto::MatchingBasedLoopDetector*
-          matching_based_loop_detector) const = 0;
-  virtual void deserialize(
-      const matching_based_loopclosure::proto::MatchingBasedLoopDetector&
-          matching_based_loop_detector) = 0;
 };
 
 }  // namespace loop_detector
