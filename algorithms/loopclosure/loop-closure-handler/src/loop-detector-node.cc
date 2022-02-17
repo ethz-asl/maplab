@@ -485,38 +485,6 @@ bool LoopDetectorNode::findNFrameInSummaryMapDatabase(
   return success;
 }
 
-bool LoopDetectorNode::findNFrameInDatabase(
-    const aslam::VisualNFrame& n_frame, const bool skip_untracked_keypoints,
-    vi_map::VIMap* map, pose::Transformation* T_G_I,
-    unsigned int* num_of_lc_matches,
-    vi_map::VertexKeyPointToStructureMatchList* inlier_structure_matches,
-    pose_graph::VertexId* vertex_id_closest_to_structure_matches) const {
-  CHECK_NOTNULL(map);
-  CHECK_NOTNULL(T_G_I);
-  CHECK_NOTNULL(num_of_lc_matches);
-  CHECK_NOTNULL(inlier_structure_matches)->clear();
-  // Note: vertex_id_closest_to_structure_matches is optional and may be
-  // NULL.
-
-  loop_closure::FrameToMatches frame_matches_list;
-
-  std::vector<vi_map::LandmarkIdList> query_vertex_observed_landmark_ids;
-
-  findNearestNeighborMatchesForNFrame(
-      n_frame, skip_untracked_keypoints, &query_vertex_observed_landmark_ids,
-      num_of_lc_matches, &frame_matches_list);
-
-  timing::Timer timer_compute_relative("lc compute absolute transform");
-  constexpr bool kMergeLandmarks = false;
-  constexpr bool kAddLoopclosureEdges = false;
-  loop_closure_handler::LoopClosureHandler handler(
-      map, &landmark_id_old_to_new_);
-  return computeAbsoluteTransformFromFrameMatches(
-      n_frame, query_vertex_observed_landmark_ids, frame_matches_list,
-      kMergeLandmarks, kAddLoopclosureEdges, handler, T_G_I,
-      inlier_structure_matches, vertex_id_closest_to_structure_matches);
-}
-
 void LoopDetectorNode::findNearestNeighborMatchesForNFrame(
     const aslam::VisualNFrame& n_frame, const bool skip_untracked_keypoints,
     std::vector<vi_map::LandmarkIdList>* query_vertex_observed_landmark_ids,

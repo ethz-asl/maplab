@@ -65,13 +65,6 @@ class LoopDetectorNode final
   void addLocalizationSummaryMapToDatabase(
       const summary_map::LocalizationSummaryMap& localization_summary_map);
 
-  bool findNFrameInDatabase(
-      const aslam::VisualNFrame& n_frame, const bool skip_untracked_keypoints,
-      vi_map::VIMap* map, pose::Transformation* T_G_I,
-      unsigned int* num_of_lc_matches,
-      vi_map::VertexKeyPointToStructureMatchList* inlier_structure_matches,
-      pose_graph::VertexId* vertex_id_closest_to_structure_matches) const;
-
   bool findNFrameInSummaryMapDatabase(
       const aslam::VisualNFrame& n_frame, const bool skip_untracked_keypoints,
       const summary_map::LocalizationSummaryMap& localization_summary_map,
