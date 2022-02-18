@@ -40,7 +40,7 @@ struct SaveConfig {
   /// NOTE: If this value is set to high, the map cannot be read anymore because
   /// there is a maximum file size above which protobuf doesn't read the data
   /// anymore.
-  static constexpr size_t kVerticesPerProtoFile = 200u;
+  static constexpr size_t kVerticesPerProtoFile = 50u;
   static constexpr size_t kEdgesPerProtoFile = 30000u;
 };
 
