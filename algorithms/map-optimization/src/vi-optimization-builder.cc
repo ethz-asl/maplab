@@ -11,6 +11,10 @@ DEFINE_bool(
 DEFINE_bool(
     ba_use_visual_outlier_rejection_solver, true,
     "Reject outlier landmarks during the solve?");
+DEFINE_string(
+    ba_visual_feature_type, "Invalid",
+    "Type of features to use in bundle adjustment, will default to using all "
+    "of them at once.");
 DEFINE_bool(
     ba_include_inertial, true, "Whether or not to include IMU error-terms.");
 DEFINE_bool(
@@ -102,7 +106,6 @@ ViProblemOptions ViProblemOptions::initFromGFlags() {
   options.fix_gyro_bias = FLAGS_ba_fix_gyro_bias;
   options.fix_accel_bias = FLAGS_ba_fix_accel_bias;
   options.fix_velocity = FLAGS_ba_fix_velocity;
-  options.min_landmarks_per_frame = FLAGS_ba_min_landmark_per_frame;
 
   common::GravityProvider gravity_provider(
       FLAGS_ba_altitude_meters, FLAGS_ba_latitude);
@@ -115,6 +118,9 @@ ViProblemOptions ViProblemOptions::initFromGFlags() {
   options.fix_extrinsics_translation =
       FLAGS_ba_fix_ncamera_extrinsics_translation;
   options.fix_landmark_positions = FLAGS_ba_fix_landmark_positions;
+  options.min_landmarks_per_frame = FLAGS_ba_min_landmark_per_frame;
+  options.visual_feature_type =
+      vi_map::StringToFeatureType(FLAGS_ba_visual_feature_type);
 
   // Wheel odometry constraints
   options.add_wheel_odometry_constraints = FLAGS_ba_include_wheel_odometry;
@@ -158,7 +164,7 @@ OptimizationProblem* constructOptimizationProblem(
     num_visual_constraints_added = addVisualTerms(
         options.fix_landmark_positions, options.fix_intrinsics,
         options.fix_extrinsics_rotation, options.fix_extrinsics_translation,
-        options.min_landmarks_per_frame, problem);
+        options.min_landmarks_per_frame, options.visual_feature_type, problem);
     if (num_visual_constraints_added == 0u) {
       LOG(WARNING)
           << "WARNING: Visual constraints enabled, but none "

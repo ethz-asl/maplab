@@ -11,12 +11,8 @@
 #include <ceres-error-terms/visual-error-term.h>
 #include <ceres/ceres.h>
 #include <maplab-common/progress-bar.h>
-#include <sensors/external-features.h>
 #include <vi-map-helpers/vi-map-queries.h>
 #include <vi-map/landmark-quality-metrics.h>
-
-DEFINE_string(
-    ba_feature_type, "Invalid", "Type of features to use in bundle adjustment");
 
 namespace map_optimization {
 
@@ -206,6 +202,7 @@ int addVisualTermsForVertices(
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
     const size_t min_landmarks_per_frame,
+    const vi_map::FeatureType feature_type,
     const std::shared_ptr<ceres::LocalParameterization>& pose_parameterization,
     const std::shared_ptr<ceres::LocalParameterization>&
         baseframe_parameterization,
@@ -216,9 +213,6 @@ int addVisualTermsForVertices(
 
   vi_map::VIMap* map = CHECK_NOTNULL(problem->getMapMutable());
   const vi_map::MissionIdSet& missions_to_optimize = problem->getMissionIds();
-
-  vi_map::FeatureType feature_type =
-      vi_map::StringToFeatureType(FLAGS_ba_feature_type);
 
   size_t num_visual_constraints = 0u;
   for (const pose_graph::VertexId& vertex_id : vertices) {
@@ -296,7 +290,8 @@ int addVisualTermsForVertices(
 int addVisualTerms(
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
-    const size_t min_landmarks_per_frame, OptimizationProblem* problem) {
+    const size_t min_landmarks_per_frame,
+    const vi_map::FeatureType feature_type, OptimizationProblem* problem) {
   CHECK_NOTNULL(problem);
 
   vi_map::VIMap* map = CHECK_NOTNULL(problem->getMapMutable());
@@ -311,7 +306,7 @@ int addVisualTerms(
     map->getAllVertexIdsInMissionAlongGraph(mission_id, &vertices);
     num_visual_constraints += addVisualTermsForVertices(
         fix_landmark_positions, fix_intrinsics, fix_extrinsics_rotation,
-        fix_extrinsics_translation, min_landmarks_per_frame,
+        fix_extrinsics_translation, min_landmarks_per_frame, feature_type,
         parameterizations.pose_parameterization,
         parameterizations.baseframe_parameterization,
         parameterizations.quaternion_parameterization, vertices, problem);

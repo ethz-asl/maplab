@@ -10,12 +10,14 @@ namespace map_optimization {
 int addVisualTerms(
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
-    const size_t min_landmarks_per_frame, OptimizationProblem* problem);
+    const size_t min_landmarks_per_frame,
+    const vi_map::FeatureType feature_type, OptimizationProblem* problem);
 
 int addVisualTermsForVertices(
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
     const size_t min_landmarks_per_frame,
+    const vi_map::FeatureType feature_type,
     const std::shared_ptr<ceres::LocalParameterization>& pose_parameterization,
     const std::shared_ptr<ceres::LocalParameterization>&
         baseframe_parameterization,
