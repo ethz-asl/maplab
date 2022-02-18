@@ -19,9 +19,9 @@ sensors:
 
   - id: ff000000000000000000000000000001
     sensor_type: EXTERNAL_FEATURES
-    description: "cam1 brisk features"
-    topic: /maplab_features
-    target_sensor: ca27b5000f15adb3c0da8ac6b729ee05
+    description: "R2D2 features"
+    topic: /maplab_features0
+    target_sensor: ca17b5000f15adb3c0da8ac6b729ee05
     has_uncertainties: true
     has_orientations: false
     has_scores: true

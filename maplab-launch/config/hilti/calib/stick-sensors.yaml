@@ -23,6 +23,66 @@ sensors:
     description:                           "OKVIS"
     topic:                                 /odometry/maplab_odom_T_M_I
 
+  - id: ff000000000000000000000000000001
+    sensor_type: EXTERNAL_FEATURES
+    description: "R2D2 features"
+    topic: /maplab_features0
+    target_sensor: 9da9c2fa16894a059f8b40740c721cb1
+    has_uncertainties: true
+    has_orientations: false
+    has_scores: true
+    has_scales: true
+    has_track_ids: true
+    feature_type: R2D2
+
+  - id: ff000000000000000000000000000002
+    sensor_type: EXTERNAL_FEATURES
+    description: "R2D2 features"
+    topic: /maplab_features1
+    target_sensor: 44ed7e1913a847b3b8d9884b9b02fb03
+    has_uncertainties: true
+    has_orientations: false
+    has_scores: true
+    has_scales: true
+    has_track_ids: true
+    feature_type: R2D2
+
+  - id: ff000000000000000000000000000003
+    sensor_type: EXTERNAL_FEATURES
+    description: "R2D2 features"
+    topic: /maplab_features2
+    target_sensor: 08faa68c87a84fd5bd1b0305c99b155d
+    has_uncertainties: true
+    has_orientations: false
+    has_scores: true
+    has_scales: true
+    has_track_ids: true
+    feature_type: R2D2
+
+  - id: ff000000000000000000000000000004
+    sensor_type: EXTERNAL_FEATURES
+    description: "R2D2 features"
+    topic: /maplab_features3
+    target_sensor: da7d19d6662f4a428240bf7f706bbb4d
+    has_uncertainties: true
+    has_orientations: false
+    has_scores: true
+    has_scales: true
+    has_track_ids: true
+    feature_type: R2D2
+
+  - id: ff000000000000000000000000000005
+    sensor_type: EXTERNAL_FEATURES
+    description: "R2D2 features"
+    topic: /maplab_features4
+    target_sensor: c70f9347314d4c26a72280c1f193b47d
+    has_uncertainties: true
+    has_orientations: false
+    has_scores: true
+    has_scales: true
+    has_track_ids: true
+    feature_type: R2D2
+
   - id:                                    4af1bac2a7c5fad79f09e49e3b96d87c
     sensor_type:                           NCAMERA
     description:                           "Alphasense"
@@ -221,6 +281,61 @@ extrinsics:
         - [0.000000000000, 0.000000000000, 0.000000000000, 1.000000000000]
 
   - sensor_id:                             3da6d03bd42e41a93dc941bd5fd9353d
+    base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id:                             ff000000000000000000000000000001
+    base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id:                             ff000000000000000000000000000002
+    base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id:                             ff000000000000000000000000000003
+    base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id:                             ff000000000000000000000000000004
+    base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id:                             ff000000000000000000000000000005
     base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
     T_B_S:
       rows:                                4
