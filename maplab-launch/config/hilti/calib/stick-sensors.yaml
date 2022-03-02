@@ -4,10 +4,10 @@ sensors:
     description:                           "ADIS16445 IMU"
     topic:                                 /alphasense/imu_adis
     sigmas:
-      gyro_noise_density:                  0.005
-      gyro_bias_random_walk_noise_density: 4e-06
+      acc_bias_random_walk_noise_density:  0.002
       acc_noise_density:                   0.01
-      acc_bias_random_walk_noise_density:  0.0002
+      gyro_bias_random_walk_noise_density: 4e-04
+      gyro_noise_density:                  0.01
     saturation_accel_max_mps2:             150
     saturation_gyro_max_radps:             7.5
     gravity_magnitude_mps2:                9.808083883386614
