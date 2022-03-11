@@ -207,25 +207,9 @@ bool LoopClosureHandler::handleLoopClosure(
 
   inlier_constraints->query_vertex_id = query_vertex_id;
 
-  const aslam::VisualNFrame& n_frame = query_vertex.getVisualNFrame();
   std::vector<vi_map::LandmarkIdList> query_vertex_observed_landmark_ids;
-  for (int frame_idx = 0; frame_idx < n_frame.getNumFrames(); frame_idx++) {
-    const aslam::VisualFrame& frame = n_frame.getFrame(frame_idx);
-
-    vi_map::LandmarkIdList landmark_ids_all;
-    query_vertex.getFrameObservedLandmarkIds(frame_idx, &landmark_ids_all);
-
-    size_t block_start, block_size;
-    block_start = block_size = 0;
-    if (frame.hasDescriptorType(feature_type_)) {
-      frame.getDescriptorBlockTypeStartAndSize(
-          feature_type_, &block_start, &block_size);
-    }
-    vi_map::LandmarkIdList landmark_ids(
-        landmark_ids_all.begin() + block_start,
-        landmark_ids_all.begin() + block_start + block_size);
-    query_vertex_observed_landmark_ids.emplace_back(landmark_ids);
-  }
+  query_vertex.getAllObservedLandmarkIdsOfType(
+      &query_vertex_observed_landmark_ids, feature_type_);
 
   return handleLoopClosure(
       query_vertex.getVisualNFrame(), query_vertex_observed_landmark_ids,

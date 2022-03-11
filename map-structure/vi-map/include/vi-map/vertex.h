@@ -33,8 +33,8 @@ class VIMappingTestApp;
 namespace vi_map {
 
 class Vertex : public pose_graph::Vertex {
-  friend class MapConsistencyCheckTest;              // Test.
-  friend class VertexResourcesTest;                  // Test.
+  friend class MapConsistencyCheckTest;  // Test.
+  friend class VertexResourcesTest;      // Test.
   friend class visual_inertial_mapping::VIMappingTestApp;
   FRIEND_TEST(MapConsistencyCheckTest, mapInconsistentMissingBackLink);
   friend class VIMap;
@@ -180,9 +180,14 @@ class Vertex : public pose_graph::Vertex {
       unsigned int frame_idx, LandmarkIdList* landmark_ids) const;
   const LandmarkIdList& getFrameObservedLandmarkIds(
       unsigned int frame_idx) const;
+  void getFrameObservedLandmarkIdsOfType(
+      unsigned int frame_idx, LandmarkIdList* landmark_ids,
+      int feature_type) const;
   void getAllObservedLandmarkIds(LandmarkIdList* landmark_ids) const;
   void getAllObservedLandmarkIds(
       std::vector<LandmarkIdList>* landmark_ids) const;
+  void getAllObservedLandmarkIdsOfType(
+      std::vector<LandmarkIdList>* landmark_ids_all, int feature_type) const;
   size_t getNumLandmarkObservations(const LandmarkId& landmark_id) const;
 
   // Calls action on each possible keypoint identifier in this vertex.

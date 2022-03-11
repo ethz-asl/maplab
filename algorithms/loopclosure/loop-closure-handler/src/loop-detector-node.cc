@@ -296,18 +296,9 @@ void LoopDetectorNode::addVertexToDatabase(
       std::shared_ptr<loop_closure::ProjectedImage> projected_image =
           std::make_shared<loop_closure::ProjectedImage>();
       constexpr bool kSkipInvalidLandmarkIds = true;
-      vi_map::LandmarkIdList landmark_ids_all;
-      vertex.getFrameObservedLandmarkIds(frame_idx, &landmark_ids_all);
-
-      // Filter out landmarks that are not the target type.
-      // This works since the ordering of vertex landmark ids is the same
-      // as the ordering of keypoints in the visual frame.
-      size_t block_start, block_size;
-      frame.getDescriptorBlockTypeStartAndSize(
-          feature_type_, &block_start, &block_size);
-      vi_map::LandmarkIdList landmark_ids(
-          landmark_ids_all.begin() + block_start,
-          landmark_ids_all.begin() + block_start + block_size);
+      vi_map::LandmarkIdList landmark_ids;
+      vertex.getFrameObservedLandmarkIdsOfType(
+          frame_idx, &landmark_ids, feature_type_);
 
       VLOG(200) << "Frame " << frame_idx << " of vertex " << vertex_id
                 << " with " << frame.getDescriptorsOfType(feature_type_).cols()
@@ -709,14 +700,9 @@ void LoopDetectorNode::queryVertexInDatabase(
         continue;
       }
 
-      std::vector<vi_map::LandmarkId> landmark_ids_all;
-      query_vertex.getFrameObservedLandmarkIds(frame_idx, &landmark_ids_all);
-      size_t block_start, block_size;
-      frame.getDescriptorBlockTypeStartAndSize(
-          feature_type_, &block_start, &block_size);
-      vi_map::LandmarkIdList landmark_ids(
-          landmark_ids_all.begin() + block_start,
-          landmark_ids_all.begin() + block_start + block_size);
+      std::vector<vi_map::LandmarkId> landmark_ids;
+      query_vertex.getFrameObservedLandmarkIdsOfType(
+          frame_idx, &landmark_ids, feature_type_);
 
       projected_image_ptr_list.push_back(
           std::make_shared<loop_closure::ProjectedImage>());

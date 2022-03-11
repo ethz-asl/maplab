@@ -832,7 +832,9 @@ int Vertex::numValidObservedLandmarkIdsInAllFrames() const {
 
 void Vertex::getFrameObservedLandmarkIds(
     unsigned int frame_idx, LandmarkIdList* landmark_ids) const {
-  CHECK_NOTNULL(landmark_ids);
+  CHECK_NOTNULL(landmark_ids)->clear();
+  CHECK_LT(frame_idx, numFrames());
+  CHECK_LT(frame_idx, observed_landmark_ids_.size());
   landmark_ids->clear();
   *landmark_ids = observed_landmark_ids_[frame_idx];
 }
@@ -842,6 +844,28 @@ const LandmarkIdList& Vertex::getFrameObservedLandmarkIds(
   CHECK_LT(frame_idx, numFrames());
   CHECK_LT(frame_idx, observed_landmark_ids_.size());
   return observed_landmark_ids_[frame_idx];
+}
+
+void Vertex::getFrameObservedLandmarkIdsOfType(
+    unsigned int frame_idx, LandmarkIdList* landmark_ids,
+    int feature_type) const {
+  CHECK_NOTNULL(landmark_ids)->clear();
+  CHECK_LT(frame_idx, numFrames());
+  CHECK_LT(frame_idx, observed_landmark_ids_.size());
+
+  const aslam::VisualFrame& frame = getVisualFrame(frame_idx);
+  CHECK(frame.hasDescriptorType(feature_type));
+
+  // Filter out landmarks that are not the target type.
+  // This works since the ordering of vertex landmark ids is the same
+  // as the ordering of keypoints in the visual frame.
+  size_t block_start, block_size;
+  frame.getDescriptorBlockTypeStartAndSize(
+      feature_type, &block_start, &block_size);
+  landmark_ids->insert(
+      landmark_ids->end(),
+      observed_landmark_ids_[frame_idx].begin() + block_start,
+      observed_landmark_ids_[frame_idx].begin() + block_start + block_size);
 }
 
 void Vertex::getAllObservedLandmarkIds(LandmarkIdList* landmark_ids) const {
@@ -857,6 +881,19 @@ void Vertex::getAllObservedLandmarkIds(
     std::vector<LandmarkIdList>* landmark_ids) const {
   CHECK_NOTNULL(landmark_ids)->clear();
   *landmark_ids = observed_landmark_ids_;
+}
+
+void Vertex::getAllObservedLandmarkIdsOfType(
+    std::vector<LandmarkIdList>* landmark_ids_all, int feature_type) const {
+  CHECK_NOTNULL(landmark_ids_all)->clear();
+
+  const aslam::VisualNFrame& n_frame = getVisualNFrame();
+  for (int frame_idx = 0; frame_idx < n_frame.getNumFrames(); frame_idx++) {
+    vi_map::LandmarkIdList landmark_ids;
+    getFrameObservedLandmarkIdsOfType(
+        frame_idx, &landmark_ids, feature_type);
+    landmark_ids_all->emplace_back(landmark_ids);
+  }
 }
 
 size_t Vertex::getNumLandmarkObservations(const LandmarkId& landmark_id) const {
