@@ -15,7 +15,7 @@
 
 			<!-- ROBOT SPECIFIC PARAMS -->
 			<!-- SENSORS -->
-			<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors.yaml"/>
+			<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors-semantics.yaml"/>
 			<param name="imu_to_camera_time_offset_ns" value="19779092"/>
 			<param name="vio_camera_topic_suffix" value="image_raw"/>
 
@@ -44,7 +44,7 @@
 
 		<!-- ROBOT SPECIFIC PARAMS -->
 		<!-- SENSORS -->
-		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors.yaml"/>
+		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/lidarstick/calib/lidarstick-150-deg-cams-sensors-semantics.yaml"/>
 		<param name="imu_to_camera_time_offset_ns" value="19779092"/>
 		<param name="vio_camera_topic_suffix" value="image_raw"/>
 

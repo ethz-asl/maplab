@@ -1,4 +1,12 @@
 # How to use the semantify plugin
+## Preparation
+Install all requirements for Mask R-CNN, NetVLAD, and DeepSort
+```
+cd <maplab_source>
+pip install -U -r dependencies/3rdparty/mask_rcnn_ros_private/requirements.txt
+pip install -U -r dependencies/3rdparty/deep_sort/requirements.txt
+pip install -U -r dependencies/3rdparty/netvlad/requirements.txt
+```
 
 ## Attach RGB images resources to map
 Use the following flag when building the map
@@ -42,9 +50,11 @@ In `maplab_console`, the following command is used to call netvlad:
 generate_and_save_semantic_object_measurements
 ```
 
-For multi-object association, we use the master branch from git@github.com:raymond30031/deep_sort.git:
+For multi-object association, we use Deeo Sort
+```bash
 rosrun deep_sort_ros deep_sort_node.py
 generate_and_save_semantic_object_track_ids_from_deepsort --tracking_confidence_threshold 0.85
+```
 
 tuning parameters:
 requires 3 consecutive hits to have a confirmed track

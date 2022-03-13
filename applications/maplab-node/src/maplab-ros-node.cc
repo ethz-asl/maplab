@@ -1,28 +1,25 @@
 #include "maplab-node/maplab-ros-node.h"
 
+#include <aslam/cameras/ncamera.h>
 #include <atomic>
-#include <memory>
-#include <signal.h>
-#include <string>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <ros/ros.h>
-#include <std_msgs/String.h>
-
-#include <aslam/cameras/ncamera.h>
 #include <localization-summary-map/localization-summary-map-creation.h>
 #include <localization-summary-map/localization-summary-map.h>
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
+#include <memory>
 #include <message-flow/message-dispatcher-fifo.h>
 #include <message-flow/message-flow.h>
 #include <message-flow/message-topic-registration.h>
+#include <ros/ros.h>
 #include <sensors/imu.h>
 #include <sensors/lidar.h>
-
+#include <signal.h>
+#include <std_msgs/String.h>
 #include <std_srvs/Empty.h>
+#include <string>
 #include <vi-map/vi-map-serialization.h>
 #include <vio-common/vio-types.h>
 
@@ -82,9 +79,9 @@ DEFINE_bool(
 
 DECLARE_bool(map_split_map_into_submaps_when_saving_periodically);
 DECLARE_int32(map_save_every_n_sec);
+DECLARE_bool(map_builder_save_color_image_as_resources);
 
 namespace maplab {
-
 MaplabRosNode::MaplabRosNode(
     const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
     : nh_(nh),
@@ -101,8 +98,8 @@ MaplabRosNode::MaplabRosNode(
       message_flow::MessageFlow::create<message_flow::MessageDispatcherFifo>(
           common::getNumHardwareThreads()));
 
-  // If a map will be saved (i.e., if the save map folder is not empty), append
-  // a number to the name until a name is found that is free.
+  // If a map will be saved (i.e., if the save map folder is not empty),
+  // append a number to the name until a name is found that is free.
   map_output_folder_ = FLAGS_map_output_folder;
   if (!FLAGS_map_overwrite_enabled && !map_output_folder_.empty()) {
     // Add a unique mission_timestamp prefix for storing the submaps.
@@ -189,8 +186,8 @@ bool MaplabRosNode::saveMap(
     const std::string date_time_string =
         common::generateDateStringFromCurrentTime();
 
-    // Augment the map folder with date and time if saving periodically and add
-    // the submap number if submapping is enabled.
+    // Augment the map folder with date and time if saving periodically and
+    // add the submap number if submapping is enabled.
     std::string map_folder_updated;
     if (FLAGS_map_save_every_n_sec > 0) {
       if (stop_mapping) {
@@ -251,8 +248,9 @@ void MaplabRosNode::shutdown() {
 
 // Save map over ROS service, in case save_map_on_shutdown is disabled.
 bool MaplabRosNode::saveMapCallback(
-    std_srvs::Empty::Request& /*request*/,      // NOLINT
-    std_srvs::Empty::Response& /*response*/) {  // NOLINT
+    std_srvs::Empty::Request& /*request*/,  // NOLINT
+    std_srvs::Empty::Response&
+    /*response*/) {  // NOLINT
   return saveMapAndContinueMapping();
 }
 

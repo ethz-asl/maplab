@@ -125,7 +125,8 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
             image_message, sensor_msgs::image_encodings::TYPE_8UC1);
         image_measurement->encoding = sensor_msgs::image_encodings::MONO8;
       } else if (
-          image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
+          image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC3 ||
+          image_message->encoding == sensor_msgs::image_encodings::BGR8) {
         if (FLAGS_map_builder_save_color_image_as_resources) {
           // Keep image as it was.
           cv_ptr = cv_bridge::toCvShare(image_message);
