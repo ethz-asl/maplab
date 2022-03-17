@@ -112,4 +112,8 @@ bool AlignmentCandidatePair::operator==(
   return isSameCandidatePair(rhs);
 }
 
+int64_t AlignmentCandidatePair::getNewestTimestamp() const {
+  return std::max(candidate_A.timestamp_ns, candidate_B.timestamp_ns);
+}
+
 }  // namespace dense_mapping

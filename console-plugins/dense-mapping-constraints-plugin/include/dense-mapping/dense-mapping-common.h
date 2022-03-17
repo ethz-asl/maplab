@@ -17,12 +17,13 @@ typedef Eigen::Matrix<double, 3, Eigen::Dynamic> PositionMatrix;
 typedef Eigen::Matrix<int64_t, 1, Eigen::Dynamic> TimestampNsVector;
 
 static std::unordered_set<backend::ResourceType, backend::ResourceTypeHash>
-    kSupportedResourceTypes{
-        backend::ResourceType::kPointCloudXYZ,
-        backend::ResourceType::kPointCloudXYZI,
-        backend::ResourceType::kPointCloudXYZRGBN,
-        backend::ResourceType::kPointCloudXYZL
-    };
+    kSupportedResourceTypes{backend::ResourceType::kPointCloudXYZ,
+                            backend::ResourceType::kPointCloudXYZI,
+                            backend::ResourceType::kPointCloudXYZRGBN,
+                            backend::ResourceType::kPointCloudXYZL,
+                            backend::ResourceType::kPointCloudXYZIRT};
+
+enum class ConstraintType { consecutive, proximity, incremental, global };
 
 struct AlignmentCandidate {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -78,6 +79,9 @@ struct AlignmentCandidatePair {
   // Convenience function for logging.
   friend std::ostream& operator<<(
       std::ostream& out, const AlignmentCandidatePair& pair);
+
+  int64_t getNewestTimestamp() const;
+  ConstraintType type;
 };
 
 }  // namespace dense_mapping
@@ -118,6 +122,8 @@ struct hash<dense_mapping::AlignmentCandidatePair> {
 namespace dense_mapping {
 
 typedef AlignedUnorderedSet<AlignmentCandidatePair> AlignmentCandidatePairs;
+typedef Aligned<std::vector, AlignmentCandidatePairs::iterator>
+    AlignmentCandidatePairIterators;
 typedef Aligned<std::vector, AlignmentCandidate> AlignmentCandidateList;
 typedef AlignedUnorderedMap<vi_map::MissionId, AlignmentCandidateList>
     MissionToAlignmentCandidatesMap;

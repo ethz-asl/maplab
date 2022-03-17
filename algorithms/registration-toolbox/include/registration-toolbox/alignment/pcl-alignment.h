@@ -1,7 +1,12 @@
 #ifndef REGISTRATION_TOOLBOX_ALIGNMENT_PCL_ALIGNMENT_H_
 #define REGISTRATION_TOOLBOX_ALIGNMENT_PCL_ALIGNMENT_H_
+#define PCL_NO_PRECOMPILE
+
+#include <algorithm>
+#include <limits>
 
 #include <glog/logging.h>
+#include <pcl/filters/crop_box.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/registration/gicp.h>
 #include <pcl/registration/icp.h>
@@ -17,13 +22,7 @@ using PclPointCloudPtr = typename boost::shared_ptr<pcl::PointCloud<T>>;
 template <typename T_alignment, typename T_point>
 class PclAlignment : public BaseAlignment<PclPointCloudPtr<T_point>> {
  public:
-  PclAlignment() {
-    CHECK_GT(FLAGS_regbox_pcl_downsample_leaf_size_m, 0);
-    voxel_grid_.setLeafSize(
-        FLAGS_regbox_pcl_downsample_leaf_size_m,
-        FLAGS_regbox_pcl_downsample_leaf_size_m,
-        FLAGS_regbox_pcl_downsample_leaf_size_m);
-  }
+  PclAlignment();
   virtual ~PclAlignment() = default;
 
  protected:
@@ -35,7 +34,22 @@ class PclAlignment : public BaseAlignment<PclPointCloudPtr<T_point>> {
  private:
   T_alignment aligner_;
   pcl::VoxelGrid<T_point> voxel_grid_;
+  void downSamplePointCloud(
+      const PclPointCloudPtr<T_point>& cloud,
+      const PclPointCloudPtr<T_point>& cloud_ds);
 };
+
+template <typename T_alignment, typename T_point>
+PclAlignment<T_alignment, T_point>::PclAlignment() {
+  CHECK_GT(FLAGS_regbox_pcl_downsample_leaf_size_m, 0);
+  voxel_grid_.setLeafSize(
+      FLAGS_regbox_pcl_downsample_leaf_size_m,
+      FLAGS_regbox_pcl_downsample_leaf_size_m,
+      FLAGS_regbox_pcl_downsample_leaf_size_m);
+
+  CHECK_GT(FLAGS_regbox_pcl_max_iterations, 0);
+  aligner_.setMaximumIterations(FLAGS_regbox_pcl_max_iterations);
+}
 
 template <typename T_alignment, typename T_point>
 RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
@@ -45,32 +59,155 @@ RegistrationResult PclAlignment<T_alignment, T_point>::registerCloudImpl(
   CHECK_NOTNULL(target);
   CHECK_NOTNULL(source);
 
-  PclPointCloudPtr<T_point> target_ds(new pcl::PointCloud<T_point>);
-  PclPointCloudPtr<T_point> source_ds(new pcl::PointCloud<T_point>);
+  PclPointCloudPtr<T_point> target_aligner_input;
+  PclPointCloudPtr<T_point> source_aligner_input;
 
-  voxel_grid_.setInputCloud(target);
-  voxel_grid_.filter(*target_ds);
-  voxel_grid_.setInputCloud(source);
-  voxel_grid_.filter(*source_ds);
+  if (FLAGS_regbox_pcl_use_downsampling) {
+    target_aligner_input =
+        PclPointCloudPtr<T_point>(new pcl::PointCloud<T_point>);
+    source_aligner_input =
+        PclPointCloudPtr<T_point>(new pcl::PointCloud<T_point>);
+    downSamplePointCloud(target, target_aligner_input);
+    downSamplePointCloud(source, source_aligner_input);
+  } else {
+    target_aligner_input = target;
+    source_aligner_input = source;
+  }
 
   bool is_converged = true;
   PclPointCloudPtr<T_point> transformed(new pcl::PointCloud<T_point>);
+
   try {
     const Eigen::Matrix4f prior =
         prior_T_target_source.getTransformationMatrix().cast<float>();
-    aligner_.setInputTarget(target_ds);
-    aligner_.setInputSource(source_ds);
+    aligner_.setInputTarget(target_aligner_input);
+    aligner_.setInputSource(source_aligner_input);
     aligner_.align(*transformed, prior);
   } catch (std::exception& e) {
     LOG(ERROR) << "PCL registration failed to align the point clouds.";
     VLOG(3) << "PCL registration error: " << e.what();
     is_converged = false;  // just a procaution.
   }
-  const Eigen::Matrix4f T = aligner_.getFinalTransformation();
-  const Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6) * 1e-4;
-  return RegistrationResult(
-      transformed, cov, this->convertEigenToKindr(T.cast<double>()),
-      aligner_.hasConverged() & is_converged);
+
+  CHECK_GT(FLAGS_regbox_pcl_fitness_max_considered_distance_m, 0);
+  CHECK_GT(FLAGS_regbox_pcl_max_fitness_score_m, 0);
+  const double fitness_score = aligner_.getFitnessScore(
+      FLAGS_regbox_pcl_fitness_max_considered_distance_m);
+  is_converged &= fitness_score <= FLAGS_regbox_pcl_max_fitness_score_m;
+  const Eigen::Matrix4f T_f = aligner_.getFinalTransformation();
+  const Eigen::Matrix4d T = T_f.cast<double>();
+  Eigen::MatrixXd fixed_cov = Eigen::MatrixXd::Identity(6, 6);
+  fixed_cov.block(0, 0, 3, 3) =
+      fixed_cov.block(0, 0, 3, 3) * FLAGS_regbox_fixed_covariance_translation_m;
+  fixed_cov.block(3, 3, 3, 3) =
+      fixed_cov.block(3, 3, 3, 3) * FLAGS_regbox_fixed_covariance_rotation_rad;
+
+  if (T.topLeftCorner<3, 3>().normalized().squaredNorm() <=
+      static_cast<double>(1) +
+          kindr::minimal::EPS<double>::normalization_value()) {
+    return RegistrationResult(
+        transformed, fixed_cov, this->convertEigenToKindr(T),
+        aligner_.hasConverged() & is_converged);
+  } else {
+    LOG(ERROR)
+        << "PCL registration gave invalid rotation matrix, returning prior.";
+    return RegistrationResult(
+        transformed, fixed_cov, prior_T_target_source, false);
+  }
+}
+
+template <typename T_alignment, typename T_point>
+void PclAlignment<T_alignment, T_point>::downSamplePointCloud(
+    const PclPointCloudPtr<T_point>& cloud,
+    const PclPointCloudPtr<T_point>& cloud_ds) {
+  CHECK_NOTNULL(cloud);
+  CHECK_NOTNULL(cloud_ds);
+  if (cloud->points.size() == 0) {
+    *cloud = *cloud_ds;
+    return;
+  }
+
+  const float inverse_grid_size = 1. / FLAGS_regbox_pcl_downsample_leaf_size_m;
+
+  // Since the PCL VoxelGrid checks if all voxels inside the bounding box of the
+  // point cloud fit into memory and otherwise skips downsampling, we have to
+  // split the point cloud into multiple volumes that are small enough to fit.
+
+  std::uint64_t volume_level = 1u;
+
+  T_point min_point;
+  T_point max_point;
+  pcl::getMinMax3D(*cloud, min_point, max_point);
+  const std::uint64_t dx =
+      std::max(std::ceil((max_point.x - min_point.x) * inverse_grid_size), 1.f);
+  const std::uint64_t dy =
+      std::max(std::ceil((max_point.y - min_point.y) * inverse_grid_size), 1.f);
+  const std::uint64_t dz =
+      std::max(std::ceil((max_point.z - min_point.z) * inverse_grid_size), 1.f);
+  const std::uint64_t dxdydz = dx * dy * dz;
+  // Find amount of levels that we have to split the pointcloud into
+  bool indices_fit_in_voxel_grid = false;
+  while (!indices_fit_in_voxel_grid) {
+    if ((dxdydz / (volume_level * volume_level * volume_level)) <
+        static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max())) {
+      indices_fit_in_voxel_grid = true;
+    } else {
+      ++volume_level;
+    }
+  }
+
+  for (std::uint64_t x_level = 0u; x_level < volume_level; ++x_level) {
+    const float min_x = min_point.x + (max_point.x - min_point.x) *
+                                          static_cast<float>(x_level) /
+                                          static_cast<float>(volume_level);
+    const float max_x = min_point.x + (max_point.x - min_point.x) *
+                                          static_cast<float>(x_level + 1) /
+                                          static_cast<float>(volume_level);
+
+    for (std::uint64_t y_level = 0u; y_level < volume_level; ++y_level) {
+      const float min_y = min_point.y + (max_point.y - min_point.y) *
+                                            static_cast<float>(y_level) /
+                                            static_cast<float>(volume_level);
+      const float max_y = min_point.y + (max_point.y - min_point.y) *
+                                            static_cast<float>(y_level + 1) /
+                                            static_cast<float>(volume_level);
+      for (std::uint64_t z_level = 0u; z_level < volume_level; ++z_level) {
+        const float min_z = min_point.z + (max_point.z - min_point.z) *
+                                              static_cast<float>(z_level) /
+                                              static_cast<float>(volume_level);
+
+        const float max_z = min_point.z + (max_point.z - min_point.z) *
+                                              static_cast<float>(z_level + 1) /
+                                              static_cast<float>(volume_level);
+
+        // Calculate borders of current subvolume
+        pcl::PointXYZ current_volume_min(min_x, min_y, min_z);
+        pcl::PointXYZ current_volume_max(max_x, max_y, max_z);
+
+        // Filter the points in the respective subvolumes
+        pcl::CropBox<T_point> box_filter;
+        PclPointCloudPtr<T_point> points_in_current_volume(
+            new pcl::PointCloud<T_point>);
+        box_filter.setMin(Eigen::Vector4f(
+            current_volume_min.x, current_volume_min.y, current_volume_min.z,
+            1.0));
+        box_filter.setMax(Eigen::Vector4f(
+            current_volume_max.x, current_volume_max.y, current_volume_max.z,
+            1.0));
+        box_filter.setInputCloud(cloud);
+        box_filter.filter(*points_in_current_volume);
+        PclPointCloudPtr<T_point> filtered_cloud_in_current_volume(
+            new pcl::PointCloud<T_point>);
+
+        // Perform voxel grid downsampling on points inside that volume and add
+        // to output pointcloud
+
+        voxel_grid_.setInputCloud(points_in_current_volume);
+        voxel_grid_.filter(*filtered_cloud_in_current_volume);
+        *cloud_ds += *filtered_cloud_in_current_volume;
+      }
+    }
+  }
 }
 
 using IcpAlignment = PclAlignment<

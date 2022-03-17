@@ -101,14 +101,14 @@ TEST_F(DenseMappingTest, TestDenseMapping) {
   EXPECT_TRUE(addDenseMappingConstraintsToMap(config, mission_ids, map_ptr));
   timer_first.Stop();
 
-  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 1);
+  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 3);
 
   timing::TimerImpl timer_second("addDenseMappingConstraintsToMap (run 2)");
   EXPECT_TRUE(addDenseMappingConstraintsToMap(config, mission_ids, map_ptr));
   timer_second.Stop();
 
   // No new edges are computed.
-  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 1);
+  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 3);
 
   visualizeMap();
 
@@ -182,6 +182,40 @@ TEST_F(DenseMappingTest, TestParallelProcessMoreThreads) {
   EXPECT_GT(actual_num_threads, 0);
   EXPECT_LE(actual_num_threads, num_threads);
   EXPECT_EQ(thread_accum.load(), end - start);
+}
+
+TEST_F(DenseMappingTest, TestEdgeRemoval) {
+  FLAGS_vis_lc_edge_covariances = true;
+  FLAGS_tf_map_frame = "darpa";
+  FLAGS_dm_candidate_search_enable_intra_mission_consecutive = true;
+  FLAGS_dm_candidate_search_enable_intra_mission_proximity = true;
+  FLAGS_dm_candidate_search_enable_inter_mission_proximity = true;
+  regbox::FLAGS_regbox_pcl_downsample_leaf_size_m = 0.1;
+  vi_map::VIMap* map_ptr = CHECK_NOTNULL(test_app_.getMapMutable());
+  const Config config = Config::fromGflags();
+
+  EXPECT_EQ(getNumLoopClosureEdges(*map_ptr), 0);
+  vi_map::MissionIdList mission_ids;
+  map_ptr->getAllMissionIds(&mission_ids);
+  EXPECT_TRUE(addDenseMappingConstraintsToMap(config, mission_ids, map_ptr));
+
+  const size_t n_edges = getNumLoopClosureEdges(*map_ptr);
+  EXPECT_GT(n_edges, 0);
+
+  pose_graph::VertexIdList all_vertices;
+  map_ptr->getAllVertexIdsAlongGraphsSortedByTimestamp(&all_vertices);
+
+  const size_t n_to_remove = 20u;
+  const std::size_t n_vertices = all_vertices.size();
+  std::size_t n_removed_vertices = 0u;
+  CHECK_GT(n_vertices, n_to_remove);
+  for (const pose_graph::VertexId& v : all_vertices) {
+    if (removeConstraintsFromVertex(v, map_ptr)) {
+      ++n_removed_vertices;
+    }
+  }
+  EXPECT_GT(n_removed_vertices, 0u);
+  EXPECT_LT(getNumLoopClosureEdges(*map_ptr), n_edges);
 }
 
 }  // namespace dense_mapping

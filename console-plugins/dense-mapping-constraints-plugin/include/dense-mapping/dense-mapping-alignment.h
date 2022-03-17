@@ -37,6 +37,11 @@ bool computeAlignmentForCandidatePairsImpl(
     std::shared_ptr<regbox::BaseController>* aligner_ptr,
     AlignmentCandidatePair* aligned_pair);
 
+bool computeAlignmentForIncrementalSubmapCandidatePairs(
+    const AlignmentConfig& config,
+    const AlignmentCandidatePairs& candidate_pairs, vi_map::VIMap* vi_map_ptr,
+    AlignmentCandidatePairs* aligned_candidate_pairs);
+
 }  // namespace dense_mapping
 
 #endif  // DENSE_MAPPING_DENSE_MAPPING_ALIGNMENT_H_
