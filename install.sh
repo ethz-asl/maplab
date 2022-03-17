@@ -119,7 +119,7 @@ catkin config --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-
 cd src
 
 echo -e "\e[92m\e[1mCloning maplab repository and dependencies...\e[39m\e[0m"
-if [ $EXPERIMENTAL ] 
+if [ $EXPERIMENTAL == true ] 
 then
   git clone git@github.com:ethz-asl/maplab_experimental.git --recursive
 else
@@ -128,7 +128,7 @@ fi
 
 echo -e "\e[92m\e[1mInstalling the linter...\e[39m\e\0m"
 
-if [ $EXPERIMENTAL ]
+if [ $EXPERIMENTAL == true ]
 then
   cd $CATKIN_WS/src/maplab_experimental/maplab
 else
