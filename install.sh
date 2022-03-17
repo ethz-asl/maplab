@@ -130,9 +130,9 @@ echo -e "\e[92m\e[1mInstalling the linter...\e[39m\e\0m"
 
 if [ $EXPERIMENTAL ]
 then
-  cd $CATKIN_WS/src/maplab
-else
   cd $CATKIN_WS/src/maplab_experimental/maplab
+else
+  cd $CATKIN_WS/src/maplab
 fi
 ./dependencies/internal/linter/init-git-hooks.py
 
