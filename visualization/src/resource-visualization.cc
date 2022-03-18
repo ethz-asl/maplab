@@ -17,6 +17,7 @@
 #include <thread>
 #include <vi-map/vertex.h>
 #include <vi-map/vi-map.h>
+#include <visualization/color-palette.h>
 #include <visualization/common-rviz-visualization.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <voxblox/core/common.h>
@@ -526,6 +527,65 @@ void visualizeReprojectedDepthResourceFromMission(
     return;
   }
   VLOG(1) << "No mission found with id: " << FLAGS_vis_pointcloud_mission_id;
+}
+
+void visualizeReprojectedDepthResourceSequentially(
+    const backend::ResourceType input_resource_type,
+    const vi_map::MissionIdList& mission_ids, const vi_map::VIMap& vi_map) {
+  CHECK(!mission_ids.empty());
+  srand(time(NULL));
+
+  // Extract resource information from the missions.
+  std::map<int64_t, SequentialPointCloud> incremental_resources;
+  std::vector<std::string> mission_topic_prefix;
+  uint16_t mission_counter = 0u;
+  const std::string mission_prefix = "mission_";
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    const std::string& mission_string = mission_id.shortHex();
+    VLOG(1) << "mission string is " << mission_string;
+    if (!FLAGS_vis_pointcloud_mission_id.empty() &&
+        mission_string != FLAGS_vis_pointcloud_mission_id) {
+      continue;
+    }
+    visualization::Color color;
+    visualization::GetRandomRGBColor(&color);
+    createPointCloudMessageVectorForMission(
+        input_resource_type, mission_id, vi_map, mission_counter, color,
+        &incremental_resources);
+    mission_topic_prefix.emplace_back(mission_prefix + mission_string);
+    ++mission_counter;
+  }
+  // Publish the point clouds.
+  // We assume that the iteration is fast enough for the waiting.
+  int64_t previous_ts_ns = 0;
+  uint32_t idx = 0u;
+  VLOG(1) << "Publishing point clouds with playback: "
+          << FLAGS_vis_pointcloud_sequential_speedup << "x.";
+  for (const auto& kv : incremental_resources) {
+    if (previous_ts_ns > 0) {
+      int64_t ts_diff_ns =
+          (kv.first - previous_ts_ns) / FLAGS_vis_pointcloud_sequential_speedup;
+      // Sleep for x ns, where x is the time difference to previous resource.
+      std::this_thread::sleep_for(std::chrono::nanoseconds(ts_diff_ns));
+    }
+    sensor_msgs::PointCloud2 ros_point_cloud_G;
+    backend::convertPointCloudType(kv.second.point_cloud, &ros_point_cloud_G);
+
+    const std::string mission_prefix = mission_topic_prefix[kv.second.mission];
+
+    publishPointCloudInGlobalFrame(mission_prefix, &ros_point_cloud_G);
+
+    publishVerticesFromPoseVector(
+        {kv.second.pose}, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
+        mission_prefix + "/current_pose");
+
+    publishLines(
+        {kv.second.edge}, idx, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
+        mission_prefix + "/pose");
+
+    previous_ts_ns = kv.first;
+    ++idx;
+  }
 }
 
 }  // namespace visualization

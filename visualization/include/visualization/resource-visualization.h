@@ -83,6 +83,11 @@ struct SequentialPointCloud {
           const vi_map::MissionIdList& mission_ids,
           const vi_map::VIMap& map);
 
+  void visualizeReprojectedDepthResourceSequentially(
+          const backend::ResourceType type,
+          const vi_map::MissionIdList& mission_ids,
+          const vi_map::VIMap& map);
+
   void getOpenCvWindowsForNCamera(
           const aslam::NCamera& n_camera,
           std::vector<std::string>* named_windows);
