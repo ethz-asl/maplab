@@ -1,14 +1,13 @@
 #ifndef VI_MAP_VISUALIZATION_PLUGIN_VISUALIZATION_PLUGIN_H_
 #define VI_MAP_VISUALIZATION_PLUGIN_VISUALIZATION_PLUGIN_H_
 
-#include <memory>
-
 #include <Eigen/Dense>
 #include <console-common/console-plugin-base.h>
 #include <console-common/console.h>
+#include <map-manager/map-manager.h>
+#include <memory>
 #include <string>
 #include <vi-map/vi-map.h>
-#include <map-manager/map-manager.h>
 
 namespace common {
 class Console;
@@ -31,6 +30,8 @@ class VisualizationPlugin : public common::ConsolePluginBase {
   int visualizeSensorExtrinsics() const;
   int visualizeLandmarkObserverRays() const;
   int visualizeReprojectedDepthResource(backend::ResourceType type);
+  int visualizeReprojectedDepthResourceFromMission(backend::ResourceType type);
+  int visualizeReprojectedDepthResourceSequentially(backend::ResourceType type);
 
   int getAllMissionIds(
       const vi_map::VIMapManager::MapReadAccess& map,

@@ -1,11 +1,10 @@
 #include "vi-map-visualization-plugin/visualization-plugin.h"
 
-#include <iostream>  //NOLINT
-#include <memory>
-
 #include <Eigen/Core>
 #include <aslam/common/time.h>
 #include <console-common/console.h>
+#include <iostream>  //NOLINT
+#include <memory>
 #include <plotty/matplotlibcpp.hpp>
 #include <visualization/landmark-observer-plotter.h>
 #include <visualization/resource-visualization.h>
@@ -107,6 +106,23 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
             backend::ResourceType::kPointCloudXYZI);
       },
       "Publish all xyz + intensity point clouds.", common::Processing::Sync);
+
+  addCommand(
+      {"visualize_xyzi_pointclouds_from_mission"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResourceFromMission(
+            backend::ResourceType::kPointCloudXYZI);
+      },
+      "Publish all xyz + intensity point clouds.", common::Processing::Sync);
+
+  addCommand(
+      {"visualize_xyzi_pointclouds_sequentially"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResourceSequentially(
+            backend::ResourceType::kPointCloudXYZI);
+      },
+      "Incrementally builds and visualizes xyz + intensity dense maps.",
+      common::Processing::Sync);
 
   addCommand(
       {"visualize_xyzrgbn_pointclouds"},
