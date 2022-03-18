@@ -90,8 +90,8 @@ dm_candidate_search_proximity_max_delta_rotation_deg:                 180.0 # De
 dm_candidate_search_proximity_min_distance_along_graph_m:             2.0 # Default 1.0
 dm_candidate_search_proximity_take_closest_n_candidates:              3 # Default 3
 # Add constraints between global point cloud matches - NOT IMPLEMENTED YET
-dm_candidate_search_enable_intra_mission_global:                      false # Default true
-dm_candidate_search_enable_inter_mission_global:                      false # Default true
+dm_candidate_search_enable_intra_mission_global:                      false # Default false
+dm_candidate_search_enable_inter_mission_global:                      false # Default false
 # Decide which constraints to recompute when calling the function iteratively,
 # as it is done in the server.
 dm_candidate_selection_recompute_all_constraints:                     false # Default false

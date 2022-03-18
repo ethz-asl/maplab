@@ -1,15 +1,12 @@
-#include "dense-mapping/dense-mapping.h"
-
+#include <aslam/common/timer.h>
 #include <atomic>
 #include <chrono>
 #include <functional>
-#include <thread>
-
-#include <aslam/common/timer.h>
 #include <map-manager/map-manager.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
 #include <registration-toolbox/common/registration-gflags.h>
+#include <thread>
 #include <vi-map/vi-map.h>
 #include <vi-mapping-test-app/vi-mapping-test-app.h>
 #include <visualization/resource-visualization.h>
@@ -17,6 +14,7 @@
 #include <visualization/viwls-graph-plotter.h>
 
 #include "dense-mapping/dense-mapping-parallel-process.h"
+#include "dense-mapping/dense-mapping.h"
 
 DECLARE_bool(vis_lc_edge_covariances);
 
@@ -101,14 +99,14 @@ TEST_F(DenseMappingTest, TestDenseMapping) {
   EXPECT_TRUE(addDenseMappingConstraintsToMap(config, mission_ids, map_ptr));
   timer_first.Stop();
 
-  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 3);
+  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 5);
 
   timing::TimerImpl timer_second("addDenseMappingConstraintsToMap (run 2)");
   EXPECT_TRUE(addDenseMappingConstraintsToMap(config, mission_ids, map_ptr));
   timer_second.Stop();
 
   // No new edges are computed.
-  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 3);
+  EXPECT_NEAR(getNumLoopClosureEdges(*map_ptr), 44, 5);
 
   visualizeMap();
 

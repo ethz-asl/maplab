@@ -67,12 +67,12 @@ DEFINE_bool(
 
 // CANDIDATE SEARCH - GLOBAL
 DEFINE_bool(
-    dm_candidate_search_enable_intra_mission_global, true,
+    dm_candidate_search_enable_intra_mission_global, false,
     "If enabled, the algorithm will try to find dense mapping constraints "
     "between any dense data based on a global place recognition algorithm, "
     "within a single mission.");
 DEFINE_bool(
-    dm_candidate_search_enable_inter_mission_global, true,
+    dm_candidate_search_enable_inter_mission_global, false,
     "If enabled, the algorithm will try to find dense mapping constraints "
     "between any dense data based on a global place recognition algorithm, "
     "across missions.");
