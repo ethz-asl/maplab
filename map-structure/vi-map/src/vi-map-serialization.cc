@@ -106,6 +106,28 @@ void serializeLandmarkIndex(
   CHECK_EQ(static_cast<int>(num_landmarks), proto->landmark_index_size());
 }
 
+size_t serializeDenseSubmaps(
+    const vi_map::VIMap& map, const size_t start_index,
+    const size_t dense_submaps_per_proto, vi_map::proto::VIMap* proto) {
+  CHECK_NOTNULL(proto);
+  const DenseSubmapManager& dense_submap_manager = map.getDenseSubmapManager();
+  std::vector<DenseSubmapId> dense_submap_ids;
+  dense_submap_manager.getDenseSubmapIds(&dense_submap_ids);
+  const size_t end_index =
+      std::min(dense_submap_ids.size(), start_index + dense_submaps_per_proto);
+  size_t counter = start_index;
+  proto->mutable_edge_ids()->Reserve(end_index - counter);
+  proto->mutable_edges()->Reserve(end_index - counter);
+  for (; counter < end_index; ++counter) {
+    const DenseSubmapId& id = dense_submap_ids[counter];
+    id.serialize(proto->add_dense_submap_ids());
+    const DenseSubmap& dense_submap = dense_submap_manager.getDenseSubmap(id);
+    dense_submap.serialize(proto->add_dense_submaps());
+  }
+
+  return counter;
+}
+
 void deserializeVertices(
     const vi_map::proto::VIMap& proto, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
@@ -133,6 +155,21 @@ void deserializeEdges(const vi_map::proto::VIMap& proto, vi_map::VIMap* map) {
     pose_graph::EdgeId id;
     id.deserialize(proto.edge_ids(i));
     map->addEdge(vi_map::Edge::deserialize(id, proto.edges(i)));
+  }
+}
+
+void deserializeDenseSubmaps(
+    const vi_map::proto::VIMap& proto, vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+  CHECK_EQ(proto.dense_submap_ids_size(), proto.dense_submaps_size());
+  for (int i = 0; i < proto.dense_submap_ids_size(); ++i) {
+    DenseSubmapId id;
+    id.deserialize(proto.dense_submap_ids(i));
+    DenseSubmap submap;
+    submap.deserialize(id, proto.dense_submaps(i));
+    map->getDenseSubmapManager().addDenseSubmap(submap);
+    int64_t min, max;
+    submap.getMinAndMaxTimestampNs(&min, &max);
   }
 }
 
@@ -228,6 +265,12 @@ VIMapMetadata createMetadataForVIMap(const vi_map::VIMap& map) {
       (backend::SaveConfig::kEdgesPerProtoFile - 1u + num_edges_in_map) /
       backend::SaveConfig::kEdgesPerProtoFile;
 
+  const size_t num_dense_submaps_in_map = map.numDenseSubmaps();
+  const size_t num_dense_submap_files =
+      (backend::SaveConfig::kDenseSubmapsPerProtoFile - 1u +
+       num_dense_submaps_in_map) /
+      backend::SaveConfig::kDenseSubmapsPerProtoFile;
+
   VIMapMetadata metadata;
 
   auto fill_function = [&metadata](
@@ -245,6 +288,9 @@ VIMapMetadata createMetadataForVIMap(const vi_map::VIMap& map) {
       num_vertices_files);
   fill_function(
       VIMapFileType::kEdges, internal::kFileNameEdges, num_edges_files);
+  fill_function(
+      VIMapFileType::kDenseSubmaps, internal::kFileNameDenseSubmaps,
+      num_dense_submap_files);
   metadata.emplace(
       VIMapFileType::kLandmarkIndex, internal::kFileNameLandmarkIndex);
   return metadata;

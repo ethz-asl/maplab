@@ -1,14 +1,13 @@
 #ifndef DENSE_MAPPING_DENSE_MAPPING_COMMON_H_
 #define DENSE_MAPPING_DENSE_MAPPING_COMMON_H_
 
-#include <unordered_set>
-#include <vector>
-
 #include <aslam/common/memory.h>
 #include <aslam/common/pose-types.h>
 #include <aslam/common/unique-id.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <unordered_set>
+#include <vector>
 #include <vi-map/vi-map.h>
 
 namespace dense_mapping {
@@ -17,11 +16,11 @@ typedef Eigen::Matrix<double, 3, Eigen::Dynamic> PositionMatrix;
 typedef Eigen::Matrix<int64_t, 1, Eigen::Dynamic> TimestampNsVector;
 
 static std::unordered_set<backend::ResourceType, backend::ResourceTypeHash>
-    kSupportedResourceTypes{backend::ResourceType::kPointCloudXYZ,
-                            backend::ResourceType::kPointCloudXYZI,
-                            backend::ResourceType::kPointCloudXYZRGBN,
-                            backend::ResourceType::kPointCloudXYZL,
-                            backend::ResourceType::kPointCloudXYZIRT};
+    kSupportedResourceTypes{
+        backend::ResourceType::kPointCloudXYZ,
+        backend::ResourceType::kPointCloudXYZI,
+        backend::ResourceType::kPointCloudXYZRGBN,
+        backend::ResourceType::kPointCloudXYZL};
 
 enum class ConstraintType { consecutive, proximity, incremental, global };
 

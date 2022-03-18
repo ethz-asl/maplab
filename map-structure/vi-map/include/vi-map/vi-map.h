@@ -33,6 +33,7 @@
 #include <sensors/wheel-odometry-sensor.h>
 
 #include "vi-map/cklam-edge.h"
+#include "vi-map/dense-submap-manager.h"
 #include "vi-map/landmark-index.h"
 #include "vi-map/landmark.h"
 #include "vi-map/loopclosure-edge.h"
@@ -49,6 +50,7 @@
 DECLARE_bool(disable_consistency_check);
 
 class LoopClosureHandlerTest;
+class SubmapMergingTest;
 
 namespace vi_map {
 class VIMap;
@@ -82,6 +84,7 @@ typedef std::pair<MissionId, pose_graph::VertexIdList> MissionVertexIdPair;
 class VIMap : public backend::ResourceMap,
               public backend::MapInterface<vi_map::VIMap> {
   friend ::LoopClosureHandlerTest;       // Test.
+  friend ::SubmapMergingTest;            // Test.
   friend class MapConsistencyCheckTest;  // Test.
   friend class SixDofVIMapGenerator;     // Test.
   friend bool checkMapConsistency(const VIMap&);
@@ -139,6 +142,10 @@ class VIMap : public backend::ResourceMap,
   inline const SensorManager& getSensorManager() const;
   inline SensorManager& getSensorManager();
 
+  inline const DenseSubmapManager& getDenseSubmapManager() const;
+  inline DenseSubmapManager& getDenseSubmapManager();
+  inline size_t numDenseSubmaps() const;
+
   inline size_t numVertices() const;
   inline size_t numVerticesInMission(const vi_map::MissionId& mission_id) const;
   inline bool hasVertex(const pose_graph::VertexId& id) const;
@@ -193,6 +200,10 @@ class VIMap : public backend::ResourceMap,
   vi_map::Imu::Ptr getMissionImuPtr(const vi_map::MissionId& id) const;
   const vi_map::Lidar& getMissionLidar(const vi_map::MissionId& id) const;
   vi_map::Lidar::Ptr getMissionLidarPtr(const vi_map::MissionId& id) const;
+  const vi_map::PointCloudMapSensor& getMissionPointCloudMapSensor(
+      const vi_map::MissionId& id) const;
+  vi_map::PointCloudMapSensor::Ptr getMissionPointCloudMapSensorPtr(
+      const vi_map::MissionId& id) const;
   const vi_map::Odometry6DoF& getMissionOdometry6DoFSensor(
       const vi_map::MissionId& id) const;
   vi_map::Odometry6DoF::Ptr getMissionOdometry6DoFSensorPtr(
@@ -515,6 +526,9 @@ class VIMap : public backend::ResourceMap,
   void getDistanceTravelledPerMission(
       const vi_map::MissionId& id, double* distance) const;
 
+  bool isMaxDistanceLargerThan(
+      const vi_map::MissionId& mission_id, const double max_distance_m) const;
+
   bool getEarliestMissionStartTimeNs(int64_t* start_time_ns) const;
 
   void getStatisticsOfMission(
@@ -722,10 +736,10 @@ class VIMap : public backend::ResourceMap,
       VIMission* mission);
 
   void deleteAllSensorResourcesBeforeTime(
-          const vi_map::MissionId& mission_id, int64_t timestamp_ns,
-          const bool delete_from_file_system);
+      const vi_map::MissionId& mission_id, int64_t timestamp_ns,
+      const bool delete_from_file_system);
   void deleteAllSensorResources(
-          const vi_map::MissionId& mission_id, const bool delete_from_file_system);
+      const vi_map::MissionId& mission_id, const bool delete_from_file_system);
 
   // Map interface (for map manager)
   // ===============================
@@ -789,6 +803,7 @@ class VIMap : public backend::ResourceMap,
   MissionBaseFrameMap mission_base_frames;
   LandmarkIndex landmark_index;
   SensorManager sensor_manager_;
+  DenseSubmapManager dense_submap_manager_;
 
   // Adding new data? Don't forget to add it to deepCopy() and swap()!
 

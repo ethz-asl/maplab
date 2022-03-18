@@ -1,8 +1,5 @@
 #include "dense-mapping/dense-mapping-search.h"
 
-#include <unordered_map>
-#include <utility>
-
 #include <Eigen/Core>
 #include <aslam/common/pose-types.h>
 #include <gflags/gflags.h>
@@ -10,10 +7,10 @@
 #include <landmark-triangulation/pose-interpolator.h>
 #include <map-resources/temporal-resource-id-buffer.h>
 #include <maplab-common/accessors.h>
+#include <unordered_map>
+#include <utility>
 #include <vi-map/vertex.h>
 #include <vi-map/vi-map.h>
-
-#include "dense-mapping/dense-mapping-external-interface.h"
 
 namespace dense_mapping {
 
@@ -283,12 +280,8 @@ void findAllAlignmentCandidates(
 
         // Interpolate poses for every resource.
         aslam::TransformationVector T_M_B_vector;
-        const bool interpolation_succeeded = pose_interpolator.getPosesAtTime(
+        pose_interpolator.getPosesAtTime(
             map, mission_id, resource_timestamps, &T_M_B_vector);
-        if (!interpolation_succeeded) {
-          VLOG(1) << "Interpolation failed skipping";
-          continue;
-        }
         CHECK_EQ(
             static_cast<int>(T_M_B_vector.size()), resource_timestamps.size());
         CHECK_EQ(T_M_B_vector.size(), num_used_resources);
@@ -924,17 +917,8 @@ bool searchGloballyForAlignmentCandidatePairsBetweenTwoMissions(
     const AlignmentCandidateList& /*candidates_B*/,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
   CHECK_NOTNULL(candidate_pairs_ptr);
-
-  VLOG(1) << "Searching for global candidates between missions " << mission_A
-          << " and " << mission_B;
-
-  ExternalInterface ext_interface(
-      config.enable_intra_mission_global_search,
-      config.enable_inter_mission_global_search);
-
-  ext_interface.poseLookupRequest();
-
-  return true;
+  LOG(ERROR) << "Global lookup not implemented";
+  return false;
 }
 
 bool searchGloballyForAlignmentCandidatePairs(

@@ -126,6 +126,7 @@ message Mission {
   optional aslam.proto.Id absolute_6dof_id = 13;
   optional aslam.proto.Id detection_id = 14;
   optional aslam.proto.Id wheel_odometry_id = 15;
+  optional aslam.proto.Id pointcloud_map_id = 16;
 }
 
 message MissionBaseframe {
@@ -155,6 +156,17 @@ message LandmarkToVertexReference {
   optional aslam.proto.Id landmark_id = 2;
 }
 
+message StampedTransformation {
+  required int64 timestamp_ns = 1;
+  repeated double T_A_B = 2;
+}
+
+message DenseSubmap {
+  optional aslam.proto.Id mission_id = 1;
+  optional aslam.proto.Id sensor_id = 2;
+  repeated StampedTransformation stamped_T_S0_S = 3;
+}
+
 message VIMap {
   repeated aslam.proto.Id vertex_ids = 1;
   repeated ViwlsVertex vertices = 2;
@@ -170,4 +182,7 @@ message VIMap {
 
   repeated aslam.proto.Id landmark_index_ids = 9;
   repeated LandmarkToVertexReference landmark_index = 10;
+
+  repeated aslam.proto.Id dense_submap_ids = 11;
+  repeated DenseSubmap dense_submaps = 12;
 }

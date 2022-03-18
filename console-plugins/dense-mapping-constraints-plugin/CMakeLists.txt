@@ -14,7 +14,6 @@ cs_add_library(${PROJECT_NAME}
                                src/dense-mapping-plugin.cc
                                src/dense-mapping-search.cc
                                src/dense-mapping-selection.cc
-                               src/dense-mapping-external-interface.cc
                                src/dense-mapping.cc
 )
 create_console_plugin(${PROJECT_NAME})
