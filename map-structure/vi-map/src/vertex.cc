@@ -854,7 +854,9 @@ void Vertex::getFrameObservedLandmarkIdsOfType(
   CHECK_LT(frame_idx, observed_landmark_ids_.size());
 
   const aslam::VisualFrame& frame = getVisualFrame(frame_idx);
-  CHECK(frame.hasDescriptorType(feature_type));
+  if (!frame.hasDescriptorType(feature_type)) {
+    return;
+  }
 
   // Filter out landmarks that are not the target type.
   // This works since the ordering of vertex landmark ids is the same
