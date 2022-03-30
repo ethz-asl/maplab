@@ -80,7 +80,7 @@ struct SequentialPointCloud {
 
   void visualizeReprojectedDepthResourceFromMission(
           const backend::ResourceType type,
-          const vi_map::MissionIdList& mission_ids,
+          const vi_map::MissionId& mission_id,
           const vi_map::VIMap& map);
 
   void visualizeReprojectedDepthResourceSequentially(

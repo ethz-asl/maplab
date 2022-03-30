@@ -64,10 +64,7 @@ DEFINE_bool(
     "If enabled, every point cloud receives a random color.");
 
 DEFINE_string(
-    vis_pointcloud_mission_id, "",
-    "Specifies the mission for publishing the dense map.");
-DEFINE_string(
-    vis_pointcloud_mission_id_topic, "",
+    vis_pointcloud_mission_id_topic, "/mission_point_cloud",
     "Specifies the topic for the mission specific dense map.");
 
 DEFINE_int32(
@@ -502,31 +499,19 @@ void createPointCloudMessageVectorForMission(
 
 void visualizeReprojectedDepthResourceFromMission(
     const backend::ResourceType input_resource_type,
-    const vi_map::MissionIdList& mission_ids, const vi_map::VIMap& vi_map) {
-  CHECK(!mission_ids.empty());
-  CHECK(!FLAGS_vis_pointcloud_mission_id.empty());
+    const vi_map::MissionId& mission_id, const vi_map::VIMap& vi_map) {
   CHECK(!FLAGS_vis_pointcloud_mission_id_topic.empty());
 
   srand(time(NULL));
+  resources::PointCloud accumulated_point_cloud_G;
+  createAndAppendAccumulatedPointCloudMessageForMission(
+      input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G);
 
-  for (const vi_map::MissionId& mission_id : mission_ids) {
-    const std::string& mission_string = mission_id.shortHex();
-    if (mission_string != FLAGS_vis_pointcloud_mission_id) {
-      continue;
-    }
-    resources::PointCloud accumulated_point_cloud_G;
-    createAndAppendAccumulatedPointCloudMessageForMission(
-        input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G);
-
-    sensor_msgs::PointCloud2 ros_point_cloud_G;
-    backend::convertPointCloudType(
-        accumulated_point_cloud_G, &ros_point_cloud_G);
-    publishPointCloudInGlobalFrame(
-        FLAGS_vis_pointcloud_mission_id_topic, &ros_point_cloud_G);
-
-    return;
-  }
-  VLOG(1) << "No mission found with id: " << FLAGS_vis_pointcloud_mission_id;
+  sensor_msgs::PointCloud2 ros_point_cloud_G;
+  backend::convertPointCloudType(
+      accumulated_point_cloud_G, &ros_point_cloud_G);
+  publishPointCloudInGlobalFrame(
+      FLAGS_vis_pointcloud_mission_id_topic, &ros_point_cloud_G);
 }
 
 void visualizeReprojectedDepthResourceSequentially(
@@ -542,11 +527,6 @@ void visualizeReprojectedDepthResourceSequentially(
   const std::string mission_prefix = "mission_";
   for (const vi_map::MissionId& mission_id : mission_ids) {
     const std::string& mission_string = mission_id.shortHex();
-    VLOG(1) << "mission string is " << mission_string;
-    if (!FLAGS_vis_pointcloud_mission_id.empty() &&
-        mission_string != FLAGS_vis_pointcloud_mission_id) {
-      continue;
-    }
     visualization::Color color;
     visualization::GetRandomRGBColor(&color);
     createPointCloudMessageVectorForMission(

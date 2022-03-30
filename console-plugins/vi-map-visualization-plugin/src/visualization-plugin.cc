@@ -271,6 +271,48 @@ int VisualizationPlugin::visualizeReprojectedDepthResource(
   return common::kSuccess;
 }
 
+int VisualizationPlugin::visualizeReprojectedDepthResourceFromMission(
+    backend::ResourceType type) {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+  vi_map::VIMapManager map_manager;
+  const vi_map::VIMapManager::MapReadAccess map =
+      map_manager.getMapReadAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids;
+  getAllMissionIds(map, &mission_ids);
+  if (mission_ids.size() > 1u) {
+    LOG(ERROR) << "Specify a valid mission id with --map_mission.";
+    return common::kUnknownError;
+  }
+
+  visualization::visualizeReprojectedDepthResourceFromMission(
+      type, mission_ids.front(), *map);
+
+  return common::kSuccess;
+}
+
+int VisualizationPlugin::visualizeReprojectedDepthResourceSequentially(
+    backend::ResourceType type) {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+  vi_map::VIMapManager map_manager;
+  const vi_map::VIMapManager::MapReadAccess map =
+      map_manager.getMapReadAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids;
+  getAllMissionIds(map, &mission_ids);
+
+  visualization::visualizeReprojectedDepthResourceSequentially(
+      type, mission_ids, *map);
+
+  return common::kSuccess;
+}
+
 int VisualizationPlugin::visualizeSensorExtrinsics() const {
   std::string selected_map_key;
   if (!getSelectedMapKeyIfSet(&selected_map_key)) {
