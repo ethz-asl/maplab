@@ -130,6 +130,8 @@ void PoseInterpolator::computeRequestedPosesInRange(
   using imu_integrator::kStateOrientationBlockSize;
   using imu_integrator::kStatePositionOffset;
   using imu_integrator::kStateSize;
+  using imu_integrator::kStateVelocityOffset;
+  using imu_integrator::kVelocityBlockSize;
 
   Eigen::Matrix<double, 2 * kImuReadingSize, 1> debiased_imu_readings;
   Eigen::Matrix<double, kErrorStateSize, kErrorStateSize> phi;
@@ -159,6 +161,13 @@ void PoseInterpolator::computeRequestedPosesInRange(
       current_state.head<kStateOrientationBlockSize>();
   state_linearization_point_begin.p_M_I =
       current_state.segment<kPositionBlockSize>(kStatePositionOffset);
+  current_state.head<kStateOrientationBlockSize>();
+  state_linearization_point_begin.v_M =
+      current_state.segment<kVelocityBlockSize>(kStateVelocityOffset);
+  state_linearization_point_begin.accel_bias =
+      current_state.segment<kAccelBiasBlockSize>(kStateAccelBiasOffset);
+  state_linearization_point_begin.gyro_bias =
+      current_state.segment<kGyroBiasBlockSize>(kStateGyroBiasOffset);
   state_buffer->addValue(
       state_linearization_point_begin.timestamp,
       state_linearization_point_begin);
@@ -193,6 +202,12 @@ void PoseInterpolator::computeRequestedPosesInRange(
         next_state.head<kStateOrientationBlockSize>();
     state_linearization_point.p_M_I =
         next_state.segment<kPositionBlockSize>(kStatePositionOffset);
+    state_linearization_point.v_M =
+        current_state.segment<kVelocityBlockSize>(kStateVelocityOffset);
+    state_linearization_point.accel_bias =
+        current_state.segment<kAccelBiasBlockSize>(kStateAccelBiasOffset);
+    state_linearization_point.gyro_bias =
+        current_state.segment<kGyroBiasBlockSize>(kStateGyroBiasOffset);
     state_buffer->addValue(
         state_linearization_point.timestamp, state_linearization_point);
 
@@ -413,7 +428,10 @@ void PoseInterpolator::getImuDataInRange(
 bool PoseInterpolator::getPosesAtTime(
     const vi_map::VIMap& map, vi_map::MissionId mission_id,
     const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& pose_timestamps,
-    aslam::TransformationVector* poses_M_I) const {
+    aslam::TransformationVector* poses_M_I,
+    std::vector<Eigen::Vector3d>* velocities_M_I,
+    std::vector<Eigen::Vector3d>* gyro_biases,
+    std::vector<Eigen::Vector3d>* accel_biases) const {
   CHECK_NOTNULL(poses_M_I)->clear();
   CHECK_GT(pose_timestamps.rows(), 0);
 
@@ -498,6 +516,15 @@ bool PoseInterpolator::getPosesAtTime(
         << ": No value in state_buffer at time: " << pose_timestamps(0, i);
     poses_M_I->emplace_back(
         state_linearization_point.q_M_I, state_linearization_point.p_M_I);
+    if (velocities_M_I) {
+      velocities_M_I->emplace_back(state_linearization_point.v_M);
+    }
+    if (accel_biases) {
+      accel_biases->emplace_back(state_linearization_point.accel_bias);
+    }
+    if (gyro_biases) {
+      gyro_biases->emplace_back(state_linearization_point.gyro_bias);
+    }
   }
   return true;
 }

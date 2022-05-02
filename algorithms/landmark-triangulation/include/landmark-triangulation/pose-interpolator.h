@@ -31,6 +31,9 @@ struct StateLinearizationPoint {
   int64_t timestamp;  // nanoseconds.
   Eigen::Quaterniond q_M_I;
   Eigen::Matrix<double, 3, 1> p_M_I;
+  Eigen::Matrix<double, 3, 1> v_M;
+  Eigen::Matrix<double, 3, 1> gyro_bias;
+  Eigen::Matrix<double, 3, 1> accel_bias;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
@@ -45,8 +48,11 @@ class PoseInterpolator {
   // Extrapolating outside this range is not supported.
   bool getPosesAtTime(
       const vi_map::VIMap& map, vi_map::MissionId mission_id,
-      const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps,
-      aslam::TransformationVector* poses) const;
+      const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& pose_timestamps,
+      aslam::TransformationVector* poses_M_I,
+      std::vector<Eigen::Vector3d>* velocities_M_I = nullptr,
+      std::vector<Eigen::Vector3d>* gyro_biases = nullptr,
+      std::vector<Eigen::Vector3d>* accel_biases = nullptr) const;
 
   // Returns interpolated poses and their associated timestamps across an entire
   // mission specified by emission_id.  Timestamps begin at the earliest IMU
