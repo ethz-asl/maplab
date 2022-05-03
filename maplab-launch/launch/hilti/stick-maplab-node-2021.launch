@@ -7,11 +7,11 @@
 	<node name="maplab_node" pkg="maplab_node" type="maplab_node" output="screen" clear_params="true">
 
 		<!-- GENERAL PARAMS -->
-		<rosparam command="load" file="$(find maplab_launch)/config/hilti/ros/maplab-node-hilti.yaml"/>
+		<rosparam command="load" file="$(find maplab_launch)/config/hilti/ros/maplab-node-hilti-2021.yaml"/>
 
 		<!-- ROBOT SPECIFIC PARAMS -->
 		<!-- SENSORS -->
-		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/hilti/calib/stick-sensors.yaml"/>
+		<param name="sensor_calibration_file" value="$(find maplab_launch)/config/hilti/calib/stick-sensors-2021.yaml"/>
 		<param name="imu_to_camera_time_offset_ns" value="0"/>
 		<param name="imu_to_lidar_time_offset_ns" value="0"/>
 		<param name="vio_camera_topic_suffix" value="image_raw"/>
