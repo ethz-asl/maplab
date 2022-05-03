@@ -30,10 +30,6 @@ DEFINE_int32(
     "Outlier rejection in absolute constraints: Sets the maximum number of "
     "iterations for mission baseframe RANSAC.");
 
-DEFINE_double(
-    map_anchoring_min_medial_inlier_ratio, 0.20,
-    "Minimum median inlier ration required for a successful (rigid) map "
-    "alignment/anchoring.");
 DEFINE_int32(
     map_anchoring_min_num_vertex_links, 10,
     "Minimum number of vertex links for a successful (rigid) map "
@@ -303,10 +299,7 @@ ProbeResult::ProbeResult()
     : num_vertex_candidate_links(0), average_landmark_match_inlier_ratio(0.) {}
 
 bool ProbeResult::wasSuccessful() const {
-  return num_vertex_candidate_links >=
-             FLAGS_map_anchoring_min_num_vertex_links &&
-         average_landmark_match_inlier_ratio >=
-             FLAGS_map_anchoring_min_medial_inlier_ratio;
+  return num_vertex_candidate_links >= FLAGS_map_anchoring_min_num_vertex_links;
 }
 
 void probeMissionAnchoring(
