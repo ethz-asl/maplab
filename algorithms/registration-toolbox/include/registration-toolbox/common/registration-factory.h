@@ -73,6 +73,7 @@ class RegistrationFactory {
   RegistrationFactory() = default;
 
   static auto data() -> std::unordered_map<std::string, FuncType>& {
+
     static std::unordered_map<std::string, FuncType> singleton;
     return singleton;
   }
