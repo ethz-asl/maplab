@@ -10,7 +10,7 @@ sensors:
       gyro_noise_density:                  0.2
     saturation_accel_max_mps2:             50
     saturation_gyro_max_radps:             6.0
-    gravity_magnitude_mps2:                9.808083883386614
+    gravity_magnitude_mps2:                9.81205
 
 
   - id:                                    bbf123479caf7592b35518478a2fe08d
