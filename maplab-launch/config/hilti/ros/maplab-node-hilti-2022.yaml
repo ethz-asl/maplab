@@ -18,7 +18,7 @@ map_add_unique_timestamp_prefix_for_save_map_folder:                    true
 vio_nframe_sync_tolerance_ns:                                           500000
 vio_nframe_sync_max_output_frequency_hz:                                40
 maplab_throttle_frequency_odometry:                                     40
-map_add_odometry_edges_if_less_than_n_common_landmarks:                 -1
+map_add_odometry_edges_if_less_than_n_common_landmarks:                 0
 
 # ATTACHING RESOURCES TO MAP
 ############################
