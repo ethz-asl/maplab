@@ -4,10 +4,10 @@ sensors:
     description:                           "Bosch BMI085"
     topic:                                 /alphasense/imu
     sigmas:
-      acc_bias_random_walk_noise_density:  0.0147
-      acc_noise_density:                   0.032
-      gyro_bias_random_walk_noise_density: 0.0017
-      gyro_noise_density:                  0.013
+      acc_bias_random_walk_noise_density:  0.01510
+      acc_noise_density:                   0.04115
+      gyro_bias_random_walk_noise_density: 0.00199
+      gyro_noise_density:                  0.01918
     saturation_accel_max_mps2:             40
     saturation_gyro_max_radps:             6.0
     gravity_magnitude_mps2:                9.808083883386614
@@ -287,7 +287,7 @@ extrinsics:
       data:
         - [0.0, -1.0, 0.0, -0.001]
         - [-1.0, 0.0, 0.0, -0.00855]
-        - [0.0, 0.0, -1.0, -0.055]
+        - [0.0, 0.0, -1.0, 0.055]
         - [0.0, 0.0, 0.0, 1.0]
 
   - sensor_id:                             3da6d03bd42e41a93dc941bd5fd9353d
