@@ -708,7 +708,7 @@ void LoopDetectorNode::queryVertexInDatabase(
           std::make_shared<loop_closure::ProjectedImage>());
       const vi_map::VisualFrameIdentifier query_frame_id(
           query_vertex_id, frame_idx);
-      constexpr bool kSkipInvalidLandmarkIds = false;
+      constexpr bool kSkipInvalidLandmarkIds = true;
       convertFrameToProjectedImage(
           *map, query_frame_id, query_vertex.getVisualFrame(frame_idx),
           landmark_ids, query_vertex.getMissionId(), kSkipInvalidLandmarkIds,
