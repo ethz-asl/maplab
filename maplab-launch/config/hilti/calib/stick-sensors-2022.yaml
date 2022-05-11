@@ -4,11 +4,11 @@ sensors:
     description:                           "Bosch BMI085"
     topic:                                 /alphasense/imu
     sigmas:
-      acc_bias_random_walk_noise_density:  0.01510
-      acc_noise_density:                   0.04115
-      gyro_bias_random_walk_noise_density: 0.00199
-      gyro_noise_density:                  0.01918
-    saturation_accel_max_mps2:             40
+      acc_bias_random_walk_noise_density:  0.05
+      acc_noise_density:                   0.1
+      gyro_bias_random_walk_noise_density: 0.01
+      gyro_noise_density:                  0.2
+    saturation_accel_max_mps2:             50
     saturation_gyro_max_radps:             6.0
     gravity_magnitude_mps2:                9.808083883386614
 
@@ -50,18 +50,6 @@ sensors:
     description: "R2D2 features"
     topic: /maplab_features1
     target_sensor: 44ed7e1913a847b3b8d9884b9b02fb03
-    has_uncertainties: true
-    has_orientations: false
-    has_scores: true
-    has_scales: true
-    has_track_ids: true
-    feature_type: R2D2
-
-  - id: ff000000000000000000000000000003
-    sensor_type: EXTERNAL_FEATURES
-    description: "R2D2 features"
-    topic: /maplab_features2
-    target_sensor: 08faa68c87a84fd5bd1b0305c99b155d
     has_uncertainties: true
     has_orientations: false
     has_scores: true
@@ -171,42 +159,6 @@ sensors:
             - [0.0000000000000000, 0.0000000000000000, 0.0000000000000000, 1.0000000000000000]
 
       - camera:
-          id:                              08faa68c87a84fd5bd1b0305c99b155d
-          sensor_type:                     CAMERA
-          description:                     "Upwards"
-          topic:                           /alphasense/cam2
-          line-delay-nanoseconds:          0
-          image_height:                    540
-          image_width:                     720
-          type:                            pinhole
-          intrinsics:
-            rows:                          4
-            cols:                          1
-            data:
-              - 350.70040966794545
-              - 350.8792449525716
-              - 375.2977403521422
-              - 268.5927747079796
-          distortion:
-            type:                          equidistant
-            parameters:
-              rows:                        4
-              cols:                        1
-              data:
-                - -0.041202246303621064
-                - -0.0012607385825244833
-                - 0.0006712169937177444
-                - -0.0006234254968089226
-        T_B_C:
-          rows:                            4
-          cols:                            4
-          data:
-            - [0.9999897552434932, 0.0042384707008869, -0.0015889537990239, 0.0068411376086780]
-            - [0.0042340516721277, -0.9999871881804248, -0.0027742172670247, -0.0079967741380298]
-            - [-0.0016006918802387, 0.0027674611333546, -0.9999948894591306, -0.0341138037431789]
-            - [0.0000000000000000, 0.0000000000000000, 0.0000000000000000, 1.0000000000000000]
-
-      - camera:
           id:                              da7d19d6662f4a428240bf7f706bbb4d
           sensor_type:                     CAMERA
           description:                     "Sideways Right"
@@ -313,17 +265,6 @@ extrinsics:
         - [0,0,0,1]
 
   - sensor_id:                             ff000000000000000000000000000002
-    base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
-    T_B_S:
-      rows:                                4
-      cols:                                4
-      data:
-        - [1,0,0,0]
-        - [0,1,0,0]
-        - [0,0,1,0]
-        - [0,0,0,1]
-
-  - sensor_id:                             ff000000000000000000000000000003
     base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
     T_B_S:
       rows:                                4
