@@ -516,8 +516,15 @@ void LoopClosureHandler::updateQueryKeyframeInvalidLandmarkAssociations(
   for (unsigned int i = 0; i < inliers.size(); ++i) {
     const int query_frame_idx =
         query_keypoint_idx_to_landmark_pairs[inliers[i]].first.frame_idx;
+
+    size_t block_start, block_size;
+    query_vertex->getVisualFrame(query_frame_idx)
+        .getDescriptorBlockTypeStartAndSize(
+            feature_type_, &block_start, &block_size);
     const int query_keypoint_idx =
-        query_keypoint_idx_to_landmark_pairs[inliers[i]].first.keypoint_idx;
+        query_keypoint_idx_to_landmark_pairs[inliers[i]].first.keypoint_idx +
+        block_start;
+
     const vi_map::LandmarkId query_landmark_id =
         query_vertex->getObservedLandmarkId(
             query_frame_idx, query_keypoint_idx);
