@@ -30,12 +30,6 @@ DEFINE_double(
     lc_edge_min_distance_meters, 1.0,
     "The minimum loop-closure gap distance such that a loop-closure edge is "
     "created.");
-DEFINE_double(
-    lc_edge_min_inlier_ratio, 0.5,
-    "The minimum loop-closure inlier ratio to add a loop-closure edge.");
-DEFINE_int32(
-    lc_edge_min_inlier_count, 20,
-    "The minimum loop-closure inlier count to add a loop-closure edge.");
 
 namespace loop_closure_handler {
 
@@ -43,7 +37,8 @@ bool addLoopClosureEdge(
     const pose_graph::VertexId& query_vertex_id,
     const vi_map::LandmarkIdSet& commonly_observed_landmarks,
     const pose_graph::VertexId& vertex_id_from_structure_matches,
-    const aslam::Transformation& T_G_I_lc_ransac, vi_map::VIMap* map) {
+    const aslam::Transformation& T_G_I_lc_ransac, vi_map::VIMap* map,
+    const int feature_type) {
   CHECK(query_vertex_id.isValid());
   CHECK_NOTNULL(map)->hasVertex(vertex_id_from_structure_matches);
   CHECK(vertex_id_from_structure_matches != query_vertex_id);
@@ -56,7 +51,8 @@ bool addLoopClosureEdge(
       map->getVertex(vertex_id_from_structure_matches);
 
   // Retrieve all observed landmarks to get an estimate of the maximum number
-  // of correspondences we may find.
+  // of correspondences we may find. We don't need to care about type since
+  // this only needs to be an upper bound.
   vi_map::LandmarkIdList observed_landmark_ids;
   vertex.getAllObservedLandmarkIds(&observed_landmark_ids);
 
@@ -73,10 +69,12 @@ bool addLoopClosureEdge(
     }
 
     const aslam::VisualFrame& visual_frame = vertex.getVisualFrame(frame_idx);
-    const vi_map::LandmarkIdList& observed_landmarks =
-        vertex.getFrameObservedLandmarkIds(frame_idx);
+    vi_map::LandmarkIdList observed_landmarks;
+    vertex.getFrameObservedLandmarkIdsOfType(
+        frame_idx, &observed_landmarks, feature_type);
     CHECK_EQ(
-        observed_landmarks.size(), visual_frame.getNumKeypointMeasurements());
+        observed_landmarks.size(),
+        visual_frame.getNumKeypointMeasurementsOfType(feature_type));
     for (size_t i = 0u; i < observed_landmarks.size(); ++i) {
       if (commonly_observed_landmarks.count(observed_landmarks[i]) > 0u) {
         CHECK(observed_landmarks[i].isValid());
@@ -85,7 +83,8 @@ bool addLoopClosureEdge(
         CHECK_LT(index, G_landmark_positions.cols());
 
         measurement_camera_indices.push_back(frame_idx);
-        measurements.col(index) = visual_frame.getKeypointMeasurement(i);
+        measurements.col(index) =
+            visual_frame.getKeypointMeasurementOfType(i, feature_type);
         G_landmark_positions.col(index) =
             map->getLandmark_G_p_fi(observed_landmarks[i]);
 
@@ -465,13 +464,10 @@ bool LoopClosureHandler::handleLoopClosure(
         lc_edge_target_vertex_id = *vertex_id_closest_to_structure_matches;
       }
 
-      if (*inlier_ratio >= FLAGS_lc_edge_min_inlier_ratio &&
-          *num_inliers >= FLAGS_lc_edge_min_inlier_count) {
-        CHECK(!commonly_observed_landmarks.empty());
-        addLoopClosureEdge(
-            query_vertex_id, commonly_observed_landmarks,
-            lc_edge_target_vertex_id, *T_G_I_ransac, map_);
-      }
+      CHECK(!commonly_observed_landmarks.empty());
+      addLoopClosureEdge(
+          query_vertex_id, commonly_observed_landmarks,
+          lc_edge_target_vertex_id, *T_G_I_ransac, map_, feature_type_);
     }
   }
 
