@@ -23,15 +23,19 @@ class FLANNIndexInterface : public IndexInterface {
         cv::makePtr<cv::flann::KDTreeIndexParams>(5),
         cv::makePtr<cv::flann::SearchParams>(128)));
     initialized_ = false;
+    num_descriptors = 0;
   }
 
-  virtual int GetNumDescriptorsInIndex() const {}
+  virtual int GetNumDescriptorsInIndex() const {
+    return num_descriptors;
+  }
 
   virtual void Clear() {
     std::lock_guard<std::mutex> lock(index_mutex_);
     index_->clear();
     index_images_.clear();
     initialized_ = false;
+    num_descriptors = 0;
   }
 
   virtual void AddDescriptors(const Eigen::MatrixXf& descriptors) {
@@ -49,9 +53,8 @@ class FLANNIndexInterface : public IndexInterface {
     std::lock_guard<std::mutex> lock(index_mutex_);
     index_images_.emplace_back(cv_descriptors);
     initialized_ = false;
+    num_descriptors += descriptors.cols();
   }
-
-  virtual void InitializeIndex() {}
 
   virtual void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixXf& query_features, int num_neighbors,
@@ -135,6 +138,7 @@ class FLANNIndexInterface : public IndexInterface {
   std::shared_ptr<cv::FlannBasedMatcher> index_;
   std::vector<cv::Mat> index_images_;
   std::vector<int> cumulative_count;
+  size_t num_descriptors;
   mutable std::mutex index_mutex_;
 };
 }  // namespace loop_closure
