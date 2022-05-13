@@ -118,9 +118,11 @@ bool addLoopClosureEdge(
       FLAGS_lc_ransac_pixel_sigma, FLAGS_lc_num_ransac_iters, ncamera,
       &T_G_Inn_ransac, &inliers, &inlier_distances_to_model, &num_iters);
 
-  if (!pnp_success) {
+  if (!pnp_success && inliers.size() > FLAGS_lc_min_inlier_count) {
     // We could not retrieve a pose for the vertex observing matched landmarks.
     // The LC edge cannot be added.
+    VLOG(6) << "Failed PnP of connecting vertex when adding loop closure. "
+            << "With inlier count of " << inliers.size() << ".";
     return false;
   }
 
