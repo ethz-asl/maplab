@@ -16,7 +16,6 @@
   <exec_depend>maplab_console_full</exec_depend>
   <exec_depend>maplab_launch</exec_depend>
   <exec_depend>maplab_node</exec_depend>
-  <exec_depend>maplab_server_node</exec_depend>
   <exec_depend>resource_importer</exec_depend>
   <exec_depend>rovioli</exec_depend>
 

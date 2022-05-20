@@ -95,6 +95,7 @@ void MapLabConsole::discoverAndInstallPlugins(int argc, char** argv) {
   std::vector<std::pair</*plugin_handle=*/void*, /*plugin_file=*/std::string>>
       try_load_plugins_handle;
   for (const std::string& plugin_name : plugin_list_vector) {
+    LOG(ERROR) << "Loading " << plugin_name.c_str();
     void* handle = dlopen(plugin_name.c_str(), RTLD_LAZY);
     if (handle == nullptr) {
       LOG(ERROR) << "Failed to load library " << plugin_name

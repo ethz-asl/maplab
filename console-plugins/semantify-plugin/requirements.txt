@@ -1,0 +1,11 @@
+h5py
+Keras==2.1.2
+numpy
+opencv-python==4.2.0.32
+scikit-image
+scikit-learn
+sklearn
+scipy
+tensorflow-gpu>=1.4.1,<2.0
+rospkg
+ipython
