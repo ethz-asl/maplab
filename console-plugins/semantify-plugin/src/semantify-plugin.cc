@@ -1,36 +1,34 @@
-#include "semantify-plugin/icp-covariance.h"
-#include "semantify-plugin/k-medoids-clustering-manager.h"
-#include "semantify-plugin/semantify-common.h"
 #include "semantify-plugin/semantify-plugin.h"
-
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <limits>
-#include <map>
-#include <queue>
-#include <set>
-#include <thread>
-#include <unordered_set>
-#include <vector>
-
-#include <aslam/triangulation/triangulation.h>
-#include <console-common/console.h>
-#include <map-resources/resource-common.h>
-#include <maplab-common/progress-bar.h>
-#include <semantify-plugin/semantify-common.h>
-#include <visualization/common-rviz-visualization.h>
-
-#include <cv_bridge/cv_bridge.h>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/image_encodings.h>
 
 #include <Eigen/Dense>
 #include <Eigen/LU>
 #include <Eigen/SVD>
+#include <algorithm>
+#include <aslam/triangulation/triangulation.h>
+#include <chrono>
+#include <cmath>
+#include <console-common/console.h>
+#include <cv_bridge/cv_bridge.h>
+#include <limits>
+#include <map-resources/resource-common.h>
+#include <map>
+#include <maplab-common/progress-bar.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <queue>
+#include <semantify-plugin/semantify-common.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
+#include <set>
+#include <thread>
+#include <unordered_set>
+#include <vector>
+#include <visualization/common-rviz-visualization.h>
+
+#include "semantify-plugin/icp-covariance.h"
+#include "semantify-plugin/k-medoids-clustering-manager.h"
+#include "semantify-plugin/semantify-common.h"
 
 // semantic landmark filter by class
 DEFINE_string(
@@ -2500,6 +2498,7 @@ void SemantifyPlugin::generateMatchCandidates(
         source_track_id_to_matched_ref_ids_candidates) {
   CHECK(source_track_id_to_matched_ref_ids_candidates);
   CHECK(source_track_id_to_matched_ref_ids_candidates->empty());
+  VLOG(1) << "Start generating match candidates.";
   // gets the medoids and class ids of the track_ids
   std::map<int, Eigen::VectorXf> source_track_id_to_medoid_descriptor;
   std::map<int, int> source_track_id_to_class_id;
@@ -2572,6 +2571,7 @@ void SemantifyPlugin::generateMatchCandidates(
       }
     }
   }
+  VLOG(1) << "Done generating match candidates.";
 }
 
 void SemantifyPlugin::visualizeMatchedTrackIds(
@@ -3130,7 +3130,7 @@ void SemantifyPlugin::applyUniqueVisibilityFilter(
   // same frame}
   const TrackIdsToSemanticLandmarkIdsMap&
       track_ids_to_semantic_landmark_ids_source =
-          mission_id_to_semantic_landmark_id_[mission_id_source];
+          mission_id_to_semantic_landmark_id_.at(mission_id_source);
 
   for (auto& pair : source_track_id_to_matched_ref_ids) {
     const vi_map::SemanticLandmarkId& id =
@@ -3151,11 +3151,15 @@ void SemantifyPlugin::applyUniqueVisibilityFilter(
     }
     // filter the matched ref track ids, they should not be in the covisible
     // track ids set
+    std::vector<int> to_erase;
     for (int ref_id : pair.second) {
       auto search = covisible_track_ids_source.find(ref_id);
       if (search != covisible_track_ids_source.end()) {
-        pair.second.erase(ref_id);
+        to_erase.emplace_back(ref_id);
       }
+    }
+    for (const auto ref_id : to_erase) {
+      pair.second.erase(ref_id);
     }
   }
 }
