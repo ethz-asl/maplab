@@ -28,13 +28,6 @@ map_builder_save_point_clouds_as_range_image_camera_id:                 ""
 map_builder_save_point_clouds_as_range_image_including_intensity_image: false
 map_builder_save_point_cloud_maps_as_resources:                         false
 
-# FEATURE DETECTOR SETTINGS
-###########################
-feature_tracking_detector_orb_num_features: 2000
-feature_tracking_detector_orb_fast_threshold: 20
-min_tracking_distance_to_image_border_px: 100 # Default: 30
-feature_tracking_detector_max_feature_count: 700
-
 # VISUALIZATION
 ###############
 publish_debug_markers:                                                  false
