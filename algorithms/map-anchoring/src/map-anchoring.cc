@@ -295,8 +295,7 @@ bool anchorMissionUsingProvidedLoopDetector(
   return false;
 }
 
-ProbeResult::ProbeResult()
-    : num_vertex_candidate_links(0), average_landmark_match_inlier_ratio(0.) {}
+ProbeResult::ProbeResult() : num_vertex_candidate_links(0) {}
 
 bool ProbeResult::wasSuccessful() const {
   return num_vertex_candidate_links >= FLAGS_map_anchoring_min_num_vertex_links;
@@ -315,8 +314,7 @@ void probeMissionAnchoring(
   vi_map::LoopClosureConstraintVector inlier_constraints;
   loop_detector.detectLoopClosuresMissionToDatabase(
       mission_id, kMergeLandmarksOnProbe, kAddLoopclosureEdgesOnProbe,
-      &result->num_vertex_candidate_links,
-      &result->average_landmark_match_inlier_ratio, map, &result->T_G_M,
+      &result->num_vertex_candidate_links, map, &result->T_G_M,
       &inlier_constraints);
 }
 

@@ -11,7 +11,6 @@ struct ProbeResult {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   int num_vertex_candidate_links;
-  double average_landmark_match_inlier_ratio;
   pose::Transformation T_G_M;
 
   ProbeResult();

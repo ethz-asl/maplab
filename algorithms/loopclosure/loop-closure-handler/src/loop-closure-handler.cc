@@ -9,9 +9,6 @@
 
 DEFINE_double(lc_ransac_pixel_sigma, 2.0, "Pixel sigma for ransac.");
 DEFINE_int32(lc_min_inlier_count, 10, "Minimum inlier count for loop closure.");
-DEFINE_double(
-    lc_min_inlier_ratio, 0.2, "Minimum inlier ratio for loop closure.");
-DECLARE_bool(lc_filter_underconstrained_landmarks);
 DEFINE_int32(
     lc_num_ransac_iters, 100,
     "Maximum number of ransac iterations for absolute pose recovery.");
@@ -188,14 +185,13 @@ LoopClosureHandler::LoopClosureHandler(
 bool LoopClosureHandler::handleLoopClosure(
     const vi_map::LoopClosureConstraint& loop_closure_constraint,
     bool merge_matching_landmarks, bool add_loopclosure_edges, int* num_inliers,
-    double* inlier_ratio, pose::Transformation* T_G_I_ransac,
+    pose::Transformation* T_G_I_ransac,
     vi_map::LoopClosureConstraint* inlier_constraints,
     MergedLandmark3dPositionVector* landmark_pairs_merged,
     pose_graph::VertexId* vertex_id_closest_to_structure_matches,
     std::mutex* map_mutex, bool use_random_pnp_seed) const {
   CHECK_NOTNULL(map_);
   CHECK_NOTNULL(num_inliers);
-  CHECK_NOTNULL(inlier_ratio);
   CHECK_NOTNULL(T_G_I_ransac);
   CHECK_NOTNULL(inlier_constraints);
   CHECK_NOTNULL(landmark_pairs_merged);
@@ -216,7 +212,7 @@ bool LoopClosureHandler::handleLoopClosure(
       query_vertex.getVisualNFrame(), query_vertex_observed_landmark_ids,
       query_vertex_id, loop_closure_constraint.structure_matches,
       merge_matching_landmarks, add_loopclosure_edges, num_inliers,
-      inlier_ratio, T_G_I_ransac, &inlier_constraints->structure_matches,
+      T_G_I_ransac, &inlier_constraints->structure_matches,
       landmark_pairs_merged, vertex_id_closest_to_structure_matches, map_mutex,
       use_random_pnp_seed);
 }
@@ -227,13 +223,12 @@ bool LoopClosureHandler::handleLoopClosure(
     const pose_graph::VertexId& query_vertex_id,
     const vi_map::VertexKeyPointToStructureMatchList& structure_matches,
     bool merge_matching_landmarks, bool add_loopclosure_edges, int* num_inliers,
-    double* inlier_ratio, pose::Transformation* T_G_I_ransac,
+    pose::Transformation* T_G_I_ransac,
     vi_map::VertexKeyPointToStructureMatchList* inlier_structure_matches,
     MergedLandmark3dPositionVector* landmark_pairs_merged,
     pose_graph::VertexId* vertex_id_closest_to_structure_matches,
     std::mutex* map_mutex, bool use_random_pnp_seed) const {
   CHECK_NOTNULL(num_inliers);
-  CHECK_NOTNULL(inlier_ratio);
   CHECK_NOTNULL(T_G_I_ransac);
   CHECK_NOTNULL(inlier_structure_matches)->clear();
   CHECK_NOTNULL(landmark_pairs_merged);
@@ -246,7 +241,6 @@ bool LoopClosureHandler::handleLoopClosure(
       query_vertex_landmark_ids.size());
 
   *num_inliers = 0;
-  *inlier_ratio = 0.0;
 
   statistics::StatsCollector stats_total_calls(
       "0.0 Loop closure: Total query frames handled");
@@ -266,10 +260,7 @@ bool LoopClosureHandler::handleLoopClosure(
   measurement_camera_indices.resize(total_matches);
 
   // Ordered containers s.t. inliers vector returned from P3P makes sense.
-  KeypointToLandmarkVector query_keypoint_idx_to_map_landmark_pairs;
   LandmarkToLandmarkVector query_landmark_to_map_landmark_pairs;
-
-  query_keypoint_idx_to_map_landmark_pairs.resize(total_matches);
   query_landmark_to_map_landmark_pairs.resize(total_matches);
 
   int col_idx = 0;
@@ -283,11 +274,9 @@ bool LoopClosureHandler::handleLoopClosure(
     CHECK(db_landmark_id.isValid()) << "Found invalid landmark in result set.";
 
     // The loop-closure backend should not return underconstrained landmarks.
-    // if the lc_filter_underconstrained_landmarks flag is true.
     if (map_ != nullptr) {
       // This check makes only sense if we have a full map available.
-      if (FLAGS_lc_filter_underconstrained_landmarks &&
-          !vi_map::isLandmarkWellConstrained(
+      if (!vi_map::isLandmarkWellConstrained(
               *map_, map_->getLandmark(db_landmark_id))) {
         LOG(FATAL)
             << "Found not well constrained landmark in result set. Cached "
@@ -300,9 +289,6 @@ bool LoopClosureHandler::handleLoopClosure(
       }
     }
 
-    CHECK_LT(
-        col_idx,
-        static_cast<int>(query_keypoint_idx_to_map_landmark_pairs.size()));
     CHECK(query_vertex_n_frame.isFrameSet(structure_match.frame_index_query));
     measurements.col(col_idx) =
         query_vertex_n_frame.getFrame(structure_match.frame_index_query)
@@ -319,12 +305,6 @@ bool LoopClosureHandler::handleLoopClosure(
     statistics::StatsCollector stats(camera_stats_string);
     stats.IncrementOne();
 
-    FrameKeypointIndexPair query_observation(
-        structure_match.frame_index_query,
-        structure_match.keypoint_index_query);
-    query_keypoint_idx_to_map_landmark_pairs[col_idx] =
-        std::make_pair(query_observation, db_landmark_id);
-
     CHECK_LT(
         structure_match.keypoint_index_query,
         query_vertex_landmark_ids[structure_match.frame_index_query].size());
@@ -336,6 +316,7 @@ bool LoopClosureHandler::handleLoopClosure(
 
     ++col_idx;
   }
+
   // Bail for cases where there is no hope to reach the min num inliers.
   int valid_matches = col_idx;
   statistics::StatsCollector valid_matches_stats("LC num valid matches");
@@ -351,7 +332,6 @@ bool LoopClosureHandler::handleLoopClosure(
 
   measurements.conservativeResize(Eigen::NoChange, col_idx);
   G_landmark_positions.conservativeResize(Eigen::NoChange, col_idx);
-  query_keypoint_idx_to_map_landmark_pairs.resize(col_idx);
   query_landmark_to_map_landmark_pairs.resize(col_idx);
   measurement_camera_indices.resize(col_idx);
 
@@ -393,24 +373,6 @@ bool LoopClosureHandler::handleLoopClosure(
       "LC passed RANSAC inlier threshold (lc_min_inlier_count)");
   stats.IncrementOne();
 
-  CHECK_GT(G_landmark_positions.cols(), 0);
-  *inlier_ratio = static_cast<double>(*num_inliers) /
-                  static_cast<double>(G_landmark_positions.cols());
-  VLOG(6) << "\tinlier_ratio " << *inlier_ratio;
-
-  statistics::StatsCollector stats_inlier_ratio("LC RANSAC inlier ratio");
-  stats_inlier_ratio.AddSample(*inlier_ratio);
-
-  if (*inlier_ratio < FLAGS_lc_min_inlier_ratio) {
-    statistics::StatsCollector statistics_ransac_fail_inlier_ratio(
-        "LC ransac fail inlier_ratio");
-    statistics_ransac_fail_inlier_ratio.AddSample(*inlier_ratio);
-    statistics::StatsCollector statistics_ransac_fail_num_inliers(
-        "LC ransac fail num_inliers");
-    statistics_ransac_fail_num_inliers.AddSample(*num_inliers);
-    return false;
-  }
-
   Eigen::Matrix3Xd landmark_positions;
   landmark_positions.resize(Eigen::NoChange, *num_inliers);
   inlier_structure_matches->resize(static_cast<size_t>(*num_inliers));
@@ -430,9 +392,6 @@ bool LoopClosureHandler::handleLoopClosure(
     ++inlier_sequential_idx;
   }
 
-  statistics::StatsCollector statistics_ransac_success_inlier_ratio(
-      "LC ransac success inlier_ratio");
-  statistics_ransac_success_inlier_ratio.AddSample(*inlier_ratio);
   statistics::StatsCollector statistics_ransac_success_num_inliers(
       "LC ransac success num_inliers");
   statistics_ransac_success_num_inliers.AddSample(*num_inliers);
@@ -486,68 +445,11 @@ bool LoopClosureHandler::handleLoopClosure(
     // Also reassociates keypoints of the query frame.
     mergeLandmarks(
         inliers, query_landmark_to_map_landmark_pairs, landmark_pairs_merged);
-
-    // Some of the query frame keypoints may have invalid landmark ids
-    // (which means the landmark object don't exist right now), but they
-    // were matched to an existing map landmark. We should handle that
-    // separately, as it's not true landmark merge.
-    vi_map::Vertex& query_vertex = map_->getVertex(query_vertex_id);
-    updateQueryKeyframeInvalidLandmarkAssociations(
-        inliers, query_keypoint_idx_to_map_landmark_pairs, &query_vertex);
   }
 
   VLOG(5) << "\transac success. Ransac pts: " << G_landmark_positions.cols()
-          << " inliers: " << inliers.size()
-          << " inlier ratio: " << *inlier_ratio << '.';
+          << " inliers: " << inliers.size() << '.';
   return true;
-}
-
-void LoopClosureHandler::updateQueryKeyframeInvalidLandmarkAssociations(
-    const std::vector<int>& inliers,
-    const KeypointToLandmarkVector& query_keypoint_idx_to_landmark_pairs,
-    vi_map::Vertex* query_vertex) const {
-  CHECK_NOTNULL(query_vertex);
-
-  statistics::StatsCollector stats_reassociations(
-      "0.3.2 Loop closure: Invalid query landmarks, reassociated");
-
-  for (unsigned int i = 0; i < inliers.size(); ++i) {
-    const int query_frame_idx =
-        query_keypoint_idx_to_landmark_pairs[inliers[i]].first.frame_idx;
-
-    size_t block_start, block_size;
-    query_vertex->getVisualFrame(query_frame_idx)
-        .getDescriptorBlockTypeStartAndSize(
-            feature_type_, &block_start, &block_size);
-    const int query_keypoint_idx =
-        query_keypoint_idx_to_landmark_pairs[inliers[i]].first.keypoint_idx +
-        block_start;
-
-    const vi_map::LandmarkId query_landmark_id =
-        query_vertex->getObservedLandmarkId(
-            query_frame_idx, query_keypoint_idx);
-    vi_map::LandmarkId map_landmark_id =
-        query_keypoint_idx_to_landmark_pairs[inliers[i]].second;
-
-    if (!query_landmark_id.isValid()) {
-      stats_reassociations.IncrementOne();
-
-      // The map landmark could have been merged and removed already. Check
-      // if we should not replace the id to the newer one.
-      map_landmark_id = getLandmarkIdAfterMerges(map_landmark_id);
-
-      query_vertex->setObservedLandmarkId(
-          query_frame_idx, query_keypoint_idx, map_landmark_id);
-
-      vi_map::Vertex& map_landmark_vertex =
-          map_->getLandmarkStoreVertex(map_landmark_id);
-
-      map_landmark_vertex.getLandmarks()
-          .getLandmark(map_landmark_id)
-          .addObservation(
-              query_vertex->id(), query_frame_idx, query_keypoint_idx);
-    }
-  }
 }
 
 void LoopClosureHandler::mergeLandmarks(

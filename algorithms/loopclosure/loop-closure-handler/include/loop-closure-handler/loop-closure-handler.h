@@ -31,11 +31,6 @@ namespace loop_closure_handler {
 
 class LoopClosureHandler {
  public:
-  typedef std::unordered_map<FrameKeypointIndexPair, vi_map::LandmarkIdSet>
-      KeypointToLandmarksMap;
-  typedef std::vector<std::pair<FrameKeypointIndexPair, vi_map::LandmarkId>>
-      KeypointToLandmarkVector;
-
   typedef std::vector<std::pair<vi_map::LandmarkId, vi_map::LandmarkId>>
       LandmarkToLandmarkVector;
   typedef std::unordered_map<vi_map::LandmarkId, vi_map::LandmarkId>
@@ -65,8 +60,7 @@ class LoopClosureHandler {
   bool handleLoopClosure(
       const vi_map::LoopClosureConstraint& loop_closure_constraint,
       bool merge_matching_landmarks, bool add_loopclosure_edges,
-      int* num_inliers, double* inlier_ratio,
-      pose::Transformation* T_G_I_ransac,
+      int* num_inliers, pose::Transformation* T_G_I_ransac,
       vi_map::LoopClosureConstraint* inlier_constraints,
       MergedLandmark3dPositionVector* landmark_pairs_merged,
       pose_graph::VertexId* vertex_id_closest_to_structure_matches,
@@ -78,17 +72,11 @@ class LoopClosureHandler {
       const pose_graph::VertexId& query_vertex_id,
       const vi_map::VertexKeyPointToStructureMatchList& structure_matches,
       bool merge_matching_landmarks, bool add_loopclosure_edges,
-      int* num_inliers, double* inlier_ratio,
-      pose::Transformation* T_G_I_ransac,
+      int* num_inliers, pose::Transformation* T_G_I_ransac,
       vi_map::VertexKeyPointToStructureMatchList* inlier_structure_matches,
       MergedLandmark3dPositionVector* landmark_pairs_merged,
       pose_graph::VertexId* vertex_id_closest_to_structure_matches,
       std::mutex* map_mutex, bool use_random_pnp_seed = true) const;
-
-  void updateQueryKeyframeInvalidLandmarkAssociations(
-      const std::vector<int>& inliers,
-      const KeypointToLandmarkVector& query_keypoint_idx_to_landmark_pairs,
-      vi_map::Vertex* query_vertex) const;
 
   void mergeLandmarks(
       const std::vector<int>& inliers,
