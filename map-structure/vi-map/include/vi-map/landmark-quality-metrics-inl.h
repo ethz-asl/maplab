@@ -35,13 +35,14 @@ inline bool isLandmarkWellConstrained(
 
   constexpr double kRadToDeg = 180.0 / M_PI;
   double angle_deg = max_disparity_angle_rad * kRadToDeg;
-  bool quality_good = angle_deg >= settings.min_observation_angle_deg;
-  if (!quality_good) {
+  if (angle_deg < settings.min_observation_angle_deg) {
     statistics::StatsCollector stats(
         "Landmark observations angles too close together.");
     stats.IncrementOne();
+    return false;
   }
-  return quality_good;
+
+  return true;
 }
 }  // namespace vi_map
 
