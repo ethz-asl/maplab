@@ -820,6 +820,9 @@ void LoopDetectorNode::detectLoopClosuresMissionToDatabase(
   pose_graph::VertexIdList vertices;
   map->getAllVertexIdsInMission(mission_id, &vertices);
 
+  std::shuffle(
+      vertices.begin(), vertices.end(), std::mt19937{std::random_device{}()});
+
   if (FLAGS_lc_experimental_keep_n_vertices_for_query > 0) {
     const std::size_t init_size = vertices.size();
     filter_vertices_randomly(
