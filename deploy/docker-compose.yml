@@ -1,7 +1,7 @@
 version: "3"
 
 services:
-  app:
+  maplab:
     image: maplab
     build:
       context: ./docker_ctx
@@ -13,4 +13,5 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=all
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
+      - /tmp/maps:/tmp/maps
     network_mode: host

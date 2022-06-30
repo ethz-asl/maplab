@@ -12,8 +12,6 @@ mkdir -p "${docker_ctx}"
 "$script_dir/copy_to_ctx.sh"
 
 # Build the docker image.
-docker build -t "maplab" -f "${script_dir}/Dockerfile" "${docker_ctx}"
+docker-compose -f "${script_dir}/docker-compose.yml" build
 
-# Clean up.
-echo "Finished building the images. Cleaning up."
-rm -rf "${docker_ctx}"
+# We don't remove the context here as docker-compose requires it to be present.
