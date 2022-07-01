@@ -70,16 +70,16 @@ class LoopDetectorNode final {
       vi_map::VertexKeyPointToStructureMatchList* inlier_structure_matches)
       const;
 
-  void detectLoopClosuresMissionToDatabase(
+  bool detectLoopClosuresMissionToDatabase(
       const MissionId& mission_id, const bool merge_landmarks,
-      const bool add_lc_edges, int* num_vertex_candidate_links,
-      vi_map::VIMap* map, pose::Transformation* T_G_M_estimate,
+      const bool add_lc_edges, vi_map::VIMap* map,
+      pose::Transformation* T_G_M_estimate,
       vi_map::LoopClosureConstraintVector* inlier_constraints) const;
 
-  void detectLoopClosuresVerticesToDatabase(
+  bool detectLoopClosuresVerticesToDatabase(
       const pose_graph::VertexIdList& vertices, const bool merge_landmarks,
-      const bool add_lc_edges, int* num_vertex_candidate_links,
-      vi_map::VIMap* map, pose::Transformation* T_G_M_estimate,
+      const bool add_lc_edges, vi_map::VIMap* map,
+      pose::Transformation* T_G_M_estimate,
       vi_map::LoopClosureConstraintVector* inlier_constraints) const;
 
   void instantiateVisualizer();

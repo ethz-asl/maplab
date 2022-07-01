@@ -270,18 +270,25 @@ bool anchorMissionUsingProvidedLoopDetector(
   CHECK(map->hasMission(mission_id));
 
   VLOG(1) << "Matching mission " << mission_id << " to database.";
-  // Probe.
-  ProbeResult probe_result;
-  probeMissionAnchoring(mission_id, loop_detector, map, &probe_result);
 
-  if (probe_result.wasSuccessful()) {
+  // Probe aligning mission.
+  pose::Transformation T_G_M;
+  static constexpr bool kMergeLandmarks = false;
+  static constexpr bool kAddLoopclosureEdges = false;
+
+  vi_map::LoopClosureConstraintVector inlier_constraints;
+  const bool success = loop_detector.detectLoopClosuresMissionToDatabase(
+      mission_id, kMergeLandmarks, kAddLoopclosureEdges, map, &T_G_M,
+      &inlier_constraints);
+
+  if (success) {
     VLOG(1) << "Probe successful, will anchor mission " << mission_id;
 
     vi_map::VIMission& mission = map->getMission(mission_id);
     vi_map::MissionBaseFrame& mission_baseframe =
         map->getMissionBaseFrame(mission.getBaseFrameId());
     // Prealign.
-    mission_baseframe.set_T_G_M(probe_result.T_G_M);
+    mission_baseframe.set_T_G_M(T_G_M);
 
     // Mark as anchored.
     constexpr bool kIsMissionAnchored = true;
@@ -293,29 +300,6 @@ bool anchorMissionUsingProvidedLoopDetector(
   VLOG(1) << "Probe did not meet criteria, will not anchor mission "
           << mission_id;
   return false;
-}
-
-ProbeResult::ProbeResult() : num_vertex_candidate_links(0) {}
-
-bool ProbeResult::wasSuccessful() const {
-  return num_vertex_candidate_links >= FLAGS_map_anchoring_min_num_vertex_links;
-}
-
-void probeMissionAnchoring(
-    const vi_map::MissionId& mission_id,
-    const loop_detector_node::LoopDetectorNode& loop_detector,
-    vi_map::VIMap* map, ProbeResult* result) {
-  CHECK_NOTNULL(map);
-  CHECK_NOTNULL(result);
-
-  static constexpr bool kMergeLandmarksOnProbe = false;
-  static constexpr bool kAddLoopclosureEdgesOnProbe = false;
-
-  vi_map::LoopClosureConstraintVector inlier_constraints;
-  loop_detector.detectLoopClosuresMissionToDatabase(
-      mission_id, kMergeLandmarksOnProbe, kAddLoopclosureEdgesOnProbe,
-      &result->num_vertex_candidate_links, map, &result->T_G_M,
-      &inlier_constraints);
 }
 
 void removeOutliersInAbsolute6DoFConstraints(vi_map::VIMap* map) {

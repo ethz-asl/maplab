@@ -34,15 +34,21 @@ DEFINE_bool(
     lc_insert_lc_edge_instead_of_merging, false,
     "Insert an LC edge in the pose graph instead of merging landmarks.");
 
+DEFINE_int32(
+    anchor_transform_min_inlier_count, 10,
+    "Minimum inlier count for successful mission to database alignment.");
 DEFINE_double(
-    lc_mission_baseframe_min_inlier_ratio, 0.2,
+    anchor_transform_min_inlier_ratio, 0.2,
     "Minimum inlier ratio for successful mission to database alignment.");
 DEFINE_double(
-    lc_mission_baseframe_ransac_max_orientation_error_rad, 0.174,
+    anchor_transform_ransac_max_orientation_error_rad, 0.174,
     "Maximum orientation error for inliers for mission baseframe RANSAC.");
 DEFINE_double(
-    lc_mission_baseframe_ransac_max_position_error_m, 2.0,
+    anchor_transform_ransac_max_position_error_m, 2.0,
     "Maximum position error for inliers for mission baseframe RANSAC.");
+DEFINE_int32(
+    anchor_transform_ransac_num_interations, 2000,
+    "Maximum number of iterations for mission baseframe RANSAC.");
 
 // EXPERIMENTAL FLAGS
 // Use with caution.
@@ -53,10 +59,6 @@ DEFINE_int32(
     lc_experimental_keep_n_vertices_for_database, -1,
     "Skip n vertices when building the LC database.");
 // --------------------------------------------------------------
-
-DEFINE_int32(
-    lc_mission_baseframe_ransac_num_interations, 2000,
-    "Maximum number of iterations for mission baseframe RANSAC.");
 
 DEFINE_string(lc_feature_type, "Binary", "Type of features to loop close");
 
@@ -779,10 +781,10 @@ void LoopDetectorNode::queryVertexInDatabase(
   }
 }
 
-void LoopDetectorNode::detectLoopClosuresMissionToDatabase(
+bool LoopDetectorNode::detectLoopClosuresMissionToDatabase(
     const MissionId& mission_id, const bool merge_landmarks,
-    const bool add_lc_edges, int* num_vertex_candidate_links,
-    vi_map::VIMap* map, pose::Transformation* T_G_M_estimate,
+    const bool add_lc_edges, vi_map::VIMap* map,
+    pose::Transformation* T_G_M_estimate,
     vi_map::LoopClosureConstraintVector* inlier_constraints) const {
   CHECK(map->hasMission(mission_id));
   pose_graph::VertexIdList vertices;
@@ -799,23 +801,20 @@ void LoopDetectorNode::detectLoopClosuresMissionToDatabase(
             << "Selected " << vertices.size() << " from " << init_size << ".";
   }
 
-  detectLoopClosuresVerticesToDatabase(
-      vertices, merge_landmarks, add_lc_edges, num_vertex_candidate_links, map,
-      T_G_M_estimate, inlier_constraints);
+  return detectLoopClosuresVerticesToDatabase(
+      vertices, merge_landmarks, add_lc_edges, map, T_G_M_estimate,
+      inlier_constraints);
 }
 
-void LoopDetectorNode::detectLoopClosuresVerticesToDatabase(
+bool LoopDetectorNode::detectLoopClosuresVerticesToDatabase(
     const pose_graph::VertexIdList& vertices, const bool merge_landmarks,
-    const bool add_lc_edges, int* num_vertex_candidate_links,
-    vi_map::VIMap* map, pose::Transformation* T_G_M_estimate,
+    const bool add_lc_edges, vi_map::VIMap* map,
+    pose::Transformation* T_G_M_estimate,
     vi_map::LoopClosureConstraintVector* inlier_constraints) const {
   CHECK(!vertices.empty());
-  CHECK_NOTNULL(num_vertex_candidate_links);
   CHECK_NOTNULL(map);
   CHECK_NOTNULL(T_G_M_estimate)->setIdentity();
   CHECK_NOTNULL(inlier_constraints)->clear();
-
-  *num_vertex_candidate_links = 0;
 
   std::ostringstream ss;
   for (const MissionId mission : missions_in_database_) {
@@ -912,70 +911,75 @@ void LoopDetectorNode::detectLoopClosuresVerticesToDatabase(
 
   if (inlier_counts.empty()) {
     LOG(INFO) << "\nLoop closure result: \n - No loops found!";
-  } else {
-    std::stringstream result_ss;
-    result_ss << "\nLoop closure result:";
-    result_ss << "\n - missions in database: " << ss.str();
-    result_ss << "\n - localized " << inlier_counts.size() << "/"
-              << vertices.size() << " vertices";
-
-    if (VLOG_IS_ON(2)) {
-      result_ss << "\n - Inlier counts: ";
-      for (double val : inlier_counts) {
-        result_ss << val << ", ";
-      }
-    }
-
-    if (merge_landmarks) {
-      result_ss << "\n - Merged " << landmark_pairs_merged.size()
-                << " landmark pairs";
-    }
-    LOG(INFO) << result_ss.str();
-
-    // Check flags.
-    CHECK_GE(FLAGS_lc_mission_baseframe_min_inlier_ratio, 0.0);
-    CHECK_GE(FLAGS_lc_mission_baseframe_ransac_num_interations, 0);
-    CHECK_GE(FLAGS_lc_mission_baseframe_ransac_max_orientation_error_rad, 0.0);
-    CHECK_GE(FLAGS_lc_mission_baseframe_ransac_max_position_error_m, 0.0);
-
-    // RANSAC and LSQ estimate of the mission baseframe transformation.
-    const int kNumInliersThreshold =
-        T_G_M_vector.size() * FLAGS_lc_mission_baseframe_min_inlier_ratio;
-    aslam::Transformation T_G_M_LS;
-    int num_inliers = 0;
-    std::random_device device;
-    const int ransac_seed = device();
-
-    common::transformationRansac(
-        T_G_M_vector, FLAGS_lc_mission_baseframe_ransac_num_interations,
-        FLAGS_lc_mission_baseframe_ransac_max_orientation_error_rad,
-        FLAGS_lc_mission_baseframe_ransac_max_position_error_m, ransac_seed,
-        &T_G_M_LS, &num_inliers);
-    VLOG(1) << "RANSAC found " << num_inliers << " inliers out of "
-            << T_G_M_vector.size();
-    if (num_inliers < kNumInliersThreshold) {
-      VLOG(1) << "Not enough inliers to compute T_G_M! (threshold: "
-              << kNumInliersThreshold << ")";
-      *num_vertex_candidate_links = inlier_counts.size();
-      return;
-    }
-    const Eigen::Quaterniond& q_G_M_LS =
-        T_G_M_LS.getRotation().toImplementation();
-
-    // The datasets should be gravity-aligned so only yaw-axis rotation is
-    // necessary to prealign them.
-    Eigen::Vector3d rpy_G_M_LS =
-        common::RotationMatrixToRollPitchYaw(q_G_M_LS.toRotationMatrix());
-    rpy_G_M_LS(0) = 0.0;
-    rpy_G_M_LS(1) = 0.0;
-    Eigen::Quaterniond q_G_M_LS_yaw_only(
-        common::RollPitchYawToRotationMatrix(rpy_G_M_LS));
-
-    T_G_M_LS.getRotation().toImplementation() = q_G_M_LS_yaw_only;
-    *T_G_M_estimate = T_G_M_LS;
-    VLOG(3) << "T_G_M based on inlier set: \n" << *T_G_M_estimate;
+    return false;
   }
-  *num_vertex_candidate_links = inlier_counts.size();
+
+  std::stringstream result_ss;
+  result_ss << "\nLoop closure result:";
+  result_ss << "\n - missions in database: " << ss.str();
+  result_ss << "\n - localized " << inlier_counts.size() << "/"
+            << vertices.size() << " vertices";
+
+  if (VLOG_IS_ON(2)) {
+    result_ss << "\n - Inlier counts: ";
+    for (double val : inlier_counts) {
+      result_ss << val << ", ";
+    }
+  }
+
+  if (merge_landmarks) {
+    result_ss << "\n - Merged " << landmark_pairs_merged.size()
+              << " landmark pairs";
+  }
+  LOG(INFO) << result_ss.str();
+
+  // Check flags.
+  CHECK_GE(FLAGS_anchor_transform_min_inlier_count, 0);
+  CHECK_GE(FLAGS_anchor_transform_min_inlier_ratio, 0.0);
+  CHECK_GE(FLAGS_anchor_transform_ransac_num_interations, 0);
+  CHECK_GE(FLAGS_anchor_transform_ransac_max_orientation_error_rad, 0.0);
+  CHECK_GE(FLAGS_anchor_transform_ransac_max_position_error_m, 0.0);
+
+  // RANSAC and LSQ estimate of the mission baseframe transformation.
+  aslam::Transformation T_G_M_LS;
+  int num_inliers = 0;
+  std::random_device device;
+  const int ransac_seed = device();
+
+  common::transformationRansac(
+      T_G_M_vector, FLAGS_anchor_transform_ransac_num_interations,
+      FLAGS_anchor_transform_ransac_max_orientation_error_rad,
+      FLAGS_anchor_transform_ransac_max_position_error_m, ransac_seed,
+      &T_G_M_LS, &num_inliers);
+  VLOG(1) << "RANSAC found " << num_inliers << " inliers out of "
+          << T_G_M_vector.size();
+
+  const int kNumInliersThreshold = std::max(
+      FLAGS_anchor_transform_min_inlier_count,
+      static_cast<int>(
+          T_G_M_vector.size() * FLAGS_anchor_transform_min_inlier_ratio));
+  if (num_inliers < kNumInliersThreshold) {
+    LOG(INFO) << "Not enough inliers to compute T_G_M! (threshold: "
+              << kNumInliersThreshold << ")";
+    return false;
+  }
+  const Eigen::Quaterniond& q_G_M_LS =
+      T_G_M_LS.getRotation().toImplementation();
+
+  // The datasets should be gravity-aligned so only yaw-axis rotation is
+  // necessary to prealign them.
+  Eigen::Vector3d rpy_G_M_LS =
+      common::RotationMatrixToRollPitchYaw(q_G_M_LS.toRotationMatrix());
+  rpy_G_M_LS(0) = 0.0;
+  rpy_G_M_LS(1) = 0.0;
+  Eigen::Quaterniond q_G_M_LS_yaw_only(
+      common::RollPitchYawToRotationMatrix(rpy_G_M_LS));
+
+  T_G_M_LS.getRotation().toImplementation() = q_G_M_LS_yaw_only;
+  *T_G_M_estimate = T_G_M_LS;
+  VLOG(3) << "T_G_M based on inlier set: \n" << *T_G_M_estimate;
+
+  return true;
 }
 
 void LoopDetectorNode::detectLoopClosuresAndMergeLandmarks(
@@ -984,13 +988,12 @@ void LoopDetectorNode::detectLoopClosuresAndMergeLandmarks(
 
   const bool kAddLoopclosureEdges = FLAGS_lc_insert_lc_edge_instead_of_merging;
   const bool kMergeLandmarks = !kAddLoopclosureEdges;
-  int num_vertex_candidate_links;
 
   pose::Transformation T_G_M2;
   vi_map::LoopClosureConstraintVector inlier_constraints;
   detectLoopClosuresMissionToDatabase(
-      mission, kMergeLandmarks, kAddLoopclosureEdges,
-      &num_vertex_candidate_links, map, &T_G_M2, &inlier_constraints);
+      mission, kMergeLandmarks, kAddLoopclosureEdges, map, &T_G_M2,
+      &inlier_constraints);
 
   VLOG(1) << "Handling loop closures done.";
 }
