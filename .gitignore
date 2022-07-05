@@ -52,8 +52,12 @@ CMakeLists.txt.user
 
 # Maplab temporary files.
 *.vi_command_history
+.vscode/
 
 # Documentation
 docs/build
 docs/doxyoutput
 docs/api
+
+# Docker
+docker_ctx/
