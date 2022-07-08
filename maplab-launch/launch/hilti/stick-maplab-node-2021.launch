@@ -17,7 +17,7 @@
 		<param name="vio_camera_topic_suffix" value="image_raw"/>
 
 		<!-- DENSE MAP -->
-		<param name="map_builder_save_point_clouds_as_resources" value="false"/>
+		<param name="map_builder_save_point_clouds_as_resources" value="true"/>
 
 		<!-- MAPLAB_NODE_CONFIG -->
 		<param name="map_save_every_n_sec" value="0"/>
