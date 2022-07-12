@@ -17,7 +17,7 @@ typedef std::unordered_map<int, vi_map::KeypointIdentifierList>
 namespace vi_map_helpers {
 double computeSquaredReprojectionError(
     const vi_map::Vertex& vertex, const int frame_idx, const int keypoint_idx,
-    const int feature_type, const Eigen::Vector3d& landmark_p_C);
+    const Eigen::Vector3d& landmark_p_C);
 void evaluateLandmarkQuality(vi_map::VIMap* map);
 void evaluateLandmarkQuality(
     const vi_map::MissionIdList& mission_ids, vi_map::VIMap* map);

@@ -13,7 +13,7 @@ namespace vi_map_helpers {
 
 double computeSquaredReprojectionError(
     const vi_map::Vertex& vertex, const int frame_idx, const int keypoint_idx,
-    const int feature_type, const Eigen::Vector3d& landmark_p_C) {
+    const Eigen::Vector3d& landmark_p_C) {
   Eigen::Vector2d reprojected_point;
   aslam::ProjectionResult projection_result =
       vertex.getCamera(frame_idx)->project3(landmark_p_C, &reprojected_point);
@@ -22,8 +22,8 @@ double computeSquaredReprojectionError(
       projection_result ==
           aslam::ProjectionResult::KEYPOINT_OUTSIDE_IMAGE_BOX) {
     return (reprojected_point -
-            vertex.getVisualFrame(frame_idx).getKeypointMeasurementOfType(
-                keypoint_idx, feature_type))
+            vertex.getVisualFrame(frame_idx).getKeypointMeasurement(
+                keypoint_idx))
         .squaredNorm();
   }
   return std::numeric_limits<double>::max();
@@ -265,9 +265,8 @@ void findAndDetachInferiorQualityTracks(
     if (p_C_fi[2] > 0.0) {
       double min_sq_reprojection_error = std::numeric_limits<double>::max();
       for (const vi_map::KeypointIdentifier& keypoint : it->second) {
-        // TODO(smauq): make this work for all feature types
         const double reprojection_error_sq = computeSquaredReprojectionError(
-            vertex, keypoint.frame_id.frame_index, keypoint.keypoint_index, 0,
+            vertex, keypoint.frame_id.frame_index, keypoint.keypoint_index,
             p_C_fi);
         if (reprojection_error_sq < min_sq_reprojection_error) {
           min_error_keypoint = keypoint;
