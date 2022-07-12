@@ -103,14 +103,14 @@ class LoopDetectorNode final {
       const vi_map::VIMap& map, const vi_map::VisualFrameIdentifier& frame_id,
       const aslam::VisualFrame& frame,
       const vi_map::LandmarkIdList& observed_landmark_ids,
-      const vi_map::MissionId& mission_id,
+      const vi_map::MissionId& mission_id, const bool skip_invalid_landmark_ids,
       loop_closure::ProjectedImage* projected_image) const;
 
   void convertFrameToProjectedImageOnlyUsingProvidedLandmarkIds(
       const vi_map::VIMap& map, const vi_map::VisualFrameIdentifier& frame_id,
       const aslam::VisualFrame& frame,
       const vi_map::LandmarkIdList& observed_landmark_ids,
-      const vi_map::MissionId& mission_id,
+      const vi_map::MissionId& mission_id, const bool skip_invalid_landmark_ids,
       const vi_map::LandmarkIdSet& landmarks_to_add,
       loop_closure::ProjectedImage* projected_image) const;
 
@@ -127,7 +127,8 @@ class LoopDetectorNode final {
   bool handleLoopClosures(
       const vi_map::LoopClosureConstraint& constraint,
       const bool merge_landmarks, const bool add_lc_edges, int* num_inliers,
-      vi_map::VIMap* map, pose::Transformation* T_G_I_ransac,
+      double* inlier_ratio, vi_map::VIMap* map,
+      pose::Transformation* T_G_I_ransac,
       vi_map::LoopClosureConstraint* inlier_constraints,
       loop_closure_handler::LoopClosureHandler::MergedLandmark3dPositionVector*
           landmark_pairs_merged,

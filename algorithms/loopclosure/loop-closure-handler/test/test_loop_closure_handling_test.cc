@@ -409,6 +409,7 @@ void LoopClosureHandlerTest::addDuplicateLandmarksToQueryKeyframes() {
 
 TEST_F(LoopClosureHandlerTest, LoopClosureHandlingTest) {
   int num_inliers;
+  double inlier_ratio;
   static constexpr bool kMergeLandmarks = true;
   static constexpr bool kAddLoopClosureEdegs = false;
   FLAGS_lc_ransac_pixel_sigma = 0.8;
@@ -423,10 +424,11 @@ TEST_F(LoopClosureHandlerTest, LoopClosureHandlingTest) {
         nullptr;
     handler_->handleLoopClosure(
         constraint, kMergeLandmarks, kAddLoopClosureEdegs, &num_inliers,
-        &G_T_I, &inlier_constraints, &landmark_pairs_merged,
+        &inlier_ratio, &G_T_I, &inlier_constraints, &landmark_pairs_merged,
         kVertexIdClosestToStructureMatches, &map_mutex);
 
     EXPECT_GT(num_inliers, 0);
+    EXPECT_GT(inlier_ratio, 0);
 
     EXPECT_EQ(kNumOfDuplicateLandmarks, expected_landmark_merges_.size());
   }
