@@ -75,8 +75,8 @@ class LoopClosureHandlerTest : public ::testing::Test {
     generateAndProjectLandmarksToMapKeyframes();
     addDuplicateLandmarksToQueryKeyframes();
     handler_ = std::shared_ptr<loop_closure_handler::LoopClosureHandler>(
-        new loop_closure_handler::LoopClosureHandler(&map_,
-                                                     &landmark_id_old_to_new_));
+        new loop_closure_handler::LoopClosureHandler(
+            &map_, &landmark_id_old_to_new_));
     CHECK_LE(kNumOfDuplicateLandmarks, kNumOfLandmarks);
   }
 
@@ -90,8 +90,7 @@ class LoopClosureHandlerTest : public ::testing::Test {
   void populatePosegraph();
   void generateAndProjectLandmarksToMapKeyframes();
   unsigned int addKeypointToVertex(
-      const Eigen::Vector3d& G_p_fi,
-      const vi_map::LandmarkId& landmark_id,
+      const Eigen::Vector3d& G_p_fi, const vi_map::LandmarkId& landmark_id,
       vi_map::Vertex* vertex_ptr);
   void addLandmarkToVertex(
       const Eigen::Vector3d& G_p_fi, const vi_map::LandmarkId& landmark_id,
@@ -126,7 +125,7 @@ bool LoopClosureHandlerTest::hasLandmark(
 }
 
 pose_graph::VertexId LoopClosureHandlerTest::getVertexIdForLandmark(
-      const vi_map::LandmarkId& landmark_id) const {
+    const vi_map::LandmarkId& landmark_id) const {
   return landmark_index_.getStoringVertexId(landmark_id);
 }
 
@@ -164,9 +163,8 @@ void LoopClosureHandlerTest::constructCamera() {
   T_C_B_vector.push_back(T_C_B);
   aslam::NCameraId n_camera_id;
   aslam::generateId(&n_camera_id);
-  cameras_.reset(
-      new aslam::NCamera(
-          n_camera_id, T_C_B_vector, camera_vector, "Test camera rig"));
+  cameras_.reset(new aslam::NCamera(
+      n_camera_id, T_C_B_vector, camera_vector, "Test camera rig"));
 }
 
 void LoopClosureHandlerTest::createMission() {
@@ -225,10 +223,8 @@ void LoopClosureHandlerTest::populatePosegraph() {
     vi_map::MissionId mission_id;
     aslam::generateId(&mission_id);
 
-    vi_map::ViwlsEdge::UniquePtr edge(
-        new vi_map::ViwlsEdge(
-            edge_id, vertex_ids_[i], vertex_ids_[i - 1], imu_timestamps,
-            imu_data));
+    vi_map::ViwlsEdge::UniquePtr edge(new vi_map::ViwlsEdge(
+        edge_id, vertex_ids_[i], vertex_ids_[i - 1], imu_timestamps, imu_data));
     posegraph_.addEdge(std::move(edge));
   }
 }
@@ -275,8 +271,7 @@ void LoopClosureHandlerTest::addLandmarkToVertex(
 }
 
 unsigned int LoopClosureHandlerTest::addKeypointToVertex(
-    const Eigen::Vector3d& G_p_fi,
-    const vi_map::LandmarkId& landmark_id,
+    const Eigen::Vector3d& G_p_fi, const vi_map::LandmarkId& landmark_id,
     vi_map::Vertex* vertex_ptr) {
   CHECK_NOTNULL(vertex_ptr);
 
@@ -303,22 +298,33 @@ unsigned int LoopClosureHandlerTest::addKeypointToVertex(
     empty_measurements.resize(Eigen::NoChange, 0);
     vertex_ptr->getVisualFrame(kVisualFrameIndex)
         .setKeypointMeasurements(empty_measurements);
+
+    // Set also dummy descriptors so that the keypoint type gets set
+    aslam::VisualFrame::DescriptorsT empty_descriptors;
+    empty_descriptors.resize(0, 0);
+    vertex_ptr->getVisualFrame(kVisualFrameIndex)
+        .setDescriptors(empty_descriptors);
   }
   CHECK(
       vertex_ptr->getVisualFrame(kVisualFrameIndex).hasKeypointMeasurements());
 
   Eigen::Matrix2Xd* measurements = vertex_ptr->getVisualFrame(kVisualFrameIndex)
                                        .getKeypointMeasurementsMutable();
+  aslam::VisualFrame::DescriptorsT* descriptors =
+      vertex_ptr->getVisualFrame(kVisualFrameIndex).getDescriptorsMutable();
+
   CHECK_NOTNULL(measurements);
+  CHECK_NOTNULL(descriptors);
   measurements->conservativeResize(Eigen::NoChange, measurements->cols() + 1);
   measurements->rightCols(1) = reprojected_point;
+  descriptors->conservativeResize(Eigen::NoChange, descriptors->cols() + 1);
 
   addObservedLandmarkId(landmark_id, vertex_ptr);
 
   const unsigned int keypoint_idx =
       vertex_ptr->observedLandmarkIdsSize(kVisualFrameIndex) - 1;
-  map_.getLandmark(landmark_id).addObservation(vertex_ptr->id(),
-                                               kVisualFrameIndex, keypoint_idx);
+  map_.getLandmark(landmark_id)
+      .addObservation(vertex_ptr->id(), kVisualFrameIndex, keypoint_idx);
 
   return keypoint_idx;
 }
@@ -339,8 +345,7 @@ void LoopClosureHandlerTest::addDuplicateLandmarksToQueryKeyframes() {
   }
 
   for (const vi_map::LandmarkId& landmark_id : landmarks_to_be_duplicated) {
-    vi_map::Vertex& landmark_vertex =
-        map_.getLandmarkStoreVertex(landmark_id);
+    vi_map::Vertex& landmark_vertex = map_.getLandmarkStoreVertex(landmark_id);
 
     Eigen::Vector3d LM_p_fi = landmark_vertex.getLandmark_p_LM_fi(landmark_id);
     LM_p_fi +=
@@ -350,8 +355,7 @@ void LoopClosureHandlerTest::addDuplicateLandmarksToQueryKeyframes() {
     aslam::generateId(&new_landmark_id);
 
     addLandmarkToVertex(LM_p_fi, new_landmark_id, &landmark_vertex);
-    duplicate_landmark_to_landmark_map_.emplace(
-        new_landmark_id, landmark_id);
+    duplicate_landmark_to_landmark_map_.emplace(new_landmark_id, landmark_id);
 
     for (unsigned int i = kNumOfMapVertices; i < vertex_ids_.size(); ++i) {
       vi_map::Vertex& keypoint_vertex = map_.getVertex(vertex_ids_[i]);
@@ -383,8 +387,7 @@ void LoopClosureHandlerTest::addDuplicateLandmarksToQueryKeyframes() {
         LandmarkToLandmarkMap::iterator it =
             duplicate_landmark_to_landmark_map_.find(duplicate_landmark_id);
         ASSERT_TRUE(it != duplicate_landmark_to_landmark_map_.end());
-        const vi_map::Landmark& map_landmark =
-            map_.getLandmark(it->second);
+        const vi_map::Landmark& map_landmark = map_.getLandmark(it->second);
 
         for (const vi_map::KeypointIdentifier& observation :
              map_landmark.getObservations()) {
@@ -440,7 +443,7 @@ TEST_F(LoopClosureHandlerTest, LoopClosureHandlingTest) {
     EXPECT_EQ(
         expected_merge.new_landmark_id,
         query_vertex.getObservedLandmarkId(
-                kVisualFrameIndex, expected_merge.idx));
+            kVisualFrameIndex, expected_merge.idx));
   }
 
   // Check if deleted landmarks are really removed from global landmark to
