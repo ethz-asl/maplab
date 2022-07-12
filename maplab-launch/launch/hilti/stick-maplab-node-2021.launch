@@ -3,6 +3,12 @@
 <launch>
 	<!-- node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/ -->
 
+  <node name="lidar_undistortion" pkg="lidar_undistortion" type="lidar_undistortion_node" >
+      <remap from="pointcloud" to="/os_cloud_node/points" />
+      <param name="odom_frame_id" value="mission" />
+      <param name="lidar_frame_id" value="lidar_sensor_0" />
+  </node>
+
 	<!-- MAPLAB -->
 	<node name="maplab_node" pkg="maplab_node" type="maplab_node" output="screen" clear_params="true">
 

@@ -15,8 +15,8 @@ sensors:
 
   - id:                                    bbf123479caf7592b35518478a2fe08d
     sensor_type:                           LIDAR
-    description:                           "Lidarmace - Ouster OS0"
-    topic:                                 /os_cloud_node/points
+    description:                           "Ouster OS1"
+    topic:                                 /lidar_undistortion/pointcloud_corrected
 
   - id:                                    acbb23479caf7592b35518478a2fe08f
     sensor_type:                           ODOMETRY_6DOF
