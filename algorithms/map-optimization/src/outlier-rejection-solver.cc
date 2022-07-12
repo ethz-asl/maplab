@@ -53,6 +53,7 @@ void findOutlierLandmarks(
         for (size_t item : batch) {
           const vi_map::LandmarkId& landmark_id = landmark_ids[item];
           const vi_map::Landmark& landmark = map.getLandmark(landmark_id);
+          const int feature_type = static_cast<int>(landmark.getFeatureType());
 
           const vi_map::MissionId& landmark_store_mission_id =
               map.getLandmarkStoreVertex(landmark_id).getMissionId();
@@ -71,7 +72,7 @@ void findOutlierLandmarks(
             CHECK_LT(
                 keypoint_id.keypoint_index,
                 observer_vertex.getVisualFrame(frame_idx)
-                    .getNumKeypointMeasurements());
+                    .getNumKeypointMeasurementsOfType(feature_type));
 
             const Eigen::Vector3d& p_C_fi =
                 map.getLandmark_p_C_fi(landmark_id, observer_vertex, frame_idx);
@@ -85,7 +86,7 @@ void findOutlierLandmarks(
               const double reprojection_error_sq =
                   vi_map_helpers::computeSquaredReprojectionError(
                       observer_vertex, frame_idx, keypoint_id.keypoint_index,
-                      p_C_fi);
+                      feature_type, p_C_fi);
               if (observer_vertex.getMissionId() == landmark_store_mission_id &&
                   reprojection_error_sq > same_mission_reproj_error_px_sq) {
                 // The landmarks is in the same mission so we use the same
