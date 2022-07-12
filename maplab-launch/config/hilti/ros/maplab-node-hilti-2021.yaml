@@ -15,10 +15,12 @@ map_remove_bad_landmarks:                                               false
 map_initialize_and_triangulate_landmarks_when_saving:                   true
 map_split_map_into_submaps_when_saving_periodically:                    true
 map_add_unique_timestamp_prefix_for_save_map_folder:                    true
+
 vio_nframe_sync_tolerance_ns:                                           500000
 vio_nframe_sync_max_output_frequency_hz:                                20
 maplab_throttle_frequency_odometry:                                     20
 map_add_odometry_edges_if_less_than_n_common_landmarks:                 -1
+min_tracking_distance_to_image_border_px:                               100
 
 # ATTACHING RESOURCES TO MAP
 ############################
