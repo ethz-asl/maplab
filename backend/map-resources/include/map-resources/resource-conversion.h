@@ -128,6 +128,11 @@ void resizePointCloud(
     const size_t size, const bool has_color, const bool has_normals,
     const bool has_scalar, const bool has_labels, PointCloudType* point_cloud);
 
+uint32_t getPointStep(
+    const bool has_color, const bool /*has_normals*/, const bool has_scalar,
+    const bool has_labels);
+
+
 }  // namespace backend
 
 #include "map-resources/resource-conversion-inl.h"

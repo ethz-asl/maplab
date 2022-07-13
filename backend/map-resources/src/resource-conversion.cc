@@ -744,6 +744,24 @@ void resizePointCloud(
   CHECK_EQ(hasLabelInformation(*point_cloud), has_labels);
 }
 
+uint32_t getPointStep(
+    const bool has_color, const bool /*has_normals*/, const bool has_scalar,
+    const bool has_labels) {
+  uint32_t offset = 0;
+
+  offset = 4u * sizeOfPointField(sensor_msgs::PointField::FLOAT32);
+  if (has_color) {
+    offset += 4u * sizeOfPointField(sensor_msgs::PointField::FLOAT32);
+  }
+  if (has_scalar) {
+    offset += 4u * sizeOfPointField(sensor_msgs::PointField::FLOAT32);
+  }
+  if (has_labels) {
+    offset += 4 * sizeOfPointField(sensor_msgs::PointField::UINT32);
+  }
+  return offset;
+}
+
 void createCameraWithoutDistortion(
     const aslam::Camera& camera,
     aslam::Camera::Ptr* camera_without_distortion) {
