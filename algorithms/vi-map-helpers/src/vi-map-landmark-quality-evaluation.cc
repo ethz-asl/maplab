@@ -245,11 +245,10 @@ void findAndDetachInferiorQualityTracks(
   }
 
   std::unordered_set<int> outlier_track_ids;
-  static constexpr int kMaxNumSameLandmarkId = 1;
   for (auto it = frames_with_observations.begin();
        it != frames_with_observations.end(); ++it) {
     // If the landmark is only observed once nothing has to be done.
-    if (it->second.size() <= kMaxNumSameLandmarkId) {
+    if (it->second.size() <= 1) {
       continue;
     }
 
