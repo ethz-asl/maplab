@@ -14,6 +14,14 @@ DEFINE_int32(
     "Maximum number of ransac iterations for absolute pose recovery.");
 DEFINE_double(
     lc_min_inlier_ratio, 0.0, "Minimum inlier ratio for loop closure.");
+DEFINE_double(
+    lc_max_delta_position_m, -1.0,
+    "Maximum delta position that a loop closure can correct before it is "
+    "rejected (negative values turn the check off).");
+DEFINE_double(
+    lc_max_delta_rotation_deg, -1.0,
+    "Maximum delta angle that a loop closure can correct before it is "
+    "rejected (negative values turn the check off).");
 DECLARE_bool(lc_filter_underconstrained_landmarks);
 
 DEFINE_bool(
@@ -119,6 +127,7 @@ bool addLoopClosureEdge(
       FLAGS_lc_ransac_pixel_sigma, FLAGS_lc_num_ransac_iters, ncamera,
       &T_G_Inn_ransac, &inliers, &inlier_distances_to_model, &num_iters);
 
+  // TODO(smauq): add all lc checks also here
   if (!pnp_success || inliers.size() < FLAGS_lc_min_inlier_count) {
     // We could not retrieve a pose for the vertex observing matched landmarks.
     // The LC edge cannot be added.
@@ -410,13 +419,38 @@ bool LoopClosureHandler::handleLoopClosure(
     return false;
   }
 
-  // const double delta_position_m = T_G_I_ransac->getPosition().norm();
-  // static constexpr double kRadToDeg = 180.0 / M_PI;
-  // const double delta_rotation_deg =
-  //    aslam::AngleAxis(T_G_I_ransac->getRotation()).angle() * kRadToDeg;
+  // When enabled this check imposes a topological constraint on the loop
+  // closure to be within a certain distance and angle of the current position.
+  if (FLAGS_lc_max_delta_position_m >= 0.0 ||
+      FLAGS_lc_max_delta_rotation_deg >= 0.0) {
+    CHECK_NOTNULL(map_);
+    std::lock_guard<std::mutex> map_lock(*map_mutex);
 
-  // LOG(INFO) << "delta m: " << delta_position_m;
-  // LOG(INFO) << "delta d: " << delta_rotation_deg;
+    // This happens only if a valid query_vertex_id is provided.
+    CHECK(query_vertex_id.isValid())
+        << "Checking for topological constrains is not possible "
+        << "if no valid query_vertex_id is provided.";
+
+    const aslam::Transformation T_I_I_ransac =
+        map_->getVertex_T_G_I(query_vertex_id).inverse() * (*T_G_I_ransac);
+
+    const double delta_position_m = T_I_I_ransac.getPosition().norm();
+    static constexpr double kRadToDeg = 180.0 / M_PI;
+    const double delta_rotation_deg =
+        aslam::AngleAxis(T_I_I_ransac.getRotation()).angle() * kRadToDeg;
+    VLOG(6) << "\tdelta_position_m: " << delta_position_m
+            << " delta_rotation_deg: " << delta_rotation_deg;
+
+    const bool is_distance_ok =
+        (FLAGS_lc_max_delta_position_m < 0.0 ||
+         delta_position_m <= FLAGS_lc_max_delta_position_m);
+    const bool is_rotation_ok =
+        (FLAGS_lc_max_delta_rotation_deg < 0.0 ||
+         delta_rotation_deg <= FLAGS_lc_max_delta_rotation_deg);
+    if (!is_distance_ok || !is_rotation_ok) {
+      return false;
+    }
+  }
 
   Eigen::Matrix3Xd landmark_positions;
   landmark_positions.resize(Eigen::NoChange, *num_inliers);
@@ -456,28 +490,32 @@ bool LoopClosureHandler::handleLoopClosure(
   }
 
   if (add_loopclosure_edges) {
-    if (query_vertex_id.isValid() && map_ != nullptr) {
-      CHECK_NOTNULL(map_);
-      std::lock_guard<std::mutex> map_lock(*map_mutex);
+    CHECK_NOTNULL(map_);
+    std::lock_guard<std::mutex> map_lock(*map_mutex);
 
-      pose_graph::VertexId lc_edge_target_vertex_id;
-      if (vertex_id_closest_to_structure_matches == nullptr) {
-        CHECK(commonly_observed_landmarks.empty());
-        // This function is robust against
-        lc_edge_target_vertex_id = getVertexIdWithMostOverlappingLandmarks(
-            query_vertex_id, *inlier_structure_matches, *map_,
-            &commonly_observed_landmarks);
-      } else {
-        // vertex_id_closest_to_structure_matches was already retrieved
-        // before.
-        lc_edge_target_vertex_id = *vertex_id_closest_to_structure_matches;
-      }
+    // This case should be only handled if a valid query_vertex_id is
+    // provided.
+    CHECK(query_vertex_id.isValid())
+        << "Adding loop closure edges is not possible "
+        << "if no valid query_vertex_id is provided.";
 
-      CHECK(!commonly_observed_landmarks.empty());
-      addLoopClosureEdge(
-          query_vertex_id, commonly_observed_landmarks,
-          lc_edge_target_vertex_id, *T_G_I_ransac, map_, feature_type_);
+    pose_graph::VertexId lc_edge_target_vertex_id;
+    if (vertex_id_closest_to_structure_matches == nullptr) {
+      CHECK(commonly_observed_landmarks.empty());
+      // This function is robust against
+      lc_edge_target_vertex_id = getVertexIdWithMostOverlappingLandmarks(
+          query_vertex_id, *inlier_structure_matches, *map_,
+          &commonly_observed_landmarks);
+    } else {
+      // vertex_id_closest_to_structure_matches was already retrieved
+      // before.
+      lc_edge_target_vertex_id = *vertex_id_closest_to_structure_matches;
     }
+
+    CHECK(!commonly_observed_landmarks.empty());
+    addLoopClosureEdge(
+        query_vertex_id, commonly_observed_landmarks, lc_edge_target_vertex_id,
+        *T_G_I_ransac, map_, feature_type_);
   }
 
   if (merge_matching_landmarks) {
