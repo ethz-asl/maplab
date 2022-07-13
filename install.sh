@@ -74,10 +74,10 @@ then
 elif [ "$UBUNTU_VERSION" == "xenial" ]
 then
   ROS_VERSION="kinetic"
-elif [ $UBUNTU_VERSION == "bionic" ]
+elif [ "$UBUNTU_VERSION" == "bionic" ]
 then
   ROS_VERSION="melodic"
-elif [ $UBUNTU_VERSION == "focal" ]
+elif [ "$UBUNTU_VERSION" == "focal" ]
 then
   ROS_VERSION="noetic"
   echo -e "\e[93m\e[1mWARNING: 20.04 support is experimental. Try at your own risk.\e[39m\e[0m"
@@ -119,7 +119,7 @@ catkin config --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-
 cd src
 
 echo -e "\e[92m\e[1mCloning maplab repository and dependencies...\e[39m\e[0m"
-if [ $EXPERIMENTAL ] 
+if [ "$EXPERIMENTAL" == true ]
 then
   git clone git@github.com:ethz-asl/maplab_experimental.git --recursive
 else
@@ -128,11 +128,11 @@ fi
 
 echo -e "\e[92m\e[1mInstalling the linter...\e[39m\e\0m"
 
-if [ $EXPERIMENTAL ]
+if [ "$EXPERIMENTAL" == true ]
 then
-  cd $CATKIN_WS/src/maplab
-else
   cd $CATKIN_WS/src/maplab_experimental/maplab
+else
+  cd $CATKIN_WS/src/maplab
 fi
 ./dependencies/internal/linter/init-git-hooks.py
 
