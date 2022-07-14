@@ -132,7 +132,7 @@ inline void deserialize(
   CHECK_EQ(4, proto.size());
   Eigen::Map<const Eigen::Quaternion<Scalar, Options>> map(proto.data());
   *quaternion = map;
-  CHECK_NEAR(1.0, quaternion->norm(), 1e-8);
+  CHECK_NEAR(1.0, quaternion->norm(), 1e-4);
 }
 
 template <typename Scalar, int Options>
@@ -140,7 +140,7 @@ inline void serialize(
     const Eigen::Quaternion<Scalar, Options>& quaternion,
     google::protobuf::RepeatedField<Scalar>* proto) {
   CHECK_NOTNULL(proto);
-  CHECK_NEAR(1.0, quaternion.norm(), 1e-8);
+  CHECK_NEAR(1.0, quaternion.norm(), 1e-4);
   proto->Resize(4u, Scalar());
   Eigen::Map<Eigen::Quaternion<Scalar, Options>> map(proto->mutable_data());
   map = quaternion;
@@ -160,7 +160,7 @@ inline void deserialize(
   transformation->getRotation().toImplementation() = quaternion_map;
   transformation->getPosition() = position_map;
   CHECK_NEAR(
-      1.0, transformation->getRotation().toImplementation().norm(), 1e-8);
+      1.0, transformation->getRotation().toImplementation().norm(), 1e-4);
 }
 
 template <typename Scalar>
@@ -168,7 +168,7 @@ inline void serialize(
     const pose::Transformation& transformation,
     google::protobuf::RepeatedField<Scalar>* proto) {
   CHECK_NOTNULL(proto);
-  CHECK_NEAR(1.0, transformation.getRotation().toImplementation().norm(), 1e-8);
+  CHECK_NEAR(1.0, transformation.getRotation().toImplementation().norm(), 1e-4);
   proto->Resize(7u, Scalar());
   Eigen::Map<Eigen::Matrix<Scalar, 7, 1>> map(proto->mutable_data());
   map << transformation.getRotation().toImplementation().coeffs(),
