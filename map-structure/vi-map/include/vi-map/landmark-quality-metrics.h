@@ -5,6 +5,7 @@
 
 #include <Eigen/Core>
 #include <aslam/common/memory.h>
+#include <vi-map/vi-map.h>
 
 namespace vi_map {
 class VIMap;
@@ -24,22 +25,21 @@ struct LandmarkWellConstrainedSettings {
   /// Minimum angle disparity of observers for a landmark to be well constrained
   /// [deg].
   double min_observation_angle_deg;
+  /// Maximum reprojection error for any observation of the landmark.
+  /// When negative this check will be ignored.
+  double max_reprojection_error_px;
   /// Minimum number of observers for a landmark to be well constrained.
   size_t min_observers;
 
   LandmarkWellConstrainedSettings();
 };
 
-// These methods use the number of observers, the incident rays from the
-// observers as well as the distance to the camera to determine the landmark
-// quality.
+double computeSquaredReprojectionError(
+    const Vertex& vertex, const int frame_idx, const int keypoint_idx,
+    const Eigen::Vector3d& landmark_p_C);
+
 bool isLandmarkWellConstrained(
     const vi_map::VIMap& map, const vi_map::Landmark& landmark);
-
-inline bool isLandmarkWellConstrained(
-    const Aligned<std::vector, Eigen::Vector3d>& G_normalized_incidence_rays,
-    double signed_distance_to_closest_observer,
-    const LandmarkWellConstrainedSettings& settings);
 
 // Re-evaluates the quality even if the landmark quality is known if the
 // parameter re_evaluate_quality is set to true.
@@ -48,5 +48,5 @@ bool isLandmarkWellConstrained(
     bool re_evaluate_quality);
 
 }  // namespace vi_map
-#include "./landmark-quality-metrics-inl.h"
+
 #endif  // VI_MAP_LANDMARK_QUALITY_METRICS_H_

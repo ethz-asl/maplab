@@ -7,7 +7,6 @@
 #include <aslam/common/statistics/statistics.h>
 #include <gflags/gflags.h>
 #include <vi-map/landmark.h>
-#include <vi-map/vi-map.h>
 
 DEFINE_double(
     vi_map_landmark_quality_min_observation_angle_deg, 5,
@@ -29,6 +28,11 @@ DEFINE_double(
     "Minimum distance from closest observer for a landmark to be "
     "well constrained [m].");
 
+DEFINE_double(
+    vi_map_landmark_quality_max_reprojection_error_px, -1,
+    "Maximum reporjection error of any landmark observation [px]. When "
+    "negative this check will be ignored.");
+
 namespace vi_map {
 LandmarkWellConstrainedSettings::LandmarkWellConstrainedSettings()
     : max_distance_to_closest_observer(
@@ -37,7 +41,27 @@ LandmarkWellConstrainedSettings::LandmarkWellConstrainedSettings()
           FLAGS_vi_map_landmark_quality_min_distance_from_closest_observer),
       min_observation_angle_deg(
           FLAGS_vi_map_landmark_quality_min_observation_angle_deg),
+      max_reprojection_error_px(
+          FLAGS_vi_map_landmark_quality_max_reprojection_error_px),
       min_observers(FLAGS_vi_map_landmark_quality_min_observers) {}
+
+double computeSquaredReprojectionError(
+    const vi_map::Vertex& vertex, const int frame_idx, const int keypoint_idx,
+    const Eigen::Vector3d& landmark_p_C) {
+  Eigen::Vector2d reprojected_point;
+  aslam::ProjectionResult projection_result =
+      vertex.getCamera(frame_idx)->project3(landmark_p_C, &reprojected_point);
+
+  if (projection_result == aslam::ProjectionResult::KEYPOINT_VISIBLE ||
+      projection_result ==
+          aslam::ProjectionResult::KEYPOINT_OUTSIDE_IMAGE_BOX) {
+    return (reprojected_point -
+            vertex.getVisualFrame(frame_idx).getKeypointMeasurement(
+                keypoint_idx))
+        .squaredNorm();
+  }
+  return std::numeric_limits<double>::max();
+}
 
 bool isLandmarkWellConstrained(
     const vi_map::VIMap& map, const vi_map::Landmark& landmark) {
@@ -66,10 +90,11 @@ bool isLandmarkWellConstrained(
 
   const vi_map::KeypointIdentifierList& backlinks = landmark.getObservations();
   if (backlinks.size() < settings.min_observers) {
-    statistics::StatsCollector stats("Landmark has too few backlinks");
-    stats.IncrementOne();
     return false;
   }
+
+  const double max_reprojection_error_px_sq =
+      settings.max_reprojection_error_px * settings.max_reprojection_error_px;
 
   const Eigen::Vector3d& p_G_fi = map.getLandmark_G_p_fi(landmark.id());
   Aligned<std::vector, Eigen::Vector3d> G_normalized_incidence_rays;
@@ -97,10 +122,34 @@ bool isLandmarkWellConstrained(
     if (distance > 0) {
       G_normalized_incidence_rays.emplace_back(G_incidence_ray / distance);
     }
+
+    if (settings.max_reprojection_error_px > 0.0) {
+      const double reprojection_error_px_sq = computeSquaredReprojectionError(
+          vertex, backlink.frame_id.frame_index, backlink.keypoint_index,
+          p_C_fi);
+      if (reprojection_error_px_sq > max_reprojection_error_px_sq) {
+        return false;
+      }
+    }
   }
 
-  return isLandmarkWellConstrained(
-      G_normalized_incidence_rays, signed_distance_to_closest_observer,
-      settings);
+  if (signed_distance_to_closest_observer >
+          settings.max_distance_to_closest_observer ||
+      signed_distance_to_closest_observer <
+          settings.min_distance_to_closest_observer) {
+    return false;
+  }
+
+  const double max_disparity_angle_rad =
+      common::getMaxDisparityRadAngleOfUnitVectorBundle(
+          G_normalized_incidence_rays);
+
+  constexpr double kRadToDeg = 180.0 / M_PI;
+  double angle_deg = max_disparity_angle_rad * kRadToDeg;
+  if (angle_deg < settings.min_observation_angle_deg) {
+    return false;
+  }
+
+  return true;
 }
 }  // namespace vi_map

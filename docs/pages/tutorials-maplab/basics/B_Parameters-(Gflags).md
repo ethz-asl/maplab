@@ -82,7 +82,7 @@ optvi --ba
 --ba_fix_gyro_bias                                          --ba_outlier_rejection_reject_every_n_iters
 --ba_fix_landmark_positions                                 --ba_outlier_rejection_reject_using_reprojection_error
 --ba_fix_ncamera_extrinsics_rotation                        --ba_outlier_rejection_reprojection_error_other_mission_px
---ba_fix_ncamera_extrinsics_translation                     --ba_outlier_rejection_reprojection_error_same_mission_px
+--ba_fix_ncamera_extrinsics_translation                     --ba_outlier_rejection_reprojection_error_px
 --ba_fix_ncamera_intrinsics                                 --ba_use_cgnr_linear_solver
 --ba_fix_velocity                                           --ba_use_jacobi_scaling
 --ba_include_inertial                                       --ba_use_outlier_rejection_solver

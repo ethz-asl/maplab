@@ -11,28 +11,10 @@
 
 namespace vi_map_helpers {
 
-double computeSquaredReprojectionError(
-    const vi_map::Vertex& vertex, const int frame_idx, const int keypoint_idx,
-    const Eigen::Vector3d& landmark_p_C) {
-  Eigen::Vector2d reprojected_point;
-  aslam::ProjectionResult projection_result =
-      vertex.getCamera(frame_idx)->project3(landmark_p_C, &reprojected_point);
-
-  if (projection_result == aslam::ProjectionResult::KEYPOINT_VISIBLE ||
-      projection_result ==
-          aslam::ProjectionResult::KEYPOINT_OUTSIDE_IMAGE_BOX) {
-    return (reprojected_point -
-            vertex.getVisualFrame(frame_idx).getKeypointMeasurement(
-                keypoint_idx))
-        .squaredNorm();
-  }
-  return std::numeric_limits<double>::max();
-}
-
 void evaluateLandmarkQuality(
     const vi_map::MissionIdList& mission_ids, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
-  constexpr bool kEvaluateLandmarkQuality = true;
+  constexpr bool kReEvaluateLandmarkQuality = true;
 
   for (const vi_map::MissionId& mission_id : mission_ids) {
     CHECK(map->hasMission(mission_id));
@@ -57,7 +39,7 @@ void evaluateLandmarkQuality(
             vi_map::Landmark& landmark = map->getLandmark(landmark_id);
             landmark.setQuality(
                 vi_map::isLandmarkWellConstrained(
-                    *map, landmark, kEvaluateLandmarkQuality)
+                    *map, landmark, kReEvaluateLandmarkQuality)
                     ? vi_map::Landmark::Quality::kGood
                     : vi_map::Landmark::Quality::kBad);
             progress_bar.update(++num_processed);
@@ -264,9 +246,10 @@ void findAndDetachInferiorQualityTracks(
     if (p_C_fi[2] > 0.0) {
       double min_sq_reprojection_error = std::numeric_limits<double>::max();
       for (const vi_map::KeypointIdentifier& keypoint : it->second) {
-        const double reprojection_error_sq = computeSquaredReprojectionError(
-            vertex, keypoint.frame_id.frame_index, keypoint.keypoint_index,
-            p_C_fi);
+        const double reprojection_error_sq =
+            vi_map::computeSquaredReprojectionError(
+                vertex, keypoint.frame_id.frame_index, keypoint.keypoint_index,
+                p_C_fi);
         if (reprojection_error_sq < min_sq_reprojection_error) {
           min_error_keypoint = keypoint;
           min_sq_reprojection_error = reprojection_error_sq;
