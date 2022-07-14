@@ -25,7 +25,7 @@
 #include <maplab-common/test/testing-predicates.h>
 
 DECLARE_double(lc_min_image_time_seconds);
-DECLARE_double(vi_map_landmark_quality_max_distance_from_closest_observer);
+DECLARE_double(elq_max_distance_from_closest_observer);
 
 struct ExpectedLandmarkMergeTriple {
   pose_graph::VertexId vertex_id;
@@ -65,7 +65,7 @@ class LoopClosureHandlerTest : public ::testing::Test {
         gen_(1),
         dis_(-1.0, 1.0) {
     FLAGS_lc_min_image_time_seconds = 0.0;
-    FLAGS_vi_map_landmark_quality_max_distance_from_closest_observer = 20.0;
+    FLAGS_elq_max_distance_from_closest_observer = 20.0;
   }
 
   virtual void SetUp() {

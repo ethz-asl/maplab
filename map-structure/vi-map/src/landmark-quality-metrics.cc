@@ -9,41 +9,39 @@
 #include <vi-map/landmark.h>
 
 DEFINE_double(
-    vi_map_landmark_quality_min_observation_angle_deg, 5,
+    elq_min_observation_angle_deg, 5,
     "Minimum angle disparity of observers for a landmark to be "
     "well constrained.");
 
 DEFINE_uint64(
-    vi_map_landmark_quality_min_observers, 4,
+    elq_min_observers, 4,
     "Minimum number of observers for a landmark to be "
     "well constrained.");
 
 DEFINE_double(
-    vi_map_landmark_quality_max_distance_from_closest_observer, 40,
+    elq_max_distance_from_closest_observer, 40,
     "Maximum distance from closest observer for a landmark to be "
     "well constrained [m].");
 
 DEFINE_double(
-    vi_map_landmark_quality_min_distance_from_closest_observer, 0.05,
+    elq_min_distance_from_closest_observer, 0.05,
     "Minimum distance from closest observer for a landmark to be "
     "well constrained [m].");
 
 DEFINE_double(
-    vi_map_landmark_quality_max_reprojection_error_px, -1,
+    elq_max_reprojection_error_px, -1,
     "Maximum reporjection error of any landmark observation [px]. When "
     "negative this check will be ignored.");
 
 namespace vi_map {
 LandmarkWellConstrainedSettings::LandmarkWellConstrainedSettings()
     : max_distance_to_closest_observer(
-          FLAGS_vi_map_landmark_quality_max_distance_from_closest_observer),
+          FLAGS_elq_max_distance_from_closest_observer),
       min_distance_to_closest_observer(
-          FLAGS_vi_map_landmark_quality_min_distance_from_closest_observer),
-      min_observation_angle_deg(
-          FLAGS_vi_map_landmark_quality_min_observation_angle_deg),
-      max_reprojection_error_px(
-          FLAGS_vi_map_landmark_quality_max_reprojection_error_px),
-      min_observers(FLAGS_vi_map_landmark_quality_min_observers) {}
+          FLAGS_elq_min_distance_from_closest_observer),
+      min_observation_angle_deg(FLAGS_elq_min_observation_angle_deg),
+      max_reprojection_error_px(FLAGS_elq_max_reprojection_error_px),
+      min_observers(FLAGS_elq_min_observers) {}
 
 double computeSquaredReprojectionError(
     const vi_map::Vertex& vertex, const int frame_idx, const int keypoint_idx,

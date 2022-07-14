@@ -138,10 +138,10 @@ dense_depth_integrator_enable_sigint_breaker:                         false
 # Settings for the default submap processing commands:
 # ELQ (evaluate landmark quality)
 # needs to be set because due to keyframing the default value is way to strict
-vi_map_landmark_quality_min_observers:                                2   # Default 4
-vi_map_landmark_quality_max_distance_from_closest_observer:           20  # Default 40m
-vi_map_landmark_quality_min_distance_from_closest_observer:           0.1 # Default 0.05m
-vi_map_landmark_quality_min_observation_angle_deg:                    5   # Default 5deg
+elq_min_observers:                                2   # Default 4
+elq_max_distance_from_closest_observer:           20  # Default 40m
+elq_min_distance_from_closest_observer:           0.1 # Default 0.05m
+elq_min_observation_angle_deg:                    5   # Default 5deg
 
 # OPTIMIZATION
 ##############
@@ -162,7 +162,7 @@ ba_include_6dof_odometry:                                             false
 ba_absolute_pose_sensor_fix_mission_baseframes:                       false
 # If enabled, the trust regions of the last iteration is used as initial
 # trust region for the next time the global optimization is run.
-maplab_server_preserve_trust_region_radius_across_merging_iterations: true
+maplab_server_preserve_trust_region_radius_across_merging: true
 # The trust region radius of the optimization is preserved between iterations
 # of the merging thread. But since there are always new submaps being added,
 # we might want to reset the trust radius to keep it from getting to small or

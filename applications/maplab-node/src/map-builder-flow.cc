@@ -48,7 +48,7 @@ DEFINE_bool(
     map_remove_bad_landmarks, false,
     "If enabled, the bad landmarks will be removed before saving. IMPORTANT: "
     "if keyframing is enabled it is highly recommended to set "
-    "--vi_map_landmark_quality_min_observers to 2.");
+    "--elq_min_observers to 2.");
 
 DEFINE_int32(
     map_add_odometry_edges_if_less_than_n_common_landmarks, -1,

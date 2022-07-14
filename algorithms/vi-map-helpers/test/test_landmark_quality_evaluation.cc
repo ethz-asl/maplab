@@ -9,10 +9,10 @@
 #include "vi-map-helpers/test/vi-map-landmark-quality-check.h"
 #include "vi-map-helpers/vi-map-landmark-quality-evaluation.h"
 
-DECLARE_double(vi_map_landmark_quality_min_observation_angle_deg);
-DECLARE_uint64(vi_map_landmark_quality_min_observers);
-DECLARE_double(vi_map_landmark_quality_max_distance_from_closest_observer);
-DECLARE_double(vi_map_landmark_quality_min_distance_from_closest_observer);
+DECLARE_double(elq_min_observation_angle_deg);
+DECLARE_uint64(elq_min_observers);
+DECLARE_double(elq_max_distance_from_closest_observer);
+DECLARE_double(elq_min_distance_from_closest_observer);
 
 namespace vi_map_helpers {
 
@@ -59,10 +59,10 @@ TEST_F(ViMappingTest, TestLandmarkQualityEvaluation) {
 
   checkLandmarkQualityInView(*map, 21219, 0, 0);
 
-  FLAGS_vi_map_landmark_quality_min_observation_angle_deg = 5;
-  FLAGS_vi_map_landmark_quality_min_observers = 4;
-  FLAGS_vi_map_landmark_quality_max_distance_from_closest_observer = 40;
-  FLAGS_vi_map_landmark_quality_min_distance_from_closest_observer = 0.05;
+  FLAGS_elq_min_observation_angle_deg = 5;
+  FLAGS_elq_min_observers = 4;
+  FLAGS_elq_max_distance_from_closest_observer = 40;
+  FLAGS_elq_min_distance_from_closest_observer = 0.05;
 
   evaluateLandmarkQuality(map);
   checkLandmarkQualityInView(*map, 0, 7627, 13592);
@@ -74,10 +74,10 @@ TEST_F(ViMappingTest, TestLandmarkQualityMetrics) {
   vi_map::VIMap* map = test_app_.getMapMutable();
   vi_map_helpers::checkLandmarkQualityInView(*map, 0, 7638, 13581);
 
-  FLAGS_vi_map_landmark_quality_min_observation_angle_deg = 5;
-  FLAGS_vi_map_landmark_quality_min_observers = 4;
-  FLAGS_vi_map_landmark_quality_max_distance_from_closest_observer = 40;
-  FLAGS_vi_map_landmark_quality_min_distance_from_closest_observer = 0.05;
+  FLAGS_elq_min_observation_angle_deg = 5;
+  FLAGS_elq_min_observers = 4;
+  FLAGS_elq_max_distance_from_closest_observer = 40;
+  FLAGS_elq_min_distance_from_closest_observer = 0.05;
 
   vi_map::MissionIdList mission_ids;
   test_app_.getMapMutable()->getAllMissionIds(&mission_ids);
@@ -89,10 +89,10 @@ TEST_F(ViMappingTest, TestLandmarkEvaluation) {
   vi_map::VIMap* map = test_app_.getMapMutable();
   vi_map_helpers::checkLandmarkQualityInView(*map, 0, 7638, 13581);
 
-  FLAGS_vi_map_landmark_quality_min_observation_angle_deg = 5;
-  FLAGS_vi_map_landmark_quality_min_observers = 4;
-  FLAGS_vi_map_landmark_quality_max_distance_from_closest_observer = 40;
-  FLAGS_vi_map_landmark_quality_min_distance_from_closest_observer = 0.05;
+  FLAGS_elq_min_observation_angle_deg = 5;
+  FLAGS_elq_min_observers = 4;
+  FLAGS_elq_max_distance_from_closest_observer = 40;
+  FLAGS_elq_min_distance_from_closest_observer = 0.05;
 
   vi_map::MissionIdList mission_ids;
   test_app_.getMapMutable()->getAllMissionIds(&mission_ids);

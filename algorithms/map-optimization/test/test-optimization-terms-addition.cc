@@ -5,15 +5,15 @@
 #include "map-optimization/optimization-problem.h"
 #include "map-optimization/optimization-terms-addition.h"
 
-DECLARE_uint64(vi_map_landmark_quality_min_observers);
-DECLARE_double(vi_map_landmark_quality_min_observation_angle_deg);
+DECLARE_uint64(elq_min_observers);
+DECLARE_double(elq_min_observation_angle_deg);
 
 namespace map_optimization {
 
 class OptimizationTermAdditionTest : public ::testing::Test {
  public:
   void SetUp() {
-    FLAGS_vi_map_landmark_quality_min_observers = 1u;
+    FLAGS_elq_min_observers = 1u;
     constexpr size_t kNumAdditionalVertices = 10u;
     vi_map::test::generateMap<vi_map::ViwlsEdge>(kNumAdditionalVertices, &map);
     map.getAllMissionIds(&mission_ids_);

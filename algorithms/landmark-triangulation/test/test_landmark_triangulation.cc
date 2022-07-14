@@ -8,10 +8,10 @@
 
 #include "landmark-triangulation/landmark-triangulation.h"
 
-DECLARE_double(vi_map_landmark_quality_min_observation_angle_deg);
-DECLARE_uint64(vi_map_landmark_quality_min_observers);
-DECLARE_double(vi_map_landmark_quality_max_distance_from_closest_observer);
-DECLARE_double(vi_map_landmark_quality_min_distance_from_closest_observer);
+DECLARE_double(elq_min_observation_angle_deg);
+DECLARE_uint64(elq_min_observers);
+DECLARE_double(elq_max_distance_from_closest_observer);
+DECLARE_double(elq_min_distance_from_closest_observer);
 
 namespace landmark_triangulation {
 
