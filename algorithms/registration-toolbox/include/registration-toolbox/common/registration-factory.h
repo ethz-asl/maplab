@@ -1,17 +1,15 @@
 #ifndef REGISTRATION_TOOLBOX_COMMON_REGISTRATION_FACTORY_H_
 #define REGISTRATION_TOOLBOX_COMMON_REGISTRATION_FACTORY_H_
 
-#include <cxxabi.h>
-
 #include <cstdlib>
+#include <cxxabi.h>
+#include <glog/logging.h>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <typeinfo>
 #include <unordered_map>
 #include <utility>
-
-#include <glog/logging.h>
 
 #include "registration-toolbox/common/common.h"
 #include "registration-toolbox/common/supported.h"

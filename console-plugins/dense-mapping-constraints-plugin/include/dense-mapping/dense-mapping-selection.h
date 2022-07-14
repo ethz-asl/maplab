@@ -17,6 +17,10 @@ struct SelectionConfig {
   bool recompute_invalid_constraints;
 
   double constraint_min_switch_variable_value;
+
+  std::size_t max_number_of_candidates;
+  std::string filter_strategy;
+  double prioritize_recent_candidates;
 };
 
 bool selectAlignmentCandidatePairs(

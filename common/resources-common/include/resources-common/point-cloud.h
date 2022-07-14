@@ -1,16 +1,15 @@
 #ifndef RESOURCES_COMMON_POINT_CLOUD_H_
 #define RESOURCES_COMMON_POINT_CLOUD_H_
 
-#include <cstdio>
-#include <fstream>  // NOLINT
-#include <string>
-#include <vector>
-
 #include <Eigen/Core>
 #include <aslam/common/pose-types.h>
+#include <cstdio>
+#include <fstream>  // NOLINT
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/parallel-process.h>
 #include <maplab-common/threading-helpers.h>
+#include <string>
+#include <vector>
 
 #include "resources-common/tinyply/tinyply.h"
 
@@ -146,6 +145,41 @@ struct PointCloud {
     scalars.insert(scalars.end(), other.scalars.begin(), other.scalars.end());
     labels.insert(labels.end(), other.labels.begin(), other.labels.end());
 
+    CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
+  }
+
+  inline void append(const std::vector<PointCloud>& others) {
+    if (others.empty()) {
+      return;
+    }
+
+    size_t n_points = 0u, n_normals = 0u, n_colors = 0u, n_scalars = 0u,
+           n_labels = 0u;
+    for (const PointCloud& other : others) {
+      CHECK(other.checkConsistency(true));
+      n_points += other.xyz.size();
+      n_normals += other.normals.size();
+      n_colors += other.colors.size();
+      n_scalars += other.scalars.size();
+      n_labels += other.labels.size();
+    }
+
+    xyz.reserve(xyz.size() + n_points);
+    normals.reserve(normals.size() + n_normals);
+    colors.reserve(colors.size() + n_colors);
+    scalars.reserve(scalars.size() + n_scalars);
+    labels.reserve(labels.size() + n_labels);
+
+    for (const PointCloud& other : others) {
+      if (other.empty()) {
+        return;
+      }
+      xyz.insert(xyz.end(), other.xyz.begin(), other.xyz.end());
+      normals.insert(normals.end(), other.normals.begin(), other.normals.end());
+      colors.insert(colors.end(), other.colors.begin(), other.colors.end());
+      scalars.insert(scalars.end(), other.scalars.begin(), other.scalars.end());
+      labels.insert(labels.end(), other.labels.begin(), other.labels.end());
+    }
     CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
   }
 

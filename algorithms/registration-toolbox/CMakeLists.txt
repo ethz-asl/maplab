@@ -5,7 +5,7 @@ include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
 if(COMPILER_SUPPORTS_CXX14)
   set(CMAKE_CXX_STANDARD 14)
-  set(CMAKE_CXX_FLAGS         "-Wall -Wextra -msse -msse2 -msse3 -msse4 -O3 -DNDEBUG")
+  set(CMAKE_CXX_FLAGS         "-Wall -Wextra -msse -msse2 -msse3 -msse4 -O3 -DNDEBUG -fdiagnostics-color=always")
   set(CMAKE_CXX_FLAGS_DEBUG   "-O0 -g")
   set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 else()
@@ -22,7 +22,8 @@ catkin_simple(ALL_DEPS_REQUIRED)
 #############
 
 cs_add_library(${PROJECT_NAME}
-  src/alignment/lpm-aligment.cc
+  src/alignment/lpm-alignment.cc
+  src/alignment/pcl-alignment.cc
   src/common/common.cc
   src/common/registration-factory.cc
   src/common/registration-gflags.cc

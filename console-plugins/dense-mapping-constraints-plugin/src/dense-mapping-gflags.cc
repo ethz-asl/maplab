@@ -3,14 +3,17 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-namespace dense_mapping {
-
 // CANDIDATE SEARCH
 DEFINE_string(
     dm_resource_types, "16,17,21,24",
     "Defines the resource types that are used to derive the dense mapping "
     "constraints. Provide a CSV string with the resource type numbers.");
+DEFINE_double(
+    dm_candidate_search_min_vertex_mission_distance, 1.0,
+    "Minimum distance of first vertex that is used for candidate search. "
+    "Candidates before this vertex are skipped.");
 
+// CANDIDATE SEARCH - CONSECUTIVE
 DEFINE_bool(
     dm_candidate_search_enable_intra_mission_consecutive, true,
     "If enabled, the algorithm will try to find dense mapping constraints "
@@ -32,16 +35,11 @@ DEFINE_double(
     "graph. The search will try to find corresponding dense data pairs with "
     "less rotation.");
 
+// CANDIDATE SEARCH - PROXIMITY
 DEFINE_bool(
     dm_candidate_search_enable_intra_mission_proximity, true,
     "If enabled, the algorithm will try to find dense mapping constraints "
     "between nearby/overlapping dense data, within a single mission.");
-DEFINE_bool(
-    dm_candidate_search_enable_intra_mission_global, true,
-    "If enabled, the algorithm will try to find dense mapping constraints "
-    "between any dense data based on a global place recognition algorithm, "
-    "within a single mission.");
-
 DEFINE_double(
     dm_candidate_search_proximity_max_delta_position_m, 2.0,
     "Maximum delta position between dense mapping constraints based on nearby "
@@ -62,16 +60,31 @@ DEFINE_int32(
     dm_candidate_search_proximity_take_closest_n_candidates, 3,
     "If enabled (> 0), the proximity search will only take the N closest "
     "candidates.");
-
 DEFINE_bool(
     dm_candidate_search_enable_inter_mission_proximity, true,
     "If enabled, the algorithm will try to find dense mapping constraints "
     "between nearby/overlapping dense data, across missions.");
+
+// CANDIDATE SEARCH - GLOBAL
 DEFINE_bool(
-    dm_candidate_search_enable_inter_mission_global, true,
+    dm_candidate_search_enable_intra_mission_global, false,
+    "If enabled, the algorithm will try to find dense mapping constraints "
+    "between any dense data based on a global place recognition algorithm, "
+    "within a single mission.");
+DEFINE_bool(
+    dm_candidate_search_enable_inter_mission_global, false,
     "If enabled, the algorithm will try to find dense mapping constraints "
     "between any dense data based on a global place recognition algorithm, "
     "across missions.");
+DEFINE_string(
+    dm_candidate_search_external_global_service, "/maplab_server/place_lookup",
+    "Requests will be sent to this service");
+DEFINE_int32(
+    dm_candidate_search_external_n_nearest_neighbors, 15,
+    "Defines the number of nearest neighbors used by the global search.");
+DEFINE_double(
+    dm_candidate_search_external_min_confidence, 0.95,
+    "Minimum confidence threshold to accept a potential candidate.");
 
 // CANDIDATE SELECTION
 DEFINE_bool(
@@ -86,15 +99,40 @@ DEFINE_bool(
 DEFINE_double(
     dm_candidate_selection_min_switch_variable_value, 0.75,
     "Threshold for the switch variable to classify a constraint as valid.");
+DEFINE_int32(
+    dm_candidate_selection_max_number_of_candidates, 0,
+    "Limits the number of candidates according to the filter strategy. "
+    "Zero means no limit.");
+DEFINE_string(
+    dm_candidate_selection_filter_strategy, "random",
+    "Filter strategy [random] for the candidate selection process.");
+DEFINE_double(
+    dm_candidate_selection_prioritize_recent_candidates, 0.0,
+    "Defines the percentage of fixed recent candidates [0,1].");
+DEFINE_bool(
+    dm_candidate_selection_prioritize_recent_proximity_candidates, false,
+    "If true throws out consecutive candidates from the fixed recent "
+    "candidates.");
 
 // ALIGNMENTS
 DEFINE_double(
     dm_candidate_alignment_max_delta_position_to_initial_guess_m, 0.5,
-    "Maximum translation deviation of the alignment from the initial guess.");
+    "Maximum translation deviation of the alignment from the initial "
+    "guess.");
 DEFINE_double(
     dm_candidate_alignment_max_delta_rotation_to_initial_guess_deg, 10,
     "Maximum angular deviation of the alignment from the initial guess.");
-
+DEFINE_string(
+    dm_candidate_alignment_type, "PclGIcp",
+    "Alignment type that is used for the pointcloud registration");
+DEFINE_bool(
+    dm_candidate_alignment_use_incremental_submab_alignment, true,
+    "If enabled, an incremental map is built and alignment is performed "
+    "against it");
+DEFINE_double(
+    dm_candidate_alignment_incremental_submap_length_s, 10,
+    "Maximum duration "
+    "of one incremental dense submap in seconds.");
 // CONSTRAINTS
 DEFINE_double(
     dm_constraint_switch_variable_value, 1.0,
@@ -105,4 +143,7 @@ DEFINE_double(
     "Sigma of switch variable of loop closure edge that is used to "
     "enforce the dense mapping constraint.");
 
-}  // namespace dense_mapping
+// VISUALIZATION
+DEFINE_bool(
+    dm_visualize_incremental_submap, false,
+    "If enabled, the incremental map is visualized");

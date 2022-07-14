@@ -1,14 +1,13 @@
 #ifndef DENSE_MAPPING_DENSE_MAPPING_COMMON_H_
 #define DENSE_MAPPING_DENSE_MAPPING_COMMON_H_
 
-#include <unordered_set>
-#include <vector>
-
 #include <aslam/common/memory.h>
 #include <aslam/common/pose-types.h>
 #include <aslam/common/unique-id.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <unordered_set>
+#include <vector>
 #include <vi-map/vi-map.h>
 
 namespace dense_mapping {
@@ -21,8 +20,9 @@ static std::unordered_set<backend::ResourceType, backend::ResourceTypeHash>
         backend::ResourceType::kPointCloudXYZ,
         backend::ResourceType::kPointCloudXYZI,
         backend::ResourceType::kPointCloudXYZRGBN,
-        backend::ResourceType::kPointCloudXYZL
-    };
+        backend::ResourceType::kPointCloudXYZL};
+
+enum class ConstraintType { consecutive, proximity, incremental, global };
 
 struct AlignmentCandidate {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -78,6 +78,9 @@ struct AlignmentCandidatePair {
   // Convenience function for logging.
   friend std::ostream& operator<<(
       std::ostream& out, const AlignmentCandidatePair& pair);
+
+  int64_t getNewestTimestamp() const;
+  ConstraintType type;
 };
 
 }  // namespace dense_mapping
@@ -118,6 +121,8 @@ struct hash<dense_mapping::AlignmentCandidatePair> {
 namespace dense_mapping {
 
 typedef AlignedUnorderedSet<AlignmentCandidatePair> AlignmentCandidatePairs;
+typedef Aligned<std::vector, AlignmentCandidatePairs::iterator>
+    AlignmentCandidatePairIterators;
 typedef Aligned<std::vector, AlignmentCandidate> AlignmentCandidateList;
 typedef AlignedUnorderedMap<vi_map::MissionId, AlignmentCandidateList>
     MissionToAlignmentCandidatesMap;

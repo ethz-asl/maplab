@@ -1,5 +1,10 @@
 #include "dense-mapping/dense-mapping-selection.h"
 
+#include <algorithm>
+#include <list>
+#include <random>
+#include <vector>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -7,13 +12,21 @@ namespace dense_mapping {
 
 SelectionConfig SelectionConfig::fromGflags() {
   SelectionConfig config;
+
+  // LC edge quality filtering.
   config.recompute_all_constraints =
       FLAGS_dm_candidate_selection_recompute_all_constraints;
   config.recompute_invalid_constraints =
       FLAGS_dm_candidate_selection_recompute_invalid_constraints;
-
   config.constraint_min_switch_variable_value =
       FLAGS_dm_candidate_selection_min_switch_variable_value;
+
+  // LC edge generic filtering.
+  config.max_number_of_candidates =
+      FLAGS_dm_candidate_selection_max_number_of_candidates;
+  config.filter_strategy = FLAGS_dm_candidate_selection_filter_strategy;
+  config.prioritize_recent_candidates =
+      FLAGS_dm_candidate_selection_prioritize_recent_candidates;
 
   return config;
 }
@@ -57,18 +70,17 @@ bool hasGoodLoopClosureEdgeFromAToB(
   return has_good_edge;
 }
 
-bool selectAlignmentCandidatePairs(
+static void filter_candidates_based_on_quality(
     const SelectionConfig& config, vi_map::VIMap* map_ptr,
     AlignmentCandidatePairs* candidate_pairs_ptr) {
   CHECK_NOTNULL(candidate_pairs_ptr);
   CHECK_NOTNULL(map_ptr);
-
   const size_t num_candidates_before = candidate_pairs_ptr->size();
-  size_t num_removed_edges = 0u;
-  size_t num_good_prior_edges = 0u;
+  std::size_t num_removed_edges = 0u;
+  std::size_t num_good_prior_edges = 0u;
 
-  VLOG(1) << "Selecting final candidates from " << num_candidates_before
-          << " initial candidates.";
+  VLOG(1) << "Selecting candidates based on quality from "
+          << num_candidates_before << " initial candidates.";
 
   pose_graph::EdgeIdSet constraints_to_delete_edge_ids;
   AlignmentCandidatePairs::iterator it = candidate_pairs_ptr->begin();
@@ -76,6 +88,7 @@ bool selectAlignmentCandidatePairs(
     const AlignmentCandidatePair& alignment = *it;
     if (!alignment.isValid()) {
       VLOG(3) << "Invalid AlignmentCandidatePair:\n" << alignment;
+      it = candidate_pairs_ptr->erase(it);
       continue;
     }
     const pose_graph::VertexId& vertex_id_B =
@@ -115,6 +128,111 @@ bool selectAlignmentCandidatePairs(
           << candidate_pairs_ptr->size() << " based on " << num_good_prior_edges
           << " good prior constraints and removed " << num_removed_edges
           << " bad prior constraints.";
+}
+
+static void remove_consecutive_candidates_from_priority(
+    const std::size_t n_reserved_candidates,
+    std::vector<AlignmentCandidatePairs::iterator>* v) {
+  CHECK_NOTNULL(v);
+  auto it = v->begin();
+  for (std::size_t i = 0u; i < n_reserved_candidates; ++i) {
+    if (it == v->end()) {
+      break;
+    }
+    if ((*it)->type == ConstraintType::consecutive) {
+      std::rotate(it, it + 1, v->end());
+    } else {
+      ++it;
+    }
+  }
+}
+
+static void filter_candidates_randomly(
+    const std::size_t n_remaining_candidates_to_keep,
+    const std::size_t n_reserved_candidates,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK_NOTNULL(candidate_pairs_ptr);
+
+  // Create a vector of candidate iterators.
+  const std::size_t n_candidates = candidate_pairs_ptr->size();
+  if (n_candidates < n_remaining_candidates_to_keep) {
+    return;
+  }
+  std::vector<AlignmentCandidatePairs::iterator> v(n_candidates);
+  std::iota(v.begin(), v.end(), candidate_pairs_ptr->begin());
+
+  // Sorter for the iterators based on the newest timestamp.
+  auto sorter = [](const AlignmentCandidatePairs::iterator& lhs,
+                   const AlignmentCandidatePairs::iterator& rhs) {
+    const int64_t newest_lhs_ts_ns = lhs->getNewestTimestamp();
+    const int64_t newest_rhs_ts_ns = rhs->getNewestTimestamp();
+    return newest_lhs_ts_ns > newest_rhs_ts_ns;
+  };
+
+  // Sort the iterators to access the most recent ones.
+  // Shuffle the remaining iterators.
+  std::sort(v.begin(), v.end(), sorter);
+  if (FLAGS_dm_candidate_selection_prioritize_recent_proximity_candidates) {
+    remove_consecutive_candidates_from_priority(n_reserved_candidates, &v);
+  }
+  std::shuffle(
+      v.begin() + n_reserved_candidates, v.end(),
+      std::mt19937{std::random_device{}()});
+
+  // Delete the elements from the original candidate list.
+  const std::size_t n_remaining_candidates =
+      n_candidates - n_reserved_candidates;
+  const std::size_t n_candidates_to_delete =
+      n_remaining_candidates -
+      std::min(n_remaining_candidates, n_remaining_candidates_to_keep);
+  auto it = v.begin() + n_reserved_candidates;
+  const auto it_end = it + n_candidates_to_delete;
+  for (; it != it_end; ++it) {
+    candidate_pairs_ptr->erase(*it);
+  }
+}
+
+static void filter_candidates_based_on_strategy(
+    const SelectionConfig& config, vi_map::VIMap* map_ptr,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  if (config.max_number_of_candidates == 0) {
+    return;
+  }
+  CHECK_NOTNULL(candidate_pairs_ptr);
+  CHECK_NOTNULL(map_ptr);
+
+  // Compute the bounds of the number of candidates to retrieve and keep.
+  const std::size_t n_reserved_candidates = static_cast<std::size_t>(
+      static_cast<double>(config.max_number_of_candidates) *
+      config.prioritize_recent_candidates);
+  const std::size_t n_remaining_candidates_to_keep =
+      config.max_number_of_candidates - n_reserved_candidates;
+
+  const std::size_t n_candidates_before = candidate_pairs_ptr->size();
+  if (config.filter_strategy == "random") {
+    filter_candidates_randomly(
+        n_remaining_candidates_to_keep, n_reserved_candidates,
+        candidate_pairs_ptr);
+  } else {
+    LOG(ERROR) << "Unknown filter strategy " << config.filter_strategy;
+  }
+
+  VLOG(1) << "Reduced candidate set from " << n_candidates_before << " to "
+          << candidate_pairs_ptr->size() << " based on the "
+          << config.filter_strategy << " strategy.";
+}
+
+bool selectAlignmentCandidatePairs(
+    const SelectionConfig& config, vi_map::VIMap* map_ptr,
+    AlignmentCandidatePairs* candidate_pairs_ptr) {
+  CHECK_NOTNULL(candidate_pairs_ptr);
+  CHECK_NOTNULL(map_ptr);
+
+  // First, filter candidates based on their current edge quality.
+  filter_candidates_based_on_quality(config, map_ptr, candidate_pairs_ptr);
+
+  // Next, filter the remaining candidates based on their priority.
+  filter_candidates_based_on_strategy(config, map_ptr, candidate_pairs_ptr);
 
   return true;
 }
