@@ -5,6 +5,7 @@
 #include <aslam/frames/visual-frame.h>
 #include <maplab-common/macros.h>
 #include <string>
+#include <vector>
 #include <yaml-cpp/yaml.h>
 
 #include "sensors/measurement.h"
@@ -14,9 +15,11 @@ namespace vi_map {
 
 enum class FeatureType : int {
   kInvalid = -1,
-  kBinary = 0,    // Describes the standard maplab binary features which
-                  // are either BRISK / FREAK depending on the flag
-  kR2D2 = 1
+  kBinary = 0,  // Describes the standard maplab binary features which
+                // are either BRISK / FREAK depending on the flag
+  kSuperPoint = 1,
+  kR2D2 = 2,
+  kSIFT = 3
 };
 
 std::string FeatureTypeToString(FeatureType feature_type);

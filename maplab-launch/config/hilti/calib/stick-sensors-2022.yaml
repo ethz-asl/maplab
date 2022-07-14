@@ -35,7 +35,7 @@ sensors:
 
   - id: ff000000000000000000000000000001
     sensor_type: EXTERNAL_FEATURES
-    description: "R2D2 features"
+    description: "SuperPoint features"
     topic: /maplab_features0
     target_sensor: 9da9c2fa16894a059f8b40740c721cb1
     has_uncertainties: true
@@ -43,11 +43,11 @@ sensors:
     has_scores: true
     has_scales: true
     has_track_ids: true
-    feature_type: R2D2
+    feature_type: SuperPoint
 
   - id: ff000000000000000000000000000002
     sensor_type: EXTERNAL_FEATURES
-    description: "R2D2 features"
+    description: "SuperPoint features"
     topic: /maplab_features1
     target_sensor: 44ed7e1913a847b3b8d9884b9b02fb03
     has_uncertainties: true
@@ -55,11 +55,11 @@ sensors:
     has_scores: true
     has_scales: true
     has_track_ids: true
-    feature_type: R2D2
+    feature_type: SuperPoint
 
   - id: ff000000000000000000000000000004
     sensor_type: EXTERNAL_FEATURES
-    description: "R2D2 features"
+    description: "SuperPoint features"
     topic: /maplab_features3
     target_sensor: da7d19d6662f4a428240bf7f706bbb4d
     has_uncertainties: true
@@ -67,11 +67,11 @@ sensors:
     has_scores: true
     has_scales: true
     has_track_ids: true
-    feature_type: R2D2
+    feature_type: SuperPoint
 
   - id: ff000000000000000000000000000005
     sensor_type: EXTERNAL_FEATURES
-    description: "R2D2 features"
+    description: "SuperPoint features"
     topic: /maplab_features4
     target_sensor: c70f9347314d4c26a72280c1f193b47d
     has_uncertainties: true
@@ -79,7 +79,7 @@ sensors:
     has_scores: true
     has_scales: true
     has_track_ids: true
-    feature_type: R2D2
+    feature_type: SuperPoint
 
   - id:                                    4af1bac2a7c5fad79f09e49e3b96d87c
     sensor_type:                           NCAMERA

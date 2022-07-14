@@ -19,7 +19,7 @@ sensors:
 
   - id: ff000000000000000000000000000001
     sensor_type: EXTERNAL_FEATURES
-    description: "R2D2 features"
+    description: "SuperPoint features"
     topic: /maplab_features0
     target_sensor: ca17b5000f15adb3c0da8ac6b729ee05
     has_uncertainties: true
@@ -27,7 +27,7 @@ sensors:
     has_scores: true
     has_scales: true
     has_track_ids: true
-    feature_type: R2D2
+    feature_type: SuperPoint
 
   - id: 8af1bac2a7c5fad79f09e49e3b96d87c
     sensor_type: NCAMERA
