@@ -38,9 +38,8 @@ int VIMapMerger::findLoopClosuresBetweenMissions(
     return common::kUnknownError;
   }
 
-  // We want to match all missions to all, so we do the full upper triangle
-  // including the matching of every mission to itself to find loop-closures
-  // within the mission.
+  // We want to match all missions to all including every mission to
+  // itself to find loop-closures within the mission.
   for (vi_map::MissionIdList::const_iterator it = mission_ids.begin();
        it != mission_ids.end(); ++it) {
     CHECK(it->isValid());
@@ -49,8 +48,8 @@ int VIMapMerger::findLoopClosuresBetweenMissions(
       loop_detector.instantiateVisualizer();
     }
     loop_detector.addMissionToDatabase(*it, *map_);
-    for (vi_map::MissionIdList::const_iterator jt = it; jt != mission_ids.end();
-         ++jt) {
+    for (vi_map::MissionIdList::const_iterator jt = mission_ids.begin();
+         jt != mission_ids.end(); ++jt) {
       if (FLAGS_lc_only_against_other_missions && *jt == *it) {
         continue;
       }
