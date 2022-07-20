@@ -17,6 +17,7 @@ constexpr const char* kBinaryIdentifier = "Binary";
 constexpr const char* kSuperPointIdentifier = "SuperPoint";
 constexpr const char* kR2D2Identifier = "R2D2";
 constexpr const char* kSIFTIdentifier = "SIFT";
+constexpr const char* kLIDARSuperPointIdentifier = "LIDARSuperPoint";
 
 std::string FeatureTypeToString(FeatureType feature_type) {
   CHECK(feature_type != FeatureType::kInvalid);
@@ -28,6 +29,8 @@ std::string FeatureTypeToString(FeatureType feature_type) {
     return std::string(kR2D2Identifier);
   } else if (feature_type == FeatureType::kSIFT) {
     return std::string(kSIFTIdentifier);
+  } else if (feature_type == FeatureType::kLIDARSuperPoint) {
+    return std::string(kLIDARSuperPointIdentifier);
   }
   LOG(FATAL) << "Unknown feature type!";
 }
@@ -49,8 +52,26 @@ FeatureType StringToFeatureType(const std::string& feature_string) {
     return FeatureType::kR2D2;
   } else if (equals(feature_c_string, kSIFTIdentifier)) {
     return FeatureType::kSIFT;
+  } else if (equals(feature_c_string, kLIDARSuperPointIdentifier)) {
+    return FeatureType::kLIDARSuperPoint;
   }
   LOG(FATAL) << "Unknown feature type!";
+}
+
+bool isFloatFeature(FeatureType feature_type) {
+  CHECK(feature_type != FeatureType::kInvalid);
+  if (feature_type == FeatureType::kBinary) {
+    return false;
+  }
+  return true;
+}
+
+bool isLidarFeature(FeatureType feature_type) {
+  CHECK(feature_type != FeatureType::kInvalid);
+  if (feature_type == FeatureType::kLIDARSuperPoint) {
+    return true;
+  }
+  return false;
 }
 
 ExternalFeatures::ExternalFeatures()
@@ -67,22 +88,6 @@ bool ExternalFeatures::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
       &id_as_string));
   CHECK(target_sensor_id_.fromHexString(id_as_string));
 
-  CHECK(YAML::safeGet(
-      sensor_node, static_cast<std::string>(kYamlFieldNameHasUncertainties),
-      &has_uncertainties_));
-  CHECK(YAML::safeGet(
-      sensor_node, static_cast<std::string>(kYamlFieldNameHasOrientations),
-      &has_orientations_));
-  CHECK(YAML::safeGet(
-      sensor_node, static_cast<std::string>(kYamlFieldNameHasScores),
-      &has_scores_));
-  CHECK(YAML::safeGet(
-      sensor_node, static_cast<std::string>(kYamlFieldNameHasScales),
-      &has_scales_));
-  CHECK(YAML::safeGet(
-      sensor_node, static_cast<std::string>(kYamlFieldNameHasTrackIds),
-      &has_track_ids_));
-
   std::string feature_string;
   CHECK(YAML::safeGet(
       sensor_node, static_cast<std::string>(kYamlFieldNameFeatureType),
@@ -97,14 +102,6 @@ void ExternalFeatures::saveToYamlNodeImpl(YAML::Node* sensor_node) const {
   YAML::Node& node = *sensor_node;
   node[static_cast<std::string>(kYamlFieldNameTargetSensor)] =
       target_sensor_id_.hexString();
-
-  node[static_cast<std::string>(kYamlFieldNameHasUncertainties)] =
-      has_uncertainties_;
-  node[static_cast<std::string>(kYamlFieldNameHasOrientations)] =
-      has_orientations_;
-  node[static_cast<std::string>(kYamlFieldNameHasScores)] = has_scores_;
-  node[static_cast<std::string>(kYamlFieldNameHasScales)] = has_scales_;
-  node[static_cast<std::string>(kYamlFieldNameHasTrackIds)] = has_track_ids_;
   node[static_cast<std::string>(kYamlFieldNameFeatureType)] =
       FeatureTypeToString(feature_type_);
 }
