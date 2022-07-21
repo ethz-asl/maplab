@@ -12,6 +12,8 @@ message VisualFrame {
   optional bytes keypoint_descriptors = 5;
   repeated int32 descriptor_types = 11;
   repeated int32 track_ids = 10;
+  repeated double keypoint_3d_positions = 12;
+  repeated int32 keypoint_time_offsets = 13;
 
   repeated aslam.proto.Id landmark_ids = 7;
   optional bool is_valid = 9;

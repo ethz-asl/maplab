@@ -410,8 +410,8 @@ convertRosFeatureMsgToMaplabExternalFeatures(
 
   // Do some sanity check to see the 2d descriptor array is valid
   const uint32_t dim0_stride = msg->descriptors.layout.dim[0].stride;
-  CHECK(msg->descriptors.layout.dim.size() == 2u);
-  CHECK(num_keypoints * descriptor_size == dim0_stride);
+  CHECK_EQ(msg->descriptors.layout.dim.size(), 2u);
+  CHECK_EQ(num_keypoints * descriptor_size, dim0_stride);
 
   vi_map::ExternalFeaturesMeasurement::Ptr external_features_measurement(
       new vi_map::ExternalFeaturesMeasurement(
@@ -419,8 +419,9 @@ convertRosFeatureMsgToMaplabExternalFeatures(
           msg->numKeypointMeasurements, descriptor_size,
           msg->keypointMeasurementsX, msg->keypointMeasurementsY,
           msg->keypointMeasurementUncertainties, msg->keypointOrientations,
-          msg->keypointScores, msg->keypointScales, msg->descriptors.data,
-          msg->trackIds));
+          msg->keypointScores, msg->keypointScales, msg->keypoint3DX,
+          msg->keypoint3DY, msg->keypoint3DZ, msg->keypointTimeOffset,
+          msg->descriptors.data, msg->trackIds));
 
   return external_features_measurement;
 }

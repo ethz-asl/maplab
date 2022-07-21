@@ -37,6 +37,24 @@ void serializeVisualFrame(
           2 * proto->keypoint_scales_size());
     }
 
+    if (frame.hasKeypoint3DPositions()) {
+      ::common::eigen_proto::serialize(
+          frame.getKeypoint3DPositions(),
+          proto->mutable_keypoint_3d_positions());
+      CHECK_EQ(
+          3 * proto->keypoint_measurements_size(),
+          2 * proto->keypoint_3d_positions_size());
+    }
+
+    if (frame.hasKeypointTimeOffsets()) {
+      ::common::eigen_proto::serialize(
+          frame.getKeypointTimeOffsets(),
+          proto->mutable_keypoint_time_offsets());
+      CHECK_EQ(
+          proto->keypoint_measurements_size(),
+          2 * proto->keypoint_time_offsets_size());
+    }
+
     frame.serializeDescriptorsToString(proto->mutable_keypoint_descriptors());
     ::common::eigen_proto::serialize(
         frame.getDescriptorTypes(), proto->mutable_descriptor_types());
@@ -97,6 +115,12 @@ void deserializeVisualFrame(
           proto.keypoint_measurement_sigmas_size());
       Eigen::Map<const Eigen::VectorXd> scales(
           proto.keypoint_scales().data(), proto.keypoint_scales_size());
+      Eigen::Map<const Eigen::Matrix3Xd> positions(
+          proto.keypoint_3d_positions().data(), 3,
+          proto.keypoint_3d_positions_size() / 3);
+      Eigen::Map<const Eigen::VectorXi> time_offsets(
+          proto.keypoint_time_offsets().data(),
+          proto.keypoint_time_offsets_size());
       Eigen::Map<const Eigen::VectorXi> descriptor_types(
           proto.descriptor_types().data(), proto.descriptor_types_size());
       Eigen::Map<const Eigen::VectorXi> track_ids(
@@ -112,10 +136,18 @@ void deserializeVisualFrame(
         CHECK_EQ(scales.rows(), img_points_distorted.cols());
         frame_ref.setKeypointScales(scales);
       }
-      if (track_ids.rows() != 0) {
-        CHECK_EQ(track_ids.rows(), img_points_distorted.cols());
-        frame_ref.setTrackIds(track_ids);
+      if (positions.rows() != 0) {
+        CHECK_EQ(
+            2 * proto.keypoint_3d_positions_size(),
+            3 * proto.keypoint_measurements_size());
+        frame_ref.setKeypoint3DPositions(positions);
       }
+      if (time_offsets.rows() != 0) {
+        CHECK_EQ(time_offsets.rows(), img_points_distorted.cols());
+        frame_ref.setKeypointTimeOffsets(time_offsets);
+      }
+      CHECK_EQ(track_ids.rows(), img_points_distorted.cols());
+      frame_ref.setTrackIds(track_ids);
 
       frame_ref.deserializeDescriptorsFromString(proto.keypoint_descriptors());
       frame_ref.setDescriptorTypes(descriptor_types);

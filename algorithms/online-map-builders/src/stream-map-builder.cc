@@ -1044,7 +1044,7 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
     all_measurements.insert(
         all_measurements.end(), measurements.begin(), measurements.end());
 
-    const size_t processed_measurements = measurement_buffer.removeItemsBefore(
+    processed_measurements += measurement_buffer.removeItemsBefore(
         newest_vertex_time_ns + external_features_sync_tolerance_ns_);
   }
 
@@ -1138,6 +1138,24 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
     Eigen::VectorXd keypoint_scales;
     if (external_features_measurement.getKeypointScales(&keypoint_scales)) {
       frame->extendKeypointScales(keypoint_scales);
+    }
+
+    if (vi_map::isLidarFeature(external_features_sensor.getFeatureType())) {
+      Eigen::Matrix3Xd keypoint_3d_positions;
+      const bool has_3d_positions =
+          external_features_measurement.getKeypoint3DPositions(
+              &keypoint_3d_positions);
+
+      Eigen::VectorXi keypoint_time_offsets;
+      const bool has_time_offsets =
+          external_features_measurement.getKeypointTimeOffsets(
+              &keypoint_time_offsets);
+
+      CHECK(has_3d_positions && has_time_offsets)
+          << "No depth and time offsets provided for 3D LiDAR feature.";
+
+      frame->extendKeypoint3DPositions(keypoint_3d_positions);
+      frame->extendKeypointTimeOffsets(keypoint_time_offsets);
     }
 
     Eigen::VectorXi track_ids;

@@ -127,6 +127,10 @@ class ExternalFeaturesMeasurement : public Measurement {
       const std::vector<double>& keypoint_orientations,
       const std::vector<double>& keypoint_scores,
       const std::vector<double>& keypoint_scales,
+      const std::vector<double> keypoint_3d_x,
+      const std::vector<double> keypoint_3d_y,
+      const std::vector<double> keypoint_3d_z,
+      const std::vector<int32_t> keypoint_time_offsets,
       const std::vector<uint8_t>& descriptors,
       const std::vector<int32_t>& track_ids)
       : Measurement(sensor_id, timestamp_nanoseconds),
@@ -138,6 +142,10 @@ class ExternalFeaturesMeasurement : public Measurement {
         keypoint_orientations_(keypoint_orientations),
         keypoint_scores_(keypoint_scores),
         keypoint_scales_(keypoint_scales),
+        keypoint_3d_x_(keypoint_3d_x),
+        keypoint_3d_y_(keypoint_3d_y),
+        keypoint_3d_z_(keypoint_3d_z),
+        keypoint_time_offsets_(keypoint_time_offsets),
         descriptors_(descriptors),
         track_ids_(track_ids) {
     CHECK(keypoint_measurements_x_.size() == num_keypoint_measurements);
@@ -160,6 +168,15 @@ class ExternalFeaturesMeasurement : public Measurement {
     CHECK(track_ids_.size() == num_keypoint_measurements)
         << "Providing keypoint tracks is mandatory. Please use one of the "
         << "externally provided trackes in maplab_features.";
+
+    // 3D information is either not provided or is all there.
+    CHECK(
+        keypoint_3d_x_.size() == 0 ||
+        keypoint_3d_x_.size() == num_keypoint_measurements);
+    CHECK(
+        keypoint_3d_x_.size() == keypoint_3d_y_.size() &&
+        keypoint_3d_x_.size() == keypoint_3d_z_.size() &&
+        keypoint_3d_x_.size() == keypoint_time_offsets_.size());
   }
 
   void getKeypointMeasurements(Eigen::Matrix2Xd* keypoint_measurements) const {
@@ -223,6 +240,36 @@ class ExternalFeaturesMeasurement : public Measurement {
     return true;
   }
 
+  bool getKeypoint3DPositions(Eigen::Matrix3Xd* keypoint_3d_positions) const {
+    CHECK_NOTNULL(keypoint_3d_positions);
+    if (keypoint_3d_x_.size() == 0) {
+      return false;
+    }
+
+    keypoint_3d_positions->resize(Eigen::NoChange, num_keypoint_measurements_);
+    for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
+      (*keypoint_3d_positions)(0, i) = keypoint_3d_x_[i];
+      (*keypoint_3d_positions)(1, i) = keypoint_3d_y_[i];
+      (*keypoint_3d_positions)(2, i) = keypoint_3d_z_[i];
+    }
+
+    return true;
+  }
+
+  bool getKeypointTimeOffsets(Eigen::VectorXi* keypoint_time_offsets) const {
+    CHECK_NOTNULL(keypoint_time_offsets);
+    if (keypoint_time_offsets_.size() == 0) {
+      return false;
+    }
+
+    keypoint_time_offsets->resize(num_keypoint_measurements_);
+    for (uint32_t i = 0; i < num_keypoint_measurements_; i++) {
+      (*keypoint_time_offsets)(i) = keypoint_time_offsets_[i];
+    }
+
+    return true;
+  }
+
   void getTrackIds(Eigen::VectorXi* track_ids) const {
     CHECK_NOTNULL(track_ids);
     track_ids->resize(num_keypoint_measurements_);
@@ -278,6 +325,10 @@ class ExternalFeaturesMeasurement : public Measurement {
   std::vector<double> keypoint_orientations_;
   std::vector<double> keypoint_scores_;
   std::vector<double> keypoint_scales_;
+  std::vector<double> keypoint_3d_x_;
+  std::vector<double> keypoint_3d_y_;
+  std::vector<double> keypoint_3d_z_;
+  std::vector<int32_t> keypoint_time_offsets_;
   std::vector<uint8_t> descriptors_;
   std::vector<int32_t> track_ids_;
 };
