@@ -4,7 +4,6 @@
 #include <string>
 #include <unordered_map>
 
-#include <aslam/common/statistics/statistics.h>
 #include <aslam/triangulation/triangulation.h>
 #include <maplab-common/multi-threaded-progress-bar.h>
 #include <maplab-common/parallel-process.h>
@@ -144,23 +143,33 @@ void retriangulateLandmarksOfVertex(
         continue;
       }
     }
+
+    // Triangulation is handled differently for LiDAR and camera landmarks
+    const bool is_visual_landmark =
+        !vi_map::isLidarFeature(landmark.getFeatureType());
+
     // The following have one entry per measurement:
     Eigen::Matrix3Xd G_bearing_vectors;
-    Eigen::Matrix3Xd p_G_C_vector;
+    Eigen::Matrix3Xd p_G_C_vectors;
+    Eigen::Matrix3Xd p_G_fi_vectors;
 
     landmark.setQuality(vi_map::Landmark::Quality::kBad);
 
     const vi_map::KeypointIdentifierList& observations =
         landmark.getObservations();
-    if (observations.size() < 2u) {
-      statistics::StatsCollector stats(
-          "Landmark triangulation failed too few observations.");
-      stats.IncrementOne();
-      continue;
-    }
 
-    G_bearing_vectors.resize(Eigen::NoChange, observations.size());
-    p_G_C_vector.resize(Eigen::NoChange, observations.size());
+    if (is_visual_landmark) {
+      // If we don't have enough observations for a 2D visual landmark we can
+      // already abort here. For LiDAR landmarks one observation is enough.
+      if (observations.size() < 2u) {
+        continue;
+      }
+
+      G_bearing_vectors.resize(Eigen::NoChange, observations.size());
+      p_G_C_vectors.resize(Eigen::NoChange, observations.size());
+    } else {
+      p_G_fi_vectors.resize(Eigen::NoChange, observations.size());
+    }
 
     int num_measurements = 0;
     for (const vi_map::KeypointIdentifier& observation : observations) {
@@ -190,71 +199,67 @@ void retriangulateLandmarksOfVertex(
         T_G_I_observer = T_G_M_observer * T_M_I_observer;
       }
 
-      Eigen::Vector2d measurement =
-          visual_frame.getKeypointMeasurement(observation.keypoint_index);
-
-      Eigen::Vector3d C_bearing_vector;
-      bool projection_result =
-          observer.getCamera(observation.frame_id.frame_index)
-              ->backProject3(measurement, &C_bearing_vector);
-      if (!projection_result) {
-        statistics::StatsCollector stats(
-            "Landmark triangulation failed proj failed.");
-        stats.IncrementOne();
-        continue;
-      }
-
       const aslam::CameraId& cam_id =
           observer.getCamera(observation.frame_id.frame_index)->getId();
       aslam::Transformation T_G_C =
           (T_G_I_observer *
            observer.getNCameras()->get_T_C_B(cam_id).inverse());
-      G_bearing_vectors.col(num_measurements) =
-          T_G_C.getRotationMatrix() * C_bearing_vector;
-      p_G_C_vector.col(num_measurements) = T_G_C.getPosition();
-      ++num_measurements;
-    }
-    G_bearing_vectors.conservativeResize(Eigen::NoChange, num_measurements);
-    p_G_C_vector.conservativeResize(Eigen::NoChange, num_measurements);
 
-    if (num_measurements < 2) {
-      statistics::StatsCollector stats("Landmark triangulation too few meas.");
-      stats.IncrementOne();
-      continue;
+      if (is_visual_landmark) {
+        Eigen::Vector2d measurement =
+            visual_frame.getKeypointMeasurement(observation.keypoint_index);
+
+        Eigen::Vector3d C_bearing_vector;
+        bool projection_result =
+            observer.getCamera(observation.frame_id.frame_index)
+                ->backProject3(measurement, &C_bearing_vector);
+        if (!projection_result) {
+          continue;
+        }
+
+        G_bearing_vectors.col(num_measurements) =
+            T_G_C.getRotationMatrix() * C_bearing_vector;
+        p_G_C_vectors.col(num_measurements) = T_G_C.getPosition();
+      } else {
+        Eigen::Vector3d p_C_fi =
+            visual_frame.getKeypoint3DPosition(observation.keypoint_index);
+        p_G_fi_vectors.col(num_measurements) = T_G_C * p_C_fi;
+      }
+
+      ++num_measurements;
     }
 
     Eigen::Vector3d p_G_fi;
-    aslam::TriangulationResult triangulation_result =
-        aslam::linearTriangulateFromNViews(
-            G_bearing_vectors, p_G_C_vector, &p_G_fi);
+    if (is_visual_landmark) {
+      // Check again that we have enough valid measurements
+      if (num_measurements < 2) {
+        continue;
+      }
 
-    if (triangulation_result.wasTriangulationSuccessful()) {
-      landmark.set_p_B(T_G_I_storing.inverse() * p_G_fi);
-      constexpr bool kReEvaluateQuality = true;
-      if (vi_map::isLandmarkWellConstrained(
-              *map, landmark, kReEvaluateQuality)) {
-        statistics::StatsCollector stats_good("Landmark good");
-        stats_good.IncrementOne();
-        landmark.setQuality(vi_map::Landmark::Quality::kGood);
-      } else {
-        statistics::StatsCollector stats("Landmark bad after triangulation");
-        stats.IncrementOne();
+      // Resize to final number of valid measurements
+      G_bearing_vectors.conservativeResize(Eigen::NoChange, num_measurements);
+      p_G_C_vectors.conservativeResize(Eigen::NoChange, num_measurements);
+
+      // Triangulate using collected bearing vectors and camera positions
+      aslam::TriangulationResult triangulation_result =
+          aslam::linearTriangulateFromNViews(
+              G_bearing_vectors, p_G_C_vectors, &p_G_fi);
+
+      if (!triangulation_result.wasTriangulationSuccessful()) {
+        continue;
       }
     } else {
-      statistics::StatsCollector stats("Landmark triangulation failed");
-      stats.IncrementOne();
-      if (triangulation_result.status() ==
-          aslam::TriangulationResult::UNOBSERVABLE) {
-        statistics::StatsCollector stats(
-            "Landmark triangulation failed - unobservable");
-        stats.IncrementOne();
-      } else if (
-          triangulation_result.status() ==
-          aslam::TriangulationResult::UNINITIALIZED) {
-        statistics::StatsCollector stats(
-            "Landmark triangulation failed - uninitialized");
-        stats.IncrementOne();
-      }
+      // Resize to final number of valid measurements
+      p_G_fi_vectors.conservativeResize(Eigen::NoChange, num_measurements);
+
+      // Triangulate by averaging the 3D measurements in global frame
+      p_G_fi = p_G_fi_vectors.rowwise().mean();
+    }
+
+    landmark.set_p_B(T_G_I_storing.inverse() * p_G_fi);
+    constexpr bool kReEvaluateQuality = true;
+    if (vi_map::isLandmarkWellConstrained(*map, landmark, kReEvaluateQuality)) {
+      landmark.setQuality(vi_map::Landmark::Quality::kGood);
     }
   }
 }
