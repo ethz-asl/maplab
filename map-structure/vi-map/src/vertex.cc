@@ -890,7 +890,7 @@ void Vertex::getAllObservedLandmarkIdsOfType(
   CHECK_NOTNULL(landmark_ids_all)->clear();
 
   const aslam::VisualNFrame& n_frame = getVisualNFrame();
-  for (int frame_idx = 0; frame_idx < n_frame.getNumFrames(); frame_idx++) {
+  for (size_t frame_idx = 0; frame_idx < n_frame.getNumFrames(); frame_idx++) {
     vi_map::LandmarkIdList landmark_ids;
     getFrameObservedLandmarkIdsOfType(
         frame_idx, &landmark_ids, feature_type);
