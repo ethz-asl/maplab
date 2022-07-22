@@ -92,7 +92,7 @@ void PosegraphErrorTerms::addResidual(
     double* landmark_position) {
   ceres::CostFunction* cost_function = new ErrorTerm(
       measurement, pixel_sigma,
-      ceres_error_terms::visual::VisualErrorType::kLocalMission, camera_.get());
+      ceres_error_terms::LandmarkErrorType::kLocalMission, camera_.get());
 
   problem_.AddResidualBlock(
       cost_function, NULL, landmark_position, landmark_base_pose,

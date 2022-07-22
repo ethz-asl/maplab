@@ -92,18 +92,18 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
   Eigen::Vector3d p_M_fi = Eigen::Vector3d::Zero();
   Eigen::Vector3d p_G_fi = Eigen::Vector3d::Zero();
   Eigen::Vector3d p_I_fi = Eigen::Vector3d::Zero();
-  if (error_term_type_ == visual::VisualErrorType::kLocalKeyframe) {
+  if (error_term_type_ == LandmarkErrorType::kLocalKeyframe) {
     // The landmark baseframe is in fact our keyframe.
     p_I_fi = p_B_fi;
   } else {
     common::toRotationMatrixJPL(q_B_LM.coeffs(), &R_B_LM);
     R_LM_B = R_B_LM.transpose();
     common::toRotationMatrixJPL(q_I_M.coeffs(), &R_I_M);
-    if (error_term_type_ == visual::VisualErrorType::kLocalMission) {
+    if (error_term_type_ == LandmarkErrorType::kLocalMission) {
       // In this case M == LM.
       p_M_fi = R_LM_B * p_B_fi + p_LM_B;
       p_I_fi = R_I_M * (p_M_fi - p_M_I);
-    } else if (error_term_type_ == visual::VisualErrorType::kGlobal) {
+    } else if (error_term_type_ == LandmarkErrorType::kGlobal) {
       common::toRotationMatrixJPL(q_G_LM.coeffs(), &R_G_LM);
       common::toRotationMatrixJPL(q_G_M.coeffs(), &R_G_M);
       R_M_G = R_G_M.transpose();
@@ -185,7 +185,7 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
     J_p_C_fi_wrt_p_C_I = Eigen::Matrix3d::Identity();
     J_p_C_fi_wrt_q_C_I = common::skew(R_C_I * p_I_fi);
 
-    if (error_term_type_ == visual::VisualErrorType::kGlobal) {
+    if (error_term_type_ == LandmarkErrorType::kGlobal) {
       // The following commented expressions are evaluated in an optimized way
       // below and provided here in comments for better readability.
       // J_p_C_fi_wrt_p_M_I = -R_C_I * R_I_M;
@@ -208,7 +208,7 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
       J_p_C_fi_wrt_q_G_LM = J_p_C_fi_wrt_p_G_LM * common::skew(p_G_fi);
       J_p_C_fi_wrt_q_G_M = J_p_C_fi_wrt_p_G_M * common::skew(p_G_fi);
       J_p_C_fi_wrt_q_I_M = R_C_I * common::skew(p_I_fi);
-    } else if (error_term_type_ == visual::VisualErrorType::kLocalMission) {
+    } else if (error_term_type_ == LandmarkErrorType::kLocalMission) {
       // These 4 Jacobians won't be used in the kLocalKeyframe case.
       // The following commented expressions are evaluated in an optimized way
       // below and provided here in comments for better readability.
@@ -222,7 +222,7 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
       J_p_C_fi_wrt_q_I_M = R_C_I * common::skew(p_I_fi);
       J_p_C_fi_wrt_p_B_fi = J_p_C_fi_wrt_p_LM_B * R_LM_B;
       J_p_C_fi_wrt_q_B_LM = -J_p_C_fi_wrt_p_B_fi * common::skew(p_B_fi);
-    } else if (error_term_type_ == visual::VisualErrorType::kLocalKeyframe) {
+    } else if (error_term_type_ == LandmarkErrorType::kLocalKeyframe) {
       J_p_C_fi_wrt_p_B_fi = R_C_I;
     }
 

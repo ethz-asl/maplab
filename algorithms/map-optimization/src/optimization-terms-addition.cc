@@ -69,19 +69,17 @@ void addVisualTermForKeypoint(
   // As defined here: http://en.wikipedia.org/wiki/Huber_Loss_Function
   double huber_loss_delta = 3.0;
 
-  ceres_error_terms::visual::VisualErrorType error_term_type;
+  ceres_error_terms::LandmarkErrorType error_term_type;
   if (vertex_ptr->id() != landmark_store_vertex.id()) {
     // Verify if the landmark and keyframe belong to the same mission.
     if (vertex_ptr->getMissionId() == landmark_store_vertex.getMissionId()) {
-      error_term_type =
-          ceres_error_terms::visual::VisualErrorType::kLocalMission;
+      error_term_type = ceres_error_terms::LandmarkErrorType::kLocalMission;
     } else {
-      error_term_type = ceres_error_terms::visual::VisualErrorType::kGlobal;
+      error_term_type = ceres_error_terms::LandmarkErrorType::kGlobal;
       huber_loss_delta = 10.0;
     }
   } else {
-    error_term_type =
-        ceres_error_terms::visual::VisualErrorType::kLocalKeyframe;
+    error_term_type = ceres_error_terms::LandmarkErrorType::kLocalKeyframe;
   }
 
   double* distortion_params = nullptr;
@@ -153,15 +151,13 @@ void addVisualTermForKeypoint(
       ceres_error_terms::ResidualType::kVisualReprojectionError,
       visual_term_cost, loss_function, cost_term_args);
 
-  if (error_term_type !=
-      ceres_error_terms::visual::VisualErrorType::kLocalKeyframe) {
+  if (error_term_type != ceres_error_terms::LandmarkErrorType::kLocalKeyframe) {
     problem_information->setParameterization(
         landmark_store_vertex_q_IM__M_p_MI, pose_parameterization);
     problem_information->setParameterization(
         vertex_q_IM__M_p_MI, pose_parameterization);
 
-    if (error_term_type ==
-        ceres_error_terms::visual::VisualErrorType::kGlobal) {
+    if (error_term_type == ceres_error_terms::LandmarkErrorType::kGlobal) {
       problem_information->setParameterization(
           landmark_store_baseframe_q_GM__G_p_GM, baseframe_parameterization);
       problem_information->setParameterization(

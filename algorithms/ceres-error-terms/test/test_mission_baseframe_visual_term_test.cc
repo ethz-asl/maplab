@@ -92,10 +92,10 @@ void PosegraphErrorTerms::addResidual(
     double* imu_to_camera_orientation, double* imu_to_camera_position,
     double* landmark_position) {
   ceres::CostFunction* cost_function =
-      new ceres_error_terms::VisualReprojectionError<CameraType,
-                                                     DistortionType>(
+      new ceres_error_terms::VisualReprojectionError<
+          CameraType, DistortionType>(
           measurement, pixel_sigma,
-          ceres_error_terms::visual::VisualErrorType::kGlobal, camera_.get());
+          ceres_error_terms::LandmarkErrorType::kGlobal, camera_.get());
 
   problem_.AddResidualBlock(
       cost_function, NULL, landmark_position, landmark_base_pose,

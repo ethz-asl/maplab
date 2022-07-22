@@ -22,7 +22,7 @@ namespace ceres_error_terms {
 template <template <typename, typename> class ErrorTerm>
 ceres::CostFunction* createVisualCostFunction(
     const Eigen::Vector2d& measurement, double pixel_sigma,
-    ceres_error_terms::visual::VisualErrorType error_term_type,
+    ceres_error_terms::LandmarkErrorType error_term_type,
     aslam::Camera* camera) {
   CHECK_NOTNULL(camera);
   ceres::CostFunction* error_term = nullptr;
@@ -99,7 +99,7 @@ ceres::CostFunction* createVisualCostFunction(
 }
 
 void replaceUnusedArgumentsOfVisualCostFunctionWithDummies(
-    ceres_error_terms::visual::VisualErrorType error_term_type,
+    ceres_error_terms::LandmarkErrorType error_term_type,
     std::vector<double*>* error_term_argument_list,
     std::vector<double*>* dummies_to_set_constant) {
   CHECK_NOTNULL(error_term_argument_list);
@@ -121,7 +121,7 @@ void replaceUnusedArgumentsOfVisualCostFunctionWithDummies(
   static Eigen::Matrix<double, 7, 1> dummy_7d_imu_pose =
       Eigen::Matrix<double, 7, 1>::Constant(std::numeric_limits<double>::max());
 
-  if (error_term_type == visual::VisualErrorType::kLocalKeyframe) {
+  if (error_term_type == LandmarkErrorType::kLocalKeyframe) {
     // The baseframes and keyframe poses are not necessary in the local
     // mission case.
     (*error_term_argument_list)[1] = dummy_7d_landmark_base_pose.data();
@@ -133,14 +133,14 @@ void replaceUnusedArgumentsOfVisualCostFunctionWithDummies(
         dummy_7d_landmark_mission_base_pose.data());
     dummies_to_set_constant->push_back(dummy_7d_imu_mission_base_pose.data());
     dummies_to_set_constant->push_back(dummy_7d_imu_pose.data());
-  } else if (error_term_type == visual::VisualErrorType::kLocalMission) {
+  } else if (error_term_type == LandmarkErrorType::kLocalMission) {
     // The baseframes are not necessary in the local mission case.
     (*error_term_argument_list)[2] = dummy_7d_landmark_base_pose.data();
     (*error_term_argument_list)[3] = dummy_7d_landmark_mission_base_pose.data();
     dummies_to_set_constant->push_back(dummy_7d_landmark_base_pose.data());
     dummies_to_set_constant->push_back(
         dummy_7d_landmark_mission_base_pose.data());
-  } else if (error_term_type == visual::VisualErrorType::kGlobal) {
+  } else if (error_term_type == LandmarkErrorType::kGlobal) {
     // Nothing to replace.
   } else {
     LOG(FATAL) << "Unknown error term type: " << error_term_type;

@@ -13,17 +13,16 @@
 
 namespace ceres_error_terms {
 
-namespace visual {
-enum VisualErrorType { kLocalKeyframe, kLocalMission, kGlobal };
-
-inline bool isValidVisualErrorTermType(VisualErrorType type) {
+enum LandmarkErrorType { kLocalKeyframe, kLocalMission, kGlobal };
+inline bool isValidLandmarkErrorTermType(LandmarkErrorType type) {
   static const bool value =
-      (type == VisualErrorType::kLocalKeyframe ||
-       type == VisualErrorType::kLocalMission ||
-       type == VisualErrorType::kGlobal);
+      (type == LandmarkErrorType::kLocalKeyframe ||
+       type == LandmarkErrorType::kLocalMission ||
+       type == LandmarkErrorType::kGlobal);
   return value;
 }
 
+namespace visual {
 static const int kResidualSize = 2;
 static const int kOrientationBlockSize = 4;
 static const int kPositionBlockSize = 3;

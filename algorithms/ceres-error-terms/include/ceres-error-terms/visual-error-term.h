@@ -34,13 +34,13 @@ class VisualReprojectionError
   // standard deviation (in pixels).
   VisualReprojectionError(
       const Eigen::Vector2d& measurement, double pixel_sigma,
-      visual::VisualErrorType error_term_type, const CameraType* camera)
+      LandmarkErrorType error_term_type, const CameraType* camera)
       : Base(pixel_sigma),
         measurement_(measurement),
         error_term_type_(error_term_type),
         camera_ptr_(camera) {
     CHECK(camera);
-    CHECK(isValidVisualErrorTermType(error_term_type_));
+    CHECK(isValidLandmarkErrorTermType(error_term_type_));
   }
 
   virtual ~VisualReprojectionError() {}
@@ -90,7 +90,7 @@ class VisualReprojectionError
       DistortionJacobian;
 
   Eigen::Vector2d measurement_;
-  const visual::VisualErrorType error_term_type_;
+  const LandmarkErrorType error_term_type_;
   const CameraType* camera_ptr_;
 };
 
