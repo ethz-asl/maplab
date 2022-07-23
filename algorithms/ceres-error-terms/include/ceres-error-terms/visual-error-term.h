@@ -67,8 +67,6 @@ class VisualReprojectionError
   };
 
   // The representation for Jacobians computed by this object.
-  typedef Eigen::Vector2d SwitchJacobian;
-
   typedef Eigen::Matrix<double, visual::kResidualSize,
                         visual::kOrientationBlockSize, Eigen::RowMajor>
       OrientationJacobian;

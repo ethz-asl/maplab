@@ -9,8 +9,6 @@
 #include <ceres/problem.h>
 #include <glog/logging.h>
 
-#include "ceres-error-terms/visual-error-term-base.h"
-
 namespace ceres_error_terms {
 
 enum LandmarkErrorType { kLocalKeyframe, kLocalMission, kGlobal };
@@ -28,6 +26,13 @@ static const int kOrientationBlockSize = 4;
 static const int kPositionBlockSize = 3;
 static const int kPoseBlockSize = 7;
 }  // namespace visual
+
+namespace lidar {
+static const int kResidualSize = 3;
+static const int kOrientationBlockSize = 4;
+static const int kPositionBlockSize = 3;
+static const int kPoseBlockSize = 7;
+}  // namespace lidar
 
 namespace poseblocks {
 static const int kResidualSize = 6;

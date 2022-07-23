@@ -61,7 +61,7 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
   Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_q_G_LM;
   Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_p_G_LM;
 
-  // Jacobian of landmark pose in camera system w.r.t. cam-to-IMU transformation
+  // Jacobian of landmark pose in camera system w.r.t. cam-to-IMU transform
   Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_q_C_I;
   Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_p_C_I;
 
@@ -123,8 +123,8 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
   // Jacobian of 2d keypoint (including distortion and intrinsics)
   // w.r.t. to landmark position in camera coordinates
   Eigen::Vector2d reprojected_landmark;
-  typedef Eigen::Matrix<double, visual::kResidualSize,
-                        visual::kPositionBlockSize>
+  typedef Eigen::Matrix<
+      double, visual::kResidualSize, visual::kPositionBlockSize>
       VisualJacobianType;
 
   VisualJacobianType J_keypoint_wrt_p_C_fi;
@@ -237,6 +237,11 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
       }
     }
 
+    // For quaternions we need to get the Jacobian of the local parameterization
+    // that relates small changes in the tangent space (rotation vec, 3d) to
+    // changes in the ambient space (quaternion, 4d); note that ComputeJacobians
+    // needs row major.
+
     // Jacobian w.r.t. landmark base pose expressed in landmark mission frame.
     if (jacobians[kIdxLandmarkBasePose]) {
       Eigen::Map<PoseJacobian> J(jacobians[kIdxLandmarkBasePose]);
@@ -297,10 +302,6 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
     if (jacobians[kIdxImuPose]) {
       Eigen::Map<PoseJacobian> J(jacobians[kIdxImuPose]);
       if (!projection_failed) {
-        // We need to get the Jacobian of the local parameterization that
-        // relates small changes in the tangent space (rotation vec, 3d) to
-        // changes in the ambient space (quaternion, 4d); note that
-        // ComputeJacobians needs row major.
         Eigen::Matrix<double, 4, 3, Eigen::RowMajor> J_quat_local_param;
         quat_parameterization.ComputeJacobian(
             q_I_M.coeffs().data(), J_quat_local_param.data());

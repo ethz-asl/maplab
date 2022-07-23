@@ -14,11 +14,6 @@ ceres::CostFunction* createVisualCostFunction(
     ceres_error_terms::LandmarkErrorType error_term_type,
     aslam::Camera* camera);
 
-void replaceUnusedArgumentsOfVisualCostFunctionWithDummies(
-    ceres_error_terms::LandmarkErrorType error_term_type,
-    std::vector<double*>* error_term_argument_list,
-    std::vector<double*>* dummies_to_set_constant);
-
 }  // namespace ceres_error_terms
 
 #include "ceres-error-terms/visual-error-term-factory-inl.h"
