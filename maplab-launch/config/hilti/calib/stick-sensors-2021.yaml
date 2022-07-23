@@ -12,7 +12,6 @@ sensors:
     saturation_gyro_max_radps:             7.5
     gravity_magnitude_mps2:                9.808083883386614
 
-
   - id:                                    bbf123479caf7592b35518478a2fe08d
     sensor_type:                           LIDAR
     description:                           "Ouster OS1"
