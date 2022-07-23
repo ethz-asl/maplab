@@ -45,8 +45,11 @@ void findOutlierLandmarks(
           const vi_map::LandmarkId& landmark_id = landmark_ids[item];
           const vi_map::Landmark& landmark = map.getLandmark(landmark_id);
 
-          const vi_map::MissionId& landmark_store_mission_id =
-              map.getLandmarkStoreVertex(landmark_id).getMissionId();
+          // For now skip LiDAR landmarks from outlier rejection.
+          // TODO(smauq): Implement LiDAR outlier rejection
+          if (vi_map::isLidarFeature(landmark.getFeatureType())) {
+            continue;
+          }
 
           // Iterate over all the observations
           const vi_map::KeypointIdentifierList& keypoint_ids =

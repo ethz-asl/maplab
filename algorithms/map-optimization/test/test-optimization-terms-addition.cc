@@ -29,7 +29,7 @@ class OptimizationTermAdditionTest : public ::testing::Test {
   size_t numConstParameterBlocksForVisualTerms() const {
     // There should be 4 different dummy values added.
     // Note: dummy values are added in the function
-    // replaceUnusedArgumentsOfVisualCostFunctionWithDummies in
+    // replaceUnusedArgumentsOfLandmarkCostFunctionWithDummies in
     // visual-error-term-factory-inl.h in ceres_error_terms. The number of
     // dummies per keypoint depends on the error term type which in turn
     // depends on whether the observing vertex is the storing vertex of the
@@ -79,10 +79,10 @@ class OptimizationTermAdditionTest : public ::testing::Test {
   size_t num_landmarks_;
 };
 
-TEST_F(OptimizationTermAdditionTest, AddVisualTerms) {
+TEST_F(OptimizationTermAdditionTest, addLandmarkTerms) {
   OptimizationProblem optimization_problem(&map, mission_ids_);
   EXPECT_GT(
-      addVisualTerms(
+      addLandmarkTerms(
           kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
           kFixExtrinsicsTranslation, kMinLandmarksPerFrame,
           &optimization_problem),
@@ -123,11 +123,11 @@ TEST_F(OptimizationTermAdditionTest, AddInertialTerms) {
       problem_information->active_parameter_blocks.size());
 }
 
-TEST_F(OptimizationTermAdditionTest, AddVisualAndInertialTerms) {
+TEST_F(OptimizationTermAdditionTest, addLandmarkAndInertialTerms) {
   OptimizationProblem optimization_problem(&map, mission_ids_);
 
   EXPECT_GT(
-      addVisualTerms(
+      addLandmarkTerms(
           kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
           kFixExtrinsicsTranslation, kMinLandmarksPerFrame,
           &optimization_problem),

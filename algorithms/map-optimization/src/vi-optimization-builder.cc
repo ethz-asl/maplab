@@ -12,7 +12,7 @@ DEFINE_bool(
     ba_use_visual_outlier_rejection_solver, true,
     "Reject outlier landmarks during the solve?");
 DEFINE_string(
-    ba_visual_feature_type, "Invalid",
+    ba_feature_type, "Invalid",
     "Type of features to use in bundle adjustment, will default to using all "
     "of them at once.");
 DEFINE_bool(
@@ -56,7 +56,7 @@ DEFINE_double(
     "Altitude in meters to estimate the gravity magnitude.");
 
 DEFINE_int32(
-    ba_min_landmark_per_frame, 0,
+    ba_min_landmarks_per_frame, 0,
     "Minimum number of landmarks a frame must observe to be included in the "
     "problem.");
 
@@ -118,9 +118,8 @@ ViProblemOptions ViProblemOptions::initFromGFlags() {
   options.fix_extrinsics_translation =
       FLAGS_ba_fix_ncamera_extrinsics_translation;
   options.fix_landmark_positions = FLAGS_ba_fix_landmark_positions;
-  options.min_landmarks_per_frame = FLAGS_ba_min_landmark_per_frame;
-  options.visual_feature_type =
-      vi_map::StringToFeatureType(FLAGS_ba_visual_feature_type);
+  options.min_landmarks_per_frame = FLAGS_ba_min_landmarks_per_frame;
+  options.feature_type = vi_map::StringToFeatureType(FLAGS_ba_feature_type);
 
   // Wheel odometry constraints
   options.add_wheel_odometry_constraints = FLAGS_ba_include_wheel_odometry;
@@ -161,10 +160,11 @@ OptimizationProblem* constructOptimizationProblem(
   OptimizationProblem* problem = new OptimizationProblem(map, mission_ids);
   size_t num_visual_constraints_added = 0u;
   if (options.add_visual_constraints) {
-    num_visual_constraints_added = addVisualTerms(
-        options.fix_landmark_positions, options.fix_intrinsics,
-        options.fix_extrinsics_rotation, options.fix_extrinsics_translation,
-        options.min_landmarks_per_frame, options.visual_feature_type, problem);
+    num_visual_constraints_added = addLandmarkTerms(
+        options.feature_type, options.fix_landmark_positions,
+        options.fix_intrinsics, options.fix_extrinsics_rotation,
+        options.fix_extrinsics_translation, options.min_landmarks_per_frame,
+        problem);
     if (num_visual_constraints_added == 0u) {
       LOG(WARNING)
           << "WARNING: Visual constraints enabled, but none "
