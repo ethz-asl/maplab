@@ -136,7 +136,7 @@ void deserializeVisualFrame(
         CHECK_EQ(scales.rows(), img_points_distorted.cols());
         frame_ref.setKeypointScales(scales);
       }
-      if (positions.rows() != 0) {
+      if (positions.cols() != 0) {
         CHECK_EQ(
             2 * proto.keypoint_3d_positions_size(),
             3 * proto.keypoint_measurements_size());
