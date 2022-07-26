@@ -152,7 +152,7 @@ bool LidarLandmarkError::Evaluate(
     // Jacobian w.r.t. landmark position expressed in landmark base frame.
     if (jacobians[kIdxLandmarkP]) {
       Eigen::Map<PositionJacobian> J(jacobians[kIdxLandmarkP]);
-      J = J_p_C_fi_wrt_p_B_fi;
+      J = J_p_C_fi_wrt_p_B_fi * this->sigma_inverse_;
     }
 
     // Jacobian w.r.t. landmark base pose expressed in landmark mission frame.
@@ -162,8 +162,10 @@ bool LidarLandmarkError::Evaluate(
       quat_parameterization.ComputeJacobian(
           q_B_LM.coeffs().data(), J_quat_local_param.data());
       J.leftCols(lidar::kOrientationBlockSize) =
-          J_p_C_fi_wrt_q_B_LM * 4.0 * J_quat_local_param.transpose();
-      J.rightCols(lidar::kPositionBlockSize) = J_p_C_fi_wrt_p_LM_B;
+          J_p_C_fi_wrt_q_B_LM * 4.0 * J_quat_local_param.transpose() *
+          this->sigma_inverse_;
+      J.rightCols(lidar::kPositionBlockSize) =
+          J_p_C_fi_wrt_p_LM_B * this->sigma_inverse_;
     }
 
     // Jacobian w.r.t. global landmark mission base pose.
@@ -174,8 +176,10 @@ bool LidarLandmarkError::Evaluate(
           q_G_LM.coeffs().data(), J_quat_local_param.data());
 
       J.leftCols(lidar::kOrientationBlockSize) =
-          J_p_C_fi_wrt_q_G_LM * 4.0 * J_quat_local_param.transpose();
-      J.rightCols(lidar::kPositionBlockSize) = J_p_C_fi_wrt_p_G_LM;
+          J_p_C_fi_wrt_q_G_LM * 4.0 * J_quat_local_param.transpose() *
+          this->sigma_inverse_;
+      J.rightCols(lidar::kPositionBlockSize) =
+          J_p_C_fi_wrt_p_G_LM * this->sigma_inverse_;
     }
 
     // Jacobian w.r.t. global keyframe mission base pose.
@@ -186,8 +190,10 @@ bool LidarLandmarkError::Evaluate(
           q_G_M.coeffs().data(), J_quat_local_param.data());
 
       J.leftCols(lidar::kOrientationBlockSize) =
-          J_p_C_fi_wrt_q_G_M * 4.0 * J_quat_local_param.transpose();
-      J.rightCols(lidar::kPositionBlockSize) = J_p_C_fi_wrt_p_G_M;
+          J_p_C_fi_wrt_q_G_M * 4.0 * J_quat_local_param.transpose() *
+          this->sigma_inverse_;
+      J.rightCols(lidar::kPositionBlockSize) =
+          J_p_C_fi_wrt_p_G_M * this->sigma_inverse_;
     }
 
     // Jacobian w.r.t. IMU pose expressed in keyframe mission base frame.
@@ -198,8 +204,10 @@ bool LidarLandmarkError::Evaluate(
           q_I_M.coeffs().data(), J_quat_local_param.data());
 
       J.leftCols(lidar::kOrientationBlockSize) =
-          J_p_C_fi_wrt_q_I_M * 4.0 * J_quat_local_param.transpose();
-      J.rightCols(lidar::kPositionBlockSize) = J_p_C_fi_wrt_p_M_I;
+          J_p_C_fi_wrt_q_I_M * 4.0 * J_quat_local_param.transpose() *
+          this->sigma_inverse_;
+      J.rightCols(lidar::kPositionBlockSize) =
+          J_p_C_fi_wrt_p_M_I * this->sigma_inverse_;
     }
 
     // Jacobian w.r.t. LiDAR-to-IMU orientation.
@@ -209,19 +217,20 @@ bool LidarLandmarkError::Evaluate(
       quat_parameterization.ComputeJacobian(
           q_C_I.coeffs().data(), J_quat_local_param.data());
 
-      J = J_p_C_fi_wrt_q_C_I * 4.0 * J_quat_local_param.transpose();
+      J = J_p_C_fi_wrt_q_C_I * 4.0 * J_quat_local_param.transpose() *
+          this->sigma_inverse_;
     }
 
     // Jacobian w.r.t. LiDAR-to-IMU position.
     if (jacobians[kIdxLidarToImuP]) {
       Eigen::Map<PositionJacobian> J(jacobians[kIdxLidarToImuP]);
-      J = J_p_C_fi_wrt_p_C_I;
+      J = J_p_C_fi_wrt_p_C_I * this->sigma_inverse_;
     }
   }
 
   // Compute residuals.
   Eigen::Map<Eigen::Vector3d> residual(residuals);
-  residual = p_C_fi - measurement_;
+  residual = (p_C_fi - measurement_) * this->sigma_inverse_;
 
   return true;
 }

@@ -26,9 +26,12 @@ class LidarLandmarkError
  public:
   // Construct a cost function representing the LiDAR landmark error.
   LidarLandmarkError(
-      const Eigen::Vector3d& measurement, LandmarkErrorType error_term_type)
+      const Eigen::Vector3d& measurement, double sigma,
+      LandmarkErrorType error_term_type)
       : measurement_(measurement), error_term_type_(error_term_type) {
+    CHECK_GT(sigma, 0);
     CHECK(isValidLandmarkErrorTermType(error_term_type_));
+    sigma_inverse_ = 1.0 / sigma;
   }
 
   virtual ~LidarLandmarkError() {}
@@ -67,6 +70,7 @@ class LidarLandmarkError
       PoseJacobian;
 
   Eigen::Vector3d measurement_;
+  double sigma_inverse_;
   const LandmarkErrorType error_term_type_;
 };
 
