@@ -746,8 +746,7 @@ bool checkPosegraphConsistency(
     }
 
     previous_vertex_id = current_vertex_id;
-  } while (vi_map.getNextVertex(
-      current_vertex_id, traversal_edge_type, &current_vertex_id));
+  } while (vi_map.getNextVertex(current_vertex_id, &current_vertex_id));
 
   return true;
 }
@@ -807,9 +806,7 @@ bool checkForOrphanedPosegraphItems(const vi_map::VIMap& vi_map) {
       for (const pose_graph::EdgeId& incoming_edge_id : incoming_edges) {
         edges_observed[incoming_edge_id] = true;
       }
-    } while (vi_map.getNextVertex(
-        current_vertex_id, vi_map.getGraphTraversalEdgeType(mission_id),
-        &current_vertex_id));
+    } while (vi_map.getNextVertex(current_vertex_id, &current_vertex_id));
   }
 
   // Look for orphaned elements.

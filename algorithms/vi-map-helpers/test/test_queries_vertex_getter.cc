@@ -79,15 +79,11 @@ TEST_F(ViMapQueriesTest, VIMapGetBoundaryVertexIdsTest) {
     bool is_boundary = false;
     pose_graph::VertexId next_vertex_id, prev_vertex_id;
 
-    if (map_.getNextVertex(
-            boundary_vertex_id, pose_graph::Edge::EdgeType::kViwls,
-            &next_vertex_id)) {
+    if (map_.getNextVertex(boundary_vertex_id, &next_vertex_id)) {
       is_boundary =
           center_vertex_set.find(next_vertex_id) != center_vertex_set.end();
     }
-    if (map_.getPreviousVertex(
-            boundary_vertex_id, pose_graph::Edge::EdgeType::kViwls,
-            &prev_vertex_id)) {
+    if (map_.getPreviousVertex(boundary_vertex_id, &prev_vertex_id)) {
       is_boundary = is_boundary || (center_vertex_set.find(next_vertex_id) !=
                                     center_vertex_set.end());
     }
@@ -122,7 +118,7 @@ TEST_F(ViMapQueriesTest, VIMapGetCoobservingVertices) {
         &potentially_coobserved_landmarks);
 
     for (const vi_map::LandmarkId& landmark_id :
-        potentially_coobserved_landmarks) {
+         potentially_coobserved_landmarks) {
       is_coobserving =
           is_coobserving ||
           (std::find(landmarks.begin(), landmarks.end(), landmark_id) !=

@@ -25,11 +25,9 @@ DEFINE_uint64(
 namespace map_sparsification {
 namespace {
 size_t removeAllVerticesBetweenTwoVertices(
-    pose_graph::Edge::EdgeType traversal_edge,
     const pose_graph::VertexId& start_kf_id,
     const pose_graph::VertexId& end_kf_id, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
-  CHECK(traversal_edge != pose_graph::Edge::EdgeType::kUndefined);
   CHECK(start_kf_id.isValid());
   CHECK(end_kf_id.isValid());
 
@@ -41,8 +39,8 @@ size_t removeAllVerticesBetweenTwoVertices(
   bool merge_wheel_odometry_edges = true;
 
   do {
-    const bool edge_found = map->getNextVertex(
-        current_vertex_id, traversal_edge, &current_vertex_id);
+    const bool edge_found =
+        map->getNextVertex(current_vertex_id, &current_vertex_id);
     CHECK(edge_found)
         << "Cannot merge vertice ids " << start_kf_id << " and " << end_kf_id
         << " since no traversable path between them in the graph was found!";
@@ -83,7 +81,7 @@ size_t removeAllVerticesBetweenTwoVertices(
 
   // Merge consecutive vertices adding up the edges we are able to merge
   size_t num_merged_vertices = 0u;
-  while (map->getNextVertex(start_kf_id, traversal_edge, &current_vertex_id) &&
+  while (map->getNextVertex(start_kf_id, &current_vertex_id) &&
          current_vertex_id != end_kf_id) {
     map->mergeNeighboringVertices(
         start_kf_id, current_vertex_id, merge_viwls_edges, merge_odometry_edges,
@@ -138,8 +136,6 @@ size_t selectKeyframesBasedOnHeuristics(
   const vi_map::MissionId& mission_id =
       map.getMissionIdForVertex(start_keyframe_id);
   CHECK_EQ(mission_id, map.getMissionIdForVertex(end_vertex_id));
-  pose_graph::Edge::EdgeType backbone_type =
-      map.getGraphTraversalEdgeType(mission_id);
 
   pose_graph::VertexId last_keyframe_id = start_keyframe_id;
   pose_graph::VertexId current_vertex_id = start_keyframe_id;
@@ -165,7 +161,7 @@ size_t selectKeyframesBasedOnHeuristics(
   // only, stationary) and avoid keyframes during these states.
   bool is_end_vertex_reached = false;
   while (
-      map.getNextVertex(current_vertex_id, backbone_type, &current_vertex_id) &&
+      map.getNextVertex(current_vertex_id, &current_vertex_id) &&
       !is_end_vertex_reached) {
     if (current_vertex_id == end_vertex_id) {
       is_end_vertex_reached = true;
@@ -250,7 +246,6 @@ size_t selectKeyframesBasedOnHeuristics(
     ++num_frames_since_last_keyframe;
   }
 
-
   // Ensure the last vertex is added as a keyframe if it hasn't been selected
   // by any heuristics yet.
   if (last_keyframe_id != current_vertex_id) {
@@ -269,8 +264,6 @@ size_t removeVerticesBetweenKeyframes(
 
   const vi_map::MissionId& mission_id =
       map->getMissionIdForVertex(keyframe_ids.front());
-  pose_graph::Edge::EdgeType traversal_edge =
-      map->getGraphTraversalEdgeType(mission_id);
 
   size_t num_removed_vertices = 0u;
   const size_t num_keyframe_id_pairs = keyframe_ids.size() - 1;
@@ -279,7 +272,7 @@ size_t removeVerticesBetweenKeyframes(
     CHECK_EQ(mission_id, map->getMissionIdForVertex(keyframe_ids[idx + 1]))
         << "All keyframes must be of the same mission.";
     num_removed_vertices += removeAllVerticesBetweenTwoVertices(
-        traversal_edge, keyframe_ids[idx], keyframe_ids[idx + 1], map);
+        keyframe_ids[idx], keyframe_ids[idx + 1], map);
 
     if (idx % 10 == 0u) {
       progress_bar.update(idx);

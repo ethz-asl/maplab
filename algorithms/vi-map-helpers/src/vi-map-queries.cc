@@ -89,15 +89,13 @@ void VIMapQueries::forIdsOfObservedLandmarksOfEachVertexAlongGraphWhile(
   CHECK(map_.hasMission(mission_id));
   pose_graph::VertexId vertex_id =
       map_.getMission(mission_id).getRootVertexId();
-  pose_graph::Edge::EdgeType traversal_edge_type =
-      map_.getGraphTraversalEdgeType(mission_id);
   do {
     vi_map::LandmarkIdSet store_landmarks;
     getIdsOfLandmarksObservedByVertex(vertex_id, &store_landmarks);
     if (!action(store_landmarks)) {
       break;
     }
-  } while (map_.getNextVertex(vertex_id, traversal_edge_type, &vertex_id));
+  } while (map_.getNextVertex(vertex_id, &vertex_id));
 }
 
 void VIMapQueries::getLandmarksObservedByMission(
@@ -292,7 +290,7 @@ void VIMapQueries::getFollowingVertexIdsAlongGraph(
     current_vertex_id = starting_vertex;
   } else {
     if (!map_.getNextVertex(
-            starting_vertex, map_.getGraphTraversalEdgeType(mission_id),
+            starting_vertex,
             &current_vertex_id)) {
       return;
     }
@@ -301,7 +299,7 @@ void VIMapQueries::getFollowingVertexIdsAlongGraph(
   do {
     result->push_back(current_vertex_id);
   } while (map_.getNextVertex(
-      current_vertex_id, map_.getGraphTraversalEdgeType(mission_id),
+      current_vertex_id,
       &current_vertex_id));
 }
 void VIMapQueries::getFollowingVertexIdsAlongGraph(
@@ -648,16 +646,12 @@ void VIMapQueries::getBoundaryVertexIds(
         map_.getVertex(inner_vertex_id).getMissionId();
     CHECK(mission_id.isValid());
 
-    if (map_.getNextVertex(
-            inner_vertex_id, map_.getGraphTraversalEdgeType(mission_id),
-            &candidate_vertex_id)) {
+    if (map_.getNextVertex(inner_vertex_id, &candidate_vertex_id)) {
       if (inner_vertices.count(candidate_vertex_id) == 0u) {
         boundary_vertex_set.insert(candidate_vertex_id);
       }
     }
-    if (map_.getPreviousVertex(
-            inner_vertex_id, map_.getGraphTraversalEdgeType(mission_id),
-            &candidate_vertex_id)) {
+    if (map_.getPreviousVertex(inner_vertex_id, &candidate_vertex_id)) {
       if (inner_vertices.count(candidate_vertex_id) == 0u) {
         boundary_vertex_set.insert(candidate_vertex_id);
       }

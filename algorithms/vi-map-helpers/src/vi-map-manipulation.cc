@@ -558,12 +558,10 @@ void VIMapManipulation::releaseOldVisualFrameImages(
 
   pose_graph::VertexId vertex_id = current_vertex_id;
   for (int i = 0; i < image_removal_age_threshold; ++i) {
-    map_.getPreviousVertex(
-        vertex_id, map_.getGraphTraversalEdgeType(mission_id), &vertex_id);
+    map_.getPreviousVertex(vertex_id, &vertex_id);
   }
 
-  while (map_.getPreviousVertex(
-      vertex_id, map_.getGraphTraversalEdgeType(mission_id), &vertex_id)) {
+  while (map_.getPreviousVertex(vertex_id, &vertex_id)) {
     const vi_map::Vertex& vertex = map_.getVertex(vertex_id);
     for (size_t i = 0; i < vertex.numFrames(); ++i) {
       const aslam::VisualFrame& const_vframe = vertex.getVisualFrame(i);

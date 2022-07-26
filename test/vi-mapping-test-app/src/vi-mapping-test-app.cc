@@ -123,7 +123,7 @@ void VIMappingTestApp::corruptKeyframePoses(
     not_to_corrupt_vertices.insert(current_vertex_id);
 
     if (map->getNextVertex(
-            current_vertex_id, pose_graph::Edge::EdgeType::kViwls,
+            current_vertex_id,
             &current_vertex_id)) {
       not_to_corrupt_vertices.insert(current_vertex_id);
     }
@@ -467,9 +467,7 @@ pose_graph::EdgeId VIMappingTestApp::addWrongLoopClosureEdge() {
   pose_graph::VertexIdList sorted_vertex_ids;
   do {
     sorted_vertex_ids.push_back(current_vertex_id);
-  } while (map->getNextVertex(
-      current_vertex_id, pose_graph::Edge::EdgeType::kViwls,
-      &current_vertex_id));
+  } while (map->getNextVertex(current_vertex_id, &current_vertex_id));
 
   const unsigned int index_offset_vertex_from =
       static_cast<unsigned int>(0.2 * sorted_vertex_ids.size());

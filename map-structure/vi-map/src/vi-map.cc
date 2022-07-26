@@ -340,9 +340,7 @@ void VIMap::sparsifyMission(
     VLOG(4) << "Vertex " << kept_vertex_id.hexString() << " : landmark count: "
             << getVertex(kept_vertex_id).getLandmarks().size();
     for (int i = 0; i < (every_nth_vertex_to_keep - 1); ++i) {
-      if (getNextVertex(
-              kept_vertex_id, getGraphTraversalEdgeType(mission_id),
-              &current_vertex_id)) {
+      if (getNextVertex(kept_vertex_id, &current_vertex_id)) {
         VLOG(4) << "Merging " << i << "th vertex "
                 << current_vertex_id.hexString() << " into "
                 << kept_vertex_id.hexString();
@@ -351,8 +349,7 @@ void VIMap::sparsifyMission(
         break;
       }
     }
-  } while (getNextVertex(
-      kept_vertex_id, getGraphTraversalEdgeType(mission_id), &kept_vertex_id));
+  } while (getNextVertex(kept_vertex_id, &kept_vertex_id));
 }
 
 bool VIMap::getEarliestMissionStartTimeNs(int64_t* start_time_ns) const {
@@ -949,9 +946,7 @@ void VIMap::getDistanceTravelledPerMission(
     *distance += (next_vertex.get_p_M_I() - current_vertex.get_p_M_I()).norm();
 
     current_vertex_id = next_vertex_id;
-  } while (getNextVertex(
-      current_vertex_id, getGraphTraversalEdgeType(mission_id),
-      &next_vertex_id));
+  } while (getNextVertex(current_vertex_id, &next_vertex_id));
 }
 
 void VIMap::addNewMissionWithBaseframe(
@@ -1423,9 +1418,7 @@ void VIMap::mergeNeighboringVertices(
       getVertex(merge_into_vertex_id).getMissionId();
 
   pose_graph::VertexId check_vertex_id;
-  getNextVertex(
-      merge_into_vertex_id, getGraphTraversalEdgeType(mission_id),
-      &check_vertex_id);
+  getNextVertex(merge_into_vertex_id, &check_vertex_id);
   CHECK_EQ(check_vertex_id, vertex_to_merge)
       << "Vertices should be neighboring and vertex_to_merge should be the "
       << "next after merge_into_vertex_id.";
@@ -2261,7 +2254,7 @@ unsigned int VIMap::getVertexCountInMission(
   do {
     ++vertex_count;
   } while (getNextVertex(
-      current_vertex_id, getGraphTraversalEdgeType(mission_id),
+      current_vertex_id,
       &current_vertex_id));
   return vertex_count;
 }
@@ -2318,7 +2311,7 @@ void VIMap::getAllVertexIdsInMissionAlongGraph(
   do {
     vertices->push_back(current_vertex_id);
   } while (getNextVertex(
-      current_vertex_id, getGraphTraversalEdgeType(mission_id),
+      current_vertex_id,
       &current_vertex_id));
 }
 
@@ -2357,9 +2350,7 @@ void VIMap::getAllEdgeIdsInMissionAlongGraph(
     pose_graph::EdgeIdSet outgoing_edges;
     getVertex(current_vertex_id).getOutgoingEdges(&outgoing_edges);
     edges->insert(edges->end(), outgoing_edges.begin(), outgoing_edges.end());
-  } while (getNextVertex(
-      current_vertex_id, getGraphTraversalEdgeType(mission_id),
-      &current_vertex_id));
+  } while (getNextVertex(current_vertex_id, &current_vertex_id));
 }
 
 void VIMap::getAllEdgeIdsInMissionAlongGraph(
@@ -2391,7 +2382,7 @@ void VIMap::getAllEdgeIdsInMissionAlongGraph(
         std::remove_if(edges->begin(), edges->end(), is_edge_type_different),
         edges->end());
   } while (getNextVertex(
-      current_vertex_id, getGraphTraversalEdgeType(mission_id),
+      current_vertex_id,
       &current_vertex_id));
 }
 

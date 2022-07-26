@@ -885,7 +885,6 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
   if (done_current_vertex_wheel_odometry_) {
     if (map_->getNextVertex(
             vertex_processing_wheel_odometry_id_,
-            map_->getGraphTraversalEdgeType(mission_id_),
             &vertex_processing_wheel_odometry_id_)) {
       VLOG(2) << "[StreamMapBuilder] Current vertex "
               << vertex_processing_wheel_odometry_id_ << " already "
@@ -993,7 +992,6 @@ void StreamMapBuilder::notifyWheelOdometryConstraintBuffer() {
     vertex.getOutgoingEdges(&outgoing_edges);
     if (!map_->getNextVertex(
             vertex_processing_wheel_odometry_id_,
-            map_->getGraphTraversalEdgeType(mission_id_),
             &vertex_processing_wheel_odometry_id_)) {
       VLOG(2) << "[StreamMapBuilder] Could not find a next vertex; terminating "
               << "adding of wheel odometry edges.";

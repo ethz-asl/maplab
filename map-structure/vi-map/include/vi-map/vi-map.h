@@ -393,14 +393,12 @@ class VIMap : public backend::ResourceMap,
   /// the graph.
   inline bool getNextVertex(
       const pose_graph::VertexId& current_vertex_id,
-      pose_graph::Edge::EdgeType edge_type,
       pose_graph::VertexId* next_vertex_id) const;
 
   /// Provide the previous vertex id by following the graph-traversal edge type
   /// of the graph.
   inline bool getPreviousVertex(
       const pose_graph::VertexId& current_vertex_id,
-      pose_graph::Edge::EdgeType edge_type,
       pose_graph::VertexId* previous_vertex_id) const;
 
   inline void getAllVertexIds(pose_graph::VertexIdList* vertices) const;
