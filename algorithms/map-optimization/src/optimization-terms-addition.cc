@@ -12,6 +12,7 @@
 #include <ceres-error-terms/visual-error-term-factory.h>
 #include <ceres-error-terms/visual-error-term.h>
 #include <ceres/ceres.h>
+#include <landmark-triangulation/pose-interpolator.h>
 #include <maplab-common/progress-bar.h>
 #include <vi-map-helpers/vi-map-queries.h>
 #include <vi-map/landmark-quality-metrics.h>
@@ -107,8 +108,9 @@ void addLandmarkTermForKeypoint(
                                          camera_q_CI,
                                          camera_C_p_CI};
 
-  // As defined here: http://en.wikipedia.org/wiki/Huber_Loss_Function
-  double huber_loss_delta;
+  const double observation_uncertainty =
+      visual_frame.getKeypointMeasurementUncertainty(keypoint_idx);
+
   double* intrinsics_params = nullptr;
   double* distortion_params = nullptr;
   std::shared_ptr<ceres::CostFunction> landmark_term_cost;
@@ -117,8 +119,6 @@ void addLandmarkTermForKeypoint(
   if (is_visual_landmark) {
     const Eigen::Vector2d& image_point_distorted =
         visual_frame.getKeypointMeasurement(keypoint_idx);
-    const double image_point_uncertainty =
-        visual_frame.getKeypointMeasurementUncertainty(keypoint_idx);
 
     intrinsics_params = camera_ptr->getParametersMutable();
     if (camera_ptr->getDistortion().getType() !=
@@ -131,7 +131,7 @@ void addLandmarkTermForKeypoint(
     landmark_term_cost = std::shared_ptr<ceres::CostFunction>(
         ceres_error_terms::createVisualCostFunction<
             ceres_error_terms::VisualReprojectionError>(
-            image_point_distorted, image_point_uncertainty, error_term_type,
+            image_point_distorted, observation_uncertainty, error_term_type,
             camera_ptr.get()));
 
     residual_type = ceres_error_terms::ResidualType::kVisualReprojectionError;
@@ -139,28 +139,38 @@ void addLandmarkTermForKeypoint(
     // Visual landmarks have these additional cost term arguments
     cost_term_args.emplace_back(intrinsics_params);
     cost_term_args.emplace_back(distortion_params);
-
-    // Huber loss for visual error term
-    huber_loss_delta = 3.0;
-    if (error_term_type == ceres_error_terms::LandmarkErrorType::kGlobal) {
-      huber_loss_delta = 10.0;
-    }
-    huber_loss_delta *= image_point_uncertainty;
   } else {
-    const Eigen::Vector3d& position =
-        visual_frame.getKeypoint3DPosition(keypoint_idx);
+    const int64_t offset = visual_frame.getKeypointTimeOffset(keypoint_idx);
+
+    aslam::Transformation T_C_C_observer;
+    if (offset != 0) {
+      // For LiDAR landmarks we have to compensate for time offset
+      aslam::Transformation T_M_I_observer;
+      const bool success = landmark_triangulation::interpolateLinear(
+          *map, *vertex_ptr, offset, &T_M_I_observer);
+
+      if (!success) {
+        // TODO(smauq): Check in the upstream function we count correctly
+        // the number of added observations
+        return;
+      }
+
+      const aslam::Transformation& T_C_I =
+          vertex_ptr->getNCameras()->get_T_C_B(frame_idx);
+      const aslam::Transformation& T_I_M = vertex_ptr->get_T_M_I().inverse();
+      T_C_C_observer = T_C_I * T_I_M * T_M_I_observer * T_C_I.inverse();
+    } else {
+      T_C_C_observer.setIdentity();
+    }
+
+    Eigen::Vector3d p_C_measurement =
+        T_C_C_observer * visual_frame.getKeypoint3DPosition(keypoint_idx);
 
     landmark_term_cost =
         std::make_shared<ceres_error_terms::LidarLandmarkError>(
-            position, error_term_type);
+            p_C_measurement, observation_uncertainty, error_term_type);
 
     residual_type = ceres_error_terms::ResidualType::kLidarLandmarkError;
-
-    // Huber loss for visual error term
-    huber_loss_delta = 3.0;
-    if (error_term_type == ceres_error_terms::LandmarkErrorType::kGlobal) {
-      huber_loss_delta = 10.0;
-    }
   }
 
   // Certain types of landmark cost terms (as indicated by error_term_type) do
@@ -176,9 +186,16 @@ void addLandmarkTermForKeypoint(
     problem_information->setParameterBlockConstant(dummy);
   }
 
+  // As defined here: http://en.wikipedia.org/wiki/Huber_Loss_Function
+  double huber_loss_delta = 3.0;
+  if (error_term_type == ceres_error_terms::LandmarkErrorType::kGlobal) {
+    huber_loss_delta = 10.0;
+  }
+
   std::shared_ptr<ceres::LossFunction> loss_function(
       new ceres::LossFunctionWrapper(
-          new ceres::HuberLoss(huber_loss_delta), ceres::TAKE_OWNERSHIP));
+          new ceres::HuberLoss(huber_loss_delta * observation_uncertainty),
+          ceres::TAKE_OWNERSHIP));
 
   problem_information->addResidualBlock(
       residual_type, landmark_term_cost, loss_function, cost_term_args);

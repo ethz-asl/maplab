@@ -144,6 +144,8 @@ void retriangulateLandmarksOfVertex(
       }
     }
 
+    landmark.setQuality(vi_map::Landmark::Quality::kBad);
+
     // Triangulation is handled differently for LiDAR and camera landmarks
     const bool is_visual_landmark =
         !vi_map::isLidarFeature(landmark.getFeatureType());
@@ -152,8 +154,6 @@ void retriangulateLandmarksOfVertex(
     Eigen::Matrix3Xd G_bearing_vectors;
     Eigen::Matrix3Xd p_G_C_vectors;
     Eigen::Matrix3Xd p_G_fi_vectors;
-
-    landmark.setQuality(vi_map::Landmark::Quality::kBad);
 
     const vi_map::KeypointIdentifierList& observations =
         landmark.getObservations();
@@ -180,39 +180,53 @@ void retriangulateLandmarksOfVertex(
 
       const vi_map::Vertex& observer =
           const_cast<const vi_map::VIMap*>(map)->getVertex(observer_id);
+      const size_t frame_idx = observation.frame_id.frame_index;
       const aslam::VisualFrame& visual_frame =
-          observer.getVisualFrame(observation.frame_id.frame_index);
+          observer.getVisualFrame(frame_idx);
       const aslam::Transformation& T_G_M_observer =
           const_cast<const vi_map::VIMap*>(map)
               ->getMissionBaseFrameForVertex(observer_id)
               .get_T_G_M();
 
-      // If there are precomputed/interpolated T_M_I, use those.
-      aslam::Transformation T_G_I_observer;
-      FrameToPoseMap::const_iterator it =
-          interpolated_frame_poses.find(visual_frame.getId());
-      if (it != interpolated_frame_poses.end()) {
-        const aslam::Transformation& T_M_I_observer = it->second;
-        T_G_I_observer = T_G_M_observer * T_M_I_observer;
+      aslam::Transformation T_M_I_observer;
+      if (is_visual_landmark) {
+        FrameToPoseMap::const_iterator it =
+            interpolated_frame_poses.find(visual_frame.getId());
+        if (it != interpolated_frame_poses.end()) {
+          // If there are precomputed/interpolated T_M_I, use those.
+          T_M_I_observer = it->second;
+        } else {
+          // TODO(smauq): add linear interpolation here on the fly
+          T_M_I_observer = observer.get_T_M_I();
+        }
       } else {
-        const aslam::Transformation& T_M_I_observer = observer.get_T_M_I();
-        T_G_I_observer = T_G_M_observer * T_M_I_observer;
+        const int64_t offset =
+            visual_frame.getKeypointTimeOffset(observation.keypoint_index);
+
+        if (offset != 0) {
+          // For LiDAR landmarks we have to compensate for an arbitrary time
+          // offset so it can't be precomputed. We use linear interpolation
+          // instead of the IMU based one which would take too long
+          const bool success =
+              interpolateLinear(*map, observer, offset, &T_M_I_observer);
+
+          if (!success) {
+            continue;
+          }
+        }
       }
 
-      const aslam::CameraId& cam_id =
-          observer.getCamera(observation.frame_id.frame_index)->getId();
-      aslam::Transformation T_G_C =
-          (T_G_I_observer *
-           observer.getNCameras()->get_T_C_B(cam_id).inverse());
+      const aslam::Transformation& T_I_C =
+          observer.getNCameras()->get_T_C_B(frame_idx).inverse();
+      aslam::Transformation T_G_C = T_G_M_observer * T_M_I_observer * T_I_C;
 
       if (is_visual_landmark) {
         Eigen::Vector2d measurement =
             visual_frame.getKeypointMeasurement(observation.keypoint_index);
 
         Eigen::Vector3d C_bearing_vector;
-        bool projection_result =
-            observer.getCamera(observation.frame_id.frame_index)
-                ->backProject3(measurement, &C_bearing_vector);
+        bool projection_result = observer.getCamera(frame_idx)->backProject3(
+            measurement, &C_bearing_vector);
         if (!projection_result) {
           continue;
         }
@@ -231,7 +245,6 @@ void retriangulateLandmarksOfVertex(
 
     Eigen::Vector3d p_G_fi;
     if (is_visual_landmark) {
-      // Check again that we have enough valid measurements
       if (num_measurements < 2) {
         continue;
       }
@@ -249,6 +262,10 @@ void retriangulateLandmarksOfVertex(
         continue;
       }
     } else {
+      if (num_measurements < 1) {
+        continue;
+      }
+
       // Resize to final number of valid measurements
       p_G_fi_vectors.conservativeResize(Eigen::NoChange, num_measurements);
 
