@@ -25,6 +25,7 @@ static const int kVelocityBlockSize = 3;
 static const int kAccelBiasBlockSize = 3;
 static const int kPositionBlockSize = 3;
 static const int kStatePoseBlockSize = 7;
+static const int kIntrinsicsBlockSize = 4;
 
 static const int kImuReadingSize = 6;
 static const int kAccelReadingOffset = 0;

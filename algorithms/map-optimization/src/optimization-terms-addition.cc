@@ -1,7 +1,5 @@
 #include "map-optimization/optimization-terms-addition.h"
 
-#include <memory>
-
 #include <ceres-error-terms/block-pose-prior-error-term-v2.h>
 #include <ceres-error-terms/inertial-error-term.h>
 #include <ceres-error-terms/landmark-common.h>
@@ -12,8 +10,10 @@
 #include <ceres-error-terms/visual-error-term-factory.h>
 #include <ceres-error-terms/visual-error-term.h>
 #include <ceres/ceres.h>
+#include <imu-integrator/imu-integrator.h>
 #include <landmark-triangulation/pose-interpolator.h>
 #include <maplab-common/progress-bar.h>
+#include <memory>
 #include <vi-map-helpers/vi-map-queries.h>
 #include <vi-map/landmark-quality-metrics.h>
 
@@ -376,12 +376,11 @@ int addInertialTerms(
     map->getAllEdgeIdsInMissionAlongGraph(
         mission_id, pose_graph::Edge::EdgeType::kViwls, &edges);
 
-    const vi_map::Imu& imu_sensor = map->getMissionImu(mission_id);
-    const vi_map::ImuSigmas& imu_sigmas = imu_sensor.getImuSigmas();
-
+    const aslam::SensorId& imu_sensor_id =
+        map->getMissionImu(mission_id).getId();
     num_residuals_added += addInertialTermsForEdges(
         fix_gyro_bias, fix_accel_bias, fix_velocity, gravity_magnitude,
-        imu_sigmas, parameterizations.pose_parameterization, edges, problem);
+        imu_sensor_id, parameterizations.pose_parameterization, edges, problem);
   }
 
   VLOG(1) << "Added " << num_residuals_added << " inertial residuals.";
@@ -421,7 +420,7 @@ int addAbsolutePoseConstraintsTerms(
 int addInertialTermsForEdges(
     const bool fix_gyro_bias, const bool fix_accel_bias,
     const bool fix_velocity, const double gravity_magnitude,
-    const vi_map::ImuSigmas& imu_sigmas,
+    const aslam::SensorId& imu_sensor_id,
     const std::shared_ptr<ceres::LocalParameterization>& pose_parameterization,
     const pose_graph::EdgeIdList& edges, OptimizationProblem* problem) {
   CHECK(pose_parameterization != nullptr);
@@ -431,18 +430,38 @@ int addInertialTermsForEdges(
   OptimizationStateBuffer* buffer =
       CHECK_NOTNULL(problem->getOptimizationStateBufferMutable());
 
+  const OptimizationProblem::LocalParameterizations& parameterizations =
+      problem->getLocalParameterizations();
+
+  double* imu_sigmas = buffer->get_imu_intrinsics(imu_sensor_id);
+
   int num_residuals_added = 0;
   for (const pose_graph::EdgeId edge_id : edges) {
     const vi_map::ViwlsEdge& inertial_edge =
         map->getEdgeAs<vi_map::ViwlsEdge>(edge_id);
 
-    std::shared_ptr<ceres_error_terms::InertialErrorTerm> inertial_term_cost(
+    /*std::shared_ptr<ceres_error_terms::InertialErrorTerm> inertial_term_cost(
         new ceres_error_terms::InertialErrorTerm(
             inertial_edge.getImuData(), inertial_edge.getImuTimestamps(),
-            imu_sigmas.gyro_noise_density,
-            imu_sigmas.gyro_bias_random_walk_noise_density,
-            imu_sigmas.acc_noise_density,
-            imu_sigmas.acc_bias_random_walk_noise_density, gravity_magnitude));
+            gravity_magnitude));*/
+
+    std::shared_ptr<ceres::CostFunction> inertial_term_cost(
+        new ceres::NumericDiffCostFunction<
+            ceres_error_terms::InertialErrorTerm, ceres::CENTRAL,
+            imu_integrator::kErrorStateSize,
+            imu_integrator::kStatePoseBlockSize,
+            imu_integrator::kGyroBiasBlockSize,
+            imu_integrator::kVelocityBlockSize,
+            imu_integrator::kAccelBiasBlockSize,
+            imu_integrator::kStatePoseBlockSize,
+            imu_integrator::kGyroBiasBlockSize,
+            imu_integrator::kVelocityBlockSize,
+            imu_integrator::kAccelBiasBlockSize,
+            imu_integrator::kIntrinsicsBlockSize>(
+            new ceres_error_terms::InertialErrorTerm(
+                inertial_edge.getImuData(), inertial_edge.getImuTimestamps(),
+                gravity_magnitude),
+            ceres::TAKE_OWNERSHIP));
 
     vi_map::Vertex& vertex_from = map->getVertex(inertial_edge.from());
     vi_map::Vertex& vertex_to = map->getVertex(inertial_edge.to());
@@ -462,12 +481,15 @@ int addInertialTermsForEdges(
         {vertex_from_q_IM__M_p_MI, vertex_from.getGyroBiasMutable(),
          vertex_from.get_v_M_Mutable(), vertex_from.getAccelBiasMutable(),
          vertex_to_q_IM__M_p_MI, vertex_to.getGyroBiasMutable(),
-         vertex_to.get_v_M_Mutable(), vertex_to.getAccelBiasMutable()});
+         vertex_to.get_v_M_Mutable(), vertex_to.getAccelBiasMutable(),
+         imu_sigmas});
 
     problem->getProblemInformationMutable()->setParameterization(
         vertex_from_q_IM__M_p_MI, pose_parameterization);
     problem->getProblemInformationMutable()->setParameterization(
         vertex_to_q_IM__M_p_MI, pose_parameterization);
+    problem->getProblemInformationMutable()->setParameterization(
+        imu_sigmas, parameterizations.unit_parameterization);
 
     if (fix_gyro_bias) {
       problem->getProblemInformationMutable()->setParameterBlockConstant(
@@ -487,6 +509,11 @@ int addInertialTermsForEdges(
       problem->getProblemInformationMutable()->setParameterBlockConstant(
           vertex_from.get_v_M_Mutable());
     }
+
+    // if ....
+    // problem->getProblemInformationMutable()->setParameterBlockConstant(
+    //    imu_sigmas);
+    //
 
     ++num_residuals_added;
   }

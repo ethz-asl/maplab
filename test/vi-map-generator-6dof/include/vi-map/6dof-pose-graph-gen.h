@@ -31,12 +31,7 @@ class SixDofPoseGraphGenerator {
       int num_of_vertices, double vertex_position_sigma,
       double vertex_rotation_sigma, const Eigen::Vector3d& gyro_bias,
       const Eigen::Vector3d& accel_bias, int num_of_no_noise_vertices);
-  void addInertialResidualBlocks(bool fix_gyro_bias, bool fix_accel_bias);
-  void addVisualResidualBlocks(
-      bool fix_intrinsics, bool fix_landmark_positions);
-  void fixFirstVertices(unsigned int num_of_fixed_vertices, bool fix_velocity);
   void corruptLandmarkPositions(double sigma);
-  void solve(int max_num_of_iters);
   void copyDataFromPosegraph();
   void copyDataToPosegraph();
 

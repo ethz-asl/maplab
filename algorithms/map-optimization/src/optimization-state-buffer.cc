@@ -39,6 +39,12 @@ double* OptimizationStateBuffer::get_sensor_extrinsics_q_SB__S_p_SB_JPL(
   return other_sensor_q_SB__S_p_SB_.col(index).data();
 }
 
+double* OptimizationStateBuffer::get_imu_intrinsics(const aslam::SensorId& id) {
+  const size_t index = common::getChecked(imu_id_to_imu_idx_, id);
+  CHECK_LT(index, static_cast<size_t>(imu_intrinsics_.cols()));
+  return imu_intrinsics_.col(index).data();
+}
+
 void OptimizationStateBuffer::copyAllStatesBackToMap(vi_map::VIMap* map) const {
   copyAllKeyframePosesBackToMap(map);
   copyAllBaseframePosesBackToMap(map);
@@ -156,6 +162,7 @@ void OptimizationStateBuffer::importStatesOfMissions(
   importBaseframePoseOfMissions(map, mission_ids);
   importCameraCalibrationsOfMissions(map, mission_ids);
   importOtherSensorExtrinsicsOfMissions(map, mission_ids);
+  importImuIntrinsicsOfMissions(map, mission_ids);
 }
 
 void OptimizationStateBuffer::importKeyframePosesOfMissions(
@@ -268,8 +275,7 @@ void OptimizationStateBuffer::importOtherSensorExtrinsicsOfMissions(
   for (const vi_map::MissionId& mission_id : mission_ids) {
     const vi_map::VIMission& mission = map.getMission(mission_id);
     if (mission.hasAbsolute6DoFSensor()) {
-      other_sensor_ids.emplace_back(
-          mission.getAbsolute6DoFSensor());
+      other_sensor_ids.emplace_back(mission.getAbsolute6DoFSensor());
     }
 
     if (mission.hasOdometry6DoFSensor()) {
@@ -301,6 +307,34 @@ void OptimizationStateBuffer::importOtherSensorExtrinsicsOfMissions(
   }
 
   VLOG(1) << "Added " << other_sensor_ids.size() << " other sensors.";
+}
+
+void OptimizationStateBuffer::importImuIntrinsicsOfMissions(
+    const vi_map::VIMap& map, const vi_map::MissionIdSet& mission_ids) {
+  std::vector<const vi_map::Imu*> imus;
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    if (map.getMission(mission_id).hasImu()) {
+      const vi_map::Imu& imu = map.getMissionImu(mission_id);
+      imus.emplace_back(&imu);
+    }
+  }
+  imu_intrinsics_.resize(Eigen::NoChange, imus.size());
+
+  size_t col_idx = 0u;
+  for (const vi_map::Imu* const imu_ptr : imus) {
+    const vi_map::Imu& imu = *CHECK_NOTNULL(imu_ptr);
+    const vi_map::ImuSigmas& imu_sigmas = imu.getImuSigmas();
+
+    imu_intrinsics_.col(col_idx) << imu_sigmas.gyro_noise_density,
+        imu_sigmas.gyro_bias_random_walk_noise_density,
+        imu_sigmas.acc_noise_density,
+        imu_sigmas.acc_bias_random_walk_noise_density;
+
+    imu_id_to_imu_idx_.emplace(imu.getId(), col_idx);
+    ++col_idx;
+  }
+
+  VLOG(1) << "Added " << imus.size() << " imus.";
 }
 
 }  // namespace map_optimization

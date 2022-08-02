@@ -7,7 +7,9 @@
 #include <vector>
 
 #include <ceres-error-terms/parameterization/pose-param-jpl.h>
+#include <ceres-error-terms/parameterization/unit-param.h>
 #include <ceres-error-terms/problem-information.h>
+#include <imu-integrator/imu-integrator.h>
 #include <vi-map-helpers/mission-clustering-coobservation.h>
 #include <vi-map/vi-map.h>
 
@@ -91,6 +93,9 @@ OptimizationProblem::OptimizationProblem(
       new ceres_error_terms::JplYawOnlyPoseParameterization);
   local_parameterizations_.quaternion_parameterization.reset(
       new ceres_error_terms::JplQuaternionParameterization);
+  local_parameterizations_.unit_parameterization.reset(
+      new ceres::AutoDiffLocalParameterization<
+          ceres_error_terms::UnitPlus, 4, 4>);
 }
 
 void OptimizationProblem::applyGaugeFixesForInitialVertices(

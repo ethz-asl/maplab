@@ -45,7 +45,7 @@ int addInertialTerms(
 int addInertialTermsForEdges(
     const bool fix_gyro_bias, const bool fix_accel_bias,
     const bool fix_velocity, const double gravity_magnitude,
-    const vi_map::ImuSigmas& imu_sigmas,
+    const aslam::SensorId& imu_sensor_id,
     const std::shared_ptr<ceres::LocalParameterization>& pose_parameterization,
     const pose_graph::EdgeIdList& edges, OptimizationProblem* problem);
 

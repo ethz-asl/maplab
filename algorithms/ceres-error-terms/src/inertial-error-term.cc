@@ -52,13 +52,13 @@ void InertialErrorTerm::IntegrateStateAndCovariance(
     CHECK_GE(imu_timestamps(0, i + 1), imu_timestamps(0, i))
         << "IMU measurements not properly ordered";
 
-    const Eigen::Block<InertialStateVector, imu_integrator::kGyroBiasBlockSize,
-                       1>
+    const Eigen::Block<
+        InertialStateVector, imu_integrator::kGyroBiasBlockSize, 1>
         current_gyro_bias =
             current_state_vec.segment<imu_integrator::kGyroBiasBlockSize>(
                 imu_integrator::kStateGyroBiasOffset);
-    const Eigen::Block<InertialStateVector, imu_integrator::kAccelBiasBlockSize,
-                       1>
+    const Eigen::Block<
+        InertialStateVector, imu_integrator::kAccelBiasBlockSize, 1>
         current_accel_bias =
             current_state_vec.segment<imu_integrator::kAccelBiasBlockSize>(
                 imu_integrator::kStateAccelBiasOffset);
@@ -102,21 +102,26 @@ bool InertialErrorTerm::Evaluate(
     kIdxPoseTo,
     kIdxGyroBiasTo,
     kIdxVelocityTo,
-    kIdxAccBiasTo
+    kIdxAccBiasTo,
+    kIdxIntrinsics
   };
 
   // Keep Jacobians in row-major for Ceres, Eigen default is column-major.
-  typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                        imu_integrator::kGyroBiasBlockSize, Eigen::RowMajor>
+  typedef Eigen::Matrix<
+      double, imu_integrator::kErrorStateSize,
+      imu_integrator::kGyroBiasBlockSize, Eigen::RowMajor>
       GyroBiasJacobian;
-  typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                        imu_integrator::kVelocityBlockSize, Eigen::RowMajor>
+  typedef Eigen::Matrix<
+      double, imu_integrator::kErrorStateSize,
+      imu_integrator::kVelocityBlockSize, Eigen::RowMajor>
       VelocityJacobian;
-  typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                        imu_integrator::kAccelBiasBlockSize, Eigen::RowMajor>
+  typedef Eigen::Matrix<
+      double, imu_integrator::kErrorStateSize,
+      imu_integrator::kAccelBiasBlockSize, Eigen::RowMajor>
       AccelBiasJacobian;
-  typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                        imu_integrator::kStatePoseBlockSize, Eigen::RowMajor>
+  typedef Eigen::Matrix<
+      double, imu_integrator::kErrorStateSize,
+      imu_integrator::kStatePoseBlockSize, Eigen::RowMajor>
       PoseJacobian;
 
   const double* q_from_ptr = parameters[kIdxPoseFrom];
@@ -133,6 +138,8 @@ bool InertialErrorTerm::Evaluate(
   const double* p_to_ptr =
       parameters[kIdxPoseTo] + imu_integrator::kStateOrientationBlockSize;
 
+  const double* intrinsics_ptr = parameters[kIdxIntrinsics];
+
   Eigen::Map<const Eigen::Vector4d> q_I_M_from(q_from_ptr);
   Eigen::Map<const Eigen::Vector3d> b_g_from(bw_from_ptr);
   Eigen::Map<const Eigen::Vector3d> v_M_from(v_from_ptr);
@@ -145,6 +152,8 @@ bool InertialErrorTerm::Evaluate(
   Eigen::Map<const Eigen::Vector3d> b_a_to(ba_to_ptr);
   Eigen::Map<const Eigen::Vector3d> p_M_I_to(p_to_ptr);
 
+  Eigen::Map<const Eigen::Vector4d> intrinsics(intrinsics_ptr);
+
   Eigen::Map<Eigen::Matrix<double, imu_integrator::kErrorStateSize, 1> >
       residuals(residuals_ptr);
 
@@ -156,11 +165,20 @@ bool InertialErrorTerm::Evaluate(
   begin_state.b_a = b_a_from;
   begin_state.p_M_I = p_M_I_from;
 
+  Eigen::Vector4d intrinsics_abs = intrinsics.cwiseAbs();
+
   // Reuse a previous integration if the linearization point hasn't changed.
   const bool cache_is_valid = integration_cache_.valid &&
-                              (integration_cache_.begin_state == begin_state);
+                              (integration_cache_.begin_state == begin_state) &&
+                              (integration_cache_.intrinsics == intrinsics_abs);
   if (!cache_is_valid) {
     integration_cache_.begin_state = begin_state;
+    integration_cache_.intrinsics = intrinsics_abs;
+
+    integrator_.setImuSigmas(
+        intrinsics_abs[0], intrinsics_abs[1], intrinsics_abs[2],
+        intrinsics_abs[3]);
+
     IntegrateStateAndCovariance(
         integration_cache_.begin_state, imu_timestamps_, imu_data_,
         &integration_cache_.end_state, &integration_cache_.phi_accum,
@@ -170,22 +188,6 @@ bool InertialErrorTerm::Evaluate(
     integration_cache_.valid = true;
   }
   CHECK(integration_cache_.valid);
-
-  if (imu_covariance_cached_p_q_) {
-    // Position.
-    imu_covariance_cached_p_q_->block<3, 3>(0, 0) =
-        integration_cache_.Q_accum.block<3, 3>(12, 12);
-
-    // Rotation.
-    imu_covariance_cached_p_q_->block<3, 3>(3, 3) =
-        integration_cache_.Q_accum.block<3, 3>(0, 0);
-
-    // Position-orientation cross-terms.
-    imu_covariance_cached_p_q_->block<3, 3>(0, 3) =
-        integration_cache_.Q_accum.block<3, 3>(12, 0);
-    imu_covariance_cached_p_q_->block<3, 3>(3, 0) =
-        integration_cache_.Q_accum.block<3, 3>(0, 12);
-  }
 
   if (residuals_ptr) {
     Eigen::Quaterniond quaternion_to;
@@ -270,7 +272,6 @@ bool InertialErrorTerm::Evaluate(
           J_begin.middleCols<imu_integrator::kPositionBlockSize>(
               imu_integrator::kStatePositionOffset);
     }
-
     if (jacobians[kIdxGyroBiasFrom] != NULL) {
       Eigen::Map<GyroBiasJacobian> J(jacobians[kIdxGyroBiasFrom]);
       J = J_begin.middleCols<imu_integrator::kGyroBiasBlockSize>(
@@ -310,6 +311,11 @@ bool InertialErrorTerm::Evaluate(
       Eigen::Map<AccelBiasJacobian> J(jacobians[kIdxAccBiasTo]);
       J = J_end.middleCols<imu_integrator::kAccelBiasBlockSize>(
           imu_integrator::kStateAccelBiasOffset);
+    }
+
+    if (jacobians[kIdxIntrinsics] != NULL) {
+      LOG(FATAL) << "Analytic computation of Jacobians for the IMU intrinsics "
+                 << "is not implemented. Resort to numerical differentation.";
     }
   }
   return true;

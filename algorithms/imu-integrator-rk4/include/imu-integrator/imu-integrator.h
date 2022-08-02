@@ -15,9 +15,15 @@ namespace imu_integrator {
 // from the coeffs() vector of your Eigen quaternion.
 class ImuIntegratorRK4 {
  public:
+  explicit ImuIntegratorRK4(double gravity_acceleration);
+
   ImuIntegratorRK4(
       double gyro_noise_sigma, double gyro_bias_sigma, double acc_noise_sigma,
       double acc_bias_sigma, double gravity_acceleration);
+
+  void setImuSigmas(
+      double gyro_noise_sigma, double gyro_bias_sigma, double acc_noise_sigma,
+      double acc_bias_sigma);
 
   template <typename ScalarType>
   inline void integrateStateOnly(

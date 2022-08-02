@@ -14,11 +14,11 @@ namespace ceres_error_terms {
 
 typedef Eigen::Matrix<double, imu_integrator::kStateSize, 1>
     InertialStateVector;
-typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                      imu_integrator::kErrorStateSize>
+typedef Eigen::Matrix<
+    double, imu_integrator::kErrorStateSize, imu_integrator::kErrorStateSize>
     InertialStateCovariance;
-typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                      imu_integrator::kStateSize>
+typedef Eigen::Matrix<
+    double, imu_integrator::kErrorStateSize, imu_integrator::kStateSize>
     InertialJacobianType;
 
 struct InertialState {
@@ -60,6 +60,7 @@ struct ImuIntegration {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   InertialState begin_state;
   InertialState end_state;
+  Eigen::Vector4d intrinsics;
 
   InertialStateCovariance phi_accum;
   InertialStateCovariance Q_accum;
@@ -76,34 +77,26 @@ struct ImuIntegration {
 // coefficient storage of Eigen so you can directly pass pointer to your
 // Eigen quaternion data, e.g. your_eigen_quaternion.coeffs().data().
 class InertialErrorTerm
-    : public ceres::SizedCostFunction<imu_integrator::kErrorStateSize,
-                                      imu_integrator::kStatePoseBlockSize,
-                                      imu_integrator::kGyroBiasBlockSize,
-                                      imu_integrator::kVelocityBlockSize,
-                                      imu_integrator::kAccelBiasBlockSize,
-                                      imu_integrator::kStatePoseBlockSize,
-                                      imu_integrator::kGyroBiasBlockSize,
-                                      imu_integrator::kVelocityBlockSize,
-                                      imu_integrator::kAccelBiasBlockSize> {
+    : public ceres::SizedCostFunction<
+          imu_integrator::kErrorStateSize, imu_integrator::kStatePoseBlockSize,
+          imu_integrator::kGyroBiasBlockSize,
+          imu_integrator::kVelocityBlockSize,
+          imu_integrator::kAccelBiasBlockSize,
+          imu_integrator::kStatePoseBlockSize,
+          imu_integrator::kGyroBiasBlockSize,
+          imu_integrator::kVelocityBlockSize,
+          imu_integrator::kAccelBiasBlockSize,
+          imu_integrator::kIntrinsicsBlockSize> {
  public:
   InertialErrorTerm(
       const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_data,
       const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps,
-      double gyro_noise_sigma, double gyro_bias_sigma, double acc_noise_sigma,
-      double acc_bias_sigma, double gravity_magnitude)
+      double gravity_magnitude)
       : imu_timestamps_(imu_timestamps),
         imu_data_(imu_data),
-        imu_covariance_cached_p_q_(nullptr),
-        integrator_(
-            gyro_noise_sigma, gyro_bias_sigma, acc_noise_sigma, acc_bias_sigma,
-            gravity_magnitude) {
+        integrator_(gravity_magnitude) {
     CHECK_GT(imu_data.cols(), 0);
     CHECK_EQ(imu_data.cols(), imu_timestamps.cols());
-
-    CHECK_GT(gyro_noise_sigma, 0.0);
-    CHECK_GT(gyro_bias_sigma, 0.0);
-    CHECK_GT(acc_noise_sigma, 0.0);
-    CHECK_GT(acc_bias_sigma, 0.0);
   }
 
   virtual ~InertialErrorTerm() {}
@@ -111,12 +104,6 @@ class InertialErrorTerm
   virtual bool Evaluate(
       double const* const* parameters, double* residuals_ptr,
       double** jacobians) const;
-
-  inline void setCachedImuCovariancePointer(
-      Eigen::Matrix<double, 6, 6>* imu_covariance_cached_p_q) {
-    CHECK_NOTNULL(imu_covariance_cached_p_q);
-    imu_covariance_cached_p_q_ = imu_covariance_cached_p_q;
-  }
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -130,9 +117,8 @@ class InertialErrorTerm
 
   const Eigen::Matrix<int64_t, 1, Eigen::Dynamic> imu_timestamps_;
   const Eigen::Matrix<double, 6, Eigen::Dynamic> imu_data_;
-  Eigen::Matrix<double, 6, 6>* imu_covariance_cached_p_q_;
 
-  const imu_integrator::ImuIntegratorRK4 integrator_;
+  mutable imu_integrator::ImuIntegratorRK4 integrator_;
 
   // Cache the IMU integration to avoid unnecessary integrations.
   mutable ImuIntegration integration_cache_;

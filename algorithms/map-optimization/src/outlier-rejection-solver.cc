@@ -237,6 +237,20 @@ ceres::TerminationType solveWithOutlierRejection(
         ->copyAllStatesBackToMap(optimization_problem->getMapMutable());
     timer_copy.Stop();
 
+    aslam::SensorId imu_sensor_id;
+    for (const vi_map::MissionId& mission_id :
+         optimization_problem->getMissionIds()) {
+      imu_sensor_id = optimization_problem->getMapMutable()
+                          ->getMissionImu(mission_id)
+                          .getId();
+      break;
+    }
+
+    double* sigmas = optimization_problem->getOptimizationStateBufferMutable()
+                         ->get_imu_intrinsics(imu_sensor_id);
+    LOG(INFO) << sigmas << " " << sigmas[0] << " " << sigmas[1] << " "
+              << sigmas[2] << " " << sigmas[3];
+
     timing::Timer timer_reject("BA: Outlier rejection");
     rejectOutliers(rejection_options, optimization_problem);
     timer_reject.Stop();

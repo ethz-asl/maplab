@@ -59,6 +59,7 @@ class OptimizationProblem {
     std::shared_ptr<ceres::LocalParameterization> pose_parameterization;
     std::shared_ptr<ceres::LocalParameterization> baseframe_parameterization;
     std::shared_ptr<ceres::LocalParameterization> quaternion_parameterization;
+    std::shared_ptr<ceres::LocalParameterization> unit_parameterization;
   };
 
   struct ProblemBookkeeping {

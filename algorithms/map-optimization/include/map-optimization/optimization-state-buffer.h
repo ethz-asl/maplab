@@ -24,6 +24,7 @@ class OptimizationStateBuffer {
   double* get_baseframe_q_GM__G_p_GM_JPL(const vi_map::MissionBaseFrameId& id);
   double* get_camera_extrinsics_q_CI__C_p_CI_JPL(const aslam::CameraId& id);
   double* get_sensor_extrinsics_q_SB__S_p_SB_JPL(const aslam::SensorId& id);
+  double* get_imu_intrinsics(const aslam::SensorId& id);
 
  private:
   void importKeyframePosesOfMissions(
@@ -33,6 +34,8 @@ class OptimizationStateBuffer {
   void importCameraCalibrationsOfMissions(
       const vi_map::VIMap& map, const vi_map::MissionIdSet& mission_ids);
   void importOtherSensorExtrinsicsOfMissions(
+      const vi_map::VIMap& map, const vi_map::MissionIdSet& mission_ids);
+  void importImuIntrinsicsOfMissions(
       const vi_map::VIMap& map, const vi_map::MissionIdSet& mission_ids);
 
   void copyAllKeyframePosesBackToMap(vi_map::VIMap* map) const;
@@ -55,9 +58,13 @@ class OptimizationStateBuffer {
   std::unordered_map<aslam::CameraId, size_t> camera_id_to_camera_idx_;
   Eigen::Matrix<double, 7, Eigen::Dynamic> camera_q_CI__C_p_CI_;
 
-  // Other sensor  extrinsics: [q_BS_xyzw, B_p_BS] (passive_JPL)
+  // Other sensor extrinsics: [q_BS_xyzw, B_p_BS] (passive_JPL)
   std::unordered_map<aslam::SensorId, size_t> other_sensor_id_to_sensor_idx_;
   Eigen::Matrix<double, 7, Eigen::Dynamic> other_sensor_q_SB__S_p_SB_;
+
+  // IMU intrinsics: [gyro_noise, gyro_walk, acc_noise, acc_walk]
+  std::unordered_map<aslam::SensorId, size_t> imu_id_to_imu_idx_;
+  Eigen::Matrix<double, 4, Eigen::Dynamic> imu_intrinsics_;
 };
 
 inline void ensurePositiveQuaternion(Eigen::Ref<Eigen::Vector4d> quat_xyzw) {
