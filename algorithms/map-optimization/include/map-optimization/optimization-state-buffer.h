@@ -55,7 +55,7 @@ class OptimizationStateBuffer {
   std::unordered_map<aslam::CameraId, size_t> camera_id_to_camera_idx_;
   Eigen::Matrix<double, 7, Eigen::Dynamic> camera_q_CI__C_p_CI_;
 
-  // Other sensor  extrinsics: [q_BS_xyzw, B_p_BS] (passive_JPL)
+  // Other sensor extrinsics: [q_BS_xyzw, B_p_BS] (passive_JPL)
   std::unordered_map<aslam::SensorId, size_t> other_sensor_id_to_sensor_idx_;
   Eigen::Matrix<double, 7, Eigen::Dynamic> other_sensor_q_SB__S_p_SB_;
 };

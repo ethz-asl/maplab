@@ -14,11 +14,11 @@ namespace ceres_error_terms {
 
 typedef Eigen::Matrix<double, imu_integrator::kStateSize, 1>
     InertialStateVector;
-typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                      imu_integrator::kErrorStateSize>
+typedef Eigen::Matrix<
+    double, imu_integrator::kErrorStateSize, imu_integrator::kErrorStateSize>
     InertialStateCovariance;
-typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                      imu_integrator::kStateSize>
+typedef Eigen::Matrix<
+    double, imu_integrator::kErrorStateSize, imu_integrator::kStateSize>
     InertialJacobianType;
 
 struct InertialState {
@@ -76,15 +76,15 @@ struct ImuIntegration {
 // coefficient storage of Eigen so you can directly pass pointer to your
 // Eigen quaternion data, e.g. your_eigen_quaternion.coeffs().data().
 class InertialErrorTerm
-    : public ceres::SizedCostFunction<imu_integrator::kErrorStateSize,
-                                      imu_integrator::kStatePoseBlockSize,
-                                      imu_integrator::kGyroBiasBlockSize,
-                                      imu_integrator::kVelocityBlockSize,
-                                      imu_integrator::kAccelBiasBlockSize,
-                                      imu_integrator::kStatePoseBlockSize,
-                                      imu_integrator::kGyroBiasBlockSize,
-                                      imu_integrator::kVelocityBlockSize,
-                                      imu_integrator::kAccelBiasBlockSize> {
+    : public ceres::SizedCostFunction<
+          imu_integrator::kErrorStateSize, imu_integrator::kStatePoseBlockSize,
+          imu_integrator::kGyroBiasBlockSize,
+          imu_integrator::kVelocityBlockSize,
+          imu_integrator::kAccelBiasBlockSize,
+          imu_integrator::kStatePoseBlockSize,
+          imu_integrator::kGyroBiasBlockSize,
+          imu_integrator::kVelocityBlockSize,
+          imu_integrator::kAccelBiasBlockSize> {
  public:
   InertialErrorTerm(
       const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_data,
@@ -112,12 +112,6 @@ class InertialErrorTerm
       double const* const* parameters, double* residuals_ptr,
       double** jacobians) const;
 
-  inline void setCachedImuCovariancePointer(
-      Eigen::Matrix<double, 6, 6>* imu_covariance_cached_p_q) {
-    CHECK_NOTNULL(imu_covariance_cached_p_q);
-    imu_covariance_cached_p_q_ = imu_covariance_cached_p_q;
-  }
-
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  private:
@@ -130,7 +124,6 @@ class InertialErrorTerm
 
   const Eigen::Matrix<int64_t, 1, Eigen::Dynamic> imu_timestamps_;
   const Eigen::Matrix<double, 6, Eigen::Dynamic> imu_data_;
-  Eigen::Matrix<double, 6, 6>* imu_covariance_cached_p_q_;
 
   const imu_integrator::ImuIntegratorRK4 integrator_;
 
