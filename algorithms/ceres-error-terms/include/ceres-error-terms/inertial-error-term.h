@@ -93,7 +93,6 @@ class InertialErrorTerm
       double acc_bias_sigma, double gravity_magnitude)
       : imu_timestamps_(imu_timestamps),
         imu_data_(imu_data),
-        imu_covariance_cached_p_q_(nullptr),
         integrator_(
             gyro_noise_sigma, gyro_bias_sigma, acc_noise_sigma, acc_bias_sigma,
             gravity_magnitude) {

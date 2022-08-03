@@ -55,42 +55,7 @@ DEFINE_int32(
     anchor_transform_ransac_num_interations, 2000,
     "Maximum number of iterations for mission baseframe RANSAC.");
 
-// EXPERIMENTAL FLAGS
-// Use with caution.
-DEFINE_int32(
-    lc_experimental_keep_n_vertices_for_query, -1,
-    "Skip n vertices when querying the LC database.");
-DEFINE_int32(
-    lc_experimental_keep_n_vertices_for_database, -1,
-    "Skip n vertices when building the LC database.");
-// --------------------------------------------------------------
-
 DEFINE_string(lc_feature_type, "Binary", "Type of features to loop close");
-
-static void filter_vertices_randomly(
-    const std::size_t n_remaining_candidates_to_keep,
-    pose_graph::VertexIdList* vertices) {
-  CHECK_NOTNULL(vertices);
-
-  // Create a vector of candidate iterators.
-  const std::size_t n_candidates = vertices->size();
-  if (n_candidates < n_remaining_candidates_to_keep) {
-    return;
-  }
-  // Create iterators to each vertex and shuffle them.
-  std::vector<pose_graph::VertexIdList::iterator> v(n_candidates);
-  std::iota(v.begin(), v.end(), vertices->begin());
-  std::shuffle(v.begin(), v.end(), std::mt19937{std::random_device{}()});
-
-  // Delete the elements from the original vertex list.
-  const std::size_t n_candidates_to_delete =
-      n_candidates - std::min(n_candidates, n_remaining_candidates_to_keep);
-  auto it = v.begin();
-  const auto it_end = it + n_candidates_to_delete;
-  for (; it != it_end; ++it) {
-    vertices->erase(*it);
-  }
-}
 
 namespace loop_detector_node {
 
@@ -357,15 +322,6 @@ void LoopDetectorNode::addMissionToDatabase(
   VLOG(1) << "Getting vertices in mission " << mission_id;
   pose_graph::VertexIdList all_vertices;
   map.getAllVertexIdsInMissionAlongGraph(mission_id, &all_vertices);
-
-  if (FLAGS_lc_experimental_keep_n_vertices_for_database > 0) {
-    const std::size_t init_size = all_vertices.size();
-    filter_vertices_randomly(
-        FLAGS_lc_experimental_keep_n_vertices_for_database, &all_vertices);
-    VLOG(2) << "Filtering database vertices. "
-            << "Selected " << all_vertices.size() << " from " << init_size
-            << ".";
-  }
 
   VLOG(1) << "Got vertices in mission " << mission_id;
   VLOG(1) << "Adding mission " << mission_id << " to database.";
@@ -816,16 +772,9 @@ bool LoopDetectorNode::detectLoopClosuresMissionToDatabase(
   map->getAllVertexIdsInMission(mission_id, &vertices);
 
   // Shuffle vertex order to more uniformly distribute CPU load
-  std::shuffle(
-      vertices.begin(), vertices.end(), std::mt19937{std::random_device{}()});
-
-  if (FLAGS_lc_experimental_keep_n_vertices_for_query > 0) {
-    const std::size_t init_size = vertices.size();
-    filter_vertices_randomly(
-        FLAGS_lc_experimental_keep_n_vertices_for_query, &vertices);
-    VLOG(2) << "Filtering query vertices. "
-            << "Selected " << vertices.size() << " from " << init_size << ".";
-  }
+  std::random_device device;
+  std::mt19937 generator(device());
+  std::shuffle(vertices.begin(), vertices.end(), generator);
 
   return detectLoopClosuresVerticesToDatabase(
       vertices, merge_landmarks, add_lc_edges, map, T_G_M_estimate,
