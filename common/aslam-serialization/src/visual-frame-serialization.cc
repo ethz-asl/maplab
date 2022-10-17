@@ -146,8 +146,10 @@ void deserializeVisualFrame(
         CHECK_EQ(time_offsets.rows(), img_points_distorted.cols());
         frame_ref.setKeypointTimeOffsets(time_offsets);
       }
-      CHECK_EQ(track_ids.rows(), img_points_distorted.cols());
-      frame_ref.setTrackIds(track_ids);
+      if (track_ids.rows() != 0) {
+        CHECK_EQ(track_ids.rows(), img_points_distorted.cols());
+        frame_ref.setTrackIds(track_ids);
+      }
 
       frame_ref.deserializeDescriptorsFromString(proto.keypoint_descriptors());
       frame_ref.setDescriptorTypes(descriptor_types);

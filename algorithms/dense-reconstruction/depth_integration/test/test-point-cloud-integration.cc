@@ -11,16 +11,12 @@
 
 #include "depth-integration/depth-integration.h"
 
-const std::string kTestDataBaseFolder = "./map_resources_test_data/";  // NOLINT
-
-const std::string kVoxbloxIntegratorType = "simple";
-
 class PointCloudIntegrationTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
     vi_map::VIMapManager map_manager;
     CHECK(map_manager.loadMapFromFolder(
-        "./test_maps/dense_mapping_test_map", &vi_map_key_));
+        "./test_maps/common_test_map", &vi_map_key_));
   }
 
   virtual void TearDown() {
@@ -60,7 +56,7 @@ TEST_F(PointCloudIntegrationTest, TestIntegrationFunctionPointCloudVoxblox) {
       false /*use_undistorted_camera_for_depth_maps*/, vi_map,
       integration_function, nullptr /*resource_selection_function*/);
 
-  EXPECT_EQ(counter, 24u);
+  EXPECT_EQ(counter, 21u);
 }
 
 TEST_F(PointCloudIntegrationTest, TestIntegrationFunctionPointCloudMaplab) {
@@ -88,7 +84,7 @@ TEST_F(PointCloudIntegrationTest, TestIntegrationFunctionPointCloudMaplab) {
       false /*use_undistorted_camera_for_depth_maps*/, vi_map,
       integration_function, nullptr /*resource_selection_function*/);
 
-  EXPECT_EQ(counter, 24u);
+  EXPECT_EQ(counter, 21u);
 }
 
 TEST_F(
@@ -128,8 +124,8 @@ TEST_F(
       false /*use_undistorted_camera_for_depth_maps*/, vi_map,
       integration_function, one_function_to_select_them_all);
 
-  EXPECT_EQ(counter, 24u);
-  EXPECT_EQ(selection_counter, 24u);
+  EXPECT_EQ(counter, 21u);
+  EXPECT_EQ(selection_counter, 21u);
 
   // Reset counter.
   counter = 0u;
@@ -150,15 +146,15 @@ TEST_F(
       integration_function, one_function_to_shun_them_all);
 
   EXPECT_EQ(counter, 0u);
-  EXPECT_EQ(selection_counter, 24u);
+  EXPECT_EQ(selection_counter, 21u);
 
   // Reset counter.
   counter = 0u;
   selection_counter = 0u;
 
   aslam::Transformation::Position G_p_center;
-  G_p_center << 48.4692, 18.9221, 0.504537;
-  const double radius_m = 10.0;
+  G_p_center << 0, 0, 0;
+  const double radius_m = 5.0;
 
   // Special integration function to check whether selection function is doing
   // its job.
@@ -194,8 +190,8 @@ TEST_F(
       false /*use_undistorted_camera_for_depth_maps*/, vi_map,
       selective_integration_function, one_function_to_find_the_chosen_ones);
 
-  EXPECT_EQ(counter, 9u);
-  EXPECT_EQ(selection_counter, 24u);
+  EXPECT_EQ(counter, 6u);
+  EXPECT_EQ(selection_counter, 21u);
 }
 
 TEST_F(PointCloudIntegrationTest, TestIntegrationFunctionDepthImage) {

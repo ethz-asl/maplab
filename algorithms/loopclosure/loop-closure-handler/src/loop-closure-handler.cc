@@ -189,10 +189,12 @@ LoopClosureHandler::LoopClosureHandler(
 
 LoopClosureHandler::LoopClosureHandler(
     summary_map::LocalizationSummaryMap const* summary_map,
-    LandmarkToLandmarkMap* landmark_id_old_to_new)
+    LandmarkToLandmarkMap* landmark_id_old_to_new,
+    vi_map::FeatureType feature_type)
     : map_(nullptr),
       summary_map_(CHECK_NOTNULL(summary_map)),
-      landmark_id_old_to_new_(CHECK_NOTNULL(landmark_id_old_to_new)) {}
+      landmark_id_old_to_new_(CHECK_NOTNULL(landmark_id_old_to_new)),
+      feature_type_(static_cast<int>(feature_type)) {}
 
 // Assuming same query_keyframe in each of the constraints on the vector.
 bool LoopClosureHandler::handleLoopClosure(

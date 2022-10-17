@@ -52,7 +52,8 @@ class LoopClosureHandler {
 
   explicit LoopClosureHandler(
       summary_map::LocalizationSummaryMap const* summary_map,
-      LandmarkToLandmarkMap* landmark_id_old_to_new);
+      LandmarkToLandmarkMap* landmark_id_old_to_new,
+      vi_map::FeatureType feature_type = vi_map::FeatureType::kBinary);
 
   LoopClosureHandler() = delete;
 

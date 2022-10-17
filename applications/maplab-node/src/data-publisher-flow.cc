@@ -1,3 +1,4 @@
+#include "maplab-node/data-publisher-flow.h"
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/PoseWithCovariance.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
@@ -5,7 +6,6 @@
 #include <maplab-common/file-logger.h>
 #include <maplab-common/localization-result.h>
 #include <minkindr_conversions/kindr_msg.h>
-#include "maplab-node/data-publisher-flow.h"
 #include "maplab-node/ros-helpers.h"
 
 DEFINE_double(
@@ -152,30 +152,22 @@ void DataPublisherFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
     std::shared_ptr<common::FileLogger> file_logger =
         std::make_shared<common::FileLogger>(
             FLAGS_export_estimated_poses_to_csv);
-    constexpr char kDelimiter[] = ", ";
+    constexpr char kDelimiter[] = " ";
     file_logger->writeDataWithDelimiterAndNewLine(
-        kDelimiter, "# Timestamp [s]", "t_G_M x [m]", "t_G_M y [m]",
-        "t_G_M z [m]", "q_G_M x", "q_G_M y", "q_G_M z", "q_G_M w",
-        "T_M_B x [m]", "T_M_B y [m]", "T_M_B z [m]", "q_M_I x", "q_M_I y",
-        "q_M_I z", "q_M_I w", "has T_G_M");
+        kDelimiter, "# Timestamp [s]", "p_G_Ix", "p_G_Iy", "p_G_Iz", "q_G_Ix",
+        "q_G_Iy", "q_G_Iz", "q_G_Iw");
     CHECK(file_logger != nullptr);
     flow->registerSubscriber<message_flow_topics::MAP_UPDATES>(
         kSubscriberNodeName, message_flow::DeliveryOptions(),
         [file_logger, kDelimiter,
          this](const vio::MapUpdate::ConstPtr& vio_update) {
           CHECK(vio_update != nullptr);
-          const bool has_T_G_M = vio_update->localization_state ==
-                                 common::LocalizationState::kLocalized;
-          if (has_T_G_M) {
-            latest_T_G_M_ = vio_update->T_G_M;
-          }
-          const aslam::Transformation& T_M_B = vio_update->vinode.get_T_M_I();
+          const aslam::Transformation& T_M_I = vio_update->vinode.get_T_M_I();
 
           file_logger->writeDataWithDelimiterAndNewLine(
               kDelimiter,
               aslam::time::nanoSecondsToSeconds(vio_update->timestamp_ns),
-              latest_T_G_M_.getPosition(), latest_T_G_M_.getEigenQuaternion(),
-              T_M_B.getPosition(), T_M_B.getEigenQuaternion(), has_T_G_M);
+              T_M_I.getPosition(), T_M_I.getEigenQuaternion());
         });
   }
 }

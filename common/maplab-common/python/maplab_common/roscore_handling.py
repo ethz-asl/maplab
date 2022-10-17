@@ -56,8 +56,8 @@ class Roscore(object):
             print('The python roscore handler will not kill it.')
             print('Please do so manually if desired.')
             return
-        print("try to kill child pids of roscore pid: " +
-              str(self.roscore_pid))
+        print(
+            "try to kill child pids of roscore pid: " + str(self.roscore_pid))
         kill_child_processes(self.roscore_pid)
         self.roscore_process.terminate()
         self.roscore_process.wait()  # important to prevent from zombie process

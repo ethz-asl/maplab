@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <aslam/common/thread-pool.h>
@@ -48,7 +49,7 @@ struct SubmapProcess {
 
 class MaplabServerNode final {
  public:
-  explicit MaplabServerNode();
+  MaplabServerNode();
 
   ~MaplabServerNode();
 
@@ -95,6 +96,10 @@ class MaplabServerNode final {
       const backend::ResourceType resource_type,
       const Eigen::Vector3d& center_G, const double radius_m,
       resources::PointCloud* point_cloud_G);
+
+  uint32_t getNumMergedSubmaps() const {
+    return total_num_merged_submaps_;
+  }
 
   void visualizeMap();
 

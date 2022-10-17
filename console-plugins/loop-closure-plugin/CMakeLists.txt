@@ -10,13 +10,6 @@ cs_add_library(${PROJECT_NAME} src/loop-closure-plugin.cc
                                src/vi-map-merger.cc)
 create_console_plugin(${PROJECT_NAME})
 
-#############
-## TESTING ##
-#############
-catkin_add_gtest(test_loopclosure test/test-loopclosure.cc)
-target_link_libraries(test_loopclosure ${PROJECT_NAME})
-maplab_import_test_maps(test_loopclosure)
-
 ##################
 # CMAKE Indexing #
 ##################

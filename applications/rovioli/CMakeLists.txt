@@ -46,10 +46,6 @@ catkin_add_env_hooks(10.rovio-config-template
 ##########
 # GTESTS #
 ##########
-catkin_add_gtest(test_localizer test/test-localizer.cc)
-target_link_libraries(test_localizer ${PROJECT_NAME}_lib)
-maplab_import_test_maps(test_localizer)
-
 catkin_add_gtest(test_feature_tracking test/test-feature-tracking.cc)
 target_link_libraries(test_feature_tracking ${PROJECT_NAME}_lib)
 maplab_import_test_maps(test_feature_tracking)
@@ -59,9 +55,6 @@ target_link_libraries(test_vio_update_builder ${PROJECT_NAME}_lib)
 
 catkin_add_gtest(test_ros_helpers test/test-ros-helpers.cc)
 target_link_libraries(test_ros_helpers ${PROJECT_NAME}_lib)
-
-execute_process(COMMAND tar -xzf ${MAPLAB_TEST_DATA_DIR}/end_to_end_test/end_to_end_test.tar.gz)
-catkin_add_nosetests(test/end_to_end_test.py)
 
 ############
 ## EXPORT ##

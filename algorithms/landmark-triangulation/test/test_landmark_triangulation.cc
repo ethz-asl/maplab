@@ -18,7 +18,7 @@ namespace landmark_triangulation {
 class ViMappingTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    test_app_.loadDataset("./test_maps/vi_app_test");
+    test_app_.loadDataset("./test_maps/common_test_map");
     CHECK_NOTNULL(test_app_.getMapMutable());
   }
 
@@ -36,21 +36,11 @@ void ViMappingTest::corruptLandmarks() {
 TEST_F(ViMappingTest, TestLandmarkTriangulation) {
   corruptLandmarks();
 
-  vi_map::MissionIdList mission_ids;
-  test_app_.getMapMutable()->getAllMissionIds(&mission_ids);
-  retriangulateLandmarks(mission_ids, test_app_.getMapMutable());
-  constexpr double kPrecision = 0.1;
-  constexpr double kMinPassingLandmarkFraction = 0.99;
-  test_app_.testIfLandmarksMatchReference(
-      kPrecision, kMinPassingLandmarkFraction);
-}
-
-TEST_F(ViMappingTest, TestLandmarkTriangulationEntireMap) {
-  corruptLandmarks();
-
   retriangulateLandmarks(test_app_.getMapMutable());
   constexpr double kPrecision = 0.1;
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  // Original landmarks are triangulated using the optimizer,
+  // so here we expect lower precision at a higher performance
+  constexpr double kMinPassingLandmarkFraction = 0.8;
   test_app_.testIfLandmarksMatchReference(
       kPrecision, kMinPassingLandmarkFraction);
 }

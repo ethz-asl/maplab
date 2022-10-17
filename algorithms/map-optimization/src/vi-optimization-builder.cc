@@ -12,7 +12,7 @@ DEFINE_bool(
     ba_use_visual_outlier_rejection_solver, true,
     "Reject outlier landmarks during the solve?");
 DEFINE_string(
-    ba_feature_type, "Invalid",
+    ba_feature_type, "Binary",
     "Type of features to use in bundle adjustment, will default to using all "
     "of them at once.");
 DEFINE_bool(

@@ -13,7 +13,7 @@ namespace map_sparsification {
 class ViMappingTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    test_app_.loadDataset("./test_maps/vi_app_test");
+    test_app_.loadDataset("./test_maps/common_test_map");
 
     // Set quality of all landmarks to good as they are unknown in the test
     // map. We save time of retriangulation.
@@ -37,7 +37,7 @@ class ViMappingTest : public ::testing::Test {
     const vi_map::VIMap& vi_map = *CHECK_NOTNULL(test_app_.getMapMutable());
 
     const size_t num_landmarks = vi_map.numLandmarksInIndex();
-    const size_t desired_num_landmarks = 0.25 * num_landmarks;
+    const size_t desired_num_landmarks = 0.1 * num_landmarks;
     sampler_->sample(vi_map, desired_num_landmarks, landmarks_to_keep);
 
     EXPECT_EQ(desired_num_landmarks, landmarks_to_keep->size());
@@ -52,7 +52,7 @@ class ViMappingTest : public ::testing::Test {
     GraphPartitionSampler partition_sampler(sampler_);
 
     const size_t num_landmarks = vi_map.numLandmarksInIndex();
-    const size_t desired_num_landmarks = 0.25 * num_landmarks;
+    const size_t desired_num_landmarks = 0.1 * num_landmarks;
     partition_sampler.sample(vi_map, desired_num_landmarks, landmarks_to_keep);
 
     EXPECT_LE(landmarks_to_keep->size(), desired_num_landmarks);
@@ -96,7 +96,7 @@ class ViMappingTest : public ::testing::Test {
 
     // Make sure the difference between kept and removed landmarks is
     // reasonably large.
-    EXPECT_GE(avg_observers_kept, avg_observers_removed + 10);
+    EXPECT_GE(avg_observers_kept, avg_observers_removed + 8);
   }
 
  private:

@@ -62,6 +62,8 @@ class OptimizationTermAdditionTest : public ::testing::Test {
     return num_vertices_;
   }
 
+  static constexpr vi_map::FeatureType kFeatureType =
+      vi_map::FeatureType::kBinary;
   static constexpr bool kFixLandmarkPositions = false;
   static constexpr bool kFixIntrinsics = false;
   static constexpr bool kFixExtrinsicsRotation = false;
@@ -83,9 +85,9 @@ TEST_F(OptimizationTermAdditionTest, addLandmarkTerms) {
   OptimizationProblem optimization_problem(&map, mission_ids_);
   EXPECT_GT(
       addLandmarkTerms(
-          kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
-          kFixExtrinsicsTranslation, kMinLandmarksPerFrame,
-          &optimization_problem),
+          kFeatureType, kFixLandmarkPositions, kFixIntrinsics,
+          kFixExtrinsicsRotation, kFixExtrinsicsTranslation,
+          kMinLandmarksPerFrame, &optimization_problem),
       0u);
 
   EXPECT_EQ(
@@ -128,9 +130,9 @@ TEST_F(OptimizationTermAdditionTest, addLandmarkAndInertialTerms) {
 
   EXPECT_GT(
       addLandmarkTerms(
-          kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
-          kFixExtrinsicsTranslation, kMinLandmarksPerFrame,
-          &optimization_problem),
+          kFeatureType, kFixLandmarkPositions, kFixIntrinsics,
+          kFixExtrinsicsRotation, kFixExtrinsicsTranslation,
+          kMinLandmarksPerFrame, &optimization_problem),
       0u);
   EXPECT_GT(
       addInertialTerms(

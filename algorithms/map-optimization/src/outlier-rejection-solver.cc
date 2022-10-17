@@ -124,6 +124,7 @@ ceres::TerminationType solveStep(
   }
 
   // Disable the default Ceres output.
+  local_options.logging_type = ceres::SILENT;
   local_options.minimizer_progress_to_stdout = false;
   local_options.max_num_iterations = num_iters;
   local_options.update_state_every_iteration = true;

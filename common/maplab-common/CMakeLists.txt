@@ -4,6 +4,8 @@ project(maplab_common)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
+catkin_python_setup()
+
 ############
 # PROTOBUF #
 ############
@@ -17,7 +19,7 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 #############
 # LIBRARIES #
 #############
-find_package (Threads)
+find_package(Threads)
 cs_add_library(${PROJECT_NAME} src/binary-serialization.cc
                                src/breakpoints.cc
                                src/combinatorial.cc
