@@ -30,11 +30,6 @@ DEFINE_int32(
     "Outlier rejection in absolute constraints: Sets the maximum number of "
     "iterations for mission baseframe RANSAC.");
 
-DEFINE_int32(
-    map_anchoring_min_num_vertex_links, 10,
-    "Minimum number of vertex links for a successful (rigid) map "
-    "alignment/anchoring.");
-
 namespace map_anchoring {
 
 void setMissionBaseframeToKnownIfHasAbs6DoFConstraints(vi_map::VIMap* map) {
