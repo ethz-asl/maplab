@@ -84,6 +84,10 @@ DEFINE_string(
     robot_name, "robot",
     "Robot name to associate to map update message when using submapping. Make "
     "sure to set a different name for every robot when there are multiple.");
+DEFINE_string(
+    map_update_topic, "map_update_notification",
+    "Topic on which the map update notification message is sent to the "
+    "server, when the map or submap is saved.");
 
 DECLARE_bool(map_split_map_into_submaps_when_saving_periodically);
 DECLARE_int32(map_save_every_n_sec);
@@ -99,7 +103,7 @@ MaplabRosNode::MaplabRosNode(
       maplab_spinner_(common::getNumHardwareThreads()) {
   // Set up publishers.
   map_update_pub_ =
-      nh_.advertise<diagnostic_msgs::KeyValue>("map_update_notification", 10);
+      nh_.advertise<diagnostic_msgs::KeyValue>(FLAGS_map_update_topic, 10);
 
   LOG(INFO) << "[MaplabROSNode] Initializing message flow...";
   message_flow_.reset(

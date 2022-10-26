@@ -1,6 +1,6 @@
 sensors:
-  - id: 3333acb41bfdfd6b7e1fac37c7cbe7bf
-    topic: /euroc_mh_3/imu0
+  - id: 5555acb41bfdfd6b7e1fac37c7cbe7bf
+    topic: /mh5/imu0
     description: "VI-Sensor IMU (ADIS16448)"
     sensor_type: IMU
     sigmas:
@@ -12,24 +12,14 @@ sensors:
     saturation_gyro_max_radps: 7.5
     gravity_magnitude_mps2: 9.81
 
-  - id: 3333bb8e4058621f7036b5e765dfe812
+  - id: 5555bb8e4058621f7036b5e765dfe812
     sensor_type: NCAMERA
     description: "VISensor - Euroc - original_calibration"
     topic: ""
-    T_G_B_fixed_covariance:
-      rows: 6
-      cols: 6
-      data:
-        - [0.1,0,0,0,0,0]
-        - [0,0.1,0,0,0,0]
-        - [0,0,0.1,0,0,0]
-        - [0,0,0,0.01,0,0]
-        - [0,0,0,0,0.01,0]
-        - [0,0,0,0,0,0.01]
     cameras:
       - camera:
-          topic: /euroc_mh_3/cam0
-          id: 3333b062fa109c40fe90b29a59dd7798
+          topic: /mh5/cam0
+          id: 5555b062fa109c40fe90b29a59dd7798
           description: "VI-Sensor cam0 (MT9M034)"
           sensor_type: CAMERA
           line-delay-nanoseconds: 0
@@ -56,8 +46,8 @@ sensors:
                  0.0, 0.0, 0.0, 1.0]
 
       - camera:
-          topic: /euroc_mh_3/cam1
-          id: 3333b162fa109c40fe90b29a59dd7723
+          topic: /mh5/cam1
+          id: 5555b162fa109c40fe90b29a59dd7723
           description: "VI-Sensor cam1 (MT9M034)"
           sensor_type: CAMERA
           line-delay-nanoseconds: 0
@@ -82,10 +72,10 @@ sensors:
                -0.0253898008918, 0.0179005838253, 0.999517347078, 0.00786212447038,
                 0.0, 0.0, 0.0, 1.0]
 
-  - id: 3333c3479caf7592b35518478a2fe08f
+  - id: 5555c3479caf7592b35518478a2fe08f
     sensor_type: ODOMETRY_6DOF
     description: "ROVIOLI in Odometry mode"
-    topic: /euroc_mh_3/odometry/maplab_odom_T_M_I
+    topic: /mh5/rovioli/maplab_odom_T_M_I
     T_St_Stp1_fixed_covariance:
       rows: 6
       cols: 6
@@ -99,8 +89,8 @@ sensors:
 
 extrinsics:
 
-  - sensor_id: 3333bb8e4058621f7036b5e765dfe812
-    base_sensor_id: 3333acb41bfdfd6b7e1fac37c7cbe7bf
+  - sensor_id: 5555bb8e4058621f7036b5e765dfe812
+    base_sensor_id: 5555acb41bfdfd6b7e1fac37c7cbe7bf
     T_B_S:
       cols: 4
       rows: 4
@@ -110,8 +100,8 @@ extrinsics:
         - [0,0,1,0]
         - [0,0,0,1]
 
-  - sensor_id: 3333acb41bfdfd6b7e1fac37c7cbe7bf
-    base_sensor_id: 3333acb41bfdfd6b7e1fac37c7cbe7bf
+  - sensor_id: 5555acb41bfdfd6b7e1fac37c7cbe7bf
+    base_sensor_id: 5555acb41bfdfd6b7e1fac37c7cbe7bf
     T_B_S:
       rows: 4
       cols: 4
@@ -121,8 +111,8 @@ extrinsics:
         - [0,0,1,0]
         - [0,0,0,1]
 
-  - sensor_id: 3333c3479caf7592b35518478a2fe08f
-    base_sensor_id: 3333acb41bfdfd6b7e1fac37c7cbe7bf
+  - sensor_id: 5555c3479caf7592b35518478a2fe08f
+    base_sensor_id: 5555acb41bfdfd6b7e1fac37c7cbe7bf
     T_B_S:
       rows: 4
       cols: 4

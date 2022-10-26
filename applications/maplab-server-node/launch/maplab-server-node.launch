@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-
-<launch>
-	<node name="maplab_server_node" pkg="maplab_server_node" type="maplab_server_node" output="screen" clear_params="true">
-		<rosparam command="load" file="$(find darpa_subt_launch)/cfg/ros/maplab_server_darpa_rosparam.yaml"/>
-	</node>
-</launch>

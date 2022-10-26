@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+
+<launch>
+
+	<!-- MAPLAB SERVER -->
+	<group ns="maplab_server">
+		<node name="maplab_server_node" pkg="maplab_server_node" type="maplab_server_node" output="screen" clear_params="true">
+			<rosparam command="load" file="$(find maplab_server_node)/cfg/maplab_server_ros_params.yaml"/>
+			<param name="maplab_server_map_update_topic" value="/mh1/update,/mh2/update,/mh3/update,/mh4/update,/mh5/update"/>
+		</node>
+	</group>
+
+	<group if="true">
+		<node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find maplab_server_node)/launch/euroc/ros/euroc-maplab-server-minimal.rviz" />
+	</group>
+
+</launch>

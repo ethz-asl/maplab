@@ -30,7 +30,8 @@ DEFINE_int32(
 DEFINE_string(
     maplab_server_map_update_topic, "map_update_notification",
     "Topic on which the map update notification message is received, it "
-    "contains the robot name and the map folder of the new map update.");
+    "contains the robot name and the map folder of the new map update. "
+    "Can also be a comma-separated list of separate topics.");
 
 namespace maplab {
 
@@ -88,9 +89,14 @@ MaplabServerRosNode::MaplabServerRosNode(
   boost::function<void(const diagnostic_msgs::KeyValueConstPtr&)>
       submap_loading_callback =
           boost::bind(&MaplabServerRosNode::submapLoadingCallback, this, _1);
-  map_update_notification_sub_ = nh_.subscribe(
-      FLAGS_maplab_server_map_update_topic,
-      FLAGS_maplab_server_map_update_topic_queue_size, submap_loading_callback);
+  std::string topic;
+  std::stringstream topic_list(FLAGS_maplab_server_map_update_topic);
+  while (getline(topic_list, topic, ',')) {
+    topic.erase(std::remove(topic.begin(), topic.end(), ' '), topic.end());
+    map_update_notification_sub_.push_back(nh_.subscribe(
+        topic, FLAGS_maplab_server_map_update_topic_queue_size,
+        submap_loading_callback));
+  }
 
   T_G_curr_B_curr_pub_ =
       nh_.advertise<geometry_msgs::TransformStamped>("T_G_curr_B_curr", 1);

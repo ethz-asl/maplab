@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+
+<launch>
+	<arg name="robot_name" default=""/>
+	<arg name="robot_calib_file" default=""/>
+	<arg name="root_map_directory" default=""/>
+
+	<group ns="$(arg robot_name)">
+		<!-- ROVIOLI -->
+		<group ns="rovioli">
+			<node name="rovioli" pkg="rovioli" type="rovioli" output="screen" clear_params="true">
+				<!-- GENERAL PARAMS -->
+				<rosparam command="load" file="$(find maplab_server_node)/launch/euroc/ros/euroc-rovioli-rosparam.yaml"/>
+
+				<!-- ROBOT SPECIFIC PARAMS -->
+				<param name="sensor_calibration_file" value="$(find maplab_server_node)/launch/euroc/calib/$(arg robot_calib_file)"/>
+			</node>
+		</group>
+
+		<!-- MAPLAB -->
+		<node name="maplab_node" pkg="maplab_node" type="maplab_node" output="screen" clear_params="true">
+			<!-- LOAD GENERAL PARAMS -->
+			<rosparam command="load" file="$(find maplab_server_node)/launch/euroc/ros/euroc-maplab-node-rosparam.yaml"/>
+
+			<!-- ROBOT SPECIFIC PARAMS -->
+			<param name="sensor_calibration_file" value="$(find maplab_server_node)/launch/euroc/calib/$(arg robot_calib_file)"/>
+
+			<param name="robot_name" value="$(arg robot_name)"/>
+			<param name="map_output_folder" value="$(arg root_map_directory)/$(arg robot_name)"/>
+		</node>
+	</group>
+</launch>
