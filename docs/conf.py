@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Sphinx configuration file."""
 
-import os
 import time
 
 import sphinx_rtd_theme
@@ -10,7 +9,6 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # html_theme = "alabaster"
 html_logo = "logo.png"
-
 
 project = "maplab"
 master_doc = 'index'
@@ -21,12 +19,13 @@ pygments_style = "sphinx"
 templates_path = ["_templates"]
 
 # Check https://holzhaus.github.io/sphinx-multiversion/master/configuration.html#tag-branch-remote-whitelists
-smv_tag_whitelist = None                          # Include no tags
-smv_branch_whitelist = r'^(develop|maplab20)$'   # Include develop and maplab 2.0 branch
-smv_remote_whitelist = r'^(origin|upstream)$'    # Use origin and upstream branches
+smv_tag_whitelist = None  # Include no tags
+smv_branch_whitelist = r'^(develop)$'  # Include develop  branch
+smv_remote_whitelist = r'^(origin|upstream)$'  # Use origin and upstream
 
 extensions = [
-     'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark', 'sphinx_multiversion',
+    'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark',
+    'sphinx_multiversion', 'sphinx.ext.graphviz'
 ]
 
 html_theme_options = {
@@ -57,7 +56,6 @@ templates_path = [
     "_templates",
 ]
 
-
 # Setup the breathe extension
 breathe_projects = {"project": "./doxyoutput/xml"}
 breathe_default_project = "project"
@@ -72,7 +70,8 @@ exhale_args = {
     "createTreeView": True,
     "exhaleExecutesDoxygen": True,
     "exhaleUseDoxyfile": True,
-    "pageLevelConfigMeta": ":github_url: https://github.com/ethz-asl/" + project
+    "pageLevelConfigMeta":
+    ":github_url: https://github.com/ethz-asl/" + project
 }
 source_suffix = ['.rst', '.md']
 
