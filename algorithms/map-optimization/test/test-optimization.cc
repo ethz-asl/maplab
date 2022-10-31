@@ -452,7 +452,7 @@ TEST_F(ViMappingTest, TestCorruptedVIOpt) {
 
   constexpr double kPrecisionM = 0.01;
   test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionM, kMinPassingLandmarkFraction);
 
@@ -506,7 +506,7 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithAbs6DoFEnabledButHasNone) {
 
   constexpr double kPrecisionM = 0.01;
   test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionM, kMinPassingLandmarkFraction);
 
@@ -534,7 +534,7 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithAbs6DoFEnabled) {
   constexpr double kPrecisionKeyframesM = 0.001;
   test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
   constexpr double kPrecisionLandmarksM = 0.01;
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
@@ -563,7 +563,7 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithAbs6DoFEnabledCalib) {
   constexpr double kPrecisionKeyframesM = 0.001;
   test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
   constexpr double kPrecisionLandmarksM = 0.01;
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
@@ -589,7 +589,7 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithLcEdgesEnabledButHasNone) {
 
   constexpr double kPrecisionM = 0.01;
   test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionM, kMinPassingLandmarkFraction);
 
@@ -619,7 +619,7 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithLcEdgesEnabled) {
   constexpr double kPrecisionKeyframesM = 0.001;
   test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
   constexpr double kPrecisionLandmarksM = 0.01;
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
@@ -652,7 +652,7 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithLcEdgesEnabledWithWrongLcEdge) {
   constexpr double kPrecisionKeyframesM = 0.001;
   test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
   constexpr double kPrecisionLandmarksM = 0.01;
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
