@@ -22,6 +22,7 @@
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/landmark-quality-metrics.h>
+#include <visualization/spatially-distribute-missions.h>
 
 #include <atomic>
 #include <memory>
@@ -110,8 +111,12 @@ DEFINE_bool(
 DEFINE_bool(
     maplab_server_enable_lidar_loop_closure, true,
     "If enabled, lidar loop closure & mapping is used to derrive constraints "
-    "within and "
-    "across missions.");
+    "within and across missions.");
+
+DEFINE_bool(
+    maplab_server_spatially_distribute_missions, true,
+    "Spatially distribute missions from robots that have not yet been merged "
+    "into the main map. See flags \"spatially_*\" for more options.");
 
 namespace maplab {
 MaplabServerNode::MaplabServerNode()
@@ -431,8 +436,14 @@ void MaplabServerNode::visualizeMap() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (plotter_) {
     if (map_manager_.hasMap(kMergedMapKey)) {
-      vi_map::VIMapManager::MapReadAccess map =
-          map_manager_.getMapReadAccess(kMergedMapKey);
+      vi_map::VIMapManager::MapWriteAccess map =
+          map_manager_.getMapWriteAccess(kMergedMapKey);
+
+      // Spatially distribute the robots that don't yet have a fixed baseframe
+      if (FLAGS_maplab_server_spatially_distribute_missions) {
+        visualization::spatiallyDistributeMissions(map.get());
+      }
+
       plotter_->visualizeMap(*map);
     } else {
       LOG(WARNING) << "[MaplabServerNode] Could not visualize merged map, as "
@@ -1308,7 +1319,7 @@ void MaplabServerNode::runSubmapProcessing(
                  << "encountered an error!";
     }
   }
-  #endif
+#endif
 
   // Submap Optimization
   //////////////////////

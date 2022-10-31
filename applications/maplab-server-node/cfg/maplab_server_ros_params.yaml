@@ -183,3 +183,5 @@ colorlogtostderr:                                                     true
 v: 0
 vis_default_namespace:                                                maplab_server_rviz
 show_progress_bar:                                                    false
+spatially_distribute_missions_meters:                                 20
+spatially_distribute_missions_around_circle:                          true

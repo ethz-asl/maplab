@@ -21,6 +21,7 @@ cs_add_library(${PROJECT_NAME}
   src/rviz-visualization-sink.cc
   src/sequential-plotter.cc
   src/sliding-window-plotter.cc
+  src/spatially-distribute-missions.cc
   src/vertex-landmark-visibility-plotter.cc
   src/viwls-graph-plotter.cc
   src/viz-data-collector.cc

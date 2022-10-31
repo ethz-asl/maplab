@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-	<arg name="euroc_playback_speed" default="0.5"/>
+	<arg name="euroc_playback_speed" default="1.0"/>
 	<arg name="euroc_bags_folder" default="/home/andrei/src/maplab/euroc/"/>
 	<arg name="euroc_root_map_directory" default="/tmp/maplab_node/"/>
 
