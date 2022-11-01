@@ -19,6 +19,7 @@
 #include <vi-map/vi-map.h>
 #include <visualization/color-palette.h>
 #include <visualization/common-rviz-visualization.h>
+#include <visualization/point-cloud-filter.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <voxblox/core/common.h>
 
@@ -72,6 +73,23 @@ DEFINE_int32(
     "Defines the playback speed of the sequential point cloud publisher.");
 
 namespace visualization {
+
+template <typename T_input>
+static void convertAndSubsampleIfNecessary(
+    const T_input& cloud_in, sensor_msgs::PointCloud2* ros_point_cloud) {
+  const uint32_t point_step = backend::getPointStep(
+      cloud_in.hasColor(), cloud_in.hasNormals(), cloud_in.hasScalars(),
+      cloud_in.hasLabels());
+  static const size_t kMargin = 1000u;
+  static const size_t kMaxRosMessageSize = 1000000000u;
+  static const size_t kMaxDataSize = kMaxRosMessageSize - kMargin;
+  if (cloud_in.size() * point_step > kMaxDataSize) {
+    const int n_max_points = kMaxDataSize / point_step;
+    applyRandomDownSamplingFilter(cloud_in, n_max_points, ros_point_cloud);
+  } else {
+    backend::convertPointCloudType(cloud_in, ros_point_cloud);
+  }
+}
 
 bool visualizeCvMatResources(
     const vi_map::VIMap& map, backend::ResourceType type) {
@@ -288,7 +306,7 @@ void visualizeReprojectedDepthResource(
           }
 
           sensor_msgs::PointCloud2 ros_point_cloud_G;
-          backend::convertPointCloudType(points_G, &ros_point_cloud_G);
+          convertAndSubsampleIfNecessary(points_G, &ros_point_cloud_G);
 
           publishPointCloudInGlobalFrame(
               "" /*topic prefix*/, &ros_point_cloud_G);
@@ -313,7 +331,7 @@ void visualizeReprojectedDepthResource(
 
   // Publish accumulated point cloud in global frame.
   sensor_msgs::PointCloud2 ros_point_cloud_G;
-  backend::convertPointCloudType(accumulated_point_cloud_G, &ros_point_cloud_G);
+  convertAndSubsampleIfNecessary(accumulated_point_cloud_G, &ros_point_cloud_G);
   publishPointCloudInGlobalFrame("" /*topic prefix*/, &ros_point_cloud_G);
 
   // Only continue if we want to export the accumulated point cloud to file.
@@ -422,7 +440,7 @@ void visualizeReprojectedDepthResourcePerRobot(
 
     // Publish accumulated point cloud in global frame.
     sensor_msgs::PointCloud2 ros_point_cloud_G;
-    backend::convertPointCloudType(
+    convertAndSubsampleIfNecessary(
         accumulated_point_cloud_G, &ros_point_cloud_G);
     publishPointCloudInGlobalFrame(
         robot_name /*topic prefix*/, &ros_point_cloud_G);
