@@ -21,8 +21,10 @@ struct Color {
 
 static constexpr size_t kNumColors = 256u;
 
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 static constexpr Color kCommonRed(255u, 0u, 0u);
 static constexpr Color kCommonBlue(0u, 0u, 255u);
+static constexpr Color kCommonDarkBlue(0u, 0u, 155u);
 static constexpr Color kCommonGreen(0u, 255u, 0u);
 static constexpr Color kCommonDarkGreen(0u, 180u, 0u);
 static constexpr Color kCommonYellow(255u, 255u, 0u);
@@ -46,6 +48,7 @@ static const cv::Scalar kCvCyan(255.0, 255.0, 0.0);
 static const cv::Scalar kCvYellow(0.0, 255.0, 255.0);
 static const cv::Scalar kCvWhite(255.0, 255.0, 255.0);
 static const cv::Scalar kCvBlack(0.0, 0.0, 0.0);
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 inline void convertStringToColor(
     const std::string& color_string, visualization::Color* color) {
@@ -53,6 +56,8 @@ inline void convertStringToColor(
     *color = kCommonRed;
   } else if (color_string == "blue") {
     *color = kCommonBlue;
+  } else if (color_string == "dark_blue") {
+    *color = kCommonDarkBlue;
   } else if (color_string == "green") {
     *color = kCommonGreen;
   } else if (color_string == "dark_green") {

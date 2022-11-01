@@ -1,6 +1,7 @@
 #ifndef MAP_RESOURCES_TEST_RESOURCE_TEMPLATE_H_
 #define MAP_RESOURCES_TEST_RESOURCE_TEMPLATE_H_
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -23,7 +24,8 @@ enum class DataTypes {
   kPointCloud,
   kVoxbloxTsdfMap,
   kVoxbloxEsdfMap,
-  kVoxbloxOccupancyMap
+  kVoxbloxOccupancyMap,
+  kObjectInstanceBoundingBoxes
 };
 
 struct ResourceTemplateBase {
@@ -56,7 +58,7 @@ struct ResourceTemplateBase {
       const ResourceType& _type, const std::string& _folder,
       bool _is_external_folder)
       : type(_type), folder(_folder), is_external_folder(_is_external_folder) {
-    common::generateId(&id);
+    aslam::generateId(&id);
   }
 };
 
@@ -136,6 +138,12 @@ DataTypes ResourceTemplate<voxblox::OccupancyMap>::getDataType() {
 }
 
 template <>
+DataTypes
+ResourceTemplate<resources::ObjectInstanceBoundingBoxes>::getDataType() {
+  return DataTypes::kObjectInstanceBoundingBoxes;
+}
+
+template <>
 void ResourceTemplate<cv::Mat>::createUniqueResource(
     const cv::Mat& default_resource, const ResourceId& id,
     std::unique_ptr<cv::Mat>* unique_resource) {
@@ -173,20 +181,15 @@ void ResourceTemplate<resources::PointCloud>::createUniqueResource(
     CHECK_EQ(default_resource.xyz.size(), default_resource.normals.size());
   }
 
-  for (size_t i = 0u; i < default_resource.xyz.size(); i += 3) {
-    static constexpr float kMultiplicationFactor = 1.0e-8f;
-    float x = default_resource.xyz[i];
-    float y = default_resource.xyz[i + 1];
-    float z = default_resource.xyz[i + 2];
-    x += static_cast<float>(id_uint[0]) * kMultiplicationFactor;
-    y += static_cast<float>(id_uint[1]) * kMultiplicationFactor;
-    z += static_cast<float>(id_uint[0]) * kMultiplicationFactor;
-    (*unique_resource)->xyz.push_back(x);
-    (*unique_resource)->xyz.push_back(y);
-    (*unique_resource)->xyz.push_back(z);
-  }
+  (*unique_resource)->xyz = default_resource.xyz;
+
+  (*unique_resource)->xyz[0] += (static_cast<float>(id_uint[0] % 10000u) / 1e4);
+  (*unique_resource)->xyz[1] += (static_cast<float>(id_uint[1] % 10000u) / 1e4);
+  (*unique_resource)->xyz[2] += (static_cast<float>(id_uint[0] % 10000u) / 1e4);
+
   (*unique_resource)->normals = default_resource.normals;
   (*unique_resource)->colors = default_resource.colors;
+  (*unique_resource)->scalars = default_resource.scalars;
 }
 
 // Convert hash into a block index by splitting the id into two uint64 and the
@@ -201,10 +204,13 @@ voxblox::BlockIndex hashToBlockIndex(const ResourceId& id) {
   hash_id.toUint64(id_uint_array);
 
   const uint32_t x =
-      (uint32_t)((id_uint_array[0] & 0xFFFFFFFF00000000LL) >> 32);
-  const uint32_t y = (uint32_t)(id_uint_array[0] & 0xFFFFFFFFLL);
+      static_cast<uint32_t>((id_uint_array[0] >> 32) & 0x00000000FFFFFFFFLL) %
+      1000000;
+  const uint32_t y =
+      static_cast<uint32_t>(id_uint_array[0] & 0x00000000FFFFFFFFLL) % 1000000;
   const uint32_t z =
-      (uint32_t)((id_uint_array[1] & 0xFFFFFFFF00000000LL) >> 32);
+      static_cast<uint32_t>((id_uint_array[1] >> 32) & 0x00000000FFFFFFFFLL) %
+      1000000;
 
   return voxblox::BlockIndex(x, y, z);
 }
@@ -256,6 +262,26 @@ void ResourceTemplate<voxblox::OccupancyMap>::createUniqueResource(
   (*unique_resource)
       ->getOccupancyLayerPtr()
       ->allocateBlockPtrByIndex(unique_block_idx);
+}
+
+template <>
+void ResourceTemplate<resources::ObjectInstanceBoundingBoxes>::
+    createUniqueResource(
+        const resources::ObjectInstanceBoundingBoxes& default_resource,
+        const ResourceId& id,
+        std::unique_ptr<resources::ObjectInstanceBoundingBoxes>*
+            unique_resource) {
+  CHECK_NOTNULL(unique_resource)
+      ->reset(new resources::ObjectInstanceBoundingBoxes(default_resource));
+
+  const voxblox::BlockIndex unique_block_idx = hashToBlockIndex(id);
+
+  resources::ObjectInstanceBoundingBox bbox;
+  bbox.instance_number = unique_block_idx.x();
+  bbox.class_number = unique_block_idx.y();
+  bbox.bounding_box.x = unique_block_idx.z();
+
+  (*unique_resource)->push_back(bbox);
 }
 
 void showTwoImagesSideBySide(

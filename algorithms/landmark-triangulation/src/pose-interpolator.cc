@@ -1,11 +1,40 @@
 #include "landmark-triangulation/pose-interpolator.h"
 
+#include <limits>
+
 #include <aslam/common/time.h>
 #include <glog/logging.h>
 #include <imu-integrator/imu-integrator.h>
 #include <maplab-common/macros.h>
 
 namespace landmark_triangulation {
+
+bool interpolateLinear(
+    const vi_map::VIMap& map, const vi_map::Vertex& vertex,
+    int64_t offset_ns, aslam::Transformation* T_inter) {
+  CHECK_NOTNULL(T_inter);
+  // TODO(smauq): Implement interpolation also backwards
+  CHECK_GT(offset_ns, 0);
+
+  // We can not interpolate for the last vertex
+  pose_graph::VertexId next_vertex_id;
+  if (!map.getNextVertex(vertex.id(), &next_vertex_id)) {
+    return false;
+  }
+
+  const vi_map::Vertex& next_vertex = map.getVertex(next_vertex_id);
+
+  const int64_t t1 = vertex.getMinTimestampNanoseconds();
+  const int64_t t2 = next_vertex.getMinTimestampNanoseconds();
+  const double lambda =
+      static_cast<double>(offset_ns) / static_cast<double>(t2 - t1);
+
+  *T_inter = kindr::minimal::interpolateComponentwise(
+      vertex.get_T_M_I(), next_vertex.get_T_M_I(), lambda);
+
+  return true;
+}
+
 void PoseInterpolator::buildListOfAllRequiredIMUMeasurements(
     const vi_map::VIMap& map, const std::vector<int64_t>& timestamps,
     const pose_graph::EdgeId& imu_edge_id, int start_index, int end_index,
@@ -19,10 +48,10 @@ void PoseInterpolator::buildListOfAllRequiredIMUMeasurements(
   CHECK_GE(end_index, 0);
 
   // First add all imu measurements from this vertex to the buffer.
-  typedef std::pair<int64_t, IMUMeasurement> buffer_value_type;
+  typedef std::pair<const int64_t, IMUMeasurement> buffer_value_type;
   using common::TemporalBuffer;
-  typedef TemporalBuffer<IMUMeasurement,
-                         Eigen::aligned_allocator<buffer_value_type> >
+  typedef TemporalBuffer<
+      IMUMeasurement, Eigen::aligned_allocator<buffer_value_type>>
       ImuMeasurementBuffer;
   ImuMeasurementBuffer imu_buffer;
   {
@@ -56,14 +85,12 @@ void PoseInterpolator::buildListOfAllRequiredIMUMeasurements(
     // time.
     IMUMeasurement measurement_before;
     int64_t timestamp_before = 0;
-    CHECK(
-        imu_buffer.getValueAtOrBeforeTime(
-            requested_time, &timestamp_before, &measurement_before));
+    CHECK(imu_buffer.getValueAtOrBeforeTime(
+        requested_time, &timestamp_before, &measurement_before));
     IMUMeasurement measurement_after;
     int64_t timestamp_after = 0;
-    CHECK(
-        imu_buffer.getValueAtOrAfterTime(
-            requested_time, &timestamp_after, &measurement_after));
+    CHECK(imu_buffer.getValueAtOrAfterTime(
+        requested_time, &timestamp_after, &measurement_after));
 
     CHECK_NE(timestamp_after, timestamp_before);
 
@@ -81,19 +108,14 @@ void PoseInterpolator::buildListOfAllRequiredIMUMeasurements(
         interpolated_measurement.timestamp, interpolated_measurement);
   }
 
-  imu_buffer.lockContainer();
-  const ImuMeasurementBuffer::BufferType& buffered_values =
-      imu_buffer.buffered_values();
-
-  imu_timestamps->resize(Eigen::NoChange, buffered_values.size());
-  imu_data->resize(Eigen::NoChange, buffered_values.size());
+  imu_timestamps->resize(Eigen::NoChange, imu_buffer.size());
+  imu_data->resize(Eigen::NoChange, imu_buffer.size());
   int index = 0;
-  for (const buffer_value_type& value : buffered_values) {
+  for (const buffer_value_type& value : imu_buffer) {
     (*imu_timestamps)(0, index) = value.second.timestamp;
     imu_data->col(index) = value.second.imu_measurement;
     ++index;
   }
-  imu_buffer.unlockContainer();
 }
 
 void PoseInterpolator::computeRequestedPosesInRange(
@@ -112,8 +134,7 @@ void PoseInterpolator::computeRequestedPosesInRange(
   using imu_integrator::ImuIntegratorRK4;
   const vi_map::MissionId& mission_id = mission.id();
   CHECK(mission_id.isValid());
-  const vi_map::Imu& imu_sensor =
-      map.getSensorManager().getSensorForMission<vi_map::Imu>(mission_id);
+  const vi_map::Imu& imu_sensor = map.getMissionImu(mission_id);
   const vi_map::ImuSigmas& imu_sigmas = imu_sensor.getImuSigmas();
 
   ImuIntegratorRK4 integrator(
@@ -136,6 +157,8 @@ void PoseInterpolator::computeRequestedPosesInRange(
   using imu_integrator::kStateOrientationBlockSize;
   using imu_integrator::kStatePositionOffset;
   using imu_integrator::kStateSize;
+  using imu_integrator::kStateVelocityOffset;
+  using imu_integrator::kVelocityBlockSize;
 
   Eigen::Matrix<double, 2 * kImuReadingSize, 1> debiased_imu_readings;
   Eigen::Matrix<double, kErrorStateSize, kErrorStateSize> phi;
@@ -165,10 +188,16 @@ void PoseInterpolator::computeRequestedPosesInRange(
       current_state.head<kStateOrientationBlockSize>();
   state_linearization_point_begin.p_M_I =
       current_state.segment<kPositionBlockSize>(kStatePositionOffset);
-  constexpr bool kEmitWarningIfValuesOverwritten = false;
+  current_state.head<kStateOrientationBlockSize>();
+  state_linearization_point_begin.v_M =
+      current_state.segment<kVelocityBlockSize>(kStateVelocityOffset);
+  state_linearization_point_begin.accel_bias =
+      current_state.segment<kAccelBiasBlockSize>(kStateAccelBiasOffset);
+  state_linearization_point_begin.gyro_bias =
+      current_state.segment<kGyroBiasBlockSize>(kStateGyroBiasOffset);
   state_buffer->addValue(
       state_linearization_point_begin.timestamp,
-      state_linearization_point_begin, kEmitWarningIfValuesOverwritten);
+      state_linearization_point_begin);
 
   // Now compute all the integrated values.
   for (int i = 0; i < imu_data.cols() - 1; ++i) {
@@ -200,6 +229,12 @@ void PoseInterpolator::computeRequestedPosesInRange(
         next_state.head<kStateOrientationBlockSize>();
     state_linearization_point.p_M_I =
         next_state.segment<kPositionBlockSize>(kStatePositionOffset);
+    state_linearization_point.v_M =
+        current_state.segment<kVelocityBlockSize>(kStateVelocityOffset);
+    state_linearization_point.accel_bias =
+        current_state.segment<kAccelBiasBlockSize>(kStateAccelBiasOffset);
+    state_linearization_point.gyro_bias =
+        current_state.segment<kGyroBiasBlockSize>(kStateGyroBiasOffset);
     state_buffer->addValue(
         state_linearization_point.timestamp, state_linearization_point);
 
@@ -209,12 +244,37 @@ void PoseInterpolator::computeRequestedPosesInRange(
 
 void PoseInterpolator::getVertexToTimeStampMap(
     const vi_map::VIMap& map, const vi_map::MissionId& mission_id,
-    std::unordered_map<pose_graph::VertexId, int64_t>* vertex_to_time_map)
-    const {
+    VertexToTimeStampMap* vertex_to_time_map, int64_t* min_timestamp_ns,
+    int64_t* max_timestamp_ns) const {
   CHECK_NOTNULL(vertex_to_time_map)->clear();
+
+  if (min_timestamp_ns != nullptr) {
+    *min_timestamp_ns = std::numeric_limits<int64_t>::max();
+  }
+  if (max_timestamp_ns != nullptr) {
+    *max_timestamp_ns = std::numeric_limits<int64_t>::min();
+  }
+
   // Get the outgoing edge of the vertex and its IMU data.
   pose_graph::VertexIdList all_mission_vertices;
   map.getAllVertexIdsInMissionAlongGraph(mission_id, &all_mission_vertices);
+
+  pose_graph::Edge::EdgeType backbone_type =
+      map.getGraphTraversalEdgeType(mission_id);
+  switch (backbone_type) {
+    case pose_graph::Edge::EdgeType::kViwls:
+      // Everything ok.
+      break;
+    case pose_graph::Edge::EdgeType::kOdometry:
+      LOG(ERROR) << "Interpolation of poses in between vertices is not "
+                 << "implemented for odometry type pose graph edges!";
+      return;
+    default:
+      LOG(ERROR) << "Cannot interpolate poses in between vertices based on "
+                 << "this posegraph edge type: "
+                 << static_cast<int>(backbone_type);
+      return;
+  }
 
   vertex_to_time_map->reserve(all_mission_vertices.size());
   for (const pose_graph::VertexId& vertex_id : all_mission_vertices) {
@@ -223,7 +283,7 @@ void PoseInterpolator::getVertexToTimeStampMap(
     vertex.getOutgoingEdges(&outgoing_edges);
     pose_graph::EdgeId outgoing_imu_edge_id;
     for (const pose_graph::EdgeId& edge_id : outgoing_edges) {
-      if (map.getEdgeType(edge_id) == pose_graph::Edge::EdgeType::kViwls) {
+      if (map.getEdgeType(edge_id) == backbone_type) {
         outgoing_imu_edge_id = edge_id;
         break;
       }
@@ -232,13 +292,54 @@ void PoseInterpolator::getVertexToTimeStampMap(
     if (!outgoing_imu_edge_id.isValid()) {
       break;
     }
-    const vi_map::ViwlsEdge& imu_edge =
-        map.getEdgeAs<vi_map::ViwlsEdge>(outgoing_imu_edge_id);
-    const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps =
-        imu_edge.getImuTimestamps();
-    if (imu_timestamps.cols() > 0) {
-      (*vertex_to_time_map)[vertex_id] = imu_timestamps(0, 0);
+
+    switch (backbone_type) {
+      case pose_graph::Edge::EdgeType::kViwls: {
+        const vi_map::ViwlsEdge& imu_edge =
+            map.getEdgeAs<vi_map::ViwlsEdge>(outgoing_imu_edge_id);
+        const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps =
+            imu_edge.getImuTimestamps();
+        if (imu_timestamps.cols() > 0) {
+          (*vertex_to_time_map)[vertex_id] = imu_timestamps(0, 0);
+          if (min_timestamp_ns != nullptr) {
+            *min_timestamp_ns =
+                std::min(*min_timestamp_ns, imu_timestamps(0, 0));
+          }
+          if (max_timestamp_ns != nullptr) {
+            *max_timestamp_ns =
+                std::max(*max_timestamp_ns, imu_timestamps(0, 0));
+          }
+        }
+      }
+        continue;
+      case pose_graph::Edge::EdgeType::kOdometry: {
+        LOG(FATAL) << "Should not have reached this!";
+      }
+        continue;
+      default: {
+        LOG(FATAL) << "Cannot interpolate poses in between vertices based on "
+                   << "this posegraph edge type: "
+                   << static_cast<int>(backbone_type);
+      }
+        continue;
     }
+  }
+}
+
+void PoseInterpolator::getVertexTimeStampVector(
+    const vi_map::VIMap& map, const vi_map::MissionId& mission_id,
+    std::vector<int64_t>* vertex_timestamps_nanoseconds) const {
+  CHECK_NOTNULL(vertex_timestamps_nanoseconds)->clear();
+
+  VLOG(1) << "Extract time stamps for mission.";
+  pose_graph::VertexIdList all_mission_vertices;
+  map.getAllVertexIdsInMissionAlongGraph(mission_id, &all_mission_vertices);
+  vertex_timestamps_nanoseconds->reserve(all_mission_vertices.size());
+
+  for (const pose_graph::VertexId& vertex_id : all_mission_vertices) {
+    const int64_t vertex_timestamp =
+        map.getVertex(vertex_id).getMinTimestampNanoseconds();
+    vertex_timestamps_nanoseconds->emplace_back(vertex_timestamp);
   }
 }
 
@@ -354,7 +455,10 @@ void PoseInterpolator::getImuDataInRange(
 void PoseInterpolator::getPosesAtTime(
     const vi_map::VIMap& map, vi_map::MissionId mission_id,
     const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& pose_timestamps,
-    aslam::TransformationVector* poses_M_I) const {
+    aslam::TransformationVector* poses_M_I,
+    std::vector<Eigen::Vector3d>* velocities_M_I,
+    std::vector<Eigen::Vector3d>* gyro_biases,
+    std::vector<Eigen::Vector3d>* accel_biases) const {
   CHECK_NOTNULL(poses_M_I)->clear();
   CHECK_GT(pose_timestamps.rows(), 0);
 
@@ -427,10 +531,19 @@ void PoseInterpolator::getPosesAtTime(
     StateLinearizationPoint state_linearization_point;
     const bool buffer_has_state = state_buffer.getValueAtTime(
         pose_timestamps(0, i), &state_linearization_point);
-    CHECK(buffer_has_state) << ": No value in state_buffer at time: "
-                            << pose_timestamps(0, i);
+    CHECK(buffer_has_state)
+        << ": No value in state_buffer at time: " << pose_timestamps(0, i);
     poses_M_I->emplace_back(
         state_linearization_point.q_M_I, state_linearization_point.p_M_I);
+    if (velocities_M_I) {
+      velocities_M_I->emplace_back(state_linearization_point.v_M);
+    }
+    if (accel_biases) {
+      accel_biases->emplace_back(state_linearization_point.accel_bias);
+    }
+    if (gyro_biases) {
+      gyro_biases->emplace_back(state_linearization_point.gyro_bias);
+    }
   }
 }
 

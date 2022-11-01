@@ -66,11 +66,11 @@ class LoopClosureEdge : public vi_map::Edge {
   }
 
   void set_T_A_B(const pose::Transformation& T_A_B);
-  const pose::Transformation& getT_A_B() const;
+  const pose::Transformation& get_T_A_B() const;
 
   void set_T_A_B_Covariance(
       const Eigen::Matrix<double, 6, 6>& T_A_B_covariance);
-  const Eigen::Matrix<double, 6, 6>& getT_A_BCovariance() const;
+  const Eigen::Matrix<double, 6, 6>& get_T_A_B_Covariance() const;
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 

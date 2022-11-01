@@ -30,7 +30,8 @@ constexpr char kConsoleDefaultName[] = "console";
  * Shorthand for treating a command with one common::Id (e.g. mission id)
  * as argument
  */
-bool idArg(const char* input, const char* command, common::Id* id) {
+bool idArg(const char* input, const char* command, aslam::Id* const id) {
+  CHECK_NOTNULL(id);
   if (strstr(input, command) == input) {
     std::istringstream in(input);
     std::string temp, id_string;
@@ -45,7 +46,9 @@ bool idArg(const char* input, const char* command, common::Id* id) {
 }
 
 Console::Console(
-    const std::string& console_name, CommandRegisterer* command_registerer_ptr)
+    const std::string& console_name,
+    CommandRegisterer* const command_registerer_ptr,
+    const bool enable_auto_completion)
     : sheep_enabled_(false),
       command_registerer_ptr_(CHECK_NOTNULL(command_registerer_ptr)),
       console_name_(console_name) {
@@ -56,23 +59,23 @@ Console::Console(
     command_registerer_ptr_->getAllCommands(&all_commands);
     auto_completion_.addCommandsToIndex(all_commands);
   }
-  auto_completion_.enableAutoCompletion();
+  if (enable_auto_completion) {
+    auto_completion_.enableAutoCompletion();
+  }
 
   // Auto-install basic plugin always because it's the only one that depends on
   // the command registerer.
-  installPlugin(
-      ConsolePluginPtr(
-          new BasicConsolePlugin(this, command_registerer_ptr_.get()),
-          [](ConsolePluginBase* plugin) { delete plugin; }));
+  installPlugin(ConsolePluginPtr(
+      new BasicConsolePlugin(this, command_registerer_ptr_.get()),
+      [](ConsolePluginBase* plugin) { delete plugin; }));
 
-  addCommand(
-      CommandRegisterer::Command(
-          {"enable_sheep", "sheep"},
-          [this]() -> int {
-            this->sheep_enabled_ = !this->sheep_enabled_;
-            return common::kSuccess;
-          },
-          "Enable sheep.", common::Processing::Sync, "console"));
+  addCommand(CommandRegisterer::Command(
+      {"enable_sheep", "sheep"},
+      [this]() -> int {
+        this->sheep_enabled_ = !this->sheep_enabled_;
+        return common::kSuccess;
+      },
+      "Enable sheep.", common::Processing::Sync, "console"));
 }
 
 Console::Console(const std::string& console_name)
@@ -97,7 +100,15 @@ void Console::RunCommandPrompt() {
     }
     char* input = readline(shell_prompt.c_str());
 
-    if (!input || strcmp(input, "q") == 0 || strcmp(input, "exit") == 0) {
+    if (!input) {
+      // Print newline when reading input is failed (EOF). Otherwise the next
+      // shell output will be on the same line as the maplab prompt.
+      std::cout << '\n';
+      break;
+    }
+    if (strcmp(input, "q") == 0 || strcmp(input, "quit") == 0 ||
+        strcmp(input, "exit") == 0) {
+      // In these cases no additional newline is required.
       break;
     }
 
@@ -276,8 +287,8 @@ char** Console::AutoCompletion::convertToCArray(
        ++candidate_idx) {
     c_strings[candidate_idx + 1] =
         new char[candidates[candidate_idx].size() + 1u];
-    strcpy(c_strings[candidate_idx + 1],  // NOLINT
-           candidates[candidate_idx].c_str());
+    strcpy(  // NOLINT
+        c_strings[candidate_idx + 1], candidates[candidate_idx].c_str());
   }
   c_strings[candidates.size() + 1] = nullptr;
   return c_strings;

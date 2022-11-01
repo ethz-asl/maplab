@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <package format="2">
   <name>vi_map</name>
-  <version>0.0.0</version>
+  <version>2.2.0</version>
   <description>Visual inertial mapping structure.</description>
   <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
   <license>Apache 2.0</license>
@@ -13,6 +13,7 @@
   <depend>aslam_cv_common</depend>
   <depend>aslam_cv_frames</depend>
   <depend>aslam_serialization</depend>
+  <depend>benchmark_catkin</depend>
   <depend>eigen_catkin</depend>
   <depend>eigen_checks</depend>
   <depend>gflags_catkin</depend>
@@ -20,7 +21,7 @@
   <depend>libnabo</depend>
   <depend>map_resources</depend>
   <depend>maplab_common</depend>
-  <depend>minkindr</depend>
+  <depend>maplab_test_data</depend>
   <depend>posegraph</depend>
   <depend>protobuf_catkin</depend>
   <depend>sensors</depend>

@@ -9,6 +9,7 @@
 
 #include <gflags/gflags.h>
 #include <maplab-common/file-system-tools.h>
+#include <maplab-common/string-tools.h>
 #include <visualization/rviz-visualization-sink.h>
 
 DEFINE_bool(ros_free, false, "Enable this flag to run on systems without ROS");
@@ -16,8 +17,9 @@ DEFINE_bool(ros_free, false, "Enable this flag to run on systems without ROS");
 namespace maplab {
 
 MapLabConsole::MapLabConsole(
-    const std::string& console_name, int argc, char** argv)
-    : common::Console(console_name) {
+    const std::string& console_name, int argc, char** argv,
+    const bool enable_plotter)
+    : common::Console(console_name), enable_plotter_(enable_plotter) {
   setSelectedMapKey("");
   discoverAndInstallPlugins(argc, argv);
 }
@@ -30,86 +32,106 @@ MapLabConsole::~MapLabConsole() {
   }
 }
 
-void MapLabConsole::discoverAndInstallPlugins(int argc, char** argv) {
-  // Plotter can be nullptr if --ros_free has been specified.
-  const char* plugin_list_file_path =
-      std::getenv("MAPLAB_CONSOLE_PLUGINS_LIBRARY_LIST");
-  CHECK(plugin_list_file_path != nullptr && plugin_list_file_path[0] != '\0')
-      << "$MAPLAB_CONSOLE_PLUGINS_LIBRARY_LIST isn't defined. Source your "
-      << "catkin workspace:\n"
-      << "    source ~/catkin_ws/devel/setup.bash";
+MapLabConsole::MapLabConsole(
+    const MapLabConsole& other_console, const std::string& new_console_name,
+    const bool enable_plotter)
+    : common::Console(
+          new_console_name, new common::CommandRegisterer(),
+          false /*enable auto completion*/),
+      enable_plotter_(enable_plotter) {
+  setSelectedMapKey("");
 
-  // Find plugins to install.
-  std::unordered_set<std::string> discovered_plugins;
-  {
-    std::ifstream plugin_list_stream(plugin_list_file_path);
-    if (plugin_list_stream.is_open()) {
-      std::string plugin_library_path;
-      while (std::getline(plugin_list_stream, plugin_library_path)) {
-        if (common::fileExists(plugin_library_path)) {
-          discovered_plugins.emplace(plugin_library_path);
-        } else {
-          LOG(WARNING)
-              << "Plugin list mentions that there should be a library under \""
-              << plugin_library_path
-              << "\", but no such file exists. The entry will be automatically "
-              << "removed from the file. If you think the plugin should be "
-              << "available, please rerun cmake and recompile the package "
-              << "containing the plugin by running\n"
-              << "\tcatkin build --no-deps --force-cmake <plugin_package>\n"
-              << "and then try again.";
-        }
-      }
-    } else {
-      LOG(WARNING) << "No plugin can be loaded because plugin list under \""
-                   << plugin_list_file_path << "\" couldn't be opened.";
-    }
-  }
-  {
-    // Clean up plugins list: replace file with list of the plugins that have
-    // been found and loaded. This should be without duplicates now.
-    std::ofstream plugin_list_stream(plugin_list_file_path);
-    if (plugin_list_stream.is_open()) {
-      for (const std::string& plugin_library_path : discovered_plugins) {
-        plugin_list_stream << plugin_library_path << "\n";
-      }
-    }
-  }
-
-  // Dynamically load found plugins.
-  std::vector<std::pair</*plugin_handle=*/void*, /*plugin_file=*/std::string>>
-      try_load_plugins_handle_path;
-  for (const std::string& plugin_library_path : discovered_plugins) {
-    void* handle = dlopen(plugin_library_path.c_str(), RTLD_LAZY);
-    if (handle == nullptr) {
-      LOG(ERROR) << "Failed to load library " << plugin_library_path
-                 << ". Error message: " << dlerror();
-      continue;
-    }
-    try_load_plugins_handle_path.emplace_back(handle, plugin_library_path);
-  }
-
-  // Now that all plugins are loaded we can parse the flags and add them to the
-  // completion index.
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  addAllGFlagsToCompletion();
-
-  if (!FLAGS_ros_free) {
+  if (!FLAGS_ros_free && enable_plotter_) {
     visualization::RVizVisualizationSink::init();
     plotter_.reset(new visualization::ViwlsGraphRvizPlotter);
     LOG(INFO) << "RVIZ visualization initialized!";
   }
 
-  for (const std::pair<void*, std::string>& handle_libpath :
-       try_load_plugins_handle_path) {
-    void* handle = handle_libpath.first;
+  // Instead of discovering and installing the plugins, we just use the handles
+  // of the other console to install them. However, this means we cannot store
+  // them in plugin_handles, since this would lead to deleting the handles twice
+  // in the destructor.
+  for (void* handle : other_console.plugin_handles_) {
+    CHECK_NOTNULL(handle);
+    common::PluginCreateFunction create_function =
+        common::PluginCreateFunction(dlsym(handle, "createConsolePlugin"));
+    common::PluginDestroyFunction destroy_function =
+        common::PluginDestroyFunction(dlsym(handle, "destroyConsolePlugin"));
+
+    // The other plugin successfully loaded this plugin so this should not fail!
+    CHECK_NOTNULL(create_function);
+    CHECK_NOTNULL(destroy_function);
+    // plugin_handles_.emplace_back(handle);
+
+    // Create and install plugin.
+    common::ConsolePluginPtr plugin(
+        create_function(this, plotter_.get()), destroy_function);
+    VLOG(1) << "Installed plugin " << plugin->getPluginId() << ".";
+    installPlugin(std::move(plugin));
+  }
+}
+
+void MapLabConsole::discoverAndInstallPlugins(int argc, char** argv) {
+  // Plotter can be nullptr if --ros_free has been specified.
+  const char* plugin_list = std::getenv("MAPLAB_CONSOLE_PLUGINS");
+  CHECK(plugin_list != nullptr && plugin_list[0] != '\0')
+      << "$MAPLAB_CONSOLE_PLUGINS isn't defined. Please source your workspace.";
+
+  // Find plugins to install.
+  std::vector<std::string> plugin_list_vector;
+
+  constexpr char kDelimiter = ';';
+  constexpr bool kRemoveEmpty = true;
+  common::tokenizeString(
+      plugin_list, kDelimiter, kRemoveEmpty, &plugin_list_vector);
+  if (plugin_list_vector.empty()) {
+    LOG(WARNING) << "No plugin can be loaded as no plugins were definded in "
+                 << "the environment variable $MAPLAB_CONSOLE_PLUGINS. Make "
+                 << "sure that you built a plugin and that your workspace is "
+                 << "sourced.";
+  }
+
+  // Dynamically load found plugins.
+  std::vector<std::pair</*plugin_handle=*/void*, /*plugin_file=*/std::string>>
+      try_load_plugins_handle;
+  for (const std::string& plugin_name : plugin_list_vector) {
+    void* handle = dlopen(plugin_name.c_str(), RTLD_LAZY);
+    if (handle == nullptr) {
+      LOG(ERROR) << "Failed to load library " << plugin_name
+                 << ". Error message: " << dlerror();
+      LOG(ERROR) << "The plugin may not be installed properly. Please try to "
+                 << "reinstall the plugin. If the plugin comes from a catkin "
+                 << "package, run\n"
+                 << "\tcatkin build --no-deps --force-cmake <plugin_package>\n"
+                 << "and then try again.";
+      continue;
+    }
+    try_load_plugins_handle.emplace_back(handle, plugin_name);
+  }
+
+  // Now that all plugins are loaded we can parse the flags and add them to the
+  // completion index.
+  if (argc > 0) {
+    google::ParseCommandLineFlags(&argc, &argv, true);
+    addAllGFlagsToCompletion();
+  }
+
+  if (!FLAGS_ros_free && enable_plotter_) {
+    visualization::RVizVisualizationSink::init();
+    plotter_.reset(new visualization::ViwlsGraphRvizPlotter);
+    LOG(INFO) << "RVIZ visualization initialized!";
+  }
+
+  for (const std::pair<void*, std::string>& handle_lib :
+       try_load_plugins_handle) {
+    void* handle = handle_lib.first;
     common::PluginCreateFunction create_function =
         common::PluginCreateFunction(dlsym(handle, "createConsolePlugin"));
     common::PluginDestroyFunction destroy_function =
         common::PluginDestroyFunction(dlsym(handle, "destroyConsolePlugin"));
     if (create_function == nullptr || destroy_function == nullptr) {
       LOG(ERROR) << "Error loading the functions from plugin "
-                 << handle_libpath.second << ". Error message: " << dlerror()
+                 << handle_lib.second << ". Error message: " << dlerror()
                  << "\nMake sure that your plugin implements the functions "
                  << "\"ConsolePluginBase* "
                  << "createConsolePlugin(common::Console*, "
@@ -124,7 +146,7 @@ void MapLabConsole::discoverAndInstallPlugins(int argc, char** argv) {
     common::ConsolePluginPtr plugin(
         create_function(this, plotter_.get()), destroy_function);
     VLOG(1) << "Installed plugin " << plugin->getPluginId() << " from "
-            << handle_libpath.second << ".";
+            << handle_lib.second << ".";
     installPlugin(std::move(plugin));
   }
 }

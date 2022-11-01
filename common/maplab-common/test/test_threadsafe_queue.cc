@@ -1,3 +1,7 @@
+#include <array>
+#include <mutex>
+#include <thread>
+
 #include "maplab-common/test/testing-entrypoint.h"
 #include "maplab-common/threadsafe-queue.h"
 
@@ -5,30 +9,33 @@ namespace common {
 struct Args {
   common::ThreadSafeQueue<int>* queue_jobs;
   common::ThreadSafeQueue<int>* queue_finished;
-  int num;
+  size_t num;
 };
 
+constexpr size_t kNumConsumers = 10u;
+constexpr size_t kNumProducers = 10u;
+constexpr size_t kNumJobs = 10u;
 enum { num_consumers = 10, num_producers = 10, num_jobs = 100 };
 
-bool test_funcs(
-    void* (*)(void*), void* (*)(void*),  // NOLINT
-    const std::string&, bool);
+void producer_block(Args* args);
+void consumer_block(Args* args);
 
-void* producer_block(void* arguments);
-void* consumer_block(void* arguments);
+void producer_block_full(Args* args);
+void consumer_block_full(Args* args);
 
-void* producer_block_full(void* arguments);
-void* consumer_block_full(void* arguments);
-
-void* producer_nonblock(void* arguments);
-void* consumer_nonblock(void* arguments);
+void producer_nonblock(Args* args);
+void consumer_nonblock(Args* args);
 
 bool test_funcs(
-    void* (*consumer_ptr)(void*),  // NOLINT
-    void* (*producer_ptr)(void*),  // NOLINT
+    const std::function<void(Args*)>& consumer_function,
+    const std::function<void(Args*)>& producer_function,
     const std::string& testname, bool /*expect_jobs_nondrop*/) {
-  pthread_t producer_threads[num_producers];  // NOLINT
-  pthread_t consumer_threads[num_consumers];  // NOLINT
+  CHECK(consumer_function);
+  CHECK(producer_function);
+  CHECK(!testname.empty());
+
+  std::array<std::thread, kNumProducers> producer_threads;
+  std::array<std::thread, kNumConsumers> consumer_threads;
 
   common::ThreadSafeQueue<int> queue_jobs;
   common::ThreadSafeQueue<int> queue_finished;
@@ -36,63 +43,58 @@ bool test_funcs(
   Args args;
   args.queue_jobs = &queue_jobs;
   args.queue_finished = &queue_finished;
-  args.num = num_jobs;
+  args.num = kNumJobs;
 
   std::cout << testname << ": Jobs in " << args.num << std::endl;
 
-  for (int i = 0; i < num_producers; ++i) {
-    pthread_create(
-        &producer_threads[i], NULL, producer_ptr, static_cast<void*>(&args));
+  for (size_t i = 0u; i < kNumProducers; ++i) {
+    producer_threads[i] = std::thread(producer_function, &args);
   }
-  for (int i = 0; i < num_consumers; ++i) {
-    pthread_create(
-        &consumer_threads[i], NULL, consumer_ptr, static_cast<void*>(&args));
+  for (size_t i = 0u; i < kNumConsumers; ++i) {
+    consumer_threads[i] = std::thread(consumer_function, &args);
   }
 
   for (int i = 0; i < num_producers; ++i) {
-    pthread_join(producer_threads[i], NULL);
+    producer_threads[i].join();
   }
   for (int i = 0; i < num_consumers; ++i) {
-    pthread_join(consumer_threads[i], NULL);
+    consumer_threads[i].join();
   }
+
+  queue_jobs.Shutdown();
+  queue_finished.Shutdown();
+
   return true;
 }
 
-void* producer_block(void* arguments) {
-  assert(arguments);
-  Args* args = static_cast<Args*>(arguments);
-  for (int i = 0; i < args->num; ++i) {
+void producer_block(Args* args) {
+  CHECK_NOTNULL(args);
+  for (size_t i = 0u; i < args->num; ++i) {
     args->queue_jobs->Push(i);
   }
-  pthread_exit(NULL);
 }
 
-void* consumer_block(void* arguments) {
-  assert(arguments);
-  Args* args = static_cast<Args*>(arguments);
-  for (int i = 0; i < args->num; ++i) {
+void consumer_block(Args* args) {
+  CHECK_NOTNULL(args);
+  for (size_t i = 0u; i < args->num; ++i) {
     int val;
     bool got_value = args->queue_jobs->Pop(&val);
     if (!got_value)
       continue;
     args->queue_finished->Push(val);
   }
-  pthread_exit(NULL);
 }
 
-void* producer_block_full(void* arguments) {
-  assert(arguments);
-  Args* args = static_cast<Args*>(arguments);
-  for (int i = 0; i < args->num; ++i) {
+void producer_block_full(Args* args) {
+  CHECK_NOTNULL(args);
+  for (size_t i = 0u; i < args->num; ++i) {
     args->queue_jobs->PushBlockingIfFull(i, 5);
   }
-  pthread_exit(NULL);
 }
 
-void* consumer_block_full(void* arguments) {
-  assert(arguments);
-  Args* args = static_cast<Args*>(arguments);
-  for (int i = 0; i < args->num; ++i) {
+void consumer_block_full(Args* args) {
+  CHECK_NOTNULL(args);
+  for (size_t i = 0u; i < args->num; ++i) {
     int val;
     bool got_value = args->queue_jobs->PopBlocking(&val);
     if (!got_value)
@@ -100,22 +102,18 @@ void* consumer_block_full(void* arguments) {
     // This queue will fill up, so don't do blocking on full.
     args->queue_finished->Push(val);
   }
-  pthread_exit(NULL);
 }
 
-void* producer_nonblock(void* arguments) {
-  assert(arguments);
-  Args* args = static_cast<Args*>(arguments);
-  for (int i = 0; i < args->num; ++i) {
+void producer_nonblock(Args* args) {
+  CHECK_NOTNULL(args);
+  for (size_t i = 0u; i < args->num; ++i) {
     args->queue_jobs->PushNonBlockingDroppingOldestElementIfFull(i, 5);
   }
-  pthread_exit(NULL);
 }
 
-void* consumer_nonblock(void* arguments) {
-  assert(arguments);
-  Args* args = static_cast<Args*>(arguments);
-  for (int i = 0; i < args->num; ++i) {
+void consumer_nonblock(Args* args) {
+  CHECK_NOTNULL(args);
+  for (size_t i = 0u; i < args->num; ++i) {
     int val;
     bool ok = args->queue_jobs->PopNonBlocking(&val);
     if (!ok) {
@@ -123,7 +121,6 @@ void* consumer_nonblock(void* arguments) {
     }
     args->queue_finished->Push(val);
   }
-  pthread_exit(NULL);
 }
 
 TEST(MaplabCommon, ThreadsafeQueue_ProducerBlockConsumerBlock) {

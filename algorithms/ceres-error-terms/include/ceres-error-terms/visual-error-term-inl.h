@@ -58,10 +58,10 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
   Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_p_G_M;
 
   // Jacobian of landmark pose in camera system w.r.t. landmark mission pose
-  Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_q_G_q_LM;
-  Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_p_G_p_LM;
+  Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_q_G_LM;
+  Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_p_G_LM;
 
-  // Jacobian of landmark pose in camera system w.r.t. cam-to-IMU transformation
+  // Jacobian of landmark pose in camera system w.r.t. cam-to-IMU transform
   Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_q_C_I;
   Eigen::Matrix<double, visual::kPositionBlockSize, 3> J_p_C_fi_wrt_p_C_I;
 
@@ -92,18 +92,18 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
   Eigen::Vector3d p_M_fi = Eigen::Vector3d::Zero();
   Eigen::Vector3d p_G_fi = Eigen::Vector3d::Zero();
   Eigen::Vector3d p_I_fi = Eigen::Vector3d::Zero();
-  if (error_term_type_ == visual::VisualErrorType::kLocalKeyframe) {
+  if (error_term_type_ == LandmarkErrorType::kLocalKeyframe) {
     // The landmark baseframe is in fact our keyframe.
     p_I_fi = p_B_fi;
   } else {
     common::toRotationMatrixJPL(q_B_LM.coeffs(), &R_B_LM);
     R_LM_B = R_B_LM.transpose();
     common::toRotationMatrixJPL(q_I_M.coeffs(), &R_I_M);
-    if (error_term_type_ == visual::VisualErrorType::kLocalMission) {
+    if (error_term_type_ == LandmarkErrorType::kLocalMission) {
       // In this case M == LM.
       p_M_fi = R_LM_B * p_B_fi + p_LM_B;
       p_I_fi = R_I_M * (p_M_fi - p_M_I);
-    } else if (error_term_type_ == visual::VisualErrorType::kGlobal) {
+    } else if (error_term_type_ == LandmarkErrorType::kGlobal) {
       common::toRotationMatrixJPL(q_G_LM.coeffs(), &R_G_LM);
       common::toRotationMatrixJPL(q_G_M.coeffs(), &R_G_M);
       R_M_G = R_G_M.transpose();
@@ -123,8 +123,8 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
   // Jacobian of 2d keypoint (including distortion and intrinsics)
   // w.r.t. to landmark position in camera coordinates
   Eigen::Vector2d reprojected_landmark;
-  typedef Eigen::Matrix<double, visual::kResidualSize,
-                        visual::kPositionBlockSize>
+  typedef Eigen::Matrix<
+      double, visual::kResidualSize, visual::kPositionBlockSize>
       VisualJacobianType;
 
   VisualJacobianType J_keypoint_wrt_p_C_fi;
@@ -173,7 +173,7 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
     if (projection_failed && J_keypoint_wrt_intrinsics_ptr != nullptr) {
       J_keypoint_wrt_intrinsics_ptr->setZero();
     }
-    if (projection_failed && J_keypoint_wrt_intrinsics_ptr != nullptr) {
+    if (projection_failed && J_keypoint_wrt_distortion_ptr != nullptr) {
       J_keypoint_wrt_distortion_ptr->setZero();
     }
 
@@ -183,32 +183,32 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
 
     // These Jacobians will be used in all the cases.
     J_p_C_fi_wrt_p_C_I = Eigen::Matrix3d::Identity();
-    J_p_C_fi_wrt_q_C_I = common::skew(p_C_fi);
+    J_p_C_fi_wrt_q_C_I = common::skew(R_C_I * p_I_fi);
 
-    if (error_term_type_ == visual::VisualErrorType::kGlobal) {
+    if (error_term_type_ == LandmarkErrorType::kGlobal) {
       // The following commented expressions are evaluated in an optimized way
       // below and provided here in comments for better readability.
       // J_p_C_fi_wrt_p_M_I = -R_C_I * R_I_M;
       // J_p_C_fi_wrt_p_G_M = -R_C_I * R_I_M * R_M_G;
-      // J_p_C_fi_wrt_p_G_p_LM = R_C_I * R_I_M * R_M_G;
+      // J_p_C_fi_wrt_p_G_LM = R_C_I * R_I_M * R_M_G;
       // J_p_C_fi_wrt_p_LM_B = R_C_I * R_I_M * R_M_G * R_G_LM;
       // J_p_C_fi_wrt_p_B_fi = R_C_I * R_I_M * R_M_G * R_G_LM * R_LM_B;
       J_p_C_fi_wrt_p_M_I = -R_C_I * R_I_M;
       J_p_C_fi_wrt_p_G_M = J_p_C_fi_wrt_p_M_I * R_M_G;
-      J_p_C_fi_wrt_p_G_p_LM = -J_p_C_fi_wrt_p_G_M;
-      J_p_C_fi_wrt_p_LM_B = J_p_C_fi_wrt_p_G_p_LM * R_G_LM;
+      J_p_C_fi_wrt_p_G_LM = -J_p_C_fi_wrt_p_G_M;
+      J_p_C_fi_wrt_p_LM_B = J_p_C_fi_wrt_p_G_LM * R_G_LM;
       J_p_C_fi_wrt_p_B_fi = J_p_C_fi_wrt_p_LM_B * R_LM_B;
 
       // J_p_C_fi_wrt_q_B_LM =
       //     -R_C_I * R_I_M * R_M_G * R_G_LM * R_LM_B * common::skew(p_B_fi);
-      // J_p_C_fi_wrt_q_G_q_LM = R_C_I * R_I_M * R_M_G * common::skew(p_G_fi);
+      // J_p_C_fi_wrt_q_G_LM = R_C_I * R_I_M * R_M_G * common::skew(p_G_fi);
       // J_p_C_fi_wrt_q_G_M = -R_C_I * R_I_M * R_M_G * common::skew(p_G_fi);
       // J_p_C_fi_wrt_q_I_M = R_C_I * common::skew(p_I_fi);
       J_p_C_fi_wrt_q_B_LM = -J_p_C_fi_wrt_p_B_fi * common::skew(p_B_fi);
-      J_p_C_fi_wrt_q_G_q_LM = J_p_C_fi_wrt_p_G_p_LM * common::skew(p_G_fi);
+      J_p_C_fi_wrt_q_G_LM = J_p_C_fi_wrt_p_G_LM * common::skew(p_G_fi);
       J_p_C_fi_wrt_q_G_M = J_p_C_fi_wrt_p_G_M * common::skew(p_G_fi);
       J_p_C_fi_wrt_q_I_M = R_C_I * common::skew(p_I_fi);
-    } else if (error_term_type_ == visual::VisualErrorType::kLocalMission) {
+    } else if (error_term_type_ == LandmarkErrorType::kLocalMission) {
       // These 4 Jacobians won't be used in the kLocalKeyframe case.
       // The following commented expressions are evaluated in an optimized way
       // below and provided here in comments for better readability.
@@ -222,7 +222,7 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
       J_p_C_fi_wrt_q_I_M = R_C_I * common::skew(p_I_fi);
       J_p_C_fi_wrt_p_B_fi = J_p_C_fi_wrt_p_LM_B * R_LM_B;
       J_p_C_fi_wrt_q_B_LM = -J_p_C_fi_wrt_p_B_fi * common::skew(p_B_fi);
-    } else if (error_term_type_ == visual::VisualErrorType::kLocalKeyframe) {
+    } else if (error_term_type_ == LandmarkErrorType::kLocalKeyframe) {
       J_p_C_fi_wrt_p_B_fi = R_C_I;
     }
 
@@ -236,6 +236,11 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
         J.setZero();
       }
     }
+
+    // For quaternions we need to get the Jacobian of the local parameterization
+    // that relates small changes in the tangent space (rotation vec, 3d) to
+    // changes in the ambient space (quaternion, 4d); note that ComputeJacobians
+    // needs row major.
 
     // Jacobian w.r.t. landmark base pose expressed in landmark mission frame.
     if (jacobians[kIdxLandmarkBasePose]) {
@@ -264,10 +269,10 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
             q_G_LM.coeffs().data(), J_quat_local_param.data());
 
         J.leftCols(visual::kOrientationBlockSize) =
-            J_keypoint_wrt_p_C_fi * J_p_C_fi_wrt_q_G_q_LM * 4.0 *
+            J_keypoint_wrt_p_C_fi * J_p_C_fi_wrt_q_G_LM * 4.0 *
             J_quat_local_param.transpose() * this->pixel_sigma_inverse_;
         J.rightCols(visual::kPositionBlockSize) = J_keypoint_wrt_p_C_fi *
-                                                  J_p_C_fi_wrt_p_G_p_LM *
+                                                  J_p_C_fi_wrt_p_G_LM *
                                                   this->pixel_sigma_inverse_;
       } else {
         J.setZero();
@@ -297,10 +302,6 @@ bool VisualReprojectionError<CameraType, DistortionType>::Evaluate(
     if (jacobians[kIdxImuPose]) {
       Eigen::Map<PoseJacobian> J(jacobians[kIdxImuPose]);
       if (!projection_failed) {
-        // We need to get the Jacobian of the local parameterization that
-        // relates small changes in the tangent space (rotation vec, 3d) to
-        // changes in the ambient space (quaternion, 4d); note that
-        // ComputeJacobians needs row major.
         Eigen::Matrix<double, 4, 3, Eigen::RowMajor> J_quat_local_param;
         quat_parameterization.ComputeJacobian(
             q_I_M.coeffs().data(), J_quat_local_param.data());

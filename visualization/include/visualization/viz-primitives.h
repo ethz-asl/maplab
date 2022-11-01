@@ -45,6 +45,21 @@ struct LineSegment {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+struct Arrow {
+  Arrow()
+      : from(Eigen::Vector3d::Zero()),
+        to(Eigen::Vector3d::Zero()),
+        scale(0),
+        alpha(0.8) {}
+  Eigen::Vector3d from;
+  Eigen::Vector3d to;
+  double scale;
+  visualization::Color color;
+  double alpha;
+
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
 struct Sphere {
   Sphere() : position(Eigen::Vector3d::Zero()), radius(1.0), alpha(0.8) {}
   Eigen::Vector3d position;
@@ -78,6 +93,7 @@ struct Pose {
 };
 
 typedef Aligned<std::vector, LineSegment> LineSegmentVector;
+typedef Aligned<std::vector, Arrow> ArrowVector;
 typedef Aligned<std::vector, Sphere> SphereVector;
 typedef Aligned<std::vector, Pose> PoseVector;
 typedef Aligned<std::vector, FilledBox> FilledBoxVector;

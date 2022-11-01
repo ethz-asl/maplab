@@ -5,7 +5,7 @@ Common
   depthType 1;           Type of depth parametrization (0: normal, 1: inverse depth, 2: log, 3: hyperbolic)
   verbose false;         Is the verbose active
 }
-Camera0
+Camera0; !!! These values will be overwritten by ROVIOLI !!!
 {
   CalibrationFile ;   Camera-Calibration file for intrinsics
   qCM_x  0.0;   X-entry of IMU to Camera quaterion (Hamilton)
@@ -16,7 +16,7 @@ Camera0
   MrMC_y 0.0;   Y-entry of IMU to Camera vector (expressed in IMU CF) [m]
   MrMC_z 0.0;   Z-entry of IMU to Camera vector (expressed in IMU CF) [m]
 }
-Camera1
+Camera1; !!! These values will be overwritten by ROVIOLI !!!
 {
   CalibrationFile ;   Camera-Calibration file for intrinsics
   qCM_x  0.0;   X-entry of IMU to Camera quaterion (Hamilton)
@@ -47,26 +47,41 @@ Init
     att_y 0;  Y-entry of initial attitude (IMU to world, Hamilton)
     att_z 0;  Z-entry of initial attitude (IMU to world, Hamilton)
     att_w 1;  W-entry of initial attitude (IMU to world, Hamilton)
+
+    pma_0_x 0; !!! This value will be overwritten by ROVIOLI !!!
+    pma_0_y 0; !!! This value will be overwritten by ROVIOLI !!!
+    pma_0_z 0; !!! This value will be overwritten by ROVIOLI !!!
+    pma_0_w 1; !!! This value will be overwritten by ROVIOLI !!!
+    pmp_0_0 0; !!! This value will be overwritten by ROVIOLI !!!
+    pmp_0_1 0; !!! This value will be overwritten by ROVIOLI !!!
+    pmp_0_2 0; !!! This value will be overwritten by ROVIOLI !!!
   }
   Covariance
   {
-    pos_0 0.0001;  X-Covariance of initial position [m^2]
-    pos_1 0.0001;  Y-Covariance of initial position [m^2]
-    pos_2 0.0001;  Z-Covariance of initial position [m^2]
-    vel_0 1.0;     X-Covariance of initial velocity [m^2/s^2]
-    vel_1 1.0;     Y-Covariance of initial velocity [m^2/s^2]
-    vel_2 1.0;     Z-Covariance of initial velocity [m^2/s^2]
-    acb_0 4e-3;    X-Covariance of initial accelerometer bias [m^2/s^4]
-    acb_1 4e-3;    Y-Covariance of initial accelerometer bias [m^2/s^4]
-    acb_2 4e-3;    Z-Covariance of initial accelerometer bias [m^2/s^4]
-    gyb_0 3e-4;    X-Covariance of initial gyroscope bias [rad^2/s^2]
-    gyb_1 3e-4;    Y-Covariance of initial gyroscope bias [rad^2/s^2]
-    gyb_2 3e-4;    Z-Covariance of initial gyroscope bias [rad^2/s^2]
-    vep 0.0001;    Covariance of initial linear camera-IMU extrinsics, same for all entries [m^2]
+    pos_0 0.0001;  X-Covariance of initial position [m^2] 
+    pos_1 0.0001;  Y-Covariance of initial position [m^2] 
+    pos_2 0.0001;  Z-Covariance of initial position [m^2] 
+    vel_0 1.0;     X-Covariance of initial velocity [m^2/s^2] 
+    vel_1 1.0;     Y-Covariance of initial velocity [m^2/s^2] 
+    vel_2 1.0;     Z-Covariance of initial velocity [m^2/s^2] 
+    acb_0 4e-3;    X-Covariance of initial accelerometer bias [m^2/s^4] 
+    acb_1 4e-3;    Y-Covariance of initial accelerometer bias [m^2/s^4] 
+    acb_2 4e-3;    Z-Covariance of initial accelerometer bias [m^2/s^4] 
+    gyb_0 3e-4;    X-Covariance of initial gyroscope bias [rad^2/s^2] 
+    gyb_1 3e-4;    Y-Covariance of initial gyroscope bias [rad^2/s^2] 
+    gyb_2 3e-4;    Z-Covariance of initial gyroscope bias [rad^2/s^2] 
+    vep 0.00005;    Covariance of initial linear camera-IMU extrinsics, same for all entries [m^2] 
+    vea 0.003;     Covariance of initial rotational camera-IMU extrinsics, same for all entries [rad^2]
     att_0 0.1;     X-Covariance of initial attitude [rad^2]
     att_1 0.1;     Y-Covariance of initial attitude [rad^2]
     att_2 0.1;     Z-Covariance of initial attitude [rad^2]
-    vea 0.01;      Covariance of initial rotational camera-IMU extrinsics, same for all entries [rad^2]
+    
+    pma_0 9.86; !!! This value will be overwritten by ROVIOLI !!!
+    pma_1 9.86; !!! This value will be overwritten by ROVIOLI !!!
+    pma_2 9.86; !!! This value will be overwritten by ROVIOLI !!!
+    pmp_0 50.0; !!! This value will be overwritten by ROVIOLI !!!
+    pmp_1 50.0; !!! This value will be overwritten by ROVIOLI !!!
+    pmp_2 50.0; !!! This value will be overwritten by ROVIOLI !!!
   }
 }
 ImgUpdate
@@ -121,10 +136,10 @@ ImgUpdate
   noiseGainForOffCamera 10.0;       Factor added on update noise if not main camera
   discriminativeSamplingDistance 0.02; Sampling distance for checking discriminativity of patch (if <= 0.0 no check is performed).
   discriminativeSamplingGain 1.1;   Gain for threshold above which the samples must lie (if <= 1.0 the patchRejectionTh is used).
-  
+  imageMaskPath ;      Image mask applied to the feature detection. All features in this area will be rejected. !!! This value will be overwritten by ROVIOLI !!!
   MotionDetection
   {
-    isEnabled 0;                            Is the motion detection enabled
+    isEnabled 1;                            Is the motion detection enabled
     rateOfMovingFeaturesTh 0.5;             Amount of feature with motion for overall motion detection
     pixelCoordinateMotionTh 1.0;            Threshold for motion detection for patched [pixels]
     minFeatureCountForNoMotionDetection 5;  Min feature count in frame for motion detection
@@ -140,39 +155,41 @@ ImgUpdate
     }
     MahalanobisTh0 7.689;   Mahalanobid distance for zero velocity updates
     minNoMotionTime 1.0;    Min duration of no-motion
-    isEnabled 0;            Should zero velocity update be applied, only works if MotionDetection.isEnabled is true
+    isEnabled 1;            Should zero velocity update be applied, only works if MotionDetection.isEnabled is true
   }
 }
 Prediction
 {
-  PredictionNoise
+  PredictionNoise 
   {
-  pos_0 1e-4;        X-covariance parameter of position prediction [m^2/s]
-  pos_1 1e-4;        Y-covariance parameter of position prediction [m^2/s]
-  pos_2 1e-4;        Z-covariance parameter of position prediction [m^2/s]
-         
-  acb_0 1e-8;        X-covariance parameter of accelerometer bias prediction [m^2/s^5]
-  acb_1 1e-8;        Y-covariance parameter of accelerometer bias prediction [m^2/s^5]
-  acb_2 1e-8;        Z-covariance parameter of accelerometer bias prediction [m^2/s^5]
-  
-  vel_0 4e-5;        X-covariance parameter of velocity prediction [m^2/s^3]
-  vel_1 4e-5;        Y-covariance parameter of velocity prediction [m^2/s^3]
-  vel_2 4e-5;        Z-covariance parameter of velocity prediction [m^2/s^3]
-  
-  att_0 7.6e-7;      X-Covariance parameter of attitude prediction [rad^2/s]
-  att_1 7.6e-7;      Y-Covariance parameter of attitude prediction [rad^2/s]
-  att_2 7.6e-7;      Z-Covariance parameter of attitude prediction [rad^2/s]
-  
-  gyb_0 3.8e-7;      X-covariance parameter of gyroscope bias prediction [rad^2/s^3]
-  gyb_1 3.8e-7;      Y-covariance parameter of gyroscope bias prediction [rad^2/s^3]
-  gyb_2 3.8e-7;      Z-covariance parameter of gyroscope bias prediction [rad^2/s^3]
-  
-  vep 1e-8;          Covariance parameter of linear extrinsics prediction [m^2/s]
-  vea 1e-8;          Covariance parameter of rotational extrinsics prediction [rad^2/s]
-  dep 0.0001;        Covariance parameter of distance prediction [m^2/s]
-  nor 0.00001;       Covariance parameter of bearing vector prediction [rad^2/s]
+  !!! The following values will be overwritten by ROVIOLI !!!
+    pos_0 1e-4;        X-covariance parameter of position prediction [m^2/s]
+    pos_1 1e-4;        Y-covariance parameter of position prediction [m^2/s]
+    pos_2 1e-4;        Z-covariance parameter of position prediction [m^2/s]
+             
+    acb_0 1e-8;        X-covariance parameter of accelerometer bias prediction [m^2/s^5]
+    acb_1 1e-8;        Y-covariance parameter of accelerometer bias prediction [m^2/s^5]
+    acb_2 1e-8;        Z-covariance parameter of accelerometer bias prediction [m^2/s^5]
+    
+    vel_0 4e-5;        X-covariance parameter of velocity prediction [m^2/s^3]
+    vel_1 4e-5;        Y-covariance parameter of velocity prediction [m^2/s^3]
+    vel_2 4e-5;        Z-covariance parameter of velocity prediction [m^2/s^3]
+    
+    att_0 7.6e-7;      X-Covariance parameter of attitude prediction [rad^2/s]
+    att_1 7.6e-7;      Y-Covariance parameter of attitude prediction [rad^2/s]
+    att_2 7.6e-7;      Z-Covariance parameter of attitude prediction [rad^2/s]
+    
+    gyb_0 3.8e-7;      X-covariance parameter of gyroscope bias prediction [rad^2/s^3]
+    gyb_1 3.8e-7;      Y-covariance parameter of gyroscope bias prediction [rad^2/s^3]
+    gyb_2 3.8e-7;      Z-covariance parameter of gyroscope bias prediction [rad^2/s^3]
+  !!! END !!!
+    
+    vep 1e-7;          Covariance parameter of linear extrinsics prediction [m^2/s]
+    vea 1e-8;          Covariance parameter of rotational extrinsics prediction [rad^2/s]
+    dep 0.0001;        Covariance parameter of distance prediction [m^2/s]
+    nor 0.00001;       Covariance parameter of bearing vector prediction [rad^2/s]
   }
-  
+
   MotionDetection
   {
     inertialMotionRorTh 0.1;    Treshold on rotational rate for motion detection [rad/s]
@@ -192,13 +209,10 @@ PoseUpdate
   }
   init_cov_IrIW 100;        Covariance of initial pose between inertial frames, linear part [m^2]
   init_cov_qWI 9;         Covariance of initial pose between inertial frames, rotational part [rad^2]
-  
   init_cov_MrMV 1;        Covariance of initial pose between inertial frames, linear part [m^2]
   init_cov_qVM 1;         Covariance of initial pose between inertial frames, rotational part [rad^2]
-  
   pre_cov_IrIW 1;      Covariance parameter of pose between inertial frames, linear part [m^2/s]
   pre_cov_qWI 1e-1;       Covariance parameter of pose between inertial frames, rotational part [rad^2/s]
-  
   pre_cov_MrMV 1e-4;      Covariance parameter of pose between inertial frames, linear part [m^2/s]
   pre_cov_qVM 1e-4;       Covariance parameter of pose between inertial frames, rotational part [rad^2/s]
   MahalanobisTh0 10000;   Mahalonobis distance treshold of pose measurement
@@ -228,13 +242,28 @@ VelocityUpdate
 {
   UpdateNoise
   {
-    vel_0 0.0001
-    vel_1 0.0001
-    vel_2 0.0001
+    vel_0 0.0001;
+    vel_1 0.0001;
+    vel_2 0.0001;
   }
-  MahalanobisTh0 7.689
-  qAM_x 0
-  qAM_y 0
-  qAM_z 0
-  qAM_w 1
+  MahalanobisTh0 7.689;
+  qAM_x 0;
+  qAM_y 0;
+  qAM_z 0;
+  qAM_w 1;
+}
+LocalizationLandmarkUpdate
+{
+ forceEKFupdate false;
+ updateVecNormTermination 1e-5; 
+ maxNumIteration 20; 
+ 
+ enableVioCrossterms false;
+ enableCalibrationCrossterms false;
+ 
+ localizationPixelSigma 9.2;  [px]
+ MahalanobisTh0 10000000;
+ 
+ processCovBaseframeTranslation 1e-2;   Covariance parameter of pose between baseframes, linear part [m^2/s]
+ processCovBaseframeRotation 5e-3;   Covariance parameter of pose between baseframes, rotational part [rad^2/s]
 }

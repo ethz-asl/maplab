@@ -51,6 +51,13 @@ class VIMapGeometry {
       const ObjectIdContainerType& object_ids, Eigen::Vector3d* p_G_min,
       Eigen::Vector3d* p_G_max) const;
 
+  // Use the IMU to interpolate T_G_I at any timestamp within the range of this
+  // mission.
+  void interpolateForTimestamps_T_G_I(
+      const vi_map::MissionId& mission_id,
+      const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& timestamps_ns,
+      aslam::TransformationVector* T_G_I_vector) const;
+
  private:
   const vi_map::VIMap& map_;
 };

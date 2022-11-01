@@ -30,6 +30,7 @@ const Landmark& LandmarkStore::getLandmark(
 }
 
 void LandmarkStore::addLandmark(const Landmark& landmark) {
+  CHECK(!hasLandmark(landmark.id()));
   const unsigned int idx = landmarks_.size();
   landmarks_.push_back(landmark);
   landmark_id_map_.insert(std::make_pair(landmark.id(), idx));

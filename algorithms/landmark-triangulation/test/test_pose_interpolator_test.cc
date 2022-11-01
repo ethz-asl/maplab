@@ -6,12 +6,11 @@
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-fisheye.h>
 #include <aslam/cameras/ncamera.h>
-#include <aslam/frames/visual-frame.h>
+#include <aslam/common/unique-id.h>
 #include <glog/logging.h>
-#include <map-optimization-legacy/test/6dof-vi-map-gen.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
+#include <vi-map/6dof-vi-map-gen.h>
 #include <vi-map/pose-graph.h>
 #include <vi-map/vi-map.h>
 
@@ -24,7 +23,7 @@ class ViwlsGraph : public ::testing::Test {
   virtual ~ViwlsGraph() {}
 
  public:
-  map_optimization_legacy::SixDofVIMapGenerator vimap_gen_;
+  vi_map::SixDofVIMapGenerator vimap_gen_;
 };
 
 TEST_F(ViwlsGraph, PoseInterpolationTestAtVertices) {
@@ -88,8 +87,7 @@ TEST_F(ViwlsGraph, PoseInterpolationTestAtVertices) {
 TEST_F(ViwlsGraph, PoseInterpolationTestBetweenVertices) {
   vimap_gen_.generateVIMap();
   vi_map::VIMap& vi_map = vimap_gen_.vi_map_;
-  map_optimization_legacy::SixDofPoseGraphGenerator& graph_generator =
-      vimap_gen_.graph_gen_;
+  vi_map::SixDofPoseGraphGenerator& graph_generator = vimap_gen_.graph_gen_;
 
   Eigen::VectorXd imu_timestamps_seconds =
       graph_generator.imu_timestamps_seconds_;

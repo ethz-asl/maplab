@@ -28,7 +28,7 @@ bool LandmarkSparsifierBase::shouldLandmarkBeKept(
     const vi_map::LandmarkId& landmark_id) const {
   if (!missions_to_skip_.empty()) {
     std::unordered_set<vi_map::MissionId> missions;
-    map_->getLandmarkObserverMissions(landmark_id, &missions);
+    map_->getObserverMissionsForLandmark(landmark_id, &missions);
 
     for (const vi_map::MissionId& mission_id_to_skip :
          missions_to_skip_) {

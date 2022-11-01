@@ -15,6 +15,8 @@
 #include <glog/logging.h>
 #include <maplab-common/accessors.h>
 
+#include "console-common/safe-gflags-parser.h"
+
 namespace common {
 class Job {
  public:
@@ -162,7 +164,10 @@ int CommandRegisterer::processCommand(const std::string& command) {
       }
     }
 
-    google::ParseCommandLineFlags(&argc, &result.we_wordv, false);
+    if (!parseCommandLineFlagsSafe(argc, result.we_wordv)) {
+      LOG(ERROR) << "Parsing gflags failed.";
+      return kUnknownError;
+    }
 
     CHECK_LT(command_index_it->second, commands_.size());
     const Command& command = commands_[command_index_it->second];
@@ -196,7 +201,7 @@ void CommandRegisterer::listJobs() const {
     return;
   }
   std::cout << "Status of all known jobs:" << std::endl;
-  for (const std::pair<int, std::shared_ptr<Job> > id_job : jobs_) {
+  for (const std::pair<const int, std::shared_ptr<Job> > id_job : jobs_) {
     CHECK(id_job.second != nullptr);
     const Job& job = *id_job.second;
     std::cout << job.printInfo() << std::endl;
@@ -209,7 +214,7 @@ void CommandRegisterer::waitForJobsToFinish() const {
     return;
   }
   std::cout << "Waiting for all known jobs to end:" << std::endl;
-  for (const std::pair<int, std::shared_ptr<Job> >& id_job : jobs_) {
+  for (const std::pair<const int, std::shared_ptr<Job> >& id_job : jobs_) {
     CHECK(id_job.second != nullptr);
     Job& job = *id_job.second;
     job.joinThread();

@@ -56,14 +56,6 @@ bool ResourceLoader::checkResourceFile(
 }
 
 template <typename DataType>
-void ResourceLoader::deleteResource(
-    const ResourceId& id, const ResourceType& type, const std::string& folder) {
-  CHECK(!folder.empty());
-  cache_.deleteResource<DataType>(id, type);
-  deleteResourceFile(id, type, folder);
-}
-
-template <typename DataType>
 void ResourceLoader::replaceResource(
     const ResourceId& id, const ResourceType& type, const std::string& folder,
     const DataType& resource) {
@@ -92,6 +84,17 @@ bool ResourceLoader::loadResourceFromFile(
              << ResourceTypeNames[static_cast<size_t>(type)]
              << " from file: " << file;
   return false;
+}
+
+template <typename DataType>
+void ResourceLoader::deleteResource(
+    const ResourceId& id, const ResourceType& type, const std::string& folder) {
+  CHECK(!folder.empty());
+  // This is more expensive than the templated deleteResource function, because
+  // it needs to check all caches, but at least we don't need to template this
+  // function.
+  cache_.deleteResource<DataType>(id, type);
+  deleteResourceFile(id, type, folder);
 }
 
 }  // namespace backend

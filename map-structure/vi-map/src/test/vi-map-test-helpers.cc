@@ -3,8 +3,9 @@
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-radtan.h>
 #include <map-resources/resource-common.h>
+#include <map-resources/temporal-resource-id-buffer.h>
 #include <map-resources/test/resource-template.h>
-#include <sensors/sensor-factory.h>
+#include <sensors/lidar.h>
 
 #include "vi-map/test/vi-map-generator.h"
 #include "vi-map/vi-map.h"
@@ -12,214 +13,340 @@
 namespace vi_map {
 namespace test {
 
-void generateMap(vi_map::VIMap* map) {
-  constexpr size_t kNumberOfAdditionalVertices = 0u;
-  generateMap(kNumberOfAdditionalVertices, map);
-}
-
-void generateMap(const size_t number_of_vertices, vi_map::VIMap* map) {
+void generateSensorResourceAndAddToMap(vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
-
-  // Generate a map.
-  constexpr int kMapGeneratorSeed = 10;
-  vi_map::VIMapGenerator map_generator(*map, kMapGeneratorSeed);
-  const vi_map::MissionId mission_id = map_generator.createMission();
-
-  pose_graph::VertexIdList empty_vertex_id_list;
-  pose::Transformation T_G_I;
-  const pose_graph::VertexId vertex_id_1 =
-      map_generator.createVertex(mission_id, T_G_I);
-  T_G_I.getPosition() << 1, 0, 0;
-  const pose_graph::VertexId vertex_id_2 =
-      map_generator.createVertex(mission_id, T_G_I);
-  T_G_I.getPosition() << 2, 0, 0;
-  const pose_graph::VertexId vertex_id_3 =
-      map_generator.createVertex(mission_id, T_G_I);
-
-  // Create additional vertices.
-  for (size_t i = 3u; i < number_of_vertices; ++i) {
-    T_G_I.getPosition() << i, 0, 0;
-    const pose_graph::VertexId vertex_id =
-        map_generator.createVertex(mission_id, T_G_I);
-
-    // Create a landmark for each vertex.
-    Eigen::Vector3d map_landmark_p_G_fi;
-    map_landmark_p_G_fi << i, 2, 3;
-    map_generator.createLandmark(
-        map_landmark_p_G_fi, vertex_id, empty_vertex_id_list);
-  }
-
-  Eigen::Vector3d map_landmark_p_G_fi;
-  map_landmark_p_G_fi << 1, 2, 3;
-  map_generator.createLandmark(
-      map_landmark_p_G_fi, vertex_id_1, empty_vertex_id_list);
-  map_generator.createLandmark(
-      map_landmark_p_G_fi, vertex_id_2, empty_vertex_id_list);
-  map_generator.createLandmark(
-      map_landmark_p_G_fi, vertex_id_3, empty_vertex_id_list);
-  map_landmark_p_G_fi << 4, 2, 3;
-  map_generator.createLandmark(
-      map_landmark_p_G_fi, vertex_id_2, empty_vertex_id_list);
-  map_generator.createLandmark(
-      map_landmark_p_G_fi, vertex_id_3, empty_vertex_id_list);
-
-  map_generator.generateMap();
-}
-
-void generateMapWithOptionalCameraResources(
-    const size_t number_of_vertices, const std::string& map_folder,
-    vi_map::VIMap* map) {
-  CHECK_NOTNULL(map);
-
-  generateMap(number_of_vertices, map);
 
   cv::Mat color_image_dummy =
       cv::Mat(720, 480, CV_8UC3, cv::Scalar(20u, 30u, 40u));
 
-  // This is needed to make sure the new resources are stored to some folder.
-  map->setMapFolder(map_folder);
-
-  // Add some optional camera resources to each mission.
+  // Add some sensor resources to each mission.
   vi_map::MissionIdList mission_ids;
   map->getAllMissionIds(&mission_ids);
   for (const vi_map::MissionId& mission_id : mission_ids) {
-    VLOG(1) << "Add resources to mission " << mission_id;
+    VLOG(1) << "Adding camera resources to mission " << mission_id;
 
     vi_map::VIMission& mission = map->getMission(mission_id);
 
+    const aslam::SensorId& base_sensor_id =
+        map->getSensorManager().getBaseSensorId(mission.getImuId());
+
     // Add cameras.
-    aslam::Camera::ConstPtr camera_1 =
+    aslam::Camera::Ptr camera_1 =
         aslam::PinholeCamera::createTestCamera<aslam::RadTanDistortion>();
-    aslam::Camera::ConstPtr camera_2 =
+    std::vector<aslam::Camera::Ptr> camera_1_vec;
+    camera_1_vec.push_back(camera_1);
+    aslam::Camera::Ptr camera_2 =
         aslam::PinholeCamera::createTestCamera<aslam::RadTanDistortion>();
+    std::vector<aslam::Camera::Ptr> camera_2_vec;
+    camera_2_vec.push_back(camera_2);
+
     aslam::Transformation T_C1_B;
     T_C1_B.setRandom();
     aslam::Transformation T_C2_B;
     T_C2_B.setRandom();
-    mission.addOptionalCameraWithExtrinsics(*camera_1, T_C1_B);
-    mission.addOptionalCameraWithExtrinsics(*camera_2, T_C2_B);
 
-    const aslam::CameraId camera_id_1 = camera_1->getId();
-    backend::ResourceId resource_id_1_1;
-    backend::ResourceId resource_id_1_2;
-    backend::ResourceId resource_id_1_3;
-    std::unique_ptr<cv::Mat> resource_1_1;
-    std::unique_ptr<cv::Mat> resource_1_2;
-    std::unique_ptr<cv::Mat> resource_1_3;
+    aslam::SensorId ncamera_1_id;
+    aslam::generateId(&ncamera_1_id);
+    aslam::Transformation T_C_Cn1;
+    T_C_Cn1.setRandom();
+    aslam::TransformationVector T_C_Cn1_vec;
+    T_C_Cn1_vec.push_back(T_C_Cn1);
+    aslam::NCamera::UniquePtr ncamera_1 = aligned_unique<aslam::NCamera>(
+        ncamera_1_id, T_C_Cn1_vec, camera_1_vec, "test ncamera 1");
 
-    const aslam::CameraId camera_id_2 = camera_2->getId();
-    backend::ResourceId resource_id_2_1;
-    backend::ResourceId resource_id_2_2;
-    backend::ResourceId resource_id_2_3;
-    std::unique_ptr<cv::Mat> resource_2_1;
-    std::unique_ptr<cv::Mat> resource_2_2;
-    std::unique_ptr<cv::Mat> resource_2_3;
+    aslam::SensorId ncamera_2_id;
+    aslam::generateId(&ncamera_2_id);
+    aslam::Transformation T_C_Cn2;
+    T_C_Cn2.setRandom();
+    aslam::TransformationVector T_C_Cn2_vec;
+    T_C_Cn2_vec.push_back(T_C_Cn2);
+    aslam::NCamera::UniquePtr ncamera_2 = aligned_unique<aslam::NCamera>(
+        ncamera_2_id, T_C_Cn2_vec, camera_2_vec, "test ncamera 2");
 
-    // Add some resources for camera 1.
-    common::generateId(&resource_id_1_1);
-    backend::ResourceTemplate<cv::Mat>::createUniqueResource(
-        color_image_dummy, resource_id_1_1, &resource_1_1);
-    map->addOptionalCameraResource(
-        backend::ResourceType::kRawColorImage, camera_id_1, 10, *resource_1_1,
-        &mission);
-    common::generateId(&resource_id_1_2);
-    backend::ResourceTemplate<cv::Mat>::createUniqueResource(
-        color_image_dummy, resource_id_1_2, &resource_1_2);
-    map->addOptionalCameraResource(
-        backend::ResourceType::kUndistortedColorImage, camera_id_1, 12,
-        *resource_1_2, &mission);
-    common::generateId(&resource_id_1_3);
-    backend::ResourceTemplate<cv::Mat>::createUniqueResource(
-        color_image_dummy, resource_id_1_3, &resource_1_3);
-    map->addOptionalCameraResource(
-        backend::ResourceType::kRectifiedColorImage, camera_id_1, 11,
-        *resource_1_3, &mission);
+    aslam::Transformation T_Cn_B;
+    T_Cn_B.setRandom();
+    map->getSensorManager().addSensor<aslam::NCamera>(
+        std::move(ncamera_1), base_sensor_id, T_Cn_B);
+    map->getSensorManager().addSensor<aslam::NCamera>(
+        std::move(ncamera_2), base_sensor_id, T_Cn_B);
 
-    // Add some resources for camera 2.
-    common::generateId(&resource_id_2_1);
+    backend::ResourceId camera_resource_id_1_1 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId camera_resource_id_1_2 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId camera_resource_id_1_3 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId camera_resource_id_2_1 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId camera_resource_id_2_2 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId camera_resource_id_2_3 =
+        aslam::createRandomId<backend::ResourceId>();
+
+    std::unique_ptr<cv::Mat> camera_resource_1_1;
+    std::unique_ptr<cv::Mat> camera_resource_1_2;
+    std::unique_ptr<cv::Mat> camera_resource_1_3;
     backend::ResourceTemplate<cv::Mat>::createUniqueResource(
-        color_image_dummy, resource_id_2_1, &resource_2_1);
-    map->addOptionalCameraResource(
-        backend::ResourceType::kColorImageForDepthMap, camera_id_2, 10,
-        *resource_2_1, &mission);
-    common::generateId(&resource_id_2_2);
+        color_image_dummy, camera_resource_id_1_1, &camera_resource_1_1);
     backend::ResourceTemplate<cv::Mat>::createUniqueResource(
-        color_image_dummy, resource_id_2_2, &resource_2_2);
-    map->addOptionalCameraResource(
-        backend::ResourceType::kRawColorImage, camera_id_2, 11, *resource_2_2,
-        &mission);
-    common::generateId(&resource_id_2_3);
+        color_image_dummy, camera_resource_id_1_2, &camera_resource_1_2);
     backend::ResourceTemplate<cv::Mat>::createUniqueResource(
-        color_image_dummy, resource_id_2_3, &resource_2_3);
-    map->addOptionalCameraResource(
-        backend::ResourceType::kUndistortedColorImage, camera_id_2, 12,
-        *resource_2_3, &mission);
+        color_image_dummy, camera_resource_id_1_3, &camera_resource_1_3);
+    map->addSensorResource<cv::Mat>(
+        backend::ResourceType::kRawColorImage, ncamera_1_id, 10,
+        *camera_resource_1_1, &mission);
+    map->addSensorResource<cv::Mat>(
+        backend::ResourceType::kUndistortedColorImage, ncamera_1_id, 12,
+        *camera_resource_1_2, &mission);
+    map->addSensorResource<cv::Mat>(
+        backend::ResourceType::kRectifiedColorImage, ncamera_1_id, 11,
+        *camera_resource_1_3, &mission);
+
+    std::unique_ptr<cv::Mat> camera_resource_2_1;
+    std::unique_ptr<cv::Mat> camera_resource_2_2;
+    std::unique_ptr<cv::Mat> camera_resource_2_3;
+    backend::ResourceTemplate<cv::Mat>::createUniqueResource(
+        color_image_dummy, camera_resource_id_2_1, &camera_resource_2_1);
+    backend::ResourceTemplate<cv::Mat>::createUniqueResource(
+        color_image_dummy, camera_resource_id_2_2, &camera_resource_2_2);
+    backend::ResourceTemplate<cv::Mat>::createUniqueResource(
+        color_image_dummy, camera_resource_id_2_3, &camera_resource_2_3);
+    map->addSensorResource<cv::Mat>(
+        backend::ResourceType::kColorImageForDepthMap, ncamera_2_id, 10,
+        *camera_resource_2_1, &mission);
+    map->addSensorResource<cv::Mat>(
+        backend::ResourceType::kRawColorImage, ncamera_2_id, 12,
+        *camera_resource_2_2, &mission);
+    map->addSensorResource<cv::Mat>(
+        backend::ResourceType::kUndistortedColorImage, ncamera_2_id, 11,
+        *camera_resource_2_3, &mission);
+
+    vi_map::Lidar::UniquePtr lidar_sensor(new vi_map::Lidar());
+    const aslam::SensorId& lidar_sensor_id = lidar_sensor->getId();
+    CHECK(lidar_sensor_id.isValid());
+
+    aslam::Transformation T_L_B;
+    T_L_B.setRandom();
+
+    map->getSensorManager().addSensor<vi_map::Lidar>(
+        std::move(lidar_sensor), base_sensor_id, T_L_B);
+
+    const int64_t kDefaultTimestampNanoseconds = 0;
+    vi_map::MaplabLidarMeasurement lidar_measurement_dummy(
+        lidar_sensor_id, kDefaultTimestampNanoseconds);
+    lidar_measurement_dummy.setRandom();
+
+    backend::ResourceId sensor_resource_id_1 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId sensor_resource_id_2 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId sensor_resource_id_3 =
+        aslam::createRandomId<backend::ResourceId>();
+
+    std::unique_ptr<resources::PointCloud> sensor_resource_1;
+    std::unique_ptr<resources::PointCloud> sensor_resource_2;
+    std::unique_ptr<resources::PointCloud> sensor_resource_3;
+    backend::ResourceTemplate<resources::PointCloud>::createUniqueResource(
+        lidar_measurement_dummy.getPointCloud(), sensor_resource_id_1,
+        &sensor_resource_1);
+    backend::ResourceTemplate<resources::PointCloud>::createUniqueResource(
+        lidar_measurement_dummy.getPointCloud(), sensor_resource_id_2,
+        &sensor_resource_2);
+    backend::ResourceTemplate<resources::PointCloud>::createUniqueResource(
+        lidar_measurement_dummy.getPointCloud(), sensor_resource_id_3,
+        &sensor_resource_3);
+    map->addSensorResource<resources::PointCloud>(
+        backend::ResourceType::kPointCloudXYZI, lidar_sensor_id, 10,
+        *sensor_resource_1, &mission);
+    map->addSensorResource<resources::PointCloud>(
+        backend::ResourceType::kPointCloudXYZI, lidar_sensor_id, 12,
+        *sensor_resource_2, &mission);
+    map->addSensorResource<resources::PointCloud>(
+        backend::ResourceType::kPointCloudXYZI, lidar_sensor_id, 11,
+        *sensor_resource_3, &mission);
   }
 }
 
-bool hasAllOptionalCameraResourcesOfOtherMission(
-    const vi_map::VIMission& mission_a, const vi_map::VIMission& mission_b) {
-  const backend::ResourceTypeToOptionalCameraResourcesMap& opt_res_a =
-      mission_a.getAllOptionalCameraResourceIds();
+void generateSensorResourceIdsAndAddToAllMissions(vi_map::VIMap* map) {
+  CHECK_NOTNULL(map);
+
+  cv::Mat color_image_dummy =
+      cv::Mat(720, 480, CV_8UC3, cv::Scalar(20u, 30u, 40u));
+
+  // Add some sensor camera resources to each mission.
+  vi_map::MissionIdList mission_ids;
+  map->getAllMissionIds(&mission_ids);
+  for (const vi_map::MissionId& mission_id : mission_ids) {
+    VLOG(1) << "Adding camera resources to mission " << mission_id;
+
+    vi_map::VIMission& mission = map->getMission(mission_id);
+
+    const aslam::SensorId& base_sensor_id =
+        map->getSensorManager().getBaseSensorId(mission.getNCameraId());
+    CHECK_NE(base_sensor_id, mission.getNCameraId());
+
+    // Add cameras.
+    aslam::Camera::Ptr camera_1 =
+        aslam::PinholeCamera::createTestCamera<aslam::RadTanDistortion>();
+    std::vector<aslam::Camera::Ptr> camera_1_vec;
+    camera_1_vec.push_back(camera_1);
+    aslam::Camera::Ptr camera_2 =
+        aslam::PinholeCamera::createTestCamera<aslam::RadTanDistortion>();
+    std::vector<aslam::Camera::Ptr> camera_2_vec;
+    camera_2_vec.push_back(camera_2);
+
+    aslam::Transformation T_C1_B;
+    T_C1_B.setRandom();
+    aslam::Transformation T_C2_B;
+    T_C2_B.setRandom();
+
+    aslam::SensorId ncamera_1_id;
+    aslam::generateId(&ncamera_1_id);
+    aslam::Transformation T_C_Cn1;
+    T_C_Cn1.setRandom();
+    aslam::TransformationVector T_C_Cn1_vec;
+    T_C_Cn1_vec.push_back(T_C_Cn1);
+    aslam::NCamera::UniquePtr ncamera_1 = aligned_unique<aslam::NCamera>(
+        ncamera_1_id, T_C_Cn1_vec, camera_1_vec, "test ncamera 1");
+
+    aslam::SensorId ncamera_2_id;
+    aslam::generateId(&ncamera_2_id);
+    aslam::Transformation T_C_Cn2;
+    T_C_Cn2.setRandom();
+    aslam::TransformationVector T_C_Cn2_vec;
+    T_C_Cn2_vec.push_back(T_C_Cn2);
+    aslam::NCamera::UniquePtr ncamera_2 = aligned_unique<aslam::NCamera>(
+        ncamera_2_id, T_C_Cn2_vec, camera_2_vec, "test ncamera 2");
+
+    aslam::Transformation T_Cn_B;
+    T_Cn_B.setRandom();
+    map->getSensorManager().addSensor<aslam::NCamera>(
+        std::move(ncamera_1), base_sensor_id, T_Cn_B);
+    map->getSensorManager().addSensor<aslam::NCamera>(
+        std::move(ncamera_2), base_sensor_id, T_Cn_B);
+
+    backend::ResourceId camera_resource_id_1_1 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId camera_resource_id_1_2 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId camera_resource_id_1_3 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId camera_resource_id_2_1 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId camera_resource_id_2_2 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId camera_resource_id_2_3 =
+        aslam::createRandomId<backend::ResourceId>();
+
+    mission.addSensorResourceId(
+        backend::ResourceType::kRawColorImage, ncamera_1_id,
+        camera_resource_id_1_1, 10);
+    mission.addSensorResourceId(
+        backend::ResourceType::kUndistortedColorImage, ncamera_1_id,
+        camera_resource_id_1_2, 12);
+    mission.addSensorResourceId(
+        backend::ResourceType::kRectifiedColorImage, ncamera_1_id,
+        camera_resource_id_1_3, 11);
+    mission.addSensorResourceId(
+        backend::ResourceType::kRectifiedColorImage, ncamera_2_id,
+        camera_resource_id_2_1, 10);
+    mission.addSensorResourceId(
+        backend::ResourceType::kRectifiedColorImage, ncamera_2_id,
+        camera_resource_id_2_2, 12);
+    mission.addSensorResourceId(
+        backend::ResourceType::kRectifiedColorImage, ncamera_2_id,
+        camera_resource_id_2_3, 11);
+
+    vi_map::Lidar::UniquePtr lidar_sensor(new vi_map::Lidar());
+    const aslam::SensorId lidar_sensor_id = lidar_sensor->getId();
+    CHECK(lidar_sensor_id.isValid());
+
+    aslam::Transformation T_L_B;
+    T_L_B.setRandom();
+
+    map->getSensorManager().addSensor<vi_map::Lidar>(
+        std::move(lidar_sensor), base_sensor_id, T_L_B);
+
+    const int64_t kDefaultTimestampNanoseconds = 0;
+    vi_map::MaplabLidarMeasurement lidar_measurement_dummy(
+        lidar_sensor_id, kDefaultTimestampNanoseconds);
+    lidar_measurement_dummy.setRandom();
+
+    backend::ResourceId sensor_resource_id_1 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId sensor_resource_id_2 =
+        aslam::createRandomId<backend::ResourceId>();
+    backend::ResourceId sensor_resource_id_3 =
+        aslam::createRandomId<backend::ResourceId>();
+    mission.addSensorResourceId(
+        backend::ResourceType::kPointCloudXYZI, lidar_sensor_id,
+        sensor_resource_id_1, 10);
+    mission.addSensorResourceId(
+        backend::ResourceType::kPointCloudXYZI, lidar_sensor_id,
+        sensor_resource_id_2, 12);
+    mission.addSensorResourceId(
+        backend::ResourceType::kPointCloudXYZI, lidar_sensor_id,
+        sensor_resource_id_3, 11);
+  }
+}
+
+bool hasAllSensorResourcesOfOtherMission(
+    const vi_map::VIMap& map_a, const vi_map::VIMission& mission_a,
+    const vi_map::VIMap& map_b, const vi_map::VIMission& mission_b) {
+  const backend::ResourceTypeToSensorIdToResourcesMap& opt_res_a =
+      mission_a.getAllSensorResourceIds();
 
   bool result = true;
 
-  for (const backend::ResourceTypeToOptionalCameraResourcesMap::value_type&
+  for (const backend::ResourceTypeToSensorIdToResourcesMap::value_type&
            type_to_res : opt_res_a) {
     const backend::ResourceType type = type_to_res.first;
-    for (const backend::OptionalCameraResourcesMap::value_type& cam_to_res :
-         type_to_res.second) {
-      const aslam::CameraId& camera_id = cam_to_res.first;
+    for (const backend::SensorIdToResourcesMap::value_type&
+             sensor_id_to_ressource : type_to_res.second) {
+      const aslam::SensorId& sensor_id = sensor_id_to_ressource.first;
+
+      CHECK(map_a.getSensorManager().hasSensor(sensor_id));
+
+      const aslam::Transformation& T_B_S_a =
+          map_a.getSensorManager().getSensor_T_B_S(sensor_id);
+
       const backend::StampedResourceIds& stamped_resources =
-          cam_to_res.second.resource_id_map();
+          sensor_id_to_ressource.second.resource_id_map();
       for (const backend::StampedResourceId& stamped_resource :
            stamped_resources) {
         const int64_t timestamp_ns = stamped_resource.first;
         const backend::ResourceId& resource_id = stamped_resource.second;
 
+        const aslam::Transformation& T_B_S_b =
+            map_b.getSensorManager().getSensor_T_B_S(sensor_id);
+
         backend::ResourceId retrieved_resource_id;
-        result ==
-            result&& mission_b.getOptionalCameraResourceId(
-                type, camera_id, timestamp_ns, &retrieved_resource_id);
-        result == result && (resource_id == retrieved_resource_id);
-      }
-    }
-  }
-  return result;
-}
+        if (!mission_b.getSensorResourceId(
+                type, sensor_id, timestamp_ns, &retrieved_resource_id)) {
+          LOG(WARNING) << "Mission B does not have a sensor resource of type "
+                       << backend::ResourceTypeNames[static_cast<int>(type)]
+                       << " for sensor " << sensor_id
+                       << ", timestamp_ns: " << timestamp_ns << "!";
+          result = false;
+          continue;
+        }
 
-bool hasAllOptionalCamerasOfOtherMission(
-    const vi_map::VIMission& mission_a, const vi_map::VIMission& mission_b) {
-  const backend::OptionalCameraMap& opt_cams_a =
-      mission_a.getAllOptionalCamerasWithExtrinsics();
-  const backend::OptionalCameraMap& opt_cams_b =
-      mission_b.getAllOptionalCamerasWithExtrinsics();
+        const bool result_1 = resource_id == retrieved_resource_id;
+        LOG_IF(WARNING, !result_1)
+            << "The resource in Mission B has a different id!";
 
-  bool result = true;
+        const bool result_2 = map_b.getSensorManager().hasSensor(sensor_id);
+        LOG_IF(WARNING, !result_2) << "The resource in mission B does not have "
+                                      "a sensor in the sensor manager!";
 
-  for (const backend::OptionalCameraMap::value_type& id_camera_pair :
-       opt_cams_a) {
-    const aslam::CameraId& camera_id = id_camera_pair.first;
-    backend::OptionalCameraMap::const_iterator it = opt_cams_b.find(camera_id);
-    if (it != opt_cams_b.end()) {
-      return false;
-    }
+        const bool result_3 = (T_B_S_a.getTransformationMatrix() -
+                               T_B_S_b.getTransformationMatrix())
+                                  .cwiseAbs()
+                                  .maxCoeff() < aslam::common::macros::kEpsilon;
+        LOG_IF(WARNING, !result_3)
+            << "The resource in Mission B has a different T_B_S!";
 
-    const backend::CameraWithExtrinsics& cam_w_extrinsics_a =
-        id_camera_pair.second;
-    const backend::CameraWithExtrinsics& cam_w_extrinsics_b = it->second;
-
-    const aslam::Transformation& T_C_B_a = cam_w_extrinsics_a.first;
-    const aslam::Transformation& T_C_B_b = cam_w_extrinsics_b.first;
-    result == result && (T_C_B_a == T_C_B_b);
-
-    if (cam_w_extrinsics_a.second) {
-      const aslam::Camera& camera_a = *cam_w_extrinsics_a.second;
-      if (cam_w_extrinsics_b.second) {
-        const aslam::Camera& camera_b = *cam_w_extrinsics_b.second;
-        result == result && (camera_a == camera_b);
-      } else {
-        return false;
+        result &= result_1 && result_2 && result_3;
       }
     }
   }
@@ -294,8 +421,9 @@ bool compareVIMap(const vi_map::VIMap& map_a, const vi_map::VIMap& map_b) {
                           map_b.getLandmark(store_landmarks_b[i]));
     }
   }
+
   {
-    // Check the optional camera resources.
+    // Check the sensor camera resources.
     vi_map::MissionIdList missions_a, missions_b;
     map_a.getAllMissionIds(&missions_a);
     map_b.getAllMissionIds(&missions_b);
@@ -305,49 +433,17 @@ bool compareVIMap(const vi_map::VIMap& map_a, const vi_map::VIMap& map_b) {
     for (size_t i = 0u; i < missions_a.size(); ++i) {
       const vi_map::VIMission& mission_a = map_a.getMission(missions_a[i]);
       const vi_map::VIMission& mission_b = map_b.getMission(missions_b[i]);
-
-      result = result && hasAllOptionalCameraResourcesOfOtherMission(
-                             mission_a, mission_b);
-      result = result && hasAllOptionalCameraResourcesOfOtherMission(
-                             mission_b, mission_a);
-
-      result =
-          result && hasAllOptionalCamerasOfOtherMission(mission_a, mission_b);
-      result =
-          result && hasAllOptionalCamerasOfOtherMission(mission_b, mission_a);
+      result = result && hasAllSensorResourcesOfOtherMission(
+                             map_a, mission_a, map_b, mission_b);
+    }
+    for (size_t i = 0u; i < missions_b.size(); ++i) {
+      const vi_map::VIMission& mission_b = map_a.getMission(missions_b[i]);
+      const vi_map::VIMission& mission_a = map_b.getMission(missions_a[i]);
+      result = result && hasAllSensorResourcesOfOtherMission(
+                             map_b, mission_b, map_a, mission_a);
     }
   }
-
   return result;
-}
-
-void generateOptionalSensorDataAndAddToMap(vi_map::VIMap* map) {
-  CHECK_NOTNULL(map);
-  vi_map::MissionIdList mission_ids;
-  map->getAllMissionIds(&mission_ids);
-
-  constexpr int kNumGpsMeasurements = 10;
-  for (const vi_map::MissionId& mission_id : mission_ids) {
-    GpsUtm::UniquePtr gps_utm_sensor = createTestSensor<GpsUtm>();
-    CHECK(gps_utm_sensor);
-    const SensorId gps_utm_sensor_id = gps_utm_sensor->getId();
-    CHECK(gps_utm_sensor_id.isValid());
-    map->getSensorManager().addSensor(std::move(gps_utm_sensor), mission_id);
-    GpsWgs::UniquePtr gps_wgs_sensor = createTestSensor<GpsWgs>();
-    CHECK(gps_wgs_sensor);
-    const SensorId gps_wgs_sensor_id = gps_wgs_sensor->getId();
-    CHECK(gps_wgs_sensor_id.isValid());
-    map->getSensorManager().addSensor(std::move(gps_wgs_sensor), mission_id);
-    for (int measurement_idx = 0; measurement_idx < kNumGpsMeasurements;
-         measurement_idx++) {
-      vi_map::GpsWgsMeasurement gps_wgs_measurement(gps_wgs_sensor_id);
-      gps_wgs_measurement.setRandom();
-      vi_map::GpsUtmMeasurement gps_utm_measurement(gps_utm_sensor_id);
-      gps_utm_measurement.setRandom();
-      map->addOptionalSensorMeasurement(gps_wgs_measurement, mission_id);
-      map->addOptionalSensorMeasurement(gps_utm_measurement, mission_id);
-    }
-  }
 }
 
 }  // namespace test

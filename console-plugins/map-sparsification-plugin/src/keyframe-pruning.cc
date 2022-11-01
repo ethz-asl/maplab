@@ -14,7 +14,7 @@ namespace map_sparsification_plugin {
 int keyframeMapBasedOnHeuristics(
     const map_sparsification::KeyframingHeuristicsOptions& options,
     const vi_map::MissionId& mission_id,
-    visualization::ViwlsGraphRvizPlotter* plotter, vi_map::VIMap* map) {
+    const visualization::ViwlsGraphRvizPlotter* plotter, vi_map::VIMap* map) {
   // plotter is optional.
   CHECK_NOTNULL(map);
   CHECK(mission_id.isValid());
@@ -37,9 +37,6 @@ int keyframeMapBasedOnHeuristics(
     return common::CommandStatus::kUnknownError;
   }
 
-  if (keyframe_ids.back() != last_vertex_id) {
-    keyframe_ids.emplace_back(last_vertex_id);
-  }
 
   // Optionally, visualize the selected keyframes.
   if (plotter != nullptr) {

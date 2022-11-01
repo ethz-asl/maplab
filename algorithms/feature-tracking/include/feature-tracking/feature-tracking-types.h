@@ -5,26 +5,11 @@
 
 namespace feature_tracking {
 
-struct SimpleBriskFeatureTrackingSettings {
-  SimpleBriskFeatureTrackingSettings();
-  virtual ~SimpleBriskFeatureTrackingSettings() = default;
-  const size_t num_octaves;
-  const double uniformity_radius;
-  const double absolute_threshold;
-  const size_t max_number_of_keypoints;
-  const bool rotation_invariant;
-  const bool scale_invariant;
-  const bool copy_images;
-  const int matching_descriptor_hamming_distance_threshold;
-  const double matching_image_space_distance_threshold_px;
-};
-
-struct SweFeatureTrackingExtractorSettings {
+struct FeatureTrackingExtractorSettings {
   enum class DescriptorType { kOcvFreak, kBrisk };
-  SweFeatureTrackingExtractorSettings();
+  FeatureTrackingExtractorSettings();
   DescriptorType convertStringToDescriptorType(
       const std::string& descriptor_string);
-  /// Type of descriptor used by SWE.
   DescriptorType descriptor_type;
 
   /// Common settings of all descriptors.
@@ -36,8 +21,8 @@ struct SweFeatureTrackingExtractorSettings {
   float freak_pattern_scale;
 };
 
-struct SweFeatureTrackingDetectorSettings {
-  SweFeatureTrackingDetectorSettings();
+struct FeatureTrackingDetectorSettings {
+  FeatureTrackingDetectorSettings();
 
   // Settings for the non-maximum suppression algorithm.
   bool detector_use_nonmaxsuppression;
@@ -69,7 +54,6 @@ struct SweFeatureTrackingDetectorSettings {
   float orb_detector_score_lower_bound;
   int orb_detector_fast_threshold;
 
-
   // Maximum number of keypoint to detect.
   size_t max_feature_count;
 
@@ -80,6 +64,15 @@ struct SweFeatureTrackingDetectorSettings {
   size_t min_tracking_distance_to_image_border_px;
 
   double keypoint_uncertainty_px;
+
+  // Settings for gridded detector to ensure a certain distribution of keypoints
+  // across  the image.
+  bool gridded_detector_use_gridded;
+  double gridded_detector_cell_num_features_scaler;
+  size_t gridded_detector_cell_num_features;
+  size_t gridded_detector_num_grid_cols;
+  size_t gridded_detector_num_grid_rows;
+  size_t gridded_detector_num_threads_per_image;
 };
 
 }  // namespace feature_tracking

@@ -66,7 +66,7 @@ class ImuCameraSynchronizer {
   std::atomic<bool> shutdown_;
   std::condition_variable cv_shutdown_;
 
-  std::thread check_if_messages_are_incomfing_thread_;
+  std::thread check_if_messages_are_incoming_thread_;
   std::thread process_thread_;
   std::mutex mutex_check_if_messages_are_incoming_;
 

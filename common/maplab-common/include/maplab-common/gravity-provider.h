@@ -18,7 +18,7 @@ class GravityProvider {
 
   void setLocation(const double altitude_meters, const double latitude_degrees);
 
-  double getGravityMagnitude() {
+  double getGravityMagnitude() const {
     return gravity_magnitude_;
   }
 

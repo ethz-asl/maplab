@@ -10,44 +10,6 @@
 
 namespace vi_map_helpers {
 
-pose_graph::VertexId getVertexIdWithMostOverlappingLandmarks(
-    const pose_graph::VertexId& query_vertex_id,
-    const vi_map::VertexKeyPointToStructureMatchList& structure_matches,
-    const vi_map::VIMap& map, vi_map::LandmarkIdSet* overlap_landmarks) {
-  CHECK(!structure_matches.empty());
-  CHECK_NOTNULL(overlap_landmarks)->clear();
-
-  typedef std::unordered_map<pose_graph::VertexId, vi_map::LandmarkIdSet>
-      VertexOverlapLandmarksMap;
-  VertexOverlapLandmarksMap vertex_overlap_map;
-  for (const vi_map::VertexKeyPointToStructureMatch& structure_match :
-       structure_matches) {
-    const vi_map::LandmarkId& landmark_id = structure_match.landmark_result;
-    map.getLandmark(landmark_id)
-        .forEachObservation([&](const vi_map::KeypointIdentifier& keypoint_id) {
-          if (keypoint_id.frame_id.vertex_id != query_vertex_id) {
-            vertex_overlap_map[keypoint_id.frame_id.vertex_id].emplace(
-                landmark_id);
-          }
-        });
-  }
-
-  size_t max_overlap_landmarks = 0u;
-  pose_graph::VertexId largest_overlap_vertex_id;
-  for (const VertexOverlapLandmarksMap::value_type& item : vertex_overlap_map) {
-    if (item.second.size() > max_overlap_landmarks) {
-      largest_overlap_vertex_id = item.first;
-      max_overlap_landmarks = item.second.size();
-    }
-  }
-
-  *overlap_landmarks =
-      common::getChecked(vertex_overlap_map, largest_overlap_vertex_id);
-
-  CHECK(largest_overlap_vertex_id.isValid());
-  return largest_overlap_vertex_id;
-}
-
 VIMapQueries::VIMapQueries(const vi_map::VIMap& map) : map_(map) {}
 
 void VIMapQueries::getIdsOfVerticesWithLandmarkObservations(
@@ -76,14 +38,16 @@ void VIMapQueries::getAllWellConstrainedLandmarkIds(
   CHECK_NOTNULL(landmark_ids)->clear();
   map_.getAllLandmarkIds(landmark_ids);
 
-  for (vi_map::LandmarkIdList::iterator it = landmark_ids->begin();
-       it != landmark_ids->end();) {
-    if (!vi_map::isLandmarkWellConstrained(map_, map_.getLandmark(*it))) {
-      it = landmark_ids->erase(it);
-    } else {
-      ++it;
+  vi_map::LandmarkIdList good_landmark_ids;
+  good_landmark_ids.reserve(landmark_ids->size());
+
+  for (const vi_map::LandmarkId& landmark_id : *landmark_ids) {
+    if (vi_map::isLandmarkWellConstrained(
+            map_, map_.getLandmark(landmark_id))) {
+      good_landmark_ids.emplace_back(landmark_id);
     }
   }
+  landmark_ids->swap(good_landmark_ids);
 }
 
 void VIMapQueries::getAllNotWellConstrainedLandmarkIds(
@@ -102,7 +66,7 @@ void VIMapQueries::forIdsOfObservedLandmarksOfEachVertexWhile(
     const vi_map::MissionId& mission_id,
     const std::function<
         bool(const vi_map::LandmarkIdSet& store_landmarks)>&  // NOLINT
-    action) const {
+        action) const {
   CHECK(action);
   CHECK(map_.hasMission(mission_id));
   pose_graph::VertexIdList all_mission_vertices;
@@ -120,20 +84,18 @@ void VIMapQueries::forIdsOfObservedLandmarksOfEachVertexAlongGraphWhile(
     const vi_map::MissionId& mission_id,
     const std::function<
         bool(const vi_map::LandmarkIdSet& store_landmarks)>&  // NOLINT
-    action) const {
+        action) const {
   CHECK(action);
   CHECK(map_.hasMission(mission_id));
   pose_graph::VertexId vertex_id =
       map_.getMission(mission_id).getRootVertexId();
-  pose_graph::Edge::EdgeType traversal_edge_type =
-      map_.getGraphTraversalEdgeType(mission_id);
   do {
     vi_map::LandmarkIdSet store_landmarks;
     getIdsOfLandmarksObservedByVertex(vertex_id, &store_landmarks);
     if (!action(store_landmarks)) {
       break;
     }
-  } while (map_.getNextVertex(vertex_id, traversal_edge_type, &vertex_id));
+  } while (map_.getNextVertex(vertex_id, &vertex_id));
 }
 
 void VIMapQueries::getLandmarksObservedByMission(
@@ -222,7 +184,7 @@ void VIMapQueries::getCommonObserversForLandmarks(
   for (const vi_map::LandmarkId& landmark : landmarks) {
     VLOG(4) << "Processing landmark " << landmark;
     pose_graph::VertexIdSet observer_ids_set;
-    map_.getLandmarkObserverVertices(landmark, &observer_ids_set);
+    map_.getObserverVerticesForLandmark(landmark, &observer_ids_set);
     for (const pose_graph::VertexId& observer_id : observer_ids_set) {
       ++vertex_is_observer_count[observer_id];
     }
@@ -238,7 +200,7 @@ void VIMapQueries::getCommonObserversForLandmarks(
 bool VIMapQueries::isLandmarkObservedByMultipleMissions(
     const vi_map::LandmarkId& landmark_id) const {
   vi_map::MissionIdSet observing_missions;
-  map_.getLandmarkObserverMissions(landmark_id, &observing_missions);
+  map_.getObserverMissionsForLandmark(landmark_id, &observing_missions);
   return observing_missions.size() > 1u;
 }
 
@@ -328,7 +290,7 @@ void VIMapQueries::getFollowingVertexIdsAlongGraph(
     current_vertex_id = starting_vertex;
   } else {
     if (!map_.getNextVertex(
-            starting_vertex, map_.getGraphTraversalEdgeType(mission_id),
+            starting_vertex,
             &current_vertex_id)) {
       return;
     }
@@ -337,7 +299,7 @@ void VIMapQueries::getFollowingVertexIdsAlongGraph(
   do {
     result->push_back(current_vertex_id);
   } while (map_.getNextVertex(
-      current_vertex_id, map_.getGraphTraversalEdgeType(mission_id),
+      current_vertex_id,
       &current_vertex_id));
 }
 void VIMapQueries::getFollowingVertexIdsAlongGraph(
@@ -392,9 +354,8 @@ int VIMapQueries::getVerticesWithCommonLandmarks(
                 int common = getNumberOfCommonLandmarks(
                     vertex_id, backlink.frame_id.vertex_id);
                 if (common >= min_number_common_landmarks) {
-                  coobserver_vertex_ids->push_back(
-                      VertexCommonLandmarksCount(
-                          common, backlink.frame_id.vertex_id));
+                  coobserver_vertex_ids->push_back(VertexCommonLandmarksCount(
+                      common, backlink.frame_id.vertex_id));
                 }
               }
             }
@@ -405,6 +366,57 @@ int VIMapQueries::getVerticesWithCommonLandmarks(
       coobserver_vertex_ids->begin(), coobserver_vertex_ids->end(),
       VertexCommonLandmarksCountComparator());
   return coobserver_vertex_ids->size();
+}
+
+bool VIMapQueries::getClosestVertexIdByTimestamp(
+    const uint64_t timestamp_ns, const uint64_t tolerance_ns,
+    pose_graph::VertexId* vertex_id_out, uint64_t* timestamp_difference) {
+  CHECK_NOTNULL(vertex_id_out);
+  pose_graph::VertexIdList ids;
+  map_.getAllVertexIdsAlongGraphsSortedByTimestamp(&ids);
+
+  int64_t min_difference = -1;
+  pose_graph::VertexId best_vertex_id;
+
+  bool found_exactly = false;
+  for (const pose_graph::VertexId& vertex_id : ids) {
+    const vi_map::Vertex& vertex = map_.getVertex(vertex_id);
+
+    const size_t num_frames = vertex.numFrames();
+    CHECK_GT(num_frames, 0u);
+
+    for (size_t frame_i = 0u; frame_i < num_frames; ++frame_i) {
+      const aslam::VisualFrame& frame = vertex.getVisualFrame(frame_i);
+      const int64 difference =
+          labs(timestamp_ns - frame.getTimestampNanoseconds());
+
+      if (min_difference < 0 || difference < min_difference) {
+        min_difference = difference;
+        best_vertex_id = vertex_id;
+        if (difference == 0) {
+          found_exactly = true;
+          break;
+        }
+      }
+    }
+    if (found_exactly) {
+      break;
+    }
+  }
+
+  if (timestamp_difference != nullptr) {
+    *timestamp_difference = static_cast<uint64_t>(min_difference);
+  }
+
+  if (min_difference < static_cast<int64_t>(tolerance_ns)) {
+    *vertex_id_out = best_vertex_id;
+    constexpr bool kSuccess = true;
+    return kSuccess;
+  } else {
+    vertex_id_out = nullptr;
+    constexpr bool kNotFound = false;
+    return kNotFound;
+  }
 }
 
 int VIMapQueries::getNumberOfCommonLandmarks(
@@ -427,8 +439,8 @@ int VIMapQueries::getNumberOfCommonLandmarks(
 
   vi_map::LandmarkIdList vector_landmark_ids_1;
   map_.getVertex(vertex_1_id).getAllObservedLandmarkIds(&vector_landmark_ids_1);
-  vi_map::LandmarkIdSet landmark_ids_1(vector_landmark_ids_1.begin(),
-                                       vector_landmark_ids_1.end());
+  vi_map::LandmarkIdSet landmark_ids_1(
+      vector_landmark_ids_1.begin(), vector_landmark_ids_1.end());
 
   vi_map::LandmarkId invalid_id;
   invalid_id.setInvalid();
@@ -634,16 +646,12 @@ void VIMapQueries::getBoundaryVertexIds(
         map_.getVertex(inner_vertex_id).getMissionId();
     CHECK(mission_id.isValid());
 
-    if (map_.getNextVertex(
-            inner_vertex_id, map_.getGraphTraversalEdgeType(mission_id),
-            &candidate_vertex_id)) {
+    if (map_.getNextVertex(inner_vertex_id, &candidate_vertex_id)) {
       if (inner_vertices.count(candidate_vertex_id) == 0u) {
         boundary_vertex_set.insert(candidate_vertex_id);
       }
     }
-    if (map_.getPreviousVertex(
-            inner_vertex_id, map_.getGraphTraversalEdgeType(mission_id),
-            &candidate_vertex_id)) {
+    if (map_.getPreviousVertex(inner_vertex_id, &candidate_vertex_id)) {
       if (inner_vertices.count(candidate_vertex_id) == 0u) {
         boundary_vertex_set.insert(candidate_vertex_id);
       }

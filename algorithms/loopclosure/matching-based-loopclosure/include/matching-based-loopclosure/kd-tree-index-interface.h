@@ -70,7 +70,7 @@ class KDTreeIndexInterface : public IndexInterface {
 
   virtual void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixXf& query_features, int num_neighbors,
-      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) const {
+      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) {
     CHECK_NOTNULL(indices);
     CHECK_NOTNULL(distances);
     std::lock_guard<std::mutex> lock(index_mutex_);

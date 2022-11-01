@@ -14,7 +14,7 @@ void deleteRawData(const network::RawMessageDataList& raw_data) {
 
 TEST(Serialization, SerializeMapToRawArray) {
   vi_map::VIMap test_map, deserialized_map;
-  vi_map::test::generateMap(&test_map);
+  vi_map::test::generateMap<vi_map::TransformationEdge>(&test_map);
 
   network::RawMessageDataList raw_data;
   vi_map::serialization::serializeToRawArray(test_map, &raw_data);
@@ -31,9 +31,15 @@ TEST(Serialization, SerializeMapWithOptionalCameraResources) {
   const std::string map_folder = test_folder + "/" + "test_map";
   common::removeIfExistsAndCreatePath(map_folder);
 
+  constexpr size_t kNumVertices = 100u;
+
   vi_map::VIMap test_map, deserialized_map;
-  vi_map::test::generateMapWithOptionalCameraResources(
-      100, map_folder, &test_map);
+  vi_map::test::generateMap<vi_map::TransformationEdge>(
+      kNumVertices, &test_map);
+  // This is needed to make sure the new resources are stored to some folder.
+  test_map.setMapFolder(map_folder);
+
+  vi_map::test::generateSensorResourceAndAddToMap(&test_map);
 
   // Serialize and deserialize.
   network::RawMessageDataList raw_data;

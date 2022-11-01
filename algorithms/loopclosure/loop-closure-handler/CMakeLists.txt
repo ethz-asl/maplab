@@ -4,9 +4,6 @@ project(loop_closure_handler)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-set(PROTO_DEFNS proto/loop-closure-handler/loop_detector_node.proto)
-PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
-
 #############
 # LIBRARIES #
 #############
@@ -15,8 +12,7 @@ cs_add_library(${PROJECT_NAME}
   src/inlier-index-with-reprojection-error.cc
   src/loop-closure-handler.cc
   src/loop-detector-node.cc
-  src/visualization/loop-closure-visualizer.cc
-  ${PROTO_SRCS})
+  src/visualization/loop-closure-visualizer.cc)
 
 ##########
 # GTESTS #

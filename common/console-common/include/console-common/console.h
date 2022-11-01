@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <maplab-common/unique-id.h>
+#include <aslam/common/unique-id.h>
 
 #include "console-common/console-plugin-base.h"
 
@@ -16,7 +16,7 @@
  * Shorthand for treating a command with one common::Id (e.g. mission id)
  * as argument
  */
-bool idArg(const char* input, const char* command, common::Id* id);
+bool idArg(const char* input, const char* command, aslam::Id* id);
 
 namespace common {
 
@@ -34,7 +34,8 @@ class Console {
   // suffices.
   Console(
       const std::string& console_name,
-      CommandRegisterer* command_registerer_ptr);
+      CommandRegisterer* const command_registerer_ptr,
+      const bool enable_auto_completion = true);
 
   virtual ~Console();
   void RunCommandPrompt();

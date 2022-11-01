@@ -20,21 +20,24 @@ struct OptimizationOptions;
 class VIMapRelaxation {
  public:
   VIMapRelaxation(
-      visualization::ViwlsGraphRvizPlotter* plotter,
+      const visualization::ViwlsGraphRvizPlotter* plotter,
       bool signal_handler_enabled);
 
-  bool relax(const vi_map::MissionIdList& mission_id_list, vi_map::VIMap* map);
-  bool relax(
+  bool findLoopClosuresAndSolveRelaxation(
+      const vi_map::MissionIdList& mission_id_list, vi_map::VIMap* map);
+  bool findLoopClosuresAndSolveRelaxation(
       const ceres::Solver::Options& solver_options,
       const vi_map::MissionIdList& mission_id_list, vi_map::VIMap* map);
+  bool solveRelaxation(
+      const ceres::Solver::Options& solver_options,
+      const vi_map::MissionIdSet& mission_ids, vi_map::VIMap* map);
 
  private:
   void detectLoopclosures(vi_map::MissionIdSet mission_ids, vi_map::VIMap* map);
 
   void visualizePosegraph(const vi_map::VIMap& map) const;
-  int numLoopclosureEdges(const vi_map::VIMap& map) const;
 
-  visualization::ViwlsGraphRvizPlotter* plotter_;
+  const visualization::ViwlsGraphRvizPlotter* plotter_;
   bool signal_handler_enabled_;
 };
 

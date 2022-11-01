@@ -100,6 +100,7 @@ bool serializeProtoToFile(
     const google::protobuf::Message& proto, const bool use_text_format) {
   CHECK(!folder_path.empty());
   CHECK(!file_name.empty());
+
   std::string complete_file_path;
   common::concatenateFolderAndFileName(
       folder_path, file_name, &complete_file_path);

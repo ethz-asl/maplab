@@ -25,6 +25,8 @@
 
 #include "rovioli/datasource.h"
 
+DECLARE_int64(imu_to_camera_time_offset_ns);
+
 namespace rovioli {
 
 class DataSourceRosbag : public DataSource {
@@ -53,6 +55,10 @@ class DataSourceRosbag : public DataSource {
 
   std::unique_ptr<rosbag::Bag> bag_;
   std::unique_ptr<rosbag::View> bag_view_;
+
+  int64_t last_imu_timestamp_ns_;
+  std::vector<int64_t> last_image_timestamp_ns_;
+  int64_t last_odometry_timestamp_ns_;
 };
 
 }  // namespace rovioli

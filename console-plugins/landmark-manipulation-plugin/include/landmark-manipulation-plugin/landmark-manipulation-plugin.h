@@ -24,6 +24,7 @@ class LandmarkManipulationPlugin : public common::ConsolePluginBaseWithPlotter {
   int resetLandmarkQualityToUnknown();
   int initTrackLandmarks();
   int removeBadLandmarks();
+  int removeInvalidLandmarkObservations();
 };
 
 }  // namespace landmark_manipulation_plugin

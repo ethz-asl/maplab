@@ -7,6 +7,7 @@
 
 #include <message-flow/message-flow.h>
 #include <sensors/imu.h>
+#include <sensors/wheel-odometry-sensor.h>
 
 #include "rovioli/data-publisher-flow.h"
 #include "rovioli/datasource-flow.h"
@@ -15,14 +16,12 @@
 #include "rovioli/localizer-flow.h"
 #include "rovioli/map-builder-flow.h"
 #include "rovioli/rovio-flow.h"
-#include "rovioli/synced-nframe-throttler-flow.h"
 
 namespace rovioli {
 class RovioliNode final {
  public:
   RovioliNode(
-      const aslam::NCamera::Ptr& camera_system,
-      vi_map::Imu::UniquePtr maplab_imu_sensor,
+      const vi_map::SensorManager& sensor_manager,
       const vi_map::ImuSigmas& rovio_imu_sigmas,
       const std::string& save_map_folder,
       const summary_map::LocalizationSummaryMap* const localization_map,
@@ -45,7 +44,6 @@ class RovioliNode final {
   std::unique_ptr<LocalizerFlow> localizer_flow_;
   std::unique_ptr<ImuCameraSynchronizerFlow> synchronizer_flow_;
   std::unique_ptr<FeatureTrackingFlow> tracker_flow_;
-  std::unique_ptr<SyncedNFrameThrottlerFlow> throttler_flow_;
   std::unique_ptr<MapBuilderFlow> map_builder_flow_;
   std::unique_ptr<DataPublisherFlow> data_publisher_flow_;
 

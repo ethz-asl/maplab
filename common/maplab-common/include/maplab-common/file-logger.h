@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include <Eigen/Core>
 #include <glog/logging.h>
@@ -30,6 +31,13 @@ class FileLogger {
   template <typename DataType>
   void writeDataWithDelimiterAndNewLine(
       const std::string& delimiter, const DataType& object);
+  template <typename DataType>
+  void writeDataWithDelimiterAndNewLine(
+      const std::string& delimiter, const std::vector<DataType>& objects);
+  template <typename DataType, typename... DataTypes>
+  void writeDataWithDelimiterAndNewLine(
+      const std::string& delimiter, const std::vector<DataType>& objects,
+      const DataTypes&... more_objects);
   template <typename FirstDataType, typename... DataTypes>
   void writeDataWithDelimiterAndNewLine(
       const std::string& delimiter, const FirstDataType& first_object,

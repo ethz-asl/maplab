@@ -17,6 +17,7 @@ static const std::string kMatchingLDInvertedMultiIndexString =
 static const std::string
     kMatchingLDInvertedMultiIndexProductQuantizationString =
         "inverted_multi_index_product_quantization";
+static const std::string kMatchingLDFLANNString = "flann";
 
 struct MatchingBasedEngineSettings {
   MatchingBasedEngineSettings();
@@ -31,6 +32,7 @@ struct MatchingBasedEngineSettings {
     kMatchingLDInvertedIndex,
     kMatchingLDInvertedMultiIndex,
     kMatchingLDInvertedMultiIndexProductQuantization,
+    kMatchingLDFLANN,
   };
 
   void setKeyframeScoringFunctionType(

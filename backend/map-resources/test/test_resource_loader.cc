@@ -62,6 +62,11 @@ class ResourceLoaderTest : public ResourceTest {
               template_base.get(), loader);
           break;
         }
+        case DataTypes::kObjectInstanceBoundingBoxes: {
+          addTemplateToResourceLoader<resources::ObjectInstanceBoundingBoxes>(
+              template_base.get(), loader);
+          break;
+        }
         default:
           LOG(FATAL) << "Unknown DataType: "
                      << static_cast<int>(template_base->data_type);
@@ -131,6 +136,12 @@ class ResourceLoaderTest : public ResourceTest {
         case DataTypes::kVoxbloxOccupancyMap: {
           voxblox::OccupancyMap::Config config;
           voxblox::OccupancyMap resource(config);
+          getAndCheckTemplateFromResourceLoader(
+              template_base.get(), &resource, loader);
+          break;
+        }
+        case DataTypes::kObjectInstanceBoundingBoxes: {
+          resources::ObjectInstanceBoundingBoxes resource;
           getAndCheckTemplateFromResourceLoader(
               template_base.get(), &resource, loader);
           break;
@@ -208,6 +219,13 @@ TEST_F(ResourceLoaderTest, TestAddResourceCannotCreateFile) {
             kErrorMsg);
         break;
       }
+      case DataTypes::kObjectInstanceBoundingBoxes: {
+        EXPECT_DEATH(
+            addTemplateToResourceLoader<resources::ObjectInstanceBoundingBoxes>(
+                template_base.get(), &loader),
+            kErrorMsg);
+        break;
+      }
       default:
         LOG(FATAL) << "Unknown DataType: "
                    << static_cast<int>(template_base->data_type);
@@ -264,6 +282,13 @@ TEST_F(ResourceLoaderTest, TestAddResourceEmptyFolder) {
       case DataTypes::kVoxbloxOccupancyMap: {
         EXPECT_DEATH(
             addTemplateToResourceLoader<voxblox::OccupancyMap>(
+                template_base.get(), &loader),
+            kErrorMsg);
+        break;
+      }
+      case DataTypes::kObjectInstanceBoundingBoxes: {
+        EXPECT_DEATH(
+            addTemplateToResourceLoader<resources::ObjectInstanceBoundingBoxes>(
                 template_base.get(), &loader),
             kErrorMsg);
         break;
@@ -326,6 +351,13 @@ TEST_F(ResourceLoaderTest, TestAddResourceDuplicateFiles) {
       case DataTypes::kVoxbloxOccupancyMap: {
         EXPECT_DEATH(
             addTemplateToResourceLoader<voxblox::OccupancyMap>(
+                template_base.get(), &loader),
+            kErrorMsg);
+        break;
+      }
+      case DataTypes::kObjectInstanceBoundingBoxes: {
+        EXPECT_DEATH(
+            addTemplateToResourceLoader<resources::ObjectInstanceBoundingBoxes>(
                 template_base.get(), &loader),
             kErrorMsg);
         break;
@@ -404,6 +436,14 @@ TEST_F(ResourceLoaderTest, TestGetInexistentResource) {
       case DataTypes::kVoxbloxOccupancyMap: {
         voxblox::OccupancyMap::Config config;
         voxblox::OccupancyMap resource(config);
+        EXPECT_DEATH(
+            getAndCheckTemplateFromResourceLoader(
+                template_base.get(), &resource, &loader),
+            kErrorMsg);
+        break;
+      }
+      case DataTypes::kObjectInstanceBoundingBoxes: {
+        resources::ObjectInstanceBoundingBoxes resource;
         EXPECT_DEATH(
             getAndCheckTemplateFromResourceLoader(
                 template_base.get(), &resource, &loader),
@@ -493,6 +533,16 @@ TEST_F(ResourceLoaderTest, TestGetResourceWrongType) {
             kErrorMsg);
         break;
       }
+      case DataTypes::kObjectInstanceBoundingBoxes: {
+        // Assign wrong resource type.
+        template_base->type = ResourceType::kOptimizedDepthMap;
+        resources::ObjectInstanceBoundingBoxes resource;
+        EXPECT_DEATH(
+            getAndCheckTemplateFromResourceLoader(
+                template_base.get(), &resource, &loader),
+            kErrorMsg);
+        break;
+      }
       default:
         LOG(FATAL) << "Unknown DataType: "
                    << static_cast<int>(template_base->data_type);
@@ -512,7 +562,7 @@ TEST_F(ResourceLoaderTest, TestGetResourceWrongId) {
 
   for (ResourceTemplateBase::Ptr& template_base : templates_) {
     // Generate different id such that it won't match anymore.
-    common::generateId(&(template_base->id));
+    aslam::generateId(&(template_base->id));
 
     // NOTE: [ADD_RESOURCE_DATA_TYPE] Add a case.
     switch (template_base->data_type) {
@@ -561,6 +611,14 @@ TEST_F(ResourceLoaderTest, TestGetResourceWrongId) {
       case DataTypes::kVoxbloxOccupancyMap: {
         voxblox::OccupancyMap::Config config;
         voxblox::OccupancyMap resource(config);
+        EXPECT_DEATH(
+            getAndCheckTemplateFromResourceLoader(
+                template_base.get(), &resource, &loader),
+            kErrorMsg);
+        break;
+      }
+      case DataTypes::kObjectInstanceBoundingBoxes: {
+        resources::ObjectInstanceBoundingBoxes resource;
         EXPECT_DEATH(
             getAndCheckTemplateFromResourceLoader(
                 template_base.get(), &resource, &loader),
@@ -642,6 +700,14 @@ TEST_F(ResourceLoaderTest, TestGetResourceWrongFolder) {
             kErrorMsg);
         break;
       }
+      case DataTypes::kObjectInstanceBoundingBoxes: {
+        resources::ObjectInstanceBoundingBoxes resource;
+        EXPECT_DEATH(
+            getAndCheckTemplateFromResourceLoader(
+                template_base.get(), &resource, &loader),
+            kErrorMsg);
+        break;
+      }
       default:
         LOG(FATAL) << "Unknown DataType: "
                    << static_cast<int>(template_base->data_type);
@@ -704,6 +770,15 @@ TEST_F(ResourceLoaderTest, TestDeleteResource) {
         ResourceTemplate<voxblox::OccupancyMap>& resource_template =
             template_base->getAs<ResourceTemplate<voxblox::OccupancyMap>>();
         loader.deleteResource<voxblox::OccupancyMap>(
+            resource_template.id, resource_template.type,
+            resource_template.folder);
+        break;
+      }
+      case DataTypes::kObjectInstanceBoundingBoxes: {
+        ResourceTemplate<resources::ObjectInstanceBoundingBoxes>&
+            resource_template = template_base->getAs<
+                ResourceTemplate<resources::ObjectInstanceBoundingBoxes>>();
+        loader.deleteResource<resources::ObjectInstanceBoundingBoxes>(
             resource_template.id, resource_template.type,
             resource_template.folder);
         break;
@@ -788,6 +863,17 @@ TEST_F(ResourceLoaderTest, TestDeleteInexistentResource) {
             kErrorMsg);
         break;
       }
+      case DataTypes::kObjectInstanceBoundingBoxes: {
+        ResourceTemplate<resources::ObjectInstanceBoundingBoxes>&
+            resource_template = template_base->getAs<
+                ResourceTemplate<resources::ObjectInstanceBoundingBoxes>>();
+        EXPECT_DEATH(
+            loader.deleteResource<resources::ObjectInstanceBoundingBoxes>(
+                resource_template.id, resource_template.type,
+                resource_template.folder),
+            kErrorMsg);
+        break;
+      }
       default:
         LOG(FATAL) << "Unknown DataType: "
                    << static_cast<int>(template_base->data_type);
@@ -866,6 +952,14 @@ TEST_F(ResourceLoaderTest, TestMigrateResourceMove) {
       case DataTypes::kVoxbloxOccupancyMap: {
         voxblox::OccupancyMap::Config config;
         voxblox::OccupancyMap resource(config);
+        EXPECT_DEATH(
+            getAndCheckTemplateFromResourceLoader(
+                template_base.get(), &resource, &loader),
+            kErrorMsg);
+        break;
+      }
+      case DataTypes::kObjectInstanceBoundingBoxes: {
+        resources::ObjectInstanceBoundingBoxes resource;
         EXPECT_DEATH(
             getAndCheckTemplateFromResourceLoader(
                 template_base.get(), &resource, &loader),
@@ -978,6 +1072,15 @@ TEST_F(ResourceLoaderTest, TestReplaceResource) {
             resource_template.folder, resource_template.resource());
         break;
       }
+      case DataTypes::kObjectInstanceBoundingBoxes: {
+        ResourceTemplate<resources::ObjectInstanceBoundingBoxes>&
+            resource_template = template_base->getAs<
+                ResourceTemplate<resources::ObjectInstanceBoundingBoxes>>();
+        loader.replaceResource<resources::ObjectInstanceBoundingBoxes>(
+            resource_template.id, resource_template.type,
+            resource_template.folder, resource_template.resource());
+        break;
+      }
       default:
         LOG(FATAL) << "Unknown DataType: "
                    << static_cast<int>(template_base->data_type);
@@ -995,8 +1098,8 @@ TEST_F(ResourceLoaderTest, TestResourceCache) {
   ResourceLoader loader;
 
   ResourceId resource_id_A, resource_id_B;
-  common::generateId(&resource_id_A);
-  common::generateId(&resource_id_B);
+  aslam::generateId(&resource_id_A);
+  aslam::generateId(&resource_id_B);
   static const std::string kTextA = "fobAAr";
   static const std::string kTextB = "foBaar";
   loader.addResource<std::string>(
@@ -1044,7 +1147,7 @@ TEST_F(ResourceLoaderTest, TestResourceCache) {
   for (size_t resource_counter = 0u;
        resource_counter < max_num_cache_entries_per_type; ++resource_counter) {
     ResourceId resource_id;
-    common::generateId(&resource_id);
+    aslam::generateId(&resource_id);
 
     const std::string resource_input = "resource_" + resource_id.hexString();
 

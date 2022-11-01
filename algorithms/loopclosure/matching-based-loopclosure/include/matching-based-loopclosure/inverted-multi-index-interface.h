@@ -14,7 +14,6 @@
 
 #include "matching-based-loopclosure/helpers.h"
 #include "matching-based-loopclosure/index-interface.h"
-#include "matching-based-loopclosure/matching_based_loop_detector.pb.h"
 
 DECLARE_int32(lc_target_dimensionality);
 
@@ -165,7 +164,7 @@ class InvertedMultiIndexInterface : public IndexInterface {
   inline void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixBase<DerivedQuery>& query_features, int num_neighbors,
       const Eigen::MatrixBase<DerivedIndices>& indices_const,
-      const Eigen::MatrixBase<DerivedDistances>& distances_const) const {
+      const Eigen::MatrixBase<DerivedDistances>& distances_const) {
     Eigen::MatrixBase<DerivedIndices>& indices =
         internal::CastConstEigenMatrixToNonConst(indices_const);
     Eigen::MatrixBase<DerivedDistances>& distances =
@@ -190,7 +189,7 @@ class InvertedMultiIndexInterface : public IndexInterface {
 
   virtual void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixXf& query_features, int num_neighbors,
-      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) const {
+      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) {
     CHECK_NOTNULL(indices);
     CHECK_NOTNULL(distances);
     GetNNearestNeighborsForFeatures(
@@ -213,24 +212,6 @@ class InvertedMultiIndexInterface : public IndexInterface {
     internal::ProjectDescriptors(
         descriptors, vocabulary_.projection_matrix_,
         vocabulary_.target_dimensionality_, projected_descriptors);
-  }
-
-  void serialize(
-      matching_based_loopclosure::proto::MatchingBasedLoopDetector::
-          InvertedMultiIndexInterface* proto_inverted_multi_index_interface)
-      const {
-    CHECK_NOTNULL(proto_inverted_multi_index_interface);
-    CHECK(index_);
-    index_->serialize(
-        proto_inverted_multi_index_interface->mutable_inverted_multi_index());
-  }
-
-  void deserialize(
-      const matching_based_loopclosure::proto::MatchingBasedLoopDetector::
-          InvertedMultiIndexInterface& proto_inverted_multi_index_interface) {
-    CHECK(index_);
-    index_->deserialize(
-        proto_inverted_multi_index_interface.inverted_multi_index());
   }
 
  private:
@@ -332,7 +313,7 @@ class InvertedMultiProductQuantizationIndexInterface : public IndexInterface {
   inline void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixBase<DerivedQuery>& query_features, int num_neighbors,
       const Eigen::MatrixBase<DerivedIndices>& indices_const,
-      const Eigen::MatrixBase<DerivedDistances>& distances_const) const {
+      const Eigen::MatrixBase<DerivedDistances>& distances_const) {
     Eigen::MatrixBase<DerivedIndices>& indices =
         internal::CastConstEigenMatrixToNonConst(indices_const);
     Eigen::MatrixBase<DerivedDistances>& distances =
@@ -356,7 +337,7 @@ class InvertedMultiProductQuantizationIndexInterface : public IndexInterface {
 
   virtual void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixXf& query_features, int num_neighbors,
-      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) const {
+      Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) {
     CHECK_NOTNULL(indices);
     CHECK_NOTNULL(distances);
     GetNNearestNeighborsForFeatures(

@@ -1,10 +1,11 @@
 #ifndef MAPLAB_COMMON_FILE_SYSTEM_TOOLS_H_
 #define MAPLAB_COMMON_FILE_SYSTEM_TOOLS_H_
 
+#include <sys/stat.h>
+
 #include <ctime>
 #include <string>
 #include <vector>
-#include <sys/stat.h>
 
 namespace common {
 
@@ -66,10 +67,16 @@ int getFileLists(
     const std::vector<std::string>& initial_paths, bool sort_lexical,
     const std::string& extension_filter, std::vector<std::string>* file_paths);
 
-// Generate a date-time string from a given input time.
+// Check if this folder already exists, and if it does, append a number until
+// you find a folder name that doesn't exist yet. Example: if you would like to
+// create a folder at /foo/bar but there is already a file or folder with that
+// name, this function will check if /foo/bar_1 exists and so on.
+std::string getUniqueFolderName(const std::string& folder_path);
+
+// Generate a date-time string from a given input time in integer seconds.
 // Source:
 // https://stackoverflow.com/questions/16357999/current-date-and-time-as-string
-std::string generateDateString(time_t* input_time);
+std::string generateDateString(const time_t* input_time);
 
 std::string generateDateStringFromCurrentTime();
 
@@ -82,6 +89,11 @@ void concatenateFolderAndFileName(
 
 std::string concatenateFolderAndFileName(
     const std::string& folder, const std::string& file_name);
+
+template <typename... FurtherNames>
+std::string concatenateFolderAndFileName(
+    const std::string& name_1, const std::string& name_2,
+    const FurtherNames&... further_names);
 
 // Split the string into tokens based on the delimiters specified.
 // E.g. setting the delimiters to ',-. ' will split the string
@@ -130,5 +142,7 @@ bool isSameRealFilePath(
     const std::string& real_file_A, const std::string& real_file_B);
 
 }  // namespace common
+
+#include "maplab-common/file-system-tools-inl.h"
 
 #endif  // MAPLAB_COMMON_FILE_SYSTEM_TOOLS_H_

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>vi_mapping_test_app</name>
-  <version>0.0.0</version>
+  <version>2.2.0</version>
   <description>The vi_mapping_test_app package</description>
   <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
   <license>Apache 2.0</license>
@@ -9,9 +9,8 @@
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>catkin_simple</buildtool_depend>
 
+  <depend>aslam_cv_tracker</depend>
   <depend>aslam_cv_common</depend>
-  <depend>aslam_cv_triangulation</depend>
-  <depend>ceres_catkin</depend>
   <depend>glog_catkin</depend>
   <depend>map_manager</depend>
   <depend>maplab_common</depend>

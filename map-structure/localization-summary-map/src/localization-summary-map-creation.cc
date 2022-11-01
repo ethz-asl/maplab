@@ -11,6 +11,7 @@
 #include <maplab-common/binary-serialization.h>
 #include <maplab-common/eigen-proto.h>
 #include <vi-map-helpers/vi-map-queries.h>
+#include <vi-map/vi-map-serialization.h>
 #include <vi-map/vi-map.h>
 
 #include "localization-summary-map/localization-summary-map-cache.h"
@@ -60,8 +61,7 @@ void createLocalizationSummaryMapFromLandmarkList(
 }
 
 void createLocalizationSummaryMapFromLandmarkList(
-    const vi_map::VIMap& map,
-    const vi_map::LandmarkIdList& landmark_ids,
+    const vi_map::VIMap& map, const vi_map::LandmarkIdList& landmark_ids,
     LocalizationSummaryMapCache* summary_map_cache,
     summary_map::LocalizationSummaryMap* summary_map) {
   CHECK_NOTNULL(summary_map);
@@ -101,7 +101,7 @@ void createLocalizationSummaryMapFromLandmarkList(
         landmark_observations.end());
 
     // Push the index of the landmark for all the observations.
-    for (size_t i = 0; i < landmark_observations.size(); ++i) {
+    for (size_t i = 0u; i < landmark_observations.size(); ++i) {
       observation_to_landmark.push_back(landmark_index);
     }
   }
@@ -113,10 +113,10 @@ void createLocalizationSummaryMapFromLandmarkList(
           observation_to_landmark.data(), observation_to_landmark.size(), 1);
 
   const char* loop_closure_files_path = getenv("MAPLAB_LOOPCLOSURE_DIR");
-  CHECK_NE(loop_closure_files_path, static_cast<char*>(NULL))
+  CHECK_NE(loop_closure_files_path, static_cast<char*>(nullptr))
       << "MAPLAB_LOOPCLOSURE_DIR environment variable is not set.\n"
-         "Source the MapLab environment from your workspace:\n"
-         "  . devel/setup.bash";
+      << "Source the MapLab environment from your workspace:\n"
+      << "  . devel/setup.bash";
 
   if (FLAGS_feature_descriptor_type == loop_closure::kFeatureDescriptorFREAK) {
     if (FLAGS_lc_projection_matrix_filename == "") {
@@ -142,7 +142,7 @@ void createLocalizationSummaryMapFromLandmarkList(
 
   std::unordered_map<vi_map::VisualFrameIdentifier, int> frame_id_to_index;
   int observer_index = 0;
-  for (size_t observation_index = 0; observation_index < observations.size();
+  for (size_t observation_index = 0u; observation_index < observations.size();
        ++observation_index) {
     // We store the observer index for covisibility graph based filtering.
     const vi_map::KeypointIdentifier& observation =
@@ -191,7 +191,7 @@ void createLocalizationSummaryMapFromLandmarkList(
     }
   }
   G_observer_position.resize(Eigen::NoChange, G_observer_positions.size());
-  for (size_t i = 0; i < G_observer_positions.size(); ++i) {
+  for (size_t i = 0u; i < G_observer_positions.size(); ++i) {
     G_observer_position.col(i) = G_observer_positions[i];
   }
 
@@ -201,4 +201,33 @@ void createLocalizationSummaryMapFromLandmarkList(
   summary_map->setObserverIndices(observer_indices);
   summary_map->setObservationToLandmarkIndex(observation_to_landmark_index);
 }
+
+void loadLocalizationSummaryMapFromAnyMapFile(
+    const std::string& localization_map_folder,
+    summary_map::LocalizationSummaryMap* summary_map) {
+  CHECK(!localization_map_folder.empty());
+  CHECK_NOTNULL(summary_map);
+
+  if (!summary_map->loadFromFolder(localization_map_folder)) {
+    VLOG(1) << "Could not load a localization summary map from "
+            << localization_map_folder
+            << ". Will try to load it as a full VI map.";
+
+    vi_map::VIMap vi_map;
+    CHECK(vi_map::serialization::loadMapFromFolder(
+        localization_map_folder, &vi_map))
+        << "Loading a VI map failed. Either provide a valid localization "
+        << "map or leave the map folder flag empty.";
+
+    summary_map::createLocalizationSummaryMapForWellConstrainedLandmarks(
+        vi_map, summary_map);
+
+    if (summary_map->GLandmarkPosition().cols() == 0) {
+      LOG(FATAL) << "The localization map loaded from '"
+                 << localization_map_folder
+                 << "' doesn't contain any landmarks!";
+    }
+  }
+}
+
 }  // namespace summary_map

@@ -3,12 +3,12 @@
 
 #include <Eigen/Core>
 #include <aslam/common/memory.h>
+#include <aslam/common/unique-id.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <posegraph/edge.h>
 #include <posegraph/vertex.h>
 
@@ -26,7 +26,7 @@ class VIMapEdgeRemovalTest : public ::testing::Test {
 
  protected:
   virtual void SetUp() {
-    vi_map::test::generateMap(kTestDataVertexCount, &map_);
+    vi_map::test::generateMap<TransformationEdge>(kTestDataVertexCount, &map_);
     initial_mission_ = map_.getIdOfFirstMission();
     map_.getAllEdgeIds(&initial_edges_);
     map_.getAllVertexIds(&initial_vertices_);
@@ -96,7 +96,7 @@ void VIMapEdgeRemovalTest::addRandomLoopClosureEdges(
     T_A_B_covariance.setRandom();
 
     pose_graph::EdgeId edge_id;
-    common::generateId(&edge_id);
+    aslam::generateId(&edge_id);
     ASSERT_TRUE(edge_id.isValid());
 
     const pose_graph::VertexId& from = initial_vertices_[vertex_idx_from];

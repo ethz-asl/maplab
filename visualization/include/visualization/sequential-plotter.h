@@ -20,9 +20,10 @@ class VIMap;
 namespace visualization {
 class ViwlsGraphRvizPlotter;
 
-class SequentialPlotter {
+class SequentialPlotter final {
  public:
-  explicit SequentialPlotter(ViwlsGraphRvizPlotter* plotter);
+  SequentialPlotter() = default;
+  ~SequentialPlotter() = default;
 
   void publishMissionsSequentially(
       const vi_map::VIMap& map,
@@ -37,7 +38,6 @@ class SequentialPlotter {
   }
 
   mutable AlignedMap<std::string, ConstantVelocitySmoother> smoothers_;
-  const ViwlsGraphRvizPlotter* plotter_;
 };
 
 }  // namespace visualization

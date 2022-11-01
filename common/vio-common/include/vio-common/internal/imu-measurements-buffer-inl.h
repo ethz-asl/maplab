@@ -5,6 +5,7 @@ namespace vio_common {
 
 inline void ImuMeasurementBuffer::addMeasurement(
     int64_t timestamp_nanoseconds, const vio::ImuData& imu_measurement) {
+  std::lock_guard<std::mutex> lock(m_buffer_);
   // Enforce strict time-wise ordering.
   vio::ImuMeasurement last_value;
   if (buffer_.getNewestValue(&last_value)) {
@@ -23,7 +24,7 @@ inline void ImuMeasurementBuffer::addMeasurements(
     const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& timestamps_nanoseconds,
     const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_measurements) {
   CHECK_EQ(timestamps_nanoseconds.cols(), imu_measurements.cols());
-  size_t num_samples = timestamps_nanoseconds.cols();
+  const size_t num_samples = timestamps_nanoseconds.cols();
   CHECK_GT(num_samples, 0u);
 
   for (size_t idx = 0; idx < num_samples; ++idx) {
@@ -32,10 +33,12 @@ inline void ImuMeasurementBuffer::addMeasurements(
 }
 
 inline void ImuMeasurementBuffer::clear() {
+  std::lock_guard<std::mutex> lock(m_buffer_);
   buffer_.clear();
 }
 
 inline size_t ImuMeasurementBuffer::size() const {
+  std::lock_guard<std::mutex> lock(m_buffer_);
   return buffer_.size();
 }
 

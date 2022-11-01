@@ -1,3 +1,5 @@
+#include <chrono>
+#include <thread>
 #include <fstream>  // NOLINT
 #include <string>
 #include <unordered_set>
@@ -446,7 +448,7 @@ TEST_F(MapManagerFileIOTest, LoadAllMapsWithCollidingKeys) {
 }
 
 TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerialization) {
-  vi_map::test::generateMap(first_vi_map_.get());
+  vi_map::test::generateMap<vi_map::TransformationEdge>(first_vi_map_.get());
   vi_map::proto::VIMap vertices_proto, edges_proto, missions_proto,
       landmark_index_proto, optional_sensor_data_proto;
   network::RawMessageData sensor_manager_raw_data;
@@ -458,8 +460,6 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerialization) {
   vi_map::serialization::serializeEdges(*first_vi_map_, &edges_proto);
   vi_map::serialization::serializeLandmarkIndex(
       *first_vi_map_, &landmark_index_proto);
-  vi_map::serialization::serializeOptionalSensorData(
-      *first_vi_map_, &optional_sensor_data_proto);
 
   vi_map::serialization::deserializeSensorManagerFromArray(
       sensor_manager_raw_data, second_vi_map_.get());
@@ -470,16 +470,15 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerialization) {
   vi_map::serialization::deserializeEdges(edges_proto, second_vi_map_.get());
   vi_map::serialization::deserializeLandmarkIndex(
       landmark_index_proto, second_vi_map_.get());
-  vi_map::serialization::deserializeOptionalSensorData(
-      optional_sensor_data_proto, second_vi_map_.get());
   EXPECT_TRUE(vi_map::test::compareVIMap(*first_vi_map_, *second_vi_map_));
 }
 
 TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerializationManyVertices) {
   constexpr size_t kNumberOfVertices = 400u;
-  vi_map::test::generateMap(kNumberOfVertices, first_vi_map_.get());
+  vi_map::test::generateMap<vi_map::TransformationEdge>(
+      kNumberOfVertices, first_vi_map_.get());
   vi_map::proto::VIMap vertices_proto, edges_proto, missions_proto,
-      landmark_index_proto, optional_sensor_data_proto;
+      landmark_index_proto;
 
   network::RawMessageData sensor_manager_raw_data;
   vi_map::serialization::serializeSensorManagerToArray(
@@ -490,8 +489,6 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerializationManyVertices) {
   vi_map::serialization::serializeEdges(*first_vi_map_, &edges_proto);
   vi_map::serialization::serializeLandmarkIndex(
       *first_vi_map_, &landmark_index_proto);
-  vi_map::serialization::serializeOptionalSensorData(
-      *first_vi_map_, &optional_sensor_data_proto);
 
   vi_map::serialization::deserializeSensorManagerFromArray(
       sensor_manager_raw_data, second_vi_map_.get());
@@ -502,14 +499,12 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerializationManyVertices) {
   vi_map::serialization::deserializeEdges(edges_proto, second_vi_map_.get());
   vi_map::serialization::deserializeLandmarkIndex(
       landmark_index_proto, second_vi_map_.get());
-  vi_map::serialization::deserializeOptionalSensorData(
-      optional_sensor_data_proto, second_vi_map_.get());
   EXPECT_TRUE(vi_map::test::compareVIMap(*first_vi_map_, *second_vi_map_));
 }
 
 // Save and load map with data.
 TEST_F(MapManagerFileIOTest, SaveLoadMapWithActualData) {
-  vi_map::test::generateMap(first_vi_map_.get());
+  vi_map::test::generateMap<vi_map::TransformationEdge>(first_vi_map_.get());
   saveMapsToFileSystemWithoutClearingStorage();
   map_manager_.deleteMap(TestStrings::kSecondMapKey);
 
@@ -531,7 +526,55 @@ TEST_F(MapManagerFileIOTest, SaveLoadMapWithActualData) {
 // Save and load map with many vertices to test vertices splitting.
 TEST_F(MapManagerFileIOTest, SaveLoadMapWithManyVertices) {
   constexpr size_t kNumberOfVertices = 400u;
-  vi_map::test::generateMap(kNumberOfVertices, first_vi_map_.get());
+  ASSERT_GT(kNumberOfVertices, backend::SaveConfig::kVerticesPerProtoFile);
+  vi_map::test::generateMap<vi_map::TransformationEdge>(
+      kNumberOfVertices, first_vi_map_.get());
+  saveMapsToFileSystemWithoutClearingStorage();
+  map_manager_.deleteMap(TestStrings::kSecondMapKey);
+  ASSERT_TRUE(common::pathExists(kPathWithDefaultFileNameFirstEntry));
+  map_manager_.loadMapFromFolder(
+      kPathWithDefaultFileNameFirstEntry, TestStrings::kSecondMapKey);
+  ASSERT_TRUE(map_manager_.hasMap(TestStrings::kSecondMapKey));
+
+  const vi_map::VIMap& original_map =
+      map_manager_.getMap(TestStrings::kFirstMapKey);
+  const vi_map::VIMap& loaded_map =
+      map_manager_.getMap(TestStrings::kSecondMapKey);
+
+  // Compare original and loaded map.
+  EXPECT_TRUE(vi_map::test::compareVIMap(original_map, loaded_map));
+}
+
+TEST_F(MapManagerFileIOTest, SaveLoadMapWithManyEdges) {
+  constexpr size_t kNumberOfVertices = 2u;
+  vi_map::test::generateMap<vi_map::TransformationEdge>(
+      kNumberOfVertices, first_vi_map_.get());
+
+  pose_graph::VertexIdList all_vertex_ids;
+  first_vi_map_->getAllVertexIds(&all_vertex_ids);
+  ASSERT_GE(all_vertex_ids.size(), 2u);
+
+  // Generate a lot of extra loop-closure edges between the first two vertices.
+  constexpr size_t kNumberOfExtraEdges = 50000u;
+  ASSERT_GT(kNumberOfExtraEdges, backend::SaveConfig::kEdgesPerProtoFile);
+
+  const pose_graph::VertexId& from_vertex = all_vertex_ids[0];
+  const pose_graph::VertexId& to_vertex = all_vertex_ids[1];
+  constexpr double kSwitchVariable = 0.0;
+  constexpr double kSwitchVariableVariance = 1.0;
+  const pose::Transformation T_A_B;
+  const Eigen::Matrix<double, 6, 6> T_A_B_covariance;
+
+  for (size_t i = 0u; i < kNumberOfExtraEdges; ++i) {
+    pose_graph::EdgeId new_edge_id;
+    aslam::generateId(&new_edge_id);
+
+    first_vi_map_->addEdge(
+        aligned_unique<vi_map::LoopClosureEdge>(
+            new_edge_id, from_vertex, to_vertex, kSwitchVariable,
+            kSwitchVariableVariance, T_A_B, T_A_B_covariance));
+  }
+
   saveMapsToFileSystemWithoutClearingStorage();
   map_manager_.deleteMap(TestStrings::kSecondMapKey);
 

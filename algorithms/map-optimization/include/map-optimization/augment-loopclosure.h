@@ -4,7 +4,10 @@
 #include <map-optimization/optimization-problem.h>
 
 namespace map_optimization {
-void augmentViProblemWithLoopclosureEdges(OptimizationProblem* problem);
+int augmentOptimizationProblemWithLoopclosureEdges(
+    OptimizationProblem* problem);
+
+int numLoopclosureEdges(const vi_map::VIMap& map);
 
 }  // namespace map_optimization
 #endif  // MAP_OPTIMIZATION_AUGMENT_LOOPCLOSURE_H_

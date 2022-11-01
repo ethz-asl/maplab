@@ -4,14 +4,16 @@
 #include <Eigen/Core>
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-fisheye.h>
+#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/hash-id.h>
 #include <aslam/common/memory.h>
+#include <aslam/common/unique-id.h>
 #include <aslam/frames/visual-frame.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/unique-id.h>
 #include <posegraph/unique-id.h>
+#include <sensors/absolute-6dof-pose.h>
 
 #include "vi-map/unique-id.h"
 #include "vi-map/vertex.h"
@@ -63,7 +65,7 @@ void ViwlsGraph::constructVertex() {
   static constexpr int kNumFrames = 1;
   static constexpr int kVisualFrameIndex = 0;
 
-  common::generateId(&vertex_id_);
+  aslam::generateId(&vertex_id_);
 
   biases_ << 1, 2, 3, 4, 5, 6;
 
@@ -79,7 +81,7 @@ void ViwlsGraph::constructVertex() {
   img_landmarks_.resize(kNumFrames);
   for (int i = 0; i < num_of_keypoints; ++i) {
     vi_map::LandmarkId landmark_id;
-    common::generateId(&landmark_id);
+    aslam::generateId(&landmark_id);
     img_landmarks_[kVisualFrameIndex].push_back(landmark_id);
   }
 
@@ -89,7 +91,7 @@ void ViwlsGraph::constructVertex() {
   frame_ids_.push_back(frame_id);
   frame_timestamps_.push_back(37u);
 
-  cameras_ = aslam::NCamera::createTestNCamera(kNumFrames);
+  cameras_ = aslam::createTestNCamera(kNumFrames);
 
   initial_vertex_ = aligned_unique<vi_map::Vertex>(
       vertex_id_, biases_, img_points_distorted_, uncertainties_, descriptors_,
@@ -104,10 +106,23 @@ void ViwlsGraph::constructVertex() {
 
   velocity_ << 5, 6, 7;
   initial_vertex_->set_v_M(velocity_);
+
+  // Set dummy absolute 6DoF measurements
+  CHECK(!frame_timestamps_.empty());
+  aslam::SensorId sensor_id;
+  aslam::generateId(&sensor_id);
+  vi_map::Absolute6DoFMeasurement absolute_6dof_1(sensor_id);
+  vi_map::Absolute6DoFMeasurement absolute_6dof_2(sensor_id);
+  absolute_6dof_1.setRandom();
+  absolute_6dof_2.setRandom();
+  absolute_6dof_1.setTimestampNanoseconds(frame_timestamps_[0]);
+  absolute_6dof_2.setTimestampNanoseconds(frame_timestamps_[0]);
+  initial_vertex_->addAbsolute6DoFMeasurement(absolute_6dof_1);
+  initial_vertex_->addAbsolute6DoFMeasurement(absolute_6dof_2);
 }
 
 void ViwlsGraph::constructVertexWithVisualNFrame() {
-  common::generateId(&vertex_id_);
+  aslam::generateId(&vertex_id_);
 
   biases_ << 1, 2, 3, 4, 5, 6;
 
@@ -123,21 +138,21 @@ void ViwlsGraph::constructVertexWithVisualNFrame() {
   img_landmarks_.resize(kNumNFrames);
 
   mission_id_.fromHexString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0");
-  cameras_ = aslam::NCamera::createTestNCamera(kNumNFrames);
-  common::generateId(&n_frame_id_);
+  cameras_ = aslam::createTestNCamera(kNumNFrames);
+  aslam::generateId(&n_frame_id_);
   aslam::VisualNFrame::Ptr visual_n_frame(
       new aslam::VisualNFrame(n_frame_id_, cameras_));
 
   for (unsigned int i = 0; i < kNumNFrames; ++i) {
     aslam::FrameId frame_id;
-    common::generateId(&frame_id);
+    aslam::generateId(&frame_id);
     frame_ids_.push_back(frame_id);
     const int64_t frame_timestamp = i;
     frame_timestamps_.push_back(frame_timestamp);
 
     for (int j = 0; j < num_of_keypoints; ++j) {
       vi_map::LandmarkId landmark_id;
-      common::generateId(&landmark_id);
+      aslam::generateId(&landmark_id);
       img_landmarks_[i].push_back(landmark_id);
     }
 
@@ -163,6 +178,19 @@ void ViwlsGraph::constructVertexWithVisualNFrame() {
 
   velocity_ << 5, 6, 7;
   initial_vertex_->set_v_M(velocity_);
+
+  // Set dummy absolute 6DoF measurements
+  CHECK(!frame_timestamps_.empty());
+  aslam::SensorId sensor_id;
+  aslam::generateId(&sensor_id);
+  vi_map::Absolute6DoFMeasurement absolute_6dof_1(sensor_id);
+  vi_map::Absolute6DoFMeasurement absolute_6dof_2(sensor_id);
+  absolute_6dof_1.setRandom();
+  absolute_6dof_2.setRandom();
+  absolute_6dof_1.setTimestampNanoseconds(frame_timestamps_[0]);
+  absolute_6dof_2.setTimestampNanoseconds(frame_timestamps_[0]);
+  initial_vertex_->addAbsolute6DoFMeasurement(absolute_6dof_1);
+  initial_vertex_->addAbsolute6DoFMeasurement(absolute_6dof_2);
 }
 
 TEST_F(ViwlsGraph, ViwlsVertexWithSingleFrameSerializationTest) {
@@ -191,6 +219,28 @@ TEST_F(ViwlsGraph, ViwlsVertexWithSingleFrameSerializationTest) {
   EXPECT_EQ(visual_frame.getKeypointMeasurements(), img_points_distorted_);
   EXPECT_EQ(visual_frame.getKeypointMeasurementUncertainties(), uncertainties_);
   EXPECT_EQ(visual_frame.getDescriptors(), descriptors_);
+
+  {  // Verify Absolute6DoFMeasurements
+    EXPECT_EQ(
+        vertex_from_msg_->getNumAbsolute6DoFMeasurements(),
+        initial_vertex_->getNumAbsolute6DoFMeasurements());
+    EXPECT_EQ(vertex_from_msg_->getNumAbsolute6DoFMeasurements(), 2u);
+    const std::vector<vi_map::Absolute6DoFMeasurement>& meas_initial =
+        initial_vertex_->getAbsolute6DoFMeasurements();
+    const std::vector<vi_map::Absolute6DoFMeasurement>& meas_after =
+        vertex_from_msg_->getAbsolute6DoFMeasurements();
+
+    for (const vi_map::Absolute6DoFMeasurement& abs_6dof_init : meas_initial) {
+      bool found = false;
+      for (const vi_map::Absolute6DoFMeasurement& abs_6dof_after : meas_after) {
+        if (abs_6dof_init.isEqual(abs_6dof_after, false /* verbose */)) {
+          found = true;
+          break;
+        }
+      }
+      EXPECT_TRUE(found);
+    }
+  }
 }
 
 TEST_F(ViwlsGraph, ViwlsVertexWithMultiFrameSerializationTest) {
@@ -226,6 +276,28 @@ TEST_F(ViwlsGraph, ViwlsVertexWithMultiFrameSerializationTest) {
     EXPECT_EQ(
         visual_frame.getKeypointMeasurementUncertainties(), uncertainties_);
     EXPECT_EQ(visual_frame.getDescriptors(), descriptors_);
+  }
+
+  {  // Verify Absolute6DoFMeasurements
+    EXPECT_EQ(
+        vertex_from_msg_->getNumAbsolute6DoFMeasurements(),
+        initial_vertex_->getNumAbsolute6DoFMeasurements());
+    EXPECT_EQ(vertex_from_msg_->getNumAbsolute6DoFMeasurements(), 2u);
+    const std::vector<vi_map::Absolute6DoFMeasurement>& meas_initial =
+        initial_vertex_->getAbsolute6DoFMeasurements();
+    const std::vector<vi_map::Absolute6DoFMeasurement>& meas_after =
+        vertex_from_msg_->getAbsolute6DoFMeasurements();
+
+    for (const vi_map::Absolute6DoFMeasurement& abs_6dof_init : meas_initial) {
+      bool found = false;
+      for (const vi_map::Absolute6DoFMeasurement& abs_6dof_after : meas_after) {
+        if (abs_6dof_init.isEqual(abs_6dof_after, false /* verbose */)) {
+          found = true;
+          break;
+        }
+      }
+      EXPECT_TRUE(found);
+    }
   }
 }
 

@@ -7,7 +7,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 ########
 # LIB  #
 ########
-cs_add_library(${PROJECT_NAME} 
+cs_add_library(${PROJECT_NAME}
   src/augment-loopclosure.cc
   src/optimization-problem.cc
   src/optimization-state-buffer.cc
@@ -26,6 +26,9 @@ cs_add_library(${PROJECT_NAME}
 catkin_add_gtest(test_optimization test/test-optimization.cc)
 target_link_libraries(test_optimization ${PROJECT_NAME})
 maplab_import_test_maps(test_optimization)
+
+catkin_add_gtest(test_optimization_terms_addition test/test-optimization-terms-addition.cc)
+target_link_libraries(test_optimization_terms_addition ${PROJECT_NAME})
 
 ##########
 # EXPORT #

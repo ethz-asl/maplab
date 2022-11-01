@@ -510,6 +510,32 @@ TEST(MaplabCommon, createPathToFileTest) {
   EXPECT_TRUE(common::pathExists(test_path));
 }
 
+TEST(MaplabCommon, concatenateFolderAndFileName) {
+  const std::string kNameWithoutSlash1 = "1_abc";
+  const std::string kNameWithoutSlash2 = "2_def";
+  const std::string kNameWithoutSlash3 = "3_ghi";
+  const std::string kNameWithSlash1 = "1_jkl/";
+  const std::string kNameWithSlash2 = "2_mno/";
+
+  EXPECT_EQ(
+      common::concatenateFolderAndFileName(
+          kNameWithoutSlash1, kNameWithoutSlash2),
+      kNameWithoutSlash1 + '/' + kNameWithoutSlash2);
+  EXPECT_EQ(
+      common::concatenateFolderAndFileName(kNameWithSlash1, kNameWithSlash2),
+      kNameWithSlash1 + kNameWithSlash2);
+  EXPECT_EQ(
+      common::concatenateFolderAndFileName(
+          kNameWithoutSlash1, kNameWithoutSlash2, kNameWithoutSlash3),
+      kNameWithoutSlash1 + '/' + kNameWithoutSlash2 + '/' + kNameWithoutSlash3);
+  EXPECT_EQ(
+      common::concatenateFolderAndFileName(
+          kNameWithoutSlash1, kNameWithoutSlash2, kNameWithSlash1,
+          kNameWithoutSlash3, kNameWithSlash2),
+      kNameWithoutSlash1 + '/' + kNameWithoutSlash2 + '/' + kNameWithSlash1 +
+          kNameWithoutSlash3 + '/' + kNameWithSlash2);
+}
+
 }  // namespace common
 
 MAPLAB_UNITTEST_ENTRYPOINT

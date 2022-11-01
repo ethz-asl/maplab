@@ -9,17 +9,29 @@
 
 DEFINE_double(lc_ransac_pixel_sigma, 2.0, "Pixel sigma for ransac.");
 DEFINE_int32(lc_min_inlier_count, 10, "Minimum inlier count for loop closure.");
-DEFINE_double(
-    lc_min_inlier_ratio, 0.2, "Minimum inlier ratio for loop closure.");
-DECLARE_bool(lc_filter_underconstrained_landmarks);
 DEFINE_int32(
     lc_num_ransac_iters, 100,
     "Maximum number of ransac iterations for absolute pose recovery.");
+DEFINE_double(
+    lc_min_inlier_ratio, 0.0, "Minimum inlier ratio for loop closure.");
+DEFINE_double(
+    lc_max_delta_position_m, -1.0,
+    "Maximum delta position that a loop closure can correct before it is "
+    "rejected (negative values turn the check off).");
+DEFINE_double(
+    lc_max_delta_rotation_deg, -1.0,
+    "Maximum delta angle that a loop closure can correct before it is "
+    "rejected (negative values turn the check off).");
+DECLARE_bool(lc_filter_underconstrained_landmarks);
+
 DEFINE_bool(
     lc_nonlinear_refinement_p3p, false,
     "If nonlinear refinement on all ransac inliers should be run.");
-DECLARE_double(lc_switch_variable_variance);
 
+DEFINE_double(
+    lc_switch_variable_variance, 1e-8,
+    "The variance for the switch variable of the loop-closure "
+    "edges.");
 DEFINE_double(
     lc_edge_covariance_scaler, 1e-7,
     "Scaling the covariance of loopclosure edges. It is identity by default.");
@@ -27,12 +39,6 @@ DEFINE_double(
     lc_edge_min_distance_meters, 1.0,
     "The minimum loop-closure gap distance such that a loop-closure edge is "
     "created.");
-DEFINE_double(
-    lc_edge_min_inlier_ratio, 0.5,
-    "The minimum loop-closure inlier ratio to add a loop-closure edge.");
-DEFINE_int32(
-    lc_edge_min_inlier_count, 20,
-    "The minimum loop-closure inlier count to add a loop-closure edge.");
 
 namespace loop_closure_handler {
 
@@ -40,7 +46,8 @@ bool addLoopClosureEdge(
     const pose_graph::VertexId& query_vertex_id,
     const vi_map::LandmarkIdSet& commonly_observed_landmarks,
     const pose_graph::VertexId& vertex_id_from_structure_matches,
-    const aslam::Transformation& T_G_I_lc_ransac, vi_map::VIMap* map) {
+    const aslam::Transformation& T_G_I_lc_ransac, vi_map::VIMap* map,
+    const int feature_type) {
   CHECK(query_vertex_id.isValid());
   CHECK_NOTNULL(map)->hasVertex(vertex_id_from_structure_matches);
   CHECK(vertex_id_from_structure_matches != query_vertex_id);
@@ -53,7 +60,8 @@ bool addLoopClosureEdge(
       map->getVertex(vertex_id_from_structure_matches);
 
   // Retrieve all observed landmarks to get an estimate of the maximum number
-  // of correspondences we may find.
+  // of correspondences we may find. We don't need to care about type since
+  // this only needs to be an upper bound.
   vi_map::LandmarkIdList observed_landmark_ids;
   vertex.getAllObservedLandmarkIds(&observed_landmark_ids);
 
@@ -70,10 +78,12 @@ bool addLoopClosureEdge(
     }
 
     const aslam::VisualFrame& visual_frame = vertex.getVisualFrame(frame_idx);
-    const vi_map::LandmarkIdList& observed_landmarks =
-        vertex.getFrameObservedLandmarkIds(frame_idx);
+    vi_map::LandmarkIdList observed_landmarks;
+    vertex.getFrameObservedLandmarkIdsOfType(
+        frame_idx, &observed_landmarks, feature_type);
     CHECK_EQ(
-        observed_landmarks.size(), visual_frame.getNumKeypointMeasurements());
+        observed_landmarks.size(),
+        visual_frame.getNumKeypointMeasurementsOfType(feature_type));
     for (size_t i = 0u; i < observed_landmarks.size(); ++i) {
       if (commonly_observed_landmarks.count(observed_landmarks[i]) > 0u) {
         CHECK(observed_landmarks[i].isValid());
@@ -82,7 +92,8 @@ bool addLoopClosureEdge(
         CHECK_LT(index, G_landmark_positions.cols());
 
         measurement_camera_indices.push_back(frame_idx);
-        measurements.col(index) = visual_frame.getKeypointMeasurement(i);
+        measurements.col(index) =
+            visual_frame.getKeypointMeasurementOfType(i, feature_type);
         G_landmark_positions.col(index) =
             map->getLandmark_G_p_fi(observed_landmarks[i]);
 
@@ -116,9 +127,12 @@ bool addLoopClosureEdge(
       FLAGS_lc_ransac_pixel_sigma, FLAGS_lc_num_ransac_iters, ncamera,
       &T_G_Inn_ransac, &inliers, &inlier_distances_to_model, &num_iters);
 
-  if (!pnp_success) {
+  // TODO(smauq): add all lc checks also here
+  if (!pnp_success || inliers.size() < FLAGS_lc_min_inlier_count) {
     // We could not retrieve a pose for the vertex observing matched landmarks.
     // The LC edge cannot be added.
+    VLOG(6) << "Failed PnP of connecting vertex when adding loop closure. "
+            << "With inlier count of " << inliers.size() << ".";
     return false;
   }
 
@@ -126,7 +140,7 @@ bool addLoopClosureEdge(
       FLAGS_lc_edge_covariance_scaler *
       aslam::TransformationCovariance::Identity();
   pose_graph::EdgeId loop_closure_edge_id;
-  common::generateId(&loop_closure_edge_id);
+  aslam::generateId(&loop_closure_edge_id);
   CHECK(loop_closure_edge_id.isValid());
 
   const aslam::Transformation T_Inn_G = T_G_Inn_ransac.inverse();
@@ -151,11 +165,10 @@ bool addLoopClosureEdge(
 
   const double kSwitchVariable = 1.0;
   CHECK_GT(FLAGS_lc_switch_variable_variance, 0.0);
-  vi_map::Edge::UniquePtr loop_closure_edge(
-      new vi_map::LoopClosureEdge(
-          loop_closure_edge_id, vertex_id_from_structure_matches,
-          query_vertex_id, kSwitchVariable, FLAGS_lc_switch_variable_variance,
-          T_Inn_Iquery_lc, T_Inn_Iquery_covariance));
+  vi_map::Edge::UniquePtr loop_closure_edge(new vi_map::LoopClosureEdge(
+      loop_closure_edge_id, vertex_id_from_structure_matches, query_vertex_id,
+      kSwitchVariable, FLAGS_lc_switch_variable_variance, T_Inn_Iquery_lc,
+      T_Inn_Iquery_covariance));
 
   VLOG(10) << "Added loop-closure edge between vertex "
            << query_vertex_id.hexString() << " and vertex "
@@ -167,15 +180,21 @@ bool addLoopClosureEdge(
 }
 
 LoopClosureHandler::LoopClosureHandler(
-    vi_map::VIMap* map, LandmarkToLandmarkMap* landmark_id_old_to_new)
-    : map_(CHECK_NOTNULL(map)), summary_map_(nullptr),
-      landmark_id_old_to_new_(CHECK_NOTNULL(landmark_id_old_to_new)) {}
+    vi_map::VIMap* map, LandmarkToLandmarkMap* landmark_id_old_to_new,
+    vi_map::FeatureType feature_type)
+    : map_(CHECK_NOTNULL(map)),
+      summary_map_(nullptr),
+      landmark_id_old_to_new_(CHECK_NOTNULL(landmark_id_old_to_new)),
+      feature_type_(static_cast<int>(feature_type)) {}
 
 LoopClosureHandler::LoopClosureHandler(
     summary_map::LocalizationSummaryMap const* summary_map,
-    LandmarkToLandmarkMap* landmark_id_old_to_new)
-    : map_(nullptr), summary_map_(CHECK_NOTNULL(summary_map)),
-      landmark_id_old_to_new_(CHECK_NOTNULL(landmark_id_old_to_new)) {}
+    LandmarkToLandmarkMap* landmark_id_old_to_new,
+    vi_map::FeatureType feature_type)
+    : map_(nullptr),
+      summary_map_(CHECK_NOTNULL(summary_map)),
+      landmark_id_old_to_new_(CHECK_NOTNULL(landmark_id_old_to_new)),
+      feature_type_(static_cast<int>(feature_type)) {}
 
 // Assuming same query_keyframe in each of the constraints on the vector.
 bool LoopClosureHandler::handleLoopClosure(
@@ -188,7 +207,6 @@ bool LoopClosureHandler::handleLoopClosure(
     std::mutex* map_mutex, bool use_random_pnp_seed) const {
   CHECK_NOTNULL(map_);
   CHECK_NOTNULL(num_inliers);
-  CHECK_NOTNULL(inlier_ratio);
   CHECK_NOTNULL(T_G_I_ransac);
   CHECK_NOTNULL(inlier_constraints);
   CHECK_NOTNULL(landmark_pairs_merged);
@@ -202,7 +220,8 @@ bool LoopClosureHandler::handleLoopClosure(
   inlier_constraints->query_vertex_id = query_vertex_id;
 
   std::vector<vi_map::LandmarkIdList> query_vertex_observed_landmark_ids;
-  query_vertex.getAllObservedLandmarkIds(&query_vertex_observed_landmark_ids);
+  query_vertex.getAllObservedLandmarkIdsOfType(
+      &query_vertex_observed_landmark_ids, feature_type_);
 
   return handleLoopClosure(
       query_vertex.getVisualNFrame(), query_vertex_observed_landmark_ids,
@@ -237,10 +256,6 @@ bool LoopClosureHandler::handleLoopClosure(
       static_cast<unsigned int>(query_vertex_n_frame.getNumFrames()),
       query_vertex_landmark_ids.size());
 
-  // Make sure only one of those options is selected. We can't merge landmarks
-  // and add loopclosure edges at the same time.
-  CHECK(!merge_matching_landmarks || !add_loopclosure_edges);
-
   *num_inliers = 0;
   *inlier_ratio = 0.0;
 
@@ -264,7 +279,6 @@ bool LoopClosureHandler::handleLoopClosure(
   // Ordered containers s.t. inliers vector returned from P3P makes sense.
   KeypointToLandmarkVector query_keypoint_idx_to_map_landmark_pairs;
   LandmarkToLandmarkVector query_landmark_to_map_landmark_pairs;
-
   query_keypoint_idx_to_map_landmark_pairs.resize(total_matches);
   query_landmark_to_map_landmark_pairs.resize(total_matches);
 
@@ -272,25 +286,22 @@ bool LoopClosureHandler::handleLoopClosure(
   for (const vi_map::VertexKeyPointToStructureMatch& structure_match :
        structure_matches) {
     map_mutex->lock();
-    vi_map::LandmarkId db_landmark_id = getLandmarkIdAfterMerges(
-        structure_match.landmark_result);
+    vi_map::LandmarkId db_landmark_id =
+        getLandmarkIdAfterMerges(structure_match.landmark_result);
 
     // The loop-closure backend should not return invalid landmarks.
-    CHECK(db_landmark_id.isValid())
-      << "Found invalid landmark in result set.";
+    CHECK(db_landmark_id.isValid()) << "Found invalid landmark in result set.";
 
-    // The loop-closure backend should not return underconstrained landmarks.
+    // The loop-closure backend should not return underconstrained landmarks
     // if the lc_filter_underconstrained_landmarks flag is true.
-    if (map_ != nullptr) {
+    if (map_ != nullptr && FLAGS_lc_filter_underconstrained_landmarks) {
       // This check makes only sense if we have a full map available.
-      if (FLAGS_lc_filter_underconstrained_landmarks &&
-          !vi_map::isLandmarkWellConstrained(
+      if (!vi_map::isLandmarkWellConstrained(
               *map_, map_->getLandmark(db_landmark_id))) {
         LOG(FATAL)
             << "Found not well constrained landmark in result set. Cached "
             << "quality: "
-            << static_cast<int>(
-                   map_->getLandmark(db_landmark_id).getQuality())
+            << static_cast<int>(map_->getLandmark(db_landmark_id).getQuality())
             << ",  evaluated quality: "
             << vi_map::isLandmarkWellConstrained(
                    *map_, map_->getLandmark(db_landmark_id))
@@ -304,7 +315,8 @@ bool LoopClosureHandler::handleLoopClosure(
     CHECK(query_vertex_n_frame.isFrameSet(structure_match.frame_index_query));
     measurements.col(col_idx) =
         query_vertex_n_frame.getFrame(structure_match.frame_index_query)
-            .getKeypointMeasurement(structure_match.keypoint_index_query);
+            .getKeypointMeasurementOfType(
+                structure_match.keypoint_index_query, feature_type_);
     G_landmark_positions.col(col_idx) = getLandmark_p_G_fi(db_landmark_id);
     map_mutex->unlock();
 
@@ -324,16 +336,16 @@ bool LoopClosureHandler::handleLoopClosure(
 
     CHECK_LT(
         structure_match.keypoint_index_query,
-        query_vertex_landmark_ids[structure_match.frame_index_query]
-            .size());
+        query_vertex_landmark_ids[structure_match.frame_index_query].size());
     vi_map::LandmarkId query_landmark_id =
         query_vertex_landmark_ids[structure_match.frame_index_query]
-                                        [structure_match.keypoint_index_query];
+                                 [structure_match.keypoint_index_query];
     query_landmark_to_map_landmark_pairs[col_idx] =
         std::make_pair(query_landmark_id, db_landmark_id);
 
     ++col_idx;
   }
+
   // Bail for cases where there is no hope to reach the min num inliers.
   int valid_matches = col_idx;
   statistics::StatsCollector valid_matches_stats("LC num valid matches");
@@ -376,7 +388,7 @@ bool LoopClosureHandler::handleLoopClosure(
   CHECK_LE(keypoint_to_best_structure_match.size(), inliers.size());
   *num_inliers = static_cast<int>(keypoint_to_best_structure_match.size());
 
-  VLOG(3) << "\tnum_inliers " << *num_inliers << " num iters " << num_iters;
+  VLOG(6) << "\tnum_inliers " << *num_inliers << " num iters " << num_iters;
   statistics::StatsCollector stats_inlier_count("LC RANSAC inliers");
   stats_inlier_count.AddSample(*num_inliers);
 
@@ -394,7 +406,7 @@ bool LoopClosureHandler::handleLoopClosure(
   CHECK_GT(G_landmark_positions.cols(), 0);
   *inlier_ratio = static_cast<double>(*num_inliers) /
                   static_cast<double>(G_landmark_positions.cols());
-  VLOG(4) << "\tinlier_ratio " << *inlier_ratio;
+  VLOG(6) << "\tinlier_ratio " << *inlier_ratio;
 
   statistics::StatsCollector stats_inlier_ratio("LC RANSAC inlier ratio");
   stats_inlier_ratio.AddSample(*inlier_ratio);
@@ -407,6 +419,39 @@ bool LoopClosureHandler::handleLoopClosure(
         "LC ransac fail num_inliers");
     statistics_ransac_fail_num_inliers.AddSample(*num_inliers);
     return false;
+  }
+
+  // When enabled this check imposes a topological constraint on the loop
+  // closure to be within a certain distance and angle of the current position.
+  if (FLAGS_lc_max_delta_position_m >= 0.0 ||
+      FLAGS_lc_max_delta_rotation_deg >= 0.0) {
+    CHECK_NOTNULL(map_);
+    std::lock_guard<std::mutex> map_lock(*map_mutex);
+
+    // This happens only if a valid query_vertex_id is provided.
+    CHECK(query_vertex_id.isValid())
+        << "Checking for topological constrains is not possible "
+        << "if no valid query_vertex_id is provided.";
+
+    const aslam::Transformation T_I_I_ransac =
+        map_->getVertex_T_G_I(query_vertex_id).inverse() * (*T_G_I_ransac);
+
+    const double delta_position_m = T_I_I_ransac.getPosition().norm();
+    static constexpr double kRadToDeg = 180.0 / M_PI;
+    const double delta_rotation_deg =
+        aslam::AngleAxis(T_I_I_ransac.getRotation()).angle() * kRadToDeg;
+    VLOG(6) << "\tdelta_position_m: " << delta_position_m
+            << " delta_rotation_deg: " << delta_rotation_deg;
+
+    const bool is_distance_ok =
+        (FLAGS_lc_max_delta_position_m < 0.0 ||
+         delta_position_m <= FLAGS_lc_max_delta_position_m);
+    const bool is_rotation_ok =
+        (FLAGS_lc_max_delta_rotation_deg < 0.0 ||
+         delta_rotation_deg <= FLAGS_lc_max_delta_rotation_deg);
+    if (!is_distance_ok || !is_rotation_ok) {
+      return false;
+    }
   }
 
   Eigen::Matrix3Xd landmark_positions;
@@ -437,6 +482,44 @@ bool LoopClosureHandler::handleLoopClosure(
   VLOG(10) << "Found loop-closure for query vertex "
            << query_vertex_id.hexString();
 
+  vi_map::LandmarkIdSet commonly_observed_landmarks;
+  if (vertex_id_closest_to_structure_matches != nullptr) {
+    *vertex_id_closest_to_structure_matches =
+        getVertexIdWithMostOverlappingLandmarks(
+            query_vertex_id, *inlier_structure_matches, *map_,
+            &commonly_observed_landmarks);
+    CHECK(vertex_id_closest_to_structure_matches->isValid());
+  }
+
+  if (add_loopclosure_edges) {
+    CHECK_NOTNULL(map_);
+    std::lock_guard<std::mutex> map_lock(*map_mutex);
+
+    // This case should be only handled if a valid query_vertex_id is
+    // provided.
+    CHECK(query_vertex_id.isValid())
+        << "Adding loop closure edges is not possible "
+        << "if no valid query_vertex_id is provided.";
+
+    pose_graph::VertexId lc_edge_target_vertex_id;
+    if (vertex_id_closest_to_structure_matches == nullptr) {
+      CHECK(commonly_observed_landmarks.empty());
+      // This function is robust against
+      lc_edge_target_vertex_id = getVertexIdWithMostOverlappingLandmarks(
+          query_vertex_id, *inlier_structure_matches, *map_,
+          &commonly_observed_landmarks);
+    } else {
+      // vertex_id_closest_to_structure_matches was already retrieved
+      // before.
+      lc_edge_target_vertex_id = *vertex_id_closest_to_structure_matches;
+    }
+
+    CHECK(!commonly_observed_landmarks.empty());
+    addLoopClosureEdge(
+        query_vertex_id, commonly_observed_landmarks, lc_edge_target_vertex_id,
+        *T_G_I_ransac, map_, feature_type_);
+  }
+
   if (merge_matching_landmarks) {
     CHECK_NOTNULL(map_);
     std::lock_guard<std::mutex> map_lock(*map_mutex);
@@ -459,46 +542,8 @@ bool LoopClosureHandler::handleLoopClosure(
     updateQueryKeyframeInvalidLandmarkAssociations(
         inliers, query_keypoint_idx_to_map_landmark_pairs, &query_vertex);
   }
-  vi_map::LandmarkIdSet commonly_observed_landmarks;
-  if (vertex_id_closest_to_structure_matches != nullptr) {
-    CHECK(!merge_matching_landmarks)
-        << "Retrieving the vertex id closest to "
-        << "the structure-matches does not work if landmarks are being merged "
-        << "too.";
-    *vertex_id_closest_to_structure_matches =
-        vi_map_helpers::getVertexIdWithMostOverlappingLandmarks(
-            query_vertex_id, *inlier_structure_matches, *map_,
-            &commonly_observed_landmarks);
-    CHECK(vertex_id_closest_to_structure_matches->isValid());
-  }
-  if (add_loopclosure_edges) {
-    CHECK(!merge_matching_landmarks);
-    if (query_vertex_id.isValid() && map_ != nullptr) {
-      if (*inlier_ratio >= FLAGS_lc_edge_min_inlier_ratio &&
-          *num_inliers >= FLAGS_lc_edge_min_inlier_count) {
-        pose_graph::VertexId lc_edge_target_vertex_id;
-        if (vertex_id_closest_to_structure_matches == nullptr) {
-          CHECK(commonly_observed_landmarks.empty());
-          lc_edge_target_vertex_id =
-              vi_map_helpers::getVertexIdWithMostOverlappingLandmarks(
-                  query_vertex_id, *inlier_structure_matches, *map_,
-                  &commonly_observed_landmarks);
-        } else {
-          // vertex_id_closest_to_structure_matches was already retrieved
-          // before.
-          lc_edge_target_vertex_id = *vertex_id_closest_to_structure_matches;
-        }
-        CHECK(lc_edge_target_vertex_id.isValid());
-        CHECK(!commonly_observed_landmarks.empty());
-        std::lock_guard<std::mutex> map_lock(*map_mutex);
-        addLoopClosureEdge(
-            query_vertex_id, commonly_observed_landmarks,
-            lc_edge_target_vertex_id, *T_G_I_ransac, map_);
-      }
-    }
-  }
 
-  VLOG(4) << "\transac success. Ransac pts: " << G_landmark_positions.cols()
+  VLOG(5) << "\transac success. Ransac pts: " << G_landmark_positions.cols()
           << " inliers: " << inliers.size()
           << " inlier ratio: " << *inlier_ratio << '.';
   return true;
@@ -516,8 +561,15 @@ void LoopClosureHandler::updateQueryKeyframeInvalidLandmarkAssociations(
   for (unsigned int i = 0; i < inliers.size(); ++i) {
     const int query_frame_idx =
         query_keypoint_idx_to_landmark_pairs[inliers[i]].first.frame_idx;
+
+    size_t block_start, block_size;
+    query_vertex->getVisualFrame(query_frame_idx)
+        .getDescriptorBlockTypeStartAndSize(
+            feature_type_, &block_start, &block_size);
     const int query_keypoint_idx =
-        query_keypoint_idx_to_landmark_pairs[inliers[i]].first.keypoint_idx;
+        query_keypoint_idx_to_landmark_pairs[inliers[i]].first.keypoint_idx +
+        block_start;
+
     const vi_map::LandmarkId query_landmark_id =
         query_vertex->getObservedLandmarkId(
             query_frame_idx, query_keypoint_idx);
@@ -538,7 +590,8 @@ void LoopClosureHandler::updateQueryKeyframeInvalidLandmarkAssociations(
           map_->getLandmarkStoreVertex(map_landmark_id);
 
       map_landmark_vertex.getLandmarks()
-          .getLandmark(map_landmark_id).addObservation(
+          .getLandmark(map_landmark_id)
+          .addObservation(
               query_vertex->id(), query_frame_idx, query_keypoint_idx);
     }
   }
@@ -595,8 +648,8 @@ void LoopClosureHandler::mergeLandmarks(
       map_landmark = getLandmarkIdAfterMerges(map_landmark);
 
       // If we need to merge landmark into itself, we skip merging. Do this
-      // for the 2nd time because the assignment above may cause this situation
-      // to arise.
+      // for the 2nd time because the assignment above may cause this
+      // situation to arise.
       if (query_landmark_to_be_deleted == map_landmark) {
         stats_same_ids.IncrementOne();
         continue;
@@ -608,8 +661,7 @@ void LoopClosureHandler::mergeLandmarks(
 
       Eigen::Vector3d p_G_landmark_query =
           map_->getLandmark_G_p_fi(query_landmark_to_be_deleted);
-      Eigen::Vector3d p_G_landmark_map =
-          map_->getLandmark_G_p_fi(map_landmark);
+      Eigen::Vector3d p_G_landmark_map = map_->getLandmark_G_p_fi(map_landmark);
 
       stats_total_merge_calls.IncrementOne();
       map_->mergeLandmarks(query_landmark_to_be_deleted, map_landmark);
@@ -618,6 +670,51 @@ void LoopClosureHandler::mergeLandmarks(
           p_G_landmark_query, p_G_landmark_map);
     }
   }
+}
+
+pose_graph::VertexId
+LoopClosureHandler::getVertexIdWithMostOverlappingLandmarks(
+    const pose_graph::VertexId& query_vertex_id,
+    const vi_map::VertexKeyPointToStructureMatchList& structure_matches,
+    const vi_map::VIMap& map, vi_map::LandmarkIdSet* overlap_landmarks) const {
+  CHECK(!structure_matches.empty());
+  CHECK_NOTNULL(overlap_landmarks)->clear();
+
+  typedef std::unordered_map<pose_graph::VertexId, vi_map::LandmarkIdSet>
+      VertexOverlapLandmarksMap;
+  VertexOverlapLandmarksMap vertex_overlap_map;
+  for (const vi_map::VertexKeyPointToStructureMatch& structure_match :
+       structure_matches) {
+    vi_map::LandmarkId landmark_id = structure_match.landmark_result;
+    // If the landmark does not exist, it has probably already been merged
+    // already.
+    if (!map.hasLandmark(landmark_id)) {
+      landmark_id = getLandmarkIdAfterMerges(landmark_id);
+    }
+    const vi_map::Landmark& landmark = map.getLandmark(landmark_id);
+    landmark.forEachObservation(
+        [&](const vi_map::KeypointIdentifier& keypoint_id) {
+          if (keypoint_id.frame_id.vertex_id != query_vertex_id) {
+            vertex_overlap_map[keypoint_id.frame_id.vertex_id].emplace(
+                landmark_id);
+          }
+        });
+  }
+
+  size_t max_overlap_landmarks = 0u;
+  pose_graph::VertexId largest_overlap_vertex_id;
+  for (const VertexOverlapLandmarksMap::value_type& item : vertex_overlap_map) {
+    if (item.second.size() > max_overlap_landmarks) {
+      largest_overlap_vertex_id = item.first;
+      max_overlap_landmarks = item.second.size();
+    }
+  }
+
+  *overlap_landmarks =
+      common::getChecked(vertex_overlap_map, largest_overlap_vertex_id);
+
+  CHECK(largest_overlap_vertex_id.isValid());
+  return largest_overlap_vertex_id;
 }
 
 }  // namespace loop_closure_handler

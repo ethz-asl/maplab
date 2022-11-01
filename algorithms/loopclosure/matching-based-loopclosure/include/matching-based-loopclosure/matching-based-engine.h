@@ -13,7 +13,6 @@
 #include "matching-based-loopclosure/detector-settings.h"
 #include "matching-based-loopclosure/index-interface.h"
 #include "matching-based-loopclosure/loop-detector-interface.h"
-#include "matching-based-loopclosure/matching_based_loop_detector.pb.h"
 #include "matching-based-loopclosure/scoring.h"
 
 namespace matching_based_loopclosure {
@@ -48,12 +47,6 @@ class MatchingBasedLoopDetector : public loop_detector::LoopDetector {
       Eigen::MatrixXf* projected_descriptors) const override;
 
   void Clear() override;
-
-  void serialize(proto::MatchingBasedLoopDetector* matching_based_loop_detector)
-      const override;
-  void deserialize(
-      const proto::MatchingBasedLoopDetector& matching_based_loop_detector)
-      override;
 
  private:
   typedef std::unordered_map<loop_closure::KeyframeId,

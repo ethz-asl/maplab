@@ -18,6 +18,7 @@
 #include <maplab-common/pose_types.h>
 #include <maplab-common/proto-helpers.h>
 #include <maplab-common/traits.h>
+#include <sensors/absolute-6dof-pose.h>
 
 #include "vi-map/landmark-store.h"
 #include "vi-map/landmark.h"
@@ -25,25 +26,29 @@
 #include "vi-map/unique-id.h"
 #include "vi-map/vi_map.pb.h"
 
-namespace map_optimization_legacy {
-class ViwlsGraph;  // Used for testing.
+namespace visual_inertial_mapping {
+class VIMappingTestApp;
 }
 
 namespace vi_map {
 
 class Vertex : public pose_graph::Vertex {
-  friend class map_optimization_legacy::ViwlsGraph;  // Test.
-  friend class MapConsistencyCheckTest;      // Test.
-  friend class VertexResourcesTest;          // Test.
+  friend class MapConsistencyCheckTest;  // Test.
+  friend class VertexResourcesTest;      // Test.
+  friend class visual_inertial_mapping::VIMappingTestApp;
   FRIEND_TEST(MapConsistencyCheckTest, mapInconsistentMissingBackLink);
   friend class VIMap;
 
  public:
   MAPLAB_POINTER_TYPEDEFS(Vertex);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   friend void addObservedLandmarkId(
       const LandmarkId& landmark_id, vi_map::Vertex* vertex_ptr);
 
+  // Create a complete vertex with VisualNFrame including visual features and
+  // landmarks and IMU measurements. This constructor also includes descriptor
+  // scales.
   Vertex(
       const pose_graph::VertexId& vertex_id,
       const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
@@ -55,6 +60,11 @@ class Vertex : public pose_graph::Vertex {
       const vi_map::MissionId& mission_id, const aslam::FrameId& frame_id,
       int64_t frame_timestamp, const aslam::NCamera::Ptr cameras);
 
+  // Create a complete vertex with VisualNFrame including visual features and
+  // landmarks and IMU measurements. This constructor does NOT include
+  // descriptor scales.
+  // NOTE: make sure the NCamera points to the same object as the one in
+  // the sensor manager of the map that contains this vertex.
   Vertex(
       const pose_graph::VertexId& vertex_id,
       const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
@@ -65,6 +75,10 @@ class Vertex : public pose_graph::Vertex {
       const vi_map::MissionId& mission_id, const aslam::FrameId& frame_id,
       int64_t frame_timestamp, const aslam::NCamera::Ptr cameras);
 
+  // Create a complete vertex from an existing VisualNFrame and IMU
+  // measurements.
+  // NOTE: make sure the NCamera points to the same object as the one in
+  // the sensor manager of the map that contains this vertex.
   Vertex(
       const pose_graph::VertexId& vertex_id,
       const Eigen::Matrix<double, 6, 1>& imu_ba_bw,
@@ -72,18 +86,44 @@ class Vertex : public pose_graph::Vertex {
       const std::vector<std::vector<LandmarkId>>& n_frame_landmarks,
       const vi_map::MissionId& mission_id);
 
+  // Create a complete vertex from an existing VisualNFrame WITHOUT IMU
+  // measurements.
+  // NOTE: make sure the NCamera pointer inside the VisualNFrame points to the
+  // same object as the one in the sensor manager of the map that contains this
+  // vertex.
   Vertex(
       const pose_graph::VertexId& vertex_id,
       const aslam::VisualNFrame::Ptr visual_n_frame,
       const vi_map::MissionId& mission_id);
 
+  // Create a vertex with VisualNFrame based on the camera model provided. Does
+  // not include any measurements.
+  // NOTE: make sure the NCamera points to the same object as the one in
+  // the sensor manager of the map that contains this vertex.
   explicit Vertex(const aslam::NCamera::Ptr cameras);
+
+  // Create a clone of this vertex (state, including IMU, landmarks and visual
+  // measurements) but make sure the camera pointer in the VisualFrames points
+  // to this new camera. This will fail if the camera is not identical to the
+  // one in the vertex.
+  // NOTE: make sure the NCamera points to the same object as the one in
+  // the sensor manager of the map that will contain this new vertex.
+  Vertex* cloneWithVisualNFrame(
+      const aslam::NCamera::Ptr ncamera_for_cloned_vertex) const;
+
+  // Create a clone of this vertex without visual infromation (state, including
+  // IMU).
+  Vertex* cloneWithoutVisualNFrame() const;
 
   // Default constructor for methods which take a Vertex* as argument and
   // populate it.
   Vertex();
   virtual ~Vertex() {}
-  Vertex(const Vertex&) = default;
+
+  // These need to be deleted, because of the shared pointer to the VisualNFrame
+  // this is very dangerous, as it leads to multiple vertices pointing to the
+  // same VisualNFrame!
+  Vertex(const Vertex&) = delete;
   Vertex& operator=(const Vertex&) = delete;
 
   virtual const pose_graph::VertexId& id() const;
@@ -140,21 +180,27 @@ class Vertex : public pose_graph::Vertex {
       unsigned int frame_idx, LandmarkIdList* landmark_ids) const;
   const LandmarkIdList& getFrameObservedLandmarkIds(
       unsigned int frame_idx) const;
+  void getFrameObservedLandmarkIdsOfType(
+      unsigned int frame_idx, LandmarkIdList* landmark_ids,
+      int feature_type) const;
   void getAllObservedLandmarkIds(LandmarkIdList* landmark_ids) const;
   void getAllObservedLandmarkIds(
       std::vector<LandmarkIdList>* landmark_ids) const;
+  void getAllObservedLandmarkIdsOfType(
+      std::vector<LandmarkIdList>* landmark_ids_all, int feature_type) const;
+  size_t getNumLandmarkObservations(const LandmarkId& landmark_id) const;
 
   // Calls action on each possible keypoint identifier in this vertex.
   void forEachKeypoint(
       const std::function<void(const KeypointIdentifier&)>& action) const;
-  void forEachFrame(
-      const std::function<
-          void(const unsigned int frame_idx, const aslam::VisualFrame& frame)>&
-          action) const;
+  void forEachFrame(const std::function<void(
+                        const unsigned int frame_idx,
+                        const aslam::VisualFrame& frame)>& action) const;
 
   inline const vi_map::MissionId& getMissionId() const;
   inline void setMissionId(const vi_map::MissionId& mission_id);
 
+  inline bool hasVisualNFrame() const;
   inline aslam::VisualNFrame& getVisualNFrame();
   inline const aslam::VisualNFrame& getVisualNFrame() const;
   inline aslam::VisualNFrame::Ptr& getVisualNFrameShared();
@@ -242,14 +288,9 @@ class Vertex : public pose_graph::Vertex {
   // keypoints to one of the frames. Resizes the observed_landmark_ids_ vector
   // for every frame based on the number of keypoints the frames number of
   // keypoints.
-  // Crashes hard if:
-  //    The new number of keypoints is smaller than the old one.
-  //    The keypoint vector sizes are not all equal (if set)
   void expandVisualObservationContainersIfNecessary();
 
   size_t discardUntrackedObservations();
-
-  std::string getComparisonString(const Vertex& other) const;
 
   inline int64_t getMinTimestampNanoseconds() const;
 
@@ -259,23 +300,19 @@ class Vertex : public pose_graph::Vertex {
   void updateIdInObservedLandmarkIdList(
       const LandmarkId& old_landmark_id, const LandmarkId& new_landmark_id);
 
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  void removeObservedLandmarkIdList(const LandmarkId& landmark_id);
+
+  size_t getNumAbsolute6DoFMeasurements() const;
+  bool hasAbsolute6DoFMeasurements() const;
+  const std::vector<Absolute6DoFMeasurement>& getAbsolute6DoFMeasurements()
+      const;
+  std::vector<Absolute6DoFMeasurement>& getAbsolute6DoFMeasurements();
+  void addAbsolute6DoFMeasurement(const Absolute6DoFMeasurement& measurement);
 
  private:
   // Used for testing only.
   void addObservedLandmarkId(
       unsigned int frame_idx, const LandmarkId& landmark_id);
-
-  // Utility function to determine the new size of observed_landmark_ids_ if
-  // the number of keypoints increase.
-  // previous_new_size: new observed_landmark_ids size determined by a
-  //                    previously checked keypoint vector size
-  // current_new_size:  new observed_landmark_ids size determined by the
-  //                    current keypoint vector size
-  // old_size:          original observed_landmark_ids size
-  // returns:           the new size of observed_landmark_ids
-  int determineNewObservedLandmarkIdVectorSize(
-      int previous_new_size, int current_new_size, int old_size) const;
 
   pose_graph::VertexId id_;
   vi_map::MissionId mission_id_;
@@ -298,6 +335,8 @@ class Vertex : public pose_graph::Vertex {
 
   // VisualFrame resources;
   FrameResourceMap resource_map_;
+
+  std::vector<Absolute6DoFMeasurement> absolute_6dof_measurements_;
 };
 
 }  // namespace vi_map

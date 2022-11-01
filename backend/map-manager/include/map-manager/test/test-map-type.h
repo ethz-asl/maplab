@@ -19,8 +19,13 @@ class TestMapType : public MapInterface<TestMapType> {
   void setMapFolder(const std::string& /*map_folder*/) {}
 
   virtual void deepCopy(const TestMapType& /*other*/) {}
-  virtual void mergeAllMissionsFromMap(
-      const TestMapType& /*source_map_merge_from*/) {}
+  virtual bool mergeAllMissionsFromMap(
+      const TestMapType& /*source_map_merge_from*/) {
+    return false;
+  }
+  virtual bool mergeAllSubmapsFromMap(const TestMapType& /*other*/) {
+    return false;
+  }
 
   static std::string getSubFolderName() {
     return "";

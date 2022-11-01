@@ -17,13 +17,12 @@ enum class ResidualType {
   kVisualBearingError,
   kInertial,
   kPosePrior,
-  k6DoFGPS,
   kOdometry,
   kLoopClosure,
   kSwitchVariable,
   kVelocityPrior,
-  k3DoFGPS,
   kGenericPrior,
+  kLidarLandmarkError,
 };
 
 struct ResidualInformation {

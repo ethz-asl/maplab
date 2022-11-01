@@ -6,6 +6,8 @@
 #include <math.h>
 #include <string>
 
+DECLARE_bool(show_progress_bar);
+
 namespace common {
 
 const std::string kPreText = "Progress: ";
@@ -16,9 +18,16 @@ const size_t kProgressBarWidth = 50u;
 const double kProgressBarWidthFloatingPoint =
     static_cast<double>(kProgressBarWidth);
 
-ProgressBar::ProgressBar(size_t num_elements)
+ProgressBar::ProgressBar(const size_t num_elements)
     : num_elements_(static_cast<double>(num_elements)),
-      num_elements_processed_(0u) {}
+      num_elements_processed_(0u),
+      verbosity_level_(0) {}
+
+ProgressBar::ProgressBar(
+    const size_t verbosity_level, const size_t num_elements)
+    : num_elements_(static_cast<double>(num_elements)),
+      num_elements_processed_(0u),
+      verbosity_level_(verbosity_level) {}
 
 void ProgressBar::update(size_t num_elements_processed) {
   CHECK_LE(num_elements_processed, num_elements_)
@@ -39,10 +48,15 @@ void ProgressBar::increment() {
 void ProgressBar::reset(size_t num_elements) {
   num_elements_ = num_elements;
   num_elements_processed_ = 0u;
-  std::cout << std::endl;
+  if (FLAGS_show_progress_bar) {
+    std::cout << std::endl;
+  }
 }
 
 void ProgressBar::print() {
+  if (!FLAGS_show_progress_bar || !VLOG_IS_ON(verbosity_level_)) {
+    return;
+  }
   double num_progress_symbols = kProgressBarWidthFloatingPoint *
                                 static_cast<double>(num_elements_processed_) /
                                 static_cast<double>(num_elements_);

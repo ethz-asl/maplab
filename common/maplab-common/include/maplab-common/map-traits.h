@@ -46,12 +46,17 @@ struct MapTraits {
 
   // Copy/merge.
   static void deepCopy(const MapType& source_map, MapType* target_map) {
-    CHECK_NOTNULL(target_map)->deepCopyFrom(source_map);
+    CHECK_NOTNULL(target_map)->deepCopy(source_map);
   }
-  static void mergeTwoMaps(
+  static bool mergeTwoMaps(
       const MapType& source_map_merge_from, MapType* map_merge_base) {
-    CHECK_NOTNULL(map_merge_base)
+    return CHECK_NOTNULL(map_merge_base)
         ->mergeAllMissionsFromMap(source_map_merge_from);
+  }
+  static bool mergeSubmapIntoBaseMap(
+      const MapType& source_merge_submap, MapType* source_merge_base_map) {
+    return CHECK_NOTNULL(source_merge_base_map)
+        ->mergeAllSubmapsFromMap(source_merge_submap);
   }
 
   // Save/load.
@@ -63,11 +68,6 @@ struct MapTraits {
   // user/provided/folder/path/vi_map.
   static std::string getSubFolderName() {
     return MapType::getSubFolderName();
-  }
-  static bool getListOfExistingMapFiles(
-      const std::string& map_folder,
-      std::vector<std::string>* list_of_map_files) {
-    return MapType::getListOfExistingMapFiles(map_folder, list_of_map_files);
   }
   static bool hasMapOnFileSystem(const std::string& folder_path) {
     return MapType::hasMapOnFileSystem(folder_path);
@@ -100,7 +100,7 @@ struct MapTraits {
 ///   ...
 ///
 ///   // Also implement the functions from MapInterface.
-///   virtual void deepCopyFrom(const MapType& other) override;
+///   virtual void deepCopy(const MapType& other) override;
 ///   ...
 /// };
 /// \endcode
@@ -108,7 +108,8 @@ struct MapTraits {
 template <typename MapType>
 struct MapInterface {
   virtual void deepCopy(const MapType& other) = 0;
-  virtual void mergeAllMissionsFromMap(const MapType& other) = 0;
+  virtual bool mergeAllMissionsFromMap(const MapType& other) = 0;
+  virtual bool mergeAllSubmapsFromMap(const MapType& other) = 0;
   virtual bool loadFromFolder(const std::string& folder_path) = 0;
   virtual bool saveToFolder(
       const std::string& folder_path, const SaveConfig& config) = 0;

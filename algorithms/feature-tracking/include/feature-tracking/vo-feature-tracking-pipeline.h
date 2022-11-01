@@ -1,15 +1,18 @@
 #ifndef FEATURE_TRACKING_VO_FEATURE_TRACKING_PIPELINE_H_
 #define FEATURE_TRACKING_VO_FEATURE_TRACKING_PIPELINE_H_
 
+#include <memory>
 #include <vector>
 
 #include <aslam/common/memory.h>
 #include <aslam/common/thread-pool.h>
 #include <aslam/frames/feature-track.h>
+#include <aslam/tracker/feature-tracker.h>
 #include <aslam/tracker/track-manager.h>
 #include <maplab-common/macros.h>
 #include <posegraph/unique-id.h>
 
+#include "feature-tracking/feature-detection-extraction.h"
 #include "feature-tracking/feature-tracking-pipeline.h"
 
 namespace feature_tracking {
@@ -19,9 +22,13 @@ class VOFeatureTrackingPipeline : public FeatureTrackingPipeline {
   MAPLAB_POINTER_TYPEDEFS(VOFeatureTrackingPipeline);
   MAPLAB_DISALLOW_EVIL_CONSTRUCTORS(VOFeatureTrackingPipeline);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  VOFeatureTrackingPipeline();
-  explicit VOFeatureTrackingPipeline(const aslam::NCamera::ConstPtr& ncamera);
+  VOFeatureTrackingPipeline(
+      const aslam::NCamera::ConstPtr& ncamera,
+      const FeatureTrackingExtractorSettings& extractor_settings,
+      const FeatureTrackingDetectorSettings& detector_settings);
   virtual ~VOFeatureTrackingPipeline();
+
+  void initializeFirstNFrame(aslam::VisualNFrame* nframe_k);
 
   void trackFeaturesNFrame(
       const aslam::Quaternion& q_Bkp1_Bk, aslam::VisualNFrame* nframe_kp1,
@@ -30,8 +37,8 @@ class VOFeatureTrackingPipeline : public FeatureTrackingPipeline {
       aslam::FrameToFrameMatchesList* outlier_matches_kp1_k);
 
  private:
-  virtual void initialize(const aslam::NCamera::ConstPtr& ncamera) override;
-  virtual void trackFeaturesNFrame(
+  void initialize(const aslam::NCamera::ConstPtr& ncamera) override;
+  void trackFeaturesNFrame(
       const aslam::Transformation& T_Bk_Bkp1, aslam::VisualNFrame* nframe_k,
       aslam::VisualNFrame* nframe_kp1) override;
 
@@ -55,8 +62,12 @@ class VOFeatureTrackingPipeline : public FeatureTrackingPipeline {
   /// Thread pool for tracking and track extraction.
   std::unique_ptr<aslam::ThreadPool> thread_pool_;
 
-  bool has_feature_extraction_been_performed_on_first_nframe_;
+  bool first_nframe_initialized_;
+
+  const FeatureTrackingExtractorSettings extractor_settings_;
+  const FeatureTrackingDetectorSettings detector_settings_;
 };
+
 }  // namespace feature_tracking
 
 #endif  // FEATURE_TRACKING_VO_FEATURE_TRACKING_PIPELINE_H_

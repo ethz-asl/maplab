@@ -5,10 +5,10 @@
 
 #include <Eigen/Core>
 #include <aslam/common/time.h>
-#include <maplab-common/temporal-buffer.h>
+#include <aslam/common/unique-id.h>
+#include <maplab-common/threadsafe-temporal-buffer.h>
 
-#include "sensors/measurements.pb.h"
-#include "sensors/sensor.h"
+#include "sensors/sensor-types.h"
 
 #define DEFINE_MEASUREMENT_HASH(measurement)                         \
   namespace std {                                                    \
@@ -20,21 +20,21 @@
   };                                                                 \
   }  // namespace std
 
-namespace vi_map {
-
-#define DEFINE_MEAUREMENT_CONTAINERS(measurement)              \
+#define DEFINE_MEASUREMENT_CONTAINERS(measurement)              \
   typedef AlignedUnorderedSet<measurement> measurement##Set;   \
   typedef Aligned<std::vector, measurement> measurement##List; \
-  typedef MeasurementBuffer<measurement> measurement##Buffer;
+  typedef MeasurementBuffer<measurement> measurement##Buffer;  \
+  typedef ThreadsafeMeasurementBuffer<measurement>             \
+      measurement##ThreadsafeBuffer;
 
-template <class DerivedMeasurement>
-SensorType measurementToSensorType();
+namespace vi_map {
 
 class Measurement {
  public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Measurement() : timestamp_nanoseconds_(0) {}
-  Measurement(const SensorId& sensor_id, const int64_t timestamp_nanoseconds)
+
+  explicit Measurement(
+      const aslam::SensorId& sensor_id, const int64_t timestamp_nanoseconds)
       : sensor_id_(sensor_id), timestamp_nanoseconds_(timestamp_nanoseconds) {
     CHECK(sensor_id_.isValid());
     CHECK_GE(timestamp_nanoseconds, 0);
@@ -54,14 +54,19 @@ class Measurement {
     timestamp_nanoseconds_ = timestamp_nanoseconds;
   }
 
-  inline const SensorId& getSensorId() const {
+  inline int64_t* getTimestampNanosecondsMutable() {
+    return &timestamp_nanoseconds_;
+  }
+
+  inline const aslam::SensorId& getSensorId() const noexcept {
     return sensor_id_;
   }
 
-  void serialize(measurements::proto::Measurement* proto_measurement) const;
-  void deserialize(const measurements::proto::Measurement& proto_measurement);
+  inline void setSensorId(const aslam::SensorId& sensor_id) {
+    sensor_id_ = sensor_id;
+  }
 
-  bool isValid() const {
+  inline bool isValid() const {
     if (!sensor_id_.isValid()) {
       LOG(ERROR) << "Invalid sensor id.";
       return false;
@@ -73,7 +78,7 @@ class Measurement {
     return isValidImpl();
   }
 
-  void setRandom() {
+  inline void setRandom() {
     CHECK(sensor_id_.isValid());
     std::random_device random_device;
     std::default_random_engine random_engine(random_device());
@@ -86,7 +91,7 @@ class Measurement {
   }
 
  protected:
-  explicit Measurement(const SensorId& sensor_id)
+  explicit Measurement(const aslam::SensorId& sensor_id)
       : sensor_id_(sensor_id), timestamp_nanoseconds_(0) {
     CHECK(sensor_id_.isValid());
   }
@@ -95,21 +100,25 @@ class Measurement {
   virtual bool isValidImpl() const = 0;
   virtual void setRandomImpl() = 0;
 
-  SensorId sensor_id_;
+  aslam::SensorId sensor_id_;
   int64_t timestamp_nanoseconds_;
 };
+
 template <class MeasurementType>
 using MeasurementBuffer = common::TemporalBuffer<
     MeasurementType,
     Eigen::aligned_allocator<std::pair<const int64_t, MeasurementType>>>;
-
+template <class MeasurementType>
+using ThreadsafeMeasurementBuffer = common::ThreadsafeTemporalBuffer<
+    MeasurementType,
+    Eigen::aligned_allocator<std::pair<const int64_t, MeasurementType>>>;
 }  // namespace vi_map
 
 namespace std {
 template <>
 struct hash<vi_map::Measurement> {
   std::size_t operator()(const vi_map::Measurement& value) const {
-    std::size_t h0(std::hash<vi_map::SensorId>()(value.getSensorId()));
+    std::size_t h0(std::hash<aslam::SensorId>()(value.getSensorId()));
     std::size_t h1(std::hash<int64_t>()(value.getTimestampNanoseconds()));
     return h0 ^ h1;
   }

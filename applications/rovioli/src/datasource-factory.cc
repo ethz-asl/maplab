@@ -6,7 +6,6 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <maplab-common/file-system-tools.h>
-#include <vio-common/rostopic-settings.h>
 
 #include "rovioli/datasource-rosbag.h"
 #include "rovioli/datasource-rostopic.h"
@@ -27,8 +26,7 @@ DataSourceType stringToDataSource(const std::string& str) {
 }
 
 DataSource* createAndConfigureDataSourcefromGFlags(
-    const aslam::NCamera& camera_system, const vi_map::Imu& imu_sensor) {
-  const vio_common::RosTopicSettings topic_settings(camera_system, imu_sensor);
+    const vio_common::RosTopicSettings& topic_settings) {
   const DataSourceType source_type = stringToDataSource(FLAGS_datasource_type);
   switch (source_type) {
     case DataSourceType::kRosBag:

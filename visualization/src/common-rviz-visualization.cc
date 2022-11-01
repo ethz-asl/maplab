@@ -2,16 +2,45 @@
 
 #include <algorithm>
 
+#include <Eigen/Eigenvalues>
+#include <aslam/common/covariance-helpers.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <glog/logging.h>
-#include <pcl_ros/point_cloud.h>
+#include <minkindr_conversions/kindr_msg.h>
 #include <tf/LinearMath/Transform.h>
 #include <tf/transform_broadcaster.h>
 
 #include "visualization/color.h"
 #include "visualization/eigen-visualization.h"
 
-namespace visualization {
+DEFINE_string(tf_map_frame, "map", "map tf frame name");
+DEFINE_string(tf_mission_frame, "mission", "mission tf frame name");
+DEFINE_string(
+    tf_abs_6dof_sensor_frame, "abs_6dof_sensor",
+    "abs_6dof_sensor tf frame name");
+DEFINE_string(
+    tf_odometry_6dof_sensor_frame, "odometry_6dof_sensor",
+    "odometry_6dof_sensor tf frame name");
+DEFINE_string(
+    tf_wheel_odometry_sensor_frame, "wheel_odometry_sensor",
+    "wheel_odometry_sensor tf frame name");
+DEFINE_string(tf_lc_sensor_frame, "lc_sensor", "lc_sensor tf frame name");
+DEFINE_string(tf_lidar_sensor_frame, "lidar_sensor", "lidar tf frame name");
+DEFINE_string(
+    tf_pointcloud_map_frame, "pointcloud_map", "pointcloud_map tf frame name");
+DEFINE_string(
+    tf_external_features_frame, "external_features", "external_features tf frame name");
+DEFINE_string(
+    tf_gps_wgs_sensor_frame, "gps_wgs_sensor", "gps_wgs_sensor tf frame name");
+DEFINE_string(
+    tf_gps_utm_sensor_frame, "gps_utm_sensor", "gps_utm_sensor tf frame name");
+DEFINE_string(tf_imu_frame, "imu", "imu tf frame name");
+DEFINE_string(tf_camera_frame, "camera", "camera tf frame name");
+DEFINE_string(tf_ncamera_frame, "ncamera", "ncamera tf frame name");
+DEFINE_string(tf_imu_refined_frame, "imu_refined", "refined imu tf frame name");
+DEFINE_string(vis_default_namespace, "maplab_rviz_namespace", "RVIZ namespace");
 
+namespace visualization {
 void setPoseToIdentity(visualization_msgs::Marker* marker) {
   CHECK_NOTNULL(marker);
 
@@ -45,10 +74,10 @@ void createEmptySphereListMarker(
   CHECK_GE(scale, 0.0);
   CHECK_GE(alpha, 0.0);
   CHECK_LE(alpha, 1.0);
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   sphere_marker->points.clear();
   sphere_marker->colors.clear();
@@ -59,9 +88,7 @@ void createEmptySphereListMarker(
   sphere_marker->scale.y = scale;
   sphere_marker->scale.z = scale;
 
-  sphere_marker->pose.position.x = 0.0;
-  sphere_marker->pose.position.y = 0.0;
-  sphere_marker->pose.position.z = 0.0;
+  visualization::setPoseToIdentity(sphere_marker);
 
   sphere_marker->color.a = alpha;
   sphere_marker->header.frame_id = frame;
@@ -215,10 +242,10 @@ void publishCoordinateFrame(
     const aslam::Transformation& T_G_fi, const std::string& label, size_t id,
     const std::string& topic) {
   CHECK(!topic.empty());
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   Pose pose;
   pose.G_p_B = T_G_fi.getPosition();
@@ -269,12 +296,12 @@ void publishCoordinateFrame(
 void publishLines(
     const visualization::LineSegmentVector& line_segments, size_t marker_id,
     const std::string& frame, const std::string& name_space,
-    const std::string& topic) {
+    const std::string& topic, const bool wait_for_subscriber) {
   CHECK(!topic.empty());
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   visualization_msgs::Marker marker;
   marker.type = visualization_msgs::Marker::LINE_LIST;
@@ -283,9 +310,7 @@ void publishLines(
 
   double alpha = 1.0;
   if (!line_segments.empty()) {
-    marker.scale.x = line_segments[0].scale;
-    marker.scale.y = line_segments[0].scale;
-    marker.scale.z = line_segments[0].scale;
+    marker.scale.x = line_segments[0].scale;  // y and z are not used.
     alpha = line_segments[0].alpha;
   }
 
@@ -313,7 +338,8 @@ void publishLines(
 
     CHECK_EQ(line_segments[idx].alpha, alpha)
         << "All line segments must have "
-           "identical alpha. Use a marker array instead if you want individual "
+           "identical alpha. Use a marker array instead if you want "
+           "individual "
            "alpha values.";
     std_msgs::ColorRGBA color =
         commonColorToRosColor(line_segments[idx].color, alpha);
@@ -325,7 +351,8 @@ void publishLines(
     marker.points[(2u * idx) + 1u] = vertex1;
   }
 
-  RVizVisualizationSink::publish<visualization_msgs::Marker>(topic, marker);
+  RVizVisualizationSink::publish<visualization_msgs::Marker>(
+      topic, marker, wait_for_subscriber);
   ros::spinOnce();
 }
 
@@ -337,10 +364,10 @@ void publishVerticesFromPoseVector(
   if (num_poses == 0u) {
     return;
   }
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   visualization_msgs::MarkerArray pose_array;
 
@@ -372,13 +399,13 @@ void publish3DPointsAsPointCloud(
   }
   CHECK_GE(alpha, 0.0);
   CHECK_LE(alpha, 1.0);
-  if (alpha == 0.0) {
+  if (alpha < 1e-6) {
     LOG(WARNING) << "Alpha is 0.0. The point cloud will be invisible.";
   }
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   sensor_msgs::PointCloud2 point_cloud;
   eigen3XdMatrixToPointCloud(
@@ -399,10 +426,10 @@ void publish3DPointsAsPointCloud(
     return;
   }
   CHECK_EQ(num_points, static_cast<size_t>(intensities.rows()));
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   sensor_msgs::PointCloud2 point_cloud;
   eigen3XfMatrixWithIntensitiesToPointCloud(points, intensities, &point_cloud);
@@ -421,10 +448,10 @@ void publishSpheresAsPointCloud(
   if (num_sphers == 0u) {
     return;
   }
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   sensor_msgs::PointCloud2 point_cloud;
   spheresToPointCloud(spheres, &point_cloud);
@@ -442,7 +469,7 @@ void publish3DPointsAsSpheres(
   CHECK(!topic.empty());
   CHECK_GE(alpha, 0.0);
   CHECK_LE(alpha, 1.0);
-  if (alpha == 0.0) {
+  if (alpha < 1e-6) {
     LOG(WARNING) << "Alpha is 0.0. The spheres will be invisible.";
   }
   const size_t num_points = static_cast<size_t>(points.cols());
@@ -484,10 +511,11 @@ void publishLines(
   const size_t num_lines = points_from.cols();
   CHECK_GE(alpha, 0.0);
   CHECK_LE(alpha, 1.0);
-  if (alpha == 0.0) {
+  CHECK_GE(scale, 0.0);
+  if (alpha < 1e-6) {
     LOG(WARNING) << "Alpha is 0.0. The lines will be invisible.";
   }
-  if (scale == 0.0) {
+  if (scale < 1e-6) {
     LOG(WARNING) << "Scale is 0.0. The lines will be invisible.";
   }
 
@@ -523,7 +551,7 @@ void publishLines(
   }
   CHECK_GE(alpha, 0.0);
   CHECK_LE(alpha, 1.0);
-  if (alpha == 0.0) {
+  if (alpha < 1e-6) {
     LOG(WARNING) << "Alpha is 0.0. The lines will be invisible.";
   }
 
@@ -539,6 +567,79 @@ void publishLines(
       name_space, topic);
 }
 
+void publishArrow(
+    const Arrow& arrow, size_t marker_id, const std::string& frame,
+    const std::string& name_space, const std::string& topic) {
+  CHECK(!topic.empty());
+
+  CHECK_GE(arrow.alpha, 0.0);
+  CHECK_LE(arrow.alpha, 1.0);
+  CHECK_GE(arrow.scale, 0.0);
+  if (arrow.alpha < 1e-6) {
+    LOG(WARNING) << "Alpha is 0.0. The arrow will be invisible.";
+  }
+  if (arrow.scale < 1e-6) {
+    LOG(WARNING) << "Scale is 0.0. The arrow will be invisible.";
+  }
+
+  visualization_msgs::Marker marker;
+  marker.id = marker_id;
+  marker.ns = name_space;
+
+  std_msgs::ColorRGBA color = commonColorToRosColor(arrow.color, arrow.alpha);
+  drawArrow(
+      arrow.from, arrow.to, color, arrow.scale * 0.1, arrow.scale * 0.2, 0,
+      &marker);
+
+  marker.header.frame_id = frame;
+  marker.header.stamp = ros::Time();
+
+  RVizVisualizationSink::publish<visualization_msgs::Marker>(topic, marker);
+}
+
+void publishArrows(
+    const ArrowVector& arrows, size_t marker_id, const std::string& frame,
+    const std::string& name_space, const std::string& topic) {
+  CHECK(!topic.empty());
+
+  visualization_msgs::MarkerArray marker_array;
+  for (uint16_t i = 0; i < arrows.size(); ++i) {
+    const Arrow& arrow = arrows[i];
+    visualization_msgs::Marker marker;
+
+    // Can't draw 0 length transformation edges so we skip them
+    double norm = (arrow.to - arrow.from).norm();
+    if (norm < 1e-6) {
+      continue;
+    }
+
+    CHECK_GE(arrow.alpha, 0.0);
+    CHECK_LE(arrow.alpha, 1.0);
+    CHECK_GE(arrow.scale, 0.0);
+    if (arrow.alpha < 1e-6) {
+      LOG(WARNING) << "Alpha is 0.0. The arrow will be invisible.";
+    }
+    if (arrow.scale < 1e-6) {
+      LOG(WARNING) << "Scale is 0.0. The arrow will be invisible.";
+    }
+
+    marker.id = marker_id + i;
+    marker.ns = name_space;
+
+    std_msgs::ColorRGBA color = commonColorToRosColor(arrow.color, arrow.alpha);
+    drawArrow(
+        arrow.from, arrow.to, color, norm * 0.05, norm * 0.1, norm * 0.2,
+        &marker);
+
+    marker.header.frame_id = frame;
+    marker.header.stamp = ros::Time();
+    marker_array.markers.emplace_back(marker);
+  }
+
+  RVizVisualizationSink::publish<visualization_msgs::MarkerArray>(
+      topic, marker_array);
+}
+
 void publishNormals(
     const Eigen::Matrix3Xd& p_G_p0, const Eigen::Matrix3Xd& bearings,
     const std::string& frame, const std::string& name_space,
@@ -548,10 +649,10 @@ void publishNormals(
   if (num_normals == 0u) {
     return;
   }
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   constexpr double kArrowLength = 0.2;
   constexpr double kArrowDiameter = 0.1;
@@ -571,8 +672,8 @@ void publishNormals(
     rgba.a = 1.0;
 
     drawArrow(
-        p_G_p0.col(normal_idx), p_G_p1.col(normal_idx), rgba, kArrowDiameter,
-        &marker);
+        p_G_p0.col(normal_idx), p_G_p1.col(normal_idx), rgba,
+        kArrowDiameter * 0.1, kArrowDiameter * 0.2, 0, &marker);
 
     marker.header.frame_id = frame;
     marker.header.stamp = ros::Time::now();
@@ -591,10 +692,10 @@ void publishFilledBoxes(
   if (num_boxes == 0u) {
     return;
   }
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   visualization_msgs::MarkerArray marker_wireframes;
   visualization_msgs::MarkerArray marker_fills;
@@ -614,9 +715,7 @@ void publishFilledBoxes(
       marker_wireframe.color =
           commonColorToRosColor(box.wireframe_color, box.wireframe_alpha);
 
-      marker_wireframe.scale.x = box.wireframe_width;
-      marker_wireframe.scale.y = box.wireframe_width;
-      marker_wireframe.scale.z = box.wireframe_width;
+      marker_wireframe.scale.x = box.wireframe_width;  // y and z are not used.
 
       geometry_msgs::Point vertex0;
       geometry_msgs::Point vertex1;
@@ -744,13 +843,13 @@ void publishSpheres(
 
   const double alpha = spheres[0].alpha;
   CHECK_GE(alpha, 0.0);
-  if (alpha == 0.0) {
+  CHECK_LE(alpha, 1.0);
+  if (alpha < 1e-6) {
     LOG(WARNING) << "0 alpha used for publishing a list of spheres. They will "
                     "all be invisible!";
   }
 
   const double scale = spheres[0].radius;
-
   visualization_msgs::Marker marker;
   createEmptySphereListMarker(
       marker_id, frame, name_space, scale, alpha, &marker);
@@ -791,13 +890,13 @@ void publishMesh(
     const std::string& topic) {
   CHECK(!topic.empty());
   CHECK_GE(scale, 0.0);
-  if (scale == 0.0) {
+  if (scale < 1e-6) {
     LOG(WARNING) << "Scale is 0.0. The mesh will be invisible.";
   }
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   visualization_msgs::Marker marker;
   marker.type = visualization_msgs::Marker::TRIANGLE_LIST;
@@ -844,13 +943,13 @@ void publishMesh(
     const std::string& topic) {
   CHECK(!topic.empty());
   CHECK_GE(scale, 0.0);
-  if (scale == 0.0) {
+  if (scale < 1e-6) {
     LOG(WARNING) << "Scale is 0.0. The mesh will be invisible.";
   }
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   visualization_msgs::Marker marker;
   marker.type = visualization_msgs::Marker::MESH_RESOURCE;
@@ -886,7 +985,7 @@ void publishTransformations(
   CHECK(!topic.empty());
   CHECK_GE(alpha, 0.0);
   CHECK_LE(alpha, 1.0);
-  if (alpha == 0.0) {
+  if (alpha < 1e-6) {
     LOG(WARNING) << "Alpha is 0.0. The transformations will be invisible.";
   }
   const size_t num_transformations = Ts.size();
@@ -894,10 +993,10 @@ void publishTransformations(
     return;
   }
   CHECK_EQ(num_transformations, colors.size());
-  CHECK(ros::isInitialized())
-      << "ROS hasn't been initialized. Call "
-      << "RVizVisualizationSink::init() in your application code if you intend"
-      << " to use RViz visualizations.";
+  CHECK(ros::isInitialized()) << "ROS hasn't been initialized. Call "
+                              << "RVizVisualizationSink::init() in your "
+                                 "application code if you intend"
+                              << " to use RViz visualizations.";
 
   visualization_msgs::MarkerArray marker_array;
   marker_array.markers.resize(num_transformations);
@@ -919,7 +1018,8 @@ void publishTransformations(
 
     drawArrow(
         T.getPosition(), T * (kArrowLength * Eigen::Vector3d::UnitZ()),
-        commonColorToRosColor(color, alpha), kArrowDiameter, &marker);
+        commonColorToRosColor(color, alpha), kArrowDiameter * 0.1,
+        kArrowDiameter * 0.2, 0, &marker);
   }
   RVizVisualizationSink::publish<visualization_msgs::MarkerArray>(
       topic, marker_array);
@@ -959,6 +1059,217 @@ void publishTF(
   static tf::TransformBroadcaster tf_br;
   tf_br.sendTransform(
       tf::StampedTransform(tf_transform, ros_time, frame_id, child_frame_id));
+}
+
+const std::string convertSensorTypeToTfFrameId(
+    const vi_map::SensorType sensor_type) {
+  switch (sensor_type) {
+    case vi_map::SensorType::kNCamera:
+      return FLAGS_tf_ncamera_frame;
+    case vi_map::SensorType::kCamera:
+      return FLAGS_tf_camera_frame;
+    case vi_map::SensorType::kImu:
+      return FLAGS_tf_imu_frame;
+    case vi_map::SensorType::kLoopClosureSensor:
+      return FLAGS_tf_lc_sensor_frame;
+    case vi_map::SensorType::kGpsWgs:
+      return FLAGS_tf_gps_wgs_sensor_frame;
+    case vi_map::SensorType::kGpsUtm:
+      return FLAGS_tf_gps_utm_sensor_frame;
+    case vi_map::SensorType::kLidar:
+      return FLAGS_tf_lidar_sensor_frame;
+    case vi_map::SensorType::kPointCloudMapSensor:
+      return FLAGS_tf_pointcloud_map_frame;
+    case vi_map::SensorType::kOdometry6DoF:
+      return FLAGS_tf_odometry_6dof_sensor_frame;
+    case vi_map::SensorType::kAbsolute6DoF:
+      return FLAGS_tf_abs_6dof_sensor_frame;
+    case vi_map::SensorType::kWheelOdometry:
+      return FLAGS_tf_wheel_odometry_sensor_frame;
+    case vi_map::SensorType::kExternalFeatures:
+      return FLAGS_tf_external_features_frame;
+    default:
+      LOG(FATAL) << "Unknown sensor type: " << static_cast<int>(sensor_type);
+  }
+}
+
+void publishSensorTFs(const vi_map::SensorManager& sensor_manager,
+                      const ros::Time& ros_time) {
+  aslam::SensorIdSet all_sensor_ids;
+  sensor_manager.getAllSensorIds(&all_sensor_ids);
+
+  const uint32_t num_sensor_types =
+      static_cast<int>(vi_map::SensorType::kInvalid);
+  std::vector<uint32_t> sensor_number_map(num_sensor_types, 0u);
+
+  std::unordered_map<aslam::SensorId, uint32_t> sensor_to_number_map;
+
+  for (const aslam::SensorId& sensor_id : all_sensor_ids) {
+    const aslam::SensorId& base_sensor_id =
+        sensor_manager.getBaseSensorId(sensor_id);
+    const vi_map::SensorType base_sensor_type =
+        sensor_manager.getSensorType(base_sensor_id);
+    uint32_t base_sensor_number;
+    if (sensor_to_number_map.count(base_sensor_id) == 0) {
+      base_sensor_number =
+          sensor_number_map[static_cast<int>(base_sensor_type)]++;
+      sensor_to_number_map[base_sensor_id] = base_sensor_number;
+    } else {
+      base_sensor_number = sensor_to_number_map[base_sensor_id];
+    }
+
+    const std::string base_sensor_tf_frame_id =
+        convertSensorTypeToTfFrameId(base_sensor_type) + "_" +
+        std::to_string(base_sensor_number) + "_BASE";
+
+    const vi_map::SensorType sensor_type =
+        sensor_manager.getSensorType(sensor_id);
+    const aslam::Transformation& T_B_S =
+        sensor_manager.getSensor_T_B_S(sensor_id);
+    uint32_t sensor_number;
+    if (sensor_to_number_map.count(sensor_id) == 0) {
+      sensor_number = sensor_number_map[static_cast<int>(sensor_type)]++;
+      sensor_to_number_map[sensor_id] = sensor_number;
+    } else {
+      sensor_number = sensor_to_number_map[sensor_id];
+    }
+    const std::string sensor_tf_frame_id =
+        convertSensorTypeToTfFrameId(sensor_type) + "_" +
+        std::to_string(sensor_number);
+
+    if (sensor_id != base_sensor_id) {
+      visualization::publishTF(
+          T_B_S, base_sensor_tf_frame_id, sensor_tf_frame_id, ros_time);
+    }
+
+    if (sensor_type == vi_map::SensorType::kNCamera) {
+      const auto& ncamera = sensor_manager.getSensor<aslam::NCamera>(sensor_id);
+      for (size_t camera_index = 0; camera_index < ncamera.getNumCameras(); ++camera_index) {
+        const aslam::Transformation& T_C_B = ncamera.get_T_C_B(camera_index);
+        const std::string camera_tf_frame_id =
+            FLAGS_tf_camera_frame + "_" + std::to_string(sensor_number)
+            + "." + std::to_string(camera_index);
+        visualization::publishTF(
+            T_C_B.inverse(), sensor_tf_frame_id, camera_tf_frame_id, ros_time);
+      }
+    }
+  }
+}
+
+void makeRightHandedCoordinateSystem(
+    Eigen::Matrix3d* eigenvectors, Eigen::Vector3d* eigenvalues) {
+  CHECK_NOTNULL(eigenvectors);
+  CHECK_NOTNULL(eigenvalues);
+  // Note that sorting of eigenvalues may end up with left-hand coordinate
+  // system. So here we correctly sort it so that it does end up being
+  // righ-handed and normalised.
+  Eigen::Vector3d c0 = eigenvectors->block<3, 1>(0, 0);
+  c0.normalize();
+  Eigen::Vector3d c1 = eigenvectors->block<3, 1>(0, 1);
+  c1.normalize();
+  Eigen::Vector3d c2 = eigenvectors->block<3, 1>(0, 2);
+  c2.normalize();
+  Eigen::Vector3d cc = c0.cross(c1);
+  if (cc.dot(c2) < 0) {
+    (*eigenvectors) << c1, c0, c2;
+    double e = (*eigenvalues)[0];
+    (*eigenvalues)[0] = (*eigenvalues)[1];
+    (*eigenvalues)[1] = e;
+  } else {
+    (*eigenvectors) << c0, c1, c2;
+  }
+}
+
+void publishPoseCovariances(
+    const std::vector<aslam::Transformation>& T_G_B_vec,
+    const std::vector<aslam::TransformationCovariance>& B_cov_vec,
+    const Color& color, const std::string& frame, const std::string& name_space,
+    const std::string& topic) {
+  CHECK_EQ(T_G_B_vec.size(), B_cov_vec.size());
+  const size_t num_covariances = B_cov_vec.size();
+
+  visualization_msgs::MarkerArray marker_array;
+
+  for (size_t idx = 0u; idx < num_covariances; ++idx) {
+    const aslam::Transformation& T_G_B = T_G_B_vec[idx];
+    const aslam::TransformationCovariance& B_cov = B_cov_vec[idx];
+
+    aslam::TransformationCovariance G_cov = aslam::TransformationCovariance();
+    aslam::common::rotateCovariance(T_G_B, B_cov, &G_cov);
+
+    Eigen::Vector3d eigenvalues(Eigen::Vector3d::Identity());
+    Eigen::Matrix3d eigenvectors(Eigen::Matrix3d::Zero());
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(
+        G_cov.topLeftCorner<3, 3>());
+    // Compute eigenvectors and eigenvalues
+    if (eigensolver.info() == Eigen::Success) {
+      eigenvalues = eigensolver.eigenvalues();
+      eigenvectors = eigensolver.eigenvectors();
+    } else {
+      LOG(WARNING) << "Computing eigen decomposition of covariance matrix "
+                   << "failed. B_cov:\n"
+                   << B_cov << "\nG_cov:\n"
+                   << G_cov;
+      continue;
+    }
+
+    makeRightHandedCoordinateSystem(&eigenvectors, &eigenvalues);
+
+    Eigen::Vector3d scale;
+    scale << 2 * std::sqrt(eigenvalues[0]), 2 * std::sqrt(eigenvalues[1]),
+        2 * std::sqrt(eigenvalues[2]);
+
+    Eigen::Matrix3d R_B_E;
+    R_B_E << eigenvectors(0, 0), eigenvectors(0, 1), eigenvectors(0, 2),
+        eigenvectors(1, 0), eigenvectors(1, 1), eigenvectors(1, 2),
+        eigenvectors(2, 0), eigenvectors(2, 1), eigenvectors(2, 2);
+
+    const bool is_valid_rotation_matrix =
+        aslam::Transformation::Rotation::isValidRotationMatrix(
+            R_B_E, 1e-4 /*threshold*/);
+    const bool scale_has_nans = scale.hasNaN();
+
+    if (!is_valid_rotation_matrix || scale_has_nans) {
+      LOG(WARNING) << "Extracting the eigen basis from the covariance matrix "
+                   << "failed. B_Covariance(position): \n"
+                   << B_cov.topLeftCorner<3, 3>()
+                   << "\nG_Covariance(position): \n"
+                   << G_cov.topLeftCorner<3, 3>() << "\neigen values:\n"
+                   << eigenvalues << "\neigenvectors:\n"
+                   << eigenvectors << "\nReason:\n\tinvalid rotation: "
+                   << !is_valid_rotation_matrix
+                   << "\n\tscale has nans: " << scale_has_nans;
+      continue;
+    }
+
+    aslam::Transformation::Rotation q_B_E =
+        aslam::Transformation::Rotation::fromApproximateRotationMatrix(R_B_E);
+    aslam::Transformation::Position B_t_B_E;
+    B_t_B_E.setZero();
+    const aslam::Transformation T_B_E(q_B_E, B_t_B_E);
+
+    const aslam::Transformation T_G_E = T_G_B * T_B_E;
+
+    // create visualization marker
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = frame;
+    marker.header.stamp = ros::Time();
+    marker.ns = name_space;
+    marker.id = idx;
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.action = visualization_msgs::Marker::ADD;
+    tf::poseKindrToMsg(T_G_E, &marker.pose);
+
+    marker.scale.x = scale.x() * 2;
+    marker.scale.y = scale.y() * 2;
+    marker.scale.z = scale.z() * 2;
+
+    marker.color = commonColorToRosColor(color, 0.3 /*alpha*/);
+
+    marker_array.markers.push_back(marker);
+  }
+  RVizVisualizationSink::publish<visualization_msgs::MarkerArray>(
+      topic, marker_array);
 }
 
 }  // namespace visualization

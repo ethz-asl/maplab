@@ -1,6 +1,7 @@
 #include "vi-map/pose-graph.h"
 
 #include <aslam/common/memory.h>
+#include <aslam/common/unique-id.h>
 #include <maplab-common/pose_types.h>
 
 #include "vi-map/vertex.h"
@@ -35,40 +36,78 @@ void PoseGraph::addVIEdge(
   this->addEdge(pose_graph::Edge::UniquePtr(edge));
 }
 
-void PoseGraph::mergeNeighboringViwlsEdges(
+template <>
+void PoseGraph::mergeNeighboringEdges<ViwlsEdge>(
     const pose_graph::VertexId& merge_into_vertex_id,
     const ViwlsEdge& edge_between_vertices,
     const ViwlsEdge& edge_after_next_vertex) {
   CHECK_EQ(merge_into_vertex_id, edge_between_vertices.from());
   CHECK_EQ(edge_between_vertices.to(), edge_after_next_vertex.from());
-
   const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps =
       edge_between_vertices.getImuTimestamps();
   const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_data =
       edge_between_vertices.getImuData();
   CHECK_EQ(imu_timestamps.cols(), imu_data.cols());
-
   const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& next_edge_imu_timestamps =
       edge_after_next_vertex.getImuTimestamps();
   const Eigen::Matrix<double, 6, Eigen::Dynamic>& next_edge_imu_data =
       edge_after_next_vertex.getImuData();
   CHECK_EQ(next_edge_imu_timestamps.cols(), next_edge_imu_data.cols());
-
   Eigen::Matrix<int64_t, 1, Eigen::Dynamic> new_imu_timestamps;
   Eigen::Matrix<double, 6, Eigen::Dynamic> new_imu_data;
 
   // We need to drop one measurement that was common for both edges.
-  const int total_imu_measurements =
-      imu_timestamps.cols() + next_edge_imu_timestamps.cols() - 1;
+  const int total_imu_measurements = std::max(
+      static_cast<int>(
+          imu_timestamps.cols() + next_edge_imu_timestamps.cols()) -
+          1,
+      0);
   new_imu_timestamps.resize(Eigen::NoChange, total_imu_measurements);
   new_imu_data.resize(Eigen::NoChange, total_imu_measurements);
 
-  new_imu_timestamps << imu_timestamps.leftCols(imu_timestamps.cols() - 1),
-      next_edge_imu_timestamps;
-  new_imu_data << imu_data.leftCols(imu_data.cols() - 1), next_edge_imu_data;
+  if (total_imu_measurements > 0) {
+    new_imu_timestamps << imu_timestamps.leftCols(imu_timestamps.cols() - 1),
+        next_edge_imu_timestamps;
+    new_imu_data << imu_data.leftCols(imu_data.cols() - 1), next_edge_imu_data;
+  }
 
   pose_graph::EdgeId new_edge_id;
-  common::generateId(&new_edge_id);
+  aslam::generateId(&new_edge_id);
+  const pose_graph::VertexId new_edge_to_vertex = edge_after_next_vertex.to();
+
+  // Delete old edges, create and add the new one.
+  removeEdge(edge_between_vertices.id());
+  removeEdge(edge_after_next_vertex.id());
+  addVIEdge(
+      new_edge_id, merge_into_vertex_id, new_edge_to_vertex, new_imu_timestamps,
+      new_imu_data);
+  CHECK(edgeExists(new_edge_id));
+}
+
+template <>
+void PoseGraph::mergeNeighboringEdges<TransformationEdge>(
+    const pose_graph::VertexId& merge_into_vertex_id,
+    const TransformationEdge& edge_between_vertices,
+    const TransformationEdge& edge_after_next_vertex) {
+  CHECK_EQ(merge_into_vertex_id, edge_between_vertices.from());
+  CHECK_EQ(edge_between_vertices.to(), edge_after_next_vertex.from());
+
+  const aslam::SensorId sensor_id = edge_between_vertices.getSensorId();
+  CHECK_EQ(sensor_id, edge_after_next_vertex.getSensorId());
+
+  const Edge::EdgeType edge_type = edge_between_vertices.getType();
+  CHECK(edge_type == edge_after_next_vertex.getType());
+
+  const aslam::Transformation T_merge_into_vertex_after_next_vertex =
+      edge_between_vertices.get_T_A_B() * edge_after_next_vertex.get_T_A_B();
+
+  // Note: this is mathematically not correct, but corresponds to the use-case
+  // of having fixed covariances.
+  const aslam::TransformationCovariance covariance =
+      edge_between_vertices.get_T_A_B_Covariance_p_q();
+
+  pose_graph::EdgeId new_edge_id;
+  aslam::generateId(&new_edge_id);
 
   const pose_graph::VertexId new_edge_to_vertex = edge_after_next_vertex.to();
 
@@ -76,9 +115,10 @@ void PoseGraph::mergeNeighboringViwlsEdges(
   removeEdge(edge_between_vertices.id());
   removeEdge(edge_after_next_vertex.id());
 
-  addVIEdge(
-      new_edge_id, merge_into_vertex_id, new_edge_to_vertex, new_imu_timestamps,
-      new_imu_data);
+  addEdge(
+      aligned_unique<TransformationEdge>(
+          edge_type, new_edge_id, merge_into_vertex_id, new_edge_to_vertex,
+          T_merge_into_vertex_after_next_vertex, covariance, sensor_id));
   CHECK(edgeExists(new_edge_id));
 }
 

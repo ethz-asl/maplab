@@ -1,12 +1,10 @@
 #include "aslam-serialization/visual-frame-serialization.h"
 
-#include <glog/logging.h>
-
 #include <aslam/cameras/camera.h>
 #include <aslam/cameras/ncamera.h>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
-#include <maplab-common/aslam-id-proto.h>
+#include <glog/logging.h>
 #include <maplab-common/eigen-proto.h>
 
 namespace aslam {
@@ -16,9 +14,10 @@ void serializeVisualFrame(
     const aslam::VisualFrame& frame, aslam::proto::VisualFrame* proto) {
   CHECK_NOTNULL(proto);
 
-  ::common::aslam_id_proto::serialize(frame.getId(), proto->mutable_id());
+  frame.getId().serialize(proto->mutable_id());
   proto->set_timestamp(frame.getTimestampNanoseconds());
 
+  // Serialize standard feature points (binary)
   if (frame.hasKeypointMeasurements()) {
     ::common::eigen_proto::serialize(
         frame.getKeypointMeasurements(),
@@ -32,19 +31,40 @@ void serializeVisualFrame(
 
     if (frame.hasKeypointScales()) {
       ::common::eigen_proto::serialize(
-          frame.getKeypointScales(), proto->mutable_descriptor_scales());
+          frame.getKeypointScales(), proto->mutable_keypoint_scales());
       CHECK_EQ(
-          proto->keypoint_measurement_sigmas_size(),
-          proto->descriptor_scales_size());
+          proto->keypoint_measurements_size(),
+          2 * proto->keypoint_scales_size());
     }
 
-    const aslam::VisualFrame::DescriptorsT& descriptors =
-        frame.getDescriptors();
-    VLOG(200) << "Frame " << frame.getId() << " has " << descriptors.cols()
-              << " descriptors!";
-    internal::serializeDescriptors(descriptors, proto);
+    if (frame.hasKeypoint3DPositions()) {
+      ::common::eigen_proto::serialize(
+          frame.getKeypoint3DPositions(),
+          proto->mutable_keypoint_3d_positions());
+      CHECK_EQ(
+          3 * proto->keypoint_measurements_size(),
+          2 * proto->keypoint_3d_positions_size());
+    }
 
-    proto->set_is_valid(frame.isValid());
+    if (frame.hasKeypointTimeOffsets()) {
+      ::common::eigen_proto::serialize(
+          frame.getKeypointTimeOffsets(),
+          proto->mutable_keypoint_time_offsets());
+      CHECK_EQ(
+          proto->keypoint_measurements_size(),
+          2 * proto->keypoint_time_offsets_size());
+    }
+
+    frame.serializeDescriptorsToString(proto->mutable_keypoint_descriptors());
+    ::common::eigen_proto::serialize(
+        frame.getDescriptorTypes(), proto->mutable_descriptor_types());
+
+    size_t num_descriptors = frame.getNumDescriptors();
+    CHECK_EQ(
+        static_cast<size_t>(proto->keypoint_measurements_size()),
+        2 * num_descriptors);
+    VLOG(200) << "Frame " << frame.getId() << " has " << num_descriptors
+              << " descriptors!";
 
     if (frame.hasTrackIds()) {
       ::common::eigen_proto::serialize(
@@ -53,6 +73,9 @@ void serializeVisualFrame(
   } else {
     VLOG(200) << "Frame " << frame.getId() << " has no descriptors!";
   }
+
+  // check we serialized a valid frame
+  proto->set_is_valid(frame.isValid());
 }
 
 void deserializeVisualFrame(
@@ -68,33 +91,10 @@ void deserializeVisualFrame(
   CHECK_NOTNULL(frame)->reset();
 
   aslam::FrameId frame_id;
-  ::common::aslam_id_proto::deserialize(proto.id(), &frame_id);
+  frame_id.deserialize(proto.id());
+
   // If the frame_id is invalid this frame has been un-set.
   if (frame_id.isValid()) {
-    bool success = true;
-    success &=
-        (2 * proto.keypoint_measurement_sigmas_size() ==
-         proto.keypoint_measurements_size());
-    if (proto.keypoint_descriptor_size() != 0) {
-      success &=
-          (proto.keypoint_descriptors().size() /
-               proto.keypoint_descriptor_size() ==
-           static_cast<unsigned int>(proto.keypoint_measurement_sigmas_size()));
-    }
-
-    CHECK(success) << "Inconsistent landmark Visual Frame field sizes.";
-
-    Eigen::Map<const Eigen::Matrix2Xd> img_points_distorted(
-        proto.keypoint_measurements().data(), 2,
-        proto.keypoint_measurements_size() / 2);
-    Eigen::Map<const Eigen::VectorXd> uncertainties(
-        proto.keypoint_measurement_sigmas().data(),
-        proto.keypoint_measurement_sigmas_size());
-    Eigen::Map<const Eigen::VectorXd> scales(
-        proto.descriptor_scales().data(), proto.descriptor_scales_size());
-    Eigen::Map<const Eigen::VectorXi> track_ids(
-        proto.track_ids().data(), proto.track_ids_size());
-
     *frame = aligned_shared<aslam::VisualFrame>();
     aslam::VisualFrame& frame_ref = **frame;
 
@@ -104,24 +104,64 @@ void deserializeVisualFrame(
 
     frame_ref.setId(frame_id);
     frame_ref.setTimestampNanoseconds(proto.timestamp());
-    frame_ref.setKeypointMeasurements(img_points_distorted);
-    frame_ref.setKeypointMeasurementUncertainties(uncertainties);
-    if (scales.rows() != 0) {
-      CHECK_EQ(scales.rows(), uncertainties.rows());
-      frame_ref.setKeypointScales(scales);
-    }
-    if (track_ids.rows() != 0) {
-      CHECK_EQ(track_ids.rows(), uncertainties.rows());
-      frame_ref.setTrackIds(track_ids);
-    }
 
-    // Need to set empty descriptors, otherwise getMutable call below fails.
-    frame_ref.setDescriptors(aslam::VisualFrame::DescriptorsT());
-    internal::deserializeDescriptors(proto, frame_ref.getDescriptorsMutable());
+    // Deserialize the standard binary feature points
+    {
+      Eigen::Map<const Eigen::Matrix2Xd> img_points_distorted(
+          proto.keypoint_measurements().data(), 2,
+          proto.keypoint_measurements_size() / 2);
+      Eigen::Map<const Eigen::VectorXd> uncertainties(
+          proto.keypoint_measurement_sigmas().data(),
+          proto.keypoint_measurement_sigmas_size());
+      Eigen::Map<const Eigen::VectorXd> scales(
+          proto.keypoint_scales().data(), proto.keypoint_scales_size());
+      Eigen::Map<const Eigen::Matrix3Xd> positions(
+          proto.keypoint_3d_positions().data(), 3,
+          proto.keypoint_3d_positions_size() / 3);
+      Eigen::Map<const Eigen::VectorXi> time_offsets(
+          proto.keypoint_time_offsets().data(),
+          proto.keypoint_time_offsets_size());
+      Eigen::Map<const Eigen::VectorXi> descriptor_types(
+          proto.descriptor_types().data(), proto.descriptor_types_size());
+      Eigen::Map<const Eigen::VectorXi> track_ids(
+          proto.track_ids().data(), proto.track_ids_size());
 
-    CHECK(frame_ref.hasKeypointMeasurements());
-    CHECK(frame_ref.hasKeypointMeasurementUncertainties());
-    CHECK(frame_ref.hasDescriptors());
+      CHECK_EQ(
+          2 * proto.keypoint_measurement_sigmas_size(),
+          proto.keypoint_measurements_size());
+
+      frame_ref.setKeypointMeasurements(img_points_distorted);
+      frame_ref.setKeypointMeasurementUncertainties(uncertainties);
+      if (scales.rows() != 0) {
+        CHECK_EQ(scales.rows(), img_points_distorted.cols());
+        frame_ref.setKeypointScales(scales);
+      }
+      if (positions.cols() != 0) {
+        CHECK_EQ(
+            2 * proto.keypoint_3d_positions_size(),
+            3 * proto.keypoint_measurements_size());
+        frame_ref.setKeypoint3DPositions(positions);
+      }
+      if (time_offsets.rows() != 0) {
+        CHECK_EQ(time_offsets.rows(), img_points_distorted.cols());
+        frame_ref.setKeypointTimeOffsets(time_offsets);
+      }
+      if (track_ids.rows() != 0) {
+        CHECK_EQ(track_ids.rows(), img_points_distorted.cols());
+        frame_ref.setTrackIds(track_ids);
+      }
+
+      frame_ref.deserializeDescriptorsFromString(proto.keypoint_descriptors());
+      frame_ref.setDescriptorTypes(descriptor_types);
+      size_t num_descriptors = frame_ref.getNumDescriptors();
+      CHECK_EQ(
+          static_cast<size_t>(proto.keypoint_measurements_size()),
+          2 * num_descriptors);
+
+      CHECK(frame_ref.hasKeypointMeasurements());
+      CHECK(frame_ref.hasKeypointMeasurementUncertainties());
+      CHECK(frame_ref.hasDescriptors());
+    }
 
     if (proto.has_is_valid() && !proto.is_valid()) {
       frame_ref.invalidate();
@@ -133,7 +173,7 @@ void serializeVisualNFrame(
     const aslam::VisualNFrame& n_frame, aslam::proto::VisualNFrame* proto) {
   CHECK_NOTNULL(proto);
 
-  ::common::aslam_id_proto::serialize(n_frame.getId(), proto->mutable_id());
+  n_frame.getId().serialize(proto->mutable_id());
   const unsigned int num_frames = n_frame.getNumFrames();
   for (unsigned int i = 0u; i < num_frames; ++i) {
     aslam::proto::VisualFrame* visual_frame_proto =
@@ -143,8 +183,7 @@ void serializeVisualNFrame(
       serializeVisualFrame(visual_frame, visual_frame_proto);
     } else {
       // Set invalid id to proto::VisualFrame.
-      ::common::aslam_id_proto::serialize(
-          aslam::FrameId(), visual_frame_proto->mutable_id());
+      aslam::FrameId().serialize(visual_frame_proto->mutable_id());
     }
   }
 }
@@ -163,7 +202,7 @@ void deserializeVisualNFrame(
   CHECK_NOTNULL(n_frame);
 
   aslam::NFramesId n_frame_id;
-  ::common::aslam_id_proto::deserialize(proto.id(), &n_frame_id);
+  n_frame_id.deserialize(proto.id());
 
   CHECK_GT(proto.frames_size(), 0);
   const int num_frames = proto.frames_size();
@@ -205,43 +244,5 @@ void deserializeVisualNFrame(
     }
   }
 }
-
-namespace internal {
-
-void serializeDescriptors(
-    const aslam::VisualFrame::DescriptorsT& descriptors,
-    aslam::proto::VisualFrame* proto) {
-  CHECK_NOTNULL(proto);
-
-  proto->set_keypoint_descriptor_size(
-      descriptors.rows() * sizeof(aslam::VisualFrame::DescriptorsT::Scalar));
-
-  std::string* descriptors_string = proto->mutable_keypoint_descriptors();
-  descriptors_string->resize(
-      descriptors.size() * sizeof(aslam::VisualFrame::DescriptorsT::Scalar));
-  Eigen::Map<aslam::VisualFrame::DescriptorsT> descriptors_map(
-      reinterpret_cast<unsigned char*>(&descriptors_string->front()),
-      descriptors.rows(), descriptors.cols());
-  descriptors_map = descriptors;
-}
-
-void deserializeDescriptors(
-    const aslam::proto::VisualFrame& proto,
-    aslam::VisualFrame::DescriptorsT* descriptors) {
-  CHECK_NOTNULL(descriptors);
-  if (proto.keypoint_descriptor_size() != 0) {
-    Eigen::Map<const aslam::VisualFrame::DescriptorsT> descriptor_map(
-        reinterpret_cast<const unsigned char*>(
-            &proto.keypoint_descriptors().front()),
-        proto.keypoint_descriptor_size(),
-        proto.keypoint_descriptors().size() / proto.keypoint_descriptor_size());
-    *descriptors = descriptor_map;
-  } else {
-    descriptors->resize(0, 0);
-  }
-}
-
-}  // namespace internal
-
 }  // namespace serialization
 }  // namespace aslam

@@ -54,7 +54,6 @@ bool loadMapFromFolder(
   map->deserializeResourceInfo(resource_info_proto);
 
   map->cleanupResourceFolders();
-
   return true;
 }
 

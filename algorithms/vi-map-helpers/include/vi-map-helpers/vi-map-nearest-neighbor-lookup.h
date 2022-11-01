@@ -3,7 +3,9 @@
 
 #include <functional>
 #include <memory>
+#include <type_traits>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include <Eigen/Core>
@@ -11,79 +13,26 @@
 #include <gtest/gtest.h>
 #include <maplab-common/macros.h>
 #include <nabo/nabo.h>
-#include <sensors/gps-utm.h>
-#include <sensors/gps-wgs.h>
+#include <posegraph/unique-id.h>
+#include <vi-map/unique-id.h>
 #include <vi-map/vi-map.h>
-
-namespace vi_map {
-template <typename GpsMeasurement>
-struct GpsMeasurementMissionPair final {
-  GpsMeasurementMissionPair() {
-    mission_id.setInvalid();
-  }
-  GpsMeasurementMissionPair(
-      const GpsMeasurement& gps_measurement_, const MissionId& mission_id_)
-      : gps_measurement(gps_measurement_), mission_id(mission_id_) {
-    CHECK(mission_id_.isValid());
-  }
-  ~GpsMeasurementMissionPair() = default;
-
-  bool operator==(const GpsMeasurementMissionPair& other) const {
-    return gps_measurement == other.gps_measurement &&
-           mission_id == other.mission_id;
-  }
-
-  GpsMeasurement gps_measurement;
-  MissionId mission_id;
-};
-typedef GpsMeasurementMissionPair<GpsUtmMeasurement>
-    GpsUtmMeasurementMissionPair;
-typedef GpsMeasurementMissionPair<GpsWgsMeasurement>
-    GpsWgsMeasurementMissionPair;
-typedef AlignedUnorderedSet<GpsUtmMeasurementMissionPair>
-    GpsUtmMeasurementMissionPairSet;
-}  // namespace vi_map
-
-namespace std {
-template <>
-struct hash<vi_map::GpsUtmMeasurementMissionPair> {
-  std::size_t operator()(
-      const vi_map::GpsUtmMeasurementMissionPair& value) const {
-    std::size_t h0(std::hash<vi_map::MissionId>()(value.mission_id));
-    std::size_t h1(
-        std::hash<vi_map::GpsUtmMeasurement>()(value.gps_measurement));
-    return h0 ^ h1;
-  }
-};
-}  // namespace std
 
 namespace vi_map_helpers {
 
-// VIMap wrapper class that provides a nearest-neighbor vertex query.
 template <typename QueryType, typename DataType>
-class VIMapNearestNeighborLookup {
+class VIMapNearestNeighborLookupBase {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MAPLAB_POINTER_TYPEDEFS(VIMapNearestNeighborLookup);
   FRIEND_TEST(VIMapNearestNeighborLookupTest, MultipleVertexMap);
   FRIEND_TEST(VIMapNearestNeighborLookupTest, MultipleVertexRadiusLookup);
-  FRIEND_TEST(VIMapNearestNeighborLookupTest,
-              MultipleGPSWGSMeasurementsNNLookup);
-  FRIEND_TEST(VIMapNearestNeighborLookupTest,
-              MultipleWGSMeasurementRadiusLookup);
-  FRIEND_TEST(VIMapNearestNeighborLookupTest,
-              MultipleGPSUTMMeasuremnentsNNLookup);
-  FRIEND_TEST(VIMapNearestNeighborLookupTest,
-              MultipleUTMMeasurementsRadiusLookup);
-
-  VIMapNearestNeighborLookup() = delete;
-  explicit VIMapNearestNeighborLookup(const vi_map::VIMap& map);
-  virtual ~VIMapNearestNeighborLookup() = default;
+  VIMapNearestNeighborLookupBase() = default;
+  virtual ~VIMapNearestNeighborLookupBase() = default;
 
   // Returns the data item in the map that is closest (L2 norm) to the given
   // query object.
-  bool getClosestDataItem(const QueryType& query,
-                          DataType* closest_data_item) const;
+  bool getClosestDataItem(
+      const QueryType& query, DataType* closest_data_item) const;
+
   // Returns all items found to be within the given search radius (L2 norm) of
   // the given query object.
   template <typename Allocator>
@@ -95,39 +44,93 @@ class VIMapNearestNeighborLookup {
   inline size_t size() const;
   inline bool empty() const;
 
- private:
-  inline void buildIndex();
+ protected:
+  void buildIndex(const vi_map::VIMap& map) {
+    LOG_IF(WARNING, nn_index_)
+        << "The already existing k-d tree index will be overwritten.";
+    data_items_.clear();
+    buildIndexImpl(map);
+    CHECK(empty() || nn_index_);
+    CHECK_EQ(nn_index_data_.cols(), static_cast<int>(data_items_.size()));
+    CHECK_EQ(size(), data_items_.size());
+  }
 
-  const vi_map::VIMap& map_;
+  std::vector<DataType>* getDataItemsMutable() {
+    return &data_items_;
+  }
+
+  const std::vector<DataType>& getDataItems() const {
+    return data_items_;
+  }
+
+  void resizeIndexData(const size_t num_rows, const size_t num_cols) {
+    nn_index_data_.resize(num_rows, num_cols);
+  }
+
+  template <typename... _Args>
+  void emplaceBackDataItem(_Args&&... __args) {
+    data_items_.emplace_back(std::forward<_Args>(__args)...);
+  }
+
+  void setNearestNeighborIndexDataColumn(
+      const Eigen::VectorXd& data, const size_t col_idx) {
+    CHECK_EQ(data.rows(), nn_index_data_.rows());
+    CHECK_LT(col_idx, static_cast<size_t>(nn_index_data_.cols()));
+    nn_index_data_.col(col_idx) = data;
+  }
+
+  void initializeIndex() {
+    CHECK_GT(nn_index_data_.rows(), 0);
+    CHECK_GT(nn_index_data_.cols(), 0);
+    CHECK(!nn_index_);
+    nn_index_.reset(
+        Nabo::NNSearchD::createKDTreeLinearHeap(
+            nn_index_data_, nn_index_data_.rows()));
+  }
+
+ private:
   std::unique_ptr<Nabo::NNSearchD> nn_index_;
   Eigen::MatrixXd nn_index_data_;
   std::vector<DataType> data_items_;
+
+  virtual void buildIndexImpl(const vi_map::VIMap& map) = 0;
 };
 
-typedef VIMapNearestNeighborLookup<aslam::Position3D, pose_graph::VertexId>
+template <typename QueryType, typename DataType>
+class BasicMapElementsVIMapNearestNeighborLookup final
+    : public VIMapNearestNeighborLookupBase<QueryType, DataType> {
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  MAPLAB_POINTER_TYPEDEFS(BasicMapElementsVIMapNearestNeighborLookup);
+  explicit BasicMapElementsVIMapNearestNeighborLookup(
+      const vi_map::VIMap& map) {
+    static_assert(
+        std::is_same<DataType, vi_map::LandmarkId>::value ||
+            std::is_same<DataType, pose_graph::VertexId>::value,
+        "Invalid data type. The data type must be either LandmarkId or "
+        "VertexId");
+    BasicMapElementsVIMapNearestNeighborLookup<QueryType, DataType>::buildIndex(
+        map);
+  }
+  ~BasicMapElementsVIMapNearestNeighborLookup() = default;
+
+ private:
+  typedef VIMapNearestNeighborLookupBase<QueryType, DataType> BaseType;
+  void buildIndexImpl(const vi_map::VIMap& map) override;
+};
+
+typedef BasicMapElementsVIMapNearestNeighborLookup<aslam::Position3D,
+                                                   pose_graph::VertexId>
     VIMapNearestNeighborLookupVertexId;
-typedef VIMapNearestNeighborLookup<vi_map::GpsWgsMeasurement,
-                                   vi_map::GpsWgsMeasurement>
-    VIMapNearestNeighborLookupGpsWgs;
-typedef VIMapNearestNeighborLookup<vi_map::GpsUtmMeasurement,
-                                   vi_map::GpsUtmMeasurement>
-    VIMapNearestNeighborLookupGpsUtm;
-typedef VIMapNearestNeighborLookup<vi_map::GpsUtmMeasurement,
-                                   vi_map::GpsUtmMeasurementMissionPair>
-    VIMapNearestNeighborLookupGpsUtmWithMissionId;
-typedef VIMapNearestNeighborLookup<vi_map::GpsWgsMeasurement,
-                                   vi_map::GpsWgsMeasurementMissionPair>
-    VIMapNearestNeighborLookupGpsWgsWithMissionId;
+typedef BasicMapElementsVIMapNearestNeighborLookup<aslam::Position3D,
+                                                   vi_map::LandmarkId>
+    VIMapNearestNeighborLookupLandmarkId;
 
 template <class QueryType>
 inline Eigen::VectorXd queryTypeToVector(const QueryType& query);
 
 template <class QueryType>
 inline size_t getQueryTypeDimension();
-
-template <class GpsMeasurement, class GpsDataType>
-GpsDataType createDataItem(
-    const GpsMeasurement& gps_measuremnt, const vi_map::MissionId& mission_id);
 
 }  // namespace vi_map_helpers
 

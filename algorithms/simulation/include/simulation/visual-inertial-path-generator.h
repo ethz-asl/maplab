@@ -108,7 +108,6 @@ struct PathAndLandmarkSettings {
   PathAndLandmarkSettings()
       : circle_radius_meter(10.0),
         distance_to_keypoints_meter(5.0),
-        imu_sigmas(0.0, 0.0, 0.0, 0.0),
         gravity_meter_by_second2(9.81),
         kappa(0.1),
         lambda(0.1),

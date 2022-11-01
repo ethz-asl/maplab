@@ -1,44 +1,55 @@
 #ifndef MAP_RESOURCES_RESOURCE_TYPEDEFS_H_
 #define MAP_RESOURCES_RESOURCE_TYPEDEFS_H_
 
+#include <string>
 #include <vector>
 
 #include <Eigen/Core>
-#include <aslam/common/memory.h>
 #include <maplab-common/pose_types.h>
+#include <opencv2/core.hpp>
 #include <voxblox/core/common.h>
 
 namespace resources {
 
-typedef Eigen::Matrix<uint8_t, 4, 1> RgbaColor;
-
 struct VoxbloxColorPointCloud {
-  pose::Position3DVector* points_C;
+  voxblox::Pointcloud* points_C;
   voxblox::Colors* colors;
 };
 
-struct PointCloud {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+struct ObjectInstanceBoundingBox {
+  ObjectInstanceBoundingBox()
+      : bounding_box(0, 0, 0, 0),
+        class_number(0),
+        instance_number(0),
+        confidence(0.f),
+        class_name("") {}
+  cv::Rect bounding_box;
+  // Number that describes the object class this object belongs to.
+  int class_number;
+  // Number that describes which instance of a specific class the
+  // objects belong to.
+  int instance_number;
+  // Stores the confidence the object detector/classifier has
+  // assigned to this classification.
+  float confidence;
+  // Stores the name of the object class, if available.
+  std::string class_name;
 
-  std::vector<float> xyz;
-  std::vector<float> normals;
-  std::vector<unsigned char> colors;
-
-  void resize(size_t size) {
-    xyz.resize(3 * size);
-    normals.resize(3 * size);
-    colors.resize(3 * size);
+  bool operator==(const ObjectInstanceBoundingBox& other_bbox) const {
+    return bounding_box == other_bbox.bounding_box &&
+           class_number == other_bbox.class_number &&
+           instance_number == other_bbox.instance_number &&
+           (std::fabs(confidence - other_bbox.confidence) < 1e-6f) &&
+           (std::fabs(confidence - other_bbox.confidence) < 1e-6f) &&
+           class_name == other_bbox.class_name;
   }
 
-  size_t size() const {
-    CHECK_EQ(xyz.size() % 3, 0u);
-    return (xyz.size() / 3);
-  }
-
-  bool empty() const {
-    return xyz.empty();
+  bool operator!=(const ObjectInstanceBoundingBox& other_bbox) const {
+    return !operator==(other_bbox);
   }
 };
+
+typedef std::vector<ObjectInstanceBoundingBox> ObjectInstanceBoundingBoxes;
 
 }  // namespace resources
 

@@ -67,26 +67,44 @@ class PmvsResourcesTest : public ::testing::Test {
     Eigen::Matrix<double, 6, 6> T_G_M_covariance =
         Eigen::Matrix<double, 6, 6>::Identity();
     std::vector<aslam::Camera::Ptr> cameras;
-    aslam::NCameraId n_camera_id = common::createRandomId<aslam::NCameraId>();
+    aslam::NCameraId n_camera_id = aslam::createRandomId<aslam::NCameraId>();
     std::string label = "nacmera";
-    aslam::NCamera::Ptr n_camera_ptr(
+    aslam::NCamera::UniquePtr n_camera_ptr(
         new aslam::NCamera(n_camera_id, T_C_B, cameras, label));
 
     vi_map_.addNewMissionWithBaseframe(
-        kMissionId0, T_G_M, T_G_M_covariance, n_camera_ptr,
-        Mission::BackBone::kViwls);
+        kMissionId0, T_G_M, T_G_M_covariance, Mission::BackBone::kViwls);
     vi_map_.addNewMissionWithBaseframe(
-        kMissionId1, T_G_M, T_G_M_covariance, n_camera_ptr,
-        Mission::BackBone::kViwls);
+        kMissionId1, T_G_M, T_G_M_covariance, Mission::BackBone::kViwls);
     vi_map_.addNewMissionWithBaseframe(
-        kMissionId2, T_G_M, T_G_M_covariance, n_camera_ptr,
-        Mission::BackBone::kViwls);
+        kMissionId2, T_G_M, T_G_M_covariance, Mission::BackBone::kViwls);
     vi_map_.addNewMissionWithBaseframe(
-        kMissionId3, T_G_M, T_G_M_covariance, n_camera_ptr,
-        Mission::BackBone::kViwls);
+        kMissionId3, T_G_M, T_G_M_covariance, Mission::BackBone::kViwls);
 
-    vi_map_.storePmvsReconstructionPath(kPmvsPath0, involved_missions_0);
-    vi_map_.storePmvsReconstructionPath(kPmvsPath5, involved_missions_5);
+    vi_map::Imu::UniquePtr imu = aligned_unique<vi_map::Imu>();
+    const aslam::SensorId& imu_id = imu->getId();
+    vi_map_.getSensorManager().addSensorAsBase<vi_map::Imu>(std::move(imu));
+    vi_map_.getMission(kMissionId0).setImuId(imu_id);
+    vi_map_.getMission(kMissionId1).setImuId(imu_id);
+    vi_map_.getMission(kMissionId2).setImuId(imu_id);
+    vi_map_.getMission(kMissionId3).setImuId(imu_id);
+
+    const aslam::SensorId& ncamera_id = n_camera_ptr->getId();
+    aslam::Transformation T_B_S_ncamera;
+    T_B_S_ncamera.setRandom();
+    vi_map_.getSensorManager().addSensor<aslam::NCamera>(
+        std::move(n_camera_ptr), imu_id, T_B_S_ncamera);
+    vi_map_.getMission(kMissionId0).setNCameraId(ncamera_id);
+    vi_map_.getMission(kMissionId1).setNCameraId(ncamera_id);
+    vi_map_.getMission(kMissionId2).setNCameraId(ncamera_id);
+    vi_map_.getMission(kMissionId3).setNCameraId(ncamera_id);
+
+    vi_map_.storeMissionResource(
+        backend::ResourceType::kPmvsReconstructionPath, kPmvsPath0,
+        involved_missions_0);
+    vi_map_.storeMissionResource(
+        backend::ResourceType::kPmvsReconstructionPath, kPmvsPath5,
+        involved_missions_5);
   }
 };
 
@@ -95,19 +113,19 @@ const std::string PmvsResourcesTest::kPmvsPath1 = "test_1";
 const std::string PmvsResourcesTest::kPmvsPath5 = "test_5";
 
 const MissionId PmvsResourcesTest::kMissionId0 =
-    common::createRandomId<vi_map::MissionId>();
+    aslam::createRandomId<vi_map::MissionId>();
 const MissionId PmvsResourcesTest::kMissionId1 =
-    common::createRandomId<vi_map::MissionId>();
+    aslam::createRandomId<vi_map::MissionId>();
 const MissionId PmvsResourcesTest::kMissionId2 =
-    common::createRandomId<vi_map::MissionId>();
+    aslam::createRandomId<vi_map::MissionId>();
 const MissionId PmvsResourcesTest::kMissionId3 =
-    common::createRandomId<vi_map::MissionId>();
+    aslam::createRandomId<vi_map::MissionId>();
 
 TEST_F(PmvsResourcesTest, TestViMissionResourceIdListSerialization) {
   const vi_map::VIMission& mission_0 = vi_map_.getMission(kMissionId0);
 
   backend::ResourceIdSet resource_ids_before;
-  mission_0.getAllResourceIds(
+  mission_0.getAllMissionResourceIds(
       backend::ResourceType::kPmvsReconstructionPath, &resource_ids_before);
 
   EXPECT_EQ(2u, resource_ids_before.size());
@@ -119,52 +137,79 @@ TEST_F(PmvsResourcesTest, TestViMissionResourceIdListSerialization) {
   mission_0_deserialized.deserialize(kMissionId0, proto_mission_0);
 
   backend::ResourceIdSet resource_ids_after;
-  mission_0_deserialized.getAllResourceIds(
+  mission_0_deserialized.getAllMissionResourceIds(
       backend::ResourceType::kPmvsReconstructionPath, &resource_ids_after);
 
   EXPECT_EQ(resource_ids_after, resource_ids_before);
 }
 
 TEST_F(PmvsResourcesTest, TestHasPmvsReconstructionPath) {
-  EXPECT_TRUE(vi_map_.hasPmvsReconstructionPath(involved_missions_0));
-  EXPECT_FALSE(vi_map_.hasPmvsReconstructionPath(involved_missions_1));
-  EXPECT_FALSE(vi_map_.hasPmvsReconstructionPath(involved_missions_2));
-  EXPECT_FALSE(vi_map_.hasPmvsReconstructionPath(involved_missions_3));
-  EXPECT_FALSE(vi_map_.hasPmvsReconstructionPath(involved_missions_4));
+  EXPECT_TRUE(vi_map_.hasMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_0));
+  EXPECT_FALSE(vi_map_.hasMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_1));
+  EXPECT_FALSE(vi_map_.hasMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_2));
+  EXPECT_FALSE(vi_map_.hasMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_3));
+  EXPECT_FALSE(vi_map_.hasMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_4));
 }
 
 TEST_F(PmvsResourcesTest, TestGetPmvsReconstructionPath) {
   std::string path_0;
   std::string path_1;
-  EXPECT_TRUE(vi_map_.getPmvsReconstructionPath(involved_missions_0, &path_0));
+  EXPECT_TRUE(vi_map_.getMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_0,
+      &path_0));
   EXPECT_EQ(path_0.compare(kPmvsPath0), 0);
 
-  EXPECT_FALSE(vi_map_.getPmvsReconstructionPath(involved_missions_1, &path_1));
+  EXPECT_FALSE(vi_map_.getMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_1,
+      &path_1));
   EXPECT_TRUE(path_1.empty());
-  EXPECT_FALSE(vi_map_.getPmvsReconstructionPath(involved_missions_2, &path_1));
+  EXPECT_FALSE(vi_map_.getMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_2,
+      &path_1));
   EXPECT_TRUE(path_1.empty());
-  EXPECT_FALSE(vi_map_.getPmvsReconstructionPath(involved_missions_3, &path_1));
+  EXPECT_FALSE(vi_map_.getMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_3,
+      &path_1));
   EXPECT_TRUE(path_1.empty());
-  EXPECT_FALSE(vi_map_.getPmvsReconstructionPath(involved_missions_4, &path_1));
+  EXPECT_FALSE(vi_map_.getMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_4,
+      &path_1));
   EXPECT_TRUE(path_1.empty());
 }
 
 TEST_F(PmvsResourcesTest, TestStorePmvsReconstructionPath) {
-  vi_map_.storePmvsReconstructionPath(kPmvsPath1, involved_missions_1);
+  vi_map_.storeMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, kPmvsPath1,
+      involved_missions_1);
 
   std::string path_0;
   std::string path_1;
   std::string path_2;
-  EXPECT_TRUE(vi_map_.getPmvsReconstructionPath(involved_missions_0, &path_0));
+  EXPECT_TRUE(vi_map_.getMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_0,
+      &path_0));
   EXPECT_EQ(path_0.compare(kPmvsPath0), 0);
-  EXPECT_TRUE(vi_map_.getPmvsReconstructionPath(involved_missions_1, &path_1));
+  EXPECT_TRUE(vi_map_.getMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_1,
+      &path_1));
   EXPECT_EQ(path_1.compare(kPmvsPath1), 0);
 
-  EXPECT_FALSE(vi_map_.getPmvsReconstructionPath(involved_missions_2, &path_2));
+  EXPECT_FALSE(vi_map_.getMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_2,
+      &path_2));
   EXPECT_TRUE(path_2.empty());
-  EXPECT_FALSE(vi_map_.getPmvsReconstructionPath(involved_missions_3, &path_2));
+  EXPECT_FALSE(vi_map_.getMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_3,
+      &path_2));
   EXPECT_TRUE(path_2.empty());
-  EXPECT_FALSE(vi_map_.getPmvsReconstructionPath(involved_missions_4, &path_2));
+  EXPECT_FALSE(vi_map_.getMissionResource(
+      backend::ResourceType::kPmvsReconstructionPath, involved_missions_4,
+      &path_2));
   EXPECT_TRUE(path_2.empty());
 }
 

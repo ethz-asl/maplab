@@ -3,6 +3,7 @@
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-radtan.h>
 #include <aslam/cameras/ncamera.h>
+#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
 
@@ -13,7 +14,7 @@ namespace aslam {
 
 TEST(VisualFrameSerialization, SerializeDeserializeFrame) {
   const Camera::ConstPtr camera =
-      PinholeCamera::createTestCamera<RadTanDistortion>();
+      aslam::PinholeCamera::createTestCamera<RadTanDistortion>();
   constexpr int64_t kTimestampNs = 0;
   const VisualFrame::ConstPtr frame =
       VisualFrame::createEmptyTestVisualFrame(camera, kTimestampNs);
@@ -34,7 +35,7 @@ TEST(VisualFrameSerialization, SerializeDeserializeFrame) {
 
 TEST(VisualFrameSerialization, SerializeDeserializeNFrame) {
   constexpr size_t kNumCameras = 2u;
-  const NCamera::Ptr n_camera = NCamera::createTestNCamera(kNumCameras);
+  const NCamera::Ptr n_camera = createTestNCamera(kNumCameras);
   constexpr int64_t kTimestampNs = 0;
   const VisualNFrame::ConstPtr n_frame =
       VisualNFrame::createEmptyTestVisualNFrame(n_camera, kTimestampNs);

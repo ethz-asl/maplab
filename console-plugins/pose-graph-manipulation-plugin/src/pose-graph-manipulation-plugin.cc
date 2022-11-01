@@ -1,40 +1,35 @@
 #include "pose-graph-manipulation-plugin/pose-graph-manipulation-plugin.h"
 
+#include <random>
+
 #include <glog/logging.h>
 #include <map-manager/map-manager.h>
 #include <maplab-common/progress-bar.h>
+#include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/vi-map.h>
 
 #include "pose-graph-manipulation-plugin/edge-manipulation.h"
-#include "pose-graph-manipulation-plugin/reset-wheel-odometry.h"
 
 DEFINE_string(edge_type, "", "Specify the edge type.");
 DEFINE_double(translation_std_dev_meters, -1.0,
               "Translation standard deviation in meters.");
 DEFINE_double(orientation_std_dev_degrees, -1.0,
               "Orientation standard deviation in meters.");
-DEFINE_double(
-    lc_switch_variable_variance, 1e-8,
-    "The variance for the switch variable of the loop-closure "
-    "edges.");
+DECLARE_double(lc_switch_variable_variance);
+
 DEFINE_double(
     lc_switch_variable_value, 1.0,
     "The value for the switch variable of the loop-closure "
     "edges, between 0.0 (edge is ignored) and 1.0 (edge is being "
     "fully trusted).");
 
+DECLARE_string(map_mission);
+
 namespace pose_graph_manipulation {
 
 PoseGraphManipulationPlugin::PoseGraphManipulationPlugin(
     common::Console* console) : common::ConsolePluginBase(console) {
   CHECK_NOTNULL(console);
-
-  addCommand(
-      {"rwot", "reset_vertex_poses_to_wheel_odometry_trajectory"},
-      [this]() -> int { return resetVertexPosesToWheelOdometryTrajectory(); },
-      "Resets the vertex poses by integrating the relative pose information "
-      "stored in the odometry edges of the pose graph.",
-      common::Processing::Sync);
 
   addCommand(
       {"aeu", "assign_edge_uncertainties"},
@@ -61,20 +56,12 @@ PoseGraphManipulationPlugin::PoseGraphManipulationPlugin(
       "loop-closure edges. Specify the switch variable value with "
       "--lc_switch_variable_value.",
       common::Processing::Sync);
-}
 
-int PoseGraphManipulationPlugin::resetVertexPosesToWheelOdometryTrajectory()
-const {
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapWriteAccess map =
-      map_manager.getMapWriteAccess(selected_map_key);
-
-  return pose_graph_manipulation::resetVertexPosesToWheelOdometryTrajectory(
-      map.get());
+  addCommand(
+      {"artificially_disturb_vertices"},
+      [this]() -> int { return artificiallyDisturbVertices(); },
+      "Artificially disturbs vertices in all missions.",
+      common::Processing::Sync);
 }
 
 int PoseGraphManipulationPlugin::assignEdgeUncertainties() {
@@ -99,7 +86,7 @@ int PoseGraphManipulationPlugin::assignEdgeUncertainties() {
   const double orientation_std_dev_degrees = FLAGS_orientation_std_dev_degrees;
   if (orientation_std_dev_degrees <= 0.0) {
     LOG(ERROR) << "Please specify a strictly positive value for "
-               << "--translation_std_dev_meters.";
+               << "--orientation_std_dev_degrees.";
     return common::kStupidUserError;
   }
 
@@ -155,6 +142,21 @@ int PoseGraphManipulationPlugin::
 
   return pose_graph_manipulation::assignSwitchVariableValuesForLoopClosureEdges(
       switch_variable_value, map.get());
+}
+
+int PoseGraphManipulationPlugin::artificiallyDisturbVertices() const {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);
+  vi_map_helpers::VIMapManipulation map_manipulation(map.get());
+  map_manipulation.artificiallyDisturbVertices();
+
+  return common::kSuccess;
 }
 
 }  // namespace pose_graph_manipulation

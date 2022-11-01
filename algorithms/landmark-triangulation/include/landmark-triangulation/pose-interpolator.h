@@ -31,8 +31,19 @@ struct StateLinearizationPoint {
   int64_t timestamp;  // nanoseconds.
   Eigen::Quaterniond q_M_I;
   Eigen::Matrix<double, 3, 1> p_M_I;
+  Eigen::Matrix<double, 3, 1> v_M;
+  Eigen::Matrix<double, 3, 1> gyro_bias;
+  Eigen::Matrix<double, 3, 1> accel_bias;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+
+typedef std::unordered_map<pose_graph::VertexId, int64_t> VertexToTimeStampMap;
+
+// Interpolate position using linear approximation between two vertices.
+// Much faster than the IMU based one of the PoseInterpolator, but less precise
+bool interpolateLinear(
+    const vi_map::VIMap& map, const vi_map::Vertex& vertex,
+    int64_t offset_ns, aslam::Transformation* T_inter);
 
 class PoseInterpolator {
  public:
@@ -43,11 +54,14 @@ class PoseInterpolator {
   // Extrapolating outside this range is not supported.
   void getPosesAtTime(
       const vi_map::VIMap& map, vi_map::MissionId mission_id,
-      const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps,
-      aslam::TransformationVector* poses) const;
+      const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& pose_timestamps,
+      aslam::TransformationVector* poses_M_I,
+      std::vector<Eigen::Vector3d>* velocities_M_I = nullptr,
+      std::vector<Eigen::Vector3d>* gyro_biases = nullptr,
+      std::vector<Eigen::Vector3d>* accel_biases = nullptr) const;
 
   // Returns interpolated poses and their associated timestamps across an entire
-  // mission specified by emission_id.  Timestamps begin at the earliest IMU
+  // mission specified by mission_id. Timestamps begin at the earliest IMU
   // measurement, then continue every timestep_seconds until the last possible
   // timestep in the mission is reached.
   void getPosesEveryNSeconds(
@@ -60,14 +74,21 @@ class PoseInterpolator {
   // Returns an empty map if there are no IMU measurements.
   void getVertexToTimeStampMap(
       const vi_map::VIMap& map, const vi_map::MissionId& mission_id,
-      std::unordered_map<pose_graph::VertexId, int64_t>* vertex_to_time_map)
-      const;
+      VertexToTimeStampMap* vertex_to_time_map,
+      int64_t* min_timestamp_ns = nullptr,
+      int64_t* max_timestamp_ns = nullptr) const;
+
+  // Returns a vector of vertex timestamps based on the first frame timestamp.
+  void getVertexTimeStampVector(
+      const vi_map::VIMap& map, const vi_map::MissionId& mission_id,
+      std::vector<int64_t>* vertex_timestamps_nanoseconds) const;
 
  private:
-  typedef std::pair<int64_t, StateLinearizationPoint> state_buffer_value_type;
+  typedef std::pair<const int64_t, StateLinearizationPoint>
+      state_buffer_value_type;
   typedef common::TemporalBuffer<
       StateLinearizationPoint,
-      Eigen::aligned_allocator<state_buffer_value_type> >
+      Eigen::aligned_allocator<state_buffer_value_type>>
       StateBuffer;
 
   // Determine the earliest and latest IMU measurements across an entire

@@ -13,7 +13,7 @@
 namespace visualization {
 namespace internal {
 const VizDataCollectorImpl::SlotId VizDataCollectorImpl::kCommonSlotId =
-    VizDataCollectorImpl::SlotId::Random();
+    aslam::createRandomId<VizDataCollectorImpl::SlotId>();
 
 VizDataCollectorImpl::VizChannelGroup* VizDataCollectorImpl::getSlot(
     const SlotId& slot_id) {

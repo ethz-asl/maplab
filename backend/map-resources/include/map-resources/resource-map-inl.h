@@ -35,7 +35,7 @@ void ResourceMap::addResource(
   CHECK_NOTNULL(id);
   aslam::ScopedWriteLock lock(&resource_mutex_);
   static const std::string kUseDefaultFolder = "";
-  common::generateId(id);
+  aslam::generateId(id);
   addResourceImpl(type, resource, kUseDefaultFolder, *id);
 }
 
@@ -45,7 +45,7 @@ void ResourceMap::addResource(
     const std::string& resource_folder, ResourceId* id) {
   CHECK_NOTNULL(id);
   aslam::ScopedWriteLock lock(&resource_mutex_);
-  common::generateId(id);
+  aslam::generateId(id);
   addResourceImpl(type, resource, resource_folder, *id);
 }
 
@@ -93,33 +93,6 @@ void ResourceMap::addResourceImpl(
 }
 
 template <typename DataType>
-bool ResourceMap::deleteResource(
-    const ResourceId& id, const ResourceType& type) {
-  constexpr bool kKeepResourceFile = false;
-  return deleteResource<DataType>(id, type, kKeepResourceFile);
-}
-
-template <typename DataType>
-bool ResourceMap::deleteResource(
-    const ResourceId& id, const ResourceType& type,
-    const bool keep_resource_file) {
-  aslam::ScopedWriteLock lock(&resource_mutex_);
-  ResourceInfoMap& info_map = resource_info_map_[static_cast<size_t>(type)];
-  const ResourceInfoMap::const_iterator it = info_map.find(id);
-  if (it == info_map.cend()) {
-    return false;
-  }
-
-  if (!keep_resource_file) {
-    std::string folder;
-    getFolderFromIndex(it->second.folder_idx, &folder);
-    resource_loader_.deleteResource<DataType>(id, type, folder);
-  }
-  info_map.erase(it);
-  return true;
-}
-
-template <typename DataType>
 bool ResourceMap::replaceResource(
     const ResourceId& id, const ResourceType& type, const DataType& resource) {
   aslam::ScopedWriteLock lock(&resource_mutex_);
@@ -160,6 +133,31 @@ bool ResourceMap::checkResource(
     }
     return resource_available;
   }
+}
+template <typename DataType>
+bool ResourceMap::deleteResource(
+    const ResourceId& id, const ResourceType& type) {
+  constexpr bool kKeepResourceFile = false;
+  return deleteResource<DataType>(id, type, kKeepResourceFile);
+}
+template <typename DataType>
+bool ResourceMap::deleteResource(
+    const ResourceId& id, const ResourceType& type,
+    const bool keep_resource_file) {
+  aslam::ScopedWriteLock lock(&resource_mutex_);
+  ResourceInfoMap& info_map = resource_info_map_[static_cast<size_t>(type)];
+  const ResourceInfoMap::const_iterator it = info_map.find(id);
+  if (it == info_map.cend()) {
+    return false;
+  }
+
+  if (!keep_resource_file) {
+    std::string folder;
+    getFolderFromIndex(it->second.folder_idx, &folder);
+    resource_loader_.deleteResource<DataType>(id, type, folder);
+  }
+  info_map.erase(it);
+  return true;
 }
 
 }  // namespace backend

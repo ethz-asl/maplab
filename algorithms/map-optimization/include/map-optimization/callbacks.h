@@ -1,13 +1,13 @@
 #ifndef MAP_OPTIMIZATION_CALLBACKS_H_
 #define MAP_OPTIMIZATION_CALLBACKS_H_
 
-#include <memory>
-#include <vector>
-
 #include <ceres-error-terms/ceres-signal-handler.h>
 #include <ceres/iteration_callback.h>
 #include <map-optimization/optimization-state-buffer.h>
 #include <visualization/viwls-graph-plotter.h>
+
+#include <memory>
+#include <vector>
 
 namespace map_optimization {
 
@@ -69,7 +69,6 @@ class VisualizationCallback : public ceres::IterationCallback {
   const size_t visualize_every_n_;
   const vi_map::VIMap& map_;
   const visualization::ViwlsGraphRvizPlotter& plotter_;
-
   // Count iterations locally as outlier rejection optimization is restarting
   // the ceres solver multiple times and zeroing the iteration count.
   size_t iteration_;

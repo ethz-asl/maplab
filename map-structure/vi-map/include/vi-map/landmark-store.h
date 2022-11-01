@@ -27,6 +27,11 @@ class LandmarkStore {
 
   unsigned int size() const;
 
+  inline void clear() {
+    landmarks_.clear();
+    landmark_id_map_.clear();
+  }
+
   void serialize(vi_map::proto::LandmarkStore* proto) const;
   void deserialize(const vi_map::proto::LandmarkStore& proto);
 

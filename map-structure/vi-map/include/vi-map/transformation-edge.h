@@ -3,16 +3,15 @@
 
 #include <string>
 
+#include <aslam/common/unique-id.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/traits.h>
-#include <sensors/sensor.h>
 
 #include "vi-map/edge.h"
 #include "vi-map/landmark.h"
 #include "vi-map/unique-id.h"
 #include "vi-map/vi-mission.h"
 #include "vi-map/vi_map.pb.h"
-#include "vi-map/vi_map_deprecated.pb.h"
 
 namespace vi_map {
 
@@ -27,14 +26,8 @@ class TransformationEdge : public vi_map::Edge {
       vi_map::Edge::EdgeType edge_type, const pose_graph::EdgeId& id,
       const pose_graph::VertexId& from, const pose_graph::VertexId& to,
       const pose::Transformation& T_A_B,
-      const Eigen::Matrix<double, 6, 6>& T_A_B_covariance_p_q);
-
-  TransformationEdge(
-      vi_map::Edge::EdgeType edge_type, const pose_graph::EdgeId& id,
-      const pose_graph::VertexId& from, const pose_graph::VertexId& to,
-      const pose::Transformation& T_A_B,
       const Eigen::Matrix<double, 6, 6>& T_A_B_covariance_p_q,
-      const SensorId& sensor_id);
+      const aslam::SensorId& sensor_id);
   virtual ~TransformationEdge() {}
 
   virtual bool operator==(const TransformationEdge& other) const {
@@ -53,18 +46,15 @@ class TransformationEdge : public vi_map::Edge {
   void deserialize(
       const pose_graph::EdgeId& id,
       const vi_map::proto::TransformationEdge& proto);
-  void deserialize(
-      const pose_graph::EdgeId& id,
-      const vi_map_deprecated::proto::TransformationEdge& proto);
 
   void set_T_A_B(const pose::Transformation& T_A_B);
-  const pose::Transformation& getT_A_B() const;
+  const pose::Transformation& get_T_A_B() const;
 
   void set_T_A_B_Covariance_p_q(
       const Eigen::Matrix<double, 6, 6>& T_A_B_covariance);
   const Eigen::Matrix<double, 6, 6>& get_T_A_B_Covariance_p_q() const;
 
-  inline const SensorId& getSensorId() const {
+  inline const aslam::SensorId& getSensorId() const {
     return sensor_id_;
   }
 
@@ -75,7 +65,7 @@ class TransformationEdge : public vi_map::Edge {
 
   pose::Transformation T_A_B_;
   Eigen::Matrix<double, 6, 6> T_A_B_covariance_p_q_;
-  SensorId sensor_id_;
+  aslam::SensorId sensor_id_;
 };
 
 }  // namespace vi_map

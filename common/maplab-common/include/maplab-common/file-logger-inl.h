@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include <Eigen/Core>
 
@@ -23,6 +24,32 @@ void FileLogger::writeDataWithDelimiterAndNewLine(
     const std::string& /*delimiter*/, const DataType& object) {
   // Base case -- don't need to print a delimiter.
   *file_handle_ << object << std::endl;
+}
+
+template <typename DataType>
+void FileLogger::writeDataWithDelimiterAndNewLine(
+    const std::string& delimiter, const std::vector<DataType>& objects) {
+  if (objects.empty()) {
+    return;
+  }
+  for (size_t object_idx = 0u; object_idx < objects.size() - 1u; ++object_idx) {
+    *file_handle_ << objects[object_idx] << delimiter;
+  }
+  *file_handle_ << objects.back() << std::endl;
+}
+
+template <typename DataType, typename... DataTypes>
+void FileLogger::writeDataWithDelimiterAndNewLine(
+    const std::string& delimiter, const std::vector<DataType>& objects,
+    const DataTypes&... more_objects) {
+  if (!objects.empty()) {
+    for (size_t object_idx = 0u; object_idx < objects.size() - 1u;
+         ++object_idx) {
+      *file_handle_ << objects[object_idx] << delimiter;
+    }
+    *file_handle_ << objects.back();
+  }
+  writeDataWithDelimiterAndNewLine(delimiter, more_objects...);
 }
 
 template <typename FirstDataType, typename... DataTypes>

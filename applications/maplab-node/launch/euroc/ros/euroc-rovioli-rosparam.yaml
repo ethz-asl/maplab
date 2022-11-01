@@ -1,0 +1,53 @@
+# SENSORS AND CALIBRATION
+sensor_calibration_file:                 ""
+imu_to_camera_time_offset_ns:            0
+external_imu_parameters_rovio:           ""
+vio_camera_topic_suffix:                 "/image_raw"
+vio_nframe_sync_tolerance_ns:            500000
+vio_nframe_sync_max_output_frequency_hz: 10
+
+# SENSOR SELECTION
+# only needed if there are multiple ncameras/lidars/imus/odometries
+# in the calibration file.
+selected_ncamera_sensor_id:       ""
+selected_imu_sensor_id:           ""
+selected_lidar_sensor_id:         ""
+selected_odometry_6dof_sensor_id: ""
+
+# DATA SOURCE [rosbag, rostopic]
+datasource_type:   "rostopic"
+datasource_rosbag: ""
+
+# DATA PREPROCESSING
+rovioli_zero_initial_timestamps:                  false
+rovio_image_mask_path:                            ""
+rovioli_image_apply_clahe_histogram_equalization: false
+
+# ROVIO
+rovio_enable_frame_visualization: false
+rovioli_enable_health_checking:   false
+
+# MAP BUILDING
+rovioli_run_map_builder:             false
+save_map_folder:                     ""
+overwrite_existing_map:              false
+optimize_map_to_localization_map:    false
+map_builder_save_image_as_resources: false
+
+# VISUAL LOCALIZATION
+vio_localization_map_folder: ""
+
+# TF
+tf_map_frame:     map
+tf_mission_frame: mission
+tf_imu_frame:     imu
+
+# DEBUGGING AND LOGGING
+alsologtostderr:                            true
+colorlogtostderr:                           true
+v:                                          1
+publish_debug_markers:                      false
+vis_default_namespace:                      maplab_rviz
+export_estimated_poses_to_csv:              ""
+detection_visualize_keypoints:              false
+feature_tracker_visualize_keypoint_matches: false

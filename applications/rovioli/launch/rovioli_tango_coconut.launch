@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+
+<launch>
+	<!-- ================================== PLAY ROSBAG ============================================== -->
+
+	<node pkg="rosbag" type="play" name="rosbag" args="/home/mfehr/experimental_ws/modelify/bags/tango_4_20190815_111254.bag -q -d 2 -r 1.0"/>
+
+	<!-- ================================== ROVIOLI ================================================== -->
+
+	<group ns="rovioli">
+
+		<!-- SENSORS AND CALIBRATION -->
+		<arg name="sensor_calibration_file" default="$(find maplab_node)/share/example_calibrations/google_tango_lenovo_sensors.yaml"/>
+		<arg name="external_imu_parameters_rovio" default=""/>
+		<arg name="imu_to_camera_time_offset_ns" default="0"/>
+
+		<!-- DATA SOURCE -->
+		<arg name="datasource_type" default="rostopic"/>
+		<arg name="datasource_rosbag" default=""/>
+		<arg name="rovio_image_mask_path" default="$(find maplab_node)/share/example_calibrations/tango_lenovo_mask.png"/>
+
+		<!-- MAP BUILDING (DISABLED) -->
+		<arg name="rovioli_run_map_builder" default="true"/>
+		<arg name="save_map_folder" default="/tmp/rovioli/test_tango"/>
+		<arg name="overwrite_existing_map" default="false"/>
+		<arg name="optimize_map_to_localization_map" default="false"/>
+		<arg name="map_builder_save_image_as_resources" default="false"/>
+
+		<!-- VISUAL LOCALIZATION (DISABLED) -->
+		<arg name="vio_localization_map_folder" default=""/>
+
+		<!-- DEBUGGING AND LOGGING -->
+		<arg name="alsologtostderr" default="true"/>
+		<arg name="colorlogtostderr" default="true"/>
+		<arg name="v" default="1"/>
+		<arg name="publish_debug_markers" default="true"/>
+		<arg name="rovio_enable_frame_visualization" default="true"/>
+
+		<!-- TF -->
+		<arg name="tf_map_frame" default="map"/>
+		<arg name="tf_mission_frame" default="rovio_mission"/>
+		<arg name="tf_imu_frame" default="rovio_imu"/>
+
+		<include file="$(find rovioli)/launch/rovioli.launch" pass_all_args="true"/>
+	</group>
+</launch>

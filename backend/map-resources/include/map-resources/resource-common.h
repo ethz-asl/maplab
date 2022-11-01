@@ -8,8 +8,12 @@
 #include <utility>
 #include <vector>
 
-#include <maplab-common/unique-id.h>
+#include <aslam/common/unique-id.h>
+#include <boost/variant.hpp>
 #include <opencv2/core.hpp>
+#include <resources-common/point-cloud.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/point_cloud2_iterator.h>
 #include <voxblox/core/esdf_map.h>
 #include <voxblox/core/occupancy_map.h>
 #include <voxblox/core/tsdf_map.h>
@@ -25,30 +29,33 @@ UNIQUE_ID_DEFINE_ID_HASH(backend::ResourceId);
 namespace backend {
 
 // NOTE: [ADD_RESOURCE_TYPE] Add enum. When adding a new ResourceType, add it at
-// the bottom, right
-// above kCount to ensure backward compatibility.
-enum class ResourceType {
-  kRawImage,
-  kUndistortedImage,
-  kRectifiedImage,
-  kImageForDepthMap,
-  kRawColorImage,
-  kUndistortedColorImage,
-  kRectifiedColorImage,
-  kColorImageForDepthMap,
-  kRawDepthMap,
-  kOptimizedDepthMap,
-  kDisparityMap,
-  kText,
-  kPmvsReconstructionPath,
-  kTsdfGridPath,
-  kEsdfGridPath,
-  kOccupancyGridPath,
-  kPointCloudXYZ,
-  kPointCloudXYZRGBN,
-  kVoxbloxTsdfMap,
-  kVoxbloxEsdfMap,
-  kVoxbloxOccupancyMap,
+// the bottom, right above kCount to ensure backward compatibility.
+enum class ResourceType : int {
+  kRawImage = 0,
+  kUndistortedImage = 1,
+  kRectifiedImage = 2,
+  kImageForDepthMap = 3,
+  kRawColorImage = 4,
+  kUndistortedColorImage = 5,
+  kRectifiedColorImage = 6,
+  kColorImageForDepthMap = 7,
+  kRawDepthMap = 8,
+  kOptimizedDepthMap = 9,
+  kDisparityMap = 10,
+  kText = 11,
+  kPmvsReconstructionPath = 12,
+  kTsdfGridPath = 13,
+  kEsdfGridPath = 14,
+  kOccupancyGridPath = 15,
+  kPointCloudXYZ = 16,
+  kPointCloudXYZRGBN = 17,
+  kVoxbloxTsdfMap = 18,
+  kVoxbloxEsdfMap = 19,
+  kVoxbloxOccupancyMap = 20,
+  kPointCloudXYZI = 21,
+  kObjectInstanceBoundingBoxes = 22,
+  kObjectInstanceMasks = 23,
+  kPointCloudXYZL = 24,
   kCount
 };
 
@@ -73,11 +80,15 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeNames = {
      /*kTsdfGridPath*/ "tsdf_grid_paths",
      /*kEsdfGridPath*/ "esdf_grid_paths",
      /*kOccupancyGridPath*/ "occupancy_grid_paths",
-     /*kPointCloudXYZ*/ "point_cloud_type",
-     /*kPointCloudXYZRGBN*/ "color_point_cloud_type",
+     /*kPointCloudXYZ*/ "point_cloud",
+     /*kPointCloudXYZRGBN*/ "color_point_cloud",
      /*kVoxbloxTsdfMap*/ "voxblox_tsdf_map",
      /*kVoxbloxEsdfMap*/ "voxblox_esdf_map",
-     /*kVoxbloxOccupancyMap*/ "voxblox_occupancy_map"}};
+     /*kVoxbloxOccupancyMap*/ "voxblox_occupancy_map",
+     /*kPointCloudXYZI*/ "point_cloud_w_intensity",
+     /*kObjectInstanceBoundingBoxes*/ "object_instance_bounding_boxes",
+     /*kObjectInstanceMasks*/ "object_instance_masks",
+     /*kPointCloudXYZL*/ "labeled_point_cloud"}};
 
 // NOTE: [ADD_RESOURCE_TYPE] Add suffix.
 const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
@@ -101,7 +112,11 @@ const std::array<std::string, kNumResourceTypes> ResourceTypeFileSuffix = {
      /*kPointCloudXYZRGBN*/ ".ply",
      /*kVoxbloxTsdfMap*/ ".tsdf.voxblox",
      /*kVoxbloxEsdfMap*/ ".esdf.voxblox",
-     /*kVoxbloxOccupancyMap*/ ".occupancy.voxblox"}};
+     /*kVoxbloxOccupancyMap*/ ".occupancy.voxblox",
+     /*kPointCloudXYZI*/ ".ply",
+     /*kObjectInstanceBoundingBoxes*/ ".obj_instance_bboxes.proto",
+     /*kObjectInstanceMasks*/ ".obj_instance_mask.ppm",
+     /*kPointCloudXYZL*/ ".ply"}};
 
 struct ResourceTypeHash {
   template <typename T>
@@ -140,6 +155,57 @@ template <>
 bool isSameResource(
     const resources::PointCloud& point_cloud_A,
     const resources::PointCloud& point_cloud_B);
+
+template <>
+bool isSameResource(
+    const resources::ObjectInstanceBoundingBoxes& bboxes_A,
+    const resources::ObjectInstanceBoundingBoxes& bboxes_B);
+
+typedef boost::variant<
+    sensor_msgs::PointCloud2ConstIterator<int8_t>,
+    sensor_msgs::PointCloud2ConstIterator<uint8_t>,
+    sensor_msgs::PointCloud2ConstIterator<int16_t>,
+    sensor_msgs::PointCloud2ConstIterator<uint16_t>,
+    sensor_msgs::PointCloud2ConstIterator<int32_t>,
+    sensor_msgs::PointCloud2ConstIterator<uint32_t>,
+    sensor_msgs::PointCloud2ConstIterator<float>,
+    sensor_msgs::PointCloud2ConstIterator<double>>
+    PointCloud2ConstIteratorVariant;
+
+template <typename OutputType>
+class PointCloud2Visitor : public boost::static_visitor<OutputType> {
+ public:
+  PointCloud2Visitor() {}
+  explicit PointCloud2Visitor(const std::size_t index) : index_(index) {}
+
+  template <typename InputType>
+  OutputType operator()(
+      sensor_msgs::PointCloud2ConstIterator<InputType>& it) const {
+    return static_cast<OutputType>(*(it + index_));
+  }
+
+  std::size_t getIndex() const {
+    return index_;
+  }
+  std::size_t& getIndex() {
+    return index_;
+  }
+  PointCloud2Visitor& setIndex(const std::size_t index) {
+    index_ = index;
+    return *this;
+  }
+
+ private:
+  std::size_t index_;
+};
+
+// Converts a CSV string with resource type numbers into a vector of
+// ResourceTypes. If the string is empty it returns true and an empty vector. If
+// one of the CSV entries is not a valid ResourceType, it returns false and an
+// empty vector.
+bool csvStringToResourceTypeList(
+    const std::string& csv_resource_types,
+    std::vector<ResourceType>* resource_type_list);
 
 }  // namespace backend
 

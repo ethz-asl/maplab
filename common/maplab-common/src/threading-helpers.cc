@@ -7,7 +7,8 @@
 
 DEFINE_uint64(
     num_hardware_threads, 0u,
-    "Number of hardware threads to announce. (0: autodetect)");
+    "Number of hardware threads to announce. (0: use environment variable "
+    "MAPLAB_NUM_HARDWARE_THREADS if set, otherwise autodetect)");
 
 namespace common {
 namespace internal {
@@ -15,9 +16,11 @@ namespace internal {
 constexpr size_t kDefaultNumHardwareThreads = 4u;
 
 size_t getNumHardwareThreadsImpl() {
-  // Just use the user-provided count if set.
-  if (FLAGS_num_hardware_threads > 0) {
-    return FLAGS_num_hardware_threads;
+  // Check environment variable.
+  const char* num_hardware_threads_env_string =
+      std::getenv("MAPLAB_NUM_HARDWARE_THREADS");
+  if (num_hardware_threads_env_string != nullptr) {
+    return std::stoi(num_hardware_threads_env_string);
   }
 
   const size_t num_detected_threads = std::thread::hardware_concurrency();
@@ -39,6 +42,11 @@ size_t getNumHardwareThreadsImpl() {
 }  // namespace internal
 
 size_t getNumHardwareThreads() {
+  // Just use the user-provided count if set.
+  if (FLAGS_num_hardware_threads > 0) {
+    return FLAGS_num_hardware_threads;
+  }
+
   static size_t cached_num_threads = internal::getNumHardwareThreadsImpl();
   return cached_num_threads;
 }

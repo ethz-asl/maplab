@@ -134,7 +134,7 @@ void LandmarkSamplingWithCostFunctions::sampleMapSegment(
         }
 
         pose_graph::VertexIdSet store_landmark_id_observers;
-        map.getLandmarkObserverVertices(
+        map.getObserverVerticesForLandmark(
             store_landmark_id, &store_landmark_id_observers);
 
         bool are_landmark_observers_already_sparsified = false;

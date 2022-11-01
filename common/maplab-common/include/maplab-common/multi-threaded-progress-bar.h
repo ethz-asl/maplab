@@ -13,6 +13,8 @@ namespace common {
 class MultiThreadedProgressBar {
  public:
   MultiThreadedProgressBar();
+  explicit MultiThreadedProgressBar(const size_t verbosity_level);
+
   virtual ~MultiThreadedProgressBar() {}
 
   /// Updates the progress bar given the current number of processed elements.
@@ -59,6 +61,8 @@ class MultiThreadedProgressBar {
   double progress_bar_width_floating_point_;
 
   bool percentage_only_;
+
+  size_t verbosity_level_;
 
   typedef std::unordered_map<std::thread::id, size_t> ThreadIdToThreadIndexMap;
   ThreadIdToThreadIndexMap thread_id_to_thread_index_map_;

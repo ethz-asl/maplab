@@ -1,6 +1,7 @@
 #include "loop-closure-plugin/loop-closure-plugin.h"
 
 #include <console-common/console.h>
+#include <descriptor-projection/train-projection-matrix.h>
 #include <map-manager/map-manager.h>
 #include <posegraph/pose-graph.h>
 #include <posegraph/unique-id.h>
@@ -8,8 +9,6 @@
 #include <vi-map/vi-map.h>
 #include <visualization/viwls-graph-plotter.h>
 
-#include "loop-closure-plugin/loop-detector-serialization.h"
-#include "loop-closure-plugin/vi-localization-evaluator.h"
 #include "loop-closure-plugin/vi-map-merger.h"
 
 DECLARE_string(map_mission);
@@ -37,22 +36,23 @@ LoopClosurePlugin::LoopClosurePlugin(
       "Delete loop closure edges of all missions.", common::Processing::Sync);
 
   addCommand(
-      {"sld", "serialize_loop_detector"},
-      [this]() -> int { return serializeLoopDetector(); },
-      "Generate the loop detector and serialize it.", common::Processing::Sync);
+      {"train_projection_matrix"},
+      [this]() -> int {
+        std::string selected_map_key;
+        if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+          return common::kStupidUserError;
+        }
+        vi_map::VIMapManager map_manager;
+        vi_map::VIMapManager::MapWriteAccess map =
+            map_manager.getMapWriteAccess(selected_map_key);
 
-  addCommand(
-      {"align_for_eloc"},
-      [this]() -> int { return alignMissionsForEvaluation(); },
-      "Align and co-optimize missions without merging landmarks to "
-      "perform localization evaluation.",
-      common::Processing::Sync);
+        descriptor_projection::TrainProjectionMatrix(*map);
 
-  addCommand(
-      {"eloc", "evaluate_localization"},
-      [this]() -> int { return evaluateLocalization(); },
-      "Evaluation localization between a query and database missions. "
-      "Please align the missions first.",
+        return common::kSuccess;
+      },
+      "Train a new descriptor projection matrix based on the selected map. Use "
+      "--lc_projection_matrix_filename to specify the target file for the "
+      "projecton matrix.",
       common::Processing::Sync);
 }
 
@@ -84,7 +84,7 @@ int LoopClosurePlugin::findLoopClosuresBetweenAllMissions() const {
     return common::kStupidUserError;
   }
 
-  VIMapMerger merger(map.get(), plotter_);
+  VIMapMerger merger(map.get(), getPlotterUnsafe());
   return merger.findLoopClosuresBetweenAllMissions();
 }
 
@@ -113,7 +113,7 @@ int LoopClosurePlugin::findLoopClosuresInOneMission() const {
   map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
   mission_ids.emplace_back(mission_id);
 
-  VIMapMerger merger(map.get(), plotter_);
+  VIMapMerger merger(map.get(), getPlotterUnsafe());
   return merger.findLoopClosuresBetweenMissions(mission_ids);
 }
 
@@ -130,69 +130,6 @@ int LoopClosurePlugin::deleteAllLoopClosureEdges() const {
       map->removeLoopClosureEdges();
   LOG(INFO) << "Removed " << number_of_loop_closure_edges_removed
             << " loop closures edges.";
-  return common::kSuccess;
-}
-
-int LoopClosurePlugin::serializeLoopDetector() const {
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapReadAccess map =
-      map_manager.getMapReadAccess(selected_map_key);
-
-  std::string map_folder;
-  map->getMapFolder(&map_folder);
-  CHECK(vi_map::serialization::hasMapOnFileSystem(map_folder));
-  return generateLoopDetectorForVIMapAndSerialize(map_folder, *map);
-}
-
-int LoopClosurePlugin::alignMissionsForEvaluation() const {
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapWriteAccess map =
-      map_manager.getMapWriteAccess(selected_map_key);
-
-  vi_map::MissionId query_mission_id;
-  map->ensureMissionIdValid(FLAGS_map_mission, &query_mission_id);
-
-  if (!query_mission_id.isValid()) {
-    LOG(ERROR) << "The given mission \"" << FLAGS_map_mission
-               << "\" is not valid.";
-    return common::kUnknownError;
-  }
-
-  VILocalizationEvaluator evaluator(map.get(), plotter_);
-  evaluator.alignMissionsForEvaluation(query_mission_id);
-
-  return common::kSuccess;
-}
-
-int LoopClosurePlugin::evaluateLocalization() const {
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-  vi_map::VIMapManager map_manager;
-  vi_map::VIMapManager::MapWriteAccess map =
-      map_manager.getMapWriteAccess(selected_map_key);
-
-  vi_map::MissionId query_mission_id;
-  map->ensureMissionIdValid(FLAGS_map_mission, &query_mission_id);
-
-  if (!query_mission_id.isValid()) {
-    LOG(ERROR) << "The given mission \"" << FLAGS_map_mission
-               << "\" is not valid.";
-    return common::kUnknownError;
-  }
-
-  VILocalizationEvaluator evaluator(map.get(), plotter_);
-  evaluator.evaluateLocalizationPerformance(query_mission_id);
-
   return common::kSuccess;
 }
 

@@ -1,8 +1,8 @@
 #include <aslam/cameras/ncamera.h>
+#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/frames/visual-nframe.h>
 #include <gtest/gtest.h>
 #include <maplab-common/test/testing-entrypoint.h>
-
 #include "rovioli/vio-update-builder.h"
 
 namespace rovioli {
@@ -11,7 +11,7 @@ class VioUpdateBuilderTest : public ::testing::Test {
  public:
   virtual void SetUp() {
     vio_update_builder_.registerVioUpdatePublishFunction(
-        [this](const vio::VioUpdate::ConstPtr& update) {
+        [this](const vio::MapUpdate::ConstPtr& update) {
           received_vio_update_ = update;
         });
 
@@ -25,7 +25,7 @@ class VioUpdateBuilderTest : public ::testing::Test {
     ASSERT_TRUE(received_vio_update_ == nullptr);
 
     constexpr size_t kNumCameras = 1u;
-    n_camera_ = aslam::NCamera::createTestNCamera(kNumCameras);
+    n_camera_ = aslam::createTestNCamera(kNumCameras);
   }
 
  protected:
@@ -34,22 +34,21 @@ class VioUpdateBuilderTest : public ::testing::Test {
 
   void addViNodeToVioUpdateBuilder(const int64_t timestamp_ns) {
     vio::ViNodeState vi_node;
-    vi_node.set_T_M_I(
-        aslam::Transformation(
-            aslam::Position3D(timestamp_ns, 0, 0), aslam::Quaternion()));
+    vi_node.set_T_M_I(aslam::Transformation(
+        aslam::Position3D(timestamp_ns, 0, 0), aslam::Quaternion()));
     vi_node.set_v_M_I(Eigen::Vector3d(0, timestamp_ns, 0));
     vi_node.setAccBias(Eigen::Vector3d(0, 0, timestamp_ns));
     vi_node.setGyroBias(
         Eigen::Vector3d(timestamp_ns, kGyroBiasYOffset + timestamp_ns, 0));
+    vi_node.setTimestamp(timestamp_ns);
     RovioEstimate::Ptr rovio_estimate = aligned_shared<RovioEstimate>();
     rovio_estimate->vinode = vi_node;
-    rovio_estimate->timestamp_s =
-        aslam::time::nanoSecondsToSeconds(timestamp_ns);
+    rovio_estimate->timestamp_ns = timestamp_ns;
     vio_update_builder_.processRovioEstimate(rovio_estimate);
   }
 
   VioUpdateBuilder vio_update_builder_;
-  vio::VioUpdate::ConstPtr received_vio_update_;
+  vio::MapUpdate::ConstPtr received_vio_update_;
   aslam::NCamera::Ptr n_camera_;
 };
 

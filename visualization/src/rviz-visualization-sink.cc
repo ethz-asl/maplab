@@ -2,18 +2,10 @@
 
 #include <glog/logging.h>
 
-DEFINE_bool(
-    rviz_wait_for_subscribers, false,
-    "If true, every plotting message "
-    "will wait a maximum of 5s for a subsrciber if none is visible yet.");
-
 namespace visualization {
 
 RVizVisualizationSink::RVizVisualizationSink()
-    : is_initialized_(false),
-      queue_size_(200u),
-      latch_(true),
-      should_wait_for_subscribers_(FLAGS_rviz_wait_for_subscribers) {
+    : is_initialized_(false), queue_size_(200u), latch_(true) {
   initImpl();
 }
 
@@ -41,7 +33,8 @@ void RVizVisualizationSink::initImpl() {
 
 template <>
 void RVizVisualizationSink::publishImpl(
-    const std::string& topic, const cv::Mat& image) {
+    const std::string& topic, const cv::Mat& image,
+    const bool /*wait_for_subscriber*/) {
   CHECK(!topic.empty());
 
   // Create the ROS message (and copy the image).

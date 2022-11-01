@@ -8,20 +8,9 @@ TransformationEdge::TransformationEdge(vi_map::Edge::EdgeType edge_type)
     : vi_map::Edge(edge_type) {
   CHECK(
       edge_type == vi_map::Edge::EdgeType::kOdometry ||
-      edge_type == vi_map::Edge::EdgeType::k6DoFGps)
-      << "Invalid edge"
-         "type. Only odometry and GPS edges can be transformation edges.";
-}
-
-TransformationEdge::TransformationEdge(
-    vi_map::Edge::EdgeType edge_type, const pose_graph::EdgeId& id,
-    const pose_graph::VertexId& from, const pose_graph::VertexId& to,
-    const pose::Transformation& T_A_B,
-    const Eigen::Matrix<double, 6, 6>& T_A_B_covariance_p_q)
-    : vi_map::Edge(edge_type, id, from, to),
-      T_A_B_(T_A_B),
-      T_A_B_covariance_p_q_(T_A_B_covariance_p_q) {
-  sensor_id_.setInvalid();
+      edge_type == vi_map::Edge::EdgeType::kWheelOdometry)
+      << "Invalid edge type. Only odometry, wheel odometry and GPS edges can "
+      << "be transformation edges.";
 }
 
 TransformationEdge::TransformationEdge(
@@ -29,7 +18,7 @@ TransformationEdge::TransformationEdge(
     const pose_graph::VertexId& from, const pose_graph::VertexId& to,
     const pose::Transformation& T_A_B,
     const Eigen::Matrix<double, 6, 6>& T_A_B_covariance_p_q,
-    const SensorId& sensor_id)
+    const aslam::SensorId& sensor_id)
     : vi_map::Edge(edge_type, id, from, to),
       T_A_B_(T_A_B),
       T_A_B_covariance_p_q_(T_A_B_covariance_p_q),
@@ -66,29 +55,11 @@ void TransformationEdge::deserialize(
   common::eigen_proto::deserialize(proto.t_a_b(), &T_A_B_);
 }
 
-void TransformationEdge::deserialize(
-    const pose_graph::EdgeId& id,
-    const vi_map_deprecated::proto::TransformationEdge& proto) {
-  id_ = id;
-  from_.deserialize(proto.from());
-  to_.deserialize(proto.to());
-  if (proto.has_optional_sensor_extrinsics_id()) {
-    sensor_id_.deserialize(proto.optional_sensor_extrinsics_id());
-    CHECK(sensor_id_.isValid());
-  } else {
-    sensor_id_.setInvalid();
-  }
-
-  common::eigen_proto::deserialize(
-      proto.t_a_b_covariance(), &T_A_B_covariance_p_q_);
-  common::eigen_proto::deserialize(proto.t_a_b(), &T_A_B_);
-}
-
 void TransformationEdge::set_T_A_B(const pose::Transformation& T_A_B) {
   T_A_B_ = T_A_B;
 }
 
-const pose::Transformation& TransformationEdge::getT_A_B() const {
+const pose::Transformation& TransformationEdge::get_T_A_B() const {
   return T_A_B_;
 }
 

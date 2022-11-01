@@ -7,9 +7,12 @@ catkin_simple(ALL_DEPS_REQUIRED)
 set(PROTO_DEFNS proto/localization-summary-map/localization-summary-map.proto)
 PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 
-SET(LOCALIZATION_SUMMARY_MAP_SOURCE src/localization-summary-map.cc
-                                    src/localization-summary-map-creation.cc)
-cs_add_library(${PROJECT_NAME} ${LOCALIZATION_SUMMARY_MAP_SOURCE} ${PROTO_SRCS})
+cs_add_library(${PROJECT_NAME} 
+  ${PROTO_SRCS}
+  src/localization-summary-map.cc
+  src/localization-summary-map-creation.cc
+  src/localization-summary-map-queries.cc
+)
 
 catkin_add_gtest(test_localization_summary_map_protobuf_test
                  test/test_localization_summary_map_protobuf_test.cc)

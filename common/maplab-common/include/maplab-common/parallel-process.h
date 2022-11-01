@@ -61,24 +61,33 @@ void ParallelProcess(
     blocks.resize(num_blocks);
   }
 
+  size_t n_blocks = blocks.size();
   size_t data_index = start_index;
   std::vector<std::thread> threads;
-  for (size_t block_idx = 0u; block_idx < blocks.size(); ++block_idx) {
+  for (size_t block_idx = 0u; block_idx < n_blocks; ++block_idx) {
     std::vector<size_t>& block = blocks[block_idx];
     for (size_t item_idx = 0u;
          (item_idx < num_items_per_block) && (data_index < end_index);
          ++item_idx) {
       CHECK_GE(data_index, start_index);
       CHECK_LT(data_index, end_index);
-      block.push_back(data_index);
+      block.emplace_back(data_index);
       ++data_index;
     }
-    threads.push_back(
+    threads.emplace_back(
         std::thread([&functor, &block]() -> void { functor(block); }));
   }
 
-  CHECK_EQ(threads.size(), blocks.size());
-  for (size_t block_idx = 0; block_idx < blocks.size(); ++block_idx) {
+  CHECK_EQ(threads.size(), n_blocks);
+  for (size_t block_idx = 0u; block_idx < n_blocks; ++block_idx) {
+    if (!threads[block_idx].joinable()) {
+      LOG(WARNING) << "Thread with ID: " << block_idx 
+				   << " is not joinable!";
+    }
+  }
+
+  CHECK_EQ(threads.size(), n_blocks);
+  for (size_t block_idx = 0u; block_idx < n_blocks; ++block_idx) {
     threads[block_idx].join();
   }
 }

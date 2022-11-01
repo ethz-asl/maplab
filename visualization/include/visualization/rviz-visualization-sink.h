@@ -10,6 +10,7 @@
 #include <image_transport/image_transport.h>
 #include <opencv2/core/core.hpp>
 #include <ros/ros.h>
+#include <voxblox/mesh/mesh.h>
 
 namespace visualization {
 
@@ -34,22 +35,34 @@ class RVizVisualizationSink {
   }
 
   template <typename T>
-  static inline void publish(const std::string& topic, const T& message) {
-    RVizVisualizationSink::getInstance().publishImpl<T>(topic, message);
+  static inline void publish(
+      const std::string& topic, const T& message,
+      const bool wait_for_subscriber = false) {
+    RVizVisualizationSink::getInstance().publishImpl<T>(
+        topic, message, wait_for_subscriber);
   }
 
   // Singleton instance
   static inline RVizVisualizationSink& getInstance() {
     static RVizVisualizationSink instance;
     return instance;
-  };
+  }
+
+  static inline ros::NodeHandle& getNodeHandle() {
+    std::unique_ptr<ros::NodeHandle>& node_handle_ptr =
+        RVizVisualizationSink::getInstance().node_handle_;
+    CHECK(node_handle_ptr);
+    return *node_handle_ptr;
+  }
 
  private:
   RVizVisualizationSink();
   ~RVizVisualizationSink() = default;
 
   template <typename T>
-  inline void publishImpl(const std::string& topic, const T& message);
+  inline void publishImpl(
+      const std::string& topic, const T& message,
+      const bool wait_for_subscriber);
 
   void initImpl();
 
@@ -73,14 +86,13 @@ class RVizVisualizationSink {
   // to new subscribers when they connect.
   const bool latch_;
 
-  const bool should_wait_for_subscribers_;
-
   std::mutex mutex_;
 };
 
 template <>
 void RVizVisualizationSink::publishImpl(
-    const std::string& topic, const cv::Mat& image);
+    const std::string& topic, const cv::Mat& image,
+    const bool wait_for_subscriber);
 
 }  // namespace visualization
 

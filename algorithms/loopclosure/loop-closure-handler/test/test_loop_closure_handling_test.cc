@@ -25,8 +25,7 @@
 #include <maplab-common/test/testing-predicates.h>
 
 DECLARE_double(lc_min_image_time_seconds);
-DECLARE_double(vi_map_landmark_quality_max_distance_from_closest_observer);
-DECLARE_bool(lc_filter_underconstrained_landmarks);
+DECLARE_double(elq_max_distance_from_closest_observer);
 
 struct ExpectedLandmarkMergeTriple {
   pose_graph::VertexId vertex_id;
@@ -66,8 +65,7 @@ class LoopClosureHandlerTest : public ::testing::Test {
         gen_(1),
         dis_(-1.0, 1.0) {
     FLAGS_lc_min_image_time_seconds = 0.0;
-    FLAGS_vi_map_landmark_quality_max_distance_from_closest_observer = 20.0;
-    FLAGS_lc_filter_underconstrained_landmarks = false;
+    FLAGS_elq_max_distance_from_closest_observer = 20.0;
   }
 
   virtual void SetUp() {
@@ -77,8 +75,8 @@ class LoopClosureHandlerTest : public ::testing::Test {
     generateAndProjectLandmarksToMapKeyframes();
     addDuplicateLandmarksToQueryKeyframes();
     handler_ = std::shared_ptr<loop_closure_handler::LoopClosureHandler>(
-        new loop_closure_handler::LoopClosureHandler(&map_,
-                                                     &landmark_id_old_to_new_));
+        new loop_closure_handler::LoopClosureHandler(
+            &map_, &landmark_id_old_to_new_));
     CHECK_LE(kNumOfDuplicateLandmarks, kNumOfLandmarks);
   }
 
@@ -92,8 +90,7 @@ class LoopClosureHandlerTest : public ::testing::Test {
   void populatePosegraph();
   void generateAndProjectLandmarksToMapKeyframes();
   unsigned int addKeypointToVertex(
-      const Eigen::Vector3d& G_p_fi,
-      const vi_map::LandmarkId& landmark_id,
+      const Eigen::Vector3d& G_p_fi, const vi_map::LandmarkId& landmark_id,
       vi_map::Vertex* vertex_ptr);
   void addLandmarkToVertex(
       const Eigen::Vector3d& G_p_fi, const vi_map::LandmarkId& landmark_id,
@@ -128,7 +125,7 @@ bool LoopClosureHandlerTest::hasLandmark(
 }
 
 pose_graph::VertexId LoopClosureHandlerTest::getVertexIdForLandmark(
-      const vi_map::LandmarkId& landmark_id) const {
+    const vi_map::LandmarkId& landmark_id) const {
   return landmark_index_.getStoringVertexId(landmark_id);
 }
 
@@ -154,7 +151,7 @@ void LoopClosureHandlerTest::constructCamera() {
       new CameraType(intrinsics, res_u, res_v, distortion));
 
   aslam::CameraId camera_id;
-  common::generateId(&camera_id);
+  aslam::generateId(&camera_id);
   camera->setId(camera_id);
 
   std::vector<aslam::Camera::Ptr> camera_vector;
@@ -165,16 +162,15 @@ void LoopClosureHandlerTest::constructCamera() {
       Eigen::Vector3d(1, 2, 3));
   T_C_B_vector.push_back(T_C_B);
   aslam::NCameraId n_camera_id;
-  common::generateId(&n_camera_id);
-  cameras_.reset(
-      new aslam::NCamera(
-          n_camera_id, T_C_B_vector, camera_vector, "Test camera rig"));
+  aslam::generateId(&n_camera_id);
+  cameras_.reset(new aslam::NCamera(
+      n_camera_id, T_C_B_vector, camera_vector, "Test camera rig"));
 }
 
 void LoopClosureHandlerTest::createMission() {
   vi_map::MissionBaseFrame baseframe;
   vi_map::MissionBaseFrameId baseframe_id;
-  common::generateId(&baseframe_id);
+  aslam::generateId(&baseframe_id);
   baseframe.setId(baseframe_id);
 
   baseframe.set_p_G_M(Eigen::Matrix<double, 3, 1>::Zero());
@@ -182,7 +178,7 @@ void LoopClosureHandlerTest::createMission() {
 
   vi_map::VIMission::UniquePtr mission_ptr(new vi_map::VIMission);
 
-  common::generateId(&mission_id_);
+  aslam::generateId(&mission_id_);
   mission_ptr->setId(mission_id_);
 
   mission_ptr->setBaseFrameId(baseframe_id);
@@ -198,7 +194,7 @@ void LoopClosureHandlerTest::populatePosegraph() {
   pose_graph::VertexId vertex_id;
   vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(cameras_));
 
-  common::generateId(&vertex_id);
+  aslam::generateId(&vertex_id);
   vertex->setId(vertex_id);
   vertex->set_p_M_I(position);
   vertex->set_q_M_I(orientation);
@@ -210,7 +206,7 @@ void LoopClosureHandlerTest::populatePosegraph() {
 
   for (unsigned int i = 1; i < kNumOfMapVertices + kNumOfQueryVertices; ++i) {
     vi_map::Vertex::UniquePtr vertex(new vi_map::Vertex(cameras_));
-    common::generateId(&vertex_id);
+    aslam::generateId(&vertex_id);
     vertex->setId(vertex_id);
     position.x() += i * 0.2;
     vertex->set_p_M_I(position);
@@ -220,17 +216,15 @@ void LoopClosureHandlerTest::populatePosegraph() {
     vertex_ids_[i] = vertex_id;
 
     pose_graph::EdgeId edge_id;
-    common::generateId(&edge_id);
+    aslam::generateId(&edge_id);
 
     Eigen::Matrix<int64_t, 1, Eigen::Dynamic> imu_timestamps;
     Eigen::Matrix<double, 6, Eigen::Dynamic> imu_data;
     vi_map::MissionId mission_id;
-    common::generateId(&mission_id);
+    aslam::generateId(&mission_id);
 
-    vi_map::ViwlsEdge::UniquePtr edge(
-        new vi_map::ViwlsEdge(
-            edge_id, vertex_ids_[i], vertex_ids_[i - 1], imu_timestamps,
-            imu_data));
+    vi_map::ViwlsEdge::UniquePtr edge(new vi_map::ViwlsEdge(
+        edge_id, vertex_ids_[i], vertex_ids_[i - 1], imu_timestamps, imu_data));
     posegraph_.addEdge(std::move(edge));
   }
 }
@@ -244,7 +238,7 @@ void LoopClosureHandlerTest::generateAndProjectLandmarksToMapKeyframes() {
     G_p_fi += Eigen::Vector3d(dis_(gen_), dis_(gen_), dis_(gen_));
 
     vi_map::LandmarkId landmark_id;
-    common::generateId(&landmark_id);
+    aslam::generateId(&landmark_id);
 
     addLandmarkToVertex(G_p_fi, landmark_id, &landmark_vertex);
 
@@ -277,8 +271,7 @@ void LoopClosureHandlerTest::addLandmarkToVertex(
 }
 
 unsigned int LoopClosureHandlerTest::addKeypointToVertex(
-    const Eigen::Vector3d& G_p_fi,
-    const vi_map::LandmarkId& landmark_id,
+    const Eigen::Vector3d& G_p_fi, const vi_map::LandmarkId& landmark_id,
     vi_map::Vertex* vertex_ptr) {
   CHECK_NOTNULL(vertex_ptr);
 
@@ -305,22 +298,33 @@ unsigned int LoopClosureHandlerTest::addKeypointToVertex(
     empty_measurements.resize(Eigen::NoChange, 0);
     vertex_ptr->getVisualFrame(kVisualFrameIndex)
         .setKeypointMeasurements(empty_measurements);
+
+    // Set also dummy descriptors so that the keypoint type gets set
+    aslam::VisualFrame::DescriptorsT empty_descriptors;
+    empty_descriptors.resize(0, 0);
+    vertex_ptr->getVisualFrame(kVisualFrameIndex)
+        .setDescriptors(empty_descriptors);
   }
   CHECK(
       vertex_ptr->getVisualFrame(kVisualFrameIndex).hasKeypointMeasurements());
 
   Eigen::Matrix2Xd* measurements = vertex_ptr->getVisualFrame(kVisualFrameIndex)
                                        .getKeypointMeasurementsMutable();
+  aslam::VisualFrame::DescriptorsT* descriptors =
+      vertex_ptr->getVisualFrame(kVisualFrameIndex).getDescriptorsMutable();
+
   CHECK_NOTNULL(measurements);
+  CHECK_NOTNULL(descriptors);
   measurements->conservativeResize(Eigen::NoChange, measurements->cols() + 1);
   measurements->rightCols(1) = reprojected_point;
+  descriptors->conservativeResize(Eigen::NoChange, descriptors->cols() + 1);
 
   addObservedLandmarkId(landmark_id, vertex_ptr);
 
   const unsigned int keypoint_idx =
       vertex_ptr->observedLandmarkIdsSize(kVisualFrameIndex) - 1;
-  map_.getLandmark(landmark_id).addObservation(vertex_ptr->id(),
-                                               kVisualFrameIndex, keypoint_idx);
+  map_.getLandmark(landmark_id)
+      .addObservation(vertex_ptr->id(), kVisualFrameIndex, keypoint_idx);
 
   return keypoint_idx;
 }
@@ -341,19 +345,17 @@ void LoopClosureHandlerTest::addDuplicateLandmarksToQueryKeyframes() {
   }
 
   for (const vi_map::LandmarkId& landmark_id : landmarks_to_be_duplicated) {
-    vi_map::Vertex& landmark_vertex =
-        map_.getLandmarkStoreVertex(landmark_id);
+    vi_map::Vertex& landmark_vertex = map_.getLandmarkStoreVertex(landmark_id);
 
     Eigen::Vector3d LM_p_fi = landmark_vertex.getLandmark_p_LM_fi(landmark_id);
     LM_p_fi +=
         Eigen::Vector3d(dis_(gen_) / 100, dis_(gen_) / 100, dis_(gen_) / 100);
 
     vi_map::LandmarkId new_landmark_id;
-    common::generateId(&new_landmark_id);
+    aslam::generateId(&new_landmark_id);
 
     addLandmarkToVertex(LM_p_fi, new_landmark_id, &landmark_vertex);
-    duplicate_landmark_to_landmark_map_.emplace(
-        new_landmark_id, landmark_id);
+    duplicate_landmark_to_landmark_map_.emplace(new_landmark_id, landmark_id);
 
     for (unsigned int i = kNumOfMapVertices; i < vertex_ids_.size(); ++i) {
       vi_map::Vertex& keypoint_vertex = map_.getVertex(vertex_ids_[i]);
@@ -385,8 +387,7 @@ void LoopClosureHandlerTest::addDuplicateLandmarksToQueryKeyframes() {
         LandmarkToLandmarkMap::iterator it =
             duplicate_landmark_to_landmark_map_.find(duplicate_landmark_id);
         ASSERT_TRUE(it != duplicate_landmark_to_landmark_map_.end());
-        const vi_map::Landmark& map_landmark =
-            map_.getLandmark(it->second);
+        const vi_map::Landmark& map_landmark = map_.getLandmark(it->second);
 
         for (const vi_map::KeypointIdentifier& observation :
              map_landmark.getObservations()) {
@@ -442,7 +443,7 @@ TEST_F(LoopClosureHandlerTest, LoopClosureHandlingTest) {
     EXPECT_EQ(
         expected_merge.new_landmark_id,
         query_vertex.getObservedLandmarkId(
-                kVisualFrameIndex, expected_merge.idx));
+            kVisualFrameIndex, expected_merge.idx));
   }
 
   // Check if deleted landmarks are really removed from global landmark to

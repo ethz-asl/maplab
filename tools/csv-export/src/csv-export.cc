@@ -3,6 +3,7 @@
 #include <fstream>  // NOLINT
 #include <gflags/gflags.h>
 
+#include <aslam/common/memory.h>
 #include <descriptor-projection/descriptor-projection.h>
 #include <descriptor-projection/flags.h>
 #include <maplab-common/binary-serialization.h>
@@ -11,6 +12,22 @@
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/progress-bar.h>
 #include <vi-map/landmark-quality-metrics.h>
+
+DEFINE_bool(
+    csv_export_vertices, true, "Create vertices.csv files during CSV export.");
+DEFINE_bool(
+    csv_export_imu_data, true, "Create imu.csv files during CSV export.");
+DEFINE_bool(
+    csv_export_tracks_and_keypoints, true,
+    "Create tracks.csv files during CSV export.");
+DEFINE_bool(
+    csv_export_descriptors, true,
+    "Create descriptors.csv files during CSV export.");
+DEFINE_bool(
+    csv_export_landmarks, true, "Create landmarks.csv during CSV export.");
+DEFINE_bool(
+    csv_export_observations, true,
+    "Create observations.csv during CSV export.");
 
 DEFINE_bool(
     only_export_high_quality_landmarks, false,
@@ -41,29 +58,38 @@ void exportVerticesAndTracksToCsv(
 
   const std::string path_vertices =
       common::concatenateFolderAndFileName(base_path, "vertices.csv");
-  common::FileLogger logger_vertices(path_vertices);
-  logger_vertices.writeDataWithDelimiterAndNewLine(
-      kDelimiter, "vertex index", "timestamp [ns]", "position x [m]",
-      "position y [m]", "position z [m]", "quaternion x", "quaternion y",
-      "quaternion z", "quaternion w", "velocity x [m/s]", "velocity y [m/s]",
-      "velocity z [m/s]", "acc bias x [m/s^2]", "acc bias y [m/s^2]",
-      "acc bias z [m/s^2]", "gyro bias x [rad/s]", "gyro bias y [rad/s]",
-      "gyro bias z [rad/s]");
+  std::unique_ptr<common::FileLogger> logger_vertices;
+  if (FLAGS_csv_export_vertices) {
+    logger_vertices.reset(new common::FileLogger(path_vertices));
+    logger_vertices->writeDataWithDelimiterAndNewLine(
+        kDelimiter, "vertex index", "timestamp [ns]", "position x [m]",
+        "position y [m]", "position z [m]", "quaternion x", "quaternion y",
+        "quaternion z", "quaternion w", "velocity x [m/s]", "velocity y [m/s]",
+        "velocity z [m/s]", "acc bias x [m/s^2]", "acc bias y [m/s^2]",
+        "acc bias z [m/s^2]", "gyro bias x [rad/s]", "gyro bias y [rad/s]",
+        "gyro bias z [rad/s]");
+  }
 
   const std::string path_tracks =
       common::concatenateFolderAndFileName(base_path, "tracks.csv");
-  common::FileLogger logger_tracks(path_tracks);
-  logger_tracks.writeDataWithDelimiterAndNewLine(
-      kDelimiter, "timestamp [ns]", "vertex index", "frame index",
-      "keypoint index", "keypoint measurement 0 [px]",
-      "keypoint measurement 1 [px]", "keypoint measurement uncertainty",
-      "keypoint scale", "keypoint track id");
+  std::unique_ptr<common::FileLogger> logger_tracks;
+  if (FLAGS_csv_export_tracks_and_keypoints) {
+    logger_tracks.reset(new common::FileLogger(path_tracks));
+    logger_tracks->writeDataWithDelimiterAndNewLine(
+        kDelimiter, "timestamp [ns]", "vertex index", "frame index",
+        "keypoint index", "keypoint measurement 0 [px]",
+        "keypoint measurement 1 [px]", "keypoint measurement uncertainty",
+        "keypoint scale", "keypoint track id");
+  }
 
   const std::string path_descriptor =
       common::concatenateFolderAndFileName(base_path, "descriptor.csv");
-  common::FileLogger logger_descriptor(path_descriptor);
-  logger_tracks.writeDataWithDelimiterAndNewLine(
-      kDelimiter, "Descriptor byte as integer 1-N");
+  std::unique_ptr<common::FileLogger> logger_descriptor;
+  if (FLAGS_csv_export_descriptors) {
+    logger_descriptor.reset(new common::FileLogger(path_descriptor));
+    logger_descriptor->writeDataWithDelimiterAndNewLine(
+        kDelimiter, "Descriptor byte as integer 1-N");
+  }
 
   pose_graph::VertexIdList vertex_ids_in_mission;
   map.getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids_in_mission);
@@ -78,49 +104,86 @@ void exportVerticesAndTracksToCsv(
     const Eigen::Vector3d& acc_bias = vertex.getAccelBias();
     const Eigen::Vector3d& gyro_bias = vertex.getGyroBias();
 
-    logger_vertices.writeDataWithDelimiterAndNewLine(
-        kDelimiter, *vertex_index, vertex.getMinTimestampNanoseconds(),
-        T_G_I.getPosition(), T_G_I.getEigenQuaternion(), v_M, acc_bias,
-        gyro_bias);
+    if (logger_vertices != nullptr) {
+      logger_vertices->writeDataWithDelimiterAndNewLine(
+          kDelimiter, *vertex_index, vertex.getMinTimestampNanoseconds(),
+          T_G_I.getPosition(), T_G_I.getEigenQuaternion(), v_M, acc_bias,
+          gyro_bias);
+    }
 
     vertex_id_to_index_map->emplace(vertex_id, *vertex_index);
 
     // Frame data.
-    vertex.forEachFrame(
-        [&](const unsigned int frame_index, const aslam::VisualFrame& frame) {
-          const size_t num_keypoints = frame.getNumKeypointMeasurements();
-          const size_t num_bytes_per_descriptor =
-              frame.getDescriptorSizeBytes();
+    if (logger_tracks != nullptr || logger_descriptor != nullptr) {
+      vertex.forEachFrame(
+          [&](const unsigned int frame_index, const aslam::VisualFrame& frame) {
+            const size_t num_keypoints = frame.getNumKeypointMeasurements();
+            const size_t num_bytes_per_descriptor =
+                frame.getDescriptorSizeBytes();
 
-          const int64_t timestamp_ns = frame.getTimestampNanoseconds();
-          const Eigen::Matrix2Xd& keypoint_measurements =
-              frame.getKeypointMeasurements();
-          const Eigen::VectorXd& keypoint_measurment_uncertainties =
-              frame.getKeypointMeasurementUncertainties();
-          const Eigen::VectorXd& keypoint_scales = frame.getKeypointScales();
-          const Eigen::VectorXi& track_ids = frame.getTrackIds();
-          for (size_t keypoint_idx = 0u; keypoint_idx < num_keypoints;
-               ++keypoint_idx) {
-            logger_tracks.writeDataWithDelimiterAndNewLine(
-                kDelimiter, timestamp_ns, *vertex_index, frame_index,
-                keypoint_idx, keypoint_measurements(0, keypoint_idx),
-                keypoint_measurements(1, keypoint_idx),
-                keypoint_measurment_uncertainties(keypoint_idx),
-                keypoint_scales(keypoint_idx), track_ids(keypoint_idx));
+            const int64_t timestamp_ns = frame.getTimestampNanoseconds();
+            const Eigen::Matrix2Xd& keypoint_measurements =
+                frame.getKeypointMeasurements();
+            const Eigen::VectorXd& keypoint_measurment_uncertainties =
+                frame.getKeypointMeasurementUncertainties();
 
-            const unsigned char* descriptor =
-                CHECK_NOTNULL(frame.getDescriptor(keypoint_idx));
-            for (size_t descriptor_idx = 0u;
-                 descriptor_idx < num_bytes_per_descriptor; ++descriptor_idx) {
-              if (descriptor_idx != 0u) {
-                logger_descriptor << kDelimiter;
-              }
-              logger_descriptor
-                  << static_cast<size_t>(descriptor[descriptor_idx]);
+            AlignedUniquePtr<Eigen::VectorXd> dummy_keypoint_scales;
+            const Eigen::VectorXd* keypoint_scales_raw_ptr = nullptr;
+            if (frame.hasKeypointScales()) {
+              keypoint_scales_raw_ptr = &frame.getKeypointScales();
+            } else {
+              // If the frame doesn't have keypoint scales, create a dummy
+              // vector of the right size consisting of invalid values.
+              dummy_keypoint_scales = aligned_unique<Eigen::VectorXd>();
+              dummy_keypoint_scales->resize(num_keypoints);
+              dummy_keypoint_scales->setOnes();
+              (*dummy_keypoint_scales) *= -1;
+              keypoint_scales_raw_ptr = dummy_keypoint_scales.get();
             }
-            logger_descriptor << std::endl;
-          }
-        });
+            CHECK_NOTNULL(keypoint_scales_raw_ptr);
+
+            AlignedUniquePtr<Eigen::VectorXi> dummy_track_ids;
+            const Eigen::VectorXi* track_ids_raw_ptr = nullptr;
+            if (frame.hasTrackIds()) {
+              track_ids_raw_ptr = &frame.getTrackIds();
+            } else {
+              dummy_track_ids = aligned_unique<Eigen::VectorXi>();
+              dummy_track_ids->resize(num_keypoints);
+              dummy_track_ids->setOnes();
+              (*dummy_track_ids) *= -1;
+              track_ids_raw_ptr = dummy_track_ids.get();
+            }
+            CHECK_NOTNULL(track_ids_raw_ptr);
+
+            for (size_t keypoint_idx = 0u; keypoint_idx < num_keypoints;
+                 ++keypoint_idx) {
+              if (logger_tracks != nullptr) {
+                logger_tracks->writeDataWithDelimiterAndNewLine(
+                    kDelimiter, timestamp_ns, *vertex_index, frame_index,
+                    keypoint_idx, keypoint_measurements(0, keypoint_idx),
+                    keypoint_measurements(1, keypoint_idx),
+                    keypoint_measurment_uncertainties(keypoint_idx),
+                    (*keypoint_scales_raw_ptr)(keypoint_idx),
+                    (*track_ids_raw_ptr)(keypoint_idx));
+              }
+
+              if (logger_descriptor != nullptr) {
+                const unsigned char* descriptor =
+                    CHECK_NOTNULL(frame.getDescriptor(keypoint_idx));
+                for (size_t descriptor_idx = 0u;
+                     descriptor_idx < num_bytes_per_descriptor;
+                     ++descriptor_idx) {
+                  if (descriptor_idx != 0u) {
+                    (*logger_descriptor) << kDelimiter;
+                  }
+                  (*logger_descriptor)
+                      << static_cast<size_t>(descriptor[descriptor_idx]);
+                }
+                (*logger_descriptor) << std::endl;
+              }
+            }
+          });
+    }
 
     ++(*vertex_index);
     progress_bar.increment();
@@ -135,17 +198,23 @@ void exportLandmarksAndObservationsToCsv(
 
   const std::string path_landmarks =
       common::concatenateFolderAndFileName(base_path, "landmarks.csv");
-  common::FileLogger logger_landmarks(path_landmarks);
-  logger_landmarks.writeDataWithDelimiterAndNewLine(
-      kDelimiter, "landmark index", "landmark position x [m]",
-      "landmark position y [m]", "landmark position z [m]");
+  std::unique_ptr<common::FileLogger> logger_landmarks;
+  if (FLAGS_csv_export_landmarks) {
+    logger_landmarks.reset(new common::FileLogger(path_landmarks));
+    logger_landmarks->writeDataWithDelimiterAndNewLine(
+        kDelimiter, "landmark index", "landmark position x [m]",
+        "landmark position y [m]", "landmark position z [m]");
+  }
 
   const std::string path_observations =
       common::concatenateFolderAndFileName(base_path, "observations.csv");
-  common::FileLogger logger_observations(path_observations);
-  logger_observations.writeDataWithDelimiterAndNewLine(
-      kDelimiter, "vertex index", "frame index", "keypoint index",
-      "landmark index");
+  std::unique_ptr<common::FileLogger> logger_observations;
+  if (FLAGS_csv_export_observations) {
+    logger_observations.reset(new common::FileLogger(path_observations));
+    logger_observations->writeDataWithDelimiterAndNewLine(
+        kDelimiter, "vertex index", "frame index", "keypoint index",
+        "landmark index");
+  }
 
   vi_map::LandmarkIdList all_landmarks_in_mission;
   map.getAllLandmarkIdsInMission(mission_id, &all_landmarks_in_mission);
@@ -164,23 +233,27 @@ void exportLandmarksAndObservationsToCsv(
     const Eigen::Vector3d landmark_position =
         map.getLandmark_G_p_fi(landmark_id);
 
-    logger_landmarks.writeDataWithDelimiterAndNewLine(
-        kDelimiter, *landmark_index, landmark_position);
+    if (logger_landmarks != nullptr) {
+      logger_landmarks->writeDataWithDelimiterAndNewLine(
+          kDelimiter, *landmark_index, landmark_position);
+    }
 
     // Write observations.
-    const vi_map::KeypointIdentifierList& keypoint_identifier_list =
-        landmark.getObservations();
-    for (const vi_map::KeypointIdentifier& keypoint_identifier :
-         keypoint_identifier_list) {
-      const pose_graph::VertexId& vertex_id =
-          keypoint_identifier.frame_id.vertex_id;
-      const VertexIdToIndexMap::const_iterator it_vertex_id_to_index =
-          vertex_id_to_index_map.find(vertex_id);
-      CHECK(it_vertex_id_to_index != vertex_id_to_index_map.end());
-      logger_observations.writeDataWithDelimiterAndNewLine(
-          kDelimiter, it_vertex_id_to_index->second,
-          keypoint_identifier.frame_id.frame_index,
-          keypoint_identifier.keypoint_index, *landmark_index);
+    if (logger_observations != nullptr) {
+      const vi_map::KeypointIdentifierList& keypoint_identifier_list =
+          landmark.getObservations();
+      for (const vi_map::KeypointIdentifier& keypoint_identifier :
+           keypoint_identifier_list) {
+        const pose_graph::VertexId& vertex_id =
+            keypoint_identifier.frame_id.vertex_id;
+        const VertexIdToIndexMap::const_iterator it_vertex_id_to_index =
+            vertex_id_to_index_map.find(vertex_id);
+        CHECK(it_vertex_id_to_index != vertex_id_to_index_map.end());
+        logger_observations->writeDataWithDelimiterAndNewLine(
+            kDelimiter, it_vertex_id_to_index->second,
+            keypoint_identifier.frame_id.frame_index,
+            keypoint_identifier.keypoint_index, *landmark_index);
+      }
     }
 
     ++(*landmark_index);
@@ -245,7 +318,9 @@ void exportMapToCsv(const vi_map::VIMap& map, const std::string& base_path) {
         map, mission_id, base_path_for_mission, vertex_id_to_index_map,
         &landmark_index);
 
-    exportImuDataToCsv(map, mission_id, base_path_for_mission);
+    if (FLAGS_csv_export_imu_data) {
+      exportImuDataToCsv(map, mission_id, base_path_for_mission);
+    }
   }
 }
 

@@ -1,10 +1,10 @@
-#ifndef VOCABULARY_TREE_HAMMING_INL_H_
-#define VOCABULARY_TREE_HAMMING_INL_H_
+#ifndef VOCABULARY_TREE_IMPL_HAMMING_INL_H_
+#define VOCABULARY_TREE_IMPL_HAMMING_INL_H_
 
-#if !defined(__ARM_NEON__)
+#if !defined(__ARM_NEON)
 #include <emmintrin.h>
 #include <tmmintrin.h>
-#endif  // __ARM_NEON__
+#endif  // __ARM_NEON
 
 #include <glog/logging.h>
 
@@ -26,7 +26,7 @@ __declspec(align(16)) static const uint8_t POPCOUNT_4bit[16] = {
 static const __m128i shiftval = _mm_set_epi32(0, 0, 0, 4);
 #endif  // _MSC_VER
 
-#if !defined(__ARM_NEON__)
+#if !defined(__ARM_NEON)
 template <int NUM_SSE_REGISTERS>
 inline unsigned int SSSE3PopcntofXORed(
     const __m128i* signature1, const __m128i* signature2) {
@@ -101,7 +101,7 @@ __inline__ uint32_t NEONPopcntofXORed(
 // Hamming distance for 128 bits.
 inline unsigned int HammingDistance128(
     const unsigned char d1[16], const unsigned char d2[16]) {
-#ifdef __ARM_NEON__
+#ifdef __ARM_NEON
 #ifdef __aarch64__
   const uint8x16_t* a = reinterpret_cast<const uint8x16_t*>(d1);
   const uint8x16_t* b = reinterpret_cast<const uint8x16_t*>(d2);
@@ -166,18 +166,18 @@ inline unsigned int HammingDistance128(
 
   return out_value;
 #endif  // __aarch64__
-#else   // __ARM_NEON__
+#else   // __ARM_NEON
   const __m128i* a = reinterpret_cast<const __m128i*>(d1);
   const __m128i* b = reinterpret_cast<const __m128i*>(d2);
 
   return SSSE3PopcntofXORed<1>(a, b);
-#endif  // __ARM_NEON__
+#endif  // __ARM_NEON
 }
 
 // Hamming distance for 256 bits.
 inline unsigned int HammingDistance256(
     const unsigned char d1[32], const unsigned char d2[32]) {
-#ifdef __ARM_NEON__
+#ifdef __ARM_NEON
 #ifdef __aarch64__
   const uint8x16_t* a = reinterpret_cast<const uint8x16_t*>(d1);
   const uint8x16_t* b = reinterpret_cast<const uint8x16_t*>(d2);
@@ -259,18 +259,18 @@ inline unsigned int HammingDistance256(
 
   return out_value;
 #endif  // __aarch64__
-#else   // __ARM_NEON__
+#else   // __ARM_NEON
   const __m128i* a = reinterpret_cast<const __m128i*>(d1);
   const __m128i* b = reinterpret_cast<const __m128i*>(d2);
 
   return SSSE3PopcntofXORed<2>(a, b);
-#endif  // __ARM_NEON__
+#endif  // __ARM_NEON
 }
 
 // Hamming distance for 512 bits.
 inline unsigned int HammingDistance512(
     const unsigned char d1[64], const unsigned char d2[64]) {
-#ifdef __ARM_NEON__
+#ifdef __ARM_NEON
 #ifdef __aarch64__
   const uint8x16_t* a = reinterpret_cast<const uint8x16_t*>(d1);
   const uint8x16_t* b = reinterpret_cast<const uint8x16_t*>(d2);
@@ -303,4 +303,4 @@ inline unsigned int HammingDistance(
   }
 }
 }  // namespace loop_closure
-#endif  // VOCABULARY_TREE_HAMMING_INL_H_
+#endif  // VOCABULARY_TREE_IMPL_HAMMING_INL_H_

@@ -1,6 +1,7 @@
 #include "rovioli/rovio-flow.h"
 
 #include <memory>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -8,14 +9,20 @@
 #include <aslam/cameras/ncamera.h>
 #include <aslam/common/pose-types.h>
 #include <aslam/common/time.h>
+#include <aslam/common/unique-id.h>
 #include <gflags/gflags.h>
+#include <maplab-common/fixed-size-queue.h>
+#include <maplab-common/geometry.h>
 #include <maplab-common/string-tools.h>
-#include <maplab-common/unique-id.h>
 #include <message-flow/message-flow.h>
+#include <vio-common/pose-lookup-buffer.h>
 #include <vio-common/vio-types.h>
 
 #include "rovioli/flow-topics.h"
 #include "rovioli/rovio-factory.h"
+#include "rovioli/rovio-health-monitor.h"
+#include "rovioli/rovio-localization-handler.h"
+#include "rovioli/rovio-maplab-timetranslation.h"
 
 DEFINE_bool(
     rovio_update_filter_on_imu, true,
@@ -25,20 +32,15 @@ DEFINE_bool(
 DEFINE_string(
     rovio_active_camera_indices, "0",
     "Comma separated indices of cameras to use for motion tracking.");
+DEFINE_bool(
+    rovioli_enable_health_checking, false,
+    "Perform health checking on the estimator output and reset if necessary.");
 
 namespace rovioli {
-namespace {
-void ensurePositiveQuaternion(aslam::Quaternion* quat) {
-  CHECK_NOTNULL(quat);
-  if (quat->toImplementation().w() < 0.0) {
-    quat->toImplementation().coeffs() *= -1.0;
-  }
-}
-}  // namespace
-
 RovioFlow::RovioFlow(
     const aslam::NCamera& camera_calibration,
-    const vi_map::ImuSigmas& imu_sigmas) {
+    const vi_map::ImuSigmas& imu_sigmas,
+    const aslam::Transformation& odom_calibration) {
   // Multi-camera support in ROVIO is still experimental. Therefore, only a
   // single camera will be used for motion tracking per default.
   const size_t num_cameras = camera_calibration.getNumCameras();
@@ -59,28 +61,28 @@ RovioFlow::RovioFlow(
       << "Selected more than one camera for motion tracking. Consider only "
       << "using a single camera if latency issues develop.";
 
-  is_camera_idx_active_in_motion_tracking_.resize(num_cameras, false);
-  for (const std::string& camera_id_str : tokens) {
-    const int camera_idx = std::stoi(camera_id_str);
-    CHECK_GE(camera_idx, 0);
-    CHECK_LT(camera_idx, static_cast<int>(num_cameras));
-    is_camera_idx_active_in_motion_tracking_[camera_idx] = true;
-  }
-
   // Build NCamera of active cameras.
+  int rovio_camera_index = 0;
   std::vector<aslam::Camera::Ptr> active_cameras;
   aslam::TransformationVector active_T_C_Bs;
-  for (size_t idx = 0u; idx < is_camera_idx_active_in_motion_tracking_.size();
-       ++idx) {
-    if (is_camera_idx_active_in_motion_tracking_[idx] == false) {
-      continue;
-    }
+  for (const std::string& camera_id_str : tokens) {
+    const int maplab_camera_idx = std::stoi(camera_id_str);
+    CHECK_GE(maplab_camera_idx, 0);
+    CHECK_LT(maplab_camera_idx, static_cast<int>(num_cameras));
+    CHECK(maplab_to_rovio_cam_indices_mapping_.insert(
+        maplab_camera_idx, rovio_camera_index))
+        << "--rovio_active_camera_indices contains duplicates.";
+
     active_cameras.emplace_back(
-        camera_calibration.getCameraShared(idx)->clone());
-    active_T_C_Bs.emplace_back(camera_calibration.get_T_C_B(idx));
+        camera_calibration.getCameraShared(maplab_camera_idx)->clone());
+    active_T_C_Bs.emplace_back(camera_calibration.get_T_C_B(maplab_camera_idx));
+    ++rovio_camera_index;
   }
+  CHECK_EQ(static_cast<int>(active_cameras.size()), rovio_camera_index);
+  CHECK_EQ(static_cast<int>(active_T_C_Bs.size()), rovio_camera_index);
+
   aslam::NCameraId id;
-  common::generateId<aslam::NCameraId>(&id);
+  aslam::generateId<aslam::NCameraId>(&id);
   aslam::NCamera motion_tracking_ncamera(
       id, active_T_C_Bs, active_cameras, "Cameras active for motion tracking.");
 
@@ -88,8 +90,16 @@ RovioFlow::RovioFlow(
   rovio_interface_.reset(
       constructAndConfigureRovio(motion_tracking_ncamera, imu_sigmas));
   rovio_interface_->setEnablePatchUpdateOutput(false);
-  rovio_interface_->setEnableFeatureUpdateOutput(false);
+  rovio_interface_->setEnableFeatureUpdateOutput(true);  // For health checking.
+  localization_handler_.reset(new RovioLocalizationHandler(
+      rovio_interface_.get(), &time_translation_, camera_calibration,
+      maplab_to_rovio_cam_indices_mapping_));
+
+  // Store external ROVIO odometry calibration
+  odom_calibration_ = odom_calibration;
 }
+
+RovioFlow::~RovioFlow() {}
 
 void RovioFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
   CHECK_NOTNULL(flow);
@@ -108,68 +118,90 @@ void RovioFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
       [this](const vio::ImuMeasurement::ConstPtr& imu) {
         // Do not apply the predictions but only queue them. They will be
         // applied before the next update.
+        const double rovio_timestamp_sec =
+            time_translation_.convertMaplabToRovioTimestamp(imu->timestamp);
         const bool measurement_accepted =
             this->rovio_interface_->processImuUpdate(
                 imu->imu_data.head<3>(), imu->imu_data.tail<3>(),
-                aslam::time::to_seconds(imu->timestamp),
-                FLAGS_rovio_update_filter_on_imu);
+                rovio_timestamp_sec, FLAGS_rovio_update_filter_on_imu);
         LOG_IF(
             WARNING, !measurement_accepted && rovio_interface_->isInitialized())
             << "ROVIO rejected IMU measurement. Latency is too large.";
+
+        localization_handler_->T_M_I_buffer_mutable()->bufferImuMeasurement(
+            *imu);
       });
+
+  // Input Odometry.
+  flow->registerSubscriber<message_flow_topics::ODOMETRY_MEASUREMENTS>(
+      kSubscriberNodeName, rovio_subscriber_options,
+      [this](const vio::OdometryMeasurement::ConstPtr& odometry) {
+        const Eigen::Vector3d& t_I_O = odom_calibration_.getPosition();
+        const Eigen::Matrix3d& R_I_O = odom_calibration_.getRotationMatrix();
+
+        Eigen::Vector3d velocity_linear_I =
+            R_I_O * odometry->velocity_linear_O -
+            (R_I_O * odometry->velocity_angular_O).cross(t_I_O);
+
+        const double rovio_timestamp_sec =
+            time_translation_.convertMaplabToRovioTimestamp(
+                odometry->timestamp);
+        const bool measurement_accepted =
+            this->rovio_interface_->processVelocityUpdate(
+                velocity_linear_I, rovio_timestamp_sec);
+        LOG_IF(
+            WARNING, !measurement_accepted && rovio_interface_->isInitialized())
+            << "ROVIO rejected Odometry measurement. Latency is too large.";
+      });
+
   // Input camera.
   flow->registerSubscriber<message_flow_topics::IMAGE_MEASUREMENTS>(
       kSubscriberNodeName, rovio_subscriber_options,
       [this](const vio::ImageMeasurement::ConstPtr& image) {
-        const size_t cam_idx = image->camera_index;
-        CHECK_LT(cam_idx, is_camera_idx_active_in_motion_tracking_.size());
-        if (is_camera_idx_active_in_motion_tracking_[cam_idx] == false) {
+        const size_t maplab_cam_idx = image->camera_index;
+        const size_t* rovio_cam_index =
+            maplab_to_rovio_cam_indices_mapping_.getRight(maplab_cam_idx);
+        if (rovio_cam_index == nullptr) {
           // Skip this image, as the camera was marked as inactive.
           return;
         }
 
+        const double rovio_timestamp_sec =
+            time_translation_.convertMaplabToRovioTimestamp(image->timestamp);
         const bool measurement_accepted =
             this->rovio_interface_->processImageUpdate(
-                image->camera_index, image->image,
-                aslam::time::to_seconds(image->timestamp));
+                *rovio_cam_index, image->image, rovio_timestamp_sec);
         LOG_IF(
             WARNING, !measurement_accepted && rovio_interface_->isInitialized())
-            << "ROVIO rejected image measurement. Latency is too large.";
+            << "ROVIO rejected image measurement of camera " << maplab_cam_idx
+            << " (rovio cam idx: " << *rovio_cam_index << ") at time "
+            << aslam::time::timeNanosecondsToString(image->timestamp)
+            << ". Latency is too large.";
       });
   // Input localization updates.
   flow->registerSubscriber<message_flow_topics::LOCALIZATION_RESULT>(
       kSubscriberNodeName, rovio_subscriber_options,
-      [this](const vio::LocalizationResult::ConstPtr& localization_result) {
-        CHECK(localization_result);
-        // ROVIO coordinate frames:
-        //  - J: Inertial frame of pose update
-        //  - V: Body frame of pose update sensor
-        const Eigen::Vector3d JrJV =
-            localization_result->T_G_I_lc_pnp.getPosition();
-        const kindr::RotationQuaternionPD qJV(
-            localization_result->T_G_I_lc_pnp.getRotation().toImplementation());
-        const bool measurement_accepted =
-            this->rovio_interface_->processGroundTruthUpdate(
-                JrJV, qJV,
-                aslam::time::to_seconds(localization_result->timestamp));
-        LOG_IF(
-            WARNING, !measurement_accepted && rovio_interface_->isInitialized())
-            << "ROVIO rejected localization update at time="
-            << localization_result->timestamp << ". Latency is too large; "
-            << "consider reducing the localization rate.";
-      });
+      std::bind(
+          &RovioLocalizationHandler::processLocalizationResult,
+          localization_handler_.get(), std::placeholders::_1));
 
   // Output ROVIO estimates.
   publish_rovio_estimates_ =
       flow->registerPublisher<message_flow_topics::ROVIO_ESTIMATES>();
   CHECK(rovio_interface_);
-  rovio_interface_->registerStateUpdateCallback(
-      std::bind(&RovioFlow::processRovioUpdate, this, std::placeholders::_1));
+  rovio_interface_->registerStateUpdateCallback(std::bind(
+      &RovioFlow::processAndPublishRovioUpdate, this, std::placeholders::_1));
 }
 
-void RovioFlow::processRovioUpdate(const rovio::RovioState& state) {
+void RovioFlow::processAndPublishRovioUpdate(const rovio::RovioState& state) {
   if (!state.getIsInitialized()) {
     LOG(WARNING) << "ROVIO not yet initialized. Discarding state update.";
+    return;
+  }
+
+  if (FLAGS_rovioli_enable_health_checking &&
+      health_monitor_.shouldResetEstimator(state)) {
+    health_monitor_.resetRovioToLastHealthyPose(rovio_interface_.get());
     return;
   }
 
@@ -180,27 +212,49 @@ void RovioFlow::processRovioUpdate(const rovio::RovioState& state) {
   //  - B: IMU-coordinate frame
   // ROVIO and maplab both use passive Hamilton quaternion convention; no
   // conversion is necessary.
-  aslam::Transformation T_M_I = aslam::Transformation(
+  aslam::Transformation T_M_I(
       state.get_qBW().inverted().toImplementation(), state.get_WrWB());
-  ensurePositiveQuaternion(&T_M_I.getRotation());
+  common::ensurePositiveQuaternion(&T_M_I.getRotation());
   const Eigen::Vector3d v_M = T_M_I.getRotation().rotate(state.get_BvB());
 
   RovioEstimate::Ptr rovio_estimate(new RovioEstimate);
   // VIO states.
-  rovio_estimate->timestamp_s = state.getTimestamp();
+  const int64_t timestamp_ns =
+      time_translation_.convertRovioToMaplabTimestamp(state.getTimestamp());
+  rovio_estimate->timestamp_ns = timestamp_ns;
+  rovio_estimate->vinode.setTimestamp(timestamp_ns);
   rovio_estimate->vinode.set_T_M_I(T_M_I);
   rovio_estimate->vinode.set_v_M_I(v_M);
   rovio_estimate->vinode.setAccBias(state.getAcb());
   rovio_estimate->vinode.setGyroBias(state.getGyb());
+  rovio_estimate->vinode.setCovariancesFromRovioMatrix(
+      state.getImuCovariance());
 
-  // Optional localization state.
-  rovio_estimate->has_T_G_M = state.getHasInertialPose();
-  if (state.getHasInertialPose()) {
-    aslam::Transformation T_G_M = aslam::Transformation(
-        state.get_qWI().inverted().toImplementation(), state.get_IrIW());
-    ensurePositiveQuaternion(&T_G_M.getRotation());
-    rovio_estimate->T_G_M = T_G_M;
+  // Camera extrinsics.
+  for (size_t rovio_cam_idx = 0u; rovio_cam_idx < state.numCameras();
+       ++rovio_cam_idx) {
+    const size_t* maplab_cam_idx =
+        maplab_to_rovio_cam_indices_mapping_.getLeft(rovio_cam_idx);
+    CHECK_NOTNULL(maplab_cam_idx);
+
+    aslam::Transformation T_B_C(
+        state.get_qCM(rovio_cam_idx).inverted().toImplementation(),
+        state.get_MrMC(rovio_cam_idx));
+    common::ensurePositiveQuaternion(&T_B_C.getRotation());
+    CHECK(rovio_estimate->maplab_camera_index_to_T_C_B
+              .emplace(*maplab_cam_idx, T_B_C.inverse())
+              .second);
   }
+
+  // Optional localizations.
+  rovio_estimate->has_T_G_M =
+      extractLocalizationFromRovioState(state, &rovio_estimate->T_G_M);
+  localization_handler_->T_M_I_buffer_mutable()->bufferOdometryEstimate(
+      rovio_estimate->vinode);
+  if (rovio_estimate->has_T_G_M) {
+    localization_handler_->buffer_T_G_M(rovio_estimate->T_G_M);
+  }
+
   publish_rovio_estimates_(rovio_estimate);
 }
 }  // namespace rovioli

@@ -39,8 +39,8 @@ void LoopClosureVisualizer::visualizeMergedLandmarks(
 
   constexpr size_t kMarkerId = 0u;
   visualization::publishLines(
-      landmark_pairs, kMarkerId, visualization::kDefaultMapFrame,
-      visualization::kDefaultNamespace, landmark_pairs_topic_);
+      landmark_pairs, kMarkerId, FLAGS_tf_map_frame,
+      FLAGS_vis_default_namespace, landmark_pairs_topic_);
 }
 
 void LoopClosureVisualizer::visualizeKeyframeToStructureMatches(
@@ -79,8 +79,8 @@ void LoopClosureVisualizer::visualizeKeyframeToStructureMatches(
 
   constexpr size_t kInlierMarkerId = 0u;
   visualization::publishLines(
-      matches, kInlierMarkerId, visualization::kDefaultMapFrame,
-      visualization::kDefaultNamespace, loop_closures_topic_);
+      matches, kInlierMarkerId, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
+      loop_closures_topic_);
 }
 
 void LoopClosureVisualizer::addKeyframeToStructureMatchMarker(
@@ -158,12 +158,12 @@ void LoopClosureVisualizer::visualizeKeyframeToStructureMatch(
   constexpr double kInlierAlpha = 0.8;
   visualization::publish3DPointsAsPointCloud(
       inlier_landmarks, visualization::kCommonYellow, kInlierAlpha,
-      visualization::kDefaultMapFrame, "loopclosure_inliers");
+      FLAGS_tf_map_frame, "loopclosure_inliers");
 
   constexpr size_t kMarkerId = 0u;
   visualization::publishLines(
-      loop_closures, kMarkerId, visualization::kDefaultMapFrame,
-      visualization::kDefaultNamespace, loop_closures_topic_);
+      loop_closures, kMarkerId, FLAGS_tf_map_frame, FLAGS_vis_default_namespace,
+      loop_closures_topic_);
 }
 
 void LoopClosureVisualizer::visualizeFullMapDatabase(
@@ -177,7 +177,7 @@ void LoopClosureVisualizer::visualizeSummaryMapDatabase(
   constexpr double kAlpha = 0.7;
   visualization::publish3DPointsAsPointCloud(
       localization_summary_map.GLandmarkPosition().cast<double>(),
-      visualization::kCommonDarkGray, kAlpha, visualization::kDefaultMapFrame,
+      visualization::kCommonDarkGray, kAlpha, FLAGS_tf_map_frame,
       "loopclosure_database");
 }
 

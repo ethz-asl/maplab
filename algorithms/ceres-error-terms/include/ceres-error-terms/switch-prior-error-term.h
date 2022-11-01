@@ -2,11 +2,9 @@
 #define CERES_ERROR_TERMS_SWITCH_PRIOR_ERROR_TERM_H_
 
 namespace ceres_error_terms {
-namespace internal {
-template <bool kAssertValidVariableBounds = true>
-class SwitchPriorErrorTermImpl {
+class SwitchPriorErrorTerm {
  public:
-  SwitchPriorErrorTermImpl(double prior, double variance) : prior_(prior) {
+  SwitchPriorErrorTerm(double prior, double variance) : prior_(prior) {
     CHECK_GT(variance, 0.0);
     sqrt_information_factor_ = std::sqrt(1.0 / variance);
   }
@@ -21,12 +19,6 @@ class SwitchPriorErrorTermImpl {
   double prior_;
   double sqrt_information_factor_;
 };
-}  // namespace internal
-
-using SwitchPriorErrorTerm =
-    internal::SwitchPriorErrorTermImpl</*kAssertValidVariableBounds=*/true>;
-using SwitchPriorErrorTermLegacy =
-    internal::SwitchPriorErrorTermImpl</*kAssertValidVariableBounds=*/false>;
 
 }  // namespace ceres_error_terms
 #include "./ceres-error-terms/switch-prior-error-term-inl.h"

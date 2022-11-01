@@ -15,7 +15,7 @@ typedef ::testing::Types<pose_graph::VertexId, pose_graph::EdgeId> IdTypes;
 TYPED_TEST_CASE(AslamPosegraph, IdTypes);
 
 TYPED_TEST(AslamPosegraph, IdToStringToId) {
-  common::generateId(&this->posegraph_id_);
+  aslam::generateId(&this->posegraph_id_);
   std::string id_string = this->posegraph_id_.hexString();
 
   TypeParam id_from_string;
@@ -26,7 +26,7 @@ TYPED_TEST(AslamPosegraph, IdToStringToId) {
 }
 
 TYPED_TEST(AslamPosegraph, IdToHashIdToId) {
-  common::generateId(&this->posegraph_id_);
+  aslam::generateId(&this->posegraph_id_);
   this->posegraph_id_.toHashId(&this->base_id_);
 
   TypeParam id_from_hash_id;

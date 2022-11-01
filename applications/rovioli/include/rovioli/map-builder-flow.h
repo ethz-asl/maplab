@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <aslam/cameras/ncamera.h>
 #include <message-flow/message-flow.h>
@@ -24,8 +25,8 @@ namespace rovioli {
 class MapBuilderFlow {
  public:
   MapBuilderFlow(
-      const std::shared_ptr<aslam::NCamera>& n_camera,
-      vi_map::Imu::UniquePtr imu, const std::string& save_map_folder);
+      const vi_map::SensorManager& sensor_manager,
+      const std::string& save_map_folder);
   void attachToMessageFlow(message_flow::MessageFlow* flow);
 
   void saveMapAndOptionallyOptimize(

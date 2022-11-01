@@ -6,11 +6,11 @@
 #include <Eigen/Dense>
 #include <aslam/common/memory.h>
 #include <aslam/common/pose-types.h>
+#include <aslam/common/unique-id.h>
 #include <glog/logging.h>
 #include <maplab-common/macros.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/quaternion-math.h>
-#include <maplab-common/unique-id.h>
 
 #include "vi-map/unique-id.h"
 #include "vi-map/vi_map.pb.h"

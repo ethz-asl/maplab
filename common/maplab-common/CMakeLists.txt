@@ -4,13 +4,12 @@ project(maplab_common)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-include(cmake/maplab_common-extras.cmake.in)
+catkin_python_setup()
 
 ############
 # PROTOBUF #
 ############
-set(PROTO_DEFNS proto/maplab-common/eigen.proto
-                proto/maplab-common/id.proto)
+set(PROTO_DEFNS proto/maplab-common/eigen.proto)
 PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -20,13 +19,12 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 #############
 # LIBRARIES #
 #############
-find_package (Threads)
+find_package(Threads)
 cs_add_library(${PROJECT_NAME} src/binary-serialization.cc
                                src/breakpoints.cc
                                src/combinatorial.cc
                                src/condition.cc
                                src/cubic-spline.cc
-                               src/delayed-notification.cc
                                src/feature-descriptor-ref.cc
                                src/file-lock.cc
                                src/file-logger.cc
@@ -36,17 +34,18 @@ cs_add_library(${PROJECT_NAME} src/binary-serialization.cc
                                src/gnuplot-interface.cc
                                src/gravity-provider.cc
                                src/histograms.cc
+                               src/map-manager-config.cc
                                src/multi-threaded-progress-bar.cc
                                src/progress-bar.cc
                                src/proto-serialization-helper.cc
                                src/python-interface.cc
                                src/shared-gflags.cc
                                src/sigint-breaker.cc
+                               src/signals.cc
                                src/stringprintf.cc
                                src/test/testing-entrypoint.cc
                                src/threading-helpers.cc
                                src/tridiagonal-matrix.cc
-                               src/unique-id.cc
                                ${PROTO_SRCS}
                                ${PROTO_HDRS})
 target_link_libraries(${PROJECT_NAME} ${CMAKE_THREAD_LIBS_INIT} ${PYTHON_LIBRARIES} readline)
@@ -63,13 +62,12 @@ catkin_add_gtest(test_accessors
   test/test_accessors.cc)
 target_link_libraries(test_accessors ${PROJECT_NAME})
 
+catkin_add_gtest(test_bidirectional_map test/test_bidirectional_map.cc)
+target_link_libraries(test_bidirectional_map ${PROJECT_NAME})
+
 catkin_add_gtest(test_fixed_size_queue
     test/test_fixed_size_queue.cc)
 target_link_libraries(test_fixed_size_queue ${PROJECT_NAME})
-
-catkin_add_gtest(test_delayed_notification_test
-                 test/test_delayed_notification.cc)
-target_link_libraries(test_delayed_notification_test ${PROJECT_NAME})
 
 catkin_add_gtest(test_eigen_proto_test
   test/test_eigen_proto_test.cc)
@@ -119,6 +117,10 @@ catkin_add_gtest(test_file_system_tools
 target_link_libraries(test_file_system_tools ${PROJECT_NAME})
 add_dependencies(test_file_system_tools ${PROJECT_TEST_DATA})
 
+catkin_add_gtest(test_data_synchronizer
+  test/test_data_synchronizer.cc)
+target_link_libraries(test_data_synchronizer ${PROJECT_NAME})
+
 catkin_add_gtest(test_vector_window_operations
   test/test_vector-window-operations.cc)
 target_link_libraries(test_vector_window_operations ${PROJECT_NAME})
@@ -150,9 +152,14 @@ catkin_add_gtest(test_string_tools
   test/test_string_tools.cc)
 target_link_libraries(test_string_tools ${PROJECT_NAME})
 
+catkin_add_gtest(test_threadsafe_temporal_buffer
+  test/test-threadsafe-temporal-buffer.cc)
+target_link_libraries(test_threadsafe_temporal_buffer ${PROJECT_NAME})
+
 catkin_add_gtest(test_thread_safe_queue
   test/test_threadsafe_queue.cc)
 target_link_libraries(test_thread_safe_queue ${PROJECT_NAME})
+
 
 catkin_add_gtest(test_threaded_task_queue_processor
   test/test-threaded-task-queue-processor.cc)
@@ -169,8 +176,12 @@ catkin_add_gtest(test_interpolation_helpers
   test/test-interpolation-helpers.cc)
 target_link_libraries(test_interpolation_helpers ${PROJECT_NAME})
 
+catkin_Add_gtest(test_signals
+  test/test-signals.cc)
+target_link_libraries(test_signals ${PROJECT_NAME})
+
 ############
 ## EXPORT ##
 ############
 cs_install()
-cs_export(CFG_EXTRAS maplab_common-extras.cmake)
+cs_export()

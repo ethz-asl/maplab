@@ -19,12 +19,22 @@ class ConsolePluginBaseWithPlotter : public ConsolePluginBase {
  public:
   ConsolePluginBaseWithPlotter(
       Console* console, visualization::ViwlsGraphRvizPlotter* plotter)
-      : ConsolePluginBase(CHECK_NOTNULL(console)),
-                          plotter_(CHECK_NOTNULL(plotter)) {}
-
-  virtual std::string getPluginId() const override = 0;
+      : ConsolePluginBase(CHECK_NOTNULL(console)), plotter_(plotter) {}
 
  protected:
+  bool hasPlotter() const {
+    return plotter_ != nullptr;
+  }
+
+  const visualization::ViwlsGraphRvizPlotter& getPlotter() const {
+    return *CHECK_NOTNULL(plotter_);
+  }
+
+  const visualization::ViwlsGraphRvizPlotter* getPlotterUnsafe() const {
+    return plotter_;
+  }
+
+ private:
   visualization::ViwlsGraphRvizPlotter* plotter_;
 };
 

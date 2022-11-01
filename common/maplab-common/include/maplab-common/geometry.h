@@ -1,6 +1,7 @@
 #ifndef MAPLAB_COMMON_GEOMETRY_H_
 #define MAPLAB_COMMON_GEOMETRY_H_
 #include <random>
+#include <unordered_set>
 
 #include <Eigen/Core>
 #include <aslam/common/memory.h>
@@ -57,15 +58,18 @@ Eigen::Matrix<double, 4, 1> ComputeLSAverageQuaternionJPL(
 
 template <template <typename, typename> class Container>
 void transformationRansac(
-    const Container<pose::Transformation,
-                    Eigen::aligned_allocator<pose::Transformation>>&
+    const Container<
+        pose::Transformation, Eigen::aligned_allocator<pose::Transformation>>&
         T_A_B_samples,
     int num_iterations, double threshold_orientation_radians,
     double threshold_position_meters, int ransac_seed,
-    pose::Transformation* T_A_B, int* num_inliers);
+    pose::Transformation* T_A_B, int* num_inliers,
+    std::unordered_set<int>* inlier_indices = nullptr);
+
+double getMaxDisparityRadAngleOfUnitVectorBundle(
+    const Aligned<std::vector, Eigen::Vector3d>& unit_incidence_rays);
 
 namespace geometry {
-
 // Implementation adopted from the descriptor_projection package.
 template <typename Type, int Dimensions>
 void computeCovariance(

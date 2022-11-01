@@ -17,7 +17,7 @@ class VizCollectorTest : public ::testing::Test {
   }
 };
 
-const aslam::NFramesId kSlotId = aslam::NFramesId::Random();
+const aslam::NFramesId kSlotId = aslam::createRandomId<aslam::NFramesId>();
 const std::string kChannelName("test-channel");
 const std::string kTestData("test-data");
 
@@ -54,7 +54,8 @@ TEST_F(VizCollectorTest, PrintChannel) {
           kSlotId, kChannelName),
       kTestData);
 
-  const aslam::NFramesId kUnavailableSlotId = aslam::NFramesId::Random();
+  const aslam::NFramesId kUnavailableSlotId =
+      aslam::createRandomId<aslam::NFramesId>();
   const std::string kUnavailableChannel("channel-na");
   const std::string kUnavailabeMessage("Channel not available.");
   EXPECT_EQ(

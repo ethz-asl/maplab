@@ -25,14 +25,16 @@ namespace rovioli {
 
 class DataPublisherFlow {
  public:
-  const std::string kRosNamespace = "maplab_rovio";
-  const std::string kGeneralTopicPrefix = kRosNamespace + "/";
-  const std::string kTopicPoseMission = kGeneralTopicPrefix + "T_M_I";
-  const std::string kTopicPoseGlobal = kGeneralTopicPrefix + "T_G_I";
-  const std::string kTopicBaseframe = kGeneralTopicPrefix + "T_G_M";
-  const std::string kTopicVelocity = kGeneralTopicPrefix + "velocity_I";
-  const std::string kTopicBiasAcc = kGeneralTopicPrefix + "bias_acc";
-  const std::string kTopicBiasGyro = kGeneralTopicPrefix + "bias_gyro";
+  const std::string kTopicPoseMission = "T_M_I";
+  const std::string kTopicPoseGlobal = "T_G_I";
+  const std::string kTopicTransformGlobal = "Transform_G_I";
+  const std::string kTopicBaseframe = "T_G_M";
+  const std::string kTopicVelocity = "velocity_I";
+  const std::string kTopicBiasAcc = "bias_acc";
+  const std::string kTopicBiasGyro = "bias_gyro";
+  const std::string kCameraExtrinsicTopic = "cam_T_C_B";
+  const std::string kTopicMaplabOdomMsg = "maplab_odom_T_M_I";
+  const std::string kTopicOdomMsg = "odom_T_M_I";
 
   DataPublisherFlow();
 
@@ -41,7 +43,7 @@ class DataPublisherFlow {
 
  private:
   void registerPublishers();
-  void stateCallback(
+  void publishVinsState(
       int64_t timestamp_ns, const vio::ViNodeState& vinode,
       const bool has_T_G_M, const aslam::Transformation& T_G_M);
   void stateDebugCallback(
@@ -53,10 +55,16 @@ class DataPublisherFlow {
   ros::NodeHandle node_handle_;
   ros::Publisher pub_pose_T_M_I_;
   ros::Publisher pub_pose_T_G_I_;
+  ros::Publisher pub_transform_T_G_I_;
   ros::Publisher pub_baseframe_T_G_M_;
   ros::Publisher pub_velocity_I_;
   ros::Publisher pub_imu_acc_bias_;
   ros::Publisher pub_imu_gyro_bias_;
+  ros::Publisher pub_extrinsics_T_C_Bs_;
+
+  // Maplab odometry message publisher (includes IMU biases).
+  ros::Publisher pub_maplab_odom_T_M_I_;
+  ros::Publisher pub_odom_T_M_I_;
 
   common::TimeoutCounter map_publisher_timeout_;
 

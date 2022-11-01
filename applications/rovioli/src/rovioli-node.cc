@@ -6,6 +6,7 @@
 #include <localization-summary-map/localization-summary-map.h>
 #include <message-flow/message-flow.h>
 #include <message-flow/message-topic-registration.h>
+#include <vi-map/sensor-utils.h>
 #include <vio-common/vio-types.h>
 
 #include "rovioli/datasource-flow.h"
@@ -13,7 +14,6 @@
 #include "rovioli/imu-camera-synchronizer-flow.h"
 #include "rovioli/localizer-flow.h"
 #include "rovioli/rovio-flow.h"
-#include "rovioli/synced-nframe-throttler-flow.h"
 
 DEFINE_bool(
     rovioli_run_map_builder, true,
@@ -22,26 +22,39 @@ DEFINE_bool(
 
 namespace rovioli {
 RovioliNode::RovioliNode(
-    const aslam::NCamera::Ptr& camera_system,
-    vi_map::Imu::UniquePtr maplab_imu_sensor,
+    const vi_map::SensorManager& sensor_manager,
     const vi_map::ImuSigmas& rovio_imu_sigmas,
     const std::string& save_map_folder,
     const summary_map::LocalizationSummaryMap* const localization_map,
     message_flow::MessageFlow* flow)
     : is_datasource_exhausted_(false) {
   // localization_summary_map is optional and can be a nullptr.
-  CHECK(camera_system);
-  CHECK(maplab_imu_sensor);
   CHECK_NOTNULL(flow);
 
-  // TODO(schneith): At the moment we need to provide two noise sigmas; one for
-  // maplab and one for ROVIO. Unify this.
-  datasource_flow_.reset(
-      new DataSourceFlow(*camera_system, *maplab_imu_sensor));
+  aslam::NCamera::Ptr camera_system = getSelectedNCamera(sensor_manager);
+  CHECK(camera_system) << "No NCamera found in the sensor manager.";
+  vi_map::Imu::Ptr maplab_imu_sensor = getSelectedImu(sensor_manager);
+  CHECK(maplab_imu_sensor) << "No IMU found in the sensor manager.";
+  vi_map::WheelOdometry::Ptr maplab_wheel_odometry_sensor =
+      getSelectedWheelOdometrySensor(sensor_manager);
+  LOG_IF(INFO, maplab_wheel_odometry_sensor == nullptr)
+      << "No Wheel odometry Odometry sensor found in the sensor manager.";
+
+  vio_common::RosTopicSettings topic_settings(sensor_manager);
+  datasource_flow_.reset(new DataSourceFlow(topic_settings));
   datasource_flow_->attachToMessageFlow(flow);
 
-  rovio_flow_.reset(new RovioFlow(*camera_system, rovio_imu_sigmas));
-  rovio_flow_->attachToMessageFlow(flow);
+  if (maplab_wheel_odometry_sensor != nullptr) {
+    const aslam::Transformation& T_B_S =
+        sensor_manager.getSensor_T_B_S(maplab_wheel_odometry_sensor->getId());
+    rovio_flow_.reset(new RovioFlow(*camera_system, rovio_imu_sigmas, T_B_S));
+    rovio_flow_->attachToMessageFlow(flow);
+  } else {
+    // TODO(ben): remove identity transformation if no rel 6dof sensor available
+    rovio_flow_.reset(new RovioFlow(
+        *camera_system, rovio_imu_sigmas, aslam::Transformation()));
+    rovio_flow_->attachToMessageFlow(flow);
+  }
 
   const bool localization_enabled = localization_map != nullptr;
   if (FLAGS_rovioli_run_map_builder || localization_enabled) {
@@ -64,9 +77,6 @@ RovioliNode::RovioliNode(
     tracker_flow_.reset(
         new FeatureTrackingFlow(camera_system, *maplab_imu_sensor));
     tracker_flow_->attachToMessageFlow(flow);
-
-    throttler_flow_.reset(new SyncedNFrameThrottlerFlow);
-    throttler_flow_->attachToMessageFlow(flow);
   }
 
   data_publisher_flow_.reset(new DataPublisherFlow);
@@ -74,8 +84,7 @@ RovioliNode::RovioliNode(
 
   if (FLAGS_rovioli_run_map_builder) {
     map_builder_flow_.reset(
-        new MapBuilderFlow(
-            camera_system, std::move(maplab_imu_sensor), save_map_folder));
+        new MapBuilderFlow(sensor_manager, save_map_folder));
     map_builder_flow_->attachToMessageFlow(flow);
   }
 

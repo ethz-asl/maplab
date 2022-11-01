@@ -19,7 +19,6 @@
 #include <nabo/nabo.h>
 
 #include "inverted-multi-index/inverted-multi-index-common.h"
-#include "inverted-multi-index/inverted_multi_index.pb.h"
 
 DECLARE_double(lc_knn_max_radius);
 
@@ -167,98 +166,6 @@ class InvertedMultiIndex {
     for (int i = nearest_neighbors.size(); i < num_neighbors; ++i) {
       indices(i, 0) = -1;
       distances(i, 0) = std::numeric_limits<float>::infinity();
-    }
-  }
-
-  inline void serialize(
-      proto::InvertedMultiIndex* proto_inverted_multi_index) const {
-    CHECK_NOTNULL(proto_inverted_multi_index);
-
-    for (const InvFile& inverted_file : inverted_files_) {
-      proto::InvertedFile* proto_inverted_file =
-          CHECK_NOTNULL(proto_inverted_multi_index->add_inverted_files());
-
-      const size_t num_descriptors = inverted_file.descriptors_.size();
-      CHECK_GT(num_descriptors, 0u);
-
-      const size_t projected_descriptor_dimensions =
-          static_cast<size_t>(inverted_file.descriptors_[0].rows());
-
-      Eigen::MatrixXf descriptors =
-          Eigen::MatrixXf(projected_descriptor_dimensions, num_descriptors);
-
-      for (size_t descriptor_idx = 0u; descriptor_idx < num_descriptors;
-           ++descriptor_idx) {
-        descriptors.col(descriptor_idx) =
-            inverted_file.descriptors_[descriptor_idx];
-      }
-
-      ::common::eigen_proto::serialize(
-          descriptors, proto_inverted_file->mutable_descriptors());
-
-      const size_t num_indices = inverted_file.indices_.size();
-      CHECK_EQ(num_descriptors, num_indices);
-
-      for (const int index : inverted_file.indices_) {
-        proto_inverted_file->add_indices(index);
-      }
-    }
-
-    proto_inverted_multi_index->set_max_db_descriptor_index(
-        max_db_descriptor_index_);
-
-    for (const std::pair<int, int>& word_index_element : word_index_map_) {
-      proto::InvertedMultiIndex_WordIndexMapEntry* proto_word_index_map_entry =
-          CHECK_NOTNULL(proto_inverted_multi_index->add_word_index_map());
-
-      proto_word_index_map_entry->set_visual_word_index(
-          word_index_element.first);
-      proto_word_index_map_entry->set_inverted_file_index(
-          word_index_element.second);
-    }
-  }
-
-  inline void deserialize(
-      const proto::InvertedMultiIndex proto_inverted_multi_index) {
-    inverted_files_.clear();
-
-    for (const ::loop_closure::proto::InvertedFile& proto_inverted_file :
-         proto_inverted_multi_index.inverted_files()) {
-      Eigen::MatrixXf descriptors;
-      ::common::eigen_proto::deserialize(
-          proto_inverted_file.descriptors(), &descriptors);
-
-      const int projected_descriptor_dimensions = descriptors.rows();
-      CHECK_EQ(projected_descriptor_dimensions, 2 * kDimSubVectors);
-      const int num_descriptors = descriptors.cols();
-
-      const int num_indices = proto_inverted_file.indices_size();
-      CHECK_EQ(num_indices, num_descriptors);
-
-      common::InvertedFile<float, 2 * kDimSubVectors> inverted_file;
-
-      inverted_file.descriptors_.resize(num_indices);
-      inverted_file.indices_.resize(num_indices);
-      for (int idx = 0; idx < num_indices; ++idx) {
-        inverted_file.descriptors_[idx] = descriptors.col(idx);
-        inverted_file.indices_[idx] = proto_inverted_file.indices(idx);
-      }
-
-      inverted_files_.push_back(inverted_file);
-    }
-
-    max_db_descriptor_index_ =
-        proto_inverted_multi_index.max_db_descriptor_index();
-
-    word_index_map_.clear();
-
-    for (const ::loop_closure::proto::InvertedMultiIndex_WordIndexMapEntry&
-             word_index_map_entry :
-         proto_inverted_multi_index.word_index_map()) {
-      const int visual_word_index = word_index_map_entry.visual_word_index();
-      const int inverted_file_index =
-          word_index_map_entry.inverted_file_index();
-      word_index_map_.emplace(visual_word_index, inverted_file_index);
     }
   }
 

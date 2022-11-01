@@ -1,5 +1,5 @@
-#ifndef INTERNAL_VIO_TYPES_INL_H_
-#define INTERNAL_VIO_TYPES_INL_H_
+#ifndef VIO_COMMON_INTERNAL_VIO_TYPES_INL_H_
+#define VIO_COMMON_INTERNAL_VIO_TYPES_INL_H_
 
 #include <algorithm>
 #include <limits>
@@ -51,16 +51,16 @@ inline std::ostream& operator<<(std::ostream& out, const MotionType& value) {
 }
 
 inline std::ostream& operator<<(
-    std::ostream& out, const LocalizationState& value) {
-  static std::unordered_map<LocalizationState, std::string,
-                            LocalizationStateHash>
+    std::ostream& out, const common::LocalizationState& value) {
+  static std::unordered_map<
+      common::LocalizationState, std::string, common::LocalizationStateHash>
       names;
   if (names.size() == 0u) {
 #define INSERT_ELEMENT(type, val) names[type::val] = #val
-    INSERT_ELEMENT(LocalizationState, kUninitialized);
-    INSERT_ELEMENT(LocalizationState, kNotLocalized);
-    INSERT_ELEMENT(LocalizationState, kLocalized);
-    INSERT_ELEMENT(LocalizationState, kMapTracking);
+    INSERT_ELEMENT(common::LocalizationState, kUninitialized);
+    INSERT_ELEMENT(common::LocalizationState, kNotLocalized);
+    INSERT_ELEMENT(common::LocalizationState, kLocalized);
+    INSERT_ELEMENT(common::LocalizationState, kMapTracking);
 #undef INSERT_ELEMENT
   }
   return out << names[value];
@@ -101,4 +101,4 @@ inline std::ostream& operator<<(
 
 }  // namespace vio
 
-#endif  // INTERNAL_VIO_TYPES_INL_H_
+#endif  // VIO_COMMON_INTERNAL_VIO_TYPES_INL_H_

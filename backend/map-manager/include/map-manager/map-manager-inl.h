@@ -132,8 +132,8 @@ template <typename MapType>
 void MapManager<MapType>::copyMap(
     const std::string& source_key, const std::string& target_key) {
   map_storage_->getContainerMutex()->acquireReadLock();
-  CHECK(map_storage_->hasMap(source_key)) << "Source map key \"" << source_key
-                                          << "\" doesn't exist.";
+  CHECK(map_storage_->hasMap(source_key))
+      << "Source map key \"" << source_key << "\" doesn't exist.";
   MapReadAccess source_map = map_storage_->getMapReadAccess(source_key);
   map_storage_->getContainerMutex()->releaseReadLock();
 
@@ -142,13 +142,13 @@ void MapManager<MapType>::copyMap(
 
   // Add copied map to storage.
   aslam::ScopedWriteLock lock(map_storage_->getContainerMutex());
-  CHECK(!map_storage_->hasMap(target_key)) << "Target map key \"" << target_key
-                                           << "\" already exists.";
+  CHECK(!map_storage_->hasMap(target_key))
+      << "Target map key \"" << target_key << "\" already exists.";
   map_storage_->addMap(target_key, target_map);
 }
 
 template <typename MapType>
-void MapManager<MapType>::mergeMaps(
+bool MapManager<MapType>::mergeMaps(
     const std::string& source_key_merge_base,
     const std::string& source_key_merge_from) {
   CHECK(source_key_merge_base != source_key_merge_from)
@@ -157,8 +157,8 @@ void MapManager<MapType>::mergeMaps(
   map_storage_->getContainerMutex()->acquireReadLock();
   for (const std::string& source_key :
        {std::ref(source_key_merge_base), std::ref(source_key_merge_from)}) {
-    CHECK(map_storage_->hasMap(source_key)) << "Source map key \"" << source_key
-                                            << "\" doesn't exist.";
+    CHECK(map_storage_->hasMap(source_key))
+        << "Source map key \"" << source_key << "\" doesn't exist.";
   }
   MapWriteAccess source_map_merge_base =
       map_storage_->getMapWriteAccess(source_key_merge_base);
@@ -166,8 +166,32 @@ void MapManager<MapType>::mergeMaps(
       map_storage_->getMapReadAccess(source_key_merge_from);
   map_storage_->getContainerMutex()->releaseReadLock();
 
-  traits<MapType>::mergeTwoMaps(
+  return traits<MapType>::mergeTwoMaps(
       *source_map_merge_from, source_map_merge_base.get());
+}
+
+template <typename MapType>
+bool MapManager<MapType>::mergeSubmapIntoBaseMap(
+    const std::string& source_key_merge_base_map,
+    const std::string& source_key_merge_submap) {
+  CHECK(source_key_merge_base_map != source_key_merge_submap)
+      << "Cannot merge submap into base map because the two map keys are "
+         "identical (\""
+      << source_key_merge_base_map << "\").";
+  map_storage_->getContainerMutex()->acquireReadLock();
+  for (const std::string& source_key : {std::ref(source_key_merge_base_map),
+                                        std::ref(source_key_merge_submap)}) {
+    CHECK(map_storage_->hasMap(source_key))
+        << "Source base map key \"" << source_key << "\" doesn't exist.";
+  }
+  MapWriteAccess source_merge_base_map =
+      map_storage_->getMapWriteAccess(source_key_merge_base_map);
+  MapReadAccess source_merge_submap =
+      map_storage_->getMapReadAccess(source_key_merge_submap);
+  map_storage_->getContainerMutex()->releaseReadLock();
+
+  return traits<MapType>::mergeSubmapIntoBaseMap(
+      *source_merge_submap, source_merge_base_map.get());
 }
 
 template <typename MapType>
@@ -262,7 +286,7 @@ void MapManager<MapType>::listAllMapsInFolder(
   const std::string real_path = common::getRealPath(folder_path);
 
   std::vector<std::string> folder_list;  // Stores all found folders in path.
-  common::getAllFilesAndFoldersInFolder(real_path, nullptr, &folder_list);
+  common::getAllFoldersInFolder(real_path, &folder_list);
 
   for (std::string& sub_folder_path : folder_list) {
     // Check if the sub-folder is a valid map.
@@ -300,8 +324,9 @@ bool MapManager<MapType>::loadAllMapsFromFolder(
   std::stringstream maps_to_load_ss;
   maps_to_load_ss << "Found the following maps to load:\n";
   for (size_t i = 0u; i < map_list.size(); ++i) {
-    maps_to_load_ss << "- " << common::formatText(
-                                   key_list[i], common::FormatOptions::kBold)
+    maps_to_load_ss << "- "
+                    << common::formatText(
+                           key_list[i], common::FormatOptions::kBold)
                     << " from " << map_list[i] << "\n";
   }
   VLOG(1) << maps_to_load_ss.str() << "\n";
@@ -451,9 +476,8 @@ bool MapManager<MapType>::saveAllMapsToFolder(
   // Save all maps.
   for (const std::string& key : all_map_keys_list) {
     MapWriteAccess map = map_storage_->getMapWriteAccess(key);
-    CHECK(
-        traits<MapType>::saveToFolder(
-            key_to_folder_map[key], config, map.get()));
+    CHECK(traits<MapType>::saveToFolder(
+        key_to_folder_map[key], config, map.get()));
   }
 
   return true;
@@ -476,29 +500,6 @@ template <typename MapType>
 bool MapManager<MapType>::hasMapOnFileSystem(
     const std::string& folder_path) const {
   return traits<MapType>::hasMapOnFileSystem(folder_path);
-}
-
-template <typename MapType>
-bool MapManager<MapType>::getListOfExistingMapFiles(
-    const std::string& folder_path,
-    std::vector<std::string>* list_of_map_files) {
-  CHECK_NOTNULL(list_of_map_files)->clear();
-  CHECK(!folder_path.empty());
-
-  CHECK(!folder_path.empty());
-  if (!common::pathExists(folder_path)) {
-    LOG(ERROR) << "Folder \"" << folder_path << "\" doesn't exist.";
-    return false;
-  }
-  const std::string real_folder_path = common::getRealPath(folder_path);
-  std::string map_folder_path_without_trailing_slash(real_folder_path);
-  if (map_folder_path_without_trailing_slash.back() == '/') {
-    map_folder_path_without_trailing_slash.erase(
-        map_folder_path_without_trailing_slash.end() - 1);
-  }
-  CHECK(!map_folder_path_without_trailing_slash.empty());
-  return traits<MapType>::getListOfExistingMapFiles(
-      map_folder_path_without_trailing_slash, list_of_map_files);
 }
 
 template <typename MapType>

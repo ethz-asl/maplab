@@ -3,8 +3,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <aslam/common/unique-id.h>
 #include <glog/logging.h>
-#include <maplab-common/unique-id.h>
 
 namespace pose_graph {
 UNIQUE_ID_DEFINE_ID(VertexId);

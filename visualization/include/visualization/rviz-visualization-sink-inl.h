@@ -12,7 +12,8 @@ namespace visualization {
 
 template <typename T>
 void RVizVisualizationSink::publishImpl(
-    const std::string& topic, const T& message) {
+    const std::string& topic, const T& message,
+    const bool wait_for_subscriber) {
   CHECK(!topic.empty());
 
   std::unique_lock<std::mutex> lock(mutex_);
@@ -30,31 +31,31 @@ void RVizVisualizationSink::publishImpl(
   CHECK(topic_iterator != topic_to_publisher_map_.end());
   const ros::Publisher& publisher = topic_iterator->second;
 
-  if (should_wait_for_subscribers_) {
+  if (wait_for_subscriber) {
     lock.unlock();
     // This waits for RViz to subscribe - otherwise this program might
     // terminate before RViz receives the messages.
-    const double kTimeoutSeconds = 5.0;
-    const double kLoopFrequencyHz = 2.0;
-    const size_t num_loops =
+    constexpr double kTimeoutSeconds = 1.0;
+    constexpr double kLoopFrequencyHz = 100.0;
+    const size_t kNumLoops =
         static_cast<size_t>(std::ceil(kTimeoutSeconds * kLoopFrequencyHz));
     ros::Rate loop_rate(kLoopFrequencyHz);
     size_t i = 0u;
     while (publisher.getNumSubscribers() < 1u) {
-      LOG_FIRST_N(INFO, 1) << "Waiting for a subscriber on topic "
-                           << publisher.getTopic();
-
+      if (VLOG_IS_ON(2)) {
+        LOG_FIRST_N(INFO, 1) << "Waiting for a subscriber on topic "
+                             << publisher.getTopic();
+      }
       ros::spinOnce();
       loop_rate.sleep();
-      if (++i > num_loops) {
-        VLOG(1) << "Timeout. Publishing the message although there's not yet a "
-                << "subscriber and continuing.";
+      if (++i > kNumLoops) {
+        LOG(WARNING) << "Timeout. Publishing the message although there's not "
+                     << "yet a subscriber and continuing.";
         break;
       }
     }
     lock.lock();
   }
-  VLOG(10) << "Publishing message on topic " << publisher.getTopic();
   publisher.publish(message);
 }
 }  // namespace visualization

@@ -4,7 +4,6 @@
 #include <aslam/cameras/camera.h>
 #include <aslam/cameras/ncamera.h>
 #include <glog/logging.h>
-#include <maplab-common/aslam-id-proto.h>
 #include <maplab-common/eigen-proto.h>
 
 #include "aslam-serialization/camera.pb.h"
@@ -33,9 +32,11 @@ void serializeCamera(const aslam::Camera& camera, aslam::proto::Camera* proto) {
   proto->set_distortion_type(
       static_cast<proto::Camera::DistortionType>(distortion_type_int));
 
-  ::common::aslam_id_proto::serialize(camera.getId(), proto->mutable_id());
+  camera.getId().serialize(proto->mutable_id());
   proto->set_image_width(camera.imageWidth());
   proto->set_image_height(camera.imageHeight());
+  proto->set_topic(camera.getTopic());
+  proto->set_description(camera.getDescription());
 
   ::common::eigen_proto::serialize(
       camera.getParameters(), proto->mutable_intrinsics());
@@ -61,20 +62,23 @@ void deserializeCamera(
   CHECK_LE(proto.distortion_type(), 3);
 
   // Create camera from camera_proto.
-  ::common::aslam_id_proto::deserialize(proto.id(), &camera_id);
+  camera_id.deserialize(proto.id());
   *camera = aslam::createCamera(
       camera_id, intrinsics, proto.image_width(), proto.image_height(),
       distortion_parameters,
       static_cast<aslam::Camera::Type>(proto.camera_type()),
       static_cast<aslam::Distortion::Type>(proto.distortion_type()));
+  (*camera)->setTopic(proto.topic());
+  (*camera)->setDescription(proto.description());
 }
 
 void serializeNCamera(
     const aslam::NCamera& n_camera, aslam::proto::NCamera* proto) {
   CHECK_NOTNULL(proto);
 
-  ::common::aslam_id_proto::serialize(n_camera.getId(), proto->mutable_id());
-  proto->set_label(n_camera.getLabel());
+  n_camera.getId().serialize(proto->mutable_id());
+  proto->set_topic(n_camera.getTopic());
+  proto->set_description(n_camera.getDescription());
 
   typedef ::common::proto::SemiStaticMatrixd MatrixProto;
   const int num_cameras = n_camera.getNumCameras();
@@ -99,7 +103,7 @@ void deserializeNCamera(
   std::vector<aslam::Camera::Ptr> camera_vector;
 
   aslam::NCameraId ncamera_id;
-  ::common::aslam_id_proto::deserialize(proto.id(), &ncamera_id);
+  ncamera_id.deserialize(proto.id());
 
   const int num_cameras = proto.cameras_size();
   CHECK_EQ(proto.cameras_size(), proto.t_c_i_transforms_size());
@@ -124,9 +128,9 @@ void deserializeNCamera(
             << T_C_I.getRotation().toImplementation().coeffs().transpose();
     VLOG(4) << "p_C_I: " << T_C_I.getPosition().transpose();
   }
-  n_camera->reset(
-      new aslam::NCamera(
-          ncamera_id, T_C_I_vector, camera_vector, proto.label()));
+  n_camera->reset(new aslam::NCamera(
+      ncamera_id, T_C_I_vector, camera_vector, proto.description()));
+  (*n_camera)->setTopic(proto.topic());
 }
 
 }  // namespace serialization

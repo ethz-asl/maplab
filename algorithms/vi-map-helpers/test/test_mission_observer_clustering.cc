@@ -79,7 +79,7 @@ void VertexClusteringTest::addLandmarksForObserverClusteringTest() {
 
 TEST_F(VertexClusteringTest, NonexistentLandmark) {
   vi_map::LandmarkId nonexistent_landmark_id;
-  common::generateId(&nonexistent_landmark_id);
+  aslam::generateId(&nonexistent_landmark_id);
 
   std::vector<pose_graph::VertexIdSet> clustered_vertices;
   EXPECT_DEATH(

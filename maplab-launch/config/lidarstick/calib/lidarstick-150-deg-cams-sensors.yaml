@@ -1,0 +1,151 @@
+sensors:
+  - id: 5d2fcf479caf7592b35518478a2fe08f
+    sensor_type: IMU
+    description: "ADIS-16448 IMU"
+    topic: /VersaVIS/imu
+    sigmas:
+      gyro_noise_density: 0.005
+      gyro_bias_random_walk_noise_density: 4e-06
+      acc_noise_density: 0.01
+      acc_bias_random_walk_noise_density: 0.0002
+    saturation_accel_max_mps2: 150
+    saturation_gyro_max_radps: 7.5
+    gravity_magnitude_mps2: 9.808083883386614
+
+  - id: aabb23479caf7592b35518478a2fe08f
+    sensor_type: ODOMETRY_6DOF
+    description: "ROVIOLI in Odometry mode"
+    topic: /odometry/maplab_odom_T_M_I
+
+  - id: ff000000000000000000000000000001
+    sensor_type: EXTERNAL_FEATURES
+    description: "SuperPoint features"
+    topic: /maplab_features0
+    target_sensor: ca17b5000f15adb3c0da8ac6b729ee05
+    has_uncertainties: true
+    has_orientations: false
+    has_scores: true
+    has_scales: true
+    has_track_ids: true
+    feature_type: SuperPoint
+
+  - id: 8af1bac2a7c5fad79f09e49e3b96d87c
+    sensor_type: NCAMERA
+    description: "Lidarstick - Blackfly S 0.4MP (Color/Mono) Stereo Pair"
+    topic: ""
+    cameras:
+      - camera:
+          id: ca27b5000f15adb3c0da8ac6b729ee05
+          sensor_type: CAMERA
+          description: "Blackfly S 0.4MP Mono Camera"
+          topic: /VersaVIS/cam1
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 318.3884836637401
+              - 318.3155591743098
+              - 359.7920158885187
+              - 274.6524854825948
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - 0.005297224609545764
+                - -0.002056917493785131
+                - 0.00399665025864434
+                - -0.001542989667889886
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [-0.9999641621045086, -0.0070026295913249385, 0.004757907674077553, -0.16210012684230665]
+            - [0.004779879776070842, -0.00312430862659371, 0.9999836955895492, 0.04699334402275922]
+            - [-0.006987650245587189, 0.9999706005050412, 0.0031576683855106015, 0.05573138381457567]
+            - [0.0, 0.0, 0.0, 1.0]
+
+      - camera:
+          id: ca17b5000f15adb3c0da8ac6b729ee05
+          sensor_type: CAMERA
+          description: "Blackfly S 0.4MP Color Camera"
+          topic: /VersaVIS/cam0
+          line-delay-nanoseconds: 0
+          image_height: 540
+          image_width: 720
+          type: pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 318.5615029627294
+              - 318.5508828567644
+              - 356.1322561401549
+              - 280.2661824389335
+          distortion:
+            type: equidistant
+            parameters:
+              rows: 4
+              cols: 1
+              data:
+                - 0.008389637685753994
+                - -0.008026623555813853
+                - 0.008468894266232789
+                - -0.002661689249690012
+        T_B_C:
+          rows: 4
+          cols: 4
+          data:
+            - [-0.9998799801805014, -0.006455918177665462, -0.01408354908125734, -0.03564392840560837]
+            - [-0.01404346691982178, -0.006212441369011223, 0.9998820863527402, 0.04578551805201717]
+            - [-0.006542650159741623, 0.9999598625408523, 0.006121032279554073, 0.05665531205066083]
+            - [0, 0, 0, 1]
+extrinsics:
+  - sensor_id: 5d2fcf479caf7592b35518478a2fe08f
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: ff000000000000000000000000000001
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: aabb23479caf7592b35518478a2fe08f
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: 8af1bac2a7c5fad79f09e49e3b96d87c
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]

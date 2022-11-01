@@ -47,7 +47,9 @@ class VIMapBasicPlugin : public common::ConsolePluginBaseWithPlotter {
   int saveAllMaps();
 
   int loadMergeMap();
+  int loadMergeSubMap();
   int loadMergeAllMaps();
+  int loadMergeAllSubMaps();
 
   int listMapsOnFileSystem();
 
@@ -74,8 +76,6 @@ class VIMapBasicPlugin : public common::ConsolePluginBaseWithPlotter {
   int removeMissionInteractive();
 
   int spatiallyDistributeMissions();
-
-  int convertMapToNewFormat();
 };
 
 }  // namespace vi_map

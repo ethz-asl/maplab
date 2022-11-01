@@ -5,53 +5,53 @@
 #include <unordered_set>
 #include <vector>
 
-#include <aslam/common/pose-types.h>
+#include <aslam/common/sensor.h>
 #include <maplab-common/macros.h>
-#include <maplab-common/temporal-buffer.h>
 #include <yaml-cpp/yaml.h>
 
 #include "sensors/measurement.h"
-#include "sensors/measurements.pb.h"
-#include "sensors/sensor.h"
+#include "sensors/sensor-types.h"
 
 namespace vi_map {
-class VIMap;
-class MeasurementsTest_TestAccessorsGpsUtm_Test;
-namespace test {
-void generateOptionalSensorDataAndAddToMap(VIMap* map);
-}
 
-class GpsUtm : public Sensor {
+class GpsUtm : public aslam::Sensor {
  public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MAPLAB_POINTER_TYPEDEFS(GpsUtm);
 
   GpsUtm();
-  GpsUtm(const SensorId& sensor_id, const std::string& hardware_id);
+  explicit GpsUtm(const aslam::SensorId& sensor_id, const std::string& topic);
 
- private:
-  Sensor::UniquePtr clone() const override {
-    return aligned_unique<GpsUtm>(*this);
+  Sensor::Ptr cloneAsSensor() const {
+    return std::dynamic_pointer_cast<Sensor>(aligned_shared<GpsUtm>(*this));
   }
 
+  uint8_t getSensorType() const override {
+    return SensorType::kGpsUtm;
+  }
+
+  std::string getSensorTypeString() const override {
+    return static_cast<std::string>(kGpsUtmIdentifier);
+  }
+
+ private:
   bool loadFromYamlNodeImpl(const YAML::Node& sensor_node) override;
   void saveToYamlNodeImpl(YAML::Node* sensor_node) const override;
 
   bool isValidImpl() const override {
-    RETURN_FALSE_IF_WRONG_SENSOR_TYPE(kGpsUtm);
-    return true;
-  }
-
-  bool isEqualImpl(
-      const Sensor& /*other*/, const double /*precision*/) const override {
     return true;
   }
 
   void setRandomImpl() override {}
+
+  bool isEqualImpl(
+      const Sensor& /*other*/, const bool /*verbose*/) const override {
+    return true;
+  }
 };
 
 struct UtmZone final {
-  UtmZone(const unsigned char longitudinal_zone, const char latitudinal_zone)
+  explicit UtmZone(
+      const unsigned char longitudinal_zone, const char latitudinal_zone)
       : longitudinal_zone_(longitudinal_zone),
         latitudinal_zone_(latitudinal_zone) {
     CHECK(
@@ -67,8 +67,6 @@ struct UtmZone final {
   static UtmZone createInvalid() {
     return UtmZone();
   }
-
-  ~UtmZone() = default;
 
   std::string getUtmZoneAsString() const {
     return std::to_string(longitudinal_zone_) + latitudinal_zone_;
@@ -91,22 +89,19 @@ struct UtmZone final {
 class GpsUtmMeasurement final : public Measurement {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  friend class MeasurementsTest_GpsUtmProtoSerialization_Test;
-  friend class MeasurementsTest_TestAccessorsGpsUtm_Test;
-  friend void test::generateOptionalSensorDataAndAddToMap(VIMap* map);
 
   GpsUtmMeasurement() : utm_zone_(UtmZone::createInvalid()) {
     T_UTM_S_.setIdentity();
   }
-  GpsUtmMeasurement(
-      const SensorId& sensor_id, const int64_t timestamp_nanoseconds,
+
+  explicit GpsUtmMeasurement(
+      const aslam::SensorId& sensor_id, const int64_t timestamp_nanoseconds,
       const aslam::Transformation& T_UTM_S, const UtmZone& utm_zone)
       : Measurement(sensor_id, timestamp_nanoseconds),
         T_UTM_S_(T_UTM_S),
         utm_zone_(utm_zone) {
     CHECK(isValid());
   }
-  ~GpsUtmMeasurement() = default;
 
   bool operator==(const GpsUtmMeasurement& other) const {
     return Measurement::operator==(other) && T_UTM_S_ == other.T_UTM_S_ &&
@@ -117,13 +112,8 @@ class GpsUtmMeasurement final : public Measurement {
     return T_UTM_S_;
   }
 
-  void serialize(
-      measurements::proto::GpsUtmMeasurement* proto_measurement) const;
-  void deserialize(
-      const measurements::proto::GpsUtmMeasurement& proto_measurement);
-
  private:
-  explicit GpsUtmMeasurement(const SensorId& sensor_id)
+  explicit GpsUtmMeasurement(const aslam::SensorId& sensor_id)
       : Measurement(sensor_id), utm_zone_(UtmZone::createInvalid()) {
     T_UTM_S_.setIdentity();
   }
@@ -141,7 +131,8 @@ class GpsUtmMeasurement final : public Measurement {
   aslam::Transformation T_UTM_S_;
   UtmZone utm_zone_;
 };
-DEFINE_MEAUREMENT_CONTAINERS(GpsUtmMeasurement)
+
+DEFINE_MEASUREMENT_CONTAINERS(GpsUtmMeasurement)
 
 }  // namespace vi_map
 

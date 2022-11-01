@@ -54,7 +54,7 @@ void LoopClosureEdge::set_T_A_B(const pose::Transformation& T_A_B) {
   T_A_B_ = T_A_B;
 }
 
-const pose::Transformation& LoopClosureEdge::getT_A_B() const {
+const pose::Transformation& LoopClosureEdge::get_T_A_B() const {
   return T_A_B_;
 }
 
@@ -63,7 +63,8 @@ void LoopClosureEdge::set_T_A_B_Covariance(
   T_A_B_covariance_ = T_A_B_covariance;
 }
 
-const Eigen::Matrix<double, 6, 6>& LoopClosureEdge::getT_A_BCovariance() const {
+const Eigen::Matrix<double, 6, 6>& LoopClosureEdge::get_T_A_B_Covariance()
+    const {
   return T_A_B_covariance_;
 }
 

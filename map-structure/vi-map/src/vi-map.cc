@@ -1,17 +1,20 @@
 #include "vi-map/vi-map.h"
 
-#include <limits>
-#include <queue>
-
 #include <aslam/common/memory.h>
 #include <aslam/common/time.h>
+#include <limits>
 #include <map-resources/resource_metadata.pb.h>
 #include <maplab-common/file-system-tools.h>
+#include <queue>
 
-#include "vi-map/deprecated/vi-map-serialization-deprecated.h"
-#include "vi-map/semantics-manager.h"
+#include "vi-map/sensor-manager.h"
+#include "vi-map/sensor-utils.h"
 #include "vi-map/vertex.h"
 #include "vi-map/vi-map-serialization.h"
+
+DEFINE_bool(
+    disable_consistency_check, false,
+    "If enabled, no consistency checks are run.");
 
 namespace vi_map {
 
@@ -37,14 +40,13 @@ VIMap::~VIMap() {}
 
 void VIMap::deepCopy(const VIMap& other) {
   clear();
-  mergeAllMissionsFromMapWithoutResources(other);
-  ResourceMap::deepCopyFrom(other);
+  CHECK(mergeAllMissionsFromMapWithoutResources(other));
+  ResourceMap::deepCopy(other);
+  CHECK(checkMapConsistency(other));
 }
 
-void VIMap::mergeAllMissionsFromMapWithoutResources(
+bool VIMap::mergeAllMissionsFromMapWithoutResources(
     const vi_map::VIMap& other) {
-  const SensorManager& other_sensor_manager = other.getSensorManager();
-
   // Get all missions from old map and add them into the new map.
   vi_map::MissionIdList other_mission_ids;
   other.getAllMissionIds(&other_mission_ids);
@@ -53,46 +55,74 @@ void VIMap::mergeAllMissionsFromMapWithoutResources(
 
   for (const vi_map::MissionId& other_mission_id : other_mission_ids) {
     CHECK(other_mission_id.isValid());
+
+    if (hasMission(other_mission_id)) {
+      LOG(ERROR) << "Cannot merge these maps, because mission "
+                 << other_mission_id << " is present in both maps!";
+      return false;
+    }
+
     const vi_map::VIMission& other_mission = other.getMission(other_mission_id);
     const vi_map::MissionBaseFrame& original_mission_base_frame =
         other.getMissionBaseFrameForMission(other_mission_id);
 
-    const aslam::NCamera& other_mission_ncamera =
-        other_sensor_manager.getNCameraForMission(other_mission_id);
-
     addNewMissionWithBaseframe(
-        other_mission_id, original_mission_base_frame.get_T_G_M(),
-        original_mission_base_frame.get_T_G_M_Covariance(),
-        other_mission_ncamera.cloneToShared(), other_mission.backboneType());
+        aligned_unique<VIMission>(other_mission), original_mission_base_frame);
 
-    SensorIdSet other_mission_sensor_ids;
-    other_sensor_manager.getAllSensorIdsAssociatedWithMission(
-        other_mission_id, &other_mission_sensor_ids);
-    for (const SensorId& other_mission_sensor_id : other_mission_sensor_ids) {
-      CHECK(other_mission_sensor_id.isValid());
-      if (sensor_manager_.hasSensor(other_mission_sensor_id)) {
-        sensor_manager_.associateExistingSensorWithMission(
-            other_mission_sensor_id, other_mission_id);
-      } else {
-        sensor_manager_.addSensor(
-            other_sensor_manager.getSensor(other_mission_sensor_id).clone(),
-            other_mission_id);
-      }
-    }
+    // This will add copies of all sensors of the other sensor manager to this
+    // one.
+    sensor_manager_.merge(other.getSensorManager());
 
     vi_map::Mission& copied_mission = getMission(other_mission_id);
     copied_mission.setRootVertexId(other_mission.getRootVertexId());
   }
 
   // Get all vertices and add them into the new map.
-  pose_graph::VertexIdList vertex_ids;
-  other.getAllVertexIds(&vertex_ids);
+  vi_map::MissionVertexIdList mission_to_vertex_ids_map;
+  other.getVertexIdsByMission(&mission_to_vertex_ids_map);
 
-  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
-    const vi_map::Vertex& original_vertex = other.getVertex(vertex_id);
-    vi_map::Vertex::UniquePtr copied_vertex =
-        aligned_unique<vi_map::Vertex>(original_vertex);
-    addVertex(std::move(copied_vertex));
+  for (const std::pair<const MissionId, pose_graph::VertexIdList>
+           mission_to_vertices : mission_to_vertex_ids_map) {
+    const VIMission& other_mission =
+        other.getMission(mission_to_vertices.first);
+
+    // If it is a mission with ncamera, the vertices need to have VisualNFrames,
+    // so we need to copy them properly by pointing to the camera in the current
+    // sensor manager.
+    if (other_mission.hasNCamera()) {
+      aslam::NCamera::Ptr ncamera_ptr =
+          sensor_manager_.getSensorPtr<aslam::NCamera>(
+              other_mission.getNCameraId());
+      CHECK(ncamera_ptr);
+      for (const pose_graph::VertexId& vertex_id : mission_to_vertices.second) {
+        const vi_map::Vertex& original_vertex = other.getVertex(vertex_id);
+
+        // We could probably relax this check in the future, but for now we
+        // don't have a use case for this so let's keep it.
+        CHECK(original_vertex.hasVisualNFrame())
+            << "Inconsistent state: Mission " << mission_to_vertices.first
+            << " has an NCamera, but vertex " << vertex_id
+            << " does not have a VisualNFrame!";
+
+        vi_map::Vertex::UniquePtr copied_vertex(
+            original_vertex.cloneWithVisualNFrame(ncamera_ptr));
+        addVertex(std::move(copied_vertex));
+      }
+      // If the mission has no NCamera, the vertices can't have VisualNFrames!
+    } else {
+      for (const pose_graph::VertexId& vertex_id : mission_to_vertices.second) {
+        const vi_map::Vertex& original_vertex = other.getVertex(vertex_id);
+
+        CHECK(!original_vertex.hasVisualNFrame())
+            << "Inconsistent state: Mission " << mission_to_vertices.first
+            << " has no NCamera, but vertex " << vertex_id
+            << " has a VisualNFrame!";
+
+        vi_map::Vertex::UniquePtr copied_vertex(
+            original_vertex.cloneWithoutVisualNFrame());
+        addVertex(std::move(copied_vertex));
+      }
+    }
   }
 
   // Add all edges into the new map.
@@ -118,24 +148,33 @@ void VIMap::mergeAllMissionsFromMapWithoutResources(
     landmark_index.addLandmarkAndVertexReference(
         landmark_id, original_landmark_store_vertex_id);
   }
-
-  for (const OptionalSensorDataMap::value_type& other_optional_sensor_data :
-      other.optional_sensor_data_map_) {
-    const MissionId& mission_id = other_optional_sensor_data.first;
-    CHECK(hasMission(mission_id));
-    CHECK(optional_sensor_data_map_.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple(mission_id),
-        std::forward_as_tuple(other_optional_sensor_data.second)).second);
-  }
+  return true;
 }
 
-void VIMap::mergeAllMissionsFromMap(const vi_map::VIMap& other) {
+bool VIMap::mergeAllMissionsFromMap(const vi_map::VIMap& other) {
   VLOG(1) << "Merging from VI-Map.";
-  mergeAllMissionsFromMapWithoutResources(other);
+  if (!mergeAllMissionsFromMapWithoutResources(other)) {
+    return false;
+  }
 
   VLOG(1) << "Copying metadata and resource infos.";
   ResourceMap::mergeFromMap(other);
+
+  if (!FLAGS_disable_consistency_check) {
+    CHECK(checkMapConsistency(*this));
+  }
+  return true;
+}
+
+bool VIMap::mergeAllSubmapsFromMap(const vi_map::VIMap& submap) {
+  VLOG(1) << "Merging submaps into base map.";
+  if (!mergeAllSubmapsFromMapWithoutResources(submap)) {
+    return false;
+  }
+
+  VLOG(1) << "Copying metadata and resource infos.";
+  ResourceMap::mergeFromMap(submap);
+  return true;
 }
 
 void VIMap::swap(VIMap* other) {
@@ -144,7 +183,7 @@ void VIMap::swap(VIMap* other) {
   missions.swap(other->missions);
   mission_base_frames.swap(other->mission_base_frames);
   landmark_index.swap(&other->landmark_index);
-  optional_sensor_data_map_.swap(other->optional_sensor_data_map_);
+  sensor_manager_.swap(&other->sensor_manager_);
 }
 
 bool VIMap::hexStringToMissionIdIfValid(
@@ -210,7 +249,7 @@ template <>
 void VIMap::getMissionIds(
     const LandmarkId& object_id, vi_map::MissionIdSet* mission_ids) const {
   CHECK_NOTNULL(mission_ids)->clear();
-  getLandmarkObserverMissions(object_id, mission_ids);
+  getObserverMissionsForLandmark(object_id, mission_ids);
 }
 
 template <>
@@ -270,6 +309,8 @@ pose_graph::Edge::EdgeType VIMap::getGraphTraversalEdgeType(
       return pose_graph::Edge::EdgeType::kViwls;
     case Mission::BackBone::kOdometry:
       return pose_graph::Edge::EdgeType::kOdometry;
+    case Mission::BackBone::kWheelOdometry:
+      return pose_graph::Edge::EdgeType::kWheelOdometry;
     default:
       LOG(FATAL) << "Unknown edge type: " << static_cast<int>(back_bone_type);
       return pose_graph::Edge::EdgeType::kViwls;
@@ -299,9 +340,7 @@ void VIMap::sparsifyMission(
     VLOG(4) << "Vertex " << kept_vertex_id.hexString() << " : landmark count: "
             << getVertex(kept_vertex_id).getLandmarks().size();
     for (int i = 0; i < (every_nth_vertex_to_keep - 1); ++i) {
-      if (getNextVertex(
-              kept_vertex_id, getGraphTraversalEdgeType(mission_id),
-              &current_vertex_id)) {
+      if (getNextVertex(kept_vertex_id, &current_vertex_id)) {
         VLOG(4) << "Merging " << i << "th vertex "
                 << current_vertex_id.hexString() << " into "
                 << kept_vertex_id.hexString();
@@ -310,18 +349,38 @@ void VIMap::sparsifyMission(
         break;
       }
     }
-  } while (getNextVertex(
-      kept_vertex_id, getGraphTraversalEdgeType(mission_id), &kept_vertex_id));
+  } while (getNextVertex(kept_vertex_id, &kept_vertex_id));
 }
 
+bool VIMap::getEarliestMissionStartTimeNs(int64_t* start_time_ns) const {
+  CHECK(start_time_ns);
+
+  vi_map::MissionIdList sorted_missions;
+  getAllMissionIdsSortedByTimestamp(&sorted_missions);
+  if (!sorted_missions.empty()) {
+    const vi_map::VIMission& first_mission = getMission(sorted_missions[0]);
+    const pose_graph::VertexId& starting_vertex_id =
+        first_mission.getRootVertexId();
+    if (starting_vertex_id.isValid()) {
+      *start_time_ns =
+          getVertex(starting_vertex_id).getMinTimestampNanoseconds();
+      return true;
+    }
+  }
+  return false;
+}
+
+// TODO(mfehr): split into visual stuff and rest.
 void VIMap::getStatisticsOfMission(
     const vi_map::MissionId& mission_id,
-    std::vector<size_t>* num_good_landmarks_per_camera,
-    std::vector<size_t>* num_bad_landmarks_per_camera,
-    std::vector<size_t>* num_unknown_landmarks_per_camera,
-    std::vector<size_t>* total_num_landmarks_per_camera, size_t* num_landmarks,
-    size_t* num_vertices, size_t* num_observations, double* duration_s,
-    int64_t* start_time_ns, int64_t* end_time_ns) const {
+    const std::set<FeatureType>& feature_types,
+    std::vector<std::map<int, size_t>>* num_good_landmarks_per_camera,
+    std::vector<std::map<int, size_t>>* num_bad_landmarks_per_camera,
+    std::vector<std::map<int, size_t>>* num_unknown_landmarks_per_camera,
+    std::vector<std::map<int, size_t>>* total_num_landmarks_per_camera,
+    std::map<int, size_t>* num_landmarks,
+    std::map<int, size_t>* num_observations, size_t* num_vertices,
+    double* duration_s, int64_t* start_time_ns, int64_t* end_time_ns) const {
   CHECK_NOTNULL(num_good_landmarks_per_camera)->clear();
   CHECK_NOTNULL(num_bad_landmarks_per_camera)->clear();
   CHECK_NOTNULL(num_unknown_landmarks_per_camera)->clear();
@@ -331,41 +390,56 @@ void VIMap::getStatisticsOfMission(
   CHECK_NOTNULL(start_time_ns);
   CHECK_NOTNULL(end_time_ns);
   CHECK(mission_id.isValid());
-  *num_observations = 0u;
-  *num_vertices = 0u;
-  *num_landmarks = 0u;
+  CHECK_GT(feature_types.size(), 0u);
 
-  const aslam::NCameraId& ncamera_id =
-      sensor_manager_.getNCameraForMission(mission_id).getId();
+  const aslam::NCameraId& ncamera_id = getMission(mission_id).getNCameraId();
   CHECK(ncamera_id.isValid());
-  const aslam::NCamera& ncamera = sensor_manager_.getNCamera(ncamera_id);
+  const aslam::NCamera& ncamera =
+      sensor_manager_.getSensor<aslam::NCamera>(ncamera_id);
+
   const size_t num_cameras = ncamera.numCameras();
-  num_good_landmarks_per_camera->resize(num_cameras, 0u);
-  num_bad_landmarks_per_camera->resize(num_cameras, 0u);
-  num_unknown_landmarks_per_camera->resize(num_cameras, 0u);
-  total_num_landmarks_per_camera->resize(num_cameras, 0u);
+  num_good_landmarks_per_camera->resize(num_cameras);
+  num_bad_landmarks_per_camera->resize(num_cameras);
+  num_unknown_landmarks_per_camera->resize(num_cameras);
+  total_num_landmarks_per_camera->resize(num_cameras);
+
+  for (const FeatureType& feature_type_ : feature_types) {
+    const int feature_type = static_cast<int>(feature_type_);
+    (*num_landmarks)[feature_type] = 0u;
+    (*num_observations)[feature_type] = 0u;
+
+    for (size_t frame_idx = 0; frame_idx < num_cameras; ++frame_idx) {
+      (*num_unknown_landmarks_per_camera)[frame_idx][feature_type] = 0;
+      (*num_bad_landmarks_per_camera)[frame_idx][feature_type] = 0;
+      (*num_good_landmarks_per_camera)[frame_idx][feature_type] = 0;
+      (*total_num_landmarks_per_camera)[frame_idx][feature_type] = 0;
+    }
+  }
 
   pose_graph::VertexIdList vertex_ids;
   getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
+  *num_vertices = vertex_ids.size();
+
   for (const pose_graph::VertexId& vertex_id : vertex_ids) {
     const vi_map::Vertex& vertex = getVertex(vertex_id);
-    ++(*num_vertices);
-    *num_landmarks += vertex.getLandmarks().size();
+    //*num_landmarks += vertex.getLandmarks().size();
     for (const vi_map::Landmark& landmark : vertex.getLandmarks()) {
       const KeypointIdentifierList& observations = landmark.getObservations();
       if (!observations.empty()) {
-        const size_t first_observation_frame_idx =
-            observations.front().frame_id.frame_index;
-        CHECK_LT(first_observation_frame_idx, num_cameras);
+        const size_t frame_idx = observations.front().frame_id.frame_index;
+        CHECK_LT(frame_idx, num_cameras);
+
+        const int feature_type = static_cast<int>(landmark.getFeatureType());
 
         if (landmark.getQuality() == vi_map::Landmark::Quality::kUnknown) {
-          ++((*num_unknown_landmarks_per_camera)[first_observation_frame_idx]);
+          ++((*num_unknown_landmarks_per_camera)[frame_idx][feature_type]);
         } else if (landmark.getQuality() == vi_map::Landmark::Quality::kBad) {
-          ++((*num_bad_landmarks_per_camera)[first_observation_frame_idx]);
+          ++((*num_bad_landmarks_per_camera)[frame_idx][feature_type]);
         } else if (landmark.getQuality() == vi_map::Landmark::Quality::kGood) {
-          ++((*num_good_landmarks_per_camera)[first_observation_frame_idx]);
+          ++((*num_good_landmarks_per_camera)[frame_idx][feature_type]);
         }
-        ++((*total_num_landmarks_per_camera)[first_observation_frame_idx]);
+
+        ++((*total_num_landmarks_per_camera)[frame_idx][feature_type]);
       }
     }
 
@@ -373,9 +447,21 @@ void VIMap::getStatisticsOfMission(
     for (unsigned int frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
       if (vertex.isVisualFrameSet(frame_idx) &&
           vertex.isVisualFrameValid(frame_idx)) {
-        *num_observations +=
-            vertex.getVisualFrame(frame_idx).getNumKeypointMeasurements();
+        for (const FeatureType& feature_type_ : feature_types) {
+          const int feature_type = static_cast<int>(feature_type_);
+          (*num_observations)[feature_type] +=
+              vertex.getVisualFrame(frame_idx).getNumKeypointMeasurementsOfType(
+                  feature_type);
+        }
       }
+    }
+  }
+
+  for (const FeatureType& feature_type_ : feature_types) {
+    const int feature_type = static_cast<int>(feature_type_);
+    for (size_t frame_idx = 0; frame_idx < num_cameras; ++frame_idx) {
+      (*num_landmarks)[feature_type] +=
+          (*total_num_landmarks_per_camera)[frame_idx][feature_type];
     }
   }
 
@@ -385,81 +471,81 @@ void VIMap::getStatisticsOfMission(
   if (!vertex_ids.empty()) {
     const vi_map::Vertex& first_vertex = getVertex(vertex_ids.front());
     const vi_map::Vertex& last_vertex = getVertex(vertex_ids.back());
-    const unsigned int kFirstFrameIndex = 0u;
-    if (first_vertex.isFrameIndexValid(kFirstFrameIndex) &&
-        last_vertex.isFrameIndexValid(kFirstFrameIndex)) {
-      *start_time_ns = first_vertex.getVisualFrame(kFirstFrameIndex)
-                           .getTimestampNanoseconds();
-      *end_time_ns = last_vertex.getVisualFrame(kFirstFrameIndex)
-                         .getTimestampNanoseconds();
-      *duration_s =
-          aslam::time::nanoSecondsToSeconds(*end_time_ns - *start_time_ns);
+
+    *start_time_ns = first_vertex.getMinTimestampNanoseconds();
+    *end_time_ns = last_vertex.getMinTimestampNanoseconds();
+    *duration_s =
+        aslam::time::nanoSecondsToSeconds(*end_time_ns - *start_time_ns);
+  }
+}
+
+void VIMap::printNumSensorResourcesOfMission(
+    const VIMission& mission,
+    const std::function<void(const std::string&, const std::string&, int)>&
+        print_aligned_function) const {
+  assert(
+      static_cast<int>(backend::ResourceType::kCount) ==
+      static_cast<int>(backend::ResourceTypeNames.size()));
+
+  bool section_is_initialized = false;
+
+  for (int resource_idx = 0;
+       resource_idx < static_cast<int>(backend::ResourceType::kCount);
+       ++resource_idx) {
+    const std::string kResourceName = backend::ResourceTypeNames[resource_idx];
+    CHECK(!kResourceName.empty());
+    const typename std::unordered_map<
+        aslam::SensorId, backend::TemporalResourceIdBuffer>*
+        sensor_resources_map = mission.getAllSensorResourceIdsOfType(
+            static_cast<backend::ResourceType>(resource_idx));
+
+    if (sensor_resources_map != nullptr) {
+      for (const typename std::unordered_map<
+               aslam::SensorId, backend::TemporalResourceIdBuffer>::value_type&
+               sensor_id_resource_ids_pair : *sensor_resources_map) {
+        const aslam::SensorId& sensor_id = sensor_id_resource_ids_pair.first;
+        CHECK(sensor_id.isValid());
+        const size_t num_measurements =
+            sensor_id_resource_ids_pair.second.size();
+
+        if (!section_is_initialized) {
+          print_aligned_function("Sensor Resources:", "", 1);
+          section_is_initialized = true;
+        }
+
+        print_aligned_function(
+            " - " + kResourceName + " (Sensor " + sensor_id.shortHex() +
+                "...): ",
+            std::to_string(num_measurements), 1);
+      }
     }
   }
 }
 
 std::string VIMap::printMapStatistics(
-    const vi_map::MissionId& mission_id, const unsigned int mission_number,
-    const SemanticsManager& semantics) const {
+    const vi_map::MissionId& mission_id,
+    const unsigned int mission_number) const {
   std::stringstream stats_text;
-
-  static constexpr int kMaxLength = 20;
-
-  auto print_aligned = [&stats_text](
-      const std::string& key, const std::string& value, int indent) {
-    for (int i = 0; i < indent; ++i) {
-      stats_text << "\t";
-    }
-    stats_text.width(static_cast<std::streamsize>(kMaxLength));
-    stats_text.setf(std::ios::left, std::ios::adjustfield);
-    stats_text << key << "\t";
-    stats_text.width(25);
-    stats_text << value << std::endl;
-  };
-
-  std::string name = semantics.getNameOfMission(mission_id);
-  std::vector<size_t> num_good_landmarks_per_camera;
-  std::vector<size_t> num_bad_landmarks_per_camera;
-  std::vector<size_t> num_unknown_landmarks_per_camera;
-  std::vector<size_t> total_num_landmarks_per_camera;
-  size_t num_landmarks = 0u;
-  size_t num_vertices = 0u;
-  size_t num_observations = 0u;
-  double duration_s = 0.0;
-  int64_t start_time_ns = 0u;
-  int64_t end_time_ns = 0u;
-  getStatisticsOfMission(
-      mission_id, &num_good_landmarks_per_camera, &num_bad_landmarks_per_camera,
-      &num_unknown_landmarks_per_camera, &total_num_landmarks_per_camera,
-      &num_landmarks, &num_vertices, &num_observations, &duration_s,
-      &start_time_ns, &end_time_ns);
-
-  size_t num_wheel_odometry_edges = 0u;
-  size_t num_imu_edges = 0u;
-  size_t num_loop_closure_edges = 0u;
-
-  pose_graph::EdgeIdList edge_ids;
-  getAllEdgeIdsInMissionAlongGraph(mission_id, &edge_ids);
-  for (const pose_graph::EdgeId& edge_id : edge_ids) {
-    CHECK(edge_id.isValid());
-    switch (getEdgeType(edge_id)) {
-      case pose_graph::Edge::EdgeType::kOdometry:
-        ++num_wheel_odometry_edges;
-        break;
-      case pose_graph::Edge::EdgeType::kLoopClosure:
-        ++num_loop_closure_edges;
-        break;
-      case pose_graph::Edge::EdgeType::kViwls:
-        ++num_imu_edges;
-        break;
-      default:
-        break;
-    }
-  }
-
-  const vi_map::VIMission& mission = getMission(mission_id);
   stats_text << std::endl;
 
+  static constexpr int kMaxLength = 20;
+  const std::function<void(const std::string&, const std::string&, int)>
+      print_aligned =
+          [&stats_text](
+              const std::string& key, const std::string& value, int indent) {
+            for (int i = 0; i < indent; ++i) {
+              stats_text << "\t";
+            }
+            stats_text.width(static_cast<std::streamsize>(kMaxLength));
+            stats_text.setf(std::ios::left, std::ios::adjustfield);
+            stats_text << key << "\t";
+            stats_text.width(25);
+            stats_text << value << std::endl;
+          };
+
+  const vi_map::VIMission& mission = getMission(mission_id);
+
+  // Determine primary backbone type.
   std::string mission_type = "Unknown";
   switch (mission.backboneType()) {
     case Mission::BackBone::kViwls: {
@@ -477,121 +563,239 @@ std::string VIMap::printMapStatistics(
     }
   }
 
+  // Start printing mission.
   print_aligned(
       "Mission " + std::to_string(mission_number) + ":",
       "\t" + mission.id().hexString() + "\t" + mission_type, 0);
-  if (name != "") {
-    print_aligned("Name:", name, 1);
+
+  // Print visual information if present.
+  if (mission.hasNCamera()) {
+    aslam::SensorId ncamera_id = mission.getNCameraId();
+    const aslam::NCamera& ncamera =
+        sensor_manager_.getSensor<aslam::NCamera>(ncamera_id);
+    const size_t num_cameras = ncamera.numCameras();
+
+    std::set<FeatureType> feature_types;
+    getMissionFeatureTypes(mission_id, &feature_types);
+
+    std::vector<std::map<int, size_t>> num_good_landmarks_per_camera;
+    std::vector<std::map<int, size_t>> num_bad_landmarks_per_camera;
+    std::vector<std::map<int, size_t>> num_unknown_landmarks_per_camera;
+    std::vector<std::map<int, size_t>> total_num_landmarks_per_camera;
+    std::map<int, size_t> num_landmarks;
+    std::map<int, size_t> num_observations;
+    size_t num_vertices = 0u;
+    double duration_s = 0.0;
+    int64_t start_time_ns = 0u;
+    int64_t end_time_ns = 0u;
+    getStatisticsOfMission(
+        mission_id, feature_types, &num_good_landmarks_per_camera,
+        &num_bad_landmarks_per_camera, &num_unknown_landmarks_per_camera,
+        &total_num_landmarks_per_camera, &num_landmarks, &num_observations,
+        &num_vertices, &duration_s, &start_time_ns, &end_time_ns);
+
+    CHECK_EQ(num_good_landmarks_per_camera.size(), num_cameras);
+    CHECK_EQ(num_bad_landmarks_per_camera.size(), num_cameras);
+    CHECK_EQ(num_unknown_landmarks_per_camera.size(), num_cameras);
+    CHECK_EQ(total_num_landmarks_per_camera.size(), num_cameras);
+
+    stats_text << std::endl;
+    print_aligned("NCamera Sensor:", ncamera_id.hexString(), 1);
+    print_aligned(" - Landmarks:", "", 1);
+    for (const FeatureType& feature_type_ : feature_types) {
+      const int feature_type = static_cast<int>(feature_type_);
+      print_aligned(
+          "     " + FeatureTypeToString(feature_type_),
+          std::to_string(num_landmarks[feature_type]), 1);
+    }
+
+    print_aligned(" - Observations:", "", 1);
+    for (const FeatureType& feature_type_ : feature_types) {
+      const int feature_type = static_cast<int>(feature_type_);
+      print_aligned(
+          "     " + FeatureTypeToString(feature_type_),
+          std::to_string(num_observations[feature_type]), 1);
+    }
+
+    print_aligned(" - Landmarks by first observer backlink:", "", 1);
+    for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
+      print_aligned("   - Camera " + std::to_string(camera_idx) + ":", "", 1);
+      for (const FeatureType& feature_type_ : feature_types) {
+        const int feature_type = static_cast<int>(feature_type_);
+        print_aligned(
+            "       " + FeatureTypeToString(feature_type_),
+            std::to_string(
+                total_num_landmarks_per_camera[camera_idx][feature_type]) +
+                " (g:" +
+                std::to_string(
+                    num_good_landmarks_per_camera[camera_idx][feature_type]) +
+                " b:" +
+                std::to_string(
+                    num_bad_landmarks_per_camera[camera_idx][feature_type]) +
+                " u:" +
+                std::to_string(num_unknown_landmarks_per_camera[camera_idx]
+                                                               [feature_type]) +
+                ")",
+            1);
+      }
+    }
   }
 
-  const aslam::NCameraId& ncamera_id =
-      sensor_manager_.getNCameraForMission(mission_id).getId();
-  const aslam::NCamera& ncamera = sensor_manager_.getNCamera(ncamera_id);
-  const size_t num_cameras = ncamera.numCameras();
-  print_aligned("NCamera Sensor: ", ncamera_id.hexString(), 1);
+  // Count number of edges
+  size_t num_imu_edges = 0u;
+  size_t num_loop_closure_edges = 0u;
+  size_t num_wheel_odometry_edges = 0u;
+  size_t num_odometry_edges = 0u;
+  size_t num_absolute_6dof_constraints = 0u;
+  pose_graph::EdgeIdList edge_ids;
+  getAllEdgeIdsInMissionAlongGraph(mission_id, &edge_ids);
+  for (const pose_graph::EdgeId& edge_id : edge_ids) {
+    CHECK(edge_id.isValid());
+    switch (getEdgeType(edge_id)) {
+      case pose_graph::Edge::EdgeType::kWheelOdometry:
+        ++num_wheel_odometry_edges;
+        break;
+      case pose_graph::Edge::EdgeType::kOdometry:
+        ++num_odometry_edges;
+        break;
+      case pose_graph::Edge::EdgeType::kLoopClosure:
+        ++num_loop_closure_edges;
+        break;
+      case pose_graph::Edge::EdgeType::kViwls:
+        ++num_imu_edges;
+        break;
+      default:
+        break;
+    }
+  }
+  num_absolute_6dof_constraints =
+      getNumAbsolute6DoFMeasurementsInMission(mission_id);
 
-  SensorIdSet imu_sensors_ids;
-  sensor_manager_.getAllSensorIdsOfTypeAssociatedWithMission(
-      SensorType::kImu, mission_id, &imu_sensors_ids);
-  for (const SensorId& sensor_id : imu_sensors_ids) {
-    CHECK(sensor_id.isValid());
-    print_aligned("IMU Sensor: ", sensor_id.hexString(), 1);
+  // Print imu sensor/constraint if present.
+  if (mission.hasImu()) {
+    aslam::SensorId imu_id = mission.getImuId();
+    // const Imu& imu = sensor_manager_.getSensor<Imu>(imu_id);
+    stats_text << std::endl;
+    print_aligned("IMU Sensor: ", imu_id.hexString(), 1);
+
+    print_aligned(" - IMU Edges: ", std::to_string(num_imu_edges), 1);
   }
 
-  SensorIdSet relative_6dof_pose_sensors_ids;
-  sensor_manager_.getAllSensorIdsOfTypeAssociatedWithMission(
-      SensorType::kRelative6DoFPose, mission_id,
-      &relative_6dof_pose_sensors_ids);
-  for (const SensorId& sensor_id : relative_6dof_pose_sensors_ids) {
-    CHECK(sensor_id.isValid());
-    print_aligned("Rel.6DoF-P. Sensor: ", sensor_id.hexString(), 1);
-  }
-
-  SensorIdSet gps_utm_sensors_ids;
-  sensor_manager_.getAllSensorIdsOfTypeAssociatedWithMission(
-      SensorType::kGpsUtm, mission_id, &gps_utm_sensors_ids);
-  for (const SensorId& sensor_id : gps_utm_sensors_ids) {
-    CHECK(sensor_id.isValid());
-    print_aligned("GPS UTM Sensor: ", sensor_id.hexString(), 1);
-  }
-
-  SensorIdSet gps_wgs_sensors_ids;
-  sensor_manager_.getAllSensorIdsOfTypeAssociatedWithMission(
-      SensorType::kGpsWgs, mission_id, &gps_wgs_sensors_ids);
-  for (const SensorId& sensor_id : gps_wgs_sensors_ids) {
-    CHECK(sensor_id.isValid());
-    print_aligned("GPS WGS Sensor: ", sensor_id.hexString(), 1);
-  }
-
-  print_aligned("Vertices:", std::to_string(num_vertices), 1);
-
-  print_aligned("Landmarks:", std::to_string(num_landmarks), 1);
-  print_aligned("Landmarks by first observer backlink:", "", 1);
-  for (size_t camera_idx = 0u; camera_idx < num_cameras; ++camera_idx) {
+  // Print loop closure sensor/constraint info if present.
+  if (mission.hasLoopClosureSensor()) {
+    aslam::SensorId loop_closure_sensor_id = mission.getLoopClosureSensor();
+    // const LoopClosure& loop_closure =
+    //     sensor_manager_.getSensor<LoopClosure>(loop_closure_sensor_id);
+    stats_text << std::endl;
     print_aligned(
-        "Camera " + std::to_string(camera_idx) + ":",
-        std::to_string(total_num_landmarks_per_camera[camera_idx]) +
-            " (g:" + std::to_string(num_good_landmarks_per_camera[camera_idx]) +
-            " b:" + std::to_string(num_bad_landmarks_per_camera[camera_idx]) +
-            " u:" +
-            std::to_string(num_unknown_landmarks_per_camera[camera_idx]) + ")",
+        "Loop Closure Sensor: ", loop_closure_sensor_id.hexString(), 1);
+
+    print_aligned(
+        " - Loop Closure Edges: ", std::to_string(num_loop_closure_edges), 1);
+  }
+
+  // Print wheel odometry sensor/constraint info if present.
+  if (mission.hasWheelOdometrySensor()) {
+    aslam::SensorId wheel_odometry_sensor_id = mission.getWheelOdometrySensor();
+    // const WheelOdometry& wheel_odometry =
+    //     sensor_manager_.getSensor<WheelOdometry>(wheel_odometry_sensor_id);
+    stats_text << std::endl;
+    print_aligned(
+        "Wheel odometry Sensor: ", wheel_odometry_sensor_id.hexString(), 1);
+
+    print_aligned(
+        " - Wheel odometry Edges: ", std::to_string(num_wheel_odometry_edges),
         1);
   }
-  print_aligned("Observations:", std::to_string(num_observations), 1);
-  print_aligned("Num edges by type: ", "", 1);
-  print_aligned("IMU: ", std::to_string(num_imu_edges), 1);
-  print_aligned(
-      "Wheel-odometry: ", std::to_string(num_wheel_odometry_edges), 1);
-  print_aligned("Loop-closure: ", std::to_string(num_loop_closure_edges), 1);
-  double distance = 0;
-  getDistanceTravelledPerMission(mission_id, &distance);
-  print_aligned("Distance travelled [m]:", std::to_string(distance), 1);
 
-  if (!selected_missions_.empty()) {
-    const bool is_selected = (selected_missions_.count(mission_id) > 0);
-    print_aligned("Selected:", std::to_string(is_selected), 1);
+  // Print absolute 6dof sensor/constraint info if present.
+  if (mission.hasAbsolute6DoFSensor()) {
+    aslam::SensorId absolute_6dof_sensor_id = mission.getAbsolute6DoFSensor();
+    // const Absolute6DoF& absolute_6dof =
+    //     sensor_manager_.getSensor<Absolute6DoF>(absolute_6dof_sensor_id);
+    stats_text << std::endl;
+    print_aligned(
+        "Absolute-6DoF Sensor: ", absolute_6dof_sensor_id.hexString(), 1);
+
+    print_aligned(
+        " - Absolute-6DoF Constraints: ",
+        std::to_string(num_absolute_6dof_constraints), 1);
   }
 
-  if (num_vertices > 0) {
-    time_t start_time(aslam::time::nanoSecondsToSeconds(start_time_ns));
-    std::string start_time_str = common::generateDateString(&start_time);
+  // Print odometry 6dof sensor/constraint info if present
+  if (mission.hasOdometry6DoFSensor()) {
+    aslam::SensorId odometry_6dof_id = mission.getOdometry6DoFSensor();
+    // const Odometry6DoF& odometry_6dof =
+    //     sensor_manager_.getSensor<Odometry6DoF>(odometry_6dof_id);
+    stats_text << std::endl;
+    print_aligned("Odometry-6DoF Sensor: ", odometry_6dof_id.hexString(), 1);
 
-    time_t end_time(aslam::time::nanoSecondsToSeconds(end_time_ns));
-    std::string end_time_str = common::generateDateString(&end_time);
     print_aligned(
-        "Start to end time: ", start_time_str + " to " + end_time_str, 1);
+        " - Odometry-6DoF Edges: ", std::to_string(num_odometry_edges), 1);
+  }
+
+  // Print Lidar sensor/constraint info if present
+  if (mission.hasLidar()) {
+    aslam::SensorId lidar_id = mission.getLidarId();
+    // const Lidar& lidar = sensor_manager_.getSensor<Lidar>(lidar_id);
+    stats_text << std::endl;
+    print_aligned("Lidar Sensor: ", lidar_id.hexString(), 1);
+
+    // TODO(mfehr): ADD ALL LIDAR Sensor SPECIFIC STUFF
+  }
+
+  stats_text << std::endl;
+  print_aligned("General:", "", 1);
+  const size_t num_vertices = numVerticesInMission(mission_id);
+  if (num_vertices == 0) {
+    print_aligned(" - Mission has no vertices!", "", 1);
   } else {
-    print_aligned("Mission has no vertices!", "", 1);
+    print_aligned(" - Vertices:", std::to_string(num_vertices), 1);
+    print_aligned(
+        " - Loop-closure edges: ", std::to_string(num_loop_closure_edges), 1);
+    double distance = 0;
+    getDistanceTravelledPerMission(mission_id, &distance);
+    print_aligned(" - Distance:", std::to_string(distance) + "m", 1);
+
+    // Compute time spend in mission.
+    double duration_s = 0.0;
+    int64_t start_time_ns = 0;
+    int64_t end_time_ns = 0;
+    pose_graph::VertexIdList vertex_ids;
+    getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
+    if (!vertex_ids.empty()) {
+      const vi_map::Vertex& first_vertex = getVertex(vertex_ids.front());
+      const vi_map::Vertex& last_vertex = getVertex(vertex_ids.back());
+
+      start_time_ns = first_vertex.getMinTimestampNanoseconds();
+      end_time_ns = last_vertex.getMinTimestampNanoseconds();
+      duration_s =
+          aslam::time::nanoSecondsToSeconds(end_time_ns - start_time_ns);
+    }
+    const time_t start_time_s(
+        static_cast<time_t>(aslam::time::nanoSecondsToSeconds(start_time_ns)));
+    const time_t end_time_s(
+        static_cast<time_t>(aslam::time::nanoSecondsToSeconds(end_time_ns)));
+    const std::string start_time_str =
+        common::generateDateString(&start_time_s);
+    const std::string end_time_str = common::generateDateString(&end_time_s);
+    print_aligned(
+        " - Start to end time: ", start_time_str + " to " + end_time_str, 1);
+    print_aligned(" - Duration: ", std::to_string(duration_s) + "s", 1);
   }
 
   const vi_map::MissionBaseFrame& base_frame =
       getMissionBaseFrame(mission.getBaseFrameId());
-  print_aligned("T_G_M", base_frame.is_T_G_M_known() ? "known" : "unknown", 1);
+  print_aligned(
+      " - T_G_M", base_frame.is_T_G_M_known() ? "known" : "unknown", 1);
 
-  if (hasOptionalSensorData(mission_id)) {
-    const OptionalSensorData& optional_sensor_data =
-        getOptionalSensorData(mission_id);
-
-    vi_map::SensorIdSet sensor_ids;
-    optional_sensor_data.getAllSensorIds(&sensor_ids);
-    for (const SensorId& sensor_id : sensor_ids) {
-      if (gps_utm_sensors_ids.count(sensor_id)) {
-        const MeasurementBuffer<GpsUtmMeasurement>& utm_measurements =
-            optional_sensor_data.getMeasurements<GpsUtmMeasurement>(sensor_id);
-        print_aligned(
-            "Num GPS UTM measurements (Sensor " + sensor_id.shortHex() +
-                "..): ",
-            std::to_string(utm_measurements.size()), 1);
-      } else if (gps_wgs_sensors_ids.count(sensor_id)) {
-        const MeasurementBuffer<GpsWgsMeasurement>& wgs_measurements =
-            optional_sensor_data.getMeasurements<GpsWgsMeasurement>(sensor_id);
-        print_aligned(
-            "Num GPS WGS measurements (Sensor " + sensor_id.shortHex() +
-                "..): ",
-            std::to_string(wgs_measurements.size()), 1);
-      }
-    }
+  if (!selected_missions_.empty()) {
+    const bool is_selected = (selected_missions_.count(mission_id) > 0);
+    print_aligned(" - Is selected:", std::to_string(is_selected), 1);
   }
+
+  stats_text << std::endl;
+  printNumSensorResourcesOfMission(mission, print_aligned);
 
   return stats_text.str();
 }
@@ -604,8 +808,7 @@ std::string VIMap::printMapStatistics(void) const {
   stats_text << "Mission statistics: " << std::endl;
   unsigned int mission_number = 0u;
   for (const vi_map::MissionId& mission_id : all_missions) {
-    stats_text << printMapStatistics(
-        mission_id, mission_number, vi_map::SemanticsManager());
+    stats_text << printMapStatistics(mission_id, mission_number);
     ++mission_number;
   }
   return stats_text.str();
@@ -617,43 +820,60 @@ std::string VIMap::printMapAccumulatedStatistics() const {
 
   double total_distance_travelled = 0.0;
   size_t total_num_vertices = 0u;
-  size_t total_num_landmarks = 0u;
-  size_t total_num_observations = 0u;
-  size_t total_num_good_landmarks = 0u;
-  size_t total_num_bad_landmarks = 0u;
-  size_t total_num_unknown_landmarks = 0u;
+  std::map<int, size_t> total_num_landmarks;
+  std::map<int, size_t> total_num_observations;
+  std::map<int, size_t> total_num_good_landmarks;
+  std::map<int, size_t> total_num_bad_landmarks;
+  std::map<int, size_t> total_num_unknown_landmarks;
   double total_duration_s = 0.0;
 
+  std::set<FeatureType> feature_types;
+  getMapFeatureTypes(&feature_types);
+  for (const FeatureType& feature_type_ : feature_types) {
+    const int feature_type = static_cast<int>(feature_type_);
+    total_num_landmarks[feature_type] = 0u;
+    total_num_observations[feature_type] = 0u;
+    total_num_good_landmarks[feature_type] = 0u;
+    total_num_bad_landmarks[feature_type] = 0u;
+    total_num_unknown_landmarks[feature_type] = 0u;
+  }
+
   for (const vi_map::MissionId& mission_id : all_missions) {
-    std::vector<size_t> num_good_landmarks_per_camera;
-    std::vector<size_t> num_bad_landmarks_per_camera;
-    std::vector<size_t> num_unknown_landmarks_per_camera;
-    std::vector<size_t> total_num_landmarks_per_camera;
-    size_t num_landmarks;
+    std::vector<std::map<int, size_t>> num_good_landmarks_per_camera;
+    std::vector<std::map<int, size_t>> num_bad_landmarks_per_camera;
+    std::vector<std::map<int, size_t>> num_unknown_landmarks_per_camera;
+    std::vector<std::map<int, size_t>> total_num_landmarks_per_camera;
+    std::map<int, size_t> num_landmarks;
+    std::map<int, size_t> num_observations;
     size_t num_vertices;
-    size_t num_observations;
     double duration_s;
     int64_t start_time_ns;
     int64_t end_time_ns;
     getStatisticsOfMission(
-        mission_id, &num_good_landmarks_per_camera,
+        mission_id, feature_types, &num_good_landmarks_per_camera,
         &num_bad_landmarks_per_camera, &num_unknown_landmarks_per_camera,
-        &total_num_landmarks_per_camera, &num_landmarks, &num_vertices,
-        &num_observations, &duration_s, &start_time_ns, &end_time_ns);
+        &total_num_landmarks_per_camera, &num_landmarks, &num_observations,
+        &num_vertices, &duration_s, &start_time_ns, &end_time_ns);
 
-    total_num_good_landmarks += std::accumulate(
-        num_good_landmarks_per_camera.begin(),
-        num_good_landmarks_per_camera.end(), 0u);
-    total_num_bad_landmarks += std::accumulate(
-        num_bad_landmarks_per_camera.begin(),
-        num_bad_landmarks_per_camera.end(), 0u);
-    total_num_unknown_landmarks += std::accumulate(
-        num_unknown_landmarks_per_camera.begin(),
-        num_unknown_landmarks_per_camera.end(), 0u);
-    total_num_landmarks += num_landmarks;
-    total_num_observations += num_observations;
+    const size_t num_frames = num_good_landmarks_per_camera.size();
+    CHECK_EQ(num_frames, num_bad_landmarks_per_camera.size());
+    CHECK_EQ(num_frames, num_unknown_landmarks_per_camera.size());
+
+    for (const FeatureType& feature_type_ : feature_types) {
+      const int feature_type = static_cast<int>(feature_type_);
+      for (size_t frame_idx = 0u; frame_idx < num_frames; ++frame_idx) {
+        total_num_good_landmarks[feature_type] +=
+            num_good_landmarks_per_camera[frame_idx][feature_type];
+        total_num_bad_landmarks[feature_type] +=
+            num_bad_landmarks_per_camera[frame_idx][feature_type];
+        total_num_unknown_landmarks[feature_type] +=
+            num_unknown_landmarks_per_camera[frame_idx][feature_type];
+      }
+      total_num_landmarks[feature_type] += num_landmarks[feature_type];
+      total_num_observations[feature_type] += num_observations[feature_type];
+    }
+
     total_num_vertices += num_vertices;
-
     total_duration_s += duration_s;
 
     double distance_travelled;
@@ -664,7 +884,8 @@ std::string VIMap::printMapAccumulatedStatistics() const {
   std::stringstream stats_text;
   static constexpr int kMaxLength = 20;
   auto print_aligned = [&stats_text](
-      const std::string& key, const std::string& value, int indent) {
+                           const std::string& key, const std::string& value,
+                           int indent) {
     for (int i = 0; i < indent; ++i) {
       stats_text << "\t";
     }
@@ -678,13 +899,25 @@ std::string VIMap::printMapAccumulatedStatistics() const {
   stats_text << "Accumulated statistics over all missions:" << std::endl;
   print_aligned("Number of missions:", std::to_string(numMissions()), 1);
   print_aligned("Vertices:", std::to_string(total_num_vertices), 1);
-  print_aligned(
-      "Landmarks:", std::to_string(total_num_landmarks) + " (g:" +
-                        std::to_string(total_num_good_landmarks) + " b:" +
-                        std::to_string(total_num_bad_landmarks) + " u:" +
-                        std::to_string(total_num_unknown_landmarks) + ")",
-      1);
-  print_aligned("Observations:", std::to_string(total_num_observations), 1);
+  print_aligned("Visual Landmarks:", "", 1);
+  for (const FeatureType& feature_type_ : feature_types) {
+    const int feature_type = static_cast<int>(feature_type_);
+    print_aligned(
+        "   " + FeatureTypeToString(feature_type_),
+        std::to_string(total_num_landmarks[feature_type]) +
+            " (g:" + std::to_string(total_num_good_landmarks[feature_type]) +
+            " b:" + std::to_string(total_num_bad_landmarks[feature_type]) +
+            " u:" + std::to_string(total_num_unknown_landmarks[feature_type]) +
+            ")",
+        1);
+  }
+  print_aligned("Visual Observations:", "", 1);
+  for (const FeatureType& feature_type_ : feature_types) {
+    const int feature_type = static_cast<int>(feature_type_);
+    print_aligned(
+        "   " + FeatureTypeToString(feature_type_),
+        std::to_string(total_num_observations[feature_type]), 1);
+  }
   print_aligned(
       "Distance travelled [m]:", std::to_string(total_distance_travelled), 1);
   print_aligned("Duration [s]: ", std::to_string(total_duration_s), 1);
@@ -713,36 +946,7 @@ void VIMap::getDistanceTravelledPerMission(
     *distance += (next_vertex.get_p_M_I() - current_vertex.get_p_M_I()).norm();
 
     current_vertex_id = next_vertex_id;
-  } while (getNextVertex(
-      current_vertex_id, getGraphTraversalEdgeType(mission_id),
-      &next_vertex_id));
-}
-
-void VIMap::addNewMissionWithBaseframe(
-    const vi_map::MissionId& mission_id, const pose::Transformation& T_G_M,
-    const Eigen::Matrix<double, 6, 6>& T_G_M_covariance,
-    const aslam::NCamera::Ptr& ncamera, Mission::BackBone backbone_type) {
-  CHECK(mission_id.isValid());
-  CHECK(ncamera);
-  addNewMissionWithBaseframe(
-      mission_id, T_G_M, T_G_M_covariance, backbone_type);
-  const aslam::NCameraId& ncamera_id = ncamera->getId();
-  if (sensor_manager_.hasNCamera(ncamera_id)) {
-    sensor_manager_.associateExistingNCameraWithMission(ncamera_id, mission_id);
-  } else {
-    sensor_manager_.addNCamera(ncamera, mission_id);
-  }
-}
-
-void VIMap::addNewMissionWithBaseframe(
-    vi_map::VIMission::UniquePtr mission,
-    const aslam::NCamera::Ptr& ncamera,
-    const vi_map::MissionBaseFrame& mission_base_frame) {
-  CHECK(ncamera);
-  const MissionId& mission_id = mission->id();
-  CHECK(mission_id.isValid());
-  sensor_manager_.addNCamera(ncamera, mission_id);
-  addNewMissionWithBaseframe(std::move(mission), mission_base_frame);
+  } while (getNextVertex(current_vertex_id, &next_vertex_id));
 }
 
 void VIMap::addNewMissionWithBaseframe(
@@ -763,21 +967,246 @@ void VIMap::addNewMissionWithBaseframe(
     Mission::BackBone backbone_type) {
   // Create and add new mission base frame.
   vi_map::MissionBaseFrameId mission_baseframe_id =
-      common::createRandomId<vi_map::MissionBaseFrameId>();
+      aslam::createRandomId<vi_map::MissionBaseFrameId>();
   MissionBaseFrame new_mission_base_frame(
       mission_baseframe_id, T_G_M, T_G_M_covariance);
 
   mission_base_frames.emplace(mission_baseframe_id, new_mission_base_frame);
 
   // Create and add new mission.
-  VIMission* new_mission(new VIMission(
-      mission_id, mission_baseframe_id, backbone_type));
+  VIMission* new_mission(
+      new VIMission(mission_id, mission_baseframe_id, backbone_type));
 
   missions.emplace(mission_id, VIMission::UniquePtr(new_mission));
 
   if (!selected_missions_.empty()) {
     selected_missions_.insert(mission_id);
   }
+}
+
+void VIMap::associateMissionSensors(
+    const aslam::SensorIdSet& sensor_ids, const vi_map::MissionId& id) {
+  VIMission& mission = getMission(id);
+
+  // Cannot use unordered_map with the enum as key, as it is not supported prior
+  // to cpp14, hence it will not compile on xenial and older.
+  std::unordered_map<uint8_t, std::set<aslam::SensorId>> sensors_of_type;
+  for (const aslam::SensorId& sensor_id : sensor_ids) {
+    const SensorType sensor_type = sensor_manager_.getSensorType(sensor_id);
+    std::set<aslam::SensorId>& sensor_ids =
+        sensors_of_type[static_cast<uint8_t>(sensor_type)];
+    sensor_ids.insert(sensor_id);
+  }
+
+  auto retrieve_unique_sensor_id_of_type =
+      [](const std::string& id_flag, const std::string& flag_name,
+         const std::string& sensor_name,
+         const std::set<aslam::SensorId>& ids_of_type) -> aslam::SensorId {
+    aslam::SensorId sensor_id;
+    if (ids_of_type.size() > 1u) {
+      CHECK(
+          !id_flag.empty() && sensor_id.fromHexString(id_flag) &&
+          (ids_of_type.count(sensor_id) > 0u))
+          << "If more than one " << sensor_name
+          << " is provided in the sensor manager, "
+          << "use --" << flag_name << " to select which one to use.";
+    } else {
+      sensor_id = *(ids_of_type.begin());
+    }
+    CHECK(sensor_id.isValid());
+    return sensor_id;
+  };
+
+  for (const auto& sensor_of_type : sensors_of_type) {
+    CHECK(!sensor_of_type.second.empty());
+    const SensorType sensor_type =
+        static_cast<SensorType>(sensor_of_type.first);
+    if (sensor_type == SensorType::kNCamera) {
+      CHECK(!mission.hasNCamera()) << "There shouldn't be a NCamera sensor "
+                                   << "associated yet with this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_ncamera_sensor_id, "selected_ncamera_sensor_id",
+          "NCamera", sensor_of_type.second);
+      mission.setNCameraId(sensor_id);
+    } else if (sensor_type == SensorType::kImu) {
+      CHECK(!mission.hasImu()) << "There shouldn't be a IMU sensor associated "
+                               << "yet with this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_imu_sensor_id, "selected_imu_sensor_id", "IMU",
+          sensor_of_type.second);
+      mission.setImuId(sensor_id);
+    } else if (sensor_type == SensorType::kLidar) {
+      CHECK(!mission.hasLidar()) << "There shouldn't be a Lidar sensor "
+                                 << "associated yet with this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_lidar_sensor_id, "selected_lidar_sensor_id", "Lidar",
+          sensor_of_type.second);
+      mission.setLidarId(sensor_id);
+    } else if (sensor_type == SensorType::kOdometry6DoF) {
+      CHECK(!mission.hasOdometry6DoFSensor())
+          << "There shouldn't be a Odometry6DoF sensor associated yet with "
+          << "this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_odometry_6dof_sensor_id,
+          "selected_odometry_6dof_sensor_id", "Odometry6DoF",
+          sensor_of_type.second);
+      mission.setOdometry6DoFSensor(sensor_id);
+    } else if (sensor_type == SensorType::kLoopClosureSensor) {
+      CHECK(!mission.hasLoopClosureSensor())
+          << "Can not handle more than one "
+             "loop closure 6DOF sensor per mission";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_loop_closure_sensor_id,
+          "selected_loop_closure_sensor_id", "LoopClosureSensor",
+          sensor_of_type.second);
+      mission.setLoopClosureSensor(sensor_id);
+    } else if (sensor_type == SensorType::kWheelOdometry) {
+      CHECK(!mission.hasWheelOdometrySensor())
+          << "Can not handle more than one wheel odometry sensor per mission";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_wheel_odometry_sensor_id,
+          "selected_wheel_odometry_sensor_id", "WheelOdometrySensor",
+          sensor_of_type.second);
+      mission.setWheelOdometrySensor(sensor_id);
+    } else if (sensor_type == SensorType::kAbsolute6DoF) {
+      CHECK(!mission.hasAbsolute6DoFSensor())
+          << "There shouldn't be an Absolute6DoF sensor associated yet with "
+          << "this mission!";
+      const aslam::SensorId sensor_id = retrieve_unique_sensor_id_of_type(
+          FLAGS_selected_absolute_6dof_sensor_id,
+          "selected_absolute_6dof_sensor_id", "Absolute6DoF",
+          sensor_of_type.second);
+      mission.setAbsolute6DoFSensor(sensor_id);
+    } else if (
+        sensor_type == SensorType::kPointCloudMapSensor ||
+        sensor_type == SensorType::kExternalFeatures) {
+      // NOTE: this sensor type does not need to be associated with the VIMap,
+      // as it is only used to store sensor resources anyways.
+    } else {
+      LOG(FATAL)
+          << "Trying to associate an unknown sensor type with the VIMap! Type: "
+          << sensor_of_type.first;
+    }
+  }
+}
+
+void VIMap::getAllAssociatedMissionSensorIds(
+    const vi_map::MissionId& id, aslam::SensorIdSet* sensor_ids) const {
+  CHECK_NOTNULL(sensor_ids)->clear();
+  CHECK(id.isValid());
+  CHECK(hasMission(id));
+  const VIMission& mission = getMission(id);
+
+  if (mission.hasNCamera()) {
+    sensor_ids->insert(mission.getNCameraId());
+  }
+  if (mission.hasImu()) {
+    sensor_ids->insert(mission.getImuId());
+  }
+  if (mission.hasLidar()) {
+    sensor_ids->insert(mission.getLidarId());
+  }
+  if (mission.hasOdometry6DoFSensor()) {
+    sensor_ids->insert(mission.getOdometry6DoFSensor());
+  }
+  if (mission.hasLoopClosureSensor()) {
+    sensor_ids->insert(mission.getLoopClosureSensor());
+  }
+  if (mission.hasAbsolute6DoFSensor()) {
+    sensor_ids->insert(mission.getAbsolute6DoFSensor());
+  }
+  if (mission.hasWheelOdometrySensor()) {
+    sensor_ids->insert(mission.getWheelOdometrySensor());
+  }
+}
+
+void VIMap::associateMissionNCamera(
+    const aslam::SensorId& ncamera_id, const vi_map::MissionId& id) {
+  getMission(id).setNCameraId(ncamera_id);
+}
+
+void VIMap::associateMissionImu(
+    const aslam::SensorId& imu_id, const vi_map::MissionId& id) {
+  getMission(id).setImuId(imu_id);
+}
+
+const aslam::NCamera& VIMap::getMissionNCamera(
+    const vi_map::MissionId& id) const {
+  const VIMission& mission = getMission(id);
+  CHECK(mission.hasNCamera());
+  return sensor_manager_.getSensor<aslam::NCamera>(mission.getNCameraId());
+}
+
+aslam::NCamera::Ptr VIMap::getMissionNCameraPtr(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensorPtr<aslam::NCamera>(
+      getMission(id).getNCameraId());
+}
+
+const vi_map::Imu& VIMap::getMissionImu(const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensor<vi_map::Imu>(getMission(id).getImuId());
+}
+
+vi_map::Imu::Ptr VIMap::getMissionImuPtr(const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensorPtr<vi_map::Imu>(getMission(id).getImuId());
+}
+
+const vi_map::Lidar& VIMap::getMissionLidar(const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensor<vi_map::Lidar>(getMission(id).getLidarId());
+}
+
+vi_map::Lidar::Ptr VIMap::getMissionLidarPtr(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensorPtr<vi_map::Lidar>(
+      getMission(id).getLidarId());
+}
+
+const vi_map::Odometry6DoF& VIMap::getMissionOdometry6DoFSensor(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensor<vi_map::Odometry6DoF>(
+      getMission(id).getOdometry6DoFSensor());
+}
+
+vi_map::Odometry6DoF::Ptr VIMap::getMissionOdometry6DoFSensorPtr(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensorPtr<vi_map::Odometry6DoF>(
+      getMission(id).getOdometry6DoFSensor());
+}
+
+const vi_map::LoopClosureSensor& VIMap::getMissionLoopClosureSensor(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensor<vi_map::LoopClosureSensor>(
+      getMission(id).getLoopClosureSensor());
+}
+
+vi_map::LoopClosureSensor::Ptr VIMap::getMissionLoopClosureSensorPtr(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensorPtr<vi_map::LoopClosureSensor>(
+      getMission(id).getLoopClosureSensor());
+}
+
+const vi_map::Absolute6DoF& VIMap::getMissionAbsolute6DoFSensor(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensor<vi_map::Absolute6DoF>(
+      getMission(id).getAbsolute6DoFSensor());
+}
+
+vi_map::Absolute6DoF::Ptr VIMap::getMissionAbsolute6DoFSensorPtr(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensorPtr<vi_map::Absolute6DoF>(
+      getMission(id).getAbsolute6DoFSensor());
+}
+
+const vi_map::WheelOdometry& VIMap::getMissionWheelOdometrySensor(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensor<vi_map::WheelOdometry>(
+      getMission(id).getWheelOdometrySensor());
+}
+
+vi_map::WheelOdometry::Ptr VIMap::getMissionWheelOdometrySensorPtr(
+    const vi_map::MissionId& id) const {
+  return sensor_manager_.getSensorPtr<vi_map::WheelOdometry>(
+      getMission(id).getWheelOdometrySensor());
 }
 
 size_t VIMap::numLandmarks() const {
@@ -797,9 +1226,6 @@ void VIMap::addNewLandmark(
   CHECK(!hasLandmark(landmark.id()))
       << "Landmark " << landmark.id() << " already exists in map.";
   CHECK(hasVertex(keypoint_and_store_vertex_id));
-  CHECK_EQ(0u, landmark.numberOfObserverVertices())
-      << "The new landmark shouldn't contain any backlinks as this may cause "
-         "inconsistencies.";
 
   getVertex(keypoint_and_store_vertex_id).getLandmarks().addLandmark(landmark);
 
@@ -813,13 +1239,51 @@ void VIMap::addNewLandmark(
 
 void VIMap::addNewLandmark(
     const LandmarkId& predefined_landmark_id,
-    const KeypointIdentifier& first_observation) {
+    const KeypointIdentifier& first_observation, FeatureType feature_type) {
   CHECK(!hasLandmark(predefined_landmark_id));
   vi_map::Landmark landmark;
+  landmark.setFeatureType(feature_type);
   landmark.setId(predefined_landmark_id);
   addNewLandmark(
       landmark, first_observation.frame_id.vertex_id,
       first_observation.frame_id.frame_index, first_observation.keypoint_index);
+}
+
+void VIMap::getMapFeatureTypes(std::set<FeatureType>* feature_types) const {
+  CHECK_NOTNULL(feature_types);
+  vi_map::MissionIdList all_missions;
+  getAllMissionIdsSortedByTimestamp(&all_missions);
+  for (const vi_map::MissionId& mission_id : all_missions) {
+    getMissionFeatureTypes(mission_id, feature_types);
+  }
+}
+
+void VIMap::getMissionFeatureTypes(
+    const vi_map::MissionId& mission_id,
+    std::set<FeatureType>* feature_types) const {
+  CHECK(mission_id.isValid());
+  CHECK_NOTNULL(feature_types);
+  feature_types->clear();
+
+  if (getMission(mission_id).hasNCamera()) {
+    pose_graph::VertexIdList vertex_ids;
+    getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
+    for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+      const vi_map::Vertex& vertex = getVertex(vertex_id);
+      const size_t num_frames = vertex.numFrames();
+      for (unsigned int frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
+        if (vertex.isVisualFrameSet(frame_idx) &&
+            vertex.isVisualFrameValid(frame_idx)) {
+          const Eigen::VectorXi& frame_feature_types =
+              vertex.getVisualFrame(frame_idx).getDescriptorTypes();
+          for (int i = 0; i < frame_feature_types.size(); ++i) {
+            feature_types->emplace(
+                static_cast<FeatureType>(frame_feature_types.coeff(i)));
+          }
+        }
+      }
+    }
+  }
 }
 
 void VIMap::associateKeypointWithExistingLandmark(
@@ -917,6 +1381,7 @@ void VIMap::moveLandmarksToOtherVertex(
     // This should not be a reference! Otherwise, when moving the object,
     // it will get invalidated and will cause random segfaults.
     vi_map::LandmarkId landmark_id = landmark.id();
+
     const Eigen::Vector3d& p_G_fi = getLandmark_G_p_fi(landmark_id);
     const vi_map::MissionBaseFrame& mission_baseframe_to =
         getMissionBaseFrame(getMissionForVertex(vertex_id_to).getBaseFrameId());
@@ -944,73 +1409,96 @@ void VIMap::moveLandmarksToOtherVertex(
 // Currently assumes vertex_from is the next after vertex_to.
 void VIMap::mergeNeighboringVertices(
     const pose_graph::VertexId& merge_into_vertex_id,
-    const pose_graph::VertexId& next_vertex_id) {
+    const pose_graph::VertexId& vertex_to_merge, bool merge_viwls_edges,
+    bool merge_odometry_edges, bool merge_wheel_odometry_edges) {
   CHECK(hasVertex(merge_into_vertex_id));
-  CHECK(hasVertex(next_vertex_id));
+  CHECK(hasVertex(vertex_to_merge));
 
-  vi_map::MissionId mission_id = getVertex(merge_into_vertex_id).getMissionId();
+  const vi_map::MissionId& mission_id =
+      getVertex(merge_into_vertex_id).getMissionId();
 
   pose_graph::VertexId check_vertex_id;
-  getNextVertex(
-      merge_into_vertex_id, getGraphTraversalEdgeType(mission_id),
-      &check_vertex_id);
-  CHECK_EQ(check_vertex_id, next_vertex_id)
-      << "Vertices should be neighboring and vertex_from should be the next"
-      << " after next_vertex_id.";
+  getNextVertex(merge_into_vertex_id, &check_vertex_id);
+  CHECK_EQ(check_vertex_id, vertex_to_merge)
+      << "Vertices should be neighboring and vertex_to_merge should be the "
+      << "next after merge_into_vertex_id.";
 
-  VLOG(4) << "Merging vertices: " << next_vertex_id << " into "
+  VLOG(4) << "Merging vertex: " << vertex_to_merge << " into "
           << merge_into_vertex_id;
-
   // Move landmarks.
-  moveLandmarksToOtherVertex(next_vertex_id, merge_into_vertex_id);
+  moveLandmarksToOtherVertex(vertex_to_merge, merge_into_vertex_id);
 
-  std::unordered_set<pose_graph::EdgeId> incoming, outgoing;
-  vi_map::Vertex& next_vertex = getVertex(next_vertex_id);
-
-  next_vertex.getOutgoingEdges(&outgoing);
-  next_vertex.getIncomingEdges(&incoming);
-  // It's possible that next vertex is the last vertex in the mission so
-  // we need to handle no outgoing edge case.
-  size_t num_incoming_viwls_edges = 0u, num_outgoing_viwls_edges = 0u;
-  vi_map::ViwlsEdge* edge_between_vertices = nullptr;
-  vi_map::ViwlsEdge* edge_after_next_vertex = nullptr;
-  for (const pose_graph::EdgeId& incoming_edge : incoming) {
-    if (getEdgeType(incoming_edge) == pose_graph::Edge::EdgeType::kViwls) {
-      edge_between_vertices = getEdgePtrAs<vi_map::ViwlsEdge>(incoming_edge);
-      ++num_incoming_viwls_edges;
-    }
-  }
-  for (const pose_graph::EdgeId& outgoing_edge : outgoing) {
-    if (getEdgeType(outgoing_edge) == pose_graph::Edge::EdgeType::kViwls) {
-      edge_after_next_vertex = getEdgePtrAs<vi_map::ViwlsEdge>(outgoing_edge);
-      ++num_outgoing_viwls_edges;
-    }
-  }
-  CHECK_LE(num_outgoing_viwls_edges, 1u)
-      << "A vertex can have only one outgoing edge in VIWLS graph";
-  CHECK_EQ(1u, num_incoming_viwls_edges)
-      << "A vertex can have only one incoming edge in VIWLS graph";
-  CHECK_NOTNULL(edge_between_vertices);
-
+  pose_graph::EdgeIdSet next_vertex_incoming_edge_ids,
+      next_vertex_outgoing_edge_ids;
+  vi_map::Vertex& next_vertex = getVertex(vertex_to_merge);
+  next_vertex.getOutgoingEdges(&next_vertex_outgoing_edge_ids);
+  next_vertex.getIncomingEdges(&next_vertex_incoming_edge_ids);
   // Remove all other edges from vertex.
-  for (const pose_graph::EdgeId& incoming_edge : incoming) {
-    if (getEdgeType(incoming_edge) != pose_graph::Edge::EdgeType::kViwls) {
+  for (const pose_graph::EdgeId& incoming_edge :
+       next_vertex_incoming_edge_ids) {
+    const pose_graph::Edge::EdgeType edge_type = getEdgeType(incoming_edge);
+    bool keepViwlsEdge =
+        edge_type == pose_graph::Edge::EdgeType::kViwls && merge_viwls_edges;
+    bool keepOdometryEdge =
+        edge_type == pose_graph::Edge::EdgeType::kOdometry &&
+        merge_odometry_edges;
+    bool keepWheelOdometryEdge =
+        edge_type == pose_graph::Edge::EdgeType::kWheelOdometry &&
+        merge_wheel_odometry_edges;
+
+    if (!keepViwlsEdge && !keepOdometryEdge && !keepWheelOdometryEdge) {
       posegraph.removeEdge(incoming_edge);
     }
   }
-  for (const pose_graph::EdgeId& outgoing_edge : outgoing) {
-    if (getEdgeType(outgoing_edge) != pose_graph::Edge::EdgeType::kViwls) {
+  for (const pose_graph::EdgeId& outgoing_edge :
+       next_vertex_outgoing_edge_ids) {
+    const pose_graph::Edge::EdgeType edge_type = getEdgeType(outgoing_edge);
+    bool keepViwlsEdge =
+        edge_type == pose_graph::Edge::EdgeType::kViwls && merge_viwls_edges;
+    bool keepOdometryEdge =
+        edge_type == pose_graph::Edge::EdgeType::kOdometry &&
+        merge_odometry_edges;
+    bool keepWheelOdometryEdge =
+        edge_type == pose_graph::Edge::EdgeType::kWheelOdometry &&
+        merge_wheel_odometry_edges;
+
+    if (!keepViwlsEdge && !keepOdometryEdge && !keepWheelOdometryEdge) {
       posegraph.removeEdge(outgoing_edge);
     }
   }
+  aslam::SensorIdSet sensor_id_set;
+  sensor_manager_.getAllSensorIds(&sensor_id_set);
 
-  if (edge_after_next_vertex != nullptr) {
-    posegraph.mergeNeighboringViwlsEdges(
-        merge_into_vertex_id, *edge_between_vertices, *edge_after_next_vertex);
-  } else {
-    // We should remove the edge linking the two vertices.
-    posegraph.removeEdge(edge_between_vertices->id());
+  size_t num_outgoing_viwls_edges = 0;
+  if (merge_viwls_edges) {
+    num_outgoing_viwls_edges =
+        mergeEdgesOfNeighboringVertices<ViwlsEdge, Edge::EdgeType::kViwls>(
+            merge_into_vertex_id, vertex_to_merge);
   }
+  CHECK(
+      getMission(mission_id).backboneType() != Mission::BackBone::kViwls ||
+      num_outgoing_viwls_edges == 1u);
+
+  size_t num_outgoing_odometry_edges = 0;
+  if (merge_odometry_edges) {
+    num_outgoing_odometry_edges = mergeEdgesOfNeighboringVertices<
+        TransformationEdge, Edge::EdgeType::kOdometry>(
+        merge_into_vertex_id, vertex_to_merge);
+  }
+  CHECK(
+      getMission(mission_id).backboneType() != Mission::BackBone::kOdometry ||
+      num_outgoing_odometry_edges == 1u);
+
+  size_t num_outgoing_wheel_odometry_edges = 0;
+  if (merge_wheel_odometry_edges) {
+    num_outgoing_wheel_odometry_edges = mergeEdgesOfNeighboringVertices<
+        TransformationEdge, Edge::EdgeType::kWheelOdometry>(
+        merge_into_vertex_id, vertex_to_merge);
+  }
+  CHECK(
+      getMission(mission_id).backboneType() !=
+          Mission::BackBone::kWheelOdometry ||
+      num_outgoing_wheel_odometry_edges == 1u);
 
   const unsigned int num_frames = next_vertex.numFrames();
   // We need to track landmarks that get removed in the following loop. This
@@ -1032,7 +1520,6 @@ void VIMap::mergeNeighboringVertices(
 
       if (landmark_id.isValid() && deleted_landmarks.count(landmark_id) == 0u) {
         vi_map::Landmark& landmark = getLandmark(landmark_id);
-
         // Check for orphaned landmarks.
         if (landmark.numberOfObserverVertices() == 1u) {
           // Our merged vertex is the only vertex seeing this landmark.
@@ -1040,14 +1527,13 @@ void VIMap::mergeNeighboringVertices(
           deleted_landmarks.emplace(landmark_id);
         } else {
           // Remove vertex visibility in landmarks.
-          landmark.removeAllObservationsOfVertex(next_vertex_id);
+          landmark.removeAllObservationsOfVertex(vertex_to_merge);
         }
       }
     }
   }
-
   // Remove the vertex.
-  posegraph.removeVertex(next_vertex_id);
+  posegraph.removeVertex(vertex_to_merge);
 }
 
 void VIMap::mergeLandmarks(
@@ -1112,7 +1598,8 @@ void VIMap::mergeLandmarks(
   CHECK_EQ(landmark_index_size_before - 1, landmark_index.numLandmarks());
 }
 
-void VIMap::duplicateMission(const vi_map::MissionId& source_mission_id) {
+const vi_map::MissionId VIMap::duplicateMission(
+    const vi_map::MissionId& source_mission_id) {
   CHECK(hasMission(source_mission_id));
 
   const vi_map::VIMission& source_mission = getMission(source_mission_id);
@@ -1123,7 +1610,7 @@ void VIMap::duplicateMission(const vi_map::MissionId& source_mission_id) {
   // Copy baseframe.
   vi_map::MissionBaseFrame baseframe;
   vi_map::MissionBaseFrameId baseframe_id = source_baseframe.id();
-  common::generateId(&baseframe_id);
+  aslam::generateId(&baseframe_id);
 
   baseframe.setId(baseframe_id);
   baseframe.set_p_G_M(source_baseframe.get_p_G_M());
@@ -1133,14 +1620,131 @@ void VIMap::duplicateMission(const vi_map::MissionId& source_mission_id) {
 
   // Copy mission.
   vi_map::VIMission::UniquePtr mission_ptr(new vi_map::VIMission);
-  vi_map::MissionId duplicated_mission_id = source_mission.id();
-  common::generateId(&duplicated_mission_id);
+  vi_map::MissionId duplicated_mission_id;
+  aslam::generateId(&duplicated_mission_id);
 
   mission_ptr->setId(duplicated_mission_id);
   mission_ptr->setBackboneType(source_mission.backboneType());
   mission_ptr->setBaseFrameId(baseframe_id);
 
+  VLOG(1) << "Cloning all sensors with new ids.";
+  // Duplicate mission sensors with new ids.
+  if (source_mission.hasNCamera()) {
+    const aslam::SensorId source_sensor_id = source_mission.getNCameraId();
+
+    aslam::NCamera* cloned_ncamera =
+        CHECK_NOTNULL(getMissionNCamera(source_mission_id).cloneWithNewIds());
+    const aslam::SensorId new_sensor_id = cloned_ncamera->getId();
+    const aslam::Transformation& T_B_S =
+        getSensorManager().getSensor_T_B_S(source_sensor_id);
+    const aslam::SensorId& base_sensor_id =
+        getSensorManager().getBaseSensorId(source_sensor_id);
+    getSensorManager().addSensor<aslam::NCamera>(
+        aslam::NCamera::UniquePtr(cloned_ncamera), base_sensor_id, T_B_S);
+
+    CHECK(mission_ptr);
+    mission_ptr->setNCameraId(new_sensor_id);
+  }
+
+  if (source_mission.hasImu()) {
+    const aslam::SensorId source_sensor_id = source_mission.getImuId();
+
+    vi_map::Imu* cloned_imu =
+        CHECK_NOTNULL(getMissionImu(source_mission_id).cloneWithNewIds());
+    const aslam::SensorId new_sensor_id = cloned_imu->getId();
+    const aslam::Transformation& T_B_S =
+        getSensorManager().getSensor_T_B_S(source_sensor_id);
+    const aslam::SensorId& base_sensor_id =
+        getSensorManager().getBaseSensorId(source_sensor_id);
+    getSensorManager().addSensor<vi_map::Imu>(
+        vi_map::Imu::UniquePtr(cloned_imu), base_sensor_id, T_B_S);
+
+    CHECK(mission_ptr);
+    mission_ptr->setImuId(new_sensor_id);
+  }
+
+  if (source_mission.hasLidar()) {
+    const aslam::SensorId source_sensor_id = source_mission.getLidarId();
+
+    vi_map::Lidar* cloned_lidar =
+        CHECK_NOTNULL(getMissionLidar(source_mission_id).cloneWithNewIds());
+    const aslam::SensorId new_sensor_id = cloned_lidar->getId();
+    const aslam::Transformation& T_B_S =
+        getSensorManager().getSensor_T_B_S(source_sensor_id);
+    const aslam::SensorId& base_sensor_id =
+        getSensorManager().getBaseSensorId(source_sensor_id);
+    getSensorManager().addSensor<vi_map::Lidar>(
+        vi_map::Lidar::UniquePtr(cloned_lidar), base_sensor_id, T_B_S);
+
+    CHECK(mission_ptr);
+    mission_ptr->setLidarId(new_sensor_id);
+  }
+
+  if (source_mission.hasOdometry6DoFSensor()) {
+    const aslam::SensorId source_sensor_id =
+        source_mission.getOdometry6DoFSensor();
+
+    vi_map::Odometry6DoF* cloned_odom_sensor = CHECK_NOTNULL(
+        getMissionOdometry6DoFSensor(source_mission_id).cloneWithNewIds());
+    CHECK(cloned_odom_sensor);
+    const aslam::SensorId new_sensor_id = cloned_odom_sensor->getId();
+    const aslam::Transformation& T_B_S =
+        getSensorManager().getSensor_T_B_S(source_sensor_id);
+    const aslam::SensorId& base_sensor_id =
+        getSensorManager().getBaseSensorId(source_sensor_id);
+    getSensorManager().addSensor<vi_map::Odometry6DoF>(
+        vi_map::Odometry6DoF::UniquePtr(cloned_odom_sensor), base_sensor_id,
+        T_B_S);
+
+    CHECK(mission_ptr);
+    mission_ptr->setOdometry6DoFSensor(new_sensor_id);
+  }
+
+  if (source_mission.hasLoopClosureSensor()) {
+    const aslam::SensorId source_sensor_id =
+        source_mission.getLoopClosureSensor();
+
+    vi_map::LoopClosureSensor* cloned_loop_closure_sensor = CHECK_NOTNULL(
+        getMissionLoopClosureSensor(source_mission_id).cloneWithNewIds());
+    const aslam::SensorId new_sensor_id = cloned_loop_closure_sensor->getId();
+    const aslam::Transformation& T_B_S =
+        getSensorManager().getSensor_T_B_S(source_sensor_id);
+    const aslam::SensorId& base_sensor_id =
+        getSensorManager().getBaseSensorId(source_sensor_id);
+    getSensorManager().addSensor<vi_map::LoopClosureSensor>(
+        vi_map::LoopClosureSensor::UniquePtr(cloned_loop_closure_sensor),
+        base_sensor_id, T_B_S);
+
+    CHECK(mission_ptr);
+    mission_ptr->setLoopClosureSensor(new_sensor_id);
+  }
+
+  if (source_mission.hasWheelOdometrySensor()) {
+    const aslam::SensorId source_sensor_id =
+        source_mission.getWheelOdometrySensor();
+
+    vi_map::WheelOdometry* cloned_wheel_odometry_sensor = CHECK_NOTNULL(
+        getMissionWheelOdometrySensor(source_mission_id).cloneWithNewIds());
+    const aslam::SensorId new_sensor_id = cloned_wheel_odometry_sensor->getId();
+    const aslam::Transformation& T_B_S =
+        getSensorManager().getSensor_T_B_S(source_sensor_id);
+    const aslam::SensorId& base_sensor_id =
+        getSensorManager().getBaseSensorId(source_sensor_id);
+    getSensorManager().addSensor<vi_map::WheelOdometry>(
+        vi_map::WheelOdometry::UniquePtr(cloned_wheel_odometry_sensor),
+        base_sensor_id, T_B_S);
+
+    CHECK(mission_ptr);
+    mission_ptr->setWheelOdometrySensor(new_sensor_id);
+  }
+
+  // Insert new mission
   missions.emplace(mission_ptr->id(), std::move(mission_ptr));
+  const VIMission& new_mission = getMission(duplicated_mission_id);
+  aslam::NCamera::Ptr new_ncamera;
+  if (new_mission.hasNCamera()) {
+    new_ncamera = getMissionNCameraPtr(duplicated_mission_id);
+  }
   VLOG(1) << "New mission id: " << duplicated_mission_id;
 
   // Copy posegraph.
@@ -1160,165 +1764,123 @@ void VIMap::duplicateMission(const vi_map::MissionId& source_mission_id) {
   typedef LandmarkIdToLandmarkIdMap::iterator LandmarkIdToLandmarkIdIterator;
 
   pose_graph::VertexIdList all_source_vertices;
-  getAllVertexIds(&all_source_vertices);
-
-  aslam::NCamera::Ptr duplicated_ncamera =
-      sensor_manager_.getNCameraForMission(source_mission_id).cloneToShared();
-  CHECK(duplicated_ncamera);
-
-  // Generating new ids.
-  aslam::NCameraId duplicated_ncamera_id;
-  common::generateId(&duplicated_ncamera_id);
-  duplicated_ncamera->setId(duplicated_ncamera_id);
-  for (size_t camera_idx = 0u; camera_idx < duplicated_ncamera->numCameras();
-  ++camera_idx) {
-    aslam::CameraId camera_id;
-    common::generateId(&camera_id);
-    duplicated_ncamera->getCameraShared(camera_idx)->setId(camera_id);
-  }
-  sensor_manager_.addNCamera(duplicated_ncamera, duplicated_mission_id);
-
-  SensorIdSet source_mission_sensor_ids;
-  sensor_manager_.getAllSensorIdsAssociatedWithMission(
-      source_mission_id, &source_mission_sensor_ids);
-  for (const SensorId& source_mission_sensor_id : source_mission_sensor_ids) {
-    CHECK(source_mission_sensor_id.isValid());
-    Sensor::UniquePtr cloned_sensor =
-        sensor_manager_.getSensor(source_mission_sensor_id).clone();
-    CHECK(cloned_sensor);
-    SensorId sensor_id;
-    common::generateId(&sensor_id);
-    cloned_sensor->setId(sensor_id);
-    sensor_manager_.addSensor(std::move(cloned_sensor), duplicated_mission_id);
-  }
+  getAllVertexIdsInMission(source_mission_id, &all_source_vertices);
 
   VLOG(1) << "Adding vertices.";
   for (const pose_graph::VertexId& vertex_id : all_source_vertices) {
     const vi_map::Vertex& source_vertex = getVertex(vertex_id);
-    if (source_vertex.getMissionId() == source_mission_id) {
-      pose_graph::VertexId new_vertex_id = vertex_id;
-      common::generateId(&new_vertex_id);
+    CHECK_EQ(source_vertex.getMissionId(), source_mission_id);
+    pose_graph::VertexId new_vertex_id = vertex_id;
+    aslam::generateId(&new_vertex_id);
 
-      Eigen::Matrix<double, 6, 1> imu_ba_bw;
-      imu_ba_bw << source_vertex.getAccelBias(), source_vertex.getGyroBias();
+    Eigen::Matrix<double, 6, 1> imu_ba_bw;
+    imu_ba_bw << source_vertex.getAccelBias(), source_vertex.getGyroBias();
 
-      std::vector<LandmarkIdList> landmarks_seen_by_vertex;
-      const size_t num_frames = source_vertex.numFrames();
-      landmarks_seen_by_vertex.resize(num_frames);
-      for (size_t frame_idx = 0u; frame_idx < source_vertex.numFrames();
-           ++frame_idx) {
-        if (!source_vertex.isVisualFrameSet(frame_idx)) {
-          continue;
-        }
-        for (size_t landmark_idx = 0u;
-             landmark_idx < source_vertex.observedLandmarkIdsSize(frame_idx);
-             ++landmark_idx) {
-          const vi_map::LandmarkId& current_landmark_id =
-              source_vertex.getObservedLandmarkId(frame_idx, landmark_idx);
-          vi_map::LandmarkId new_landmark_id = current_landmark_id;
-          if (!current_landmark_id.isValid()) {
-            new_landmark_id.setInvalid();
+    std::vector<LandmarkIdList> landmarks_seen_by_vertex;
+    const size_t num_frames = source_vertex.numFrames();
+    landmarks_seen_by_vertex.resize(num_frames);
+    for (size_t frame_idx = 0u; frame_idx < source_vertex.numFrames();
+         ++frame_idx) {
+      if (!source_vertex.isVisualFrameSet(frame_idx)) {
+        continue;
+      }
+      for (size_t landmark_idx = 0u;
+           landmark_idx < source_vertex.observedLandmarkIdsSize(frame_idx);
+           ++landmark_idx) {
+        const vi_map::LandmarkId& current_landmark_id =
+            source_vertex.getObservedLandmarkId(frame_idx, landmark_idx);
+        vi_map::LandmarkId new_landmark_id = current_landmark_id;
+        if (!current_landmark_id.isValid()) {
+          new_landmark_id.setInvalid();
+        } else {
+          bool should_duplicate = true;
+          if (landmarks_not_to_duplicate.count(current_landmark_id) > 0u) {
+            should_duplicate = false;
           } else {
-            bool should_duplicate = true;
-            if (landmarks_not_to_duplicate.count(current_landmark_id) > 0u) {
+            const bool is_stored_in_source_mission =
+                (getLandmarkStoreVertex(current_landmark_id).getMissionId() ==
+                 source_mission_id);
+
+            if (!is_stored_in_source_mission) {
               should_duplicate = false;
             } else {
-              const bool is_stored_in_source_mission =
-                  (getLandmarkStoreVertex(current_landmark_id).getMissionId() ==
-                   source_mission_id);
+              vi_map::MissionIdSet observer_missions;
+              getObserverMissionsForLandmark(
+                  current_landmark_id, &observer_missions);
+              CHECK(!observer_missions.empty())
+                  << "Landmark should have at "
+                  << "least one observer (= one observer mission).";
+              const bool is_observed_by_source_mission_only =
+                  (observer_missions.size() == 1u &&
+                   observer_missions.count(source_mission_id) > 0u);
 
-              if (!is_stored_in_source_mission) {
+              if (!is_observed_by_source_mission_only) {
                 should_duplicate = false;
-              } else {
-                vi_map::MissionIdSet observer_missions;
-                getLandmarkObserverMissions(
-                    current_landmark_id, &observer_missions);
-                CHECK(!observer_missions.empty())
-                    << "Landmark should have at "
-                    << "least one observer (= one observer mission).";
-                const bool is_observed_by_source_mission_only =
-                    (observer_missions.size() == 1u &&
-                     observer_missions.count(source_mission_id) > 0u);
-
-                if (!is_observed_by_source_mission_only) {
-                  should_duplicate = false;
-                }
               }
             }
+          }
 
-            if (!should_duplicate) {
-              // The landmark comes from some other mission or is observed
-              // by other missions. We will not generate a new LandmarkId,
-              // but just add observations.
-              new_landmark_id = current_landmark_id;
+          if (!should_duplicate) {
+            // The landmark comes from some other mission or is observed
+            // by other missions. We will not generate a new LandmarkId,
+            // but just add observations.
+            new_landmark_id = current_landmark_id;
 
-              // Add a backlink to the landmark from some other mission.
-              getLandmark(current_landmark_id)
-                  .addObservation(new_vertex_id, frame_idx, landmark_idx);
+            // Add a backlink to the landmark from some other mission.
+            getLandmark(current_landmark_id)
+                .addObservation(new_vertex_id, frame_idx, landmark_idx);
 
-              landmarks_not_to_duplicate.emplace(current_landmark_id);
+            landmarks_not_to_duplicate.emplace(current_landmark_id);
+          } else {
+            // This landmark comes from the source mission and is only
+            // observed by the source mission. It should be duplicated.
+            const LandmarkIdToLandmarkIdIterator it =
+                source_to_dest_landmark_id_map.find(current_landmark_id);
+            if (it != source_to_dest_landmark_id_map.end()) {
+              new_landmark_id = it->second;
             } else {
-              // This landmark comes from the source mission and is only
-              // observed by the source mission. It should be duplicated.
-              const LandmarkIdToLandmarkIdIterator it =
-                  source_to_dest_landmark_id_map.find(current_landmark_id);
-              if (it != source_to_dest_landmark_id_map.end()) {
-                new_landmark_id = it->second;
-              } else {
-                common::generateId(&new_landmark_id);
-                source_to_dest_landmark_id_map.emplace(
-                    current_landmark_id, new_landmark_id);
-              }
+              aslam::generateId(&new_landmark_id);
+              source_to_dest_landmark_id_map.emplace(
+                  current_landmark_id, new_landmark_id);
             }
           }
-          landmarks_seen_by_vertex[frame_idx].push_back(new_landmark_id);
         }
+        landmarks_seen_by_vertex[frame_idx].push_back(new_landmark_id);
       }
-
-      aslam::VisualNFrame::Ptr n_frame(new aslam::VisualNFrame(
-          duplicated_ncamera));
-      CHECK_EQ(duplicated_ncamera->getNumCameras(), num_frames);
-      for (size_t frame_idx = 0u; frame_idx < num_frames; ++frame_idx) {
-        if (source_vertex.isVisualFrameSet(frame_idx)) {
-          const aslam::VisualFrame& source_frame =
-              source_vertex.getVisualFrame(frame_idx);
-          aslam::FrameId frame_id = source_frame.getId();
-          common::generateId(&frame_id);
-          aslam::VisualFrame::Ptr visual_frame(new aslam::VisualFrame);
-          visual_frame->setId(frame_id);
-          visual_frame->setTimestampNanoseconds(
-              source_frame.getTimestampNanoseconds());
-          visual_frame->setCameraGeometry(
-              duplicated_ncamera->getCameraShared(frame_idx));
-          visual_frame->setKeypointMeasurements(
-              source_frame.getKeypointMeasurements());
-          visual_frame->setKeypointMeasurementUncertainties(
-              source_frame.getKeypointMeasurementUncertainties());
-          visual_frame->setDescriptors(source_frame.getDescriptors());
-          if (source_frame.hasTrackIds()) {
-            visual_frame->setTrackIds(source_frame.getTrackIds());
-          }
-
-          n_frame->setFrame(frame_idx, visual_frame);
-        }
-      }
-
-      vi_map::Vertex* vertex_ptr(
-          new vi_map::Vertex(
-              new_vertex_id, imu_ba_bw, n_frame, landmarks_seen_by_vertex,
-              duplicated_mission_id));
-
-      vertex_ptr->set_p_M_I(source_vertex.get_p_M_I());
-      vertex_ptr->set_q_M_I(source_vertex.get_q_M_I().normalized());
-      vertex_ptr->set_v_M(source_vertex.get_v_M());
-
-      vertex_ptr->setFrameResourceMap(source_vertex.getFrameResourceMap());
-
-      posegraph.addVertex(vi_map::Vertex::UniquePtr(vertex_ptr));
-
-      // Our local old-to-new VertexId map.
-      source_to_dest_vertex_id_map.emplace(vertex_id, new_vertex_id);
     }
+
+    aslam::VisualNFrame::Ptr n_frame(
+        new aslam::VisualNFrame(source_vertex.getVisualNFrame()));
+
+    // Overwrite ncamera with new cloned ncamera.
+    n_frame->setNCameras(new_ncamera);
+
+    aslam::NFramesId n_frame_id;
+    aslam::generateId(&n_frame_id);
+    n_frame->setId(n_frame_id);
+
+    for (size_t frame_idx = 0u; frame_idx < num_frames; ++frame_idx) {
+      if (n_frame->isFrameSet(frame_idx)) {
+        aslam::FrameId frame_id;
+        aslam::generateId(&frame_id);
+        n_frame->getFrameShared(frame_idx)->setId(frame_id);
+      }
+    }
+
+    vi_map::Vertex::UniquePtr vertex_ptr(new vi_map::Vertex(
+        new_vertex_id, imu_ba_bw, n_frame, landmarks_seen_by_vertex,
+        duplicated_mission_id));
+
+    vertex_ptr->set_p_M_I(source_vertex.get_p_M_I());
+    vertex_ptr->set_q_M_I(source_vertex.get_q_M_I().normalized());
+    vertex_ptr->set_v_M(source_vertex.get_v_M());
+
+    vertex_ptr->setFrameResourceMap(source_vertex.getFrameResourceMap());
+
+    posegraph.addVertex(std::move(vertex_ptr));
+
+    // Our local old-to-new VertexId map.
+    source_to_dest_vertex_id_map.emplace(vertex_id, new_vertex_id);
   }
 
   VLOG(1) << "Adding edges";
@@ -1337,7 +1899,7 @@ void VIMap::duplicateMission(const vi_map::MissionId& source_mission_id) {
       CHECK_NOTNULL(copied_edge);
 
       pose_graph::EdgeId new_edge_id;
-      common::generateId(&new_edge_id);
+      aslam::generateId(&new_edge_id);
 
       copied_edge->setId(new_edge_id);
 
@@ -1452,14 +2014,17 @@ void VIMap::duplicateMission(const vi_map::MissionId& source_mission_id) {
     landmark_index.addLandmarkAndVertexReference(
         new_landmark_id, new_store_vertex_id);
   }
-  CHECK(checkMapConsistency(*this));
+  if (!FLAGS_disable_consistency_check) {
+    CHECK(checkMapConsistency(*this));
+  }
 
   if (!selected_missions_.empty()) {
     VLOG(1) << "Adding to VIMap selected missions set.";
     selected_missions_.insert(duplicated_mission_id);
   }
-
   VLOG(1) << "Done.";
+
+  return duplicated_mission_id;
 }
 
 unsigned int VIMap::numExpectedLandmarkObserverMissions(
@@ -1468,7 +2033,7 @@ unsigned int VIMap::numExpectedLandmarkObserverMissions(
   CHECK(hasLandmark(landmark_id));
 
   vi_map::MissionIdSet observer_missions;
-  getLandmarkObserverMissions(landmark_id, &observer_missions);
+  getObserverMissionsForLandmark(landmark_id, &observer_missions);
 
   vi_map::MissionIdList candidate_mission_ids;
   getAllMissionIds(&candidate_mission_ids);
@@ -1485,7 +2050,7 @@ unsigned int VIMap::numExpectedLandmarkObserverMissions(
   const vi_map::Landmark& landmark = getLandmark(landmark_id);
 
   landmark.forEachObservation([&](const KeypointIdentifier& observation) {
-    const vi_map::Vertex vertex = getVertex(observation.frame_id.vertex_id);
+    const vi_map::Vertex& vertex = getVertex(observation.frame_id.vertex_id);
     const unsigned int frame_idx = observation.frame_id.frame_index;
     if (vertex.isVisualFrameSet(frame_idx)) {
       for (size_t j = 0; j < vertex.observedLandmarkIdsSize(frame_idx); ++j) {
@@ -1511,7 +2076,7 @@ unsigned int VIMap::numExpectedLandmarkObserverMissions(
     // kMinObservationsPerContextLandmark times.
     if (context_landmark.second > kMinObservationsPerContextLandmark) {
       std::unordered_set<vi_map::MissionId> context_landmark_observer_missions;
-      getLandmarkObserverMissions(
+      getObserverMissionsForLandmark(
           context_landmark.first, &context_landmark_observer_missions);
 
       for (const vi_map::MissionId& mission_id :
@@ -1596,8 +2161,9 @@ void VIMap::removeMission(
           invalid_landmark_id.setInvalid();
           vertex->setObservedLandmarkId(frame_idx, i, invalid_landmark_id);
 
-          // If the current vertex was the only observer of the landmark stored
-          // in some other mission, we should remove this orphaned landmark.
+          // If the current vertex was the only observer of the landmark
+          // stored in some other mission, we should remove this orphaned
+          // landmark.
           if (getMissionIdForLandmark(landmark_id) != mission_id &&
               !landmark.hasObservations()) {
             removeLandmark(landmark.id());
@@ -1608,6 +2174,9 @@ void VIMap::removeMission(
 
     removeVertex(vertex_id);
   }
+
+  // Remove mission sensors that are no longer needed.
+  // TODO(smauq)
 
   // Set the root vertex to invalid. (Also it's anyway already deleted.)
   pose_graph::VertexId invalid_vertex_id;
@@ -1630,6 +2199,7 @@ void VIMap::removeMissionObject(
   if (remove_baseframe) {
     mission_base_frames.erase(mission.getBaseFrameId());
   }
+
   missions.erase(mission_id);
   selected_missions_.erase(mission_id);
 }
@@ -1684,7 +2254,7 @@ unsigned int VIMap::getVertexCountInMission(
   do {
     ++vertex_count;
   } while (getNextVertex(
-      current_vertex_id, getGraphTraversalEdgeType(mission_id),
+      current_vertex_id,
       &current_vertex_id));
   return vertex_count;
 }
@@ -1711,12 +2281,27 @@ void VIMap::getAllVertexIdsInMission(
 void VIMap::getAllVertexIdsInMissionAlongGraph(
     const vi_map::MissionId& mission_id,
     pose_graph::VertexIdList* vertices) const {
-  CHECK_NOTNULL(vertices);
+  CHECK_NOTNULL(vertices)->clear();
   CHECK(hasMission(mission_id));
-  vertices->clear();
 
   const vi_map::VIMission& mission = getMission(mission_id);
-  pose_graph::VertexId current_vertex_id = mission.getRootVertexId();
+  const pose_graph::VertexId& starting_vertex_id = mission.getRootVertexId();
+  if (starting_vertex_id.isValid()) {
+    getAllVertexIdsInMissionAlongGraph(
+        mission_id, starting_vertex_id, vertices);
+  }
+}
+
+void VIMap::getAllVertexIdsInMissionAlongGraph(
+    const vi_map::MissionId& mission_id,
+    const pose_graph::VertexId& starting_vertex_id,
+    pose_graph::VertexIdList* vertices) const {
+  CHECK_NOTNULL(vertices)->clear();
+  CHECK(starting_vertex_id.isValid());
+  CHECK(hasMission(mission_id));
+
+  pose_graph::VertexId current_vertex_id = starting_vertex_id;
+  CHECK_EQ(getVertex(current_vertex_id).getMissionId(), mission_id);
 
   // Early exit if the root vertex hasn't been set yet.
   if (!current_vertex_id.isValid()) {
@@ -1726,7 +2311,7 @@ void VIMap::getAllVertexIdsInMissionAlongGraph(
   do {
     vertices->push_back(current_vertex_id);
   } while (getNextVertex(
-      current_vertex_id, getGraphTraversalEdgeType(mission_id),
+      current_vertex_id,
       &current_vertex_id));
 }
 
@@ -1765,9 +2350,7 @@ void VIMap::getAllEdgeIdsInMissionAlongGraph(
     pose_graph::EdgeIdSet outgoing_edges;
     getVertex(current_vertex_id).getOutgoingEdges(&outgoing_edges);
     edges->insert(edges->end(), outgoing_edges.begin(), outgoing_edges.end());
-  } while (getNextVertex(
-      current_vertex_id, getGraphTraversalEdgeType(mission_id),
-      &current_vertex_id));
+  } while (getNextVertex(current_vertex_id, &current_vertex_id));
 }
 
 void VIMap::getAllEdgeIdsInMissionAlongGraph(
@@ -1799,7 +2382,7 @@ void VIMap::getAllEdgeIdsInMissionAlongGraph(
         std::remove_if(edges->begin(), edges->end(), is_edge_type_different),
         edges->end());
   } while (getNextVertex(
-      current_vertex_id, getGraphTraversalEdgeType(mission_id),
+      current_vertex_id,
       &current_vertex_id));
 }
 
@@ -1843,9 +2426,7 @@ void VIMap::getOutgoingOfType(
   pose_graph::EdgeIdSet outgoing_edges;
   getVertex(current_vertex_id).getOutgoingEdges(&outgoing_edges);
   for (const pose_graph::EdgeId& edge_id : outgoing_edges) {
-    pose_graph::Edge::EdgeType edge_type =
-        getEdgePtrAs<vi_map::Edge>(edge_id)->getType();
-    if (edge_type == ref_edge_type) {
+    if (getEdgeType(edge_id) == ref_edge_type) {
       edge_ids->push_back(edge_id);
     }
   }
@@ -2013,21 +2594,21 @@ bool VIMap::checkResourceConsistency() const {
   for (const vi_map::MissionId& mission_id : mission_ids) {
     const vi_map::VIMission& mission = getMission(mission_id);
     backend::ResourceIdSet tsdf_resources;
-    mission.getAllResourceIds(
+    mission.getAllMissionResourceIds(
         backend::ResourceType::kTsdfGridPath, &tsdf_resources);
     for (const backend::ResourceId& resource_id : tsdf_resources) {
       consistent &= checkResource<std::string>(
           resource_id, backend::ResourceType::kTsdfGridPath);
     }
     backend::ResourceIdSet occupancy_resources;
-    mission.getAllResourceIds(
+    mission.getAllMissionResourceIds(
         backend::ResourceType::kOccupancyGridPath, &occupancy_resources);
     for (const backend::ResourceId& resource_id : occupancy_resources) {
       consistent &= checkResource<std::string>(
           resource_id, backend::ResourceType::kOccupancyGridPath);
     }
     backend::ResourceIdSet reconstruction_resources;
-    mission.getAllResourceIds(
+    mission.getAllMissionResourceIds(
         backend::ResourceType::kPmvsReconstructionPath,
         &reconstruction_resources);
     for (const backend::ResourceId& resource_id : reconstruction_resources) {
@@ -2061,7 +2642,7 @@ bool VIMap::getResourceIdForMissions(
   getResourceIdToMissionsMap(resource_type, &resource_to_mission_map);
 
   for (ResourceToMissionsMap::value_type& resource : resource_to_mission_map) {
-    VLOG(1) << "Found resource for " << resource.second.size() << " missions.";
+    VLOG(3) << "Found resource for " << resource.second.size() << " missions.";
     if (resource.second.size() == involved_mission_ids.size()) {
       std::sort(resource.second.begin(), resource.second.end());
       MissionIdList involved_mission_ids_sorted = involved_mission_ids;
@@ -2091,7 +2672,8 @@ void VIMap::getResourceIdToMissionsMap(
   getAllMissionIds(&all_mission_ids);
   for (const MissionId& mission_id : all_mission_ids) {
     backend::ResourceIdSet resource_ids;
-    getMission(mission_id).getAllResourceIds(resource_type, &resource_ids);
+    getMission(mission_id)
+        .getAllMissionResourceIds(resource_type, &resource_ids);
     for (const backend::ResourceId& resource_id : resource_ids) {
       (*resource_to_mission_map)[resource_id].push_back(mission_id);
     }
@@ -2108,7 +2690,7 @@ void VIMap::addResourceIdForMissions(
       << static_cast<unsigned int>(resource_type) << " for these missions!";
 
   for (const MissionId& mission_id : involved_mission_ids) {
-    getMission(mission_id).addResourceId(resource_id, resource_type);
+    getMission(mission_id).addMissionResourceId(resource_id, resource_type);
   }
 }
 
@@ -2122,14 +2704,15 @@ void VIMap::deleteResourceIdForMissions(
       << static_cast<unsigned int>(resource_type) << " for these missions!";
 
   for (const MissionId& mission_id : involved_mission_ids) {
-    getMission(mission_id).deleteResourceId(resource_id, resource_type);
+    getMission(mission_id).deleteMissionResourceId(resource_id, resource_type);
   }
 }
 
 // NOTE: [ADD_RESOURCE_TYPE] [ADD_RESOURCE_DATA_TYPE] Add a switch case if the
 // resource is a frame resource.
 void VIMap::deleteAllFrameResources(
-    const unsigned int frame_idx, Vertex* vertex_ptr) {
+    const unsigned int frame_idx, const bool delete_from_file_system,
+    Vertex* vertex_ptr) {
   CHECK_NOTNULL(vertex_ptr);
   CHECK_LT(static_cast<unsigned int>(frame_idx), vertex_ptr->numFrames());
 
@@ -2153,7 +2736,7 @@ void VIMap::deleteAllFrameResources(
         case ResourceType::kRawDepthMap:
         case ResourceType::kOptimizedDepthMap:
         case ResourceType::kDisparityMap:
-          deleteResource<cv::Mat>(resource_id, type);
+          deleteResource<cv::Mat>(resource_id, type, !delete_from_file_system);
           break;
         default:
           LOG(FATAL) << "Unsupported frame resource data type: "
@@ -2162,20 +2745,79 @@ void VIMap::deleteAllFrameResources(
       }
     }
   }
-  vertex_ptr->deleteAllFrameResourceInfo();
+  vertex_ptr->deleteAllFrameResourceInfo(frame_idx);
+}
+
+void VIMap::deleteAllSensorResourcesBeforeTime(
+    const vi_map::MissionId& mission_id, int64_t timestamp_ns,
+    const bool delete_from_file_system) {
+  vi_map::VIMission& mission = getMission(mission_id);
+
+  // Remove all sensor resource before that vertex.
+  backend::ResourceTypeToSensorIdToResourcesMap&
+      resource_types_to_sensor_to_resource_map =
+          mission.getAllSensorResourceIds();
+  for (backend::ResourceTypeToSensorIdToResourcesMap::value_type&
+           resource_type_to_sensor_to_resource_map :
+       resource_types_to_sensor_to_resource_map) {
+    auto it = resource_type_to_sensor_to_resource_map.second.begin();
+
+    while (it != resource_type_to_sensor_to_resource_map.second.end()) {
+      std::pair<const aslam::SensorId, backend::TemporalResourceIdBuffer>&
+          sensor_to_resource_map = *it;
+
+      backend::TemporalResourceIdBuffer& resource_map =
+          sensor_to_resource_map.second;
+      std::vector<backend::ResourceId> resource_ids;
+      resource_map.extractItemsBeforeIncluding(timestamp_ns, &resource_ids);
+
+      for (const backend::ResourceId& resource_id : resource_ids) {
+        deleteResourceNoDataType(
+            resource_id, resource_type_to_sensor_to_resource_map.first,
+            !delete_from_file_system);
+      }
+
+      resource_map.removeItemsBefore(timestamp_ns + 1);
+
+      if (resource_map.empty()) {
+        it = resource_type_to_sensor_to_resource_map.second.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+}
+
+void VIMap::deleteAllSensorResources(
+    const vi_map::MissionId& mission_id, const bool delete_from_file_system) {
+  vi_map::VIMission& mission = getMission(mission_id);
+
+  // Remove all sensor resource before that vertex.
+  backend::ResourceTypeToSensorIdToResourcesMap&
+      resource_types_to_sensor_to_resource_map =
+          mission.getAllSensorResourceIds();
+  for (backend::ResourceTypeToSensorIdToResourcesMap::value_type&
+           resource_type_to_sensor_to_resource_map :
+       resource_types_to_sensor_to_resource_map) {
+    for (std::pair<const aslam::SensorId, backend::TemporalResourceIdBuffer>&
+             sensor_to_resource_map :
+         resource_type_to_sensor_to_resource_map.second) {
+      backend::TemporalResourceIdBuffer& resource_map =
+          sensor_to_resource_map.second;
+      for (auto entry : resource_map) {
+        deleteResourceNoDataType(
+            entry.second, resource_type_to_sensor_to_resource_map.first,
+            !delete_from_file_system);
+      }
+
+      resource_map.clear();
+    }
+  }
+  resource_types_to_sensor_to_resource_map.clear();
 }
 
 std::string VIMap::getSubFolderName() {
   return serialization::getSubFolderName();
-}
-
-bool VIMap::getListOfExistingMapFiles(
-    const std::string& map_folder, std::string* sensors_filepath,
-    std::vector<std::string>* list_of_resource_files,
-    std::vector<std::string>* list_of_map_proto_files) {
-  return serialization::getListOfExistingMapFiles(
-      map_folder, sensors_filepath, list_of_resource_files,
-      list_of_map_proto_files);
 }
 
 bool VIMap::hasMapOnFileSystem(const std::string& map_folder) {
@@ -2184,10 +2826,6 @@ bool VIMap::hasMapOnFileSystem(const std::string& map_folder) {
 
 bool VIMap::loadFromFolder(const std::string& map_folder) {
   return serialization::loadMapFromFolder(map_folder, this);
-}
-
-bool VIMap::loadFromFolderDeprecated(const std::string& map_folder) {
-  return serialization_deprecated::loadMapFromFolder(map_folder, this);
 }
 
 bool VIMap::saveToFolder(
@@ -2199,37 +2837,466 @@ bool VIMap::saveToMapFolder(const backend::SaveConfig& config) {
   return saveToFolder(getMapFolder(), config);
 }
 
-bool VIMap::hasOptionalCameraResource(
+bool VIMap::hasSensorResource(
     const VIMission& mission, const backend::ResourceType& type,
-    const aslam::CameraId& camera_id, const int64_t timestamp_ns) const {
-  return mission.hasOptionalCameraResourceId(type, camera_id, timestamp_ns);
+    const aslam::SensorId& sensor_id, const int64_t timestamp_ns) const {
+  return mission.hasSensorResourceId(type, sensor_id, timestamp_ns);
 }
 
-bool VIMap::findAllCloseOptionalCameraResources(
+bool VIMap::hasSensorResource(
+    const MissionIdList& involved_mission_ids,
+    const backend::ResourceType& type) const {
+  for (const MissionId& mission_id : involved_mission_ids) {
+    if (getMission(mission_id).hasSensorResource(type)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool VIMap::findAllCloseSensorResources(
     const VIMission& mission, const backend::ResourceType& type,
     const int64_t timestamp_ns, const int64_t tolerance_ns,
-    aslam::CameraIdList* camera_ids,
+    std::vector<aslam::SensorId>* sensor_ids,
     std::vector<int64_t>* closest_timestamps_ns) const {
-  CHECK_NOTNULL(camera_ids);
+  CHECK_NOTNULL(sensor_ids)->clear();
   CHECK_NOTNULL(closest_timestamps_ns);
-  return mission.findAllCloseOptionalCameraResources(
-      type, timestamp_ns, tolerance_ns, camera_ids, closest_timestamps_ns);
+  return mission.findAllCloseSensorResources(
+      type, timestamp_ns, tolerance_ns, sensor_ids, closest_timestamps_ns);
 }
 
-OptionalSensorData& VIMap::getOptionalSensorData(const MissionId& mission_id) {
-  CHECK(hasMission(mission_id));
-  return common::getChecked(optional_sensor_data_map_, mission_id);
+bool VIMap::hasFrameResource(
+    const Vertex& vertex, const unsigned int frame_idx,
+    const backend::ResourceType& resource_type) const {
+  std::lock_guard<std::recursive_mutex> lock(resource_mutex_);
+  return vertex.hasFrameResourceOfType(frame_idx, resource_type);
 }
 
-const OptionalSensorData& VIMap::getOptionalSensorData(
-    const MissionId& mission_id) const {
-  CHECK(hasMission(mission_id));
-  return common::getChecked(optional_sensor_data_map_, mission_id);
+size_t VIMap::getNumAbsolute6DoFMeasurementsInMission(
+    const vi_map::MissionId& mission_id) const {
+  CHECK(mission_id.isValid());
+  pose_graph::VertexIdList vertex_ids;
+  getAllVertexIdsInMissionAlongGraph(mission_id, &vertex_ids);
+
+  size_t num_constraints = 0u;
+
+  for (const pose_graph::VertexId& vertex_id : vertex_ids) {
+    const vi_map::Vertex& vertex = getVertex(vertex_id);
+    num_constraints += vertex.getNumAbsolute6DoFMeasurements();
+  }
+
+  return num_constraints;
 }
 
-bool VIMap::hasOptionalSensorData(const MissionId& mission_id) const {
-  CHECK(hasMission(mission_id));
-  return optional_sensor_data_map_.count(mission_id) > 0u;
+bool VIMap::mergeAllSubmapsFromMapWithoutResources(
+    const vi_map::VIMap& submap) {
+  // Get all missions from old map and add them into the new map.
+  vi_map::MissionIdList submap_mission_ids;
+  submap.getAllMissionIds(&submap_mission_ids);
+
+  CHECK(submap_mission_ids.size() == 1u)
+      << "mergeAllSubmapsFromMapWithoutResources currently only supports "
+         "merging a map with a single mission into the current map.";
+
+  const vi_map::MissionId& submap_and_base_mission_id = submap_mission_ids[0];
+  CHECK(submap_and_base_mission_id.isValid());
+
+  if (!hasMission(submap_and_base_mission_id)) {
+    LOG(WARNING)
+        << "Could not find a matching mission id in the other map that "
+        << "could be merged as a submap! Adding as new mission without "
+        << "attaching to existing missions!";
+    return mergeAllMissionsFromMapWithoutResources(submap);
+  }
+  vi_map::VIMission& base_mission = getMission(submap_and_base_mission_id);
+  const vi_map::VIMission& submap_mission =
+      submap.getMission(submap_and_base_mission_id);
+
+  // Merge sensor resources:
+  base_mission.mergeAllSensorResources(submap_mission);
+
+  const pose_graph::VertexId& first_submap_vertex_id =
+      submap_mission.getRootVertexId();
+  const pose_graph::VertexId& last_base_vertex_id =
+      getLastVertexIdOfMission(submap_and_base_mission_id);
+  CHECK(first_submap_vertex_id.isValid());
+  CHECK(last_base_vertex_id.isValid());
+
+  if (first_submap_vertex_id != last_base_vertex_id) {
+    LOG(ERROR) << "The first vertex of the submap and the last vertex of the "
+                  "base map are not the same!";
+    // TODO(mfehr): In order to prevent loosing this submap in case we have
+    // lost an intermediate submap (so attaching is not possible), we could
+    // simply duplicate the submap mission (= gets new ids) and add it as a
+    // new mission.
+    return false;
+  }
+
+  VLOG(1) << "Attaching submap at common vertex " << last_base_vertex_id;
+
+  // Get pose correction based on the difference between the two vertices.
+  vi_map::Vertex& base_last_vertex = getVertex(last_base_vertex_id);
+  const vi_map::Vertex& submap_first_vertex =
+      submap.getVertex(first_submap_vertex_id);
+  const aslam::Transformation& T_Mbase_B = base_last_vertex.get_T_M_I();
+  const aslam::Transformation& T_Msubmap_B = submap_first_vertex.get_T_M_I();
+  const aslam::Transformation T_Mbase_Msubmap =
+      T_Mbase_B * T_Msubmap_B.inverse();
+
+  // If there is an NCamera we need to update the link in the new vertices to
+  // the ncamera inside the sensor manager of the base map.
+  aslam::NCamera::Ptr ncamera_base;
+  if (base_mission.hasNCamera()) {
+    ncamera_base = sensor_manager_.getSensorPtr<aslam::NCamera>(
+        base_mission.getNCameraId());
+  }
+
+  // Check if the first submap vertex owns different landmarks for the same
+  // observations as the last vertex in the base map. We need to apply a lot
+  // of transfering and reassociating of landmarks to fix this otherwise we
+  // will end up loosing constraints at this junction of submaps or get an
+  // inconsistent map.
+  std::unordered_map<vi_map::LandmarkId, vi_map::LandmarkId>
+      submap_to_base_landmark_id_map;
+  std::unordered_set<vi_map::LandmarkId> remapped_landmark_base_ids;
+  std::unordered_set<vi_map::LandmarkId> remapped_landmark_submap_ids;
+  if (base_last_vertex.hasVisualNFrame()) {
+    CHECK(submap_first_vertex.hasVisualNFrame());
+    CHECK(ncamera_base);
+    aslam::VisualNFrame& base_nframe = base_last_vertex.getVisualNFrame();
+    const aslam::VisualNFrame& submap_nframe =
+        submap_first_vertex.getVisualNFrame();
+
+    const size_t num_frames = base_nframe.getNumFrames();
+    CHECK_EQ(num_frames, submap_nframe.getNumFrames());
+    for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
+      const size_t num_base_keypoints =
+          base_last_vertex.observedLandmarkIdsSize(frame_idx);
+      const size_t num_submap_keypoints =
+          submap_first_vertex.observedLandmarkIdsSize(frame_idx);
+      CHECK_EQ(num_base_keypoints, num_submap_keypoints);
+
+      for (size_t observation_idx = 0; observation_idx < num_base_keypoints;
+           ++observation_idx) {
+        const vi_map::LandmarkId& base_landmark_id =
+            base_last_vertex.getObservedLandmarkId(frame_idx, observation_idx);
+        const vi_map::LandmarkId& submap_landmark_id =
+            submap_first_vertex.getObservedLandmarkId(
+                frame_idx, observation_idx);
+        if (!submap_landmark_id.isValid()) {
+          // Nothing to do, no landmark to unify or move to the new vertex.
+          continue;
+        }
+
+        // Check storing vertex of submap landmark.
+        CHECK(submap.landmark_index.hasLandmark(submap_landmark_id));
+        const pose_graph::VertexId& storing_vertex_id_submap =
+            submap.landmark_index.getStoringVertexId(submap_landmark_id);
+        CHECK_EQ(storing_vertex_id_submap, first_submap_vertex_id);
+        CHECK(submap.hasVertex(storing_vertex_id_submap));
+        CHECK(submap.getVertex(storing_vertex_id_submap)
+                  .hasStoredLandmark(submap_landmark_id));
+        CHECK(submap.getLandmark(submap_landmark_id)
+                  .hasObservation(
+                      first_submap_vertex_id, frame_idx, observation_idx));
+
+        // Two options left, either there are valid landmark observations in
+        // both vertices or only in the new one.
+        if (base_landmark_id.isValid()) {
+          // Check storing vertex of base landmark.
+          CHECK(landmark_index.hasLandmark(base_landmark_id));
+          const pose_graph::VertexId& storing_vertex_id_base_map =
+              landmark_index.getStoringVertexId(base_landmark_id);
+          CHECK(hasVertex(storing_vertex_id_base_map));
+          CHECK(getVertex(storing_vertex_id_base_map)
+                    .hasStoredLandmark(base_landmark_id));
+          CHECK_GE(
+              base_last_vertex.getNumLandmarkObservations(base_landmark_id),
+              1u);
+          CHECK(getLandmark(base_landmark_id)
+                    .hasObservation(
+                        last_base_vertex_id, frame_idx, observation_idx));
+
+          // Both vertices have a valid landmark id associated with this
+          // observation, hence we need to change the association of all
+          // future observations of this landmark to the one in the base map.
+          submap_to_base_landmark_id_map[submap_landmark_id] = base_landmark_id;
+          remapped_landmark_base_ids.insert(base_landmark_id);
+          remapped_landmark_submap_ids.insert(submap_landmark_id);
+        } else {
+          CHECK(
+              !base_last_vertex.getLandmarks().hasLandmark(submap_landmark_id));
+
+          // If the same vertex in the submap owns a new landmark, we
+          // transfer it to the base map vertex.
+          vi_map::Landmark submap_landmark =
+              submap_first_vertex.getLandmarks().getLandmark(
+                  submap_landmark_id);
+
+          // Clear all observations and rebuild them later when adding the
+          // vertices.
+          base_last_vertex.getLandmarks().addLandmark(submap_landmark);
+          landmark_index.addLandmarkAndVertexReference(
+              submap_landmark_id, last_base_vertex_id);
+          base_last_vertex.setObservedLandmarkId(
+              frame_idx, observation_idx, submap_landmark_id);
+
+          // Check storing vertex of submap landmark after insertion into the
+          // base map.
+          CHECK(landmark_index.hasLandmark(submap_landmark_id));
+          const pose_graph::VertexId& storing_vertex_id_base_map =
+              landmark_index.getStoringVertexId(submap_landmark_id);
+          CHECK_EQ(storing_vertex_id_base_map, last_base_vertex_id);
+          CHECK(hasVertex(storing_vertex_id_base_map));
+          CHECK(getVertex(storing_vertex_id_base_map)
+                    .hasStoredLandmark(submap_landmark_id));
+          CHECK_GE(
+              base_last_vertex.getNumLandmarkObservations(submap_landmark_id),
+              1u);
+          CHECK(getLandmark(submap_landmark_id)
+                    .hasObservation(
+                        last_base_vertex_id, frame_idx, observation_idx));
+        }
+      }
+    }
+
+    // After keyframing the vertices might store landmarks they do not observe
+    // themselves, this is shit, but we need to deal with it by updating the
+    // global landmark index and adding it to the base map vertex.
+    LandmarkIdList owned_landmark_ids;
+    submap_first_vertex.getStoredLandmarkIdList(&owned_landmark_ids);
+    for (const LandmarkId& owned_landmark_id : owned_landmark_ids) {
+      if (submap_first_vertex.getNumLandmarkObservations(owned_landmark_id) >
+          0u) {
+        // Nothing todo here, this landmark should already be moved or unified
+        // with the base map.
+
+        // Check if this landmark has really been stored correctly in the base
+        // map.
+        // If this landmark has been remapped to a new one, we should check
+        // the base map for the presence of the remapped one.
+        LandmarkId remapped_landmark_id = owned_landmark_id;
+        if (remapped_landmark_submap_ids.count(owned_landmark_id) > 0u) {
+          remapped_landmark_id =
+              submap_to_base_landmark_id_map[owned_landmark_id];
+        }
+        CHECK(landmark_index.hasLandmark(remapped_landmark_id));
+        const pose_graph::VertexId& storing_vertex_id_base_map =
+            landmark_index.getStoringVertexId(remapped_landmark_id);
+        CHECK(hasVertex(storing_vertex_id_base_map));
+        CHECK(getVertex(storing_vertex_id_base_map)
+                  .hasStoredLandmark(remapped_landmark_id));
+        CHECK_GE(
+            base_last_vertex.getNumLandmarkObservations(remapped_landmark_id),
+            1u);
+        continue;
+      }
+
+      // This landmark should not be in the base map index yet.
+      CHECK(!landmark_index.hasLandmark(owned_landmark_id));
+
+      // Save the landmark id so we can adapt the landmark observation
+      // back-link later when adding vertices that observe this landmark.
+      submap_to_base_landmark_id_map[owned_landmark_id] = owned_landmark_id;
+      remapped_landmark_base_ids.insert(owned_landmark_id);
+      remapped_landmark_submap_ids.insert(owned_landmark_id);
+
+      // Transfer the landmark with cleared observations and rebuild them
+      // later when adding the vertices.
+      vi_map::Landmark submap_landmark =
+          submap_first_vertex.getLandmarks().getLandmark(owned_landmark_id);
+      base_last_vertex.getLandmarks().addLandmark(submap_landmark);
+      landmark_index.addLandmarkAndVertexReference(
+          owned_landmark_id, last_base_vertex_id);
+    }
+
+    base_last_vertex.checkConsistencyOfVisualObservationContainers();
+  }
+
+  pose_graph::VertexIdList submap_vertex_ids;
+  submap.getAllVertexIdsInMissionAlongGraph(
+      submap_and_base_mission_id, &submap_vertex_ids);
+  CHECK_GE(submap_vertex_ids.size(), 1u);
+  CHECK_EQ(submap_vertex_ids[0], first_submap_vertex_id);
+
+  // Add the corrected vertices of the submap to the base map.
+  for (size_t idx = 1; idx < submap_vertex_ids.size(); ++idx) {
+    const pose_graph::VertexId& submap_vertex_id = submap_vertex_ids[idx];
+    const vi_map::Vertex& submap_vertex = submap.getVertex(submap_vertex_id);
+
+    vi_map::Vertex::UniquePtr vertex_copy;
+    if (submap_vertex.hasVisualNFrame()) {
+      CHECK(ncamera_base);
+      vertex_copy.reset(submap_vertex.cloneWithVisualNFrame(ncamera_base));
+
+      // After keyframing the vertices might store landmarks they do not
+      // observe themselves, this is shit, but we need to deal with it by
+      // updating the global landmark index or, if the landmark has been
+      // associated with a base map landmark, delete it.
+      LandmarkIdList owned_landmark_ids;
+      vertex_copy->getStoredLandmarkIdList(&owned_landmark_ids);
+      for (const LandmarkId& owned_landmark_id : owned_landmark_ids) {
+        CHECK(vertex_copy->getLandmarks().hasLandmark(owned_landmark_id));
+
+        // If this landmark has been remapped to a landmark in the base map we
+        // can delete it or if it doesn't have any observations. Otherwise we
+        // need to update the global landmark index of the base map.
+        if (remapped_landmark_submap_ids.count(owned_landmark_id) > 0u ||
+            !vertex_copy->getLandmarks()
+                 .getLandmark(owned_landmark_id)
+                 .hasObservations()) {
+          vertex_copy->getLandmarks().removeLandmark(owned_landmark_id);
+          LandmarkId invalid;
+          vertex_copy->updateIdInObservedLandmarkIdList(
+              owned_landmark_id, invalid);
+        } else {
+          landmark_index.addLandmarkAndVertexReference(
+              owned_landmark_id, submap_vertex_id);
+        }
+      }
+
+      // Loop over all observed landmarks and update the bookkeeping. We need
+      // to turn the observed_landmark_ids into a set to because the same
+      // landmark can be observed multiple times but we only need to perform
+      // these corrections once per landmark.
+      LandmarkIdList observed_landmark_ids;
+      vertex_copy->getAllObservedLandmarkIds(&observed_landmark_ids);
+      std::unordered_set<LandmarkId> unique_landmark_ids(
+          observed_landmark_ids.begin(), observed_landmark_ids.end());
+      for (const LandmarkId& submap_landmark_id : unique_landmark_ids) {
+        if (!submap_landmark_id.isValid()) {
+          continue;
+        }
+
+        CHECK_GE(
+            vertex_copy->getNumLandmarkObservations(submap_landmark_id), 1u);
+
+        LandmarkId corresponding_base_landmark_id;
+        pose_graph::VertexId storing_vertex_id;
+        // The observed landmark is either one that is only present in the
+        // submap or it is one that needs to be remapped to a landmark in the
+        // base map.
+        if (remapped_landmark_submap_ids.count(submap_landmark_id) > 0u) {
+          corresponding_base_landmark_id =
+              submap_to_base_landmark_id_map[submap_landmark_id];
+
+          // Sanity checks on the presence of the corresponding landmark in
+          // the base map.
+          CHECK(landmark_index.hasLandmark(corresponding_base_landmark_id));
+          storing_vertex_id =
+              landmark_index.getStoringVertexId(corresponding_base_landmark_id);
+          CHECK(hasVertex(storing_vertex_id));
+          CHECK(getVertex(storing_vertex_id)
+                    .hasStoredLandmark(corresponding_base_landmark_id));
+
+          if (submap_landmark_id != corresponding_base_landmark_id) {
+            // Update the list of observed landmark ids. This will update all
+            // occurences of the landmark in the observer list, which is why
+            // we needed to make sure only every landmark is executing this
+            // loop once.
+            vertex_copy->updateIdInObservedLandmarkIdList(
+                submap_landmark_id, corresponding_base_landmark_id);
+            CHECK_EQ(
+                vertex_copy->getNumLandmarkObservations(submap_landmark_id),
+                0u);
+          }
+
+          CHECK_GE(
+              vertex_copy->getNumLandmarkObservations(
+                  corresponding_base_landmark_id),
+              1u);
+
+          // Should have been deleted already when it was detected in the
+          // first vertex of the submap.
+          CHECK(!vertex_copy->hasStoredLandmark(submap_landmark_id));
+        } else {
+          corresponding_base_landmark_id = submap_landmark_id;
+
+          CHECK(submap.landmark_index.hasLandmark(submap_landmark_id));
+          storing_vertex_id =
+              submap.landmark_index.getStoringVertexId(submap_landmark_id);
+          CHECK(submap.hasVertex(storing_vertex_id));
+          CHECK(submap.getVertex(storing_vertex_id)
+                    .hasStoredLandmark(submap_landmark_id));
+        }
+        CHECK(storing_vertex_id.isValid());
+        CHECK(corresponding_base_landmark_id.isValid());
+
+        if (landmark_index.hasLandmark(corresponding_base_landmark_id)) {
+          landmark_index.updateVertexOfLandmark(
+              corresponding_base_landmark_id, storing_vertex_id);
+        } else {
+          landmark_index.addLandmarkAndVertexReference(
+              corresponding_base_landmark_id, storing_vertex_id);
+        }
+
+        CHECK(hasLandmarkIdInLandmarkIndex(corresponding_base_landmark_id))
+            << "Landmark " << corresponding_base_landmark_id
+            << " is not in the global map index of the base map!";
+      }
+
+      // Loop over all keypoints and for the ones that have been associated
+      // with a base map landmark, add this keypoint observation to the
+      // landmark back-link.
+      vertex_copy->forEachKeypoint([&vertex_copy, &remapped_landmark_base_ids,
+                                    &remapped_landmark_submap_ids, &submap,
+                                    &submap_to_base_landmark_id_map, this](
+                                       const KeypointIdentifier& identifier) {
+        const LandmarkId& observed_landmark_id =
+            vertex_copy->getObservedLandmarkId(identifier);
+        if (!observed_landmark_id.isValid()) {
+          return;
+        }
+        if (remapped_landmark_base_ids.count(observed_landmark_id) > 0u) {
+          CHECK(this->landmark_index.hasLandmark(observed_landmark_id));
+          const pose_graph::VertexId& storing_vertex_id_base_map =
+              this->landmark_index.getStoringVertexId(observed_landmark_id);
+          CHECK(this->hasVertex(storing_vertex_id_base_map));
+          CHECK(this->getVertex(storing_vertex_id_base_map)
+                    .hasStoredLandmark(observed_landmark_id));
+
+          // Retrieve landmark in base map and add observation of new
+          // vertex.
+          Landmark& landmark = this->getLandmark(observed_landmark_id);
+          if (!landmark.hasObservation(identifier)) {
+            landmark.addObservation(identifier);
+          }
+        } else if (
+            remapped_landmark_submap_ids.count(observed_landmark_id) > 0u) {
+          const LandmarkId& corresponding_base_landmark_id =
+              submap_to_base_landmark_id_map[observed_landmark_id];
+          vertex_copy->setObservedLandmarkId(
+              identifier, corresponding_base_landmark_id);
+
+          Landmark& landmark =
+              this->getLandmark(corresponding_base_landmark_id);
+          if (!landmark.hasObservation(identifier)) {
+            landmark.addObservation(identifier);
+          }
+        }
+      });
+      vertex_copy->checkConsistencyOfVisualObservationContainers();
+    } else {
+      vertex_copy.reset(submap_vertex.cloneWithoutVisualNFrame());
+    }
+
+    // Correct vertex position and velocity based on where the submap is
+    // attached to, which might have changed since the time the map was split.
+    vertex_copy->set_T_M_I(T_Mbase_Msubmap * vertex_copy->get_T_M_I());
+    vertex_copy->set_v_M(T_Mbase_Msubmap * vertex_copy->get_v_M());
+    addVertex(std::move(vertex_copy));
+  }
+
+  // Copy all the edges.
+  pose_graph::EdgeIdList submap_edges;
+  submap.getAllEdgeIds(&submap_edges);
+  for (const pose_graph::EdgeId& edge_id : submap_edges) {
+    const vi_map::Edge& submap_edge = submap.getEdgeAs<vi_map::Edge>(edge_id);
+    vi_map::Edge* edge_copy;
+    submap_edge.copyEdgeInto(&edge_copy);
+    addEdge(vi_map::Edge::UniquePtr(edge_copy));
+  }
+  return true;
 }
 
 }  // namespace vi_map

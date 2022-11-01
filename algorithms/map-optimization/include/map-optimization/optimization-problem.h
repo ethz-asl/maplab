@@ -11,6 +11,7 @@
 #include <ceres-error-terms/parameterization/quaternion-param-jpl.h>
 #include <ceres-error-terms/problem-information.h>
 #include <maplab-common/macros.h>
+#include <sensors/external-features.h>
 #include <vi-map-helpers/mission-clustering-coobservation.h>
 #include <vi-map/vi-map.h>
 
@@ -100,6 +101,13 @@ class OptimizationProblem {
 
   // Local parameterization that are used when adding cost terms.
   LocalParameterizations local_parameterizations_;
+};
+
+// Struct to hold the summaries and the final state of solver variables of the
+// optimization.
+struct OptimizationProblemResult {
+  std::vector<ceres::IterationSummary> iteration_summaries;
+  std::vector<ceres::Solver::Summary> solver_summaries;
 };
 
 }  // namespace map_optimization

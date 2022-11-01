@@ -1,0 +1,19 @@
+package resources.proto;
+
+message ObjectInstanceBoundingBox {
+  optional int32 bbox_column = 1;
+  optional int32 bbox_row = 2;
+  optional int32 bbox_width = 3;
+  optional int32 bbox_height = 4;
+
+  optional int32 class_number = 5;
+  optional int32 instance_number = 6;
+
+  optional float confidence = 7;
+
+  optional string class_name = 8;
+}
+
+message ObjectInstanceBoundingBoxes {
+  repeated ObjectInstanceBoundingBox object_instance_bbox = 1;
+}

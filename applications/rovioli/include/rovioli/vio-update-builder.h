@@ -9,8 +9,9 @@
 #include <utility>
 
 #include <aslam/common/memory.h>
+#include <maplab-common/localization-result.h>
+#include <vio-common/map-update.h>
 #include <vio-common/vio-types.h>
-#include <vio-common/vio-update.h>
 
 #include "rovioli/rovio-estimate.h"
 
@@ -18,7 +19,7 @@ namespace rovioli {
 
 class VioUpdateBuilder {
  public:
-  typedef std::function<void(const vio::VioUpdate::ConstPtr&)>
+  typedef std::function<void(const vio::MapUpdate::ConstPtr&)>
       VioUpdatePublishFunction;
 
   VioUpdateBuilder();
@@ -59,12 +60,12 @@ class VioUpdateBuilder {
   // so that we can enforce that the timestamps are strictly monotonically
   // increasing
   int64_t last_received_timestamp_synced_nframe_queue_;
-  double last_received_timestamp_rovio_estimate_queue;
+  int64_t last_received_timestamp_rovio_estimate_queue;
 
   VioUpdatePublishFunction vio_update_publish_function_;
 
   std::mutex mutex_last_localization_state_;
-  vio::LocalizationState last_localization_state_;
+  common::LocalizationState last_localization_state_;
 };
 
 }  // namespace rovioli

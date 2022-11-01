@@ -17,6 +17,21 @@ struct StereoPairIdentifier {
   aslam::Transformation T_C2_C1;
 };
 
+struct StereoPairIdentifierHash {
+  std::size_t operator()(const StereoPairIdentifier& k) const {
+    return std::hash<aslam::CameraId>()(k.first_camera_id) ^
+           (std::hash<aslam::CameraId>()(k.second_camera_id) << 1);
+  }
+};
+
+struct StereoPairIdentifierEqual {
+  bool operator()(
+      const StereoPairIdentifier& lhs, const StereoPairIdentifier& rhs) const {
+    return lhs.first_camera_id == rhs.first_camera_id &&
+           lhs.second_camera_id == rhs.second_camera_id;
+  }
+};
+
 typedef std::vector<StereoPairIdentifier> StereoPairIdsVector;
 
 typedef std::pair<vi_map::MissionId, StereoPairIdsVector>
@@ -37,6 +52,9 @@ void findAllStereoCameras(
     const vi_map::VIMap& vi_map,
     StereoPairsPerMissionMap* stereo_camera_ids_per_mission);
 
+// Look for potential stereo cameras in a camera rig.
+void findAllStereoCamerasForNCamera(
+    const aslam::NCamera& camera_rig, StereoPairIdsVector* stereo_pairs);
 }  // namespace stereo
 }  // namespace dense_reconstruction
 

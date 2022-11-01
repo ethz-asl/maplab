@@ -111,12 +111,13 @@ LeftQuaternionJPLMultiplicationMatrix(const Eigen::MatrixBase<Derived>& q) {
 
 template <template <typename, typename> class Container>
 void transformationRansac(
-    const Container<pose::Transformation,
-                    Eigen::aligned_allocator<pose::Transformation>>&
+    const Container<
+        pose::Transformation, Eigen::aligned_allocator<pose::Transformation>>&
         T_A_B_samples,
     int num_iterations, double threshold_orientation_radians,
     double threshold_position_meters, int ransac_seed,
-    pose::Transformation* T_A_B, int* num_inliers) {
+    pose::Transformation* T_A_B, int* num_inliers,
+    std::unordered_set<int>* inlier_indices) {
   CHECK_NOTNULL(T_A_B);
   CHECK_NOTNULL(num_inliers);
   CHECK(!T_A_B_samples.empty());
@@ -141,13 +142,13 @@ void transformationRansac(
       const pose::Transformation& T_A_B_other = T_A_B_samples[j];
       const double p_norm_A_A_hat =
           (T_A_B_sample.getPosition() - T_A_B_other.getPosition()).norm();
-      const double q_angle_A_A_hat =
-          2. *
-          acos(
-              (T_A_B_sample.getRotation() * T_A_B_other.getRotation().inverse())
-                  .w());
+      const double angle_diff_rad =
+          T_A_B_sample.getRotation().toImplementation().angularDistance(
+              T_A_B_other.getRotation().toImplementation());
+      CHECK_GE(angle_diff_rad, 0.0);
+      CHECK_LE(angle_diff_rad, M_PI);
       if (p_norm_A_A_hat < threshold_position_meters &&
-          q_angle_A_A_hat < threshold_orientation_radians) {
+          angle_diff_rad < threshold_orientation_radians) {
         inlier_indices.emplace_back(j);
       }
     }
@@ -173,6 +174,11 @@ void transformationRansac(
   T_A_B->getRotation().toImplementation().coeffs() = q_A_B_JPL;
   T_A_B->getPosition() = p_A_B_inliers / best_inlier_indices.size();
   *num_inliers = best_inlier_indices.size();
+
+  if (inlier_indices != nullptr) {
+    inlier_indices->insert(
+        best_inlier_indices.begin(), best_inlier_indices.end());
+  }
 }
 
 namespace geometry {

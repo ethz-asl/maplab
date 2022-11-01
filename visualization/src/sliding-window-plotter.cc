@@ -13,21 +13,14 @@ void SlidingWindowPlotter::plotMissionWithSlidingWindow(
 
   // Verify if the last is really the last. This check can be skipped
   // if performance is a concern.
-  CHECK(
-      !map.getNextVertex(
-          last_vertex_id,
-          map.getGraphTraversalEdgeType(last_vertex.getMissionId()),
-          &current_vertex_id));
+  CHECK(!map.getNextVertex(last_vertex_id, &current_vertex_id));
 
   pose_graph::VertexIdSet sliding_window_vertices;
   current_vertex_id = last_vertex_id;
   for (size_t i = 0u; i < kSlidingWindowSize; ++i) {
     sliding_window_vertices.insert(current_vertex_id);
 
-    if (!map.getPreviousVertex(
-            current_vertex_id,
-            map.getGraphTraversalEdgeType(last_vertex.getMissionId()),
-            &current_vertex_id)) {
+    if (!map.getPreviousVertex(current_vertex_id, &current_vertex_id)) {
       break;
     }
   }
@@ -81,7 +74,7 @@ void SlidingWindowPlotter::plotMissionWithSlidingWindow(
       sliding_window_landmarks_.end());
 
   visualization::publishSpheresAsPointCloud(
-      common_sphere_vector, visualization::kDefaultMapFrame, landmarks_topic_);
+      common_sphere_vector, FLAGS_tf_map_frame, landmarks_topic_);
 
   sliding_window_landmarks_.clear();
 }

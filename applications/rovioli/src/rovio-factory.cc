@@ -15,13 +15,23 @@
 DEFINE_bool(
     rovio_enable_frame_visualization, true,
     "Set to false to disable the Rovio GUI.");
+DEFINE_double(
+    rovioli_position_noise_density, 0.01,
+    "Position prediction noise density [m/sqrt(s)].");
+
+DEFINE_string(
+    rovio_image_mask_path, "",
+    "Path to image mask to be applied to the ROVIO. No features are extracted "
+    "on the masked areas. Currently only supports a single camera.");
 
 namespace rovioli {
 namespace {
 template <int kNumCameras>
 struct RovioBuilder {
-  // kLocalizationMode: 0-off, 1: estimate baseframe, 2: (1) + sensor offset
-  static constexpr int kLocalizationMode = 1;
+  // kEnableMapLocalization: switches the localization mode of ROVIO.
+  static constexpr bool kEnableMapLocalization = true;
+  // kNPoses: 0-off, 1: estimate baseframe, 2: (1) + sensor offset
+  static constexpr int kNPoses = 1;
   // Maximal number of considered features in the filter state.
   static constexpr int kMaxNumFeatures = 25;
   // Total number of pyramid levels considered.
@@ -31,9 +41,9 @@ struct RovioBuilder {
   rovio::RovioInterface* operator()(
       const rovio::FilterConfiguration& filter_config,
       const rovio::CameraCalibrationVector& camera_calibrations) {
-    return rovio::createRovioInterface<kNumCameras, kLocalizationMode,
-                                       kMaxNumFeatures, kPyramidLevels,
-                                       kFeaturePatchSizePx>(
+    return rovio::createRovioInterface<
+        kNumCameras, kEnableMapLocalization, kNPoses, kMaxNumFeatures,
+        kPyramidLevels, kFeaturePatchSizePx>(
         filter_config, camera_calibrations);
   }
 };
@@ -89,7 +99,7 @@ void convertAslamToRovioCamera(
 
     // Translate extrinsics.
     const aslam::Transformation T_C_B = aslam_cameras.get_T_C_B(cam_idx);
-    const Eigen::Vector3d MrMC = T_C_B.getPosition();
+    const Eigen::Vector3d MrMC = T_C_B.inverse().getPosition();
     const kindr::RotationQuaternionPD qCM(
         T_C_B.getRotation().toImplementation());
     rovio_camera.setCameraExtrinsics(MrMC, qCM);
@@ -102,42 +112,49 @@ void initFilterConfigurationFromGFLags(
     rovio::FilterConfiguration* rovio_config) {
   CHECK_NOTNULL(rovio_config);
   rovio_config->setDoFrameVisualization(FLAGS_rovio_enable_frame_visualization);
+  if (!FLAGS_rovio_image_mask_path.empty()) {
+    rovio_config->setImageMaskPath(FLAGS_rovio_image_mask_path);
+  }
 }
 
 void setRovioImuSigmas(
-    const vi_map::ImuSigmas& maplab_imu_sigmas,
+    const vi_map::ImuSigmas& imu_sigmas,
     rovio::FilterConfiguration* rovio_config) {
   CHECK_NOTNULL(rovio_config);
-  CHECK(maplab_imu_sigmas.isValid());
+  CHECK(imu_sigmas.isValid());
 
-  // TODO(schneith): Double check the noise parameters.
-  // TODO(schneith): Add Sigma->Cov conversion.
+  const double position_noise_density_cov =
+      FLAGS_rovioli_position_noise_density *
+      FLAGS_rovioli_position_noise_density;
+  rovio_config->setPositionCovarianceX(position_noise_density_cov);
+  rovio_config->setPositionCovarianceY(position_noise_density_cov);
+  rovio_config->setPositionCovarianceZ(position_noise_density_cov);
 
-  // ROVIO default: 1e-4
-  rovio_config->setAccCovarianceX(maplab_imu_sigmas.acc_noise_density);
-  rovio_config->setAccCovarianceY(maplab_imu_sigmas.acc_noise_density);
-  rovio_config->setAccCovarianceZ(maplab_imu_sigmas.acc_noise_density);
+  const double acc_noise_density_cov =
+      imu_sigmas.acc_noise_density * imu_sigmas.acc_noise_density;
+  rovio_config->setAccCovarianceX(acc_noise_density_cov);
+  rovio_config->setAccCovarianceY(acc_noise_density_cov);
+  rovio_config->setAccCovarianceZ(acc_noise_density_cov);
 
-  // ROVIO default: 1e-8
-  rovio_config->setAccBiasCovarianceX(
-      maplab_imu_sigmas.acc_bias_random_walk_noise_density);
-  rovio_config->setAccBiasCovarianceY(
-      maplab_imu_sigmas.acc_bias_random_walk_noise_density);
-  rovio_config->setAccBiasCovarianceZ(
-      maplab_imu_sigmas.acc_bias_random_walk_noise_density);
+  const double acc_bias_random_walk_noise_density_cov =
+      imu_sigmas.acc_bias_random_walk_noise_density *
+      imu_sigmas.acc_bias_random_walk_noise_density;
+  rovio_config->setAccBiasCovarianceX(acc_bias_random_walk_noise_density_cov);
+  rovio_config->setAccBiasCovarianceY(acc_bias_random_walk_noise_density_cov);
+  rovio_config->setAccBiasCovarianceZ(acc_bias_random_walk_noise_density_cov);
 
-  // ROVIO default: 7.6e-7
-  rovio_config->setGyroCovarianceX(maplab_imu_sigmas.gyro_noise_density);
-  rovio_config->setGyroCovarianceY(maplab_imu_sigmas.gyro_noise_density);
-  rovio_config->setGyroCovarianceZ(maplab_imu_sigmas.gyro_noise_density);
+  const double gyro_noise_density_cov =
+      imu_sigmas.gyro_noise_density * imu_sigmas.gyro_noise_density;
+  rovio_config->setGyroCovarianceX(gyro_noise_density_cov);
+  rovio_config->setGyroCovarianceY(gyro_noise_density_cov);
+  rovio_config->setGyroCovarianceZ(gyro_noise_density_cov);
 
-  // ROVIO default: 3.8e-7
-  rovio_config->setGyroBiasCovarianceX(
-      maplab_imu_sigmas.gyro_bias_random_walk_noise_density);
-  rovio_config->setGyroBiasCovarianceY(
-      maplab_imu_sigmas.gyro_bias_random_walk_noise_density);
-  rovio_config->setGyroBiasCovarianceZ(
-      maplab_imu_sigmas.gyro_bias_random_walk_noise_density);
+  const double gyro_bias_random_walk_noise_density_cov =
+      imu_sigmas.gyro_bias_random_walk_noise_density *
+      imu_sigmas.gyro_bias_random_walk_noise_density;
+  rovio_config->setGyroBiasCovarianceX(gyro_bias_random_walk_noise_density_cov);
+  rovio_config->setGyroBiasCovarianceY(gyro_bias_random_walk_noise_density_cov);
+  rovio_config->setGyroBiasCovarianceZ(gyro_bias_random_walk_noise_density_cov);
 }
 
 std::string getRovioConfigurationTemplateFile() {
@@ -175,16 +192,17 @@ rovio::RovioInterface* constructAndConfigureRovio(
 
   rovio::RovioInterface* rovio = nullptr;
   switch (num_cameras) {
-    case 1:
+    case 1u:
       rovio = RovioBuilder<1>()(rovio_configuration, rovio_calibrations);
       break;
-    case 2:
+    case 2u:
       rovio = RovioBuilder<2>()(rovio_configuration, rovio_calibrations);
       break;
     default:
-      LOG(WARNING) << "Rovio support is only compiled for up to 2 cameras. "
+      LOG(WARNING) << "ROVIO support is only compiled for up to 2 cameras. "
                    << "Please adapt the code if you need more.";
   }
+
   return rovio;
 }
 }  // namespace rovioli

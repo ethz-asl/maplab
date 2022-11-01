@@ -12,7 +12,6 @@
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
 #include <maplab-common/parallel-process.h>
-#include <maplab-common/unique-id.h>
 
 #include "simulation/visual-nframe-simulator-channels.h"
 #include "simulation/visual-nframe-simulator.h"
@@ -37,7 +36,7 @@ void VisualNFrameSimulator::generateGroundTruth(size_t num_landmarks) {
   ground_truth_landmark_ids_.reserve(num_landmarks);
   for (size_t i = 0; i < num_landmarks; ++i) {
     vi_map::LandmarkId landmark_id;
-    common::generateId(&landmark_id);
+    aslam::generateId(&landmark_id);
     ground_truth_landmark_ids_.emplace_back(landmark_id);
   }
 }
@@ -91,8 +90,7 @@ void VisualNFrameSimulator::simulateVisualNFrames(
       CHECK_LT(sample_idx, num_samples);
 
       // This creates an new visual nframe.
-      aslam::NFramesId nframe_id;
-      nframe_id.randomize();
+      aslam::NFramesId nframe_id = aslam::createRandomId<aslam::NFramesId>();
       aslam::VisualNFrame::Ptr nframe =
           aligned_shared<aslam::VisualNFrame>(nframe_id, camera_rig);
 
@@ -104,8 +102,7 @@ void VisualNFrameSimulator::simulateVisualNFrames(
         frame->setTimestampNanoseconds(
             aslam::time::secondsToNanoSeconds(timestamps_seconds(sample_idx)));
 
-        aslam::FrameId frame_id;
-        frame_id.randomize();
+        aslam::FrameId frame_id = aslam::createRandomId<aslam::FrameId>();
         frame->setId(frame_id);
 
         const aslam::Camera::ConstPtr& camera =

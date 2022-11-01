@@ -10,7 +10,6 @@
 
 #include "ceres-error-terms/common.h"
 #include "ceres-error-terms/parameterization/quaternion-param-jpl.h"
-#include "ceres-error-terms/visual-error-term-base.h"
 
 namespace ceres_error_terms {
 
@@ -25,22 +24,20 @@ class VisualReprojectionError
           visual::kPoseBlockSize, visual::kPoseBlockSize,
           visual::kPoseBlockSize, visual::kPoseBlockSize,
           visual::kOrientationBlockSize, visual::kPositionBlockSize,
-          CameraType::parameterCount(), DistortionType::parameterCount()>,
-      public VisualCostFunction {
+          CameraType::parameterCount(), DistortionType::parameterCount()> {
  public:
-  typedef VisualCostFunction Base;
-
   // Construct a cost function representing the reprojection error. Sigma is
   // standard deviation (in pixels).
   VisualReprojectionError(
       const Eigen::Vector2d& measurement, double pixel_sigma,
-      visual::VisualErrorType error_term_type, const CameraType* camera)
-      : Base(pixel_sigma),
-        measurement_(measurement),
+      LandmarkErrorType error_term_type, const CameraType* camera)
+      : measurement_(measurement),
         error_term_type_(error_term_type),
         camera_ptr_(camera) {
-    CHECK(camera);
-    CHECK(isValidVisualErrorTermType(error_term_type_));
+    CHECK_NOTNULL(camera);
+    CHECK_GT(pixel_sigma, 0);
+    CHECK(isValidLandmarkErrorTermType(error_term_type_));
+    pixel_sigma_inverse_ = 1.0 / pixel_sigma;
   }
 
   virtual ~VisualReprojectionError() {}
@@ -67,8 +64,6 @@ class VisualReprojectionError
   };
 
   // The representation for Jacobians computed by this object.
-  typedef Eigen::Vector2d SwitchJacobian;
-
   typedef Eigen::Matrix<double, visual::kResidualSize,
                         visual::kOrientationBlockSize, Eigen::RowMajor>
       OrientationJacobian;
@@ -90,7 +85,8 @@ class VisualReprojectionError
       DistortionJacobian;
 
   Eigen::Vector2d measurement_;
-  const visual::VisualErrorType error_term_type_;
+  double pixel_sigma_inverse_;
+  const LandmarkErrorType error_term_type_;
   const CameraType* camera_ptr_;
 };
 

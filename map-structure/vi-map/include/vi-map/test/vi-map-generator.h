@@ -2,6 +2,7 @@
 #define VI_MAP_TEST_VI_MAP_GENERATOR_H_
 
 #include <initializer_list>
+#include <memory>
 #include <random>
 #include <unordered_map>
 #include <unordered_set>
@@ -101,8 +102,8 @@ class VIMapGenerator {
     unsigned int frame_id;
     unsigned int keypoint_id;
   };
-  typedef std::unordered_map<pose_graph::VertexId,
-                             std::unordered_map<LandmarkId, ObservationIndices>>
+  typedef std::unordered_map<
+      pose_graph::VertexId, std::unordered_map<LandmarkId, ObservationIndices>>
       ObservationIndexMap;
   void generateLandmarkObservations(
       const pose_graph::VertexId& vertex_id, Eigen::Matrix2Xd* image_points,
@@ -114,7 +115,7 @@ class VIMapGenerator {
 
   VIMap& map_;
   std::mt19937 rng_;
-  std::shared_ptr<aslam::NCamera> n_camera_;
+  std::shared_ptr<aslam::NCamera> ncamera_template_;
   typedef AlignedUnorderedMap<MissionId, pose::Transformation> MissionInfoMap;
   MissionInfoMap missions_;
   struct VertexInfo {

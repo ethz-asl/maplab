@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <package format="2">
   <name>map_resources</name>
-  <version>0.0.0</version>
+  <version>2.2.0</version>
   <description>This package enables generic resource support for the maps by providing tools to store/load resource to/from the file system.</description>
   <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
   <license>Apache 2.0</license>
@@ -12,13 +12,14 @@
   <depend>aslam_cv_cameras</depend>
   <depend>aslam_cv_common</depend>
   <depend>eigen_catkin</depend>
-  <depend>eigen_checks</depend>
   <depend>gflags_catkin</depend>
   <depend>glog_catkin</depend>
   <depend>maplab_common</depend>
   <depend>maplab_test_data</depend>
-  <depend>minkindr</depend>
+  <depend>pcl_ros</depend>
   <depend>protobuf_catkin</depend>
+  <depend>sensors</depend>
+  <depend>sensor_msgs</depend>
+  <depend>resources_common</depend>
   <depend>voxblox</depend>
-  <depend>yaml_cpp_catkin</depend>
 </package>

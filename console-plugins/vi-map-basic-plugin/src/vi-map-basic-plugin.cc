@@ -20,9 +20,9 @@
 #include <maplab-common/ui-utility.h>
 #include <vi-map-helpers/mission-clustering-coobservation.h>
 #include <vi-map/check-map-consistency.h>
-#include <vi-map/semantics-manager.h>
 #include <vi-map/vi-map.h>
 #include <visualization/sequential-plotter.h>
+#include <visualization/spatially-distribute-missions.h>
 #include <visualization/viwls-graph-plotter.h>
 
 DECLARE_string(map_key);
@@ -55,23 +55,9 @@ DEFINE_string(
     "after every use.");
 DEFINE_string(
     resource_folder, "", "Specifies the resource folder for certain commands.");
-DEFINE_uint64(
-    vertices_per_proto_file, 200u,
-    "Determines the number of vertices that are stored in one proto file. "
-    "NOTE: If this is set too large, the map can't be read anymore.");
 DEFINE_string(
-    maps_folder, ".",
+    maps_folder, "",
     "Folder which contains one or more maps on the filesystem.");
-
-DEFINE_double(
-    spatially_distribute_missions_meters, 20,
-    "Amount to shift missions when distributing them spatially.");
-DEFINE_int32(
-    spatially_distribute_missions_dimension, 0,
-    "Dimension to shift along [x, y, z] = [0, 1, 2].");
-DEFINE_bool(
-    spatially_distribute_missions_around_circle, false,
-    "Should sdm distribute the missions around a circle.");
 
 namespace vi_map {
 
@@ -111,10 +97,6 @@ backend::SaveConfig parseSaveConfigFromGFlags() {
       config.move_resources_when_migrating = true;
     }
   }
-
-  config.vertices_per_proto_file = FLAGS_vertices_per_proto_file;
-  static constexpr size_t kMaxVerticesPerProtoFile = 300u;
-  CHECK_LE(config.vertices_per_proto_file, kMaxVerticesPerProtoFile);
 
   return config;
 }
@@ -215,9 +197,24 @@ VIMapBasicPlugin::VIMapBasicPlugin(
       "load_merge_map --map_folder=<map_path>",
       common::Processing::Sync);
   addCommand(
+      {"load_merge_submap"}, [this]() -> int { return loadMergeSubMap(); },
+      "Loads the submap from the given path and merges the map with the "
+      "currently selected map. This means it will search for an identical "
+      "mission id and append the submap. If no map is selected, a new map is "
+      "created with the key name as the name of the folder to load the maps "
+      "from. Usage: load_merge_submap --map_folder=<map_path>",
+      common::Processing::Sync);
+  addCommand(
       {"load_merge_all_maps"}, [this]() -> int { return loadMergeAllMaps(); },
       "Loads all the maps under the given path and merges the maps with the "
       "currently selected map. Usage: load_merge_all_maps "
+      "--maps_folder=<map_path>",
+      common::Processing::Sync);
+  addCommand(
+      {"load_merge_all_submaps"},
+      [this]() -> int { return loadMergeAllSubMaps(); },
+      "Loads all the submaps under the given path and merges the maps with the "
+      "currently selected map. Usage: load_merge_all_submaps "
       "--maps_folder=<map_path>",
       common::Processing::Sync);
 
@@ -317,14 +314,6 @@ VIMapBasicPlugin::VIMapBasicPlugin(
       [this]() { return removeMissionInteractive(); },
       "Cycle through missions and ask which to remove. The current mission "
       "will be visualized in RViz a different color.",
-      common::Processing::Sync);
-
-  // Backwards compatibility commands.
-  addCommand(
-      {"convert_map_to_new_format"},
-      [this]() -> int { return convertMapToNewFormat(); },
-      "Loads a map using deprecated deserialization and then stores it again "
-      "using the latest serialization.",
       common::Processing::Sync);
 }
 
@@ -565,16 +554,22 @@ int VIMapBasicPlugin::joinAllMaps() {
   for (std::vector<std::string>::const_iterator it_map_keys =
            all_current_map_keys.cbegin() + 1;
        it_map_keys != all_current_map_keys.cend(); ++it_map_keys) {
+    bool success = false;
     {
       vi_map::VIMapManager::MapReadAccess map_to_be_merged =
           map_manager.getMapReadAccess(*it_map_keys);
-      base_map->mergeAllMissionsFromMap(*map_to_be_merged);
+      success = base_map->mergeAllMissionsFromMap(*map_to_be_merged);
     }
-    map_manager.deleteMap(*it_map_keys);
-    console_->removeMapKeyFromAutoCompletion(*it_map_keys);
-    CHECK(!map_manager.hasMap(*it_map_keys));
-    LOG(INFO) << "Merging \"" << *it_map_keys << "\" into \"" << base_map_key
-              << "\".";
+    if (success) {
+      map_manager.deleteMap(*it_map_keys);
+      console_->removeMapKeyFromAutoCompletion(*it_map_keys);
+      CHECK(!map_manager.hasMap(*it_map_keys));
+      LOG(INFO) << "Merging \"" << *it_map_keys << "\" into \"" << base_map_key
+                << "\".";
+    } else {
+      LOG(ERROR) << "Failed to merge \"" << *it_map_keys << "\" into \""
+                 << base_map_key << "\".";
+    }
   }
 
   // Rename current map key to target map key.
@@ -676,6 +671,32 @@ int VIMapBasicPlugin::loadMergeMap() {
   return common::kSuccess;
 }
 
+int VIMapBasicPlugin::loadMergeSubMap() {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    // If there is no map selected, simply treat the submap as a normal map and
+    // load it.
+    return loadMap();
+  }
+  if (FLAGS_map_folder.empty()) {
+    LOG(ERROR) << "No path specified, please set the flag \"map_folder\".";
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  const std::string kKeyToLoadIn =
+      std::string("temporary_map_") +
+      std::to_string(aslam::time::nanoSecondsSinceEpoch());
+  if (!map_manager.loadMapFromFolder(FLAGS_map_folder, kKeyToLoadIn)) {
+    return common::kStupidUserError;
+  }
+  if (!map_manager.mergeSubmapIntoBaseMap(selected_map_key, kKeyToLoadIn)) {
+    return common::kStupidUserError;
+  }
+  map_manager.deleteMap(kKeyToLoadIn);
+  return common::kSuccess;
+}
+
 int VIMapBasicPlugin::loadMergeAllMaps() {
   std::string selected_map_key = console_->getSelectedMapKey();
   std::string maps_folder = FLAGS_maps_folder;
@@ -724,8 +745,8 @@ int VIMapBasicPlugin::loadMergeAllMaps() {
     LOG(ERROR) << "Loading maps from \"" << maps_folder << "\" failed.";
     return common::kUnknownError;
   }
-  CHECK(!loaded_keys.empty()) << "No map loaded from \"" << maps_folder
-                              << "\".";
+  CHECK(!loaded_keys.empty())
+      << "No map loaded from \"" << maps_folder << "\".";
 
   if (selected_map_key.empty() || !map_manager.hasMap(selected_map_key)) {
     // No map selected -- use the first newly loaded map as a base.
@@ -748,14 +769,130 @@ int VIMapBasicPlugin::loadMergeAllMaps() {
   vi_map::VIMapManager::MapWriteAccess base_map =
       map_manager.getMapWriteAccess(selected_map_key);
   for (const std::string& loaded_key : loaded_keys) {
+    bool success = false;
     {
       vi_map::VIMapManager::MapReadAccess map_to_be_merged =
           map_manager.getMapReadAccess(loaded_key);
-      base_map->mergeAllMissionsFromMap(*map_to_be_merged);
+      success = base_map->mergeAllMissionsFromMap(*map_to_be_merged);
     }
-    map_manager.deleteMap(loaded_key);
-    VLOG(1) << "Merging \"" << loaded_key << "\" into \"" << selected_map_key
-            << "\".";
+    if (success) {
+      map_manager.deleteMap(loaded_key);
+      VLOG(1) << "Merging \"" << loaded_key << "\" into \"" << selected_map_key
+              << "\".";
+    } else {
+      VLOG(1) << "Failed to merge \"" << loaded_key << "\" into \""
+              << selected_map_key << "\".";
+    }
+  }
+
+  LOG(INFO) << "Merged " << loaded_keys.size() << " maps into \""
+            << selected_map_key << "\".";
+
+  return common::kSuccess;
+}
+
+int VIMapBasicPlugin::loadMergeAllSubMaps() {
+  std::string selected_map_key = console_->getSelectedMapKey();
+  std::string maps_folder = FLAGS_maps_folder;
+  if (maps_folder.empty()) {
+    LOG(ERROR) << "Invalid maps folder. Specify a valid maps folder with "
+               << "--maps_folder";
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+
+  // Map key of the merge map is determined by:
+  // 1) flag target_map_key
+  // 2) selected map key
+  // 3) flag maps_folder
+  std::string target_map_key = FLAGS_target_map_key;
+  if (target_map_key.empty()) {
+    if (!selected_map_key.empty()) {
+      target_map_key = selected_map_key;
+    } else {
+      // Use folder name to infer target map key.
+      std::string folder_without_key;
+      common::splitPathAndFilename(
+          common::getRealPath(maps_folder), &folder_without_key,
+          &target_map_key);
+    }
+  }
+
+  if (selected_map_key.empty()) {
+    // Ensure chosen target map key is available.
+    if (!map_manager.isKeyValid(target_map_key)) {
+      LOG(ERROR) << "The target map key \"" << target_map_key
+                 << "\" is not a valid key.";
+      return common::kStupidUserError;
+    }
+    if (map_manager.hasMap(target_map_key)) {
+      LOG(ERROR)
+          << "The target map key \"" << target_map_key
+          << "\" cannot be used because a map with this key already exists.";
+      return common::kStupidUserError;
+    }
+  }
+
+  std::unordered_set<std::string> loaded_keys_set;
+  if (!map_manager.loadAllMapsFromFolder(maps_folder, &loaded_keys_set)) {
+    LOG(ERROR) << "Loading maps from \"" << maps_folder << "\" failed.";
+    return common::kUnknownError;
+  }
+  CHECK(!loaded_keys_set.empty())
+      << "No map loaded from \"" << maps_folder << "\".";
+
+  std::vector<std::pair<int64_t, std::string>> loaded_keys;
+  loaded_keys.reserve(loaded_keys_set.size());
+  for (const std::string& key : loaded_keys_set) {
+    int64_t timestamp;
+    if (map_manager.getMap(key).getEarliestMissionStartTimeNs(&timestamp)) {
+      loaded_keys.emplace_back(std::make_pair(timestamp, key));
+    } else {
+      LOG(WARNING) << "Submap " << key << " is empty and will not be merged.";
+    }
+  }
+
+  // Sort the map keys by their timestamps
+  std::sort(loaded_keys.begin(), loaded_keys.end());
+
+  std::stringstream ss;
+  ss << "\nMerging submaps in the following order:\n";
+  for (const std::pair<int64_t, std::string>& key : loaded_keys) {
+    ss << "\t- " << key.second << "\n";
+  }
+  LOG(INFO) << ss.str();
+
+  if (selected_map_key.empty() || !map_manager.hasMap(selected_map_key)) {
+    // No map selected -- use the first newly loaded map as a base.
+    selected_map_key = loaded_keys.begin().operator*().second;
+    loaded_keys.erase(loaded_keys.begin());
+  } else {
+    console_->removeMapKeyFromAutoCompletion(selected_map_key);
+  }
+
+  if (!selected_map_key.empty() && selected_map_key != target_map_key) {
+    map_manager.renameMap(selected_map_key, target_map_key);
+  }
+  selected_map_key = target_map_key;
+  console_->setSelectedMapKey(selected_map_key);
+  console_->addMapKeyToAutoCompletion(selected_map_key);
+
+  VLOG(1) << "Using \"" << selected_map_key
+          << "\" as the base for future merge operations.";
+
+  for (const std::pair<int64_t, std::string>& loaded_key : loaded_keys) {
+    bool success = false;
+    success =
+        map_manager.mergeSubmapIntoBaseMap(selected_map_key, loaded_key.second);
+    if (success) {
+      map_manager.deleteMap(loaded_key.second);
+      VLOG(1) << "Merging \"" << loaded_key.second << "\" into \""
+              << selected_map_key << "\".";
+    } else {
+      VLOG(1) << "Failed to merge \"" << loaded_key.second << "\" into \""
+              << selected_map_key << "\".";
+    }
   }
 
   LOG(INFO) << "Merged " << loaded_keys.size() << " maps into \""
@@ -857,9 +994,10 @@ int VIMapBasicPlugin::getMapFolder() {
   // This is necessary because getRealPath is not defined for folders that don't
   // exist.
   if (common::pathExists(map_folder)) {
-    std::cout << "As an absolute path: " << common::formatText(
-                                                common::getRealPath(map_folder),
-                                                common::FormatOptions::kBold)
+    std::cout << "As an absolute path: "
+              << common::formatText(
+                     common::getRealPath(map_folder),
+                     common::FormatOptions::kBold)
               << "." << std::endl;
   }
 
@@ -1104,8 +1242,7 @@ int VIMapBasicPlugin::printCameraCalibrations() const {
   std::stringstream output;
   output << "Camera calibrations: \n\n";
   for (const vi_map::MissionId& mission_id : all_missions) {
-    const aslam::NCamera& ncam =
-        map->getSensorManager().getNCameraForMission(mission_id);
+    const aslam::NCamera& ncam = map->getMissionNCamera(mission_id);
 
     output << "Mission: " << mission_id << "\n";
     for (const aslam::Camera::Ptr& cam : ncam.getCameraVector()) {
@@ -1140,8 +1277,8 @@ int VIMapBasicPlugin::printBaseframeTransformations() const {
 
   // Add a fixed number of spaces to the beginning of each line of a
   // multi-line string.
-  auto indent_string = [](
-      const std::string& input, size_t indent) -> std::string {
+  auto indent_string = [](const std::string& input,
+                          size_t indent) -> std::string {
     if (input.empty()) {
       return input;
     }
@@ -1203,8 +1340,10 @@ int VIMapBasicPlugin::removeMission() {
 }
 
 int VIMapBasicPlugin::removeMissionInteractive() {
-  if (plotter_ == nullptr) {
-    LOG(ERROR) << "Please enable the visualization.";
+  if (!hasPlotter()) {
+    LOG(ERROR)
+        << "Please enable the visualization. This is only possible "
+        << "if ROS is enabled, so make sure --ros_free is not set to true.";
     return common::kStupidUserError;
   }
 
@@ -1229,22 +1368,26 @@ int VIMapBasicPlugin::removeMissionInteractive() {
     constexpr bool kPlotVertices = true;
     constexpr bool kPlotEdges = true;
     constexpr bool kPlotLandmarks = true;
+    constexpr bool kPlotAbsolute6DoFConstraints = true;
     FLAGS_vis_color_by_mission = false;
-    plotter_->visualizeMap(
-        *map, kPlotBaseframes, kPlotVertices, kPlotEdges, kPlotLandmarks);
+    getPlotter().visualizeMap(
+        *map, kPlotBaseframes, kPlotVertices, kPlotEdges, kPlotLandmarks,
+        kPlotAbsolute6DoFConstraints);
 
     const double initial_vis_scale = FLAGS_vis_scale;
     FLAGS_vis_color_by_mission = true;
     FLAGS_vis_scale = 3.0 * initial_vis_scale;
-    plotter_->visualizeMissions(
+    getPlotter().visualizeMissions(
         *map, {mission_id}, kPlotBaseframes, kPlotVertices, kPlotEdges,
-        kPlotLandmarks);
+        kPlotLandmarks, kPlotAbsolute6DoFConstraints);
 
     // Restore the initial visualization scale for the rest of the missions.
     FLAGS_vis_scale = initial_vis_scale;
 
     FLAGS_vis_color_by_mission = false;
-    plotter_->visualizeMap(*map, false, false, false, kPlotLandmarks);
+    getPlotter().visualizeMap(
+        *map, false, false, false, kPlotLandmarks,
+        kPlotAbsolute6DoFConstraints);
 
     bool got_meaningful_answer = false;
     do {
@@ -1284,93 +1427,18 @@ int VIMapBasicPlugin::spatiallyDistributeMissions() {
     LOG(ERROR) << "No missions in database.";
     return common::kUnknownError;
   }
-  typedef std::pair<double, vi_map::MissionId> LengthAndMission;
-  std::vector<LengthAndMission> lengths_and_missions;
 
-  vi_map::MissionIdList all_mission_ids;
-  map->getAllMissionIds(&all_mission_ids);
-
-  vi_map::MissionIdList missions_with_unknown_baseframe;
-  vi_map::MissionIdList missions_with_known_baseframe;
-  for (const vi_map::MissionId& mission_id : all_mission_ids) {
-    const vi_map::VIMission& mission = map->getMission(mission_id);
-    vi_map::MissionBaseFrame& baseframe =
-        map->getMissionBaseFrame(mission.getBaseFrameId());
-    if (baseframe.is_T_G_M_known()) {
-      missions_with_known_baseframe.emplace_back(mission_id);
-    } else {
-      missions_with_unknown_baseframe.emplace_back(mission_id);
-    }
-  }
-
-  if (missions_with_unknown_baseframe.empty()) {
+  if (!visualization::spatiallyDistributeMissions(map.get())) {
     LOG(WARNING) << "All mission baseframes of the map are known. No missions "
                  << "to spatially distribute.";
     return common::kUnknownError;
   }
 
-  // Compute the average vertex position of the vertices from missions with
-  // known base-frames.
-  Eigen::Vector3d mean_vertex_position = Eigen::Vector3d::Zero();
-  Eigen::Vector3d mean_baseframe_position = Eigen::Vector3d::Zero();
-  size_t num_samples = 0u;
-  for (const vi_map::MissionId& mission_id : missions_with_known_baseframe) {
-    pose_graph::VertexIdList mission_vertices;
-    map->getAllVertexIdsInMission(mission_id, &mission_vertices);
-    for (const pose_graph::VertexId& vertex_id : mission_vertices) {
-      mean_vertex_position += map->getVertex_G_p_I(vertex_id);
-      ++num_samples;
-    }
-    mean_baseframe_position +=
-        map->getMissionBaseFrameForMission(mission_id).get_p_G_M();
-  }
-  if (num_samples > 0u) {
-    mean_vertex_position /= num_samples;
-    mean_baseframe_position /= num_samples;
-  }
-
-  if (FLAGS_spatially_distribute_missions_around_circle) {
-    VLOG(1) << "Will distribute the missions around a circle.";
-    VLOG(2) << "Mean position of known mission vertices "
-            << mean_vertex_position.transpose();
-  } else {
-    VLOG(1) << "Will distribute missions along one dimension.";
-    VLOG(2) << "Mean position of known mission baseframes "
-            << mean_baseframe_position.transpose();
-  }
-
-  CHECK_GE(FLAGS_spatially_distribute_missions_dimension, 0);
-  CHECK_LE(FLAGS_spatially_distribute_missions_dimension, 2);
-
-  const double radians_per_mission =
-      2. * M_PI / missions_with_unknown_baseframe.size();
-  for (size_t i = 0u; i < missions_with_unknown_baseframe.size(); ++i) {
-    const vi_map::MissionId& mission_id = missions_with_unknown_baseframe[i];
-    const vi_map::VIMission& mission = map->getMission(mission_id);
-    vi_map::MissionBaseFrame& baseframe =
-        map->getMissionBaseFrame(mission.getBaseFrameId());
-    Eigen::Vector3d p_GM = baseframe.get_p_G_M();
-
-    if (FLAGS_spatially_distribute_missions_around_circle) {
-      p_GM(0) = mean_vertex_position(0) +
-                FLAGS_spatially_distribute_missions_meters *
-                    cos(i * radians_per_mission);
-      p_GM(1) = mean_vertex_position(1) +
-                FLAGS_spatially_distribute_missions_meters *
-                    sin(i * radians_per_mission);
-    } else {
-      p_GM(FLAGS_spatially_distribute_missions_dimension) =
-          mean_baseframe_position(
-              FLAGS_spatially_distribute_missions_dimension) +
-          FLAGS_spatially_distribute_missions_meters * (i + 1);
-    }
-    baseframe.set_p_G_M(p_GM);
-  }
   return common::kSuccess;
 }
 
 int VIMapBasicPlugin::visualizeMap() {
-  if (!plotter_) {
+  if (!hasPlotter()) {
     LOG(ERROR) << "The plotter is not initialized. Visualization is not "
                << "possible in a ros-free environment.";
     return common::kStupidUserError;
@@ -1383,16 +1451,15 @@ int VIMapBasicPlugin::visualizeMap() {
   const vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapReadAccess map =
       map_manager.getMapReadAccess(selected_map_key);
-  plotter_->visualizeMap(*map);
+  getPlotter().visualizeMap(*map);
 
   return common::kSuccess;
 }
 
 int VIMapBasicPlugin::visualizeMapSequentially() {
-  if (!plotter_) {
+  if (!hasPlotter()) {
     LOG(ERROR) << "The plotter is not initialized. Visualization is not "
-                  "possible in a ros-free "
-               << "environment.";
+               << "possible in a ros-free environment.";
     return common::kStupidUserError;
   }
 
@@ -1413,37 +1480,9 @@ int VIMapBasicPlugin::visualizeMapSequentially() {
     map->getAllMissionIds(&mission_ids);
   }
 
-  visualization::SequentialPlotter seq_plotter(plotter_);
+  visualization::SequentialPlotter seq_plotter;
   seq_plotter.publishMissionsSequentially(*map, mission_ids);
   return common::kSuccess;
-}
-
-int VIMapBasicPlugin::convertMapToNewFormat() {
-  if (FLAGS_map_folder.empty()) {
-    LOG(ERROR) << "No path specified, please set the flag \"map_folder\".";
-    return common::kStupidUserError;
-  }
-
-  vi_map::VIMap::UniquePtr map = aligned_unique<vi_map::VIMap>();
-  if (!map->loadFromFolderDeprecated(FLAGS_map_folder)) {
-    LOG(ERROR) << "Unable to load the map using deprecated deserialization.";
-    return common::kUnknownError;
-  }
-
-  if (!(FLAGS_copy_resources_to_map_folder ||
-        FLAGS_move_resources_to_map_folder)) {
-    LOG(WARNING)
-        << "\n"
-        << "############################################################\n"
-        << "WARNING: The resources of the converted map will be linked \n"
-        << "to the map resource folder of the old map format unless you \n"
-        << "use --copy_resources_to_map_folder or \n"
-        << "--move_resources_to_map_folder to copy/move all the map \n"
-        << "resources to the map folder of the new map.\n"
-        << "############################################################\n";
-  }
-  const std::string map_folder_out = FLAGS_map_folder + "_converted";
-  return map->saveToFolder(map_folder_out, parseSaveConfigFromGFlags());
 }
 
 }  // namespace vi_map

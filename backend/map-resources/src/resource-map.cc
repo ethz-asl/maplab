@@ -33,7 +33,7 @@ void ResourceMap::setMetaDataFromProto(
   meta_data_ = ResourceMap::MetaData(metadata_proto);
 }
 
-void ResourceMap::deepCopyFrom(const ResourceMap& other) {
+void ResourceMap::deepCopy(const ResourceMap& other) {
   aslam::ScopedWriteLock lock(&resource_mutex_);
   meta_data_.map_folder = other.meta_data_.map_folder;
   meta_data_.map_description = other.meta_data_.map_description;
@@ -73,10 +73,15 @@ void ResourceMap::mergeFromMap(const ResourceMap& source_map) {
       resource_info.folder_idx +=
           num_external_folders_before + static_cast<ResourceFolderIndex>(1);
 
-      CHECK(
-          resource_info_map_[resource_type]
-              .emplace(resource_info_map_value.first, resource_info)
-              .second);
+      const auto& insert_status = resource_info_map_[resource_type].emplace(
+          resource_info_map_value.first, resource_info);
+
+      CHECK(insert_status.second)
+          << "ResourceId collision: Failed to add resource "
+          << resource_info_map_value.first.hexString()
+          << " to merged map, since it already exists! Existing resource's "
+          << "folder idx: " << insert_status.first->second.folder_idx
+          << " new folder_idx: " << resource_info.folder_idx;
     }
     CHECK_EQ(
         resource_info_map_[resource_type].size(),
@@ -303,9 +308,8 @@ void ResourceMap::getFolderFromIndex(
         << "specified!";
     *folder = meta_data_.map_resource_folder;
   } else if (
-      index >= 0 &&
-      index < static_cast<ResourceFolderIndex>(
-                  meta_data_.external_resource_folders.size())) {
+      index >= 0 && index < static_cast<ResourceFolderIndex>(
+                                meta_data_.external_resource_folders.size())) {
     *folder = meta_data_.external_resource_folders[index];
   } else {
     LOG(FATAL) << "Resource folder index " << index
@@ -618,7 +622,8 @@ std::string ResourceMap::printCacheStatistics() const {
 
 std::string ResourceMap::printResourceStatistics() const {
   aslam::ScopedReadLock lock(&resource_mutex_);
-  const std::string separator = "--------------+---------------------------";
+  const std::string separator =
+      "--------------+----------------------------------";
   const std::string column_separator = "  |  ";
   const std::string title = " # resources  |  type";
 
@@ -628,11 +633,18 @@ std::string ResourceMap::printResourceStatistics() const {
   ss << separator << std::endl << title << std::endl << separator << std::endl;
   for (size_t type_idx = 0u; type_idx < kNumResourceTypes; ++type_idx) {
     ss << std::setfill(' ') << std::setw(12)
-       << resource_info_map_.at(type_idx).size() << column_separator
-       << ResourceTypeNames[type_idx] << std::endl;
+       << resource_info_map_.at(type_idx).size() << column_separator << type_idx
+       << " - " << ResourceTypeNames[type_idx] << std::endl;
   }
   ss << separator << std::endl;
   return ss.str();
+}
+
+size_t ResourceMap::getNumResourcesOfType(
+    const ResourceType& resource_type) const {
+  CHECK_LT(static_cast<size_t>(resource_type), resource_info_map_.size());
+  CHECK_GE(static_cast<int>(resource_type), 0);
+  return resource_info_map_.at(static_cast<int>(resource_type)).size();
 }
 
 void ResourceMap::printCacheStatisticsToLog(int verbosity) const {
@@ -707,10 +719,9 @@ void ResourceMap::cleanupResourceFolders() {
 
     // // The map resource folder will map to the same index.
     const ResourceFolderIndex map_resource_folder_index = kMapResourceFolder;
-    CHECK(
-        folder_index_remapping
-            .emplace(map_resource_folder_index, map_resource_folder_index)
-            .second);
+    CHECK(folder_index_remapping
+              .emplace(map_resource_folder_index, map_resource_folder_index)
+              .second);
 
     const size_t num_ext_folders = meta_data_.external_resource_folders.size();
     for (size_t i = 0u; i < num_ext_folders; ++i) {
@@ -752,10 +763,9 @@ void ResourceMap::cleanupResourceFolders() {
             << "External resource folder doesn't exist (anymore)! Folder: "
             << ext_folder_B;
         if (common::isSameRealPath(ext_folder_B, ext_folder_A)) {
-          CHECK(
-              folder_index_remapping
-                  .emplace(j, clean_external_resource_folders.size())
-                  .second);
+          CHECK(folder_index_remapping
+                    .emplace(j, clean_external_resource_folders.size())
+                    .second);
 
           VLOG(1) << "Found identical external resource folders with indices "
                   << i << " and " << j << ". Merging them to index "
@@ -773,10 +783,9 @@ void ResourceMap::cleanupResourceFolders() {
 
       // Store shortest version of ext_folder_A to the new set of external
       // resource folders.
-      CHECK(
-          folder_index_remapping
-              .emplace(i, clean_external_resource_folders.size())
-              .second);
+      CHECK(folder_index_remapping
+                .emplace(i, clean_external_resource_folders.size())
+                .second);
       VLOG(1) << "External resource folders at index " << i
               << " will be mapped to index "
               << clean_external_resource_folders.size() << ".";
@@ -801,16 +810,42 @@ void ResourceMap::cleanupResourceFolders() {
         const ResourceFolderIndex new_index =
             folder_index_remapping[resource_info.folder_idx];
 
-        VLOG(3) << "Adapting resource from folder index "
-                << resource_info.folder_idx << " to index " << new_index;
-
-        resource_info.folder_idx = new_index;
+        if (resource_info.folder_idx != new_index) {
+          VLOG(3) << "Adapting resource from folder index "
+                  << resource_info.folder_idx << " to index " << new_index;
+          resource_info.folder_idx = new_index;
+        }
       }
     }
   }
 
   // Make sure everything went well.
   checkResourceFileSystem();
+}
+
+bool ResourceMap::deleteResourceNoDataType(
+    const ResourceId& id, const ResourceType& type) {
+  constexpr bool kKeepResourceFile = false;
+  return deleteResourceNoDataType(id, type, kKeepResourceFile);
+}
+
+bool ResourceMap::deleteResourceNoDataType(
+    const ResourceId& id, const ResourceType& type,
+    const bool keep_resource_file) {
+  aslam::ScopedWriteLock lock(&resource_mutex_);
+  ResourceInfoMap& info_map = resource_info_map_[static_cast<size_t>(type)];
+  const ResourceInfoMap::const_iterator it = info_map.find(id);
+  if (it == info_map.cend()) {
+    return false;
+  }
+
+  if (!keep_resource_file) {
+    std::string folder;
+    getFolderFromIndex(it->second.folder_idx, &folder);
+    resource_loader_.deleteResourceNoDataType(id, type, folder);
+  }
+  info_map.erase(it);
+  return true;
 }
 
 }  // namespace backend

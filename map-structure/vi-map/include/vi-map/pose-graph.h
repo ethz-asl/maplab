@@ -14,6 +14,7 @@
 
 #include "vi-map/landmark.h"
 #include "vi-map/mission.h"
+#include "vi-map/transformation-edge.h"
 #include "vi-map/unique-id.h"
 #include "vi-map/vi_map.pb.h"
 #include "vi-map/viwls-edge.h"
@@ -42,10 +43,21 @@ class PoseGraph : public pose_graph::PoseGraph {
       const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps,
       const Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_data);
 
-  void mergeNeighboringViwlsEdges(
+  // merge_into_vertex_id
+  //   |                            edge_after_next_vertex
+  //   |    edge_between_vertices        |
+  //   |         |                       |
+  //   v         v                       v
+  // VID_k <-- edge_i -- > VID_kp1 <-- edge_ip1 --> VID_kp2
+  //
+  //    ... is transformed into:
+  //
+  // VID_k <------------- new edge  --------------> VID_kp2
+  template <typename EdgeType>
+  void mergeNeighboringEdges(
       const pose_graph::VertexId& merge_into_vertex_id,
-      const ViwlsEdge& edge_between_vertices,
-      const ViwlsEdge& edge_after_next_vertex);
+      const EdgeType& edge_between_vertices,
+      const EdgeType& edge_after_next_vertex);
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

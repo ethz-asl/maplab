@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>aslam_serialization</name>
-  <version>0.0.0</version>
+  <version>2.2.0</version>
   <description>Serialization for aslam cameras and frames.</description>
   <maintainer email="maplab-dev@mavt.ethz.ch">maplab-developers</maintainer>
   <license>Apache 2.0</license>
@@ -10,9 +10,7 @@
   <buildtool_depend>catkin_simple</buildtool_depend>
 
   <depend>aslam_cv_cameras</depend>
-  <depend>aslam_cv_common</depend>
   <depend>aslam_cv_frames</depend>
-  <depend>eigen_catkin</depend>
   <depend>glog_catkin</depend>
   <depend>maplab_common</depend>
   <depend>protobuf_catkin</depend>

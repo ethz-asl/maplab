@@ -7,21 +7,10 @@
 
 namespace map_anchoring {
 
-struct ProbeResult {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+void setMissionBaseframeToKnownIfHasAbs6DoFConstraints(
+    vi_map::VIMap* map);
 
-  int num_vertex_candidate_links;
-  double average_landmark_match_inlier_ratio;
-  pose::Transformation T_G_M;
-  vi_map::MissionIdList matching_missions;
-
-  ProbeResult();
-
-  static constexpr double kMinMergingInlierRatioThreshold = 0.20;
-  static constexpr int kMinMergingNumLinks = 10;
-
-  bool wasSuccessful() const;
-};
+void removeOutliersInAbsolute6DoFConstraints(vi_map::VIMap* map);
 
 void setMissionBaseframeKnownState(
     const vi_map::MissionId& mission_id, const bool baseframe_known_state,
@@ -39,11 +28,6 @@ bool anchorMissionUsingProvidedLoopDetector(
     const vi_map::MissionId& mission_id,
     const loop_detector_node::LoopDetectorNode& loop_detector,
     vi_map::VIMap* map);
-
-void probeMissionAnchoring(
-    const vi_map::MissionId& mission_id,
-    const loop_detector_node::LoopDetectorNode& loop_detector,
-    vi_map::VIMap* map, ProbeResult* result);
 
 }  // namespace map_anchoring
 

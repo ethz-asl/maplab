@@ -73,7 +73,7 @@ MapSparsificationPlugin::MapSparsificationPlugin(
         for (const vi_map::MissionId& mission_id : missions_to_keyframe) {
           VLOG(1) << "Keyframing mission " << mission_id << '.';
           if (keyframeMapBasedOnHeuristics(
-                  options, mission_id, plotter_, map.get()) !=
+                  options, mission_id, getPlotterUnsafe(), map.get()) !=
               common::kSuccess) {
             LOG(ERROR) << "Keyframing of mission " << mission_id << " failed.";
             return common::kUnknownError;

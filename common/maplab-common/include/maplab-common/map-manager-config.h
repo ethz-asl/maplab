@@ -30,18 +30,22 @@ struct SaveConfig {
   std::string external_folder_for_migration = "";
 
   /// If set to true, the resource migration will move the resources and delete
-  /// the the resource files in the old location. If set to false, the resources
+  /// the resource files in the old location. If set to false, the resources
   /// are copied and will still exist in the old location in the file
   /// system.
   bool move_resources_when_migrating = false;
 
-  /// Determines the number of vertices that should be in a single proto.
+  /// Determines the number of vertices/edges that should be in a single proto.
   ///
   /// NOTE: If this value is set to high, the map cannot be read anymore because
-  /// there is a maximum
-  /// file size above which protobuf doesn't read the data anymore.
-  size_t vertices_per_proto_file = 200u;
+  /// there is a maximum file size above which protobuf doesn't read the data
+  /// anymore.
+  static constexpr size_t kVerticesPerProtoFile = 50u;
+  static constexpr size_t kEdgesPerProtoFile = 30000u;
 };
+
+static_assert(SaveConfig::kVerticesPerProtoFile > 0u, "");
+static_assert(SaveConfig::kEdgesPerProtoFile > 0u, "");
 
 }  // namespace backend
 

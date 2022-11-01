@@ -1,17 +1,20 @@
 #include <memory>
 
+#include <aslam/cameras/ncamera.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <localization-summary-map/localization-summary-map-creation.h>
 #include <localization-summary-map/localization-summary-map.h>
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
+#include <maplab-ros-common/gflags-interface.h>
 #include <message-flow/message-dispatcher-fifo.h>
 #include <message-flow/message-flow.h>
 #include <ros/ros.h>
 #include <sensors/imu.h>
-#include <sensors/sensor-factory.h>
+#include <sensors/sensor-types.h>
 #include <signal.h>
+#include <vi-map/sensor-utils.h>
 #include <vi-map/vi-map-serialization.h>
 
 #include "rovioli/rovioli-node.h"
@@ -20,17 +23,12 @@ DEFINE_string(
     vio_localization_map_folder, "",
     "Path to a localization summary map or a full VI-map used for "
     "localization.");
+DEFINE_string(sensor_calibration_file, "", "Path to sensor calibration yaml.");
+
 DEFINE_string(
-    ncamera_calibration, "ncamera.yaml",
-    "Path to the camera calibration yaml.");
-// TODO(schneith): Unify these two noise definitions.
-DEFINE_string(
-    imu_parameters_rovio, "imu-rovio.yaml",
-    "Path to the imu configuration yaml "
-    "for ROVIO.");
-DEFINE_string(
-    imu_parameters_maplab, "imu-maplab.yaml",
-    "Path to the imu configuration yaml for MAPLAB.");
+    external_imu_parameters_rovio, "",
+    "Optional, path to the IMU configuration yaml for ROVIO. If none is "
+    "provided the maplab values will be used for ROVIO as well.");
 DEFINE_string(
     save_map_folder, "", "Save map to folder; if empty nothing is saved.");
 DEFINE_bool(
@@ -42,8 +40,7 @@ DEFINE_bool(
     optimize_map_to_localization_map, false,
     "Optimize and process the map into a localization map before "
     "saving it.");
-
-DECLARE_bool(map_builder_save_image_as_resources);
+DECLARE_double(rovioli_image_resize_factor);
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -53,21 +50,63 @@ int main(int argc, char** argv) {
   FLAGS_colorlogtostderr = true;
 
   ros::init(argc, argv, "rovioli");
-  ros::NodeHandle nh;
+  ros::NodeHandle nh, nh_private("~");
+
+  ros_common::parseGflagsFromRosParams(argv[0], nh_private);
+
+  // Load sensors.
+  CHECK(!FLAGS_sensor_calibration_file.empty())
+      << "[ROVIOLI] No sensor calibration file was provided!";
+  vi_map::SensorManager sensor_manager;
+  if (!sensor_manager.deserializeFromFile(FLAGS_sensor_calibration_file)) {
+    LOG(FATAL) << "[ROVIOLI] Failed to read the sensor calibration from '"
+               << FLAGS_sensor_calibration_file << "'!";
+  }
+
+  CHECK(vi_map::getSelectedImu(sensor_manager))
+      << "[ROVIOLI] The sensor calibration does not contain an IMU!";
+
+  aslam::NCamera::Ptr mapping_ncamera =
+      vi_map::getSelectedNCamera(sensor_manager);
+  CHECK(mapping_ncamera)
+      << "[ROVIOLI] The sensor calibration does not contain a NCamera!";
+
+  if (fabs(FLAGS_rovioli_image_resize_factor - 1.0) > 1e-6) {
+    for (size_t i = 0; i < mapping_ncamera->getNumCameras(); i++) {
+      // The intrinsics of the camera can just be multiplied with the resize
+      // factor. Distortion parameters are agnostic to the image size.
+      aslam::Camera::Ptr camera = mapping_ncamera->getCameraShared(i);
+      camera->setParameters(
+          camera->getParameters() * FLAGS_rovioli_image_resize_factor);
+      camera->setImageWidth(
+          round(camera->imageWidth() * FLAGS_rovioli_image_resize_factor));
+      camera->setImageHeight(
+          round(camera->imageHeight() * FLAGS_rovioli_image_resize_factor));
+      camera->setDescription(
+          camera->getDescription() + " - resized " +
+          std::to_string(FLAGS_rovioli_image_resize_factor));
+
+      // The parameters have changed so we need to generate a new sensor id.
+      aslam::SensorId camera_id;
+      generateId(&camera_id);
+      camera->setId(camera_id);
+    }
+  }
 
   // Optionally load localization map.
   std::unique_ptr<summary_map::LocalizationSummaryMap> localization_map;
   if (!FLAGS_vio_localization_map_folder.empty()) {
     localization_map.reset(new summary_map::LocalizationSummaryMap);
     if (!localization_map->loadFromFolder(FLAGS_vio_localization_map_folder)) {
-      LOG(WARNING) << "Could not load a localization summary map from "
-                   << FLAGS_vio_localization_map_folder
-                   << ". Will try to load it as a full VI map.";
+      LOG(WARNING)
+          << "[ROVIOLI] Could not load a localization summary map from "
+          << FLAGS_vio_localization_map_folder
+          << ". Will try to load it as a full VI map.";
       vi_map::VIMap vi_map;
-      CHECK(
-          vi_map::serialization::loadMapFromFolder(
-              FLAGS_vio_localization_map_folder, &vi_map))
-          << "Loading a VI map failed. Either provide a valid localization map "
+      CHECK(vi_map::serialization::loadMapFromFolder(
+          FLAGS_vio_localization_map_folder, &vi_map))
+          << "[ROVIOLI] Loading a VI map failed. Either provide a valid "
+             "localization map "
           << "or leave the map folder flag empty.";
 
       localization_map.reset(new summary_map::LocalizationSummaryMap);
@@ -78,24 +117,19 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Load camera calibration and imu parameters.
-  aslam::NCamera::Ptr camera_system =
-      aslam::NCamera::loadFromYaml(FLAGS_ncamera_calibration);
-  CHECK(camera_system) << "Could not load the camera calibration from: \'"
-                       << FLAGS_ncamera_calibration << "\'";
-
-  vi_map::Imu::UniquePtr maplab_imu_sensor =
-      vi_map::createFromYaml<vi_map::Imu>(FLAGS_imu_parameters_maplab);
-  CHECK(maplab_imu_sensor)
-      << "Could not load IMU parameters for MAPLAB from: \'"
-      << FLAGS_imu_parameters_maplab << "\'";
-  CHECK(maplab_imu_sensor->getImuSigmas().isValid());
-
+  // Optionally, load external values for the ROVIO sigmas; otherwise also use
+  // the maplab values for ROVIO.
   vi_map::ImuSigmas rovio_imu_sigmas;
-  CHECK(rovio_imu_sigmas.loadFromYaml(FLAGS_imu_parameters_rovio))
-      << "Could not load IMU parameters for ROVIO from: \'"
-      << FLAGS_imu_parameters_rovio << "\'";
-  CHECK(rovio_imu_sigmas.isValid());
+  if (!FLAGS_external_imu_parameters_rovio.empty()) {
+    CHECK(rovio_imu_sigmas.loadFromYaml(FLAGS_external_imu_parameters_rovio))
+        << "[ROVIOLI] Could not load IMU parameters for ROVIO from: \'"
+        << FLAGS_external_imu_parameters_rovio << "\'";
+    CHECK(rovio_imu_sigmas.isValid());
+  } else {
+    const vi_map::Imu::Ptr imu = vi_map::getSelectedImu(sensor_manager);
+    CHECK(imu) << "[ROVIOLI] No imu was found in the sensor calibration!";
+    rovio_imu_sigmas = imu->getImuSigmas();
+  }
 
   // Construct the application.
   ros::AsyncSpinner ros_spinner(common::getNumHardwareThreads());
@@ -122,8 +156,8 @@ int main(int argc, char** argv) {
   }
 
   rovioli::RovioliNode rovio_localization_node(
-      camera_system, std::move(maplab_imu_sensor), rovio_imu_sigmas,
-      save_map_folder, localization_map.get(), flow.get());
+      sensor_manager, rovio_imu_sigmas, save_map_folder, localization_map.get(),
+      flow.get());
 
   // Start the pipeline. The ROS spinner will handle SIGINT for us and abort
   // the application on CTRL+C.

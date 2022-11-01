@@ -192,30 +192,12 @@ void drawAxes(
   marker.pose.orientation = eigenToQuaternion(q);
 }
 
-template <class DerivedP, class DerivedQ>
-void drawArrow(
-    const Eigen::MatrixBase<DerivedP>& p,
-    const Eigen::QuaternionBase<DerivedQ>& q, const std_msgs::ColorRGBA& color,
-    double length, double diameter, visualization_msgs::Marker* marker_ptr) {
-  CHECK_NOTNULL(marker_ptr);
-  visualization_msgs::Marker& marker = *marker_ptr;
-  marker.type = visualization_msgs::Marker::ARROW;
-  marker.action = visualization_msgs::Marker::ADD;
-  marker.color = color;
-
-  marker.pose.position = eigenToPoint(p);
-  marker.pose.orientation = eigenToQuaternion(q);
-
-  marker.scale.x = diameter;
-  marker.scale.y = diameter;
-  marker.scale.z = length;
-}
-
 template <class DerivedP1, class DerivedP2>
 void drawArrow(
     const Eigen::MatrixBase<DerivedP1>& p1,
     const Eigen::MatrixBase<DerivedP2>& p2, const std_msgs::ColorRGBA& color,
-    double diameter, visualization_msgs::Marker* marker_ptr) {
+    double shaft_diameter, double head_diameter, double head_to_shaft_ratio,
+    visualization_msgs::Marker* marker_ptr) {
   CHECK_NOTNULL(marker_ptr);
   visualization_msgs::Marker& marker = *marker_ptr;
   marker.type = visualization_msgs::Marker::ARROW;
@@ -226,14 +208,18 @@ void drawArrow(
       visualization_msgs::Marker::_pose_type::_position_type();
   marker.pose.orientation =
       visualization_msgs::Marker::_pose_type::_orientation_type();
+  // Initialize to valid unit quaternion to supress rviz warnings (the actual
+  // arrow is still calculated only using the points defined below).
+  marker.pose.orientation.w = 1.0;
 
   marker.points.resize(2);
   marker.points[0] = eigenToPoint(p1);
   marker.points[1] = eigenToPoint(p2);
 
-  marker.scale.x = diameter * 0.1;
-  marker.scale.y = diameter * 2 * 0.1;
-  marker.scale.z = 0;
+  marker.scale.x = shaft_diameter;  // diameter arrow shaft
+  marker.scale.y = head_diameter;   // diameter arrow head
+  marker.scale.z =
+      head_to_shaft_ratio;  // proportion of arrow head to arrow shaft
 }
 
 template <class DerivedP, class DerivedQ>

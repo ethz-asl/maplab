@@ -16,13 +16,13 @@ void VIMapQueries::getConsecutiveLandmarkObserverGroupsFromMission(
   CHECK_NOTNULL(clustered_vertex_ids)->clear();
 
   vi_map::MissionIdSet observer_mission_ids;
-  map_.getLandmarkObserverMissions(landmark_id, &observer_mission_ids);
+  map_.getObserverMissionsForLandmark(landmark_id, &observer_mission_ids);
   CHECK_GT(observer_mission_ids.count(mission_id), 0u)
       << "Mission " << mission_id.hexString() << " does not seem to observe "
       << "the landmark with ID " << landmark_id.hexString();
 
   pose_graph::VertexIdSet observer_vertex_ids;
-  map_.getLandmarkObserverVertices(landmark_id, &observer_vertex_ids);
+  map_.getObserverVerticesForLandmark(landmark_id, &observer_vertex_ids);
 
   pose_graph::VertexIdSet mission_observer_vertex_ids;
   for (const pose_graph::VertexId& vertex_id : observer_vertex_ids) {

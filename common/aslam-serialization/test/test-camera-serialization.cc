@@ -3,6 +3,7 @@
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-radtan.h>
 #include <aslam/cameras/ncamera.h>
+#include <aslam/cameras/random-camera-generator.h>
 
 #include "aslam-serialization/camera-serialization.h"
 #include "aslam-serialization/camera.pb.h"
@@ -11,7 +12,7 @@ namespace aslam {
 
 TEST(CameraSerialization, SerializeDeserializeCamera) {
   const Camera::ConstPtr camera =
-      PinholeCamera::createTestCamera<RadTanDistortion>();
+      aslam::PinholeCamera::createTestCamera<RadTanDistortion>();
   proto::Camera camera_proto;
   serialization::serializeCamera(*camera, &camera_proto);
 
@@ -22,7 +23,7 @@ TEST(CameraSerialization, SerializeDeserializeCamera) {
 
 TEST(CameraSerialization, SerializeDeserializeNCamera) {
   constexpr size_t kNumCameras = 2u;
-  const NCamera::Ptr n_camera = NCamera::createTestNCamera(kNumCameras);
+  const NCamera::Ptr n_camera = createTestNCamera(kNumCameras);
   proto::NCamera n_camera_proto;
   serialization::serializeNCamera(*n_camera, &n_camera_proto);
 
