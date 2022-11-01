@@ -35,6 +35,9 @@ bool FeatureTracking::trackSynchronizedNFrameCallback(
   // The first frame will not contain any tracking information on the first
   // call, but it will be added in the second call.
   if (!previous_synced_nframe_) {
+    // Perform only feature detection
+    tracker_->initializeFirstNFrame(synced_nframe->nframe.get());
+    // Mark it as the previous frame
     previous_synced_nframe_ = synced_nframe;
     previous_nframe_timestamp_ns_ = current_nframe_timestamp_ns;
     return false;

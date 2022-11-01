@@ -399,6 +399,33 @@ vi_map::WheelOdometryMeasurement::Ptr convertRosOdometryToMaplabWheelOdometry(
   return wheel_odometry_measurement;
 }
 
+vi_map::ExternalFeaturesMeasurement::Ptr
+convertRosFeatureMsgToMaplabExternalFeatures(
+    const maplab_msgs::FeaturesConstPtr& msg, aslam::SensorId sensor_id) {
+  CHECK(msg);
+
+  const uint32_t num_keypoints = msg->descriptors.layout.dim[0].size;
+  CHECK(num_keypoints == msg->numKeypointMeasurements);
+  const uint32_t descriptor_size = msg->descriptors.layout.dim[1].size;
+
+  // Do some sanity check to see the 2d descriptor array is valid
+  const uint32_t dim0_stride = msg->descriptors.layout.dim[0].stride;
+  CHECK_EQ(msg->descriptors.layout.dim.size(), 2u);
+  CHECK_EQ(num_keypoints * descriptor_size, dim0_stride);
+
+  vi_map::ExternalFeaturesMeasurement::Ptr external_features_measurement(
+      new vi_map::ExternalFeaturesMeasurement(
+          sensor_id, rosTimeToNanoseconds(msg->header.stamp),
+          msg->numKeypointMeasurements, descriptor_size,
+          msg->keypointMeasurementsX, msg->keypointMeasurementsY,
+          msg->keypointMeasurementUncertainties, msg->keypointOrientations,
+          msg->keypointScores, msg->keypointScales, msg->keypoint3DX,
+          msg->keypoint3DY, msg->keypoint3DZ, msg->keypointTimeOffset,
+          msg->descriptors.data, msg->trackIds));
+
+  return external_features_measurement;
+}
+
 void odometryCovarianceToEigenMatrix(
     geometry_msgs::PoseWithCovariance::_covariance_type&
         odometry_msg_covariance,

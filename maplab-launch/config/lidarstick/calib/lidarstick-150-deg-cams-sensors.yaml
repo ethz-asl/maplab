@@ -12,20 +12,22 @@ sensors:
     saturation_gyro_max_radps: 7.5
     gravity_magnitude_mps2: 9.808083883386614
 
-  - id: abf123479caf7592b35518478a2fe08f
-    sensor_type: LIDAR
-    description: "Lidarstick - Ouster OS1"
-    topic: /os1_node/points
-
-  - id: ffff23479caf7592b35518478a2fe08f
-    sensor_type: POINTCLOUD_MAP
-    description: "Lidarstick - Ouster OS1 - Throttled"
-    topic: /os1_node/points_throttled
-
   - id: aabb23479caf7592b35518478a2fe08f
     sensor_type: ODOMETRY_6DOF
     description: "ROVIOLI in Odometry mode"
     topic: /odometry/maplab_odom_T_M_I
+
+  - id: ff000000000000000000000000000001
+    sensor_type: EXTERNAL_FEATURES
+    description: "SuperPoint features"
+    topic: /maplab_features0
+    target_sensor: ca17b5000f15adb3c0da8ac6b729ee05
+    has_uncertainties: true
+    has_orientations: false
+    has_scores: true
+    has_scales: true
+    has_track_ids: true
+    feature_type: SuperPoint
 
   - id: 8af1bac2a7c5fad79f09e49e3b96d87c
     sensor_type: NCAMERA
@@ -104,29 +106,18 @@ sensors:
             - [-0.006542650159741623, 0.9999598625408523, 0.006121032279554073, 0.05665531205066083]
             - [0, 0, 0, 1]
 extrinsics:
-  - sensor_id: abf123479caf7592b35518478a2fe08f
-    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
-    T_B_S:
-      rows: 4
-      cols: 4
-      data:
-        - [-0.6978447576305695, 0.7161518144580716, 0.01180139381358678, -0.1021019447103219]
-        - [0.7160088243900917, 0.697942707663664, -0.01439931299167545, -0.08936602296234536]
-        - [-0.01854879087839803, -0.001598582974091693, -0.999826678424528, -0.07460082421278309]
-        - [0, 0, 0, 1]
-
-  - sensor_id: ffff23479caf7592b35518478a2fe08f
-    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
-    T_B_S:
-      rows: 4
-      cols: 4
-      data:
-        - [-0.6978447576305695, 0.7161518144580716, 0.01180139381358678, -0.1021019447103219]
-        - [0.7160088243900917, 0.697942707663664, -0.01439931299167545, -0.08936602296234536]
-        - [-0.01854879087839803, -0.001598582974091693, -0.999826678424528, -0.07460082421278309]
-        - [0, 0, 0, 1]
-
   - sensor_id: 5d2fcf479caf7592b35518478a2fe08f
+    base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: ff000000000000000000000000000001
     base_sensor_id: 5d2fcf479caf7592b35518478a2fe08f
     T_B_S:
       rows: 4

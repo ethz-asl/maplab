@@ -23,5 +23,6 @@
   <depend>maplab_common</depend>
   <depend>posegraph</depend>
   <depend>vi_map</depend>
+  <depend>sensors</depend>
   <depend>visualization</depend>
 </package>

@@ -4,9 +4,6 @@
 [submodule "aslam_cv2"]
 	path = aslam_cv2
 	url = git@github.com:ethz-asl/aslam_cv2.git
-[submodule "tools/evaluation_tools"]
-	path = tools/evaluation_tools
-	url = git@github.com:ethz-asl/evaluation_tools.git
 [submodule "dependencies/3rdparty/protobuf_catkin"]
 	path = dependencies/3rdparty/protobuf_catkin
 	url = git@github.com:ethz-asl/protobuf_catkin.git
@@ -79,9 +76,6 @@
 [submodule "dependencies/internal/plotty"]
 	path = dependencies/internal/plotty
 	url = git@github.com:ethz-asl/plotty.git
-[submodule "dependencies/internal/hand_eye_calibration"]
-	path = dependencies/internal/hand_eye_calibration
-	url = git@github.com:ethz-asl/hand_eye_calibration.git
 [submodule "dependencies/3rdparty/benchmark_catkin"]
 	path = dependencies/3rdparty/benchmark_catkin
 	url = git@github.com:ethz-asl/benchmark_catkin.git
@@ -103,3 +97,6 @@
 [submodule "dependencies/3rdparty/libpointmatcher"]
 	path = dependencies/3rdparty/libpointmatcher
 	url = git@github.com:ANYbotics/libpointmatcher.git
+[submodule "dependencies/internal/maplab_features"]
+	path = dependencies/internal/maplab_features
+	url = git@github.com:ethz-asl/maplab_features.git

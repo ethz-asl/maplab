@@ -1,0 +1,113 @@
+sensors:
+  - id:                                    3da6d03bd42e41a93dc941bd5fd9353d
+    sensor_type:                           IMU
+    description:                           "ADIS16445 IMU"
+    topic:                                 /alphasense/imu_adis
+    sigmas:
+      acc_noise_density:                   4e-2
+      acc_bias_random_walk_noise_density:  1e-3
+      gyro_noise_density:                  1e-4
+      gyro_bias_random_walk_noise_density: 1e-4
+    saturation_accel_max_mps2:             150
+    saturation_gyro_max_radps:             7.5
+    gravity_magnitude_mps2:                9.808083883386614
+
+  - id:                                    acbb23479caf7592b35518478a2fe08f
+    sensor_type:                           ODOMETRY_6DOF
+    description:                           "OKVIS"
+    topic:                                 /odometry/maplab_odom_T_M_I
+
+  - id: ff000000000000000000000000000001
+    sensor_type: EXTERNAL_FEATURES
+    description: "SuperPoint LiDAR features"
+    topic: /lidar_features_3D
+    target_sensor: 9da9c2fa16894a059f8b40740c721cb1
+    feature_type: LIDARSuperPoint
+
+  - id:                                    4af1bac2a7c5fad79f09e49e3b96d87c
+    sensor_type:                           NCAMERA
+    description:                           "LiDAR 2D projection"
+    topic:                                 ""
+    cameras:
+      - camera:
+          id:                              9da9c2fa16894a059f8b40740c721cb1
+          sensor_type:                     CAMERA
+          description:                     "OS1-64"
+          topic:                           /os_cloud_node
+          line-delay-nanoseconds:          0
+          image_height:                    64
+          image_width:                     2048
+          type:                            pinhole
+          intrinsics:
+            rows: 4
+            cols: 1
+            data:
+              - 1024
+              - 1024
+              - 1024
+              - 32
+        T_B_C:
+          rows:                            4
+          cols:                            4
+          data:
+            - [-0.009512419028, 0.999954499995, -0.000715418261, 0.000054638802]
+            - [-0.999954688116, -0.009512152479, 0.000375062393, -0.037469669768]
+            - [0.000368240160, 0.000718953595, 0.999999673753, -0.126682785277]
+            - [0.000000000000, 0.000000000000, 0.000000000000, 1.000000000000]
+
+extrinsics:
+  - sensor_id:                             bbf123479caf7592b35518478a2fe08d
+    base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [-0.009512419028, 0.999954499995, -0.000715418261, 0.000054638802]
+        - [-0.999954688116, -0.009512152479, 0.000375062393, -0.037469669768]
+        - [0.000368240160, 0.000718953595, 0.999999673753, -0.126682785277]
+        - [0.000000000000, 0.000000000000, 0.000000000000, 1.000000000000]
+
+
+  - sensor_id:                             3da6d03bd42e41a93dc941bd5fd9353d
+    base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id:                             ff000000000000000000000000000001
+    base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id:                             acbb23479caf7592b35518478a2fe08f
+    base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id:                             4af1bac2a7c5fad79f09e49e3b96d87c
+    base_sensor_id:                        3da6d03bd42e41a93dc941bd5fd9353d
+    T_B_S:
+      rows:                                4
+      cols:                                4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]

@@ -126,6 +126,37 @@ void Synchronizer::initializeNCameraSynchronization(
   }
 }
 
+void Synchronizer::initializeExternalFeaturesSynchronization(
+    const aslam::SensorIdSet& external_feature_sensor_ids) {
+  // Initialize temporal buffer per external feature sensor.
+  {
+    std::lock_guard<std::mutex> lock(external_features_buffer_mutex_);
+
+    for (const aslam::SensorId sensor_id : external_feature_sensor_ids) {
+      CHECK(sensor_id.isValid());
+      const size_t external_feature_sensor_index =
+          external_features_id_to_index_map_.size();
+      external_features_id_to_index_map_.emplace(
+          sensor_id, external_feature_sensor_index);
+    }
+
+    external_features_buffer_.resize(external_feature_sensor_ids.size());
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(
+        mutex_times_last_external_feature_messages_received_or_checked_ns_);
+    times_last_external_feature_messages_received_or_checked_ns_.assign(
+        external_feature_sensor_ids.size(), aslam::time::getInvalidTime());
+  }
+
+  if (statistics_) {
+    // TODO(smauq): Initialize statistics
+    // statistics_->initializeExternalFeaturesStats(
+    //     external_feature_sensor_ids.size());
+  }
+}
+
 void Synchronizer::processCameraImage(
     const vio::ImageMeasurement::ConstPtr& image_measurement) {
   CHECK(image_measurement);
@@ -331,6 +362,60 @@ void Synchronizer::processOdometryMeasurement(
   T_M_B_buffer_.bufferOdometryEstimate(odometry_copy);
 
   releaseData();
+}
+
+void Synchronizer::processExternalFeatureMeasurement(
+    const vi_map::ExternalFeaturesMeasurement::ConstPtr&
+        external_features_measurement) {
+  CHECK(external_features_measurement);
+
+  const int64_t timestamp_ns =
+      external_features_measurement->getTimestampNanoseconds();
+  VLOG(5) << "[MaplabNode-Synchronizer] processExternalFeatureMeasurement "
+          << aslam::time::timeNanosecondsToString(timestamp_ns);
+
+  size_t buffer_index;
+  {
+    std::lock_guard<std::mutex> lock(external_features_buffer_mutex_);
+    buffer_index = common::getChecked(
+        external_features_id_to_index_map_,
+        external_features_measurement->getSensorId());
+  }
+
+  const int64_t current_time_ns = aslam::time::nanoSecondsSinceEpoch();
+
+  {
+    std::lock_guard<std::mutex> lock(
+        mutex_times_last_external_feature_messages_received_or_checked_ns_);
+    times_last_external_feature_messages_received_or_checked_ns_[buffer_index] =
+        current_time_ns;
+  }
+
+  if (statistics_) {
+    // TODO(smauq): Finish statistics
+    /*CHECK_LT(
+        image_measurement->camera_index,
+        static_cast<int>(statistics_->cam_latency_stats.size()));
+
+    const int64_t latency_ns = current_time_ns - image_measurement->timestamp;
+    LOG_IF(WARNING, latency_ns < 0)
+        << "[MaplabNode-Synchronizer] Received image message (cam "
+        << image_measurement->camera_index << ") from the "
+        << "future! msg time "
+        << aslam::time::timeNanosecondsToString(image_measurement->timestamp)
+        << " current time: "
+        << aslam::time::timeNanosecondsToString(current_time_ns)
+        << " latency: " << latency_ns << "ns";
+
+    statistics_->cam_latency_stats[image_measurement->camera_index].AddSample(
+        static_cast<double>(latency_ns));*/
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(external_features_buffer_mutex_);
+    external_features_buffer_[buffer_index].addValue(
+        timestamp_ns, external_features_measurement);
+  }
 }
 
 void Synchronizer::releaseCameraImages(
@@ -640,6 +725,51 @@ void Synchronizer::releasePointCloudMapData(
   }
 }
 
+void Synchronizer::releaseExternalFeatures(
+    const int64_t oldest_timestamp_ns, const int64_t newest_timestamp_ns) {
+  CHECK_GE(newest_timestamp_ns, oldest_timestamp_ns);
+  Aligned<std::vector, vi_map::ExternalFeaturesMeasurement::ConstPtr>
+      all_external_features_measurements;
+  {
+    std::lock_guard<std::mutex> lock(external_features_buffer_mutex_);
+    for (auto& buffer : external_features_buffer_) {
+      // Drop these external feature messages, since there is no odometry data
+      // anymore for them.
+      // TODO(smauq): enable this only when tracking is needed, otherwise we are
+      // fine, since we don't need odometry to attach the messages to the graph
+      /*const size_t dropped_external_features =
+          buffer.removeItemsBefore(oldest_timestamp_ns);
+      LOG_IF(WARNING, dropped_external_features != 0u)
+          << "[MaplabNode-Synchronizer] Could not find an odometry "
+          << "transformation for " << dropped_external_features
+          << " external features because it was already dropped from the "
+          << "buffer! This might be okay during initialization.";
+      external_features_skip_counter_ += dropped_external_features;*/
+
+      Aligned<std::vector, vi_map::ExternalFeaturesMeasurement::ConstPtr>
+          extracted_external_features_measurements;
+      buffer.extractItemsBeforeIncluding(
+          newest_timestamp_ns, &extracted_external_features_measurements);
+      all_external_features_measurements.insert(
+          all_external_features_measurements.end(),
+          extracted_external_features_measurements.begin(),
+          extracted_external_features_measurements.end());
+    }
+  }
+
+  for (const vi_map::ExternalFeaturesMeasurement::ConstPtr
+           external_features_measurement : all_external_features_measurements) {
+    CHECK(external_features_measurement);
+    std::lock_guard<std::mutex> callback_lock(
+        external_features_callback_mutex_);
+    for (const std::function<void(
+             const vi_map::ExternalFeaturesMeasurement::ConstPtr&)>& callback :
+         external_features_callbacks_) {
+      callback(external_features_measurement);
+    }
+  }
+}
+
 void Synchronizer::releaseData() {
   int64_t oldest_timestamp_ns;
   int64_t newest_timestamp_ns;
@@ -694,6 +824,19 @@ void Synchronizer::releaseData() {
   if (aslam::time::isValidTime(
           time_last_pointcloud_map_message_received_or_checked_ns_.load())) {
     releasePointCloudMapData(oldest_timestamp_ns, newest_timestamp_ns);
+  }
+
+  // Release (or drop) external feature measurements
+  {
+    std::lock_guard<std::mutex> lock(
+        mutex_times_last_external_feature_messages_received_or_checked_ns_);
+    const bool any_times_valid = std::any_of(
+        times_last_external_feature_messages_received_or_checked_ns_.begin(),
+        times_last_external_feature_messages_received_or_checked_ns_.end(),
+        [](int64_t time_ns) { return aslam::time::isValidTime(time_ns); });
+    if (any_times_valid) {
+      releaseExternalFeatures(oldest_timestamp_ns, newest_timestamp_ns);
+    }
   }
 }
 
@@ -751,6 +894,14 @@ void Synchronizer::registerPointCloudMapSensorMeasurementCallback(
   std::lock_guard<std::mutex> lock(pointcloud_map_callback_mutex_);
   CHECK(callback);
   pointcloud_map_callbacks_.push_back(callback);
+}
+
+void Synchronizer::registerExternalFeaturesMeasurementCallback(
+    const std::function<
+        void(const vi_map::ExternalFeaturesMeasurement::ConstPtr&)>& callback) {
+  std::lock_guard<std::mutex> lock(external_features_callback_mutex_);
+  CHECK(callback);
+  external_features_callbacks_.emplace_back(callback);
 }
 
 void Synchronizer::shutdown() {
@@ -818,6 +969,18 @@ void Synchronizer::expectWheelOdometryData() {
 void Synchronizer::expectPointCloudMapData() {
   time_last_pointcloud_map_message_received_or_checked_ns_.store(
       aslam::time::nanoSecondsSinceEpoch());
+}
+
+void Synchronizer::expectExternalFeaturesData() {
+  {
+    std::lock_guard<std::mutex> lock(
+        mutex_times_last_external_feature_messages_received_or_checked_ns_);
+    const int64_t time_since_last_epoch = aslam::time::nanoSecondsSinceEpoch();
+    std::fill(
+        times_last_external_feature_messages_received_or_checked_ns_.begin(),
+        times_last_external_feature_messages_received_or_checked_ns_.end(),
+        time_since_last_epoch);
+  }
 }
 
 void Synchronizer::checkIfMessagesAreIncomingWorker() {

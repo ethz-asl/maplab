@@ -8,7 +8,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <ros/ros.h>
-#include <std_msgs/String.h>
+#include <diagnostic_msgs/KeyValue.h>
 
 #include <aslam/cameras/ncamera.h>
 #include <localization-summary-map/localization-summary-map-creation.h>
@@ -80,6 +80,15 @@ DEFINE_bool(
     "The maplab node will try to optimize and loop close the pose graph online "
     "and provide the localization with new maps. [NOT IMPLEMENTED YET]");
 
+DEFINE_string(
+    robot_name, "robot",
+    "Robot name to associate to map update message when using submapping. Make "
+    "sure to set a different name for every robot when there are multiple.");
+DEFINE_string(
+    map_update_topic, "map_update_notification",
+    "Topic on which the map update notification message is sent to the "
+    "server, when the map or submap is saved.");
+
 DECLARE_bool(map_split_map_into_submaps_when_saving_periodically);
 DECLARE_int32(map_save_every_n_sec);
 
@@ -94,7 +103,7 @@ MaplabRosNode::MaplabRosNode(
       maplab_spinner_(common::getNumHardwareThreads()) {
   // Set up publishers.
   map_update_pub_ =
-      nh_.advertise<std_msgs::String>("map_update_notification", 1);
+      nh_.advertise<diagnostic_msgs::KeyValue>(FLAGS_map_update_topic, 10);
 
   LOG(INFO) << "[MaplabROSNode] Initializing message flow...";
   message_flow_.reset(
@@ -219,9 +228,10 @@ bool MaplabRosNode::saveMap(
     if (maplab_node_->saveMapAndOptionallyOptimize(
             map_folder_updated, FLAGS_map_overwrite_enabled,
             FLAGS_map_compute_localization_map, stop_mapping)) {
-      std_msgs::String map_folder_msg;
-      map_folder_msg.data = map_folder_updated;
-      map_update_pub_.publish(map_folder_msg);
+      diagnostic_msgs::KeyValue map_update_msg;
+      map_update_msg.key = FLAGS_robot_name;
+      map_update_msg.value = map_folder_updated;
+      map_update_pub_.publish(map_update_msg);
       return true;
     }
   }

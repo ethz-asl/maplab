@@ -5,15 +5,15 @@
 #include "map-optimization/optimization-problem.h"
 #include "map-optimization/optimization-terms-addition.h"
 
-DECLARE_uint64(vi_map_landmark_quality_min_observers);
-DECLARE_double(vi_map_landmark_quality_min_observation_angle_deg);
+DECLARE_uint64(elq_min_observers);
+DECLARE_double(elq_min_observation_angle_deg);
 
 namespace map_optimization {
 
 class OptimizationTermAdditionTest : public ::testing::Test {
  public:
   void SetUp() {
-    FLAGS_vi_map_landmark_quality_min_observers = 1u;
+    FLAGS_elq_min_observers = 1u;
     constexpr size_t kNumAdditionalVertices = 10u;
     vi_map::test::generateMap<vi_map::ViwlsEdge>(kNumAdditionalVertices, &map);
     map.getAllMissionIds(&mission_ids_);
@@ -29,7 +29,7 @@ class OptimizationTermAdditionTest : public ::testing::Test {
   size_t numConstParameterBlocksForVisualTerms() const {
     // There should be 4 different dummy values added.
     // Note: dummy values are added in the function
-    // replaceUnusedArgumentsOfVisualCostFunctionWithDummies in
+    // replaceUnusedArgumentsOfLandmarkCostFunctionWithDummies in
     // visual-error-term-factory-inl.h in ceres_error_terms. The number of
     // dummies per keypoint depends on the error term type which in turn
     // depends on whether the observing vertex is the storing vertex of the
@@ -62,6 +62,8 @@ class OptimizationTermAdditionTest : public ::testing::Test {
     return num_vertices_;
   }
 
+  static constexpr vi_map::FeatureType kFeatureType =
+      vi_map::FeatureType::kBinary;
   static constexpr bool kFixLandmarkPositions = false;
   static constexpr bool kFixIntrinsics = false;
   static constexpr bool kFixExtrinsicsRotation = false;
@@ -79,13 +81,13 @@ class OptimizationTermAdditionTest : public ::testing::Test {
   size_t num_landmarks_;
 };
 
-TEST_F(OptimizationTermAdditionTest, AddVisualTerms) {
+TEST_F(OptimizationTermAdditionTest, addLandmarkTerms) {
   OptimizationProblem optimization_problem(&map, mission_ids_);
   EXPECT_GT(
-      addVisualTerms(
-          kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
-          kFixExtrinsicsTranslation, kMinLandmarksPerFrame,
-          &optimization_problem),
+      addLandmarkTerms(
+          kFeatureType, kFixLandmarkPositions, kFixIntrinsics,
+          kFixExtrinsicsRotation, kFixExtrinsicsTranslation,
+          kMinLandmarksPerFrame, &optimization_problem),
       0u);
 
   EXPECT_EQ(
@@ -123,14 +125,14 @@ TEST_F(OptimizationTermAdditionTest, AddInertialTerms) {
       problem_information->active_parameter_blocks.size());
 }
 
-TEST_F(OptimizationTermAdditionTest, AddVisualAndInertialTerms) {
+TEST_F(OptimizationTermAdditionTest, addLandmarkAndInertialTerms) {
   OptimizationProblem optimization_problem(&map, mission_ids_);
 
   EXPECT_GT(
-      addVisualTerms(
-          kFixLandmarkPositions, kFixIntrinsics, kFixExtrinsicsRotation,
-          kFixExtrinsicsTranslation, kMinLandmarksPerFrame,
-          &optimization_problem),
+      addLandmarkTerms(
+          kFeatureType, kFixLandmarkPositions, kFixIntrinsics,
+          kFixExtrinsicsRotation, kFixExtrinsicsTranslation,
+          kMinLandmarksPerFrame, &optimization_problem),
       0u);
   EXPECT_GT(
       addInertialTerms(

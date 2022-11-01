@@ -14,7 +14,6 @@
 #include <vio-common/vio-types.h>
 
 #include "maplab-node/flow-topics.h"
-
 #include "maplab-node/map-update-builder.h"
 #include "maplab-node/vi-map-with-mutex.h"
 

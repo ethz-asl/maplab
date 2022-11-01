@@ -6,23 +6,6 @@
 
 namespace ceres_error_terms {
 
-template <typename Derived>
-void DrawSparsityPattern(
-    const Eigen::MatrixBase<Derived>& matrix, const std::string& name) {
-  std::cout << "-------- " << name << " --------" << std::endl;
-  for (int i = 0; i < matrix.rows(); ++i) {
-    for (int j = 0; j < matrix.cols(); ++j) {
-      if (matrix(i, j) != 0.0) {
-        std::cout << " * ";
-      } else {
-        std::cout << "   ";
-      }
-    }
-    std::cout << std::endl << std::endl;
-  }
-  std::cout << "----------------------" << std::endl;
-}
-
 void InertialErrorTerm::IntegrateStateAndCovariance(
     const InertialState& current_state,
     const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& imu_timestamps,
@@ -52,13 +35,13 @@ void InertialErrorTerm::IntegrateStateAndCovariance(
     CHECK_GE(imu_timestamps(0, i + 1), imu_timestamps(0, i))
         << "IMU measurements not properly ordered";
 
-    const Eigen::Block<InertialStateVector, imu_integrator::kGyroBiasBlockSize,
-                       1>
+    const Eigen::Block<
+        InertialStateVector, imu_integrator::kGyroBiasBlockSize, 1>
         current_gyro_bias =
             current_state_vec.segment<imu_integrator::kGyroBiasBlockSize>(
                 imu_integrator::kStateGyroBiasOffset);
-    const Eigen::Block<InertialStateVector, imu_integrator::kAccelBiasBlockSize,
-                       1>
+    const Eigen::Block<
+        InertialStateVector, imu_integrator::kAccelBiasBlockSize, 1>
         current_accel_bias =
             current_state_vec.segment<imu_integrator::kAccelBiasBlockSize>(
                 imu_integrator::kStateAccelBiasOffset);
@@ -106,17 +89,21 @@ bool InertialErrorTerm::Evaluate(
   };
 
   // Keep Jacobians in row-major for Ceres, Eigen default is column-major.
-  typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                        imu_integrator::kGyroBiasBlockSize, Eigen::RowMajor>
+  typedef Eigen::Matrix<
+      double, imu_integrator::kErrorStateSize,
+      imu_integrator::kGyroBiasBlockSize, Eigen::RowMajor>
       GyroBiasJacobian;
-  typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                        imu_integrator::kVelocityBlockSize, Eigen::RowMajor>
+  typedef Eigen::Matrix<
+      double, imu_integrator::kErrorStateSize,
+      imu_integrator::kVelocityBlockSize, Eigen::RowMajor>
       VelocityJacobian;
-  typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                        imu_integrator::kAccelBiasBlockSize, Eigen::RowMajor>
+  typedef Eigen::Matrix<
+      double, imu_integrator::kErrorStateSize,
+      imu_integrator::kAccelBiasBlockSize, Eigen::RowMajor>
       AccelBiasJacobian;
-  typedef Eigen::Matrix<double, imu_integrator::kErrorStateSize,
-                        imu_integrator::kStatePoseBlockSize, Eigen::RowMajor>
+  typedef Eigen::Matrix<
+      double, imu_integrator::kErrorStateSize,
+      imu_integrator::kStatePoseBlockSize, Eigen::RowMajor>
       PoseJacobian;
 
   const double* q_from_ptr = parameters[kIdxPoseFrom];
@@ -170,22 +157,6 @@ bool InertialErrorTerm::Evaluate(
     integration_cache_.valid = true;
   }
   CHECK(integration_cache_.valid);
-
-  if (imu_covariance_cached_p_q_) {
-    // Position.
-    imu_covariance_cached_p_q_->block<3, 3>(0, 0) =
-        integration_cache_.Q_accum.block<3, 3>(12, 12);
-
-    // Rotation.
-    imu_covariance_cached_p_q_->block<3, 3>(3, 3) =
-        integration_cache_.Q_accum.block<3, 3>(0, 0);
-
-    // Position-orientation cross-terms.
-    imu_covariance_cached_p_q_->block<3, 3>(0, 3) =
-        integration_cache_.Q_accum.block<3, 3>(12, 0);
-    imu_covariance_cached_p_q_->block<3, 3>(3, 0) =
-        integration_cache_.Q_accum.block<3, 3>(0, 12);
-  }
 
   if (residuals_ptr) {
     Eigen::Quaterniond quaternion_to;
@@ -270,7 +241,6 @@ bool InertialErrorTerm::Evaluate(
           J_begin.middleCols<imu_integrator::kPositionBlockSize>(
               imu_integrator::kStatePositionOffset);
     }
-
     if (jacobians[kIdxGyroBiasFrom] != NULL) {
       Eigen::Map<GyroBiasJacobian> J(jacobians[kIdxGyroBiasFrom]);
       J = J_begin.middleCols<imu_integrator::kGyroBiasBlockSize>(

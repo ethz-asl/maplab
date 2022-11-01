@@ -106,6 +106,8 @@ void MatchingBasedEngineSettings::setDetectorEngineType(
       kMatchingLDInvertedMultiIndexProductQuantizationString) {
     detector_engine_type =
         DetectorEngineType::kMatchingLDInvertedMultiIndexProductQuantization;
+  } else if (detector_engine_string == kMatchingLDFLANNString) {
+    detector_engine_type = DetectorEngineType::kMatchingLDFLANN;
   } else {
     LOG(FATAL) << "Unknown loop detector engine type: "
                << detector_engine_string;

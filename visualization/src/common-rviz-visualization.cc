@@ -29,6 +29,8 @@ DEFINE_string(tf_lidar_sensor_frame, "lidar_sensor", "lidar tf frame name");
 DEFINE_string(
     tf_pointcloud_map_frame, "pointcloud_map", "pointcloud_map tf frame name");
 DEFINE_string(
+    tf_external_features_frame, "external_features", "external_features tf frame name");
+DEFINE_string(
     tf_gps_wgs_sensor_frame, "gps_wgs_sensor", "gps_wgs_sensor tf frame name");
 DEFINE_string(
     tf_gps_utm_sensor_frame, "gps_utm_sensor", "gps_utm_sensor tf frame name");
@@ -1084,6 +1086,8 @@ const std::string convertSensorTypeToTfFrameId(
       return FLAGS_tf_abs_6dof_sensor_frame;
     case vi_map::SensorType::kWheelOdometry:
       return FLAGS_tf_wheel_odometry_sensor_frame;
+    case vi_map::SensorType::kExternalFeatures:
+      return FLAGS_tf_external_features_frame;
     default:
       LOG(FATAL) << "Unknown sensor type: " << static_cast<int>(sensor_type);
   }

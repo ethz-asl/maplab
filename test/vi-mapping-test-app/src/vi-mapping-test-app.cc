@@ -1,11 +1,10 @@
 #include "vi-mapping-test-app/vi-mapping-test-app.h"
 
-#include <random>
-
 #include <aslam/tracker/tracking-helpers.h>
 #include <gtest/gtest.h>
 #include <map-manager/map-manager.h>
 #include <maplab-common/test/testing-predicates.h>
+#include <random>
 #include <vi-map/check-map-consistency.h>
 #include <vi-map/vi-map.h>
 
@@ -122,9 +121,7 @@ void VIMappingTestApp::corruptKeyframePoses(
     pose_graph::VertexId current_vertex_id = mission.getRootVertexId();
     not_to_corrupt_vertices.insert(current_vertex_id);
 
-    if (map->getNextVertex(
-            current_vertex_id, pose_graph::Edge::EdgeType::kViwls,
-            &current_vertex_id)) {
+    if (map->getNextVertex(current_vertex_id, &current_vertex_id)) {
       not_to_corrupt_vertices.insert(current_vertex_id);
     }
   }
@@ -318,7 +315,7 @@ void VIMappingTestApp::addCorruptDuplicateLandmarkObservations(int every_nth) {
 
 void VIMappingTestApp::addAbsolute6DoFConstraints(
     const size_t add_constraint_at_every_nth_vertex) {
-  CHECK_GT(add_constraint_at_every_nth_vertex, 1u);
+  CHECK_GT(add_constraint_at_every_nth_vertex, 0u);
 
   vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapWriteAccess map =
@@ -327,7 +324,7 @@ void VIMappingTestApp::addAbsolute6DoFConstraints(
   // Fixed covariance.
   Eigen::Matrix<double, 6, 6> T_G_S_covariance;
   T_G_S_covariance.setIdentity();
-  T_G_S_covariance *= 1e-2 * 1e-2;
+  T_G_S_covariance *= 1e-6 * 1e-6;
 
   // Add sensor.
   aslam::SensorId sensor_id;
@@ -467,9 +464,7 @@ pose_graph::EdgeId VIMappingTestApp::addWrongLoopClosureEdge() {
   pose_graph::VertexIdList sorted_vertex_ids;
   do {
     sorted_vertex_ids.push_back(current_vertex_id);
-  } while (map->getNextVertex(
-      current_vertex_id, pose_graph::Edge::EdgeType::kViwls,
-      &current_vertex_id));
+  } while (map->getNextVertex(current_vertex_id, &current_vertex_id));
 
   const unsigned int index_offset_vertex_from =
       static_cast<unsigned int>(0.2 * sorted_vertex_ids.size());
@@ -553,8 +548,8 @@ void VIMappingTestApp::testIfKeyframesMatchReference(double precision_m) const {
 
 void VIMappingTestApp::testIfLandmarksMatchReference(
     double max_distance, double min_required_fraction) const {
-  CHECK_GT(min_required_fraction, 0.0 - std::numeric_limits<double>::epsilon());
-  CHECK_LE(min_required_fraction, 1.0 + std::numeric_limits<double>::epsilon());
+  CHECK_GT(min_required_fraction, 0.0);
+  CHECK_LE(min_required_fraction, 1.0);
   // Store the reference keyframe poses and landmark positions.
   const vi_map::VIMapManager map_manager;
   vi_map::VIMapManager::MapReadAccess map =
@@ -568,34 +563,21 @@ void VIMappingTestApp::testIfLandmarksMatchReference(
   unsigned int num_failing = 0;
   for (const vi_map::LandmarkId& landmark_id : landmark_ids) {
     const Eigen::Vector3d& p_B_fi = map->getLandmark(landmark_id).get_p_B();
-    // Scale precision (see documentation of isApprox in Eigen) to check
-    // absolute distance in meters between the expected and actual positions.
-    const double scaled_precision =
-        max_distance /
-        std::min(
-            p_B_fi.norm(), getLandmarkReferencePosition(landmark_id).norm());
-    if (fabs(min_required_fraction - 1.0) <
-        std::numeric_limits<double>::epsilon()) {
-      EXPECT_NEAR_EIGEN(
-          getLandmarkReferencePosition(landmark_id), p_B_fi, scaled_precision);
+    const Eigen::Vector3d& p_B_ref = getLandmarkReferencePosition(landmark_id);
 
-    } else {
-      if (!getLandmarkReferencePosition(landmark_id)
-               .isApprox(p_B_fi, scaled_precision)) {
-        ++num_failing;
-      }
+    const double error = (p_B_fi - p_B_ref).norm();
+    if (error > max_distance) {
+      ++num_failing;
     }
-    const double error = (getLandmarkReferencePosition(landmark_id) - p_B_fi)
-                             .cwiseAbs()
-                             .maxCoeff();
+
     max_error = std::max(max_error, error);
     error_sum += error;
   }
 
   if (!landmark_ids.empty()) {
-    EXPECT_LE(
-        (static_cast<double>(num_failing) / landmark_ids.size()),
-        min_required_fraction);
+    const double failing =
+        static_cast<double>(num_failing) / landmark_ids.size();
+    EXPECT_LE(failing, 1.0 - min_required_fraction);
   }
 
   LOG(INFO) << "Max error of landmarks positions: " << max_error;

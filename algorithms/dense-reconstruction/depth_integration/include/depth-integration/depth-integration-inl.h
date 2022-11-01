@@ -3,10 +3,13 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
+#include <memory>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include <Eigen/Core>
 #include <aslam/common/pose-types.h>
@@ -282,9 +285,9 @@ void integrateAllSensorDepthResourcesOfType(
           vi_map, mission_id, &vertex_timestamps_nanoseconds);
       // There is no need to sort the timestamps as they are already in correct
       // order.
+      VLOG(1) << "Got timestamps for vertices: "
+              << vertex_timestamps_nanoseconds.size();
     }
-    VLOG(1) << "Got timestamps for vertices: "
-            << vertex_timestamps_nanoseconds.size();
 
     LOG(INFO) << "All resources within this time range will be integrated: ["
               << min_timestamp_ns << "ns," << max_timestamp_ns << "ns]";

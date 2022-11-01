@@ -1,5 +1,3 @@
-#include <memory>
-
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-fisheye.h>
 #include <aslam/cameras/ncamera.h>
@@ -10,6 +8,7 @@
 #include <map-optimization/solver.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
+#include <memory>
 #include <vi-map/test/vi-map-generator.h>
 #include <vi-map/vi-map.h>
 #include <vi-map/vi-mission.h>
@@ -32,7 +31,7 @@ class ViMappingTest : public ::testing::Test {
   }
 
   virtual void SetUp() {
-    test_app_.loadDataset("./test_maps/vi_app_test");
+    test_app_.loadDataset("./test_maps/common_test_map");
   }
 
   virtual void corruptVertices();
@@ -78,21 +77,20 @@ void ViMappingTest::corruptLandmarks() {
 }
 
 void ViMappingTest::corruptAbs6DoFSensorExtrinsics() {
-  constexpr double kKeyframePositionStdDevM = 0.5;
+  constexpr double kPositionStdDevM = 0.5;
   constexpr double kOrientationStdDevQuat = 0.05;
   test_app_.corruptAbs6DoFSensorExtrinsics(
-      kKeyframePositionStdDevM, kOrientationStdDevQuat);
+      kPositionStdDevM, kOrientationStdDevQuat);
 }
 
 void ViMappingTest::corruptCameraExtrinsics() {
-  constexpr double kKeyframePositionStdDevM = 0.03;
+  constexpr double kPositionStdDevM = 0.03;
   constexpr double kOrientationStdDevQuat = 0.01;
-  test_app_.corruptCameraExtrinsics(
-      kKeyframePositionStdDevM, kOrientationStdDevQuat);
+  test_app_.corruptCameraExtrinsics(kPositionStdDevM, kOrientationStdDevQuat);
 }
 
 void ViMappingTest::addLoopClosureEdges() {
-  constexpr int kAddBetweenEveryNthVertex = 25;
+  constexpr int kAddBetweenEveryNthVertex = 10;
   test_app_.addLoopClosureEdges(kAddBetweenEveryNthVertex);
 }
 
@@ -435,7 +433,7 @@ void ViMappingTest::testWheelCalibrationTwoVertices() {
       1e-12);
 }
 
-TEST_F(ViMappingTest, TestCorruptedVisualInertialOptimization) {
+TEST_F(ViMappingTest, TestCorruptedVIOpt) {
   corruptVertices();
   corruptLandmarks();
 
@@ -454,14 +452,14 @@ TEST_F(ViMappingTest, TestCorruptedVisualInertialOptimization) {
 
   constexpr double kPrecisionM = 0.01;
   test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionM, kMinPassingLandmarkFraction);
 
   visualizeMap();
 }
 
-TEST_F(ViMappingTest, TestCorruptedVisualOptimization) {
+TEST_F(ViMappingTest, TestCorruptedVOpt) {
   corruptVertices();
 
   visualizeMap();
@@ -477,18 +475,19 @@ TEST_F(ViMappingTest, TestCorruptedVisualOptimization) {
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionM = 0.01;
-  constexpr double kMinPassingLandmarkFraction = 0.99;
-  test_app_.testIfKeyframesMatchReference(kPrecisionM);
+  // We expect less accuracy when using vision only
+  constexpr double kPrecisionKeyframesM = 0.03;
+  test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
+  // Landmarks are fixed so they should not move at all
+  constexpr double kPrecisionLandmarksM = 0.0;
+  constexpr double kMinPassingLandmarkFraction = 1.0;
   test_app_.testIfLandmarksMatchReference(
-      kPrecisionM, kMinPassingLandmarkFraction);
+      kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
   visualizeMap();
 }
 
-TEST_F(
-    ViMappingTest,
-    TestCorruptedVisualInertialOptimizationWithAbs6DoFEnabledButHasNone) {
+TEST_F(ViMappingTest, TestCorruptedVIOptWithAbs6DoFEnabledButHasNone) {
   corruptVertices();
   corruptLandmarks();
 
@@ -507,15 +506,14 @@ TEST_F(
 
   constexpr double kPrecisionM = 0.01;
   test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionM, kMinPassingLandmarkFraction);
 
   visualizeMap();
 }
 
-TEST_F(
-    ViMappingTest, TestCorruptedVisualInertialOptimizationWithAbs6DoFEnabled) {
+TEST_F(ViMappingTest, TestCorruptedVIOptWithAbs6DoFEnabled) {
   addAbsolute6DoFConstraints();
   corruptVertices();
   corruptLandmarks();
@@ -533,18 +531,17 @@ TEST_F(
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionM = 0.001;
-  test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kPrecisionKeyframesM = 0.001;
+  test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
+  constexpr double kPrecisionLandmarksM = 0.01;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
-      kPrecisionM, kMinPassingLandmarkFraction);
+      kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
   visualizeMap();
 }
 
-TEST_F(
-    ViMappingTest,
-    TestCorruptedVisualInertialOptimizationWithAbs6DoFEnabledCalib) {
+TEST_F(ViMappingTest, TestCorruptedVIOptWithAbs6DoFEnabledCalib) {
   addAbsolute6DoFConstraints();
   corruptVertices();
   corruptLandmarks();
@@ -563,49 +560,17 @@ TEST_F(
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionM = 0.001;
-  test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kPrecisionKeyframesM = 0.001;
+  test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
+  constexpr double kPrecisionLandmarksM = 0.01;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
-      kPrecisionM, kMinPassingLandmarkFraction);
+      kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
   visualizeMap();
 }
 
-TEST_F(
-    ViMappingTest,
-    DISABLED_TestCorruptedVisualInertialOptimizationWithAbs6DoFEnabledAllCalib) {  // NOLINT
-  addAbsolute6DoFConstraints();
-  corruptVertices();
-  corruptLandmarks();
-  corruptAbs6DoFSensorExtrinsics();
-  corruptCameraExtrinsics();
-
-  visualizeMap();
-
-  ASSERT_TRUE(test_app_.isMapConsistent());
-
-  constexpr bool kVisionOnly = false;
-  constexpr bool kAbsolute6DoF = true;
-  constexpr bool kLcEdges = false;
-  constexpr bool kFixCamExtrinsics = false;
-  constexpr bool kFixAbsolute6DoFExtrinsics = false;
-  EXPECT_TRUE(optimize(
-      kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
-      kFixAbsolute6DoFExtrinsics));
-
-  constexpr double kPrecisionM = 0.01;
-  test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.99;
-  test_app_.testIfLandmarksMatchReference(
-      kPrecisionM, kMinPassingLandmarkFraction);
-
-  visualizeMap();
-}
-
-TEST_F(
-    ViMappingTest,
-    TestCorruptedVisualInertialOptimizationWithLcEdgesEnabledButHasNone) {
+TEST_F(ViMappingTest, TestCorruptedVIOptWithLcEdgesEnabledButHasNone) {
   corruptVertices();
   corruptLandmarks();
 
@@ -624,15 +589,14 @@ TEST_F(
 
   constexpr double kPrecisionM = 0.01;
   test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionM, kMinPassingLandmarkFraction);
 
   visualizeMap();
 }
 
-TEST_F(
-    ViMappingTest, TestCorruptedVisualInertialOptimizationWithLcEdgesEnabled) {
+TEST_F(ViMappingTest, TestCorruptedVIOptWithLcEdgesEnabled) {
   // Add lc edges that constrain the relative position of a set of vertex pairs
   // to exactly what it is now.
   addLoopClosureEdges();
@@ -652,18 +616,17 @@ TEST_F(
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionM = 0.001;
-  test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kPrecisionKeyframesM = 0.001;
+  test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
+  constexpr double kPrecisionLandmarksM = 0.01;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
-      kPrecisionM, kMinPassingLandmarkFraction);
+      kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
   visualizeMap();
 }
 
-TEST_F(
-    ViMappingTest,
-    TestCorruptedVisualInertialOptimizationWithLcEdgesEnabledWithWrongLcEdge) {
+TEST_F(ViMappingTest, TestCorruptedVIOptWithLcEdgesEnabledWithWrongLcEdge) {
   // Add lc edges that constrain the relative position of a set of vertex pairs
   // to exactly what it is now.
   addLoopClosureEdges();
@@ -686,11 +649,12 @@ TEST_F(
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionM = 0.001;
-  test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.99;
+  constexpr double kPrecisionKeyframesM = 0.001;
+  test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
+  constexpr double kPrecisionLandmarksM = 0.01;
+  constexpr double kMinPassingLandmarkFraction = 0.98;
   test_app_.testIfLandmarksMatchReference(
-      kPrecisionM, kMinPassingLandmarkFraction);
+      kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
   visualizeMap();
 }

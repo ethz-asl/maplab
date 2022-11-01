@@ -16,5 +16,4 @@
   <depend>loopclosure_common</depend>
   <depend>maplab_common</depend>
   <depend>product_quantization</depend>
-  <depend>protobuf_catkin</depend>
 </package>

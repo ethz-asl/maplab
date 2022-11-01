@@ -8,11 +8,10 @@ if [[ $(uname) == "Linux" ]]; then
     checkstyle python-termcolor liblog4cplus-dev cimg-dev python-wstool \
     python-catkin-tools libssh2-1-dev libatlas3-base libv4l-dev python-scipy
 
-  if lsb_release -c 2> /dev/null | grep trusty > /dev/null ; then
-    # Ubuntu 14.04 / ROS Indigo.
-    sudo apt-get install -y clang-format-3.4 ros-indigo-camera-info-manager* \
-      ros-indigo-rviz-animated-view-controller ros-indigo-octomap-ros
-  elif lsb_release -c 2> /dev/null | grep xenial > /dev/null ; then
+  # Python package for end to end test
+  pip2 install evo
+
+  if lsb_release -c 2> /dev/null | grep xenial > /dev/null ; then
     # Ubuntu 16.04 / ROS Kinetic.
     sudo apt-get install -y clang-format-3.8 ros-kinetic-camera-info-manager* \
       ros-kinetic-octomap-ros

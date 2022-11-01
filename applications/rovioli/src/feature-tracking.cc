@@ -34,7 +34,10 @@ bool FeatureTracking::trackSynchronizedNFrameImuCallback(
 
   // The first frame will not contain any tracking information on the first
   // call, but it will be added in the second call.
-  if (previous_synced_nframe_imu_ == nullptr) {
+  if (!previous_synced_nframe_imu_) {
+    // Perform only feature detection
+    tracker_->initializeFirstNFrame(synced_nframe_imu->nframe.get());
+    // Mark it as the previous frame
     previous_synced_nframe_imu_ = synced_nframe_imu;
     previous_nframe_timestamp_ns_ =
         synced_nframe_imu->nframe->getMinTimestampNanoseconds();

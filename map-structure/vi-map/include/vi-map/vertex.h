@@ -33,8 +33,8 @@ class VIMappingTestApp;
 namespace vi_map {
 
 class Vertex : public pose_graph::Vertex {
-  friend class MapConsistencyCheckTest;              // Test.
-  friend class VertexResourcesTest;                  // Test.
+  friend class MapConsistencyCheckTest;  // Test.
+  friend class VertexResourcesTest;      // Test.
   friend class visual_inertial_mapping::VIMappingTestApp;
   FRIEND_TEST(MapConsistencyCheckTest, mapInconsistentMissingBackLink);
   friend class VIMap;
@@ -180,9 +180,14 @@ class Vertex : public pose_graph::Vertex {
       unsigned int frame_idx, LandmarkIdList* landmark_ids) const;
   const LandmarkIdList& getFrameObservedLandmarkIds(
       unsigned int frame_idx) const;
+  void getFrameObservedLandmarkIdsOfType(
+      unsigned int frame_idx, LandmarkIdList* landmark_ids,
+      int feature_type) const;
   void getAllObservedLandmarkIds(LandmarkIdList* landmark_ids) const;
   void getAllObservedLandmarkIds(
       std::vector<LandmarkIdList>* landmark_ids) const;
+  void getAllObservedLandmarkIdsOfType(
+      std::vector<LandmarkIdList>* landmark_ids_all, int feature_type) const;
   size_t getNumLandmarkObservations(const LandmarkId& landmark_id) const;
 
   // Calls action on each possible keypoint identifier in this vertex.
@@ -278,6 +283,12 @@ class Vertex : public pose_graph::Vertex {
   inline bool operator==(const Vertex& lhs) const;
   inline bool operator!=(const Vertex& lhs) const;
   inline bool isSameApartFromOutgoingEdges(const Vertex& lhs) const;
+
+  // Repairs the visual observation containers of this vertex after adding new
+  // keypoints to one of the frames. Resizes the observed_landmark_ids_ vector
+  // for every frame based on the number of keypoints the frames number of
+  // keypoints.
+  void expandVisualObservationContainersIfNecessary();
 
   size_t discardUntrackedObservations();
 

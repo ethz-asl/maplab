@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <map-optimization/optimization-problem.h>
 #include <maplab-common/stringprintf.h>
@@ -20,13 +21,9 @@ struct OutlierRejectionSolverOptions {
   int reject_outliers_every_n_iters = 3;
 
   // Classify and remove landmarks based on reprojection errors.
-  bool reject_landmarks_based_on_reprojection_errors = false;
-  // Reprojection error threshold for landmarks based on observations within
-  // missions.
-  double reprojection_error_same_mission_px = 50;
-  // Reprojection error threshold for landmarks based on observations across
-  // missions.
-  double reprojection_error_other_mission_px = 400;
+  bool use_reprojection_error = false;
+  // Reprojection error threshold for landmarks based on observations
+  double max_reprojection_error_px = 50;
 };
 
 class OutlierRejectionCallback : public ceres::IterationCallback {

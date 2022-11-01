@@ -1,0 +1,180 @@
+Panels:
+  - Class: rviz/Displays
+    Help Height: 0
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /Status1
+      Splitter Ratio: 0.6387931108474731
+    Tree Height: 913
+  - Class: rviz/Selection
+    Name: Selection
+  - Class: rviz/Tool Properties
+    Expanded:
+      - /2D Pose Estimate1
+      - /2D Nav Goal1
+      - /Publish Point1
+    Name: Tool Properties
+    Splitter Ratio: 0.5886790156364441
+  - Class: rviz/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+  - Class: rviz/Time
+    Experimental: false
+    Name: Time
+    SyncMode: 0
+    SyncSource: ""
+Preferences:
+  PromptSaveOnExit: true
+Toolbars:
+  toolButtonStyle: 2
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.029999999329447746
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 1000
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 0
+        Min Value: -5
+        Value: false
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: AxisColor
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: SERVER_VISUAL_LM
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 2
+      Size (m): 0.009999999776482582
+      Style: Points
+      Topic: /maplab_server/vi_map_landmarks
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /maplab_server/vi_map_edges/viwls
+      Name: SERVER_EDGES
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /maplab_server/vi_map_vertices
+      Name: SERVER_VERTICES
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: false
+      Marker Topic: /maplab_server/loop_closures
+      Name: Visual Loop Closures
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Class: rviz/Marker
+      Enabled: false
+      Marker Topic: /maplab_server/landmark_pairs
+      Name: Merged Landmarks
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+  Enabled: true
+  Global Options:
+    Background Color: 44; 44; 44
+    Default Light: true
+    Fixed Frame: map
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+      Hide Inactive Objects: true
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/FocusCamera
+    - Class: rviz/Measure
+    - Class: rviz/SetInitialPose
+      Theta std deviation: 0.2617993950843811
+      Topic: /initialpose
+      X std deviation: 0.5
+      Y std deviation: 0.5
+    - Class: rviz/SetGoal
+      Topic: /move_base_simple/goal
+    - Class: rviz/PublishPoint
+      Single click: true
+      Topic: /clicked_point
+  Value: true
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 39.98798370361328
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: -0.038919687271118164
+        Y: -3.0294766426086426
+        Z: -4.14680814743042
+      Focal Shape Fixed Size: false
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 1.5697963237762451
+      Target Frame: world
+      Value: Orbit (rviz)
+      Yaw: 3.9499309062957764
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 1025
+  Hide Left Dock: false
+  Hide Right Dock: true
+  QMainWindow State: 000000ff00000000fd000000040000000000000156000003cefc0200000013fb000000100044006900730070006c0061007900730100000016000003ce000000c900fffffffb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000005fb000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000001a0050006c0061006e006e0069006e006700500061006e0065006c0000000118000000800000000000000000fb0000000a0049006d00610067006500000001e2000001030000000000000000fb0000000a0049006d006100670065000000028d000001570000000000000000fb0000000a0049006d00610067006501000001b6000001160000000000000000fb0000000a0049006d00610067006501000002d20000012d0000000000000000fb0000000a0049006d0061006700650000000016fffffffe0000000000000000fb0000000a0049006d0061006700650000000012fffffffe0000000000000000fb0000000a0049006d006100670065000000000ffffffffe0000000000000000fb0000000a0049006d006100670065000000000bfffffffe0000000000000000fb0000000a0049006d0061006700650000000008fffffffe0000000000000000fb0000000a0049006d0061006700650000000004fffffffe000000000000000000000001000001b8000003e9fc0200000007fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a0049006d0061006700650100000016000001750000000000000000fb0000000a0049006d0061006700650100000191000001670000000000000000fb0000000a0049006d00610067006501000000160000011c0000000000000000fb0000000a0049006d0061006700650100000138000001710000000000000000fb0000000a005600690065007700730000000016000003e9000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b20000000000000000000000020000078000000208fc010000000afb0000000a0049006d0061006700650300000040000000250000026f000001edfb0000000a0049006d00610067006503000002b1000000250000026d000001edfb0000000a0049006d006100670065030000051f000000250000027b000001edfb0000000a0049006d0061006700650000000000000000c10000000000000000fb0000000a0049006d00610067006500000000000000018d0000000000000000fb0000000a0049006d0061006700650000000000000001870000000000000000fb0000000a0049006d0061006700650000000000000001eb0000000000000000fb0000000a0049006d0061006700650000000000000003500000000000000000fb0000000a0049006d00610067006500000000000000073f0000000000000000fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000073f000001d8fc0100000005fb0000000a0049006d0061006700650300000041000001fa0000026f000001ecfb0000000a0049006d00610067006503000002b0000001fb0000026e000001ebfb0000000a0049006d006100670065030000051f000001fb0000027b000001ebfb0000000800540069006d00650000000000000009bf000004f300fffffffb0000000800540069006d00650100000000000004500000000000000000000005e1000003ce00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730000000000ffffffff0000000000000000
+  Selection:
+    collapsed: false
+  Time:
+    collapsed: false
+  Tool Properties:
+    collapsed: false
+  Views:
+    collapsed: true
+  Width: 1853
+  X: 67
+  Y: 27

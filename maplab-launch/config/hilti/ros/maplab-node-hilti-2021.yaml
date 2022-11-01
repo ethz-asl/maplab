@@ -1,0 +1,45 @@
+# MAPLAB NODE CONFIGURATION
+
+# DATA SOURCE [rosbag, rostopic]
+################################
+datasource_type:                                                        "rostopic"
+datasource_rosbag:                                                      ""
+
+# MAP BUILDING
+##############
+map_save_on_shutdown:                                                   true
+map_overwrite_enabled:                                                  false
+map_compute_localization_map:                                           false
+map_run_keyframing_when_saving:                                         false
+map_remove_bad_landmarks:                                               false
+map_initialize_and_triangulate_landmarks_when_saving:                   true
+map_split_map_into_submaps_when_saving_periodically:                    true
+map_add_unique_timestamp_prefix_for_save_map_folder:                    true
+
+vio_nframe_sync_tolerance_ns:                                           500000
+vio_nframe_sync_max_output_frequency_hz:                                20
+maplab_throttle_frequency_odometry:                                     20
+map_add_odometry_edges_if_less_than_n_common_landmarks:                 -1
+min_tracking_distance_to_image_border_px:                               100
+
+# ATTACHING RESOURCES TO MAP
+############################
+map_builder_save_image_as_resources:                                    false
+map_builder_save_point_clouds_as_resources:                             false
+map_builder_save_point_clouds_as_range_image_camera_id:                 ""
+map_builder_save_point_clouds_as_range_image_including_intensity_image: false
+map_builder_save_point_cloud_maps_as_resources:                         false
+
+# VISUALIZATION
+###############
+publish_debug_markers:                                                  false
+vis_default_namespace:                                                  maplab_rviz
+detection_visualize_keypoints:                                          false
+feature_tracker_visualize_keypoint_matches:                             true
+
+# DEBUGGING AND LOGGING
+#######################
+alsologtostderr:                                                        true
+colorlogtostderr:                                                       true
+v: 1
+exprt_estimated_poses_to_csv:                                           ""

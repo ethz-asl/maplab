@@ -562,7 +562,7 @@ void SixDofPoseGraphGenerator::addVisualResidualBlocks(
             new ceres_error_terms::VisualReprojectionError<
                 CameraType, DistortionType>(
                 image_points_distorted.col(i), image_points_uncertainties(i),
-                ceres_error_terms::visual::VisualErrorType::kLocalMission,
+                ceres_error_terms::LandmarkErrorType::kLocalMission,
                 camera_ptr.get());
         problem_.AddResidualBlock(
             visual_term_cost, NULL,

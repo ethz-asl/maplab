@@ -15,13 +15,13 @@
 #include <localization-summary-map/unique-id.h>
 #include <loopclosure-common/types.h>
 #include <maplab-common/file-serializable.h>
+#include <sensors/external-features.h>
 #include <vi-map/mission-baseframe.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vi-map.h>
 
 #include "loop-closure-handler/loop-closure-constraint.h"
 #include "loop-closure-handler/loop-closure-handler.h"
-#include "loop-closure-handler/loop_detector_node.pb.h"
 #include "loop-closure-handler/visualization/loop-closure-visualizer.h"
 
 namespace loop_detector {
@@ -35,8 +35,7 @@ struct ProjectedImage;
 namespace loop_detector_node {
 
 // Ability to mix data from multiple maps intended.
-class LoopDetectorNode final
-    : public common::FileSerializable<proto::LoopDetectorNode> {
+class LoopDetectorNode final {
  public:
   MAPLAB_POINTER_TYPEDEFS(LoopDetectorNode);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -61,25 +60,8 @@ class LoopDetectorNode final
 
   bool hasMissionInDatabase(const vi_map::MissionId& mission_id) const;
 
-  void addLandmarkSetToDatabase(
-      const vi_map::LandmarkIdSet& landmark_id_set,
-      const vi_map::VIMap& map);
-
   void addLocalizationSummaryMapToDatabase(
       const summary_map::LocalizationSummaryMap& localization_summary_map);
-
-  bool findVertexInDatabase(
-      const vi_map::Vertex& query_vertex, const bool merge_landmarks,
-      const bool add_lc_edges, vi_map::VIMap* map, pose::Transformation* T_G_I,
-      unsigned int* num_of_lc_matches,
-      vi_map::LoopClosureConstraint* inlier_constraint) const;
-
-  bool findNFrameInDatabase(
-      const aslam::VisualNFrame& n_frame, const bool skip_untracked_keypoints,
-      vi_map::VIMap* map, pose::Transformation* T_G_I,
-      unsigned int* num_of_lc_matches,
-      vi_map::VertexKeyPointToStructureMatchList* inlier_structure_matches,
-      pose_graph::VertexId* vertex_id_closest_to_structure_matches) const;
 
   bool findNFrameInSummaryMapDatabase(
       const aslam::VisualNFrame& n_frame, const bool skip_untracked_keypoints,
@@ -88,17 +70,15 @@ class LoopDetectorNode final
       vi_map::VertexKeyPointToStructureMatchList* inlier_structure_matches)
       const;
 
-  void detectLoopClosuresMissionToDatabase(
+  bool detectLoopClosuresMissionToDatabase(
       const MissionId& mission_id, const bool merge_landmarks,
-      const bool add_lc_edges, int* num_vertex_candidate_links,
-      double* summary_landmark_match_inlier_ratio, vi_map::VIMap* map,
+      const bool add_lc_edges, vi_map::VIMap* map,
       pose::Transformation* T_G_M_estimate,
       vi_map::LoopClosureConstraintVector* inlier_constraints) const;
 
-  void detectLoopClosuresVerticesToDatabase(
+  bool detectLoopClosuresVerticesToDatabase(
       const pose_graph::VertexIdList& vertices, const bool merge_landmarks,
-      const bool add_lc_edges, int* num_vertex_candidate_links,
-      double* summary_landmark_match_inlier_ratio, vi_map::VIMap* map,
+      const bool add_lc_edges, vi_map::VIMap* map,
       pose::Transformation* T_G_M_estimate,
       vi_map::LoopClosureConstraintVector* inlier_constraints) const;
 
@@ -107,13 +87,6 @@ class LoopDetectorNode final
   void clear();
 
   std::string printStatus() const;
-
-  void serialize(
-      proto::LoopDetectorNode* proto_loop_detector_node) const override;
-  void deserialize(
-      const proto::LoopDetectorNode& proto_loop_detector_node) override;
-
-  static const std::string& getDefaultSerializationFilename();
 
  private:
   typedef std::vector<size_t> SupsampledToFullIndexMap;
@@ -126,9 +99,6 @@ class LoopDetectorNode final
       unsigned int* num_of_lc_matches,
       loop_closure::FrameToMatches* frame_matches_list) const;
 
-  // The parameter skip_invalid_landmark_ids should be set to true when
-  // creating an entry for insertion, or false when creating an entry
-  // for query.
   void convertFrameToProjectedImage(
       const vi_map::VIMap& map, const vi_map::VisualFrameIdentifier& frame_id,
       const aslam::VisualFrame& frame,
@@ -191,7 +161,7 @@ class LoopDetectorNode final
       const bool add_lc_edges, vi_map::VIMap* map,
       vi_map::LoopClosureConstraint* raw_constraint,
       vi_map::LoopClosureConstraint* inlier_constraint,
-      std::vector<double>* inlier_ratios,
+      std::vector<double>* inlier_counts,
       aslam::TransformationVector* T_G_M2_vector,
       loop_closure_handler::LoopClosureHandler::MergedLandmark3dPositionVector*
           landmark_pairs_merged,
@@ -208,6 +178,9 @@ class LoopDetectorNode final
   // A mapping from the merged landmark id (does not exist anymore) to the
   // landmark id it was merged into (and should exist).
   mutable LandmarkToLandmarkMap landmark_id_old_to_new_;
+
+  // Feature type this node deals with
+  int feature_type_;
 };
 
 }  // namespace loop_detector_node

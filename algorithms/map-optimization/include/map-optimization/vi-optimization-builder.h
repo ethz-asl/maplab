@@ -35,6 +35,7 @@ struct ViProblemOptions {
   bool fix_extrinsics_rotation;
   bool fix_extrinsics_translation;
   bool fix_landmark_positions;
+  vi_map::FeatureType feature_type;
 
   // Wheel constraints
   bool add_wheel_odometry_constraints;

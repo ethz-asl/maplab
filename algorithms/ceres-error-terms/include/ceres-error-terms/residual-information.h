@@ -22,6 +22,7 @@ enum class ResidualType {
   kSwitchVariable,
   kVelocityPrior,
   kGenericPrior,
+  kLidarLandmarkError,
 };
 
 struct ResidualInformation {

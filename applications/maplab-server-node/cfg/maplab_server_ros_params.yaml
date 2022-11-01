@@ -2,7 +2,8 @@
 
 # THREADING
 ###########
-num_hardware_threads:                                                 4 # Set in between num cores and num threads.
+# Set in between num cores and num threads.
+num_hardware_threads:                                                 10
 
 # INPUT / OUTPUT
 ############################
@@ -15,7 +16,7 @@ maplab_server_map_update_topic:                                       map_update
 ######################################
 # If enabled, the first mission will be the anchor and the baseframe will
 # be set to known. Only use this if no absolute pose constraints are present.
-maplab_server_set_first_robot_map_baseframe_to_known:                 true # Default true
+maplab_server_set_first_robot_map_baseframe_to_known: true # Default true
 
 # ABSOLUTE POSE CONSTRAINTS OUTLIER REJECTION
 #############################################
@@ -35,35 +36,6 @@ abs_constraints_baseframe_ransac_max_orientation_error_rad:           0.0872 # 5
 abs_constraints_baseframe_ransac_max_position_error_m:                0.5
 # Maximum number of iterations for mission baseframe RANSAC.
 abs_constraints_baseframe_ransac_num_interations:                     2000
-
-# VISUAL LOOP CLOSURE
-#####################
-# NOTE These parameters influence intra, inter mission visual loop closure and
-# vision-based map anchoring!
-# If enabled, only landmarks labeled as 'good' are considered for loop closure
-lc_filter_underconstrained_landmarks:                                 true # Default true
-lc_ransac_pixel_sigma:                                                2.0 # Default 2.0
-lc_min_inlier_count:                                                  10 # Default 10
-lc_min_inlier_ratio:                                                  0.2 # Default 0.2
-lc_num_ransac_iters:                                                  100 # Default 100
-# If nonlinear refinement on all ransac inliers should be run.
-lc_nonlinear_refinement_p3p:                                          false # Default false
-# If enabled, the visual loop closure will not merge the landmarks, but add a
-# loop closure edge. This is more powerful but less accurate, as for loop
-# closures with a high error merged landmarks are likely to be discarded as
-# outliers.
-lc_insert_lc_edge_instead_of_merging:                                 false # Default false
-# The variance for the switch variable of the visual loop-closure edges.
-lc_switch_variable_variance:                                          1e-8 # Default 1e-8
-# Scaling the covariance of visual loop closure edges. It is identity by default.
-lc_edge_covariance_scaler:                                            1e-7 # Default 1e-7
-# The minimum loop-closure gap distance such that a visual loop closure edge
-# is created.
-lc_edge_min_distance_meters:                                          1.0 # Default 1.0
-# The minimum loop-closure inlier ratio to add a visual loop closure edge.
-lc_edge_min_inlier_ratio:                                             0.5 # Default 0.5
-# The minimum loop-closure inlier count to add a loop-closure edge.
-lc_edge_min_inlier_count:                                             20 # Default 20
 
 # DENSE MAPPING CONSTRAINTS/LOOP CLOSURES
 #########################################
@@ -107,21 +79,17 @@ dm_constraint_switch_variable_sigma:                                  1e-3 # Def
 # VISUAL LOOP CLOSURE BASED MAP ANCHORING
 #########################################
 # Enable/disable visual loop closure
-maplab_server_enable_visual_loop_closure:                             true # Default true
+maplab_server_enable_visual_loop_closure:                     true # Default true
 # Enable/disable vision based map anchoring
-maplab_server_enable_visual_loop_closure_based_map_anchoring:         true # Default true
-# Minimum inlier ratio for successful vision-based map anchoring.
-lc_mission_baseframe_min_inlier_ratio:                                0.2   # Default 0.2
+maplab_server_enable_visual_loop_closure_based_map_anchoring: true # Default true
 # Maximum orientation error for inliers for vision-based map anchoring.
-lc_mission_baseframe_ransac_max_orientation_error_rad:                0.174 # Default 0.174
+anchor_transform_ransac_max_orientation_error_rad:            0.174 # Default 0.174
 # Maximum position error for inliers for vision-based map anchoring.
-lc_mission_baseframe_ransac_max_position_error_m:                     2.0   # Default 2.0
+anchor_transform_ransac_max_position_error_m:                 2.0   # Default 2.0
 # Maximum number of iterations for mission baseframe RANSAC.
-lc_mission_baseframe_ransac_num_interations:                          2000  # Default 2000
-# Minimum median inlier ration required for a successful (rigid) map alignment/anchoring.
-map_anchoring_min_medial_inlier_ratio:                                0.2 # Default 0.2
+anchor_transform_ransac_num_interations:                      2000  # Default 2000
 # Minimum number of vertex links for a successful (rigid) map alignment/anchoring.
-map_anchoring_min_num_vertex_links:                                   5 # Default 10
+anchor_transform_min_inlier_count:                            5 # Default 10
 
 # DENSE MAP
 ###########
@@ -146,10 +114,10 @@ dense_depth_integrator_enable_sigint_breaker:                         false
 # Settings for the default submap processing commands:
 # ELQ (evaluate landmark quality)
 # needs to be set because due to keyframing the default value is way to strict
-vi_map_landmark_quality_min_observers:                                2   # Default 4
-vi_map_landmark_quality_max_distance_from_closest_observer:           20  # Default 40m
-vi_map_landmark_quality_min_distance_from_closest_observer:           0.1 # Default 0.05m
-vi_map_landmark_quality_min_observation_angle_deg:                    5   # Default 5deg
+elq_min_observers:                                2   # Default 4
+elq_max_distance_from_closest_observer:           20  # Default 40m
+elq_min_distance_from_closest_observer:           0.1 # Default 0.05m
+elq_min_observation_angle_deg:                    5   # Default 5deg
 
 # OPTIMIZATION
 ##############
@@ -170,12 +138,12 @@ ba_include_6dof_odometry:                                             false
 ba_absolute_pose_sensor_fix_mission_baseframes:                       false
 # If enabled, the trust regions of the last iteration is used as initial
 # trust region for the next time the global optimization is run.
-maplab_server_preserve_trust_region_radius_across_merging_iterations: true
+maplab_server_preserve_trust_region_radius_across_merging: true
 # The trust region radius of the optimization is preserved between iterations
 # of the merging thread. But since there are always new submaps being added,
 # we might want to reset the trust radius to keep it from getting to small or
 # too large (which can prevent convergence). 0 disables resetting.
-maplab_server_reset_trust_region_radius_every_nth_submap:             0
+maplab_server_reset_trust_region_radius_every_nth_submap:             5
 # If enabled and a new robot has started streaming to the maplab server we
 # reset the trust region radius to the default initial value.
 maplab_server_reset_trust_region_radius_if_new_robot:                 true
@@ -215,3 +183,5 @@ colorlogtostderr:                                                     true
 v: 0
 vis_default_namespace:                                                maplab_server_rviz
 show_progress_bar:                                                    false
+spatially_distribute_missions_meters:                                 20
+spatially_distribute_missions_around_circle:                          true

@@ -51,7 +51,6 @@ class VertexLandmarkVisibilityPlotter {
   pose_graph::VertexId root_vertex_id_;
   int64_t root_vertex_timestamp_;
   pose_graph::VertexId current_vertex_id_;
-  pose_graph::Edge::EdgeType graph_traversal_edge_type_;
   visualization::Palette color_palette_;
 
   const std::string vertex_rays_topic_;

@@ -22,13 +22,14 @@
 #include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/landmark-quality-metrics.h>
+#include <visualization/spatially-distribute-missions.h>
 
 #include <atomic>
 #include <memory>
 #include <string>
 
 DECLARE_bool(ros_free);
-DECLARE_uint64(vi_map_landmark_quality_min_observers);
+DECLARE_uint64(elq_min_observers);
 
 DEFINE_int32(
     maplab_server_submap_loading_thread_pool_size, 4,
@@ -93,7 +94,7 @@ DEFINE_bool(
     "reset the trust region radius to the default initial value.");
 
 DEFINE_bool(
-    maplab_server_preserve_trust_region_radius_across_merging_iterations, true,
+    maplab_server_preserve_trust_region_radius_across_merging, true,
     "If enabled, the trust regions of the last iteration is used as initial "
     "trust region for the next time the global optimization is run.");
 
@@ -110,8 +111,12 @@ DEFINE_bool(
 DEFINE_bool(
     maplab_server_enable_lidar_loop_closure, true,
     "If enabled, lidar loop closure & mapping is used to derrive constraints "
-    "within and "
-    "across missions.");
+    "within and across missions.");
+
+DEFINE_bool(
+    maplab_server_spatially_distribute_missions, true,
+    "Spatially distribute missions from robots that have not yet been merged "
+    "into the main map. See flags \"spatially_*\" for more options.");
 
 namespace maplab {
 MaplabServerNode::MaplabServerNode()
@@ -431,8 +436,14 @@ void MaplabServerNode::visualizeMap() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (plotter_) {
     if (map_manager_.hasMap(kMergedMapKey)) {
-      vi_map::VIMapManager::MapReadAccess map =
-          map_manager_.getMapReadAccess(kMergedMapKey);
+      vi_map::VIMapManager::MapWriteAccess map =
+          map_manager_.getMapWriteAccess(kMergedMapKey);
+
+      // Spatially distribute the robots that don't yet have a fixed baseframe
+      if (FLAGS_maplab_server_spatially_distribute_missions) {
+        visualization::spatiallyDistributeMissions(map.get());
+      }
+
       plotter_->visualizeMap(*map);
     } else {
       LOG(WARNING) << "[MaplabServerNode] Could not visualize merged map, as "
@@ -794,7 +805,7 @@ void MaplabServerNode::runOneIterationOfMapMergingAlgorithms() {
         map_optimization::ViProblemOptions::initFromGFlags();
 
     // Restore previous trust region.
-    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging_iterations) {
+    if (FLAGS_maplab_server_preserve_trust_region_radius_across_merging) {
       // Reset the trust region if N submaps have been added in the meantime.
       const uint32_t num_submaps_merged = total_num_merged_submaps_.load();
       const uint32_t num_submaps_since_reset =
@@ -1281,10 +1292,9 @@ void MaplabServerNode::runSubmapProcessing(
       running_submap_process_[submap_process.map_hash] =
           "landmark quality evaluation";
     }
-    if (FLAGS_vi_map_landmark_quality_min_observers > 2) {
+    if (FLAGS_elq_min_observers > 2) {
       LOG(WARNING) << "[MaplabServerNode] Minimum required landmark observers "
-                   << "is set to "
-                   << FLAGS_vi_map_landmark_quality_min_observers
+                   << "is set to " << FLAGS_elq_min_observers
                    << ",  this might be too stricht if keyframing is enabled.";
     }
     vi_map_helpers::evaluateLandmarkQuality(missions_to_process, map.get());
@@ -1309,7 +1319,7 @@ void MaplabServerNode::runSubmapProcessing(
                  << "encountered an error!";
     }
   }
-  #endif
+#endif
 
   // Submap Optimization
   //////////////////////
@@ -1590,11 +1600,9 @@ bool MaplabServerNode::deleteBlacklistedMissions() {
               empty_robot_mission_id_list, *merged_map);
         }
       }
-
     }  // Limits the scope of the lock on the robot to mission id bookkeeping
 
     num_missions_in_merged_map_after_deletion = merged_map->numMissions();
-
   }  // Limits the scope of the lock on the merged map, such that it can
      // be deleted down below.
 

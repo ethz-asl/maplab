@@ -51,10 +51,6 @@ target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib)
 ##########
 # GTESTS #
 ##########
-catkin_add_gtest(test_localizer test/test-localizer.cc)
-target_link_libraries(test_localizer ${PROJECT_NAME}_lib)
-maplab_import_test_maps(test_localizer)
-
 catkin_add_gtest(test_feature_tracking test/test-feature-tracking.cc)
 target_link_libraries(test_feature_tracking ${PROJECT_NAME}_lib)
 maplab_import_test_maps(test_feature_tracking)

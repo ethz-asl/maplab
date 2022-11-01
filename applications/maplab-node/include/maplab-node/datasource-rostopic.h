@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <aslam/common/time.h>
+#include <maplab_msgs/Features.h>
 #include <maplab_msgs/OdometryWithImuBiases.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -81,6 +82,9 @@ class DataSourceRostopic : public DataSource {
       const aslam::SensorId& sensor_id);
   void wheelOdometryConstraintCallback(
       const nav_msgs::OdometryConstPtr& msg, const aslam::SensorId& sensor_id);
+  void externalFeaturesCallback(
+      const maplab_msgs::FeaturesConstPtr& msg,
+      const aslam::SensorId& sensor_id);
 
 #ifdef VOXGRAPH
   // Voxgraph specific subscribers.
@@ -112,6 +116,7 @@ class DataSourceRostopic : public DataSource {
   ros::Subscriber sub_absolute_6dof_;
   ros::Subscriber sub_wheel_odometry_;
   ros::Subscriber sub_pointcloud_map_;
+  std::vector<ros::Subscriber> sub_external_features_;
 
   int64_t last_imu_timestamp_ns_;
   int64_t last_imu_dispatch_timestamp_ns_;

@@ -16,8 +16,6 @@
 #include <maplab-common/macros.h>
 #include <vi-map/unique-id.h>
 
-#include "descriptor-projection/projected_image.pb.h"
-
 namespace loop_closure {
 typedef vi_map::MissionId DatasetId;
 typedef vi_map::LandmarkId PointLandmarkId;
@@ -30,9 +28,6 @@ struct ProjectedImage {
   Eigen::MatrixXf projected_descriptors;
   Eigen::Matrix2Xd measurements;
   std::vector<PointLandmarkId> landmarks;
-
-  void serialize(proto::ProjectedImage* projected_image) const;
-  void deserialize(const proto::ProjectedImage& projected_image);
 };
 typedef std::vector<ProjectedImage::Ptr> ProjectedImagePtrList;
 

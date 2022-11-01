@@ -42,7 +42,6 @@ VertexLandmarkVisibilityPlotter::VertexLandmarkVisibilityPlotter(
 
   root_vertex_id_ = map_.getMission(mission_id).getRootVertexId();
   current_vertex_id_ = root_vertex_id_;
-  graph_traversal_edge_type_ = map_.getGraphTraversalEdgeType(mission_id);
   CHECK(root_vertex_id_.isValid());
   const vi_map::Vertex& vertex = map_.getVertex(root_vertex_id_);
   CHECK_GT(vertex.numFrames(), 0u);
@@ -91,9 +90,9 @@ void VertexLandmarkVisibilityPlotter::publishVertexRaysAndIterate(
         });
   } else {
     map_queries_.forEachWellConstrainedObservedLandmark(
-        viwls_vertex, [&](const size_t /*frame_idx*/,
-                          const vi_map::LandmarkId& landmark_id,
-                          const vi_map::Vertex& storing_vertex) {
+        viwls_vertex,
+        [&](const size_t /*frame_idx*/, const vi_map::LandmarkId& landmark_id,
+            const vi_map::Vertex& storing_vertex) {
           p_G_fi.emplace_back(map_.getLandmark_G_p_fi(landmark_id));
 
           const size_t index = storing_vertex.getMissionId().hashToSizeT() *
@@ -115,9 +114,7 @@ void VertexLandmarkVisibilityPlotter::publishVertexRaysAndIterate(
 }
 
 void VertexLandmarkVisibilityPlotter::iterateVertexAlongGraph() {
-  if (!map_.getNextVertex(
-          current_vertex_id_, graph_traversal_edge_type_,
-          &current_vertex_id_)) {
+  if (!map_.getNextVertex(current_vertex_id_, &current_vertex_id_)) {
     reset();
   }
 }
@@ -137,10 +134,10 @@ void VertexLandmarkVisibilityPlotter::getKeypointObservationTimeRange(
     *timestamp_min = std::numeric_limits<int64_t>::max();
 
     map_queries_.forEachWellConstrainedObservedLandmark(
-        viwls_vertex, [timestamp_min, timestamp_max](
-                          const size_t frame_idx,
-                          const vi_map::LandmarkId& /*landmark_id*/,
-                          const vi_map::Vertex& storing_vertex) {
+        viwls_vertex,
+        [timestamp_min, timestamp_max](
+            const size_t frame_idx, const vi_map::LandmarkId& /*landmark_id*/,
+            const vi_map::Vertex& storing_vertex) {
           int64_t timestamp = storing_vertex.getVisualFrame(frame_idx)
                                   .getTimestampNanoseconds();
 

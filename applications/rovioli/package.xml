@@ -17,7 +17,6 @@
   <depend>aslam_cv_frames</depend>
   <depend>aslam_cv_pipeline</depend>
   <depend>cv_bridge</depend>
-  <depend>end_to_end_common</depend>
   <depend>feature_tracking</depend>
   <depend>gflags_catkin</depend>
   <depend>glog_catkin</depend>
