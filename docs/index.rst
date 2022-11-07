@@ -21,7 +21,7 @@
    :glob:
 
    pages/installation/*
-   
+
 .. toctree::
    :maxdepth: 1
    :caption: Datasets
@@ -51,6 +51,14 @@
    :glob:
 
    pages/tutorials-maplab/use-cases/*
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Tutorials for using maplab server (Online)
+   :glob:
+
+   pages/tutorials-maplab-server/*
 
 
 .. toctree::
