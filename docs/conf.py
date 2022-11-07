@@ -18,14 +18,14 @@ html_last_updated_fmt = "%c"
 pygments_style = "sphinx"
 templates_path = ["_templates"]
 
-# Check https://holzhaus.github.io/sphinx-multiversion/master/configuration.html#tag-branch-remote-whitelists
+# Check https://holzhaus.github.io/sphinx-multiversion/master/
+#               configuration.html#tag-branch-remote-whitelists
 smv_tag_whitelist = None  # Include no tags
-smv_branch_whitelist = r'^(master|develop)$'  # Include develop  branch
+smv_branch_whitelist = r'^(master)$'  # Everything is on master now
 smv_remote_whitelist = r'^(origin|upstream)$'  # Use origin and upstream
 
 extensions = [
-    'breathe', 'exhale', 'sphinx.ext.autosectionlabel', 'recommonmark',
-    'sphinx_multiversion', 'sphinx.ext.graphviz'
+    'sphinx.ext.autosectionlabel', 'recommonmark', 'sphinx_multiversion'
 ]
 
 html_theme_options = {
@@ -48,7 +48,7 @@ html_context = {
     'display_github': True,
     'github_repo': 'maplab',
     'github_user': 'ethz-asl',
-    'github_version': 'develop',
+    'github_version': 'master',
     'conf_py_path': '/docs/',
 }
 
@@ -56,23 +56,6 @@ templates_path = [
     "_templates",
 ]
 
-# Setup the breathe extension
-breathe_projects = {"project": "./doxyoutput/xml"}
-breathe_default_project = "project"
-
-# Setup the exhale extension
-exhale_args = {
-    "verboseBuild": False,
-    "containmentFolder": "./api",
-    "rootFileName": "library_root.rst",
-    "rootFileTitle": "Library API",
-    "doxygenStripFromPath": "..",
-    "createTreeView": True,
-    "exhaleExecutesDoxygen": True,
-    "exhaleUseDoxyfile": True,
-    "pageLevelConfigMeta":
-    ":github_url: https://github.com/ethz-asl/" + project
-}
 source_suffix = ['.rst', '.md']
 
 # Tell sphinx what the primary language being documented is.

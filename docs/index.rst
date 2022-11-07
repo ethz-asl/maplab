@@ -91,13 +91,6 @@
 
    pages/additional-formats/*
 
-.. toctree::
-   :maxdepth: 3
-   :caption: API
-   :glob:
-
-   api/library_root
-
 
 
 Indices and tables
