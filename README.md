@@ -1,28 +1,20 @@
 <img src="https://github.com/ethz-asl/maplab/wiki/logos/maplab_new.png" width="500">
 
 
-
-*Ubuntu 14.04+ROS indigo*, *Ubuntu 16.04+ROS kinetic* and *Ubuntu 18.04+ROS melodic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly) 
+*Ubuntu 18.04+ROS melodic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly)
 [![Documentation Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_docs&subject=docs)](https://jenkins.asl.ethz.ch/job/maplab_docs)
 
 ## News
 
- * **May 2018:** maplab was presented at [ICRA](https://icra2018.org/) in Brisbane. ([paper](https://arxiv.org/abs/1711.10250))
- * **March 2018:** Check out our release candidate with improved localization and lots of new features! [PR](https://github.com/ethz-asl/maplab/pull/55)
+ * **May 2018:** maplab was presented at [ICRA](https://icra2018.org/) in Brisbane. [Paper](https://arxiv.org/abs/1711.10250) / [Initial Release](https://github.com/ethz-asl/maplab/releases/tag/initial_release)
+ * **July 2018:** Check out our release candidate with improved localization and lots of new features! [Release 1.3](https://github.com/ethz-asl/maplab/releases/tag/1.3)
+ * **November 2022:** maplab 2.0 initial release with new features and sensors
 
 ## Description
 
-This repository contains **maplab**,  an  open,  research-oriented visual-inertial  mapping  framework, written  in  C++,  for  creating, processing  and  manipulating  multi-session  maps.
-On  the  one  hand, maplab  can  be  considered  as  a  ready-to-use  visual-inertial mapping  and  localization  system.
-On  the  other  hand,  maplab provides  the  research  community  with  a  collection  of  multi-session mapping tools that include map merging, visual-inertial batch optimization, and loop closure.
+This repository contains **maplab 2.0**, an open research-oriented mapping framework, written in C++,  for multi-session and multi-robot mapping. For the original maplab release from 2018 the source code and documentation is available [here](https://github.com/ethz-asl/maplab/releases/tag/1.3).
 
-Furthermore, it includes an online frontend, **ROVIOLI**, that can create visual-inertial maps and also track a global drift-free pose within a localization map.
-
-For documentation, tutorials and datasets, please visit the [wiki](https://maplab.asl.ethz.ch/docs/develop/index.html).
-
-Please also check out our video:
-
-<a href="https://www.youtube.com/watch?v=CrfG4v25B8k"> <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/maplab_video_thumbnail.png" alt="https://www.youtube.com/watch?v=CrfG4v25B8k" width="600">
+**For documentation, tutorials and datasets, please visit the [wiki](https://maplab.asl.ethz.ch/index.html).**
 
 ## Features
 
@@ -43,22 +35,22 @@ Please also check out our video:
 The following articles help you with getting started with maplab and ROVIOLI:
 
 <!-- TODO(floriantschopp): Update links to new wiki -->
-- [Installation on Ubuntu 14.04 or 16.04](https://github.com/ethz-asl/maplab/wiki/Installation-Ubuntu)
-- [Introduction to the maplab framework](https://github.com/ethz-asl/maplab/wiki/Introduction-to-the-Maplab-Framework)
-- [Structure of the framework](https://github.com/ethz-asl/maplab/wiki/Structure-of-the-framework)
-- [Running ROVIOLI in VIO mode](https://github.com/ethz-asl/maplab/wiki/Running-ROVIOLI-in-VIO-mode)
-- [Basic console usage](https://github.com/ethz-asl/maplab/wiki/Basic-Console-Usage)
-- [Console map management](https://github.com/ethz-asl/maplab/wiki/Console-map-management)
+- [Installation on Ubuntu 18.04 or 20.04](https://maplab.asl.ethz.ch/pages/installation/A_Installation-Ubuntu.html)
+- [Introduction to the maplab framework](https://maplab.asl.ethz.ch/pages/overview_and_introduction/A_Introduction-to-the-Maplab-Framework.html)
+- [Structure of the framework](https://maplab.asl.ethz.ch/pages/overview_and_introduction/B_Structure-of-the-framework.html)
+- [Running ROVIOLI in VIO mode](https://maplab.asl.ethz.ch/pages/tutorials-rovioli/B_Running-ROVIOLI-in-VIO-mode.html)
+- [Basic console usage](https://maplab.asl.ethz.ch/pages/tutorials-maplab/basics/A_Basic-Console-Usage.html)
+- [Console map management](https://maplab.asl.ethz.ch/pages/tutorials-maplab/basics/C_Console-map-management.html)
 
-More detailed information can be found in the [wiki pages](https://maplab.asl.ethz.ch/docs/develop/index.html).
+**More detailed information can be found in the [wiki pages](https://maplab.asl.ethz.ch/docs/develop/index.html).**
 
 ## Research Results
 
-The maplab framework has been used as an experimental platform for numerous scientific publications. For a complete list of publications please refer to [Research based on maplab](https://github.com/ethz-asl/maplab/wiki/Related-Research).
+The maplab framework has been used as an experimental platform for numerous scientific publications. For a complete list of publications please refer to [Research based on maplab](https://maplab.asl.ethz.ch/pages/overview_and_introduction/C_Related-Research.html).
 
 ## Citing
 
-Please cite the [following paper](https://arxiv.org/abs/1711.10250) when using maplab or ROVIOLI for your research:
+Please cite the [following paper](https://arxiv.org/abs/1711.10250) when using maplab for your research:
 
 ```bibtex
 @article{schneider2018maplab,
