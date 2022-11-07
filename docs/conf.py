@@ -21,7 +21,7 @@ templates_path = ["_templates"]
 # Check https://holzhaus.github.io/sphinx-multiversion/master/
 #               configuration.html#tag-branch-remote-whitelists
 smv_tag_whitelist = None  # Include no tags
-smv_branch_whitelist = r'^(master)$'  # Everything is on master now
+smv_branch_whitelist = r'^(master|wiki_update)$'  # Everything is on master now
 smv_remote_whitelist = r'^(origin|upstream)$'  # Use origin and upstream
 
 extensions = [
