@@ -29,6 +29,8 @@ bool anchorMissionUsingProvidedLoopDetector(
     const loop_detector_node::LoopDetectorNode& loop_detector,
     vi_map::VIMap* map);
 
+bool gravityAlignMission(
+    const vi_map::MissionId& mission_id, vi_map::VIMap* map);
 }  // namespace map_anchoring
 
 #endif  // MAP_ANCHORING_MAP_ANCHORING_H_
