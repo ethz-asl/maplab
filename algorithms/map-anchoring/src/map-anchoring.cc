@@ -507,4 +507,13 @@ bool gravityAlignMission(
   landmark_triangulation::retriangulateLandmarksOfMission(mission_id, map);
 }
 
+bool gravityAlignAllMissions(vi_map::VIMap* map) {
+  vi_map::MissionIdList all_missions;
+  map->getAllMissionIds(&all_missions);
+  LOG(INFO) << "gravity aligning all missions";
+  for (const vi_map::MissionId& mission_id : all_missions) {
+    LOG(INFO) << "next mission: " << mission_id;
+    gravityAlignMission(mission_id, map);
+  }
+}
 }  // namespace map_anchoring
