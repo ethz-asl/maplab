@@ -469,18 +469,36 @@ bool gravityAlignMission(
   // normalize for directional unit vector
   mean_acc.normalize();
   // when aligned, gravity should be in negative z direction
-  Eigen::Vector3d gravity_target = Eigen::Vector3d(0, 0, -1);
-  Eigen::Quaterniond R_GM_M =
+  Eigen::Vector3d gravity_target = Eigen::Vector3d(0, 0, 1);
+  Eigen::Quaterniond q_GM_M =
       Eigen::Quaterniond().setFromTwoVectors(mean_acc, gravity_target);
+
+  LOG(INFO) << "setting rotations";
   // What is essential to change is this
   //     - vertex velocity
   //     - vertex position
+  // .   - vertex orientation
   pose_graph::VertexIdList vertices;
   map->getAllVertexIdsInMissionAlongGraph(mission_id, &vertices);
+  auto matrix_q_GM_M = q_GM_M.toRotationMatrix();
   for (const pose_graph::VertexId& vertex_id : vertices) {
     vi_map::Vertex& vertex = map->getVertex(vertex_id);
-    vertex.set_v_M(R_GM_M * vertex.get_v_M());
-    vertex.set_q_M_I(R_GM_M * vertex.get_q_M_I());
+    // velocity
+    vertex.set_v_M(matrix_q_GM_M * vertex.get_v_M());
+    // position
+    vertex.set_p_M_I(matrix_q_GM_M * vertex.get_p_M_I());
+    // rotation - set in minkindr to make sure everything is normalized
+    aslam::Quaternion kindr_q_GM_M, kindr_q_M_I, kindr_q_GM_I;
+    kindr_q_GM_M = aslam::Quaternion(q_GM_M);
+    kindr_q_M_I = aslam::Quaternion(vertex.get_q_M_I());
+    kindr_q_GM_I = kindr_q_GM_M * kindr_q_M_I;
+    kindr_q_GM_I = kindr_q_GM_I.normalize();
+    if (kindr_q_GM_I.w() < 0) {
+      kindr_q_GM_I.setValues(
+          -kindr_q_GM_I.w(), -kindr_q_GM_I.x(), -kindr_q_GM_I.y(),
+          -kindr_q_GM_I.z());
+    }
+    vertex.set_q_M_I(kindr_q_GM_I.toImplementation());
   }
 
   // The one thing still remaining here would be to retriangulate
