@@ -54,6 +54,13 @@ AnchoringPlugin::AnchoringPlugin(
       [this]() -> int { return anchorAllMissions(); },
       "Try to anchor all missions to another mission with known baseframe.",
       common::Processing::Sync);
+
+  addCommand(
+      {"gravity_align_mission", "gam"},
+      [this]() -> int { return gravityAlignMission(); },
+      "Rotates the mission map frame such that all IMU edges are on average "
+      "gravity aligned.",
+      common::Processing::Sync);
 }
 
 int AnchoringPlugin::setMissionBaseframeKnownState(
@@ -145,6 +152,32 @@ int AnchoringPlugin::anchorAllMissions() const {
   }
 
   return success ? common::kSuccess : common::kUnknownError;
+}
+
+int AnchoringPlugin::gravityAlignMission() const {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);
+
+  vi_map::MissionId mission_id;
+  map->ensureMissionIdValid(FLAGS_map_mission, &mission_id);
+  if (!mission_id.isValid()) {
+    LOG(ERROR) << "The given mission \"" << FLAGS_map_mission
+               << "\" is not valid.";
+    return common::kUnknownError;
+  }
+
+  map_anchoring::gravityAlignMission(mission_id, map.get());
+  if (hasPlotter()) {
+    getPlotter().visualizeMap(*map);
+  }
+
+  return common::kSuccess;
 }
 
 }  // namespace map_anchoring_plugin

@@ -1268,6 +1268,10 @@ void MaplabServerNode::runSubmapProcessing(
   CHECK_EQ(missions_to_process.size(), 1u);
   const vi_map::MissionId& submap_mission_id = missions_to_process[0];
 
+  // Gravity align the submaps mission
+  ////////////////////////////////////
+  map_anchoring::gravityAlignMission(submap_mission_id, map.get());
+
   // Stationary submap fixing
   ///////////////////////////
   if (FLAGS_maplab_server_stationary_submaps_fix_with_lc_edge) {

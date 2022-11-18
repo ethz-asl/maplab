@@ -1,5 +1,6 @@
 #include "map-anchoring/map-anchoring.h"
 
+#include <landmark-triangulation/landmark-triangulation.h>
 #include <loop-closure-handler/loop-detector-node.h>
 #include <vi-map/vi-map.h>
 #include <visualization/viwls-graph-plotter.h>
@@ -426,4 +427,93 @@ void removeOutliersInAbsolute6DoFConstraints(vi_map::VIMap* map) {
   LOG(INFO) << ss.str();
 }
 
+bool gravityAlignMission(
+    const vi_map::MissionId& mission_id, vi_map::VIMap* map) {
+  LOG(INFO) << "Searching for mean direction of IMU acceleration.";
+  // Find the direction of gravity in the mission frame as mean acceleration
+  // direction.
+  long count = 0;
+  Eigen::Vector3d mean_acc;
+  pose_graph::EdgeIdList edges;
+  map->getAllEdgeIdsInMissionAlongGraph(
+      mission_id, pose_graph::Edge::EdgeType::kViwls, &edges);
+  if (edges.size() == 0) {
+    LOG(ERROR) << "map has no IMU edges";
+    return false;
+  }
+  // Iterate over the imu edges
+  for (const pose_graph::EdgeId edge_id : edges) {
+    const vi_map::ViwlsEdge& inertial_edge =
+        map->getEdgeAs<vi_map::ViwlsEdge>(edge_id);
+
+    // You can then do inertial_edge.getImuData() to get a
+    // Eigen::Matrix<double, 6, Eigen::Dynamic>& imu_data
+    // which I suppose is acc_x, acc_y, acc_z, gyro_x, ...
+    Eigen::Vector3d acc = inertial_edge.getImuData().block(0, 0, 3, 1);
+    // You can get the vertices
+    vi_map::Vertex& vertex_from = map->getVertex(inertial_edge.from());
+    vi_map::Vertex& vertex_to = map->getVertex(inertial_edge.to());
+
+    // The transformation matrix in mission frame
+    const aslam::Transformation& T_M_I = vertex_from.get_T_M_I();
+    // And I think you only need the rotation
+    const aslam::Quaternion& R_M_I = T_M_I.getRotation();
+
+    double denuminator = 1.0 / (double)(count + 1);
+    mean_acc = (double)count * denuminator * mean_acc +
+               denuminator * R_M_I.rotate(acc);
+    count++;
+  }
+
+  LOG(INFO) << "rotating map";
+  // normalize for directional unit vector
+  mean_acc.normalize();
+  // when aligned, gravity should be in negative z direction
+  Eigen::Vector3d gravity_target = Eigen::Vector3d(0, 0, 1);
+  Eigen::Quaterniond q_GM_M =
+      Eigen::Quaterniond().setFromTwoVectors(mean_acc, gravity_target);
+
+  LOG(INFO) << "setting rotations";
+  // What is essential to change is this
+  //     - vertex velocity
+  //     - vertex position
+  // .   - vertex orientation
+  pose_graph::VertexIdList vertices;
+  map->getAllVertexIdsInMissionAlongGraph(mission_id, &vertices);
+  auto matrix_q_GM_M = q_GM_M.toRotationMatrix();
+  for (const pose_graph::VertexId& vertex_id : vertices) {
+    vi_map::Vertex& vertex = map->getVertex(vertex_id);
+    // velocity
+    vertex.set_v_M(matrix_q_GM_M * vertex.get_v_M());
+    // position
+    vertex.set_p_M_I(matrix_q_GM_M * vertex.get_p_M_I());
+    // rotation - set in minkindr to make sure everything is normalized
+    aslam::Quaternion kindr_q_GM_M, kindr_q_M_I, kindr_q_GM_I;
+    kindr_q_GM_M = aslam::Quaternion(q_GM_M);
+    kindr_q_M_I = aslam::Quaternion(vertex.get_q_M_I());
+    kindr_q_GM_I = kindr_q_GM_M * kindr_q_M_I;
+    kindr_q_GM_I = kindr_q_GM_I.normalize();
+    if (kindr_q_GM_I.w() < 0) {
+      kindr_q_GM_I.setValues(
+          -kindr_q_GM_I.w(), -kindr_q_GM_I.x(), -kindr_q_GM_I.y(),
+          -kindr_q_GM_I.z());
+    }
+    vertex.set_q_M_I(kindr_q_GM_I.toImplementation());
+  }
+
+  // The one thing still remaining here would be to retriangulate
+  // the landmarks since those are observed in global scope
+  LOG(INFO) << "retriangulating landmarks";
+  landmark_triangulation::retriangulateLandmarksOfMission(mission_id, map);
+}
+
+bool gravityAlignAllMissions(vi_map::VIMap* map) {
+  vi_map::MissionIdList all_missions;
+  map->getAllMissionIds(&all_missions);
+  LOG(INFO) << "gravity aligning all missions";
+  for (const vi_map::MissionId& mission_id : all_missions) {
+    LOG(INFO) << "next mission: " << mission_id;
+    gravityAlignMission(mission_id, map);
+  }
+}
 }  // namespace map_anchoring
