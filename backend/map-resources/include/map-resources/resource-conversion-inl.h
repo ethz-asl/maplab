@@ -21,10 +21,6 @@
 
 #include "map-resources/resource-typedefs.h"
 
-DEFINE_bool(
-    resources_add_zero_normal_to_pointcloud, false,
-    "Add a fake 0 normal to any pointcloud resource.");
-
 namespace backend {
 // Adds a point to a point cloud at a specific index. This function assumes
 // that the point cloud has already been resized to allow for direct insertion
@@ -173,9 +169,6 @@ void addColorToPointCloud(
 
   template <typename PointCloudType>
   bool hasNormalsInformation(const PointCloudType& /*point_cloud*/) {
-    if (FLAGS_resources_add_zero_normal_to_pointcloud) {
-      return true;
-    }
     return false;
   }
   template <>
