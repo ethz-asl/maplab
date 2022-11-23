@@ -19,34 +19,32 @@ This repository contains **maplab 2.0**, an open research-oriented mapping frame
 ## Features
 
 ### Robust visual-inertial odometry with localization
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/rovio_stairs.gif" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/rviz_cla_vs.gif" width="400">
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/rovio_stairs.gif" width="400"> <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/rviz_cla_vs.gif" width="400">
 
 ### Large-scale multisession mapping and optimization
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/largescale.gif" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/cla.png" width="400">
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/largescale.gif" width="400"> <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/cla.png" width="400">
 
 ### Dense reconstruction
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/stereo.png" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/pmvs.png" width="400">
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/stereo.png" width="400"> <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/pmvs.png" width="400">
 
 ### A research platform extensively tested on real robots
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/topomap.png" width="400">    <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/robots.jpg" width="400">
+<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/topomap.png" width="400"> <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/robots.jpg" width="400">
 
 ## Installation and getting started
 
 The following articles help you with getting started with maplab and ROVIOLI:
 
-<!-- TODO(floriantschopp): Update links to new wiki -->
-- [Installation on Ubuntu 18.04 or 20.04](https://maplab.asl.ethz.ch/pages/installation/A_Installation-Ubuntu.html)
-- [Introduction to the maplab framework](https://maplab.asl.ethz.ch/pages/overview_and_introduction/A_Introduction-to-the-Maplab-Framework.html)
-- [Structure of the framework](https://maplab.asl.ethz.ch/pages/overview_and_introduction/B_Structure-of-the-framework.html)
-- [Running ROVIOLI in VIO mode](https://maplab.asl.ethz.ch/pages/tutorials-rovioli/B_Running-ROVIOLI-in-VIO-mode.html)
-- [Basic console usage](https://maplab.asl.ethz.ch/pages/tutorials-maplab/basics/A_Basic-Console-Usage.html)
-- [Console map management](https://maplab.asl.ethz.ch/pages/tutorials-maplab/basics/C_Console-map-management.html)
+- [Installation on Ubuntu 18.04 or 20.04](https://maplab.asl.ethz.ch/docs/master/pages/installation/A_Installation-Ubuntu.html)
+- [Introduction to the maplab framework](https://maplab.asl.ethz.ch/docs/master/pages/overview_and_introduction/A_The-Maplab-Framework.html)
+- [Running ROVIOLI in VIO mode](https://maplab.asl.ethz.ch/docs/master/pages/tutorials-rovioli/B_Running-ROVIOLI-in-VIO-mode.html)
+- [Basic console usage](https://maplab.asl.ethz.ch/docs/master/pages/tutorials-maplab/basics/A_Basic-Console-Usage.html)
+- [Console map management](https://maplab.asl.ethz.ch/docs/master/pages/tutorials-maplab/basics/C_Console-map-management.html)
 
-**More detailed information can be found in the [wiki pages](https://maplab.asl.ethz.ch/docs/develop/index.html).**
+**More detailed information can be found in the [wiki pages](https://maplab.asl.ethz.ch/index.html).**
 
 ## Research Results
 
-The maplab framework has been used as an experimental platform for numerous scientific publications. For a complete list of publications please refer to [Research based on maplab](https://maplab.asl.ethz.ch/pages/overview_and_introduction/C_Related-Research.html).
+The maplab framework has been used as an experimental platform for numerous scientific publications. For a complete list of publications please refer to [Research based on maplab](https://maplab.asl.ethz.ch/docs/master/pages/overview_and_introduction/C_Related-Research.html).
 
 ## Citing
 
@@ -64,30 +62,8 @@ Please cite the [following paper](https://arxiv.org/abs/1711.10250) when using m
 
 ### Additional Citations
 
-Certain components of maplab are directly using the code of the following publications:
+Certain components of maplab are directly based on [other publications](https://maplab.asl.ethz.ch/docs/master/pages/overview_and_introduction/B_Citing-Maplab).
 
- * Localization:
-   ```bibtex
-   @inproceedings{lynen2015get,
-     title={Get Out of My Lab: Large-scale, Real-Time Visual-Inertial Localization.},
-     author={Lynen, Simon and Sattler, Torsten and Bosse, Michael and Hesch, Joel A and Pollefeys, Marc and Siegwart, Roland},
-     booktitle={Robotics: Science and Systems},
-     year={2015}
-   }
-   ```
-  * ROVIOLI which is composed of ROVIO + maplab for map building and localization:
-    ```bibtex
-    @article{bloesch2017iterated,
-      title={Iterated extended Kalman filter based visual-inertial odometry using direct photometric feedback},
-      author={Bloesch, Michael and Burri, Michael and Omari, Sammy and Hutter, Marco and Siegwart, Roland},
-      journal={The International Journal of Robotics Research},
-      volume={36},
-      number={10},
-      pages={1053--1072},
-      year={2017},
-      publisher={SAGE Publications Sage UK: London, England}
-    }
-    ```
 
 ## Credits
 
