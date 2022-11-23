@@ -1,4 +1,4 @@
-<img src="https://github.com/ethz-asl/maplab/wiki/logos/maplab_new.png" width="500">
+<img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/logos/maplab_new.png" width="500">
 
 
 *Ubuntu 18.04+ROS melodic*: [![Build Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_nightly)](https://jenkins.asl.ethz.ch/job/maplab_nightly)
@@ -19,16 +19,16 @@ This repository contains **maplab 2.0**, an open research-oriented mapping frame
 ## Features
 
 ### Robust visual-inertial odometry with localization
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/rovio_stairs.gif" width="400"> <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/rviz_cla_vs.gif" width="400">
+<img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/rovio_stairs.gif" width="400"> <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/rviz_cla_vs.gif" width="400">
 
 ### Large-scale multisession mapping and optimization
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/largescale.gif" width="400"> <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/cla.png" width="400">
+<img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/largescale.gif" width="400"> <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/cla.png" width="400">
 
 ### Dense reconstruction
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/stereo.png" width="400"> <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/pmvs.png" width="400">
+<img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/stereo.png" width="400"> <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/pmvs.png" width="400">
 
 ### A research platform extensively tested on real robots
-<img src="https://github.com/ethz-asl/maplab/wiki/readme_images/topomap.png" width="400"> <img src="https://github.com/ethz-asl/maplab/wiki/readme_images/robots.jpg" width="400">
+<img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/topomap.png" width="400"> <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/robots.jpg" width="400">
 
 ## Installation and getting started
 
@@ -44,7 +44,7 @@ The following articles help you with getting started with maplab and ROVIOLI:
 
 ## Research Results
 
-The maplab framework has been used as an experimental platform for numerous scientific publications. For a complete list of publications please refer to [Research based on maplab](https://maplab.asl.ethz.ch/docs/master/pages/overview_and_introduction/C_Related-Research.html).
+The maplab framework has been used as an experimental platform for numerous scientific publications. For a complete list of publications please refer to [Research based on maplab](https://maplab.asl.ethz.ch/docs/master/pages/overview_and_introduction/C_Related-Research.html#additional-citations).
 
 ## Citing
 

@@ -21,4 +21,4 @@ Maplab 2.0 can be divided into three main components:
 * **Console:** The console is meant for offline map optimization and multi-session mapping.
 
 Below is an overview of one possible configuration.
-<img src="https://github.com/ethz-asl/maplab/tree/master/docs/pages/images/system-overview.png">
+<img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/images/system-overview.png">

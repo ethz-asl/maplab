@@ -3,7 +3,7 @@
 **Content:**
 * [Installation](#installation)
 * [Sensors](#sensors)
-* [ROVIOLI](#rovioli)
+* [Map Building](#map-building)
 * [Optimization](#optimization)
 * [Miscellaneous](#miscellaneous)
 
@@ -118,7 +118,7 @@ For visual-inertial sensors calibrations can then be obtained using [Kalibr](htt
 
 For visual-inertial mapping the minimum requirements are: a gray-scale (preferably fish-eye) camera with global shutter and an IMU. The second critical component is a solid time synchronization between camera and IMU, i.e. ideally both devices are triggered based on the same clock.
 
-### Map building
+### Map Building
 
 #### Q: How can I make maplab stop appending "image_raw" to the image topic?
 
@@ -155,4 +155,4 @@ Not seeing any sort of logical structure in the landmarks and bad convergence ca
 
 That's why:
 
-<img src="https://github.com/ethz-asl/maplab/tree/master/docs/pages/images/cool_sheep.gif" width="400">
+<img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/images/cool_sheep.gif" width="400">
