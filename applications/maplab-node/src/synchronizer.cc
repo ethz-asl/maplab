@@ -33,6 +33,11 @@ DEFINE_bool(
     enable_synchronizer_statistics, false,
     "If enable, the synchronizer will keep data about the latency and other "
     "key properties of the data it synchronizes.");
+DEFINE_int32(
+    synchronizer_max_time_before_warnings, 5,
+    "Maximum time before warnings are printed that no messages are recevied on "
+    "a topic. If messages were received before, shutdown is initiated after "
+    "this time.");
 
 namespace maplab {
 
@@ -984,7 +989,8 @@ void Synchronizer::expectExternalFeaturesData() {
 }
 
 void Synchronizer::checkIfMessagesAreIncomingWorker() {
-  constexpr int kMaxTimeBeforeWarningS = 5;
+  const int kMaxTimeBeforeWarningS =
+      FLAGS_synchronizer_max_time_before_warnings;
   const int64_t kMaxTimeBeforeWarningNs =
       aslam::time::secondsToNanoSeconds(kMaxTimeBeforeWarningS);
   constexpr int kLongMaxTimeBeforeWarningS = 10;
