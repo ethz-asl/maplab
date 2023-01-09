@@ -5,10 +5,11 @@
 [![Documentation Status](https://jenkins.asl.ethz.ch/buildStatus/icon?job=maplab_docs&subject=docs)](https://jenkins.asl.ethz.ch/job/maplab_docs)
 
 ## News
+ * **November 2022:** maplab 2.0 initial release with new features and sensors. [Paper](https://arxiv.org/pdf/2212.00654.pdf).
+ * **July 2018:** Check out our release candidate with improved localization and lots of new features! [Release 1.3](https://github.com/ethz-asl/maplab/releases/tag/1.3).
+ * **May 2018:** maplab was presented at [ICRA](https://icra2018.org/) in Brisbane. [Paper](https://arxiv.org/abs/1711.10250) / [Initial Release](https://github.com/ethz-asl/maplab/releases/tag/initial_release).
 
- * **May 2018:** maplab was presented at [ICRA](https://icra2018.org/) in Brisbane. [Paper](https://arxiv.org/abs/1711.10250) / [Initial Release](https://github.com/ethz-asl/maplab/releases/tag/initial_release)
- * **July 2018:** Check out our release candidate with improved localization and lots of new features! [Release 1.3](https://github.com/ethz-asl/maplab/releases/tag/1.3)
- * **November 2022:** maplab 2.0 initial release with new features and sensors
+
 
 ## Description
 
