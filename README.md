@@ -25,6 +25,9 @@ This repository contains **maplab 2.0**, an open research-oriented mapping frame
 ### Large-scale multisession mapping and optimization
 <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/largescale.gif" width="400"> <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/cla.png" width="400">
 
+### Multi-robot mapping and online operation
+<img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/arche.jpg" width="400"> <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/multirobot.gif" width="400">
+
 ### Dense reconstruction
 <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/stereo.png" width="400"> <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/pmvs.png" width="400">
 
