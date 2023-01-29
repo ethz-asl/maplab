@@ -175,19 +175,6 @@ bibtex:
 
 ---
 
-### Map Summarization for Tractable Lifelong Mapping
-bibtex:
-```bibtex
-@inproceedings{dymczyk2016map,
-  title={Map Summarization for Tractable Lifelong Mapping},
-  author={Dymczyk, Marcin and Gilitschenski, Igor and Siegwart, Roland and Stumm, Elena},
-  booktitle={RSS Workshop on Geometry and beyond, Vol. To Appear, 2016},
-  year={2016}
-}
-```
-
----
-
 ### Robust map generation for fixed-wing UAVs with low-cost highly-oblique monocular cameras
 bibtex:
 ```bibtex
@@ -245,43 +232,3 @@ bibtex:
   organization={IEEE}
 }
 ```
-
----
-
-### Additional Citations
-
-The following list contains a list of paper on which specific components of maplab are built on:
-
- * Localization:
-   ```bibtex
-   @inproceedings{lynen2015get,
-     title={Get Out of My Lab: Large-scale, Real-Time Visual-Inertial Localization.},
-     author={Lynen, Simon and Sattler, Torsten and Bosse, Michael and Hesch, Joel A and Pollefeys, Marc and Siegwart, Roland},
-     booktitle={Robotics: Science and Systems},
-     year={2015}
-   }
-   ```
- * 3D reconstruction using the PMVS/CMVS exporter:
-   ```
-   @inproceedings{furukawa2010towards,
-      title={Towards internet-scale multi-view stereo},
-      author={Furukawa, Yasutaka and Curless, Brian and Seitz, Steven M and Szeliski, Richard},
-      booktitle={Computer Vision and Pattern Recognition (CVPR), 2010 IEEE Conference on},
-      pages={1434--1441},
-      year={2010},
-      organization={IEEE}
-   }
-   ```
-  * ROVIOLI which is composed of ROVIO + maplab for map building and localization:
-    ```bibtex
-    @article{bloesch2017iterated,
-      title={Iterated extended Kalman filter based visual-inertial odometry using direct photometric feedback},
-      author={Bloesch, Michael and Burri, Michael and Omari, Sammy and Hutter, Marco and Siegwart, Roland},
-      journal={The International Journal of Robotics Research},
-      volume={36},
-      number={10},
-      pages={1053--1072},
-      year={2017},
-      publisher={SAGE Publications Sage UK: London, England}
-    }
-    ```
