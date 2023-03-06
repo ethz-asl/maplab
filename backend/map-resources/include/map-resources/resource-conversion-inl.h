@@ -95,7 +95,7 @@ void addScalarToPointCloud(
 
 template <typename PointCloudType>
 void addLabelToPointCloud(
-    const float scalar, const size_t index, PointCloudType* point_cloud) {
+    const uint32_t scalar, const size_t index, PointCloudType* point_cloud) {
   LOG(FATAL) << "This point cloud either does not support labels"
              << "or it is not implemented!";
 }
