@@ -20,14 +20,14 @@ sensors:
   - id: ff000000000000000000000000000001
     sensor_type: EXTERNAL_FEATURES
     description: "SIFT features"
-    topic: /maplab_features
+    topic: /maplab_features0
     target_sensor: 54812562fa109c40fe90b29a59dd7798
     feature_type: SIFT
 
   - id: ff000000000000000000000000000002
     sensor_type: EXTERNAL_FEATURES
     description: "SIFT features"
-    topic: /maplab_features
+    topic: /maplab_features1
     target_sensor: 54812562fa109c40fe90b29a59dd7723
     feature_type: SIFT
 
