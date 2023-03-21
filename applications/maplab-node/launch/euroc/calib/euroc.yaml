@@ -16,31 +16,25 @@ sensors:
     sensor_type: ODOMETRY_6DOF
     description: "ROVIOLI in Odometry mode"
     topic: /odometry/maplab_odom_T_M_I
-    T_St_Stp1_fixed_covariance:
-      rows: 6
-      cols: 6
-      data:
-        - [0.001,0,0,0,0,0]
-        - [0,0.001,0,0,0,0]
-        - [0,0,0.001,0,0,0]
-        - [0,0,0,0.0001,0,0]
-        - [0,0,0,0,0.0001,0]
-        - [0,0,0,0,0,0.0001]
+
+  - id: ff000000000000000000000000000001
+    sensor_type: EXTERNAL_FEATURES
+    description: "SIFT features"
+    topic: /maplab_features
+    target_sensor: 54812562fa109c40fe90b29a59dd7798
+    feature_type: SIFT
+
+  - id: ff000000000000000000000000000002
+    sensor_type: EXTERNAL_FEATURES
+    description: "SIFT features"
+    topic: /maplab_features
+    target_sensor: 54812562fa109c40fe90b29a59dd7723
+    feature_type: SIFT
 
   - id: 412eab8e4058621f7036b5e765dfe812
     sensor_type: NCAMERA
     description: "VISensor - Euroc - original_calibration"
     topic: ""
-    T_G_B_fixed_covariance:
-      rows: 6
-      cols: 6
-      data:
-        - [0.1,0,0,0,0,0]
-        - [0,0.1,0,0,0,0]
-        - [0,0,0.1,0,0,0]
-        - [0,0,0,0.01,0,0]
-        - [0,0,0,0,0.01,0]
-        - [0,0,0,0,0,0.01]
     cameras:
       - camera:
           id: 54812562fa109c40fe90b29a59dd7798
@@ -68,7 +62,6 @@ sensors:
                  0.999557249008, 0.0149672133247, 0.025715529948, -0.064676986768,
                 -0.0257744366974, 0.00375618835797, 0.999660727178, 0.00981073058949,
                  0.0, 0.0, 0.0, 1.0]
-
       - camera:
           id: 54812562fa109c40fe90b29a59dd7723
           sensor_type: CAMERA
@@ -120,6 +113,28 @@ extrinsics:
         - [0,0,0,1]
 
   - sensor_id: aabb23479caf7592b35518478a2fe08f
+    base_sensor_id: c63aecb41bfdfd6b7e1fac37c7cbe7bf
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: ff000000000000000000000000000001
+    base_sensor_id: c63aecb41bfdfd6b7e1fac37c7cbe7bf
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: ff000000000000000000000000000002
     base_sensor_id: c63aecb41bfdfd6b7e1fac37c7cbe7bf
     T_B_S:
       rows: 4
