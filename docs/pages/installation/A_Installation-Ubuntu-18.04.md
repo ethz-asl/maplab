@@ -1,5 +1,7 @@
 ## Installing on Ubuntu 18.04
 
+**WARNING:** The [external features](https://github.com/ethz-asl/maplab_features) package is only supported in Ubuntu 20.04 due to conflicts between python2 and python3 in Ubuntu 18.04. If you don't need external features (*e.g.* SIFT or SuperGlue), but only the built in BRISK you can continue with this.
+
 #### Install required system packages
 ```bash
 # Install ROS (follow the official ROS installation instructions).
@@ -8,7 +10,6 @@ sudo add-apt-repository "deb http://packages.ros.org/ros/ubuntu bionic main"
 wget https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -O - | sudo apt-key add -
 sudo apt update
 sudo apt install -y ros-melodic-desktop-full ros-melodic-tf2-* ros-melodic-camera-info-manager*
-
 
 # Install framework dependencies.
 sudo apt install -y autotools-dev ccache doxygen dh-autoreconf git \
@@ -70,7 +71,7 @@ catkin config --extend /opt/ros/melodic
 catkin config --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
-For more informative and readable output use:
+For debugging and a more informative and readable output use:
 ```bash
 catkin config --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-fdiagnostics-color
 ```
