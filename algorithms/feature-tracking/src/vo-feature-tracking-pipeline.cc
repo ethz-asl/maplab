@@ -4,36 +4,22 @@
 #include <aslam/tracker/feature-tracker-gyro.h>
 #include <aslam/tracker/feature-tracker.h>
 #include <aslam/visualization/basic-visualization.h>
-#include <maplab-common/conversions.h>
 #include <sensors/external-features.h>
 #include <visualization/common-rviz-visualization.h>
 
 #include "feature-tracking/vo-feature-tracking-pipeline.h"
-
-DEFINE_double(
-    feature_tracker_two_pt_ransac_threshold, 1.0 - cos(0.5 * kDegToRad),
-    "Threshold for the 2-pt RANSAC used for feature tracking outlier "
-    "removal. The error is defined as (1 - cos(alpha)) where alpha is "
-    "the angle between the predicted and measured bearing vectors.");
-
-DEFINE_double(
-    feature_tracker_two_pt_ransac_max_iterations, 200,
-    "Max iterations for the 2-pt RANSAC used for feature tracking "
-    "outlier removal.");
-
-DEFINE_bool(
-    feature_tracker_deterministic, false,
-    "If true, deterministic RANSAC outlier rejection is used.");
 
 namespace feature_tracking {
 
 VOFeatureTrackingPipeline::VOFeatureTrackingPipeline(
     const aslam::NCamera::ConstPtr& ncamera,
     const FeatureTrackingExtractorSettings& extractor_settings,
-    const FeatureTrackingDetectorSettings& detector_settings)
+    const FeatureTrackingDetectorSettings& detector_settings,
+    const FeatureTrackingOutlierSettings& outlier_settings)
     : first_nframe_initialized_(false),
       extractor_settings_(extractor_settings),
-      detector_settings_(detector_settings) {
+      detector_settings_(detector_settings),
+      outlier_settings_(outlier_settings) {
   initialize(ncamera);
 }
 
@@ -179,8 +165,10 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
       descriptor_type, &start_kp1, &size_kp1);
 
   for (aslam::FrameToFrameMatch& match_kp1_k : matches_kp1_k) {
-    match_kp1_k.setKeypointIndexInFrameA(match_kp1_k.getKeypointIndexInFrameA() + start_kp1);
-    match_kp1_k.setKeypointIndexInFrameB(match_kp1_k.getKeypointIndexInFrameB() + start_k);
+    match_kp1_k.setKeypointIndexInFrameA(
+        match_kp1_k.getKeypointIndexInFrameA() + start_kp1);
+    match_kp1_k.setKeypointIndexInFrameB(
+        match_kp1_k.getKeypointIndexInFrameB() + start_k);
   }
 
   // Remove outlier matches.
@@ -190,10 +178,10 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
   bool ransac_success = aslam::geometric_vision::
       rejectOutlierFeatureMatchesTranslationRotationSAC(
           *frame_kp1, *frame_k, q_Ckp1_Ck, matches_kp1_k,
-          FLAGS_feature_tracker_deterministic,
-          FLAGS_feature_tracker_two_pt_ransac_threshold,
-          FLAGS_feature_tracker_two_pt_ransac_max_iterations,
-          inlier_matches_kp1_k, outlier_matches_kp1_k);
+          outlier_settings_.deterministic,
+          outlier_settings_.two_pt_ransac_threshold,
+          outlier_settings_.two_pt_ransac_max_iterations, inlier_matches_kp1_k,
+          outlier_matches_kp1_k);
 
   LOG_IF(WARNING, !ransac_success)
       << "Match outlier rejection RANSAC failed on camera " << camera_idx

@@ -1,8 +1,9 @@
-#include "feature-tracking/feature-tracking-types.h"
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <maplab-common/conversions.h>
 #include <opencv2/features2d/features2d.hpp>
+
+#include "feature-tracking/feature-tracking-types.h"
 
 DEFINE_string(
     feature_tracking_descriptor_type, "brisk",
@@ -95,6 +96,19 @@ DEFINE_uint64(
     feature_tracking_gridded_detection_num_threads_per_image, 0u,
     "Number of hardware threads used for detection (0 means N_cell/2).");
 
+DEFINE_double(
+    feature_tracker_two_pt_ransac_threshold, 1.0 - cos(0.5 * kDegToRad),
+    "Threshold for the 2-pt RANSAC used for feature tracking outlier "
+    "removal. The error is defined as (1 - cos(alpha)) where alpha is "
+    "the angle between the predicted and measured bearing vectors.");
+DEFINE_uint64(
+    feature_tracker_two_pt_ransac_max_iterations, 200,
+    "Max iterations for the 2-pt RANSAC used for feature tracking "
+    "outlier removal.");
+DEFINE_bool(
+    feature_tracker_deterministic, false,
+    "If true, deterministic RANSAC outlier rejection is used.");
+
 namespace feature_tracking {
 
 FeatureTrackingExtractorSettings::FeatureTrackingExtractorSettings()
@@ -179,6 +193,15 @@ FeatureTrackingDetectorSettings::FeatureTrackingDetectorSettings()
   CHECK_GE(gridded_detector_cell_num_features, 0u);
   CHECK_GE(gridded_detector_num_grid_cols, 1u);
   CHECK_GE(gridded_detector_num_grid_rows, 1u);
+}
+
+FeatureTrackingOutlierSettings::FeatureTrackingOutlierSettings()
+    : two_pt_ransac_threshold(FLAGS_feature_tracker_two_pt_ransac_threshold),
+      two_pt_ransac_max_iterations(
+          FLAGS_feature_tracker_two_pt_ransac_max_iterations),
+      deterministic(FLAGS_feature_tracker_deterministic) {
+  CHECK_GE(two_pt_ransac_threshold, 0.0);
+  CHECK_LE(two_pt_ransac_threshold, 1.0);
 }
 
 }  // namespace feature_tracking
