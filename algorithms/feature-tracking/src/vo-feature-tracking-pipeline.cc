@@ -24,9 +24,6 @@ DEFINE_double(
 DEFINE_bool(
     feature_tracker_deterministic, false,
     "If true, deterministic RANSAC outlier rejection is used.");
-DEFINE_bool(
-    detection_visualize_keypoints, false,
-    "Visualize the raw keypoint detections to a ros topic.");
 
 namespace feature_tracking {
 
@@ -141,7 +138,7 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
   // Initialize keypoints and descriptors in frame_kp1
   detectors_extractors_[camera_idx]->detectAndExtractFeatures(frame_kp1);
 
-  if (FLAGS_detection_visualize_keypoints) {
+  if (visualize_keypoint_detections_) {
     cv::Mat image;
     cv::cvtColor(frame_kp1->getRawImage(), image, cv::COLOR_GRAY2BGR);
 

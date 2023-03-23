@@ -21,6 +21,7 @@ class FeatureTrackingPipeline {
 
  protected:
   const std::string feature_tracking_ros_base_topic_;
+  const bool visualize_keypoint_detections_;
   const bool visualize_keypoint_matches_;
 
  private:
