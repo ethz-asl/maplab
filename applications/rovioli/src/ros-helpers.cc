@@ -27,7 +27,7 @@ DEFINE_int32(
     "CLAHE histogram equalization parameter: grid size.");
 
 DEFINE_double(
-    rovioli_image_16_bit_to_8_bit_scale_factor, 1,
+    rovioli_image_16_bit_to_8_bit_scale_factor, 255. / 65535.,
     "Scale factor applied to 16bit images when converting them to 8bit "
     "images.");
 DEFINE_double(
