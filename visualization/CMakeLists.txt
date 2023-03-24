@@ -14,7 +14,6 @@ cs_add_library(${PROJECT_NAME}
   src/common-rviz-visualization.cc
   src/constant-velocity-smoother.cc
   src/debug-visualizer.cc
-  src/feature-matches-visualization.cc
   src/landmark-observer-plotter.cc
   src/patch-based-visualization.cc
   src/resource-visualization.cc
