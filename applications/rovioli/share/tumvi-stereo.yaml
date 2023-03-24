@@ -1,20 +1,20 @@
 sensors:
   - id: c63aecb41bfdfd6b7e1fac37c7cbe7bf
     topic: /imu0
-    description: "Bosch IMU (BMI)"
+    description: "Bosch IMU (BMI160)"
     sensor_type: IMU
     sigmas:
-      acc_noise_density: 1.4e-2
-      acc_bias_random_walk_noise_density: 8.6e-3
-      gyro_noise_density: 8.0e-4
-      gyro_bias_random_walk_noise_density: 2.2e-4
+      acc_noise_density: 1.4e-2  # Allan std * 5
+      acc_bias_random_walk_noise_density: 8.6e-3  # Allan std * 10
+      gyro_noise_density: 8.0e-4  # Allan std * 5
+      gyro_bias_random_walk_noise_density: 2.2e-4  # Allan std * 10
     saturation_accel_max_mps2: 150.0
     saturation_gyro_max_radps: 7.5
     gravity_magnitude_mps2: 9.81
 
   - id: 412eab8e4058621f7036b5e765dfe812
     sensor_type: NCAMERA
-    description: "VISensor - TUMVI - original_calibration"
+    description: "Two uEye UI-3241LE-M-GL with Lensagon BF2M2020S23 lenses"
     topic: ""
     cameras:
       - camera:
