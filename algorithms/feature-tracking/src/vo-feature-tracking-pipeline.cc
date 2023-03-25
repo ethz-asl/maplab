@@ -155,29 +155,13 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
   aslam::FrameToFrameMatches matches_kp1_k;
   trackers_[camera_idx]->track(q_Ckp1_Ck, *frame_k, frame_kp1, &matches_kp1_k);
 
-  // The tracker will return the indices with respect to the tracked feature
-  // block, so here we renormalize them so that the rest of the code can deal
-  // with them agnostically, since the descriptors are no longer needed.
-  size_t start_k, size_k, start_kp1, size_kp1;
-  frame_k->getDescriptorBlockTypeStartAndSize(
-      descriptor_type, &start_k, &size_k);
-  frame_kp1->getDescriptorBlockTypeStartAndSize(
-      descriptor_type, &start_kp1, &size_kp1);
-
-  for (aslam::FrameToFrameMatch& match_kp1_k : matches_kp1_k) {
-    match_kp1_k.setKeypointIndexInFrameA(
-        match_kp1_k.getKeypointIndexInFrameA() + start_kp1);
-    match_kp1_k.setKeypointIndexInFrameB(
-        match_kp1_k.getKeypointIndexInFrameB() + start_k);
-  }
-
   // Remove outlier matches.
   statistics::StatsCollector stat_ransac("Twopt RANSAC (1 image) in ms");
   timing::Timer timer_ransac(
       "VOFeatureTrackingPipeline: trackFeaturesSingleCamera - ransac");
   bool ransac_success = aslam::geometric_vision::
       rejectOutlierFeatureMatchesTranslationRotationSAC(
-          *frame_kp1, *frame_k, q_Ckp1_Ck, matches_kp1_k,
+          *frame_kp1, *frame_k, q_Ckp1_Ck, descriptor_type, matches_kp1_k,
           outlier_settings_.deterministic,
           outlier_settings_.two_pt_ransac_threshold,
           outlier_settings_.two_pt_ransac_max_iterations, inlier_matches_kp1_k,
@@ -192,6 +176,8 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
       << " matches on camera " << camera_idx << ".";
 
   // Assign track ids.
+  // TODO(smauq): See about clearning this one up, maybe even move this function
+  // up from aslam into here.
   timing::Timer timer_track_manager(
       "VOFeatureTrackingPipeline: trackFeaturesSingleCamera - track manager");
   track_managers_[camera_idx]->applyMatchesToFrames(
