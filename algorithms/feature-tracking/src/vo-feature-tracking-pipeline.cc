@@ -124,20 +124,19 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
   // Initialize keypoints and descriptors in frame_kp1
   detectors_extractors_[camera_idx]->detectAndExtractFeatures(frame_kp1);
 
-  if (visualize_keypoint_detections_) {
-    cv::Mat image;
-    cv::cvtColor(frame_kp1->getRawImage(), image, cv::COLOR_GRAY2BGR);
-
-    aslam_cv_visualization::drawKeypoints(*CHECK_NOTNULL(frame_kp1), &image);
-    const std::string topic = feature_tracking_ros_base_topic_ +
-                              "/keypoints_raw_cam" + std::to_string(camera_idx);
-    visualization::RVizVisualizationSink::publish(topic, image);
-  }
-
   // The default detector / tracker with always insert descriptors of type
   // kBinary = 0 for both BRISK and FREAK
   constexpr int descriptor_type =
       static_cast<int>(vi_map::FeatureType::kBinary);
+
+  if (visualize_keypoint_detections_) {
+    cv::Mat image;
+    aslam_cv_visualization::drawKeypoints(
+        *CHECK_NOTNULL(frame_kp1), &image, descriptor_type);
+    const std::string topic = feature_tracking_ros_base_topic_ +
+                              "/keypoints_raw_cam" + std::to_string(camera_idx);
+    visualization::RVizVisualizationSink::publish(topic, image);
+  }
 
   CHECK(frame_k->hasKeypointMeasurements());
   CHECK(frame_k->hasDescriptors());
@@ -184,19 +183,21 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
       *inlier_matches_kp1_k, frame_kp1, frame_k);
 
   if (visualize_keypoint_matches_) {
-    cv::Mat image;
-    aslam_cv_visualization::visualizeMatches(
-        *frame_kp1, *frame_k, *inlier_matches_kp1_k, &image);
+    cv::Mat inlier_image;
+    aslam_cv_visualization::drawKeypointMatches(
+        *frame_kp1, *frame_k, *inlier_matches_kp1_k, descriptor_type,
+        &inlier_image);
     const std::string topic = feature_tracking_ros_base_topic_ +
                               "/keypoint_matches_camera_" +
                               std::to_string(camera_idx);
-    visualization::RVizVisualizationSink::publish(topic, image);
+    visualization::RVizVisualizationSink::publish(topic, inlier_image);
 
     cv::Mat outlier_image;
-    aslam_cv_visualization::visualizeMatches(
-        *frame_kp1, *frame_k, *outlier_matches_kp1_k, &outlier_image);
+    aslam_cv_visualization::drawKeypointMatches(
+        *frame_kp1, *frame_k, *outlier_matches_kp1_k, descriptor_type,
+        &outlier_image);
     const std::string outlier_topic = feature_tracking_ros_base_topic_ +
-                                      "/keypoint_outlier_matches_camera_" +
+                                      "/keypoint_outliers_camera_" +
                                       std::to_string(camera_idx);
     visualization::RVizVisualizationSink::publish(outlier_topic, outlier_image);
   }
