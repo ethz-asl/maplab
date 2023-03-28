@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+
+<launch>
+	<!-- node pkg="rviz" type="rviz" name="maplab_rviz" args="-d $(find maplab_node)/share/maplab.rviz -f map"/ -->
+
+	<!-- MAPLAB -->
+	<node name="maplab_node" pkg="maplab_node" type="maplab_node" output="screen" clear_params="true">
+
+		<!-- GENERAL PARAMS -->
+		<rosparam command="load" file="$(find maplab_node)/launch/fixed/ros/fixed-maplab-node-rosparam.yaml"/>
+
+		<!-- ROBOT SPECIFIC PARAMS -->
+		<!-- SENSORS -->
+		<param name="sensor_calibration_file" value="$(find maplab_node)/launch/fixed/calib/fixed.yaml"/>
+		<param name="imu_to_camera_time_offset_ns" value="1000000"/>
+		<param name="vio_camera_topic_suffix" value="image_raw"/>
+
+		<!-- MAPLAB_NODE_CONFIG -->
+		<param name="map_save_every_n_sec" value="0"/>
+		<param name="map_output_folder" value="/tmp/fixed/"/>
+	</node>
+
+	<node pkg="maplab_node" type="gps-to-maplab-odom.py" name="gps_to_odom" output="screen"/>
+</launch>
