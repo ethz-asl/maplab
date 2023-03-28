@@ -1081,12 +1081,12 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
     if (!queries_.getClosestVertexIdByTimestamp(
             timestamp_ns_measurement, external_features_sync_tolerance_ns_,
             &closest_vertex_id, &delta_ns)) {
-      /*LOG(WARNING)
+      LOG(WARNING)
           << "[StreamMapBuilder] Could not attach external features "
           << "measurement, because the timestamp is not close enough to "
           << "a vertex in the pose graph (delta = " << delta_ns << "ns > "
           << external_features_sync_tolerance_ns_
-          << "ns)! timestamp_ns: " << timestamp_ns_measurement << ".";*/
+          << "ns)! timestamp_ns: " << timestamp_ns_measurement << ".";
       continue;
     }
 
