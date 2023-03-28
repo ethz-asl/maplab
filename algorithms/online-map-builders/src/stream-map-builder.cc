@@ -1,5 +1,3 @@
-#include "online-map-builders/stream-map-builder.h"
-
 #include <aslam/common/stl-helpers.h>
 #include <aslam/common/time.h>
 #include <aslam/frames/visual-frame.h>
@@ -12,6 +10,8 @@
 #include <vi-map/vi-map.h>
 #include <vio-common/map-update.h>
 #include <vio-common/vio-types.h>
+
+#include "online-map-builders/stream-map-builder.h"
 
 DEFINE_bool(
     map_builder_save_image_as_resources, false,
@@ -1081,12 +1081,12 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
     if (!queries_.getClosestVertexIdByTimestamp(
             timestamp_ns_measurement, external_features_sync_tolerance_ns_,
             &closest_vertex_id, &delta_ns)) {
-      LOG(WARNING)
+      /*LOG(WARNING)
           << "[StreamMapBuilder] Could not attach external features "
           << "measurement, because the timestamp is not close enough to "
           << "a vertex in the pose graph (delta = " << delta_ns << "ns > "
           << external_features_sync_tolerance_ns_
-          << "ns)! timestamp_ns: " << timestamp_ns_measurement << ".";
+          << "ns)! timestamp_ns: " << timestamp_ns_measurement << ".";*/
       continue;
     }
 
@@ -1099,10 +1099,9 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
         << " of external feature sensor " << external_features_sensor_id
         << " is not attached to ";
 
-    const size_t target_camera_index =
-        external_features_sensor.getTargetCameraIndex();
+    const size_t cam_idx = external_features_sensor.getTargetCameraIndex();
     aslam::VisualFrame::Ptr frame =
-        closest_vertex.getVisualFrameShared(target_camera_index);
+        closest_vertex.getVisualFrameShared(cam_idx);
 
     frame->lock();
 
@@ -1163,6 +1162,54 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
     frame->unlock();
 
     closest_vertex.expandVisualObservationContainersIfNecessary();
+
+    // Perform outlier rejection on the externally added tracks
+    // TODO(smauq): add parameter in config file for this
+    auto it_vertex_id = external_features_previous_vertex_ids_.find(
+        external_features_sensor_id);
+    if (it_vertex_id == external_features_previous_vertex_ids_.end()) {
+      aslam::Camera::ConstPtr camera = closest_vertex.getCamera(cam_idx);
+      aslam::Quaternion q_C_B =
+          closest_vertex.getNCameras()->get_T_C_B(cam_idx).getRotation();
+      const feature_tracking::FeatureTrackingOutlierSettings outlier_settings;
+
+      external_features_outlier_rejection_pipelines_.emplace(
+          external_features_sensor_id,
+          new feature_tracking::VOOutlierRejectionPipeline(
+              camera, cam_idx, q_C_B, external_features_sensor.getFeatureType(),
+              outlier_settings));
+      external_features_previous_vertex_ids_.emplace(
+          external_features_sensor_id, closest_vertex_id);
+    } else {
+      CHECK(external_features_outlier_rejection_pipelines_.count(
+          external_features_sensor_id));
+      feature_tracking::VOOutlierRejectionPipeline& outlier_pipeline =
+          *external_features_outlier_rejection_pipelines_
+              [external_features_sensor_id];
+
+      if (!map_->hasVertex(it_vertex_id->second)) {
+        outlier_pipeline.reset();
+        LOG(WARNING) << "Skipping outlier removal because previous vertex is "
+                     << "no longer in map due to submapping.";
+      } else {
+        vi_map::Vertex& prev_vertex = map_->getVertex(it_vertex_id->second);
+
+        aslam::VisualFrame::Ptr prev_frame =
+            prev_vertex.getVisualFrameShared(cam_idx);
+
+        // TODO(smauq): Interpolate here would improve accuracy
+        aslam::Quaternion q_Bkp1_Bk =
+            closest_vertex.get_T_M_I().getRotation().inverse() *
+            prev_vertex.get_T_M_I().getRotation();
+
+        outlier_pipeline.rejectMatchesFrame(
+            q_Bkp1_Bk, frame.get(), prev_frame.get());
+      }
+
+      // Current vertex is now the previously seen one
+      external_features_previous_vertex_ids_[external_features_sensor_id] =
+          closest_vertex_id;
+    }
 
     // Make info message more verbose
     VLOG(3) << "[StreamMapBuilder] Attached a new external features "
