@@ -131,8 +131,7 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
 
   if (visualize_keypoint_detections_) {
     cv::Mat image;
-    aslam_cv_visualization::drawKeypoints(
-        *CHECK_NOTNULL(frame_kp1), &image, descriptor_type);
+    aslam_cv_visualization::drawKeypoints(*frame_kp1, &image, descriptor_type);
     const std::string topic = feature_tracking_ros_base_topic_ +
                               "/keypoints_raw_cam" + std::to_string(camera_idx);
     visualization::RVizVisualizationSink::publish(topic, image);
