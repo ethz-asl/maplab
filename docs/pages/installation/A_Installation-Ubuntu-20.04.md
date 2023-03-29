@@ -70,7 +70,7 @@ catkin config --extend /opt/ros/noetic
 catkin config --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
-For more informative and readable output use:
+For debugging and a more informative and readable output use:
 ```bash
 catkin config --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-fdiagnostics-color
 ```
