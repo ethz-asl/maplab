@@ -20,14 +20,14 @@ RUN pip3 install requests opencv-python opencv-contrib-python
 # (Optional) Install ccache
 RUN apt install -y ccache
 
-# Set up the catkin workspace
-RUN cd maplab
-RUN catkin init
-RUN catkin config --merge-devel
-RUN catkin config --extend /opt/ros/noetic
-RUN catkin config --cmake-args -DCMAKE_BUILD_TYPE=Release
-
 # Set the docker entrypoint to source ros / maplab
 COPY ./docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 ENTRYPOINT ["./docker-entrypoint.sh"]
+
+# Set up the catkin workspace
+WORKDIR /maplab
+RUN catkin init
+RUN catkin config --merge-devel
+RUN catkin config --extend /opt/ros/noetic
+RUN catkin config --cmake-args -DCMAKE_BUILD_TYPE=Release

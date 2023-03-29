@@ -9,6 +9,4 @@ fi
 export PATH="/usr/lib/ccache:$PATH"
 export CCACHE_DIR="/maplab/.ccache"
 
-cd "/maplab"
-
 exec "$@"
