@@ -18,7 +18,7 @@
 
 			<!-- ROVIOLI CONFIG -->
 			<param name="rovioli_run_map_builder" value="false"/>
-			<param name="rovio_enable_frame_visualization" value="false"/>
+			<param name="rovio_enable_frame_visualization" value="true"/>
 			<param name="rovioli_enable_health_checking" value="false"/>
 
 			<remap from="/rovioli/maplab_odom_T_M_I" to="/odometry/maplab_odom_T_M_I"/>
@@ -39,6 +39,6 @@
 
 		<!-- MAPLAB_NODE_CONFIG -->
 		<param name="map_save_every_n_sec" value="0"/>
-		<param name="map_output_folder" value="/tmp/euroc/"/>
+		<param name="map_output_folder" value="/tmp/asl/"/>
 	</node>
 </launch>
