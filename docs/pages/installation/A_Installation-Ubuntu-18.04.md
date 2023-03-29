@@ -19,8 +19,8 @@ sudo apt install -y autotools-dev ccache doxygen dh-autoreconf git \
                     python-setuptools python-termcolor python-wstool \
                     libatlas3-base libv4l-dev libjpeg-dev
 
-pip install --upgrade pip
-pip install requests opencv-python opencv-contrib-python
+pip install --user --upgrade pip
+pip install --user requests opencv-python opencv-contrib-python
 ```
 
 #### Update the ROS environment

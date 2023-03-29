@@ -16,9 +16,9 @@
 A modern autonomous robotic system is composed of many software building blocks (SLAM, path planning, scene interpretation), most of them depending on some form of localization and mapping. Therefore, there is a need for an API that allows these different elements to communicate, with as little inter-dependency as possible. For this reason in maplab we use [ROS](https://www.ros.org/) to interface between components. However, the internal workings of maplab are written as independent of ROS as possible to promote the easy reuse of the code.
 
 Maplab 2.0 can be divided into three main components:
-* **Mapping Node:** Runs on a robot and takes as input an odometry source and the raw sensor information to create a map.
-* **Mapping Server:** Runs a base station or on one of the robots. It periodically collects maps from one or more robots and merges them together into one globally consistent map.
-* **Console:** The console is meant for offline map optimization and multi-session mapping.
+* **Mapping Node:** Runs on a robot and takes as input poses from some odometry (forward motion estimation) source and the raw sensor information to create a map.
+* **Mapping Server:** Runs on a base station or one of the robots. It periodically collects maps from the mapping node and merges them together into one globally consistent map.
+* **Console:** The console is meant for offline map optimization and multi-session mapping. Good for visualization and testing, as it gives control over the entire multi-session mapping process.
 
 Below is an overview of one possible configuration.
 <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/images/system-overview.png">

@@ -41,7 +41,7 @@ You can check if your workspace is properly set up by running:
 $ catkin config
 ---------------------------------------------------------------------------
 Profile:                     default
-Extending:        [explicit] /opt/ros/kinetic
+Extending:        [explicit] /opt/ros/noetic
 Workspace:                   /home/user/maplab_ws
 ---------------------------------------------------------------------------
 ...
