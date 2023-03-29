@@ -1,0 +1,33 @@
+FROM osrf/ros:noetic-desktop-full
+
+# Start with an update
+RUN apt update
+
+# General system dependencies
+RUN apt install -y software-properties-common wget
+RUN apt install -y ros-noetic-rviz ros-noetic-tf2-* ros-noetic-camera-info-manager*
+RUN sudo apt install -y autotools-dev ccache doxygen dh-autoreconf git \
+                    liblapack-dev libblas-dev libgtest-dev libreadline-dev \
+                    libssh2-1-dev pylint clang-format-12 python3-autopep8 \
+                    python3 python3-catkin-tools python3-pip python-git-doc \
+                    python3-setuptools python3-termcolor python3-wstool \
+                    libatlas3-base libv4l-dev libjpeg-dev
+
+# Python dependencies
+RUN pip3 install --upgrade pip
+RUN pip3 install requests opencv-python opencv-contrib-python
+
+# (Optional) Install ccache
+RUN apt install -y ccache
+
+# Set up the catkin workspace
+RUN cd maplab
+RUN catkin init
+RUN catkin config --merge-devel
+RUN catkin config --extend /opt/ros/noetic
+RUN catkin config --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# Set the docker entrypoint to source ros / maplab
+COPY ./docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+ENTRYPOINT ["./docker-entrypoint.sh"]

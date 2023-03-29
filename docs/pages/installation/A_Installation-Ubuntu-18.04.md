@@ -14,12 +14,13 @@ sudo apt install -y ros-melodic-desktop-full ros-melodic-tf2-* ros-melodic-camer
 sudo apt install -y autotools-dev ccache doxygen dh-autoreconf git \
                     liblapack-dev libblas-dev libgtest-dev libreadline-dev \
                     libssh2-1-dev pylint clang-format-10 python-autopep8 \
-                    python-catkin-tools python-pip python-git python-setuptools \
-                    python-termcolor python-wstool libatlas3-base libv4l-dev
+                    python python-catkin-tools python-pip python-git \
+                    python-setuptools python-termcolor python-wstool \
+                    libatlas3-base libv4l-dev libjpeg-dev
 
-pip install requests
+pip install --upgrade pip
+pip install requests opencv-python opencv-contrib-python
 ```
-
 
 #### Update the ROS environment
 Follow this if you freshly installed ROS, if you already had ROS installed you can skip this.
@@ -33,6 +34,7 @@ source ~/.bashrc
 
 #### Install ccache for faster rebuilds.
 (OPTIONAL but HIGHLY RECOMMENDED)
+
 ccache is a tool that caches intermediate build files to speed up rebuilds of the same code. On Ubuntu it can be set up with the following command. The max. cache size is set to 10GB and can be adapted in the lines below:
 
 ```bash
@@ -56,8 +58,6 @@ Empty the cache and reset the stats:
 ```
 ccache -C -z
 ```
-ccache only works for a clean workspace. You will need a `make clean` otherwise.
-
 
 #### Create a catkin workspace
 To create a workspace, run:
@@ -81,15 +81,6 @@ Now you can clone maplab and its dependencies.
 ```bash
 cd src
 git clone git@github.com:ethz-asl/maplab.git --recursive
-```
-
-#### Setting up the linter
-This setups a linter which checks if the code conforms to our style guide during commits.
-These steps are only necessary if you plan on contributing to maplab.
-
-```bash
-cd maplab
-./dependencies/internal/linter/init-git-hooks.py
 ```
 
 #### Building maplab

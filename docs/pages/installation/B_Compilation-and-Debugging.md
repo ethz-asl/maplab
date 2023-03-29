@@ -1,15 +1,7 @@
 ## Compilation and Debugging
 
 ### Use ccache
-ccache is a fast compiler cache. It is a program that sits in front of gcc and monitors what is being compiled. If a file was compiled before in the exact same state, then ccache will serve a compilation request from cache and thus lead to "instant" compilation.
-
-To install ccache:
-```bash
-sudo apt-get install ccache
-sudo ln -s /usr/bin/ccache /usr/local/bin/gcc
-sudo ln -s /usr/bin/ccache /usr/local/bin/g++
-sudo ln -s /usr/bin/ccache /usr/local/bin/cc
-```
+ccache is a fast compiler cache. It is a program that sits in front of gcc and monitors what is being compiled. If a file was compiled before in the exact same state, then ccache will serve a compilation request from cache and thus lead to "instant" compilation. Check the install section page for instructions.
 
 ### Compile the package you need
 Avoid running ```catkin build``` without specifying a package since this builds the entire workspace which takes a long time.
@@ -23,6 +15,7 @@ If you only changed a single package you can also restrict the build process to 
 ```
 catkin build maplab --no-deps
 ```
+However, depending on the changes you've made, you might get a SEGFAULT when running. This can happen especially when changing headers that are included elsewhere. If you get a crash after using `--no-deps`, try first recompiling everything with `catkin build maplab`.
 
 ### Compile in Release/Debug mode
 Most packages are not built in Release mode. To build packages in Release mode:
