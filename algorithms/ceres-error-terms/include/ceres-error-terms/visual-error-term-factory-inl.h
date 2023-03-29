@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <aslam/cameras/camera-pinhole.h>
+#include <aslam/cameras/camera-generic.h>
 #include <aslam/cameras/camera-unified-projection.h>
 #include <aslam/cameras/camera.h>
 #include <aslam/cameras/distortion-equidistant.h>
@@ -87,6 +88,12 @@ ceres::CostFunction* createVisualCostFunction(
           LOG(FATAL) << "Invalid camera distortion type for ceres error term: "
                      << static_cast<int>(distortion_type);
       }
+      break;
+    }
+    case aslam::Camera::Type::kGeneric: {
+      aslam::GenericCamera* derived_camera = static_cast<aslam::GenericCamera*>(camera);
+      error_term = new ErrorTerm<aslam::GenericCamera, aslam::NullDistortion>(
+              measurement, pixel_sigma, error_term_type, derived_camera);
       break;
     }
     default:
