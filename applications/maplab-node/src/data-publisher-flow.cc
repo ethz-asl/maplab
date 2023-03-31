@@ -13,11 +13,6 @@ DEFINE_double(
     "Interval of publishing the visual-inertial map to ROS [seconds].");
 
 DEFINE_bool(
-    publish_only_on_keyframes, false,
-    "Publish frames only on keyframes instead of the IMU measurements. This "
-    "means a lower frequency.");
-
-DEFINE_bool(
     publish_debug_markers, true, "Publish debug sphere markers for T_M_B.");
 
 DEFINE_string(
@@ -27,8 +22,7 @@ DEFINE_string(
 
 DEFINE_bool(
     visualize_map, true,
-    "Set to false to disable map visualization. Note: map building needs to be "
-    "active for the visualization.");
+    "Set to false to disable map visualization during building.");
 
 #include "maplab-node/vi-map-with-mutex.h"
 
@@ -62,8 +56,6 @@ void DataPublisherFlow::registerPublishers() {
       node_handle_.advertise<geometry_msgs::Vector3Stamped>(kTopicBiasAcc, 1);
   pub_imu_gyro_bias_ =
       node_handle_.advertise<geometry_msgs::Vector3Stamped>(kTopicBiasGyro, 1);
-  pub_extrinsics_T_C_Bs_ = node_handle_.advertise<geometry_msgs::PoseArray>(
-      kCameraExtrinsicTopic, 1);
 }
 
 void DataPublisherFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
@@ -95,17 +87,6 @@ void DataPublisherFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
       [this](const OdometryEstimate::ConstPtr& state) {
         CHECK(state != nullptr);
         publishOdometryState(state->timestamp_ns, state->vinode);
-
-        // Publish estimated camera-extrinsics.
-        geometry_msgs::PoseArray T_C_Bs_message;
-        T_C_Bs_message.header.frame_id = FLAGS_tf_imu_frame;
-        T_C_Bs_message.header.stamp = createRosTimestamp(state->timestamp_ns);
-        for (const auto& cam_idx_T_C_B : state->maplab_camera_index_to_T_C_B) {
-          geometry_msgs::Pose T_C_B_message;
-          tf::poseKindrToMsg(cam_idx_T_C_B.second, &T_C_B_message);
-          T_C_Bs_message.poses.emplace_back(T_C_B_message);
-        }
-        pub_extrinsics_T_C_Bs_.publish(T_C_Bs_message);
       });
 
   // CSV export for end-to-end test.
@@ -161,8 +142,11 @@ void DataPublisherFlow::publishOdometryState(
     const vi_map::SensorType base_sensor_type =
         sensor_manager_.getSensorType(base_sensor_id);
     const std::string base_sensor_tf_frame_id =
-        visualization::convertSensorTypeToTfFrameId(base_sensor_type);
+        visualization::convertSensorTypeToTfFrameId(base_sensor_type) +
+        "_0_BASE";
 
+    // TODO(smauq): Clean up TF frame naming on publishing,
+    // while also not conflicting with rovioli
     visualization::publishTF(
         T_M_B, FLAGS_tf_mission_frame, base_sensor_tf_frame_id, timestamp_ros);
 

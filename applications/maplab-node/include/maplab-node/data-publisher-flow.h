@@ -50,7 +50,6 @@ class DataPublisherFlow {
   ros::Publisher pub_velocity_I_;
   ros::Publisher pub_imu_acc_bias_;
   ros::Publisher pub_imu_gyro_bias_;
-  ros::Publisher pub_extrinsics_T_C_Bs_;
 
   common::TimeoutCounter map_publisher_timeout_;
 
