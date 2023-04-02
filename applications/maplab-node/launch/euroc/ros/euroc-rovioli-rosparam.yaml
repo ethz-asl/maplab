@@ -47,6 +47,7 @@ alsologtostderr:                            true
 colorlogtostderr:                           true
 v:                                          1
 publish_debug_markers:                      false
+rovioli_visualize_map:                      false
 vis_default_namespace:                      maplab_rviz
 export_estimated_poses_to_csv:              ""
 detection_visualize_keypoints:              false

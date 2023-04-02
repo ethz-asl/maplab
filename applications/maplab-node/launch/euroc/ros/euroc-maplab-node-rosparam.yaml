@@ -44,7 +44,6 @@ map_builder_save_point_cloud_maps_as_resources:                         false
 # TF
 tf_map_frame:         map
 tf_mission_frame:     mission
-tf_imu_frame:         imu
 
 # DEBUGGING AND LOGGING
 alsologtostderr:                            true
@@ -53,5 +52,5 @@ v:                                          1
 publish_debug_markers:                      false
 vis_default_namespace:                      maplab_rviz
 export_estimated_poses_to_csv:              ""
-detection_visualize_keypoints:              false
+detection_visualize_keypoints:              true
 feature_tracker_visualize_keypoint_matches: true
