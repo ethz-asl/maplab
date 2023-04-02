@@ -46,11 +46,11 @@ tf_map_frame:         map
 tf_mission_frame:     mission
 
 # DEBUGGING AND LOGGING
-alsologtostderr:                            true
-colorlogtostderr:                           true
-v:                                          1
-publish_debug_markers:                      false
-vis_default_namespace:                      maplab_rviz
-export_estimated_poses_to_csv:              ""
-detection_visualize_keypoints:              true
-feature_tracker_visualize_keypoint_matches: true
+alsologtostderr:                                true
+colorlogtostderr:                               true
+v:                                              1
+publish_debug_markers:                          false
+vis_default_namespace:                          maplab_rviz
+export_estimated_poses_to_csv:                  ""
+feature_tracker_visualize_keypoint_detections:  true
+feature_tracker_visualize_keypoint_matches:     true

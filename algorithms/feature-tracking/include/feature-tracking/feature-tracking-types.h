@@ -75,6 +75,19 @@ struct FeatureTrackingDetectorSettings {
   size_t gridded_detector_num_threads_per_image;
 };
 
+struct FeatureTrackingOutlierSettings {
+  FeatureTrackingOutlierSettings();
+
+  // Threshold for the 2-pt RANSAC outlier rejection.
+  double two_pt_ransac_threshold;
+  // Maximum number of iterations for the outlier rejection RANSAC.
+  size_t two_pt_ransac_max_iterations;
+  // If the outlier rejection should be deterministic, (i.e. fixed seed).
+  // Useful for doing experiments with repeatable results.
+  bool deterministic;
+};
+
+
 }  // namespace feature_tracking
 
 #endif  // FEATURE_TRACKING_FEATURE_TRACKING_TYPES_H_

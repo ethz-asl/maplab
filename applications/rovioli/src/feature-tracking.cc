@@ -1,6 +1,6 @@
-#include "rovioli/feature-tracking.h"
-
 #include <maplab-common/conversions.h>
+
+#include "rovioli/feature-tracking.h"
 
 DEFINE_bool(
     rovioli_descriptor_rotation_invariance, true,
@@ -21,10 +21,10 @@ FeatureTracking::FeatureTracking(
   feature_tracking::FeatureTrackingExtractorSettings extractor_settings;
   extractor_settings.rotation_invariant =
       FLAGS_rovioli_descriptor_rotation_invariance;
+  const feature_tracking::FeatureTrackingOutlierSettings outlier_settings;
 
-  tracker_.reset(
-      new feature_tracking::VOFeatureTrackingPipeline(
-          camera_system_, extractor_settings, detector_settings));
+  tracker_.reset(new feature_tracking::VOFeatureTrackingPipeline(
+      camera_system_, extractor_settings, detector_settings, outlier_settings));
 }
 
 bool FeatureTracking::trackSynchronizedNFrameImuCallback(
