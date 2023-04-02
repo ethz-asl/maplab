@@ -44,7 +44,6 @@ map_builder_save_point_cloud_maps_as_resources:                         false
 # TF
 tf_map_frame:         map
 tf_mission_frame:     mission
-tf_imu_frame:         imu
 
 # DEBUGGING AND LOGGING
 alsologtostderr:                                true
