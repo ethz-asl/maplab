@@ -2,7 +2,6 @@
 #include <thread>
 #include <unordered_set>
 
-#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/memory.h>
 #include <gtest/gtest.h>
 #include <map-manager/map-manager.h>

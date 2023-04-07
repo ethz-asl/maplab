@@ -3,7 +3,6 @@
 #include <vector>
 
 #include <aslam/cameras/ncamera.h>
-#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/memory.h>
 #include <aslam/common/pose-types.h>
 #include <aslam/common/time.h>

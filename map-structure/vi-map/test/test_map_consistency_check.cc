@@ -3,7 +3,6 @@
 
 #include <Eigen/Core>
 
-#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/memory.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/test/testing-entrypoint.h>

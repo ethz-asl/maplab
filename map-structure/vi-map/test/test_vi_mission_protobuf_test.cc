@@ -2,7 +2,6 @@
 #include <string>
 
 #include <Eigen/Core>
-#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/hash-id.h>
 #include <aslam/common/memory.h>
 #include <aslam/common/unique-id.h>

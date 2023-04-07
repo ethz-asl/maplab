@@ -3,7 +3,6 @@
 #include <vector>
 
 #include <Eigen/Core>
-#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/feature-descriptor-ref.h>
 #include <aslam/common/memory.h>
 #include <aslam/common/statistics/statistics.h>

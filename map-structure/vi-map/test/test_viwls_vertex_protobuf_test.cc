@@ -4,7 +4,6 @@
 #include <Eigen/Core>
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-fisheye.h>
-#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/common/hash-id.h>
 #include <aslam/common/memory.h>
 #include <aslam/common/unique-id.h>

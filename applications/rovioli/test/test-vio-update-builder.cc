@@ -1,5 +1,4 @@
 #include <aslam/cameras/ncamera.h>
-#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/frames/visual-nframe.h>
 #include <gtest/gtest.h>
 #include <maplab-common/test/testing-entrypoint.h>

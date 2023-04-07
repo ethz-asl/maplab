@@ -5,11 +5,6 @@
 namespace vi_map {
 
 constexpr char kYamlFieldNameTargetSensor[] = "target_sensor";
-constexpr char kYamlFieldNameHasUncertainties[] = "has_uncertainties";
-constexpr char kYamlFieldNameHasOrientations[] = "has_orientations";
-constexpr char kYamlFieldNameHasScores[] = "has_scores";
-constexpr char kYamlFieldNameHasScales[] = "has_scales";
-constexpr char kYamlFieldNameHasTrackIds[] = "has_track_ids";
 constexpr char kYamlFieldNameFeatureType[] = "feature_type";
 
 constexpr const char* kInvalidIdentifier = "Invalid";

@@ -17,10 +17,6 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <maplab-common/test/serialization-macros.h>
 
-namespace sm {
-class HashId;
-}  // namespace sm
-
 namespace common {
 template <class TYPE>
 void Serialize(

@@ -2,7 +2,6 @@
 #include <condition_variable>
 #include <thread>
 
-#include <aslam/cameras/random-camera-generator.h>
 #include <gtest/gtest.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>

@@ -1,7 +1,6 @@
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-fisheye.h>
 #include <aslam/cameras/ncamera.h>
-#include <aslam/cameras/random-camera-generator.h>
 #include <ceres/ceres.h>
 #include <map-manager/map-manager.h>
 #include <map-optimization/solver-options.h>

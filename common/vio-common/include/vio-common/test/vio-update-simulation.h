@@ -69,11 +69,6 @@ class VioUpdateSimulation {
     return n_frame_list_;
   }
 
-  const aslam::TransformationVector& getTransformationVector() const {
-    CHECK(has_simulated_vio_updates_);
-    return transformation_vector_;
-  }
-
   const Eigen::Matrix3Xd& getVelocities() const {
     CHECK(has_simulated_vio_updates_);
     return velocities_;

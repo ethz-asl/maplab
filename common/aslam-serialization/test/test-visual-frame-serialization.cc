@@ -3,7 +3,6 @@
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/distortion-radtan.h>
 #include <aslam/cameras/ncamera.h>
-#include <aslam/cameras/random-camera-generator.h>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
 

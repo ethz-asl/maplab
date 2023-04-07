@@ -1,7 +1,5 @@
 #include <maplab-common/test/testing-entrypoint.h>
 
-#include <aslam/cameras/random-camera-generator.h>
-
 #include "vi-map/check-map-consistency.h"
 #include "vi-map/test/vi-map-test-helpers.h"
 #include "vi-map/vi-map.h"
