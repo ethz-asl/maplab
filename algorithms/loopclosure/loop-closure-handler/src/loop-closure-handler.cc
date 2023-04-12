@@ -13,7 +13,7 @@ DEFINE_int32(
     lc_num_ransac_iters, 100,
     "Maximum number of ransac iterations for absolute pose recovery.");
 DEFINE_double(
-    lc_min_inlier_ratio, 0.0, "Minimum inlier ratio for loop closure.");
+    lc_min_inlier_ratio, 0.2, "Minimum inlier ratio for loop closure.");
 DEFINE_double(
     lc_max_delta_position_m, -1.0,
     "Maximum delta position that a loop closure can correct before it is "
