@@ -62,7 +62,7 @@ MatchingBasedEngineSettings::MatchingBasedEngineSettings()
   CHECK_LT(fraction_best_scores, 1.f);
   CHECK_GE(num_nearest_neighbors, -1);
   CHECK_GT(flann_num_checks, 0);
-  CHECK_GT(flann_eps, 0.f);
+  CHECK_GE(flann_eps, 0.f);
   CHECK_GT(flann_num_kdtrees, 0);
 
   setKeyframeScoringFunctionType(FLAGS_lc_scoring_function);
