@@ -1,22 +1,21 @@
 #include <algorithm>
+#include <descriptor-projection/descriptor-projection.h>
+#include <loopclosure-common/types.h>
+#include <maplab-common/conversions.h>
+#include <maplab-common/parallel-process.h>
 #include <memory>
 #include <mutex>
+#include <nabo/nabo.h>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
-#include <descriptor-projection/descriptor-projection.h>
-#include <loopclosure-common/types.h>
-#include <maplab-common/conversions.h>
-#include <maplab-common/parallel-process.h>
-#include <nabo/nabo.h>
 #include <vi-map/loop-constraint.h>
 
-#include "matching-based-loopclosure/flann-index-interface.h"
 #include "matching-based-loopclosure/detector-settings.h"
+#include "matching-based-loopclosure/flann-index-interface.h"
 #include "matching-based-loopclosure/helpers.h"
 #include "matching-based-loopclosure/inverted-index-interface.h"
 #include "matching-based-loopclosure/inverted-multi-index-interface.h"
@@ -319,7 +318,9 @@ void MatchingBasedLoopDetector::setDetectorEngine() {
       break;
     }
     case DetectorEngineType::kMatchingLDFLANN: {
-      index_interface_.reset(new loop_closure::FLANNIndexInterface());
+      index_interface_.reset(new loop_closure::FLANNIndexInterface(
+          settings_.flann_num_checks, settings_.flann_eps,
+          settings_.flann_num_kdtrees));
       break;
     }
     default: {

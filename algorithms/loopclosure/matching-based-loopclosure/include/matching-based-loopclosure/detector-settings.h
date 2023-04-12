@@ -52,6 +52,11 @@ struct MatchingBasedEngineSettings {
   size_t min_verify_matches_num;
   float fraction_best_scores;
   int num_nearest_neighbors;
+
+  // FLANN specific settings
+  int32_t flann_num_checks;
+  double flann_eps;
+  int32_t flann_num_kdtrees;
 };
 
 }  // namespace matching_based_loopclosure

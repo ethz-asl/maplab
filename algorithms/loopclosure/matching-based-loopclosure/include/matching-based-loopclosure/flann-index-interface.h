@@ -1,27 +1,28 @@
 #ifndef MATCHING_BASED_LOOPCLOSURE_FLANN_INDEX_INTERFACE_H_
 #define MATCHING_BASED_LOOPCLOSURE_FLANN_INDEX_INTERFACE_H_
-#include <memory>
-#include <mutex>
-#include <string>
-#include <vector>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <aslam/common/timer.h>
 #include <maplab-common/binary-serialization.h>
-#include <matching-based-loopclosure/helpers.h>
-#include <matching-based-loopclosure/index-interface.h>
+#include <memory>
+#include <mutex>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/core/version.hpp>
 #include <opencv2/features2d.hpp>
+#include <string>
+#include <vector>
+
+#include "matching-based-loopclosure/helpers.h"
+#include "matching-based-loopclosure/index-interface.h"
 
 namespace loop_closure {
 class FLANNIndexInterface : public IndexInterface {
  public:
-  FLANNIndexInterface() {
+  FLANNIndexInterface(int32_t num_checks, double eps, int32_t num_trees) {
     index_.reset(new cv::FlannBasedMatcher(
-        cv::makePtr<cv::flann::KDTreeIndexParams>(5),
-        cv::makePtr<cv::flann::SearchParams>(128)));
+        cv::makePtr<cv::flann::KDTreeIndexParams>(num_trees),
+        cv::makePtr<cv::flann::SearchParams>(num_checks, eps)));
     initialized_ = false;
     num_descriptors = 0;
   }
@@ -142,4 +143,5 @@ class FLANNIndexInterface : public IndexInterface {
   mutable std::mutex index_mutex_;
 };
 }  // namespace loop_closure
+
 #endif  // MATCHING_BASED_LOOPCLOSURE_FLANN_INDEX_INTERFACE_H_

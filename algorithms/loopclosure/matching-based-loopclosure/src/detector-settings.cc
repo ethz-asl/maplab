@@ -1,9 +1,9 @@
-#include "matching-based-loopclosure/detector-settings.h"
-
 #include <descriptor-projection/flags.h>
 #include <glog/logging.h>
 #include <loopclosure-common/flags.h>
 #include <loopclosure-common/types.h>
+
+#include "matching-based-loopclosure/detector-settings.h"
 
 DEFINE_string(
     lc_detector_engine,
@@ -29,8 +29,21 @@ DEFINE_int32(
     lc_num_words_for_nn_search, 10,
     "Number of nearest words to retrieve in the inverted index.");
 
-namespace matching_based_loopclosure {
+DEFINE_int32(
+    lc_flann_num_checks, 128,
+    "How many checks to perform to find the best nearest neighbor. More "
+    "checks will improve the quality but also increase the search time.");
+DEFINE_double(
+    lc_flann_eps, 0.0,
+    "Search precision for when a nearest neighbor is close enough. Increasing "
+    "this will reduce the NN search time at the cost of some lost precision as "
+    "the search will be able to exit sooner.");
+DEFINE_int32(
+    lc_flann_num_kdtrees, 4,
+    "Number of separate kd-trees to construct for the flann nearest neighbor "
+    "search. The trees will then be searched in parallel.");
 
+namespace matching_based_loopclosure {
 MatchingBasedEngineSettings::MatchingBasedEngineSettings()
     : projection_matrix_filename(FLAGS_lc_projection_matrix_filename),
       projected_quantizer_filename(FLAGS_lc_projected_quantizer_filename),
@@ -38,13 +51,19 @@ MatchingBasedEngineSettings::MatchingBasedEngineSettings()
       min_image_time_seconds(FLAGS_lc_min_image_time_seconds),
       min_verify_matches_num(FLAGS_lc_min_verify_matches_num),
       fraction_best_scores(FLAGS_lc_fraction_best_scores),
-      num_nearest_neighbors(FLAGS_lc_num_neighbors) {
+      num_nearest_neighbors(FLAGS_lc_num_neighbors),
+      flann_num_checks(FLAGS_lc_flann_num_checks),
+      flann_eps(FLAGS_lc_flann_eps),
+      flann_num_kdtrees(FLAGS_lc_flann_num_kdtrees) {
   CHECK_GT(num_closest_words_for_nn_search, 0);
   CHECK_GE(min_image_time_seconds, 0.0);
   CHECK_GE(min_verify_matches_num, 0u);
   CHECK_GT(fraction_best_scores, 0.f);
   CHECK_LT(fraction_best_scores, 1.f);
   CHECK_GE(num_nearest_neighbors, -1);
+  CHECK_GT(flann_num_checks, 0);
+  CHECK_GT(flann_eps, 0.f);
+  CHECK_GT(flann_num_kdtrees, 0);
 
   setKeyframeScoringFunctionType(FLAGS_lc_scoring_function);
   setDetectorEngineType(FLAGS_lc_detector_engine);
