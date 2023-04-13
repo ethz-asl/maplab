@@ -99,6 +99,10 @@ class FLANNIndexInterface : public IndexInterface {
           &index_images_[batch_start], batch_end - batch_start,
           batched_index_images.back());
 
+      // Make sure the index is clear in case it has been used before
+      index_->clear();
+
+      // Add the batched images to the index
       index_->add(batched_index_images);
       initialized_ = true;
     }
