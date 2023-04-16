@@ -31,6 +31,8 @@ class KDTreeIndexInterface : public IndexInterface {
     index_.reset(new Index());
   }
 
+  virtual void Initialize() {}
+
   virtual int GetNumDescriptorsInIndex() const {
     return index_->GetNumDescriptorsInIndex();
   }

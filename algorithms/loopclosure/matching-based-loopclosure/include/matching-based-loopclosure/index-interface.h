@@ -10,6 +10,9 @@ class IndexInterface {
  public:
   virtual ~IndexInterface() {}
 
+  // Initialize or re-initialize the index if necessary
+  virtual void Initialize() = 0;
+
   // Clear the underlying database from all descriptors.
   virtual void Clear() = 0;
 

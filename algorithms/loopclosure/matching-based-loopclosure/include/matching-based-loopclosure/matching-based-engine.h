@@ -1,14 +1,13 @@
 #ifndef MATCHING_BASED_LOOPCLOSURE_MATCHING_BASED_ENGINE_H_
 #define MATCHING_BASED_LOOPCLOSURE_MATCHING_BASED_ENGINE_H_
 
+#include <Eigen/Dense>
+#include <aslam/common/reader-writer-lock.h>
+#include <descriptor-projection/descriptor-projection.h>
 #include <memory>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#include <Eigen/Dense>
-#include <aslam/common/reader-writer-lock.h>
-#include <descriptor-projection/descriptor-projection.h>
 
 #include "matching-based-loopclosure/detector-settings.h"
 #include "matching-based-loopclosure/index-interface.h"
@@ -23,6 +22,10 @@ class MatchingBasedLoopDetector : public loop_detector::LoopDetector {
       const MatchingBasedEngineSettings& settings);
 
   virtual ~MatchingBasedLoopDetector() = default;
+
+  // Initialize the underlying search index. Must be called after adding new
+  // descriptors to the loop detector.
+  virtual void Initialize() override;
 
   // Find a set of provided images (consisting of projected descriptors), that
   // belong to the same vertex, in the database.
@@ -49,8 +52,8 @@ class MatchingBasedLoopDetector : public loop_detector::LoopDetector {
   void Clear() override;
 
  private:
-  typedef std::unordered_map<loop_closure::KeyframeId,
-                             loop_closure::ProjectedImage::Ptr>
+  typedef std::unordered_map<
+      loop_closure::KeyframeId, loop_closure::ProjectedImage::Ptr>
       Database;
   typedef loop_closure::IdToNumDescriptors<loop_closure::KeyframeId>
       KeyframeIdToNumDescriptorsMap;

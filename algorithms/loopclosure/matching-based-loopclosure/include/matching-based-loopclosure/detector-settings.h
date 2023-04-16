@@ -18,6 +18,7 @@ static const std::string
     kMatchingLDInvertedMultiIndexProductQuantizationString =
         "inverted_multi_index_product_quantization";
 static const std::string kMatchingLDFLANNString = "flann";
+static const std::string kMatchingLDHNSWString = "hnsw";
 
 struct MatchingBasedEngineSettings {
   MatchingBasedEngineSettings();
@@ -33,6 +34,7 @@ struct MatchingBasedEngineSettings {
     kMatchingLDInvertedMultiIndex,
     kMatchingLDInvertedMultiIndexProductQuantization,
     kMatchingLDFLANN,
+    kMatchingLDHNSW,
   };
 
   void setKeyframeScoringFunctionType(
@@ -52,6 +54,10 @@ struct MatchingBasedEngineSettings {
   size_t min_verify_matches_num;
   float fraction_best_scores;
   int num_nearest_neighbors;
+
+  size_t hnsw_m;
+  size_t hnsw_ef_construction;
+  size_t hnsw_ef_query;
 };
 
 }  // namespace matching_based_loopclosure

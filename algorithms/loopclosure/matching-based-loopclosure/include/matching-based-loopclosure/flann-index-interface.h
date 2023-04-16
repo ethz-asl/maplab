@@ -26,6 +26,8 @@ class FLANNIndexInterface : public IndexInterface {
     num_descriptors = 0;
   }
 
+  virtual void Initialize() {}
+
   virtual int GetNumDescriptorsInIndex() const {
     return num_descriptors;
   }

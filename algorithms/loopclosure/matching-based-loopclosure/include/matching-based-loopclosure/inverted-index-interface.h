@@ -74,6 +74,8 @@ class InvertedIndexInterface : public IndexInterface {
     index_.reset(new Index(words_, num_closest_words_for_nn_search));
   }
 
+  virtual void Initialize() {}
+
   virtual int GetNumDescriptorsInIndex() const {
     return index_->GetNumDescriptorsInIndex();
   }

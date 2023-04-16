@@ -121,6 +121,8 @@ class InvertedMultiIndexInterface : public IndexInterface {
     index_.reset(new Index(words_1, words_2, num_closest_words_for_nn_search));
   }
 
+  virtual void Initialize() {}
+
   virtual int GetNumDescriptorsInIndex() const {
     return index_->GetNumDescriptorsInIndex();
   }
@@ -269,6 +271,8 @@ class InvertedMultiProductQuantizationIndexInterface : public IndexInterface {
             words_1, words_2, quantizer_centers_1, quantizer_centers_2,
             num_closest_words_for_nn_search));
   }
+
+  virtual void Initialize() {}
 
   virtual int GetNumDescriptorsInIndex() const {
     return index_->GetNumDescriptorsInIndex();

@@ -1,23 +1,23 @@
 #include <algorithm>
+#include <descriptor-projection/descriptor-projection.h>
+#include <loopclosure-common/types.h>
+#include <maplab-common/conversions.h>
+#include <maplab-common/parallel-process.h>
 #include <memory>
 #include <mutex>
+#include <nabo/nabo.h>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
-#include <descriptor-projection/descriptor-projection.h>
-#include <loopclosure-common/types.h>
-#include <maplab-common/conversions.h>
-#include <maplab-common/parallel-process.h>
-#include <nabo/nabo.h>
 #include <vi-map/loop-constraint.h>
 
-#include "matching-based-loopclosure/flann-index-interface.h"
 #include "matching-based-loopclosure/detector-settings.h"
+#include "matching-based-loopclosure/flann-index-interface.h"
 #include "matching-based-loopclosure/helpers.h"
+#include "matching-based-loopclosure/hnsw-index-interface.h"
 #include "matching-based-loopclosure/inverted-index-interface.h"
 #include "matching-based-loopclosure/inverted-multi-index-interface.h"
 #include "matching-based-loopclosure/kd-tree-index-interface.h"
@@ -49,6 +49,10 @@ void MatchingBasedLoopDetector::ProjectDescriptors(
     const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
     Eigen::MatrixXf* projected_descriptors) const {
   index_interface_->ProjectDescriptors(descriptors, projected_descriptors);
+}
+
+void MatchingBasedLoopDetector::Initialize() {
+  index_interface_->Initialize();
 }
 
 void MatchingBasedLoopDetector::Find(
@@ -322,6 +326,12 @@ void MatchingBasedLoopDetector::setDetectorEngine() {
       index_interface_.reset(new loop_closure::FLANNIndexInterface());
       break;
     }
+    case DetectorEngineType::kMatchingLDHNSW: {
+      index_interface_.reset(new loop_closure::HSNWIndexInterface(
+          settings_.hnsw_m, settings_.hnsw_ef_construction,
+          settings_.hnsw_ef_query));
+      break;
+    }
     default: {
       LOG(FATAL) << "Invalid selection ("
                  << settings_.detector_engine_type_string
@@ -333,7 +343,6 @@ void MatchingBasedLoopDetector::setDetectorEngine() {
 
 int MatchingBasedLoopDetector::getNumNeighborsToSearch() const {
   // Determine the best number of neighbors for a given database size.
-
   int num_neighbors_to_search = settings_.num_nearest_neighbors;
   if (num_neighbors_to_search == -1) {
     int num_descriptors_in_db = index_interface_->GetNumDescriptorsInIndex();

@@ -1,11 +1,10 @@
 #ifndef MATCHING_BASED_LOOPCLOSURE_LOOP_DETECTOR_INTERFACE_H_
 #define MATCHING_BASED_LOOPCLOSURE_LOOP_DETECTOR_INTERFACE_H_
 
-#include <memory>
-#include <vector>
-
 #include <descriptor-projection/descriptor-projection.h>
 #include <loopclosure-common/types.h>
+#include <memory>
+#include <vector>
 
 #include "matching-based-loopclosure/helpers.h"
 
@@ -16,6 +15,10 @@ class LoopDetector {
  public:
   virtual ~LoopDetector() = default;
 
+  // Initialize the underlying search index. Must be called after adding new
+  // descriptors to the loop detector.
+  virtual void Initialize() = 0;
+
   // Find a set of provided images (consisting of projected descriptors), that
   // belong to the same vertex, in the database.
   virtual void Find(
@@ -25,9 +28,8 @@ class LoopDetector {
 
   // Add the provided image (consisting of projected descriptors) to the
   // descriptor index backend.
-  virtual void Insert(
-      const std::shared_ptr<loop_closure::ProjectedImage>&
-          projected_image_ptr) = 0;
+  virtual void Insert(const std::shared_ptr<loop_closure::ProjectedImage>&
+                          projected_image_ptr) = 0;
 
   // Transforms an image into a set of projected descriptors.
   virtual void ProjectDescriptors(
