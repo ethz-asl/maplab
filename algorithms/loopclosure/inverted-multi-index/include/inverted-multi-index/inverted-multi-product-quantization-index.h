@@ -14,7 +14,6 @@
 #include <aslam/common/memory.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <nabo/nabo.h>
 #include <product-quantization/product-quantization.h>
 
 #include <inverted-multi-index/inverted-multi-index-common.h>

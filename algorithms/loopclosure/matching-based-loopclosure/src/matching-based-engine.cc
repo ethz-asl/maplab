@@ -5,7 +5,6 @@
 #include <maplab-common/parallel-process.h>
 #include <memory>
 #include <mutex>
-#include <nabo/nabo.h>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -15,12 +14,9 @@
 #include <vi-map/loop-constraint.h>
 
 #include "matching-based-loopclosure/detector-settings.h"
-#include "matching-based-loopclosure/flann-index-interface.h"
 #include "matching-based-loopclosure/helpers.h"
 #include "matching-based-loopclosure/hnsw-index-interface.h"
-#include "matching-based-loopclosure/inverted-index-interface.h"
 #include "matching-based-loopclosure/inverted-multi-index-interface.h"
-#include "matching-based-loopclosure/kd-tree-index-interface.h"
 #include "matching-based-loopclosure/matching-based-engine.h"
 #include "matching-based-loopclosure/scoring.h"
 
@@ -298,35 +294,20 @@ void MatchingBasedLoopDetector::setDetectorEngine() {
   typedef MatchingBasedEngineSettings::DetectorEngineType DetectorEngineType;
 
   switch (settings_.detector_engine_type) {
-    case DetectorEngineType::kMatchingLDKdTree: {
-      index_interface_.reset(new loop_closure::KDTreeIndexInterface(
-          settings_.projection_matrix_filename));
-      break;
-    }
-    case DetectorEngineType::kMatchingLDInvertedIndex: {
-      index_interface_.reset(new loop_closure::InvertedIndexInterface(
-          settings_.projected_quantizer_filename,
-          settings_.num_closest_words_for_nn_search));
-      break;
-    }
-    case DetectorEngineType::kMatchingLDInvertedMultiIndex: {
+    case DetectorEngineType::kMatchingInvertedMultiIndex: {
       index_interface_.reset(new loop_closure::InvertedMultiIndexInterface(
           settings_.projected_quantizer_filename,
           settings_.num_closest_words_for_nn_search));
       break;
     }
-    case DetectorEngineType::kMatchingLDInvertedMultiIndexProductQuantization: {
+    case DetectorEngineType::kMatchingInvertedMultiIndexPQ: {
       index_interface_.reset(
           new loop_closure::InvertedMultiProductQuantizationIndexInterface(
               settings_.projected_quantizer_filename,
               settings_.num_closest_words_for_nn_search));
       break;
     }
-    case DetectorEngineType::kMatchingLDFLANN: {
-      index_interface_.reset(new loop_closure::FLANNIndexInterface());
-      break;
-    }
-    case DetectorEngineType::kMatchingLDHNSW: {
+    case DetectorEngineType::kMatchingHNSW: {
       index_interface_.reset(new loop_closure::HSNWIndexInterface(
           settings_.hnsw_m, settings_.hnsw_ef_construction,
           settings_.hnsw_ef_query));

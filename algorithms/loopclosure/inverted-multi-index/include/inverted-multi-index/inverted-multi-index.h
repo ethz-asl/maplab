@@ -16,7 +16,6 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <maplab-common/eigen-proto.h>
-#include <nabo/nabo.h>
 
 #include "inverted-multi-index/inverted-multi-index-common.h"
 

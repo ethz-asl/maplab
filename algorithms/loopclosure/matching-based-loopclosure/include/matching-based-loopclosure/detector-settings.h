@@ -1,24 +1,17 @@
 #ifndef MATCHING_BASED_LOOPCLOSURE_DETECTOR_SETTINGS_H_
 #define MATCHING_BASED_LOOPCLOSURE_DETECTOR_SETTINGS_H_
 
-#include <string>
-
 #include <glog/logging.h>
+#include <string>
 
 namespace matching_based_loopclosure {
 
 static const std::string kAccumulationString = "accumulation";
 static const std::string kProbabilisticString = "probabilistic";
 
-static const std::string kMatchingLDKdTreeString = "kd_tree";
-static const std::string kMatchingLDInvertedIndexString = "inverted_index";
-static const std::string kMatchingLDInvertedMultiIndexString =
-    "inverted_multi_index";
-static const std::string
-    kMatchingLDInvertedMultiIndexProductQuantizationString =
-        "inverted_multi_index_product_quantization";
-static const std::string kMatchingLDFLANNString = "flann";
-static const std::string kMatchingLDHNSWString = "hnsw";
+static const std::string kMatchingInvertedMultiIndexString = "imi";
+static const std::string kMatchingInvertedMultiIndexPQString = "imipq";
+static const std::string kMatchingHNSWString = "hnsw";
 
 struct MatchingBasedEngineSettings {
   MatchingBasedEngineSettings();
@@ -29,12 +22,9 @@ struct MatchingBasedEngineSettings {
   };
 
   enum class DetectorEngineType {
-    kMatchingLDKdTree,
-    kMatchingLDInvertedIndex,
-    kMatchingLDInvertedMultiIndex,
-    kMatchingLDInvertedMultiIndexProductQuantization,
-    kMatchingLDFLANN,
-    kMatchingLDHNSW,
+    kMatchingInvertedMultiIndex,
+    kMatchingInvertedMultiIndexPQ,
+    kMatchingHNSW,
   };
 
   void setKeyframeScoringFunctionType(

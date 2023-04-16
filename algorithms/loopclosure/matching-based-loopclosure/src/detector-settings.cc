@@ -7,8 +7,12 @@
 
 DEFINE_string(
     lc_detector_engine,
-    matching_based_loopclosure::kMatchingLDInvertedMultiIndexString,
-    "Which loop-closure engine to use");
+    matching_based_loopclosure::kMatchingInvertedMultiIndexString,
+    "Which loop-closure engine to use. Options are:"
+    " - imi:   inverted multi index (binary)"
+    " - imipq: inverted multi index with product quantization (binary)"
+    " - hsnw:  hierarchical navigable small world graphs (float)"
+    "The default options for binary descriptors is \"imi\".");
 DEFINE_string(
     lc_scoring_function, matching_based_loopclosure::kAccumulationString,
     "Type of scoring function to be used for scoring keyframes.");
@@ -113,21 +117,12 @@ void MatchingBasedEngineSettings::setKeyframeScoringFunctionType(
 void MatchingBasedEngineSettings::setDetectorEngineType(
     const std::string& detector_engine_string) {
   detector_engine_type_string = detector_engine_string;
-  if (detector_engine_string == kMatchingLDKdTreeString) {
-    detector_engine_type = DetectorEngineType::kMatchingLDKdTree;
-  } else if (detector_engine_string == kMatchingLDInvertedIndexString) {
-    detector_engine_type = DetectorEngineType::kMatchingLDInvertedIndex;
-  } else if (detector_engine_string == kMatchingLDInvertedMultiIndexString) {
-    detector_engine_type = DetectorEngineType::kMatchingLDInvertedMultiIndex;
-  } else if (
-      detector_engine_string ==
-      kMatchingLDInvertedMultiIndexProductQuantizationString) {
-    detector_engine_type =
-        DetectorEngineType::kMatchingLDInvertedMultiIndexProductQuantization;
-  } else if (detector_engine_string == kMatchingLDFLANNString) {
-    detector_engine_type = DetectorEngineType::kMatchingLDFLANN;
-  } else if (detector_engine_string == kMatchingLDHNSWString) {
-    detector_engine_type = DetectorEngineType::kMatchingLDHNSW;
+  if (detector_engine_string == kMatchingInvertedMultiIndexString) {
+    detector_engine_type = DetectorEngineType::kMatchingInvertedMultiIndex;
+  } else if (detector_engine_string == kMatchingInvertedMultiIndexPQString) {
+    detector_engine_type = DetectorEngineType::kMatchingInvertedMultiIndexPQ;
+  } else if (detector_engine_string == kMatchingHNSWString) {
+    detector_engine_type = DetectorEngineType::kMatchingHNSW;
   } else {
     LOG(FATAL) << "Unknown loop detector engine type: "
                << detector_engine_string;

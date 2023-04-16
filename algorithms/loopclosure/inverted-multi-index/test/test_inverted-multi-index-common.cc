@@ -7,7 +7,6 @@
 #include <aslam/common/memory.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <nabo/nabo.h>
 
 #include <inverted-multi-index/inverted-multi-index-common.h>
 #include <inverted-multi-index/inverted-multi-index.h>
