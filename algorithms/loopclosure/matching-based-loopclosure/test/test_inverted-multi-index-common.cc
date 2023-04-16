@@ -1,21 +1,18 @@
+#include <Eigen/Core>
+#include <aslam/common/memory.h>
+#include <maplab-common/test/testing-entrypoint.h>
+#include <maplab-common/test/testing-predicates.h>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include <Eigen/Core>
-#include <aslam/common/memory.h>
-#include <maplab-common/test/testing-entrypoint.h>
-#include <maplab-common/test/testing-predicates.h>
-
-#include <inverted-multi-index/inverted-multi-index-common.h>
-#include <inverted-multi-index/inverted-multi-index.h>
+#include "matching-based-loopclosure/imilib/inverted-multi-index-common.h"
+#include "matching-based-loopclosure/imilib/inverted-multi-index.h"
 
 namespace loop_closure {
 namespace inverted_multi_index {
 namespace common {
-
-using ::testing::ContainerEq;
 
 TEST(InvertedMultiIndexCommonTest, InsertNeighborWorks) {
   std::vector<std::pair<float, int> > neighbors;
@@ -32,7 +29,12 @@ TEST(InvertedMultiIndexCommonTest, InsertNeighborWorks) {
   std::vector<std::pair<float, int> > expected_neighbors = {
       std::make_pair(0.05, 3), std::make_pair(0.1, 5), std::make_pair(0.11, 8),
       std::make_pair(0.2, 1), std::make_pair(0.2, 2)};
-  EXPECT_THAT(neighbors, ContainerEq(expected_neighbors));
+
+  EXPECT_EQ(neighbors.size(), expected_neighbors.size());
+  for (size_t i = 0; i < neighbors.size(); i++) {
+    EXPECT_FLOAT_EQ(neighbors[i].first, expected_neighbors[i].first);
+    EXPECT_EQ(neighbors[i].second, expected_neighbors[i].second);
+  }
 
   neighbors.clear();
   InsertNeighbor(31, 0.349399, 10, &neighbors);
@@ -53,7 +55,12 @@ TEST(InvertedMultiIndexCommonTest, InsertNeighborWorks) {
       std::make_pair(0.529346, 21), std::make_pair(0.819767, 43),
       std::make_pair(0.881889, 28), std::make_pair(0.983704, 40),
       std::make_pair(1.014, 15),    std::make_pair(1.40066, 0)};
-  EXPECT_THAT(neighbors, ContainerEq(expected_neighbors2));
+
+  EXPECT_EQ(neighbors.size(), expected_neighbors2.size());
+  for (size_t i = 0; i < neighbors.size(); i++) {
+    EXPECT_FLOAT_EQ(neighbors[i].first, expected_neighbors2[i].first);
+    EXPECT_EQ(neighbors[i].second, expected_neighbors2[i].second);
+  }
 }
 
 TEST(InvertedMultiIndexCommonTest, MultiSequenceAlgorithmWorks) {
@@ -81,45 +88,70 @@ TEST(InvertedMultiIndexCommonTest, MultiSequenceAlgorithmWorks) {
   std::vector<std::pair<int, int> > closest_words;
   MultiSequenceAlgorithm(
       indices_1, distances_1, indices_2, distances_2, 24, &closest_words);
-  EXPECT_THAT(closest_words, ContainerEq(expected_closest_words));
+  EXPECT_EQ(closest_words.size(), expected_closest_words.size());
+  for (size_t i = 0; i < closest_words.size(); i++) {
+    EXPECT_EQ(closest_words[i].first, expected_closest_words[i].first);
+    EXPECT_EQ(closest_words[i].second, expected_closest_words[i].second);
+  }
 
   expected_closest_words.resize(10);
   closest_words.clear();
   MultiSequenceAlgorithm(
       indices_1, distances_1, indices_2, distances_2, 10, &closest_words);
-  EXPECT_THAT(closest_words, ContainerEq(expected_closest_words));
+  EXPECT_EQ(closest_words.size(), expected_closest_words.size());
+  for (size_t i = 0; i < closest_words.size(); i++) {
+    EXPECT_EQ(closest_words[i].first, expected_closest_words[i].first);
+    EXPECT_EQ(closest_words[i].second, expected_closest_words[i].second);
+  }
 
   expected_closest_words.resize(5);
   closest_words.clear();
   MultiSequenceAlgorithm(
       indices_1, distances_1, indices_2, distances_2, 5, &closest_words);
-  EXPECT_THAT(closest_words, ContainerEq(expected_closest_words));
+  EXPECT_EQ(closest_words.size(), expected_closest_words.size());
+  for (size_t i = 0; i < closest_words.size(); i++) {
+    EXPECT_EQ(closest_words[i].first, expected_closest_words[i].first);
+    EXPECT_EQ(closest_words[i].second, expected_closest_words[i].second);
+  }
 
   expected_closest_words.resize(3);
   closest_words.clear();
   MultiSequenceAlgorithm(
       indices_1, distances_1, indices_2, distances_2, 3, &closest_words);
-  EXPECT_THAT(closest_words, ContainerEq(expected_closest_words));
+  EXPECT_EQ(closest_words.size(), expected_closest_words.size());
+  for (size_t i = 0; i < closest_words.size(); i++) {
+    EXPECT_EQ(closest_words[i].first, expected_closest_words[i].first);
+    EXPECT_EQ(closest_words[i].second, expected_closest_words[i].second);
+  }
 
   expected_closest_words.resize(2);
   closest_words.clear();
   MultiSequenceAlgorithm(
       indices_1, distances_1, indices_2, distances_2, 2, &closest_words);
-  EXPECT_THAT(closest_words, ContainerEq(expected_closest_words));
+  EXPECT_EQ(closest_words.size(), expected_closest_words.size());
+  for (size_t i = 0; i < closest_words.size(); i++) {
+    EXPECT_EQ(closest_words[i].first, expected_closest_words[i].first);
+    EXPECT_EQ(closest_words[i].second, expected_closest_words[i].second);
+  }
 
   expected_closest_words.resize(1);
   closest_words.clear();
   MultiSequenceAlgorithm(
       indices_1, distances_1, indices_2, distances_2, 1, &closest_words);
-  EXPECT_THAT(closest_words, ContainerEq(expected_closest_words));
+  EXPECT_EQ(closest_words.size(), expected_closest_words.size());
+  for (size_t i = 0; i < closest_words.size(); i++) {
+    EXPECT_EQ(closest_words[i].first, expected_closest_words[i].first);
+    EXPECT_EQ(closest_words[i].second, expected_closest_words[i].second);
+  }
 
-  expected_closest_words.resize(0);
   MultiSequenceAlgorithm(
       indices_1, distances_1, indices_2, distances_2, 0, &closest_words);
   EXPECT_TRUE(closest_words.empty());
 }
 
 TEST(InvertedMultiIndexCommonTest, FindClosestWordsWorks) {
+  FLAGS_lc_knn_epsilon = 0.2;
+
   Eigen::MatrixXf words1(3, 10);
   words1 << 0.751267059305653, 0.547215529963803, 0.814284826068816,
       0.616044676146639, 0.917193663829810, 0.075854289563064,
@@ -156,7 +188,11 @@ TEST(InvertedMultiIndexCommonTest, FindClosestWordsWorks) {
   std::vector<std::pair<int, int> > closest_words;
   FindClosestWords<3>(
       query1, 15, *words_1_tree, *words_2_tree, 10, 5, &closest_words);
-  EXPECT_THAT(closest_words, ContainerEq(expected_closest_words1));
+  EXPECT_EQ(closest_words.size(), expected_closest_words1.size());
+  for (size_t i = 0; i < closest_words.size(); i++) {
+    EXPECT_EQ(closest_words[i].first, expected_closest_words1[i].first);
+    EXPECT_EQ(closest_words[i].second, expected_closest_words1[i].second);
+  }
 
   Eigen::Matrix<float, 6, 1> query2;
   query2 << 0.140397592757592, 0.345575701658016, 0.812736932727134,
@@ -181,7 +217,11 @@ TEST(InvertedMultiIndexCommonTest, FindClosestWordsWorks) {
       std::make_pair(1, 0), std::make_pair(6, 0)};
   FindClosestWords<3>(
       query2, 200, *words_1_tree, *words_2_tree, 10, 5, &closest_words);
-  EXPECT_THAT(closest_words, ContainerEq(expected_closest_words2));
+  EXPECT_EQ(closest_words.size(), expected_closest_words2.size());
+  for (size_t i = 0; i < closest_words.size(); i++) {
+    EXPECT_EQ(closest_words[i].first, expected_closest_words2[i].first);
+    EXPECT_EQ(closest_words[i].second, expected_closest_words2[i].second);
+  }
 
   Eigen::Matrix<float, 6, 1> query3;
   query3 << 0.676942673662204, 0.851611155877681, 0.769413386896462,
@@ -190,7 +230,11 @@ TEST(InvertedMultiIndexCommonTest, FindClosestWordsWorks) {
       std::make_pair(8, 4), std::make_pair(8, 3), std::make_pair(3, 4)};
   FindClosestWords<3>(
       query3, 3, *words_1_tree, *words_2_tree, 10, 5, &closest_words);
-  EXPECT_THAT(closest_words, ContainerEq(expected_closest_words3));
+  EXPECT_EQ(closest_words.size(), expected_closest_words3.size());
+  for (size_t i = 0; i < closest_words.size(); i++) {
+    EXPECT_EQ(closest_words[i].first, expected_closest_words3[i].first);
+    EXPECT_EQ(closest_words[i].second, expected_closest_words3[i].second);
+  }
 }
 
 TEST(InvertedMultiIndexCommonTest, AddDescriptorWorks) {
@@ -237,15 +281,17 @@ TEST(InvertedMultiIndexCommonTest, AddDescriptorWorks) {
     EXPECT_EQ(
         inverted_files[i].indices_.size(),
         inverted_files[i].descriptors_.size());
-    EXPECT_THAT(inverted_files[i].indices_, ContainerEq(expected_indices[i]));
+    EXPECT_EQ(inverted_files[i].indices_.size(), expected_indices[i].size());
+    for (size_t j = 0; j < expected_indices[i].size(); j++) {
+      EXPECT_EQ(inverted_files[i].indices_[j], expected_indices[i][j]);
+    }
+
     Eigen::MatrixXf stored_descriptors;
     stored_descriptors.resize(6, inverted_files[i].descriptors_.size());
     for (size_t j = 0; j < inverted_files[i].descriptors_.size(); ++j) {
       stored_descriptors.col(j) = inverted_files[i].descriptors_[j];
     }
-    EXPECT_TRUE(
-        gtest_catkin::MatricesEqual(
-            expected_descriptors[i], stored_descriptors));
+    EXPECT_NEAR_EIGEN(expected_descriptors[i], stored_descriptors, 1e-9);
   }
 }
 
@@ -253,4 +299,4 @@ TEST(InvertedMultiIndexCommonTest, AddDescriptorWorks) {
 }  // namespace inverted_multi_index
 }  // namespace loop_closure
 
-MAPLAB_MOCKTEST_ENTRYPOINT
+MAPLAB_UNITTEST_ENTRYPOINT

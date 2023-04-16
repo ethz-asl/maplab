@@ -1,9 +1,9 @@
 #ifndef MATCHING_BASED_LOOPCLOSURE_INDEX_INTERFACE_H_
 #define MATCHING_BASED_LOOPCLOSURE_INDEX_INTERFACE_H_
+#include <Eigen/Core>
 #include <vector>
 
-#include <Eigen/Core>
-#include <matching-based-loopclosure/helpers.h>
+#include "matching-based-loopclosure/helpers.h"
 
 namespace loop_closure {
 class IndexInterface {

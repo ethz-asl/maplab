@@ -1,8 +1,12 @@
 #ifndef INVERTED_MULTI_INDEX_INVERTED_MULTI_PRODUCT_QUANTIZATION_INDEX_H_
 #define INVERTED_MULTI_INDEX_INVERTED_MULTI_PRODUCT_QUANTIZATION_INDEX_H_
 
+#include <Eigen/Core>
 #include <algorithm>
+#include <aslam/common/memory.h>
 #include <functional>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
 #include <limits>
 #include <queue>
 #include <tuple>
@@ -10,13 +14,8 @@
 #include <utility>
 #include <vector>
 
-#include <Eigen/Core>
-#include <aslam/common/memory.h>
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <product-quantization/product-quantization.h>
-
-#include <inverted-multi-index/inverted-multi-index-common.h>
+#include "matching-based-loopclosure/imilib/product-quantization.h"
+#include "matching-based-loopclosure/imilib/inverted-multi-index-common.h"
 
 DECLARE_double(lc_knn_max_radius);
 
@@ -34,8 +33,8 @@ namespace inverted_multi_index {
 // explanation of the parameters). The inverted multi-index splits descriptors
 // into two parts of dimension kNumComponents / 2 * kNumDimPerComp each. Thus,
 // kNumComponents needs to be a multiple of 2.
-template <typename DataType, int kNumComponents, int kNumDimPerComp,
-          int kNumCenters>
+template <
+    typename DataType, int kNumComponents, int kNumDimPerComp, int kNumCenters>
 class InvertedMultiProductQuantizationIndex {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -71,14 +70,10 @@ class InvertedMultiProductQuantizationIndex {
       int num_closest_words_for_nn_search)
       : words_1_(words_1),
         words_2_(words_2),
-        words_1_index_(
-            common::NNSearch::createKDTreeLinearHeap(
-                words_1_, kOriginalDescDim / 2,
-                common::kCollectTouchStatistics)),
-        words_2_index_(
-            common::NNSearch::createKDTreeLinearHeap(
-                words_2_, kOriginalDescDim / 2,
-                common::kCollectTouchStatistics)),
+        words_1_index_(common::NNSearch::createKDTreeLinearHeap(
+            words_1_, kOriginalDescDim / 2, common::kCollectTouchStatistics)),
+        words_2_index_(common::NNSearch::createKDTreeLinearHeap(
+            words_2_, kOriginalDescDim / 2, common::kCollectTouchStatistics)),
         num_closest_words_for_nn_search_(num_closest_words_for_nn_search),
         max_db_descriptor_index_(0) {
     static_assert(
@@ -181,8 +176,8 @@ class InvertedMultiProductQuantizationIndex {
 
   // Finds the n nearest neighbors for a given query feature.
   // This function is thread-safe.
-  template <typename DerivedQuery, typename DerivedIndices,
-            typename DerivedDistances>
+  template <
+      typename DerivedQuery, typename DerivedIndices, typename DerivedDistances>
   inline void GetNNearestNeighbors(
       const Eigen::MatrixBase<DerivedQuery>& query_feature, int num_neighbors,
       const Eigen::MatrixBase<DerivedIndices>& out_indices,

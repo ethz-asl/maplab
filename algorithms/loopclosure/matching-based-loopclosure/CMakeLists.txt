@@ -39,6 +39,22 @@ catkin_add_env_hooks(40.loopclosure
 catkin_add_gtest(test_scoring test/test_scoring.cc)
 target_link_libraries(test_scoring ${LIBRARY_NAME})
 
+catkin_add_gtest(test_inverted_multi_index_common 
+                 test/test_inverted-multi-index-common.cc)
+target_link_libraries(test_inverted_multi_index_common ${LIBRARY_NAME})
+
+catkin_add_gtest(test_inverted_multi_index 
+                 test/test_inverted-multi-index.cc)
+target_link_libraries(test_inverted_multi_index ${LIBRARY_NAME})
+
+catkin_add_gtest(test_product-quantization
+                 test/test_product-quantization.cc)
+target_link_libraries(test_product-quantization ${LIBRARY_NAME})
+
+catkin_add_gtest(test_inverted_multi_index_product_quantization
+                 test/test_inverted-multi-index-product-quantization.cc)
+target_link_libraries(test_inverted_multi_index_product_quantization ${LIBRARY_NAME})
+
 ############
 ## EXPORT ##
 ############

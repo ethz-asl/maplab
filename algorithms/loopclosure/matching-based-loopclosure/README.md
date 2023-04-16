@@ -6,6 +6,9 @@ matching the descriptors from the current image. Uses two main approaches.
 ## Inverted Multi-Index With Product Quantization
 Only used for binary descriptors (BRISK and FREAK).
 
+The method splits a feature descriptor into two subvectors of equal length and quantizes each part individually. This yields a fine quantization of the
+descriptor space into k^2 visual words but only requires us to store k descriptors.
+
 ### References
 ```bibtex
 @ARTICLE{6915715,

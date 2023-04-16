@@ -1,18 +1,17 @@
 #ifndef MATCHING_BASED_LOOPCLOSURE_INVERTED_MULTI_INDEX_INTERFACE_H_
 #define MATCHING_BASED_LOOPCLOSURE_INVERTED_MULTI_INDEX_INTERFACE_H_
-#include <memory>
-#include <string>
-#include <vector>
-
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <aslam/common/timer.h>
 #include <descriptor-projection/descriptor-projection.h>
-#include <inverted-multi-index/inverted-multi-index.h>
-#include <inverted-multi-index/inverted-multi-product-quantization-index.h>
 #include <maplab-common/binary-serialization.h>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "matching-based-loopclosure/helpers.h"
+#include "matching-based-loopclosure/imilib/inverted-multi-index.h"
+#include "matching-based-loopclosure/imilib/inverted-multi-product-quantization-index.h"
 #include "matching-based-loopclosure/index-interface.h"
 
 DECLARE_int32(lc_target_dimensionality);
@@ -141,8 +140,8 @@ class InvertedMultiIndexInterface : public IndexInterface {
     index_->AddDescriptors(descriptors);
   }
 
-  template <typename DerivedQuery, typename DerivedIndices,
-            typename DerivedDistances>
+  template <
+      typename DerivedQuery, typename DerivedIndices, typename DerivedDistances>
   inline void GetNNearestNeighbors(
       const Eigen::MatrixBase<DerivedQuery>& query_feature, int num_neighbors,
       const Eigen::MatrixBase<DerivedIndices>& indices_const,
@@ -161,8 +160,8 @@ class InvertedMultiIndexInterface : public IndexInterface {
         query_feature, num_neighbors, indices_const, distances_const);
   }
 
-  template <typename DerivedQuery, typename DerivedIndices,
-            typename DerivedDistances>
+  template <
+      typename DerivedQuery, typename DerivedIndices, typename DerivedDistances>
   inline void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixBase<DerivedQuery>& query_features, int num_neighbors,
       const Eigen::MatrixBase<DerivedIndices>& indices_const,
@@ -232,8 +231,8 @@ class InvertedMultiProductQuantizationIndexInterface : public IndexInterface {
     kNumDimPerComp = 1,
     kNumCenters = 16
   };
-  typedef InvertedMultiProductQuantizationIndex<DataType, kNumComponents,
-                                                kNumDimPerComp, kNumCenters>
+  typedef InvertedMultiProductQuantizationIndex<
+      DataType, kNumComponents, kNumDimPerComp, kNumCenters>
       Index;
 
   InvertedMultiProductQuantizationIndexInterface(
@@ -266,10 +265,9 @@ class InvertedMultiProductQuantizationIndexInterface : public IndexInterface {
 
     CHECK_EQ(kSubSpaceDimensionality, vocabulary_.target_dimensionality_ / 2);
 
-    index_.reset(
-        new Index(
-            words_1, words_2, quantizer_centers_1, quantizer_centers_2,
-            num_closest_words_for_nn_search));
+    index_.reset(new Index(
+        words_1, words_2, quantizer_centers_1, quantizer_centers_2,
+        num_closest_words_for_nn_search));
   }
 
   virtual void Initialize() {}
@@ -292,8 +290,8 @@ class InvertedMultiProductQuantizationIndexInterface : public IndexInterface {
     index_->AddDescriptors(descriptors);
   }
 
-  template <typename DerivedQuery, typename DerivedIndices,
-            typename DerivedDistances>
+  template <
+      typename DerivedQuery, typename DerivedIndices, typename DerivedDistances>
   inline void GetNNearestNeighbors(
       const Eigen::MatrixBase<DerivedQuery>& query_feature, int num_neighbors,
       const Eigen::MatrixBase<DerivedIndices>& indices_const,
@@ -312,8 +310,8 @@ class InvertedMultiProductQuantizationIndexInterface : public IndexInterface {
         query_feature, num_neighbors, indices_const, distances_const);
   }
 
-  template <typename DerivedQuery, typename DerivedIndices,
-            typename DerivedDistances>
+  template <
+      typename DerivedQuery, typename DerivedIndices, typename DerivedDistances>
   inline void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixBase<DerivedQuery>& query_features, int num_neighbors,
       const Eigen::MatrixBase<DerivedIndices>& indices_const,
