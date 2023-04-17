@@ -139,7 +139,6 @@ void addLandmarkTermForKeypoint(
             camera_ptr.get()));
 
     residual_type = ceres_error_terms::ResidualType::kVisualReprojectionError;
-
   } else {
     const int64_t offset = visual_frame.getKeypointTimeOffset(keypoint_idx);
 
