@@ -25,34 +25,45 @@ class HSNWIndexInterface : public IndexInterface {
 
   virtual void Initialize() {
     if (!initialized_) {
-      const size_t maxSize = new_descriptors_.size();
-      CHECK_GT(maxSize, 0u) << "No descriptors added to database";
+      CHECK_GT(num_descriptors_, 0u) << "No descriptors added to database.";
 
       space_.reset(new hnswlib::L2Space(descriptor_size_));
       index_.reset(new hnswlib::HierarchicalNSW<float>(
-          space_.get(), maxSize, M_, ef_construction_));
+          space_.get(), num_descriptors_, M_, ef_construction_));
       index_->setEf(ef_query_);
 
+      initialized_ = true;
+    } else if (new_descriptors_.size() > 0u) {
+      // The index was already initialized and we just need to resize it.
+      index_->resizeIndex(num_descriptors_);
+    }
+
+    if (new_descriptors_.size() > 0u) {
       common::MultiThreadedProgressBar progress_bar(1);
+      const size_t offset = index_->getCurrentElementCount();
       std::function<void(const std::vector<size_t>&)> inserter =
-          [&progress_bar, this](const std::vector<size_t>& batch) {
+          [this, &progress_bar, &offset](const std::vector<size_t>& batch) {
             progress_bar.setNumElements(batch.size());
             size_t num_processed = 0u;
             for (size_t i : batch) {
-              index_->addPoint(new_descriptors_[i], i);
+              // The index labels are offset by the number of points already
+              // added to the index, since we always being the loop from zero.
+              index_->addPoint(new_descriptors_[i], offset + i);
               delete new_descriptors_[i];
               progress_bar.update(++num_processed);
             }
           };
 
-      VLOG(1) << "Building HNSW index for fast approximate nearest neighbour lookup.";
+      VLOG(1) << "Building the HNSW index for fast approximate nearest "
+                 "neighbour lookup.";
       static constexpr bool kAlwaysParallelize = true;
       const size_t num_threads = common::getNumHardwareThreads();
       common::ParallelProcess(
-          maxSize, inserter, kAlwaysParallelize, num_threads);
+          new_descriptors_.size(), inserter, kAlwaysParallelize, num_threads);
 
+      // All the data is deallocated in the for loop, so we can clear the
+      // pointers now without issues.
       new_descriptors_.clear();
-      initialized_ = true;
     }
   }
 
@@ -108,7 +119,7 @@ class HSNWIndexInterface : public IndexInterface {
     CHECK_NOTNULL(indices);
     CHECK_NOTNULL(distances);
     CHECK_EQ(descriptor_size_, query_features.rows());
-    
+
     CHECK_EQ(indices->rows(), num_neighbors)
         << "The indices parameter must be pre-allocated to hold all results.";
     CHECK_EQ(distances->rows(), num_neighbors)
