@@ -152,7 +152,7 @@ void LoopDetectorNode::convertFrameToProjectedImageOnlyUsingProvidedLandmarkIds(
       static_cast<int>(observed_landmark_ids.size()),
       frame.getDescriptorsOfType(feature_type_).cols());
 
-  const Eigen::Matrix2Xd& original_measurements =
+  const Eigen::Block<const Eigen::Matrix2Xd> original_measurements =
       frame.getKeypointMeasurementsOfType(feature_type_);
   const aslam::VisualFrame::DescriptorsT& original_descriptors =
       frame.getDescriptorsOfType(feature_type_);

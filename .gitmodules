@@ -97,6 +97,3 @@
 [submodule "dependencies/3rdparty/libpointmatcher"]
 	path = dependencies/3rdparty/libpointmatcher
 	url = git@github.com:ANYbotics/libpointmatcher.git
-[submodule "dependencies/internal/maplab_features"]
-	path = dependencies/internal/maplab_features
-	url = git@github.com:ethz-asl/maplab_features.git

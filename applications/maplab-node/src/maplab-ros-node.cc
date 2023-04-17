@@ -35,16 +35,6 @@ DEFINE_string(
     "Yaml file with all the sensor calibrations. Determines which sensors are "
     "used by MaplabNode.");
 
-// ==== INPUT LOCALIZATION MAPS ====
-
-DEFINE_string(
-    visual_localization_map_folder, "",
-    "Path to a visual localization summary map or a full VI-map used for "
-    "localization.");
-
-DEFINE_string(
-    lidar_localization_map_folder, "", "Path to a lidar localization map.");
-
 // === OUTPUT MAPS ===
 
 DEFINE_string(
@@ -63,22 +53,6 @@ DEFINE_bool(
     "saving it.");
 
 // === MAPLAB NODE ===
-
-DEFINE_bool(
-    enable_visual_localization, true,
-    "The maplab node will use vision to localize, if enabled. Requires "
-    "--enable_visual_inertial_data=true");
-
-DEFINE_bool(
-    enable_lidar_localization, false,
-    "The maplab node will use the lidar data to localize, if enabled. Requires "
-    "--enable_lidar_data=true "
-    "[NOT IMPLEMENTED YET]");
-
-DEFINE_bool(
-    enable_online_mapping, false,
-    "The maplab node will try to optimize and loop close the pose graph online "
-    "and provide the localization with new maps. [NOT IMPLEMENTED YET]");
 
 DEFINE_string(
     robot_name, "robot",
@@ -138,35 +112,6 @@ MaplabRosNode::MaplabRosNode(
   LOG(INFO) << "[MaplabROSNode] Initializing MaplabNode...";
   maplab_node_.reset(new MaplabNode(
       FLAGS_sensor_calibration_file, map_output_folder_, message_flow_.get()));
-
-  // === LOCALIZATION MAPS ===
-  // === VISION ===
-  if (!FLAGS_visual_localization_map_folder.empty() &&
-      FLAGS_enable_visual_localization) {
-    LOG(INFO) << "[MaplabROSNode] Loading visual localization map from: "
-              << FLAGS_visual_localization_map_folder << "'.";
-
-    std::unique_ptr<summary_map::LocalizationSummaryMap> summary_map(
-        new summary_map::LocalizationSummaryMap);
-    summary_map::loadLocalizationSummaryMapFromAnyMapFile(
-        FLAGS_visual_localization_map_folder, summary_map.get());
-    maplab_node_->enableVisualLocalization(std::move(summary_map));
-    CHECK(!summary_map);
-  } else {
-    LOG(INFO) << "[MaplabROSNode] No visual localization map provided.";
-  }
-  // === LIDAR ===
-  if (!FLAGS_lidar_localization_map_folder.empty() &&
-      FLAGS_enable_lidar_localization) {
-    LOG(INFO) << "[MaplabROSNode] Loading lidar localization map from: "
-              << FLAGS_lidar_localization_map_folder << "'.";
-
-    // TODO(LBern): load lidar localization map.
-
-    maplab_node_->enableLidarLocalization();
-  } else {
-    LOG(INFO) << "[MaplabROSNode] No lidar localization map provided.";
-  }
 
   boost::function<bool(std_srvs::Empty::Request&, std_srvs::Empty::Response&)>
       save_map_callback =

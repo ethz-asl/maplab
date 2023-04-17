@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 #include <algorithm>
+#include <feature-tracking/vo-outlier-rejection-pipeline.h>
 #include <landmark-triangulation/pose-interpolator.h>
 #include <map-resources/resource-conversion.h>
 #include <memory>
@@ -201,6 +202,12 @@ class StreamMapBuilder {
       common::TemporalBuffer<vi_map::ExternalFeaturesMeasurement::ConstPtr>>
       external_features_measurement_temporal_buffers_;
   int64_t external_features_sync_tolerance_ns_;
+  std::unordered_map<aslam::SensorId, pose_graph::VertexId>
+      external_features_previous_vertex_ids_;
+  std::unordered_map<
+      aslam::SensorId,
+      std::unique_ptr<feature_tracking::VOOutlierRejectionPipeline>>
+      external_features_outlier_rejection_pipelines_;
 
   static constexpr size_t kKeepNMostRecentImages = 10u;
 };

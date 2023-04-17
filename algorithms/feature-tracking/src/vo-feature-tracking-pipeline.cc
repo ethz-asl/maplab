@@ -4,39 +4,22 @@
 #include <aslam/tracker/feature-tracker-gyro.h>
 #include <aslam/tracker/feature-tracker.h>
 #include <aslam/visualization/basic-visualization.h>
-#include <maplab-common/conversions.h>
 #include <sensors/external-features.h>
 #include <visualization/common-rviz-visualization.h>
 
 #include "feature-tracking/vo-feature-tracking-pipeline.h"
-
-DEFINE_double(
-    feature_tracker_two_pt_ransac_threshold, 1.0 - cos(0.5 * kDegToRad),
-    "Threshold for the 2-pt RANSAC used for feature tracking outlier "
-    "removal. The error is defined as (1 - cos(alpha)) where alpha is "
-    "the angle between the predicted and measured bearing vectors.");
-
-DEFINE_double(
-    feature_tracker_two_pt_ransac_max_iterations, 200,
-    "Max iterations for the 2-pt RANSAC used for feature tracking "
-    "outlier removal.");
-
-DEFINE_bool(
-    feature_tracker_deterministic, false,
-    "If true, deterministic RANSAC outlier rejection is used.");
-DEFINE_bool(
-    detection_visualize_keypoints, false,
-    "Visualize the raw keypoint detections to a ros topic.");
 
 namespace feature_tracking {
 
 VOFeatureTrackingPipeline::VOFeatureTrackingPipeline(
     const aslam::NCamera::ConstPtr& ncamera,
     const FeatureTrackingExtractorSettings& extractor_settings,
-    const FeatureTrackingDetectorSettings& detector_settings)
+    const FeatureTrackingDetectorSettings& detector_settings,
+    const FeatureTrackingOutlierSettings& outlier_settings)
     : first_nframe_initialized_(false),
       extractor_settings_(extractor_settings),
-      detector_settings_(detector_settings) {
+      detector_settings_(detector_settings),
+      outlier_settings_(outlier_settings) {
   initialize(ncamera);
 }
 
@@ -141,20 +124,18 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
   // Initialize keypoints and descriptors in frame_kp1
   detectors_extractors_[camera_idx]->detectAndExtractFeatures(frame_kp1);
 
-  if (FLAGS_detection_visualize_keypoints) {
-    cv::Mat image;
-    cv::cvtColor(frame_kp1->getRawImage(), image, cv::COLOR_GRAY2BGR);
-
-    aslam_cv_visualization::drawKeypoints(*CHECK_NOTNULL(frame_kp1), &image);
-    const std::string topic = feature_tracking_ros_base_topic_ +
-                              "/keypoints_raw_cam" + std::to_string(camera_idx);
-    visualization::RVizVisualizationSink::publish(topic, image);
-  }
-
   // The default detector / tracker with always insert descriptors of type
   // kBinary = 0 for both BRISK and FREAK
   constexpr int descriptor_type =
       static_cast<int>(vi_map::FeatureType::kBinary);
+
+  if (visualize_keypoint_detections_) {
+    cv::Mat image;
+    aslam_cv_visualization::drawKeypoints(*frame_kp1, &image, descriptor_type);
+    const std::string topic = feature_tracking_ros_base_topic_ +
+                              "/keypoints_raw_cam" + std::to_string(camera_idx);
+    visualization::RVizVisualizationSink::publish(topic, image);
+  }
 
   CHECK(frame_k->hasKeypointMeasurements());
   CHECK(frame_k->hasDescriptors());
@@ -172,31 +153,17 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
   aslam::FrameToFrameMatches matches_kp1_k;
   trackers_[camera_idx]->track(q_Ckp1_Ck, *frame_k, frame_kp1, &matches_kp1_k);
 
-  // The tracker will return the indices with respect to the tracked feature
-  // block, so here we renormalize them so that the rest of the code can deal
-  // with them agnostically, since the descriptors are no longer needed.
-  size_t start_k, size_k, start_kp1, size_kp1;
-  frame_k->getDescriptorBlockTypeStartAndSize(
-      descriptor_type, &start_k, &size_k);
-  frame_kp1->getDescriptorBlockTypeStartAndSize(
-      descriptor_type, &start_kp1, &size_kp1);
-
-  for (aslam::FrameToFrameMatch& match_kp1_k : matches_kp1_k) {
-    match_kp1_k.setKeypointIndexInFrameA(match_kp1_k.getKeypointIndexInFrameA() + start_kp1);
-    match_kp1_k.setKeypointIndexInFrameB(match_kp1_k.getKeypointIndexInFrameB() + start_k);
-  }
-
   // Remove outlier matches.
   statistics::StatsCollector stat_ransac("Twopt RANSAC (1 image) in ms");
   timing::Timer timer_ransac(
       "VOFeatureTrackingPipeline: trackFeaturesSingleCamera - ransac");
   bool ransac_success = aslam::geometric_vision::
       rejectOutlierFeatureMatchesTranslationRotationSAC(
-          *frame_kp1, *frame_k, q_Ckp1_Ck, matches_kp1_k,
-          FLAGS_feature_tracker_deterministic,
-          FLAGS_feature_tracker_two_pt_ransac_threshold,
-          FLAGS_feature_tracker_two_pt_ransac_max_iterations,
-          inlier_matches_kp1_k, outlier_matches_kp1_k);
+          *frame_kp1, *frame_k, q_Ckp1_Ck, descriptor_type, matches_kp1_k,
+          outlier_settings_.deterministic,
+          outlier_settings_.two_pt_ransac_threshold,
+          outlier_settings_.two_pt_ransac_max_iterations, inlier_matches_kp1_k,
+          outlier_matches_kp1_k);
 
   LOG_IF(WARNING, !ransac_success)
       << "Match outlier rejection RANSAC failed on camera " << camera_idx
@@ -207,25 +174,29 @@ void VOFeatureTrackingPipeline::trackFeaturesSingleCamera(
       << " matches on camera " << camera_idx << ".";
 
   // Assign track ids.
+  // TODO(smauq): See about clearning this one up, maybe even move this function
+  // up from aslam into here.
   timing::Timer timer_track_manager(
       "VOFeatureTrackingPipeline: trackFeaturesSingleCamera - track manager");
   track_managers_[camera_idx]->applyMatchesToFrames(
       *inlier_matches_kp1_k, frame_kp1, frame_k);
 
   if (visualize_keypoint_matches_) {
-    cv::Mat image;
-    aslam_cv_visualization::visualizeMatches(
-        *frame_kp1, *frame_k, *inlier_matches_kp1_k, &image);
+    cv::Mat inlier_image;
+    aslam_cv_visualization::drawKeypointMatches(
+        *frame_kp1, *frame_k, *inlier_matches_kp1_k, descriptor_type,
+        &inlier_image);
     const std::string topic = feature_tracking_ros_base_topic_ +
                               "/keypoint_matches_camera_" +
                               std::to_string(camera_idx);
-    visualization::RVizVisualizationSink::publish(topic, image);
+    visualization::RVizVisualizationSink::publish(topic, inlier_image);
 
     cv::Mat outlier_image;
-    aslam_cv_visualization::visualizeMatches(
-        *frame_kp1, *frame_k, *outlier_matches_kp1_k, &outlier_image);
+    aslam_cv_visualization::drawKeypointMatches(
+        *frame_kp1, *frame_k, *outlier_matches_kp1_k, descriptor_type,
+        &outlier_image);
     const std::string outlier_topic = feature_tracking_ros_base_topic_ +
-                                      "/keypoint_outlier_matches_camera_" +
+                                      "/keypoint_outliers_camera_" +
                                       std::to_string(camera_idx);
     visualization::RVizVisualizationSink::publish(outlier_topic, outlier_image);
   }

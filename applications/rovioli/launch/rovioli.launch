@@ -42,7 +42,7 @@
   <arg name="publish_debug_markers" default="true"/>
 
 	<arg name="export_estimated_poses_to_csv" default=""/>
-	<arg name="detection_visualize_keypoints" default="false"/>
+	<arg name="feature_tracker_visualize_keypoint_detections" default="false"/>
 	<arg name="feature_tracker_visualize_keypoint_matches" default="false"/>
 	<arg name="rovio_enable_frame_visualization" default="false"/>
 	<arg name="rovioli_enable_health_checking" default="false" />
@@ -91,7 +91,7 @@
 
     <!-- Pose to CSV requires the map builder to be running as well -->
     <param name="export_estimated_poses_to_csv" value="$(arg export_estimated_poses_to_csv)"/>
-    <param name="detection_visualize_keypoints" value="$(arg detection_visualize_keypoints)"/>
+    <param name="feature_tracker_visualize_keypoint_detections" value="$(arg feature_tracker_visualize_keypoint_detections)"/>
     <param name="feature_tracker_visualize_keypoint_matches" value="$(arg feature_tracker_visualize_keypoint_matches)"/>
     <param name="rovio_enable_frame_visualization" value="$(arg rovio_enable_frame_visualization)"/>
     <param name="rovioli_enable_health_checking" value="$(arg rovioli_enable_health_checking)"/>

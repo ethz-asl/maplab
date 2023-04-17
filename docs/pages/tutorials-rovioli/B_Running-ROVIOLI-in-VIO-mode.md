@@ -147,7 +147,7 @@ The maplab feature tracking module computes and matches Brisk or FREAK features,
 
 Enable/disable using the following flag:
 ```bash
---detection_visualize_keypoints
+--feature_tracker_visualize_keypoint_detections
 --feature_tracker_visualize_feature_tracks
 --feature_tracker_visualize_keypoint_matches
 --feature_tracker_visualize_keypoints
