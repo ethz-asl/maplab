@@ -21,31 +21,22 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 #############
 find_package(Threads)
 cs_add_library(${PROJECT_NAME} src/binary-serialization.cc
-                               src/breakpoints.cc
-                               src/combinatorial.cc
-                               src/condition.cc
-                               src/cubic-spline.cc
                                src/feature-descriptor-ref.cc
-                               src/file-lock.cc
                                src/file-logger.cc
                                src/file-system-tools.cc
                                src/geometry.cc
                                src/global-coordinate-tools.cc
-                               src/gnuplot-interface.cc
                                src/gravity-provider.cc
-                               src/histograms.cc
                                src/map-manager-config.cc
                                src/multi-threaded-progress-bar.cc
                                src/progress-bar.cc
                                src/proto-serialization-helper.cc
-                               src/python-interface.cc
                                src/shared-gflags.cc
                                src/sigint-breaker.cc
                                src/signals.cc
                                src/stringprintf.cc
                                src/test/testing-entrypoint.cc
                                src/threading-helpers.cc
-                               src/tridiagonal-matrix.cc
                                ${PROTO_SRCS}
                                ${PROTO_HDRS})
 target_link_libraries(${PROJECT_NAME} ${CMAKE_THREAD_LIBS_INIT} ${PYTHON_LIBRARIES} readline)
@@ -73,24 +64,13 @@ catkin_add_gtest(test_eigen_proto_test
   test/test_eigen_proto_test.cc)
 target_link_libraries(test_eigen_proto_test ${PROJECT_NAME})
 
-catkin_add_gtest(test_file_lock_test
-  test/test_file_lock.cc)
-target_link_libraries(test_file_lock_test ${PROJECT_NAME})
-
 catkin_add_gtest(test_geometry_test
                  test/test_geometry.cc)
 target_link_libraries(test_geometry_test ${PROJECT_NAME})
 
-catkin_add_gtest(test_kruskal_max_span_tree
-  test/test_kruskal_max_span_tree.cc)
-target_link_libraries(test_kruskal_max_span_tree ${PROJECT_NAME})
-
 catkin_add_gtest(test_multi_threaded_progress_bar
   test/test_multi_threaded_progress_bar.cc)
 target_link_libraries(test_multi_threaded_progress_bar ${PROJECT_NAME})
-
-catkin_add_gtest(test_ordered_monitors test/test_ordered_monitors.cc)
-target_link_libraries(test_ordered_monitors ${PROJECT_NAME})
 
 catkin_add_gtest(test_parallel_process
   test/test_parallel_process.cc)
@@ -117,20 +97,8 @@ catkin_add_gtest(test_file_system_tools
 target_link_libraries(test_file_system_tools ${PROJECT_NAME})
 add_dependencies(test_file_system_tools ${PROJECT_TEST_DATA})
 
-catkin_add_gtest(test_data_synchronizer
-  test/test_data_synchronizer.cc)
-target_link_libraries(test_data_synchronizer ${PROJECT_NAME})
-
-catkin_add_gtest(test_vector_window_operations
-  test/test_vector-window-operations.cc)
-target_link_libraries(test_vector_window_operations ${PROJECT_NAME})
-
 catkin_add_gtest(test_temporal_buffer test/test_temporal_buffer.cc)
 target_link_libraries(test_temporal_buffer ${PROJECT_NAME})
-
-catkin_add_gtest(test_combinatorial
-  test/test_combinatorial.cc)
-target_link_libraries(test_combinatorial ${PROJECT_NAME})
 
 catkin_add_gtest(test_feature_descriptor_ref
   test/test_feature-descriptor-ref.cc)
@@ -144,26 +112,13 @@ catkin_add_gtest(test_file_logger
   test/test_file_logger.cc)
 target_link_libraries(test_file_logger ${PROJECT_NAME})
 
-catkin_add_gtest(test_python_interface
-  test/test_python_interface.cc)
-target_link_libraries(test_python_interface ${PROJECT_NAME} ${PYTHON_LIBRARIES})
-
 catkin_add_gtest(test_string_tools
   test/test_string_tools.cc)
 target_link_libraries(test_string_tools ${PROJECT_NAME})
 
-catkin_add_gtest(test_threadsafe_temporal_buffer
-  test/test-threadsafe-temporal-buffer.cc)
-target_link_libraries(test_threadsafe_temporal_buffer ${PROJECT_NAME})
-
 catkin_add_gtest(test_thread_safe_queue
   test/test_threadsafe_queue.cc)
 target_link_libraries(test_thread_safe_queue ${PROJECT_NAME})
-
-
-catkin_add_gtest(test_threaded_task_queue_processor
-  test/test-threaded-task-queue-processor.cc)
-target_link_libraries(test_threaded_task_queue_processor ${PROJECT_NAME})
 
 catkin_add_gtest(test_monitor test/test_monitor.cc)
 target_link_libraries(test_monitor ${PROJECT_NAME})

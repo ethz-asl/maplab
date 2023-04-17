@@ -8,7 +8,6 @@
 #include <eigen-checks/gtest.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-#include <maplab-common/feature-descriptor-ref.h>
 #include <maplab-common/global-coordinate-tools.h>
 #include <maplab-common/file-logger.h>
 #include <maplab-common/test/testing-entrypoint.h>

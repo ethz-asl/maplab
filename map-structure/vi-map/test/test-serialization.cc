@@ -1,4 +1,3 @@
-#include <maplab-common/network-common.h>
 #include <maplab-common/test/testing-entrypoint.h>
 
 #include "vi-map/test/vi-map-generator.h"
@@ -6,8 +5,8 @@
 #include "vi-map/vi-map-serialization.h"
 #include "vi-map/vi-map.h"
 
-void deleteRawData(const network::RawMessageDataList& raw_data) {
-  for (const network::RawMessageData& raw_data_part : raw_data) {
+void deleteRawData(const vi_map::serialization::RawMessageDataList& raw_data) {
+  for (const vi_map::serialization::RawMessageData& raw_data_part : raw_data) {
     delete[] static_cast<uint8_t*>(raw_data_part.first);
   }
 }
@@ -16,7 +15,7 @@ TEST(Serialization, SerializeMapToRawArray) {
   vi_map::VIMap test_map, deserialized_map;
   vi_map::test::generateMap<vi_map::TransformationEdge>(&test_map);
 
-  network::RawMessageDataList raw_data;
+  vi_map::serialization::RawMessageDataList raw_data;
   vi_map::serialization::serializeToRawArray(test_map, &raw_data);
   constexpr size_t kStartIndex = 0u;
   vi_map::serialization::deserializeFromRawArray(
@@ -42,7 +41,7 @@ TEST(Serialization, SerializeMapWithOptionalCameraResources) {
   vi_map::test::generateSensorResourceAndAddToMap(&test_map);
 
   // Serialize and deserialize.
-  network::RawMessageDataList raw_data;
+  vi_map::serialization::RawMessageDataList raw_data;
   vi_map::serialization::serializeToRawArray(test_map, &raw_data);
   constexpr size_t kStartIndex = 0u;
   vi_map::serialization::deserializeFromRawArray(

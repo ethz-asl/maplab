@@ -10,7 +10,6 @@
 #include <map-manager/test/test-strings.h>
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/map-manager-config.h>
-#include <maplab-common/network-common.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <vi-map/test/vi-map-test-helpers.h>
 #include <vi-map/vi-map-serialization.h>
@@ -451,7 +450,7 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerialization) {
   vi_map::test::generateMap<vi_map::TransformationEdge>(first_vi_map_.get());
   vi_map::proto::VIMap vertices_proto, edges_proto, missions_proto,
       landmark_index_proto, optional_sensor_data_proto;
-  network::RawMessageData sensor_manager_raw_data;
+  vi_map::serialization::RawMessageData sensor_manager_raw_data;
   vi_map::serialization::serializeSensorManagerToArray(
       *first_vi_map_, &sensor_manager_raw_data);
   vi_map::serialization::serializeMissionsAndBaseframes(
@@ -480,7 +479,7 @@ TEST_F(MapManagerFileIOTest, CheckSplitVIMapSerializationManyVertices) {
   vi_map::proto::VIMap vertices_proto, edges_proto, missions_proto,
       landmark_index_proto;
 
-  network::RawMessageData sensor_manager_raw_data;
+  vi_map::serialization::RawMessageData sensor_manager_raw_data;
   vi_map::serialization::serializeSensorManagerToArray(
       *first_vi_map_, &sensor_manager_raw_data);
   vi_map::serialization::serializeMissionsAndBaseframes(
