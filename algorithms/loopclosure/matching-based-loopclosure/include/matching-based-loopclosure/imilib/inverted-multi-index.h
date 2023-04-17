@@ -20,10 +20,6 @@
 
 DECLARE_double(lc_knn_max_radius);
 
-namespace matching_based_loopclosure {
-class MatchingBasedLoopDetectorSerializer;
-}  // namespace matching_based_loopclosure
-
 namespace loop_closure {
 namespace inverted_multi_index {
 // Variant of the inverted multi-index, which stores the original descriptors in
@@ -32,7 +28,6 @@ namespace inverted_multi_index {
 template <int kDimSubVectors>
 class InvertedMultiIndex {
  public:
-  friend class matching_based_loopclosure::MatchingBasedLoopDetectorSerializer;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef Eigen::Matrix<float, 2 * kDimSubVectors, 1> DescriptorType;
   typedef Eigen::Matrix<float, kDimSubVectors, 1> SubDescriptorType;

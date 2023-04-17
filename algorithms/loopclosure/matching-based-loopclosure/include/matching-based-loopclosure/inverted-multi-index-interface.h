@@ -97,7 +97,6 @@ class InvertedMultiIndexProductVocabulary
 using inverted_multi_index::InvertedMultiIndex;
 class InvertedMultiIndexInterface : public IndexInterface {
  public:
-  friend class matching_based_loopclosure::MatchingBasedLoopDetectorSerializer;
   enum { kSubSpaceDimensionality = 5 };
   typedef InvertedMultiIndex<kSubSpaceDimensionality> Index;
 
