@@ -55,6 +55,9 @@ catkin_add_gtest(test_inverted_multi_index_product_quantization
                  test/test_inverted-multi-index-product-quantization.cc)
 target_link_libraries(test_inverted_multi_index_product_quantization ${LIBRARY_NAME})
 
+catkin_add_gtest(test_hnsw test/test_hnsw.cc)
+target_link_libraries(test_hnsw ${LIBRARY_NAME})
+
 ############
 ## EXPORT ##
 ############

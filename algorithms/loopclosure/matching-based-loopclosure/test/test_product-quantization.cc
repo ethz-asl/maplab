@@ -1,6 +1,5 @@
-#include <cstdint>
-
 #include <Eigen/Core>
+#include <cstdint>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
 
