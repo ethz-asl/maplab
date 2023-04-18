@@ -1,9 +1,14 @@
 #ifndef INVERTED_MULTI_INDEX_INVERTED_MULTI_INDEX_H_
 #define INVERTED_MULTI_INDEX_INVERTED_MULTI_INDEX_H_
 
+#include <Eigen/Core>
 #include <algorithm>
+#include <aslam/common/memory.h>
 #include <functional>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
 #include <limits>
+#include <maplab-common/eigen-proto.h>
 #include <memory>
 #include <queue>
 #include <tuple>
@@ -11,20 +16,9 @@
 #include <utility>
 #include <vector>
 
-#include <Eigen/Core>
-#include <aslam/common/memory.h>
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <maplab-common/eigen-proto.h>
-#include <nabo/nabo.h>
-
-#include "inverted-multi-index/inverted-multi-index-common.h"
+#include "matching-based-loopclosure/imilib//inverted-multi-index-common.h"
 
 DECLARE_double(lc_knn_max_radius);
-
-namespace matching_based_loopclosure {
-class MatchingBasedLoopDetectorSerializer;
-}  // namespace matching_based_loopclosure
 
 namespace loop_closure {
 namespace inverted_multi_index {
@@ -34,7 +28,6 @@ namespace inverted_multi_index {
 template <int kDimSubVectors>
 class InvertedMultiIndex {
  public:
-  friend class matching_based_loopclosure::MatchingBasedLoopDetectorSerializer;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef Eigen::Matrix<float, 2 * kDimSubVectors, 1> DescriptorType;
   typedef Eigen::Matrix<float, kDimSubVectors, 1> SubDescriptorType;
@@ -49,12 +42,10 @@ class InvertedMultiIndex {
       int num_closest_words_for_nn_search)
       : words_1_(words_1),
         words_2_(words_2),
-        words_1_index_(
-            common::NNSearch::createKDTreeLinearHeap(
-                words_1_, kDimSubVectors, common::kCollectTouchStatistics)),
-        words_2_index_(
-            common::NNSearch::createKDTreeLinearHeap(
-                words_2_, kDimSubVectors, common::kCollectTouchStatistics)),
+        words_1_index_(common::NNSearch::createKDTreeLinearHeap(
+            words_1_, kDimSubVectors, common::kCollectTouchStatistics)),
+        words_2_index_(common::NNSearch::createKDTreeLinearHeap(
+            words_2_, kDimSubVectors, common::kCollectTouchStatistics)),
         num_closest_words_for_nn_search_(num_closest_words_for_nn_search),
         max_db_descriptor_index_(0) {
     CHECK_EQ(words_1.rows(), kDimSubVectors);
@@ -104,8 +95,8 @@ class InvertedMultiIndex {
 
   // Finds the n nearest neighbors for a given query feature.
   // This function is thread-safe.
-  template <typename DerivedQuery, typename DerivedIndices,
-            typename DerivedDistances>
+  template <
+      typename DerivedQuery, typename DerivedIndices, typename DerivedDistances>
   inline void GetNNearestNeighbors(
       const Eigen::MatrixBase<DerivedQuery>& query_feature, int num_neighbors,
       const Eigen::MatrixBase<DerivedIndices>& out_indices,

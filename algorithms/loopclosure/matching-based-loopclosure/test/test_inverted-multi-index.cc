@@ -1,17 +1,15 @@
-#include <utility>
-#include <vector>
-
 #include <Eigen/Core>
 #include <aslam/common/memory.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
+#include <utility>
+#include <vector>
 
-#include <inverted-multi-index/inverted-multi-index-common.h>
-#include <inverted-multi-index/inverted-multi-index.h>
+#include "matching-based-loopclosure/imilib/inverted-multi-index-common.h"
+#include "matching-based-loopclosure/imilib/inverted-multi-index.h"
 
 namespace loop_closure {
 namespace inverted_multi_index {
-namespace {
 class TestableInvertedMultiIndex : public InvertedMultiIndex<3> {
  public:
   TestableInvertedMultiIndex(
@@ -222,13 +220,11 @@ TEST_F(InvertedMultiIndexTest, GetNNearestNeighborsWorks) {
       EXPECT_FLOAT_EQ(gt_distances[j].first, distances[j]);
       expected_indices(j, 0) = gt_distances[j].second;
     }
-    EXPECT_TRUE(
-        ::common::MatricesEqual(
-            indices.block(0, 0, num_elements, 1),
-            expected_indices.block(0, 0, num_elements, 1), 1e-9));
+    EXPECT_NEAR_EIGEN(
+        indices.block(0, 0, num_elements, 1),
+        expected_indices.block(0, 0, num_elements, 1), 1e-9);
   }
 }
-}  // namespace
 }  // namespace inverted_multi_index
 }  // namespace loop_closure
 
