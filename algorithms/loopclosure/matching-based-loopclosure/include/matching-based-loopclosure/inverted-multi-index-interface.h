@@ -205,15 +205,6 @@ class InvertedMultiIndexInterface : public IndexInterface {
         vocabulary_.target_dimensionality_, projected_descriptors);
   }
 
-  virtual void ProjectDescriptors(
-      const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
-      Eigen::MatrixXf* projected_descriptors) const {
-    CHECK_NOTNULL(projected_descriptors);
-    internal::ProjectDescriptors(
-        descriptors, vocabulary_.projection_matrix_,
-        vocabulary_.target_dimensionality_, projected_descriptors);
-  }
-
  private:
   std::shared_ptr<Index> index_;
   InvertedMultiIndexVocabulary vocabulary_;
@@ -347,15 +338,6 @@ class InvertedMultiProductQuantizationIndexInterface : public IndexInterface {
 
   virtual void ProjectDescriptors(
       const DescriptorContainer& descriptors,
-      Eigen::MatrixXf* projected_descriptors) const {
-    CHECK_NOTNULL(projected_descriptors);
-    internal::ProjectDescriptors(
-        descriptors, vocabulary_.projection_matrix_,
-        vocabulary_.target_dimensionality_, projected_descriptors);
-  }
-
-  virtual void ProjectDescriptors(
-      const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
       Eigen::MatrixXf* projected_descriptors) const {
     CHECK_NOTNULL(projected_descriptors);
     internal::ProjectDescriptors(

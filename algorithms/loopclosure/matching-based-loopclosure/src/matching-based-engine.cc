@@ -41,12 +41,6 @@ void MatchingBasedLoopDetector::ProjectDescriptors(
   index_interface_->ProjectDescriptors(descriptors, projected_descriptors);
 }
 
-void MatchingBasedLoopDetector::ProjectDescriptors(
-    const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
-    Eigen::MatrixXf* projected_descriptors) const {
-  index_interface_->ProjectDescriptors(descriptors, projected_descriptors);
-}
-
 void MatchingBasedLoopDetector::Initialize() {
   index_interface_->Initialize();
 }

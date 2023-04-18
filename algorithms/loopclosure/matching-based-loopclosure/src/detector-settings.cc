@@ -64,6 +64,8 @@ MatchingBasedEngineSettings::MatchingBasedEngineSettings()
   CHECK_GT(fraction_best_scores, 0.f);
   CHECK_LT(fraction_best_scores, 1.f);
   CHECK_GE(num_nearest_neighbors, -1);
+
+  // HNSW index specific parameters
   CHECK_GT(hnsw_m, 0u);
   CHECK_GT(hnsw_ef_construction, 0u);
   CHECK_GT(hnsw_ef_query, 0u);

@@ -162,12 +162,6 @@ class HSNWIndexInterface : public IndexInterface {
         descriptors.rows() / 4, descriptors.cols());
   }
 
-  virtual void ProjectDescriptors(
-      const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
-      Eigen::MatrixXf* projected_descriptors) const {
-    LOG(FATAL) << "Not implemented";
-  }
-
  private:
   bool initialized_;
   int descriptor_size_;

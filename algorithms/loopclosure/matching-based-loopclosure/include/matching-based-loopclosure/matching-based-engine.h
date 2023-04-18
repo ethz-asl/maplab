@@ -44,11 +44,6 @@ class MatchingBasedLoopDetector : public loop_detector::LoopDetector {
       const loop_closure::DescriptorContainer& descriptors,
       Eigen::MatrixXf* projected_descriptors) const override;
 
-  // Transforms an image into a set of projected descriptors.
-  void ProjectDescriptors(
-      const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
-      Eigen::MatrixXf* projected_descriptors) const override;
-
   void Clear() override;
 
  private:

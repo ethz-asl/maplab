@@ -33,11 +33,6 @@ class LoopDetector {
 
   // Transforms an image into a set of projected descriptors.
   virtual void ProjectDescriptors(
-      const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
-      Eigen::MatrixXf* projected_descriptors) const = 0;
-
-  // Transforms an image into a set of projected descriptors.
-  virtual void ProjectDescriptors(
       const loop_closure::DescriptorContainer& descriptors,
       Eigen::MatrixXf* projected_descriptors) const = 0;
 

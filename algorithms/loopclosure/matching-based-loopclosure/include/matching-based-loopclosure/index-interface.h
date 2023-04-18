@@ -25,12 +25,6 @@ class IndexInterface {
   // The number of individual descriptors in the index.
   virtual int GetNumDescriptorsInIndex() const = 0;
 
-  // Use the projection matrix specific to the used index to project the
-  // binary descriptors to a lower dimensional, real valued space.
-  virtual void ProjectDescriptors(
-      const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
-      Eigen::MatrixXf* projected_descriptors) const = 0;
-
   // Add descriptors to the index. Can be done lazily.
   virtual void AddDescriptors(const Eigen::MatrixXf& descriptors) = 0;
 
