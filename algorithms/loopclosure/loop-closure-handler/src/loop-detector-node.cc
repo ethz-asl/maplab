@@ -16,7 +16,6 @@
 #include <maplab-common/parallel-process.h>
 #include <maplab-common/progress-bar.h>
 #include <matching-based-loopclosure/detector-settings.h>
-#include <matching-based-loopclosure/loop-detector-interface.h>
 #include <matching-based-loopclosure/matching-based-engine.h>
 #include <matching-based-loopclosure/scoring.h>
 #include <mutex>
@@ -64,7 +63,7 @@ LoopDetectorNode::LoopDetectorNode()
   matching_based_loopclosure::MatchingBasedEngineSettings
       matching_engine_settings;
   loop_detector_ =
-      std::make_shared<matching_based_loopclosure::MatchingBasedLoopDetector>(
+      std::make_shared<matching_based_loopclosure::LoopDetector>(
           matching_engine_settings);
   feature_type_ =
       static_cast<int>(vi_map::StringToFeatureType(FLAGS_lc_feature_type));

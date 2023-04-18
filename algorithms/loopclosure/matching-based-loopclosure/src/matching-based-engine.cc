@@ -22,7 +22,7 @@
 
 namespace matching_based_loopclosure {
 
-MatchingBasedLoopDetector::MatchingBasedLoopDetector(
+LoopDetector::LoopDetector(
     const MatchingBasedEngineSettings& settings)
     : settings_(settings), descriptor_index_(0) {
   setKeyframeScoringFunction();
@@ -35,23 +35,17 @@ MatchingBasedLoopDetector::MatchingBasedLoopDetector(
           << "\n\tproj matrix: " << settings_.projection_matrix_filename;
 }
 
-void MatchingBasedLoopDetector::ProjectDescriptors(
+void LoopDetector::ProjectDescriptors(
     const aslam::VisualFrame::DescriptorsT& descriptors,
     Eigen::MatrixXf* projected_descriptors) const {
   index_interface_->ProjectDescriptors(descriptors, projected_descriptors);
 }
 
-void MatchingBasedLoopDetector::ProjectDescriptors(
-    const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
-    Eigen::MatrixXf* projected_descriptors) const {
-  index_interface_->ProjectDescriptors(descriptors, projected_descriptors);
-}
-
-void MatchingBasedLoopDetector::Initialize() {
+void LoopDetector::Initialize() {
   index_interface_->Initialize();
 }
 
-void MatchingBasedLoopDetector::Find(
+void LoopDetector::Find(
     const loop_closure::ProjectedImagePtrList& projected_image_ptr_list,
     const bool parallelize_if_possible,
     loop_closure::FrameToMatches* frame_matches_ptr) const {
@@ -173,7 +167,7 @@ void MatchingBasedLoopDetector::Find(
       << "There cannot be more query frames than projected images.";
 }
 
-bool MatchingBasedLoopDetector::getMatchForDescriptorIndex(
+bool LoopDetector::getMatchForDescriptorIndex(
     int nn_match_descriptor_index,
     const loop_closure::ProjectedImage& projected_image_query,
     int keypoint_index_query, loop_closure::Match* structure_match_ptr) const {
@@ -220,7 +214,7 @@ bool MatchingBasedLoopDetector::getMatchForDescriptorIndex(
   return true;
 }
 
-void MatchingBasedLoopDetector::Insert(
+void LoopDetector::Insert(
     const loop_closure::ProjectedImage::Ptr& projected_image_ptr) {
   CHECK(projected_image_ptr != nullptr);
   const loop_closure::ProjectedImage& projected_image = *projected_image_ptr;
@@ -258,7 +252,7 @@ void MatchingBasedLoopDetector::Insert(
       << "Duplicate projected image in database.";
 }
 
-void MatchingBasedLoopDetector::Clear() {
+void LoopDetector::Clear() {
   aslam::ScopedWriteLock lock(&read_write_mutex);
   database_.clear();
   descriptor_index_to_keypoint_id_.clear();
@@ -266,7 +260,7 @@ void MatchingBasedLoopDetector::Clear() {
   descriptor_index_ = 0;
 }
 
-void MatchingBasedLoopDetector::setKeyframeScoringFunction() {
+void LoopDetector::setKeyframeScoringFunction() {
   typedef MatchingBasedEngineSettings::KeyframeScoringFunctionType
       ScoringFunctionType;
 
@@ -290,7 +284,7 @@ void MatchingBasedLoopDetector::setKeyframeScoringFunction() {
   }
 }
 
-void MatchingBasedLoopDetector::setDetectorEngine() {
+void LoopDetector::setDetectorEngine() {
   typedef MatchingBasedEngineSettings::DetectorEngineType DetectorEngineType;
 
   switch (settings_.detector_engine_type) {
@@ -322,7 +316,7 @@ void MatchingBasedLoopDetector::setDetectorEngine() {
   }
 }
 
-int MatchingBasedLoopDetector::getNumNeighborsToSearch() const {
+int LoopDetector::getNumNeighborsToSearch() const {
   // Determine the best number of neighbors for a given database size.
   int num_neighbors_to_search = settings_.num_nearest_neighbors;
   if (num_neighbors_to_search == -1) {
