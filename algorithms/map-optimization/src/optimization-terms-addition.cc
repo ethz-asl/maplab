@@ -121,11 +121,15 @@ void addLandmarkTermForKeypoint(
         visual_frame.getKeypointMeasurement(keypoint_idx);
 
     intrinsics_params = camera_ptr->getParametersMutable();
+
+    // Visual landmarks have these additional cost term arguments
+    cost_term_args.emplace_back(intrinsics_params);
     if (camera_ptr->getDistortion().getType() !=
         aslam::Distortion::Type::kNoDistortion) {
       distortion_params =
           camera_ptr->getDistortionMutable()->getParametersMutable();
       CHECK_NOTNULL(distortion_params);
+      cost_term_args.emplace_back(distortion_params);
     }
 
     landmark_term_cost = std::shared_ptr<ceres::CostFunction>(
@@ -135,10 +139,6 @@ void addLandmarkTermForKeypoint(
             camera_ptr.get()));
 
     residual_type = ceres_error_terms::ResidualType::kVisualReprojectionError;
-
-    // Visual landmarks have these additional cost term arguments
-    cost_term_args.emplace_back(intrinsics_params);
-    cost_term_args.emplace_back(distortion_params);
   } else {
     const int64_t offset = visual_frame.getKeypointTimeOffset(keypoint_idx);
 
