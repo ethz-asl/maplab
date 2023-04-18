@@ -13,7 +13,7 @@
 #include <vi-map-helpers/vi-map-manipulation.h>
 #include <vi-map/vi-map.h>
 
-DECLARE_uint64(vi_map_landmark_quality_min_observers);
+DECLARE_uint64(elq_min_observers);
 
 namespace mapping_workflows_plugin {
 // Processes a raw map containing landmarks into a localization summary map.
@@ -60,7 +60,7 @@ int processVIMapToLocalizationMap(
   }
 
   // Evaluate the quality of landmarks after keyframing the map.
-  FLAGS_vi_map_landmark_quality_min_observers = 2;
+  FLAGS_elq_min_observers = 2;
   vi_map_helpers::evaluateLandmarkQuality(mission_ids, map);
 
   // Common options for the subsequent optimizations.

@@ -68,9 +68,6 @@ void VIMapEdgeMergingTest::addWheelOdometryEdges() {
   CHECK(wheel_odometry_sensor_id.isValid());
   map_.getMission(mission_id_).setWheelOdometrySensor(wheel_odometry_sensor_id);
 
-  const pose_graph::Edge::EdgeType traversal_edge_type =
-      map_.getGraphTraversalEdgeType(mission_id_);
-
   pose_graph::VertexId vertex_id_k =
       map_.getMission(mission_id_).getRootVertexId();
   CHECK(vertex_id_k.isValid());
@@ -78,7 +75,7 @@ void VIMapEdgeMergingTest::addWheelOdometryEdges() {
   aslam::Transformation T_G_Ik = map_.getVertex_T_G_I(vertex_id_k);
 
   pose_graph::VertexId vertex_id_kp1;
-  while (map_.getNextVertex(vertex_id_k, traversal_edge_type, &vertex_id_kp1)) {
+  while (map_.getNextVertex(vertex_id_k, &vertex_id_kp1)) {
     CHECK(vertex_id_kp1.isValid());
 
     const aslam::Transformation T_G_Ikp1 = map_.getVertex_T_G_I(vertex_id_kp1);
@@ -144,11 +141,9 @@ ViwlsEdge VIMapEdgeMergingTest::getOutgoingViwlsEdge(
 void VIMapEdgeMergingTest::mergeRandomVertex(
     const pose_graph::VertexId& vertex_id_from,
     const bool has_wheel_odometry_edge) {
-  const pose_graph::Edge::EdgeType traversal_edge_type =
-      map_.getGraphTraversalEdgeType(mission_id_);
   pose_graph::VertexId next_vertex_id;
   const bool from_has_next_vertex =
-      map_.getNextVertex(vertex_id_from, traversal_edge_type, &next_vertex_id);
+      map_.getNextVertex(vertex_id_from, &next_vertex_id);
   if (!from_has_next_vertex) {
     return;
   }
@@ -167,8 +162,8 @@ void VIMapEdgeMergingTest::mergeRandomVertex(
     ASSERT_EQ(wheel_odometry_edge_1.to(), in_between_vertex_id);
   }
 
-  const bool in_between_has_next_vertex = map_.getNextVertex(
-      in_between_vertex_id, traversal_edge_type, &next_vertex_id);
+  const bool in_between_has_next_vertex =
+      map_.getNextVertex(in_between_vertex_id, &next_vertex_id);
 
   if (in_between_has_next_vertex) {
     const ViwlsEdge viwls_edge_2 = getOutgoingViwlsEdge(in_between_vertex_id);

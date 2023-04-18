@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+
+<launch>
+  <node pkg="rosbag" type="record" name="rosbag" args="/odometry/maplab_odom_T_M_I -o /tmp/okvis_odometry.bag"/>
+
+  <arg name="bag" />
+  <arg name="config" default="$(find maplab_launch)/config/hilti/calib/stick-sensors-okvis-2021.yaml" />
+	<!-- OKVIS -->
+  <node name="okvis_node" pkg="okvis_ros" type="okvis_node_synchronous" output="screen" args="$(arg config) $(arg bag)">
+		<remap from="/okvis_node/okvis_maplab_odometry" to="/odometry/maplab_odom_T_M_I"/>
+  </node>
+
+</launch>

@@ -5,7 +5,7 @@ imu_to_camera_time_offset_ns: 0
 # VIO
 vio_camera_topic_suffix: /image_raw
 vio_nframe_sync_tolerance_ns: 500000
-vio_nframe_sync_max_output_frequency_hz: 10
+vio_nframe_sync_max_output_frequency_hz: 20
 
 # SENSOR SELECTION
 # only needed if there are multiple ncameras/lidars/imus/odometries
@@ -64,5 +64,5 @@ v: 1
 publish_debug_markers: false
 vis_default_namespace: maplab_rviz
 export_estimated_poses_to_csv: ""
-detection_visualize_keypoints: false
+feature_tracker_visualize_keypoint_detections: false
 feature_tracker_visualize_keypoint_matches: true

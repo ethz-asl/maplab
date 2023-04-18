@@ -77,12 +77,12 @@ In order to get a list of all parameters that are related to the bundle adjustme
 optvi --ba
 
 # Result:
---ba_altitude_meters                                        --ba_min_landmark_per_frame
+--ba_altitude_meters                                        --ba_min_landmarks_per_frame
 --ba_fix_accel_bias                                         --ba_num_iterations
 --ba_fix_gyro_bias                                          --ba_outlier_rejection_reject_every_n_iters
 --ba_fix_landmark_positions                                 --ba_outlier_rejection_reject_using_reprojection_error
 --ba_fix_ncamera_extrinsics_rotation                        --ba_outlier_rejection_reprojection_error_other_mission_px
---ba_fix_ncamera_extrinsics_translation                     --ba_outlier_rejection_reprojection_error_same_mission_px
+--ba_fix_ncamera_extrinsics_translation                     --ba_outlier_rejection_reprojection_error_px
 --ba_fix_ncamera_intrinsics                                 --ba_use_cgnr_linear_solver
 --ba_fix_velocity                                           --ba_use_jacobi_scaling
 --ba_include_inertial                                       --ba_use_outlier_rejection_solver

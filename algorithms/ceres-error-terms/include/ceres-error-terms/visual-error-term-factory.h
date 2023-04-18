@@ -11,13 +11,8 @@ namespace ceres_error_terms {
 template <template <typename, typename> class ErrorTerm>
 ceres::CostFunction* createVisualCostFunction(
     const Eigen::Vector2d& measurement, double pixel_sigma,
-    ceres_error_terms::visual::VisualErrorType error_term_type,
+    ceres_error_terms::LandmarkErrorType error_term_type,
     aslam::Camera* camera);
-
-void replaceUnusedArgumentsOfVisualCostFunctionWithDummies(
-    ceres_error_terms::visual::VisualErrorType error_term_type,
-    std::vector<double*>* error_term_argument_list,
-    std::vector<double*>* dummies_to_set_constant);
 
 }  // namespace ceres_error_terms
 

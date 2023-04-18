@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+
+<launch>
+	<arg name="euroc_playback_speed" default="1.0"/>
+	<arg name="euroc_bags_folder" default="/home/andrei/src/maplab/euroc/"/>
+	<arg name="euroc_root_map_directory" default="/tmp/maplab_node/"/>
+
+	<!-- ================================== MH_01 ================================================== -->
+	<group>
+		<arg name="euroc_robot_name" default="mh1"/>
+
+		<node pkg="rosbag" type="play" name="rosbag_$(arg euroc_robot_name)" args="$(arg euroc_bags_folder)/MH_01_easy.bag -q -d 2 -s 0 -r $(arg euroc_playback_speed)">
+			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0"/>
+			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw"/>
+			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw"/>
+		</node>
+
+		<include file="$(find maplab_server_node)/launch/euroc/euroc-maplab-node-w-rovioli.launch">
+			<arg name="robot_name" default="$(arg euroc_robot_name)"/>
+			<arg name="robot_calib_file" default="euroc-stereo-$(arg euroc_robot_name).yaml"/>
+			<arg name="root_map_directory" default="$(arg euroc_root_map_directory)"/>
+		</include>
+	</group>
+
+	<!-- ================================== MH_02 ================================================== -->
+	<group>
+		<arg name="euroc_robot_name" default="mh2"/>
+
+		<node pkg="rosbag" type="play" name="rosbag_$(arg euroc_robot_name)" args="$(arg euroc_bags_folder)/MH_02_easy.bag -q -d 2 -s 0 -r $(arg euroc_playback_speed)">
+			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0"/>
+			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw"/>
+			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw"/>
+		</node>
+
+		<include file="$(find maplab_server_node)/launch/euroc/euroc-maplab-node-w-rovioli.launch">
+			<arg name="robot_name" default="$(arg euroc_robot_name)"/>
+			<arg name="robot_calib_file" default="euroc-stereo-$(arg euroc_robot_name).yaml"/>
+			<arg name="root_map_directory" default="$(arg euroc_root_map_directory)"/>
+		</include>
+	</group>
+
+	<!-- ================================== MH_03 ================================================== -->
+	<group>
+		<arg name="euroc_robot_name" default="mh3"/>
+
+		<node pkg="rosbag" type="play" name="rosbag_$(arg euroc_robot_name)" args="$(arg euroc_bags_folder)/MH_03_medium.bag -q -d 2 -s 0 -r $(arg euroc_playback_speed)">
+			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0"/>
+			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw"/>
+			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw"/>
+		</node>
+
+		<include file="$(find maplab_server_node)/launch/euroc/euroc-maplab-node-w-rovioli.launch">
+			<arg name="robot_name" default="$(arg euroc_robot_name)"/>
+			<arg name="robot_calib_file" default="euroc-stereo-$(arg euroc_robot_name).yaml"/>
+			<arg name="root_map_directory" default="$(arg euroc_root_map_directory)"/>
+		</include>
+	</group>
+
+	<!-- ================================== MH_04 ================================================== -->
+	<group>
+		<arg name="euroc_robot_name" default="mh4"/>
+
+		<node pkg="rosbag" type="play" name="rosbag_$(arg euroc_robot_name)" args="$(arg euroc_bags_folder)/MH_04_difficult.bag -q -d 2 -s 0 -r $(arg euroc_playback_speed)">
+			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0"/>
+			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw"/>
+			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw"/>
+		</node>
+
+		<include file="$(find maplab_server_node)/launch/euroc/euroc-maplab-node-w-rovioli.launch">
+			<arg name="robot_name" default="$(arg euroc_robot_name)"/>
+			<arg name="robot_calib_file" default="euroc-stereo-$(arg euroc_robot_name).yaml"/>
+			<arg name="root_map_directory" default="$(arg euroc_root_map_directory)"/>
+		</include>
+	</group>
+
+	<!-- ================================== MH_05 ================================================== -->
+	<group>
+		<arg name="euroc_robot_name" default="mh5"/>
+
+		<node pkg="rosbag" type="play" name="rosbag_$(arg euroc_robot_name)" args="$(arg euroc_bags_folder)/MH_05_difficult.bag -q -d 2 -s 0 -r $(arg euroc_playback_speed)">
+			<remap from="/imu0" to="/$(arg euroc_robot_name)/imu0"/>
+			<remap from="/cam0/image_raw" to="/$(arg euroc_robot_name)/cam0/image_raw"/>
+			<remap from="/cam1/image_raw" to="/$(arg euroc_robot_name)/cam1/image_raw"/>
+		</node>
+
+		<include file="$(find maplab_server_node)/launch/euroc/euroc-maplab-node-w-rovioli.launch">
+			<arg name="robot_name" default="$(arg euroc_robot_name)"/>
+			<arg name="robot_calib_file" default="euroc-stereo-$(arg euroc_robot_name).yaml"/>
+			<arg name="root_map_directory" default="$(arg euroc_root_map_directory)"/>
+		</include>
+	</group>
+</launch>

@@ -64,6 +64,8 @@ class CallbackManager {
       WheelOdometryConstraint, vi_map::WheelOdometryMeasurement::Ptr);
   DECLARE_SENSOR_CALLBACK(
       PointCloudMap, vi_map::RosPointCloudMapSensorMeasurement::ConstPtr);
+  DECLARE_SENSOR_CALLBACK(
+      ExternalFeatures, vi_map::ExternalFeaturesMeasurement::ConstPtr);
 };
 
 class DataSource : public CallbackManager {

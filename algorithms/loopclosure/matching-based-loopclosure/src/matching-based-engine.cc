@@ -15,6 +15,7 @@
 #include <nabo/nabo.h>
 #include <vi-map/loop-constraint.h>
 
+#include "matching-based-loopclosure/flann-index-interface.h"
 #include "matching-based-loopclosure/detector-settings.h"
 #include "matching-based-loopclosure/helpers.h"
 #include "matching-based-loopclosure/inverted-index-interface.h"
@@ -76,62 +77,64 @@ void MatchingBasedLoopDetector::Find(
   std::mutex* covis_frame_matches_mutex_ptr =
       parallelize ? &covis_frame_matches_mutex : nullptr;
 
-  std::function<void(const std::vector<size_t>&)> query_helper = [&](
-      const std::vector<size_t>& range) {
-    for (const size_t job_index : range) {
-      const loop_closure::ProjectedImage& projected_image_query =
-          *projected_image_ptr_list[job_index];
-      const size_t num_descriptors_in_query_image = static_cast<size_t>(
-          projected_image_query.projected_descriptors.cols());
-      CHECK_EQ(
-          num_descriptors_in_query_image,
-          static_cast<size_t>(projected_image_query.measurements.cols()));
-      Eigen::MatrixXi indices;
-      indices.resize(num_neighbors_to_search, num_descriptors_in_query_image);
-      Eigen::MatrixXf distances;
-      distances.resize(num_neighbors_to_search, num_descriptors_in_query_image);
-      timing::Timer timer_get_nn("Loop Closure: Get neighbors");
-      // If this loop is running in multiple threads and the inverted
-      // multi index is utilized as NN search structure, ensure that the nearest
-      // neighbor back-end (libnabo) is not multi-threaded. Otherwise,
-      // performance could decrease drastically.
-      index_interface_->GetNNearestNeighborsForFeatures(
-          projected_image_query.projected_descriptors, num_neighbors_to_search,
-          &indices, &distances);
-      timer_get_nn.Stop();
+  std::function<void(const std::vector<size_t>&)> query_helper =
+      [&](const std::vector<size_t>& range) {
+        for (const size_t job_index : range) {
+          const loop_closure::ProjectedImage& projected_image_query =
+              *projected_image_ptr_list[job_index];
+          const size_t num_descriptors_in_query_image = static_cast<size_t>(
+              projected_image_query.projected_descriptors.cols());
+          CHECK_EQ(
+              num_descriptors_in_query_image,
+              static_cast<size_t>(projected_image_query.measurements.cols()));
+          Eigen::MatrixXi indices;
+          indices.resize(
+              num_neighbors_to_search, num_descriptors_in_query_image);
+          Eigen::MatrixXf distances;
+          distances.resize(
+              num_neighbors_to_search, num_descriptors_in_query_image);
+          timing::Timer timer_get_nn("Loop Closure: Get neighbors");
+          // If this loop is running in multiple threads and the inverted
+          // multi index is utilized as NN search structure, ensure that the
+          // nearest neighbor back-end (libnabo) is not multi-threaded.
+          // Otherwise, performance could decrease drastically.
+          index_interface_->GetNNearestNeighborsForFeatures(
+              projected_image_query.projected_descriptors,
+              num_neighbors_to_search, &indices, &distances);
+          timer_get_nn.Stop();
 
-      KeyframeToMatchesMap keyframe_to_matches_map;
-      for (int keypoint_idx = 0; keypoint_idx < indices.cols();
-           ++keypoint_idx) {
-        for (int nn_search_idx = 0; nn_search_idx < indices.rows();
-             ++nn_search_idx) {
-          const int nn_match_descriptor_idx =
-              indices(nn_search_idx, keypoint_idx);
-          const float nn_match_distance =
-              distances(nn_search_idx, keypoint_idx);
-          if (nn_match_descriptor_idx == -1 ||
-              nn_match_distance == std::numeric_limits<float>::infinity()) {
-            break;  // No more results for this feature.
-          }
-          loop_closure::Match structure_match;
-          if (!getMatchForDescriptorIndex(
-                  nn_match_descriptor_idx, projected_image_query, keypoint_idx,
-                  &structure_match)) {
-            continue;
-          }
+          KeyframeToMatchesMap keyframe_to_matches_map;
+          for (int keypoint_idx = 0; keypoint_idx < indices.cols();
+               ++keypoint_idx) {
+            for (int nn_search_idx = 0; nn_search_idx < indices.rows();
+                 ++nn_search_idx) {
+              const int nn_match_descriptor_idx =
+                  indices(nn_search_idx, keypoint_idx);
+              const float nn_match_distance =
+                  distances(nn_search_idx, keypoint_idx);
+              if (nn_match_descriptor_idx == -1 ||
+                  nn_match_distance == std::numeric_limits<float>::infinity()) {
+                break;  // No more results for this feature.
+              }
+              loop_closure::Match structure_match;
+              if (!getMatchForDescriptorIndex(
+                      nn_match_descriptor_idx, projected_image_query,
+                      keypoint_idx, &structure_match)) {
+                continue;
+              }
 
-          keyframe_to_matches_map[structure_match.keyframe_id_result].push_back(
-              structure_match);
+              keyframe_to_matches_map[structure_match.keyframe_id_result]
+                  .push_back(structure_match);
+            }
+          }
+          // We don't want to enforce unique matches yet in case of additional
+          // vertex-landmark covisibility filtering. The reason for this is that
+          // removing non-unique matches can split covisibility clusters.
+          doCovisibilityFiltering(
+              keyframe_to_matches_map, !use_vertex_covis_filter,
+              &temporary_frame_matches, covis_frame_matches_mutex_ptr);
         }
-      }
-      // We don't want to enforce unique matches yet in case of additional
-      // vertex-landmark covisibility filtering. The reason for this is that
-      // removing non-unique matches can split covisibility clusters.
-      doCovisibilityFiltering(
-          keyframe_to_matches_map, !use_vertex_covis_filter,
-          &temporary_frame_matches, covis_frame_matches_mutex_ptr);
-    }
-  };
+      };
   if (parallelize) {
     static const size_t kNumHardwareThreads = common::getNumHardwareThreads();
     const size_t num_threads =
@@ -230,14 +233,13 @@ void MatchingBasedLoopDetector::Insert(
   for (int keypoint_idx = 0;
        keypoint_idx < projected_image.projected_descriptors.cols();
        ++keypoint_idx) {
-    CHECK(
-        descriptor_index_to_keypoint_id_
-            .emplace(
-                std::piecewise_construct,
-                std::forward_as_tuple(descriptor_index_),
-                std::forward_as_tuple(
-                    projected_image.keyframe_id, keypoint_idx))
-            .second);
+    CHECK(descriptor_index_to_keypoint_id_
+              .emplace(
+                  std::piecewise_construct,
+                  std::forward_as_tuple(descriptor_index_),
+                  std::forward_as_tuple(
+                      projected_image.keyframe_id, keypoint_idx))
+              .second);
     ++descriptor_index_;
   }
   CHECK(index_interface_ != nullptr);
@@ -245,10 +247,9 @@ void MatchingBasedLoopDetector::Insert(
 
   const loop_closure::KeyframeId& frame_id = projected_image.keyframe_id;
   CHECK(frame_id.isValid());
-  CHECK(
-      keyframe_id_to_num_descriptors_
-          .emplace(frame_id, projected_image.projected_descriptors.cols())
-          .second);
+  CHECK(keyframe_id_to_num_descriptors_
+            .emplace(frame_id, projected_image.projected_descriptors.cols())
+            .second);
   // Remove the descriptors before adding the projected image to the database.
   std::shared_ptr<loop_closure::ProjectedImage> projected_copy(
       new loop_closure::ProjectedImage(projected_image));
@@ -294,23 +295,20 @@ void MatchingBasedLoopDetector::setDetectorEngine() {
 
   switch (settings_.detector_engine_type) {
     case DetectorEngineType::kMatchingLDKdTree: {
-      index_interface_.reset(
-          new loop_closure::KDTreeIndexInterface(
-              settings_.projection_matrix_filename));
+      index_interface_.reset(new loop_closure::KDTreeIndexInterface(
+          settings_.projection_matrix_filename));
       break;
     }
     case DetectorEngineType::kMatchingLDInvertedIndex: {
-      index_interface_.reset(
-          new loop_closure::InvertedIndexInterface(
-              settings_.projected_quantizer_filename,
-              settings_.num_closest_words_for_nn_search));
+      index_interface_.reset(new loop_closure::InvertedIndexInterface(
+          settings_.projected_quantizer_filename,
+          settings_.num_closest_words_for_nn_search));
       break;
     }
     case DetectorEngineType::kMatchingLDInvertedMultiIndex: {
-      index_interface_.reset(
-          new loop_closure::InvertedMultiIndexInterface(
-              settings_.projected_quantizer_filename,
-              settings_.num_closest_words_for_nn_search));
+      index_interface_.reset(new loop_closure::InvertedMultiIndexInterface(
+          settings_.projected_quantizer_filename,
+          settings_.num_closest_words_for_nn_search));
       break;
     }
     case DetectorEngineType::kMatchingLDInvertedMultiIndexProductQuantization: {
@@ -318,6 +316,10 @@ void MatchingBasedLoopDetector::setDetectorEngine() {
           new loop_closure::InvertedMultiProductQuantizationIndexInterface(
               settings_.projected_quantizer_filename,
               settings_.num_closest_words_for_nn_search));
+      break;
+    }
+    case DetectorEngineType::kMatchingLDFLANN: {
+      index_interface_.reset(new loop_closure::FLANNIndexInterface());
       break;
     }
     default: {
@@ -349,167 +351,6 @@ int MatchingBasedLoopDetector::getNumNeighborsToSearch() const {
   }
   CHECK_GT(num_neighbors_to_search, 0);
   return num_neighbors_to_search;
-}
-
-void MatchingBasedLoopDetector::serialize(
-    proto::MatchingBasedLoopDetector* proto_matching_based_loop_detector)
-    const {
-  CHECK_NOTNULL(proto_matching_based_loop_detector);
-  CHECK_EQ(
-      settings_.detector_engine_type_string,
-      kMatchingLDInvertedMultiIndexString)
-      << "Only the inverted multi-index can be serialized at the moment.";
-
-  for (const DescriptorIndexToKeypointIdMap::value_type&
-           descriptor_index_keypoint_pair : descriptor_index_to_keypoint_id_) {
-    CHECK(descriptor_index_keypoint_pair.second.isValid());
-
-    proto::MatchingBasedLoopDetector_DescriptorIndexToKeypoint*
-        proto_descriptor_index_entry = CHECK_NOTNULL(
-            proto_matching_based_loop_detector
-                ->add_descriptor_index_to_keypoint());
-
-    proto_descriptor_index_entry->set_descriptor_index(
-        descriptor_index_keypoint_pair.first);
-
-    descriptor_index_keypoint_pair.second.frame_id.vertex_id.serialize(
-        proto_descriptor_index_entry->mutable_vertex_id());
-
-    proto_descriptor_index_entry->set_frame_index(
-        descriptor_index_keypoint_pair.second.frame_id.frame_index);
-
-    proto_descriptor_index_entry->set_keypoint_index(
-        descriptor_index_keypoint_pair.second.keypoint_index);
-  }
-
-  for (const Database::value_type& database_entry : database_) {
-    CHECK(database_entry.first.isValid());
-
-    proto::MatchingBasedLoopDetector_DatabaseEntry* proto_database_entry =
-        CHECK_NOTNULL(
-            proto_matching_based_loop_detector->add_database_entries());
-
-    CHECK(database_entry.first.vertex_id.isValid());
-    database_entry.first.vertex_id.serialize(
-        proto_database_entry->mutable_vertex_id());
-
-    proto_database_entry->set_frame_index(database_entry.first.frame_index);
-
-    database_entry.second->serialize(
-        proto_database_entry->mutable_projected_image());
-  }
-
-  proto_matching_based_loop_detector->set_descriptor_index(descriptor_index_);
-
-  std::shared_ptr<loop_closure::InvertedMultiIndexInterface>
-      inverted_multi_index_interface =
-          std::dynamic_pointer_cast<loop_closure::InvertedMultiIndexInterface>(
-              index_interface_);
-  CHECK(inverted_multi_index_interface)
-      << "Unable to cast the index interface "
-      << "to type loop_closure::InvertedMultiIndexInterface. Only the inverted "
-      << "multi-index can be serialized at the moment.";
-
-  inverted_multi_index_interface->serialize(
-      proto_matching_based_loop_detector
-          ->mutable_inverted_multi_index_interface());
-
-  for (const KeyframeIdToNumDescriptorsMap::value_type&
-           keyframe_id_descriptors_pair : keyframe_id_to_num_descriptors_) {
-    CHECK(keyframe_id_descriptors_pair.first.isValid());
-
-    proto::MatchingBasedLoopDetector_KeyframeIdToNumDescriptors*
-        proto_keyframe_id_to_num_descriptors = CHECK_NOTNULL(
-            proto_matching_based_loop_detector
-                ->add_keyframe_id_to_num_descriptors());
-    proto::MatchingBasedLoopDetector_KeyframeIdToNumDescriptors_KeyframeId*
-        proto_keyframe_id = CHECK_NOTNULL(
-            proto_keyframe_id_to_num_descriptors->mutable_keyframe_id());
-
-    keyframe_id_descriptors_pair.first.vertex_id.serialize(
-        proto_keyframe_id->mutable_vertex_id());
-
-    proto_keyframe_id->set_frame_index(
-        static_cast<uint32_t>(keyframe_id_descriptors_pair.first.frame_index));
-
-    proto_keyframe_id_to_num_descriptors->set_num_descriptors(
-        static_cast<uint32_t>(keyframe_id_descriptors_pair.second));
-  }
-}
-
-void MatchingBasedLoopDetector::deserialize(
-    const proto::MatchingBasedLoopDetector&
-        proto_matching_based_loop_detector) {
-  for (const ::matching_based_loopclosure::proto::
-           MatchingBasedLoopDetector_DescriptorIndexToKeypoint&
-               proto_descriptor_index_to_keyframe :
-       proto_matching_based_loop_detector.descriptor_index_to_keypoint()) {
-    const int descriptor_index =
-        proto_descriptor_index_to_keyframe.descriptor_index();
-
-    loop_closure::KeypointId keypoint_id;
-    keypoint_id.frame_id.vertex_id.deserialize(
-        proto_descriptor_index_to_keyframe.vertex_id());
-    keypoint_id.frame_id.frame_index =
-        proto_descriptor_index_to_keyframe.frame_index();
-    keypoint_id.keypoint_index =
-        proto_descriptor_index_to_keyframe.keypoint_index();
-    CHECK(keypoint_id.isValid());
-
-    CHECK(
-        descriptor_index_to_keypoint_id_.emplace(descriptor_index, keypoint_id)
-            .second);
-  }
-
-  for (const ::matching_based_loopclosure::proto::
-           MatchingBasedLoopDetector_DatabaseEntry& proto_database_entry :
-       proto_matching_based_loop_detector.database_entries()) {
-    loop_closure::KeyframeId keyframe_id;
-    keyframe_id.frame_index = proto_database_entry.frame_index();
-    keyframe_id.vertex_id.deserialize(proto_database_entry.vertex_id());
-    CHECK(keyframe_id.vertex_id.isValid());
-    CHECK(keyframe_id.isValid());
-
-    std::shared_ptr<loop_closure::ProjectedImage> projected_image(
-        new loop_closure::ProjectedImage);
-
-    projected_image->deserialize(proto_database_entry.projected_image());
-
-    CHECK(
-        database_.insert(std::make_pair(keyframe_id, projected_image)).second);
-  }
-
-  descriptor_index_ = proto_matching_based_loop_detector.descriptor_index();
-
-  std::shared_ptr<loop_closure::InvertedMultiIndexInterface>
-      inverted_multi_index_interface =
-          std::dynamic_pointer_cast<loop_closure::InvertedMultiIndexInterface>(
-              index_interface_);
-  CHECK(inverted_multi_index_interface);
-  inverted_multi_index_interface->deserialize(
-      proto_matching_based_loop_detector.inverted_multi_index_interface());
-
-  for (const ::matching_based_loopclosure::proto::
-           MatchingBasedLoopDetector_KeyframeIdToNumDescriptors&
-               proto_keyframe_id_to_num_descriptors :
-       proto_matching_based_loop_detector.keyframe_id_to_num_descriptors()) {
-    CHECK(proto_keyframe_id_to_num_descriptors.has_keyframe_id())
-        << "The loop detector has been serialized with a different template "
-        << "parameter.";
-    const ::matching_based_loopclosure::proto::
-        MatchingBasedLoopDetector_KeyframeIdToNumDescriptors_KeyframeId&
-            proto_keyframe_id =
-                proto_keyframe_id_to_num_descriptors.keyframe_id();
-    loop_closure::KeyframeId frame_id;
-    frame_id.vertex_id.deserialize(proto_keyframe_id.vertex_id());
-    frame_id.frame_index = proto_keyframe_id.frame_index();
-    CHECK(frame_id.isValid());
-    const size_t num_descriptors =
-        proto_keyframe_id_to_num_descriptors.num_descriptors();
-    CHECK(
-        keyframe_id_to_num_descriptors_.emplace(frame_id, num_descriptors)
-            .second);
-  }
 }
 
 }  // namespace matching_based_loopclosure

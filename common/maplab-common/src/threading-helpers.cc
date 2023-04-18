@@ -16,11 +16,6 @@ namespace internal {
 constexpr size_t kDefaultNumHardwareThreads = 4u;
 
 size_t getNumHardwareThreadsImpl() {
-  // Just use the user-provided count if set.
-  if (FLAGS_num_hardware_threads > 0) {
-    return FLAGS_num_hardware_threads;
-  }
-
   // Check environment variable.
   const char* num_hardware_threads_env_string =
       std::getenv("MAPLAB_NUM_HARDWARE_THREADS");
@@ -47,6 +42,11 @@ size_t getNumHardwareThreadsImpl() {
 }  // namespace internal
 
 size_t getNumHardwareThreads() {
+  // Just use the user-provided count if set.
+  if (FLAGS_num_hardware_threads > 0) {
+    return FLAGS_num_hardware_threads;
+  }
+
   static size_t cached_num_threads = internal::getNumHardwareThreadsImpl();
   return cached_num_threads;
 }

@@ -1,9 +1,8 @@
 #include "vi-map/landmark.h"
 
 #include <algorithm>
-#include <utility>
-
 #include <maplab-common/eigen-proto.h>
+#include <utility>
 
 namespace vi_map {
 
@@ -53,7 +52,7 @@ bool Landmark::hasObservation(
 }
 
 void Landmark::removeAllObservationsAccordingToPredicate(
-    const std::function<bool(const KeypointIdentifier&)>& // NOLINT
+    const std::function<bool(const KeypointIdentifier&)>&  // NOLINT
         predicate) {
   KeypointIdentifierList::iterator observation_iterator = observations_.begin();
   while (observation_iterator != observations_.end()) {
@@ -66,7 +65,7 @@ void Landmark::removeAllObservationsAccordingToPredicate(
 }
 
 void Landmark::removeObservation(const KeypointIdentifier& observation) {
-  std::function<bool(const KeypointIdentifier& observation)> // NOLINT
+  std::function<bool(const KeypointIdentifier& observation)>  // NOLINT
       predicate = [&](const KeypointIdentifier& inspected_observation) {
         return inspected_observation == observation;
       };
@@ -75,9 +74,8 @@ void Landmark::removeObservation(const KeypointIdentifier& observation) {
 
 void Landmark::removeAllObservationsOfVertex(
     const pose_graph::VertexId& vertex_id) {
-  std::function<bool(const KeypointIdentifier& observation)> // NOLINT
-      predicate =
-      [&](const KeypointIdentifier& observation) {
+  std::function<bool(const KeypointIdentifier& observation)>  // NOLINT
+      predicate = [&](const KeypointIdentifier& observation) {
         return observation.frame_id.vertex_id == vertex_id;
       };
   removeAllObservationsAccordingToPredicate(predicate);
@@ -85,9 +83,8 @@ void Landmark::removeAllObservationsOfVertex(
 
 void Landmark::removeAllObservationsOfVertexAndFrame(
     const pose_graph::VertexId& vertex_id, unsigned int frame_idx) {
-  std::function<bool(const KeypointIdentifier& observation)> // NOLINT
-      predicate =
-      [&](const KeypointIdentifier& observation) {
+  std::function<bool(const KeypointIdentifier& observation)>  // NOLINT
+      predicate = [&](const KeypointIdentifier& observation) {
         return (observation.frame_id.vertex_id == vertex_id) &&
                (observation.frame_id.frame_index == frame_idx);
       };
@@ -183,6 +180,8 @@ void Landmark::serialize(vi_map::proto::Landmark* proto) const {
                  << static_cast<int>(quality_);
     }
   }
+
+  proto->set_feature_type(static_cast<int>(feature_type_));
 }
 
 void Landmark::clearObservations() {
@@ -242,5 +241,7 @@ void Landmark::deserialize(const vi_map::proto::Landmark& proto) {
     common::eigen_proto::deserialize(
         proto.covariance(), CHECK_NOTNULL(B_covariance_.get()));
   }
+
+  feature_type_ = static_cast<FeatureType>(proto.feature_type());
 }
 }  // namespace vi_map

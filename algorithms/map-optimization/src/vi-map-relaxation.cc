@@ -53,16 +53,12 @@ void VIMapRelaxation::detectLoopclosures(
   const bool kMergeLandmarks = FLAGS_lc_relax_merge_landmarks;
   constexpr bool kAddLoopclosureEdges = true;
 
-  int num_vertex_candidate_links;
-  double summary_landmark_match_inlier_ratio;
-
   pose::Transformation T_G_M2;
   vi_map::LoopClosureConstraintVector inlier_constraints;
   for (const vi_map::MissionId& mission_id : mission_ids) {
     loop_detector.detectLoopClosuresMissionToDatabase(
-        mission_id, kMergeLandmarks, kAddLoopclosureEdges,
-        &num_vertex_candidate_links, &summary_landmark_match_inlier_ratio, map,
-        &T_G_M2, &inlier_constraints);
+        mission_id, kMergeLandmarks, kAddLoopclosureEdges, map, &T_G_M2,
+        &inlier_constraints);
   }
 }
 

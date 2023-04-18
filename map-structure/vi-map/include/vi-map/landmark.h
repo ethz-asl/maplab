@@ -1,14 +1,14 @@
 #ifndef VI_MAP_LANDMARK_H_
 #define VI_MAP_LANDMARK_H_
 
-#include <unordered_set>
-#include <utility>
-#include <vector>
-
 #include <aslam/common/memory.h>
 #include <maplab-common/macros.h>
 #include <maplab-common/pose_types.h>
 #include <posegraph/vertex.h>
+#include <sensors/external-features.h>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "vi-map/unique-id.h"
 #include "vi-map/vi_map.pb.h"
@@ -27,7 +27,9 @@ class Landmark {
   };
 
   Landmark()
-      : quality_(Quality::kUnknown), B_position_(Eigen::Vector3d::Zero()) {}
+      : quality_(Quality::kUnknown),
+        feature_type_(FeatureType::kBinary),
+        B_position_(Eigen::Vector3d::Zero()) {}
 
   Landmark(const Landmark& lhs) {
     *this = lhs;
@@ -39,6 +41,7 @@ class Landmark {
       observations_ = lhs.observations_;
       quality_ = lhs.quality_;
       B_position_ = lhs.B_position_;
+      feature_type_ = lhs.feature_type_;
 
       // Clone covariance if set.
       if (lhs.B_covariance_ != nullptr) {
@@ -92,6 +95,13 @@ class Landmark {
     return quality_;
   }
 
+  inline void setFeatureType(FeatureType feature_type) {
+    feature_type_ = feature_type;
+  }
+  inline FeatureType getFeatureType() const {
+    return feature_type_;
+  }
+
   void addObservation(
       const pose_graph::VertexId& vertex_id, unsigned int frame_idx,
       unsigned int keypoint_index);
@@ -106,7 +116,7 @@ class Landmark {
 
   void removeAllObservationsAccordingToPredicate(
       const std::function<bool(const KeypointIdentifier&)>&  // NOLINT
-      predicate);
+          predicate);
 
   void removeAllObservationsOfVertex(const pose_graph::VertexId& vertex_id);
 
@@ -166,6 +176,7 @@ class Landmark {
   LandmarkId id_;
   KeypointIdentifierList observations_;
   Quality quality_;
+  FeatureType feature_type_;
 
   // Position and covariance w.r.t. landmark baseframe. The covariance is
   // optional to reduce the memory usage.

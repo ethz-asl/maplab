@@ -14,13 +14,13 @@ cs_add_library(${PROJECT_NAME}
   src/common-rviz-visualization.cc
   src/constant-velocity-smoother.cc
   src/debug-visualizer.cc
-  src/feature-matches-visualization.cc
   src/landmark-observer-plotter.cc
   src/patch-based-visualization.cc
   src/resource-visualization.cc
   src/rviz-visualization-sink.cc
   src/sequential-plotter.cc
   src/sliding-window-plotter.cc
+  src/spatially-distribute-missions.cc
   src/vertex-landmark-visibility-plotter.cc
   src/viwls-graph-plotter.cc
   src/viz-data-collector.cc

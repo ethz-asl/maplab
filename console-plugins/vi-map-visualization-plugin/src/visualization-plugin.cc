@@ -1,11 +1,10 @@
 #include "vi-map-visualization-plugin/visualization-plugin.h"
 
-#include <iostream>  //NOLINT
-#include <memory>
-
 #include <Eigen/Core>
 #include <aslam/common/time.h>
 #include <console-common/console.h>
+#include <iostream>  //NOLINT
+#include <memory>
 #include <plotty/matplotlibcpp.hpp>
 #include <visualization/landmark-observer-plotter.h>
 #include <visualization/resource-visualization.h>
@@ -107,6 +106,23 @@ VisualizationPlugin::VisualizationPlugin(common::Console* console)
             backend::ResourceType::kPointCloudXYZI);
       },
       "Publish all xyz + intensity point clouds.", common::Processing::Sync);
+
+  addCommand(
+      {"visualize_xyzi_pointclouds_from_mission"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResourceFromMission(
+            backend::ResourceType::kPointCloudXYZI);
+      },
+      "Publish all xyz + intensity point clouds.", common::Processing::Sync);
+
+  addCommand(
+      {"visualize_xyzi_pointclouds_sequentially"},
+      [this]() -> int {
+        return visualizeReprojectedDepthResourceSequentially(
+            backend::ResourceType::kPointCloudXYZI);
+      },
+      "Incrementally builds and visualizes xyz + intensity dense maps.",
+      common::Processing::Sync);
 
   addCommand(
       {"visualize_xyzrgbn_pointclouds"},
@@ -251,6 +267,48 @@ int VisualizationPlugin::visualizeReprojectedDepthResource(
   getAllMissionIds(map, &mission_ids);
 
   visualization::visualizeReprojectedDepthResource(type, mission_ids, *map);
+
+  return common::kSuccess;
+}
+
+int VisualizationPlugin::visualizeReprojectedDepthResourceFromMission(
+    backend::ResourceType type) {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+  vi_map::VIMapManager map_manager;
+  const vi_map::VIMapManager::MapReadAccess map =
+      map_manager.getMapReadAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids;
+  getAllMissionIds(map, &mission_ids);
+  if (mission_ids.size() > 1u) {
+    LOG(ERROR) << "Specify a valid mission id with --map_mission.";
+    return common::kUnknownError;
+  }
+
+  visualization::visualizeReprojectedDepthResourceFromMission(
+      type, mission_ids.front(), *map);
+
+  return common::kSuccess;
+}
+
+int VisualizationPlugin::visualizeReprojectedDepthResourceSequentially(
+    backend::ResourceType type) {
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+  vi_map::VIMapManager map_manager;
+  const vi_map::VIMapManager::MapReadAccess map =
+      map_manager.getMapReadAccess(selected_map_key);
+
+  vi_map::MissionIdList mission_ids;
+  getAllMissionIds(map, &mission_ids);
+
+  visualization::visualizeReprojectedDepthResourceSequentially(
+      type, mission_ids, *map);
 
   return common::kSuccess;
 }

@@ -180,7 +180,7 @@ class LoopClosureMeasurement : public Measurement {
   aslam::TransformationCovariance T_A_B_covariance_;
 };
 
-DEFINE_MEAUREMENT_CONTAINERS(LoopClosureMeasurement)
+DEFINE_MEASUREMENT_CONTAINERS(LoopClosureMeasurement)
 
 // Hash function to buffer loop closure edges in a map based on the timestamps
 // of the connected frames.

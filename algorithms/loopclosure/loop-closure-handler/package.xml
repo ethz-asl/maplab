@@ -20,7 +20,6 @@
   <depend>localization_summary_map</depend>
   <depend>matching_based_loopclosure</depend>
   <depend>maplab_common</depend>
-  <depend>protobuf_catkin</depend>
   <depend>vi_map</depend>
   <depend>vi_map_helpers</depend>
   <depend>visualization</depend>

@@ -21,7 +21,7 @@
    :glob:
 
    pages/installation/*
-   
+
 .. toctree::
    :maxdepth: 1
    :caption: Datasets
@@ -55,6 +55,14 @@
 
 .. toctree::
    :maxdepth: 1
+   :caption: Tutorials for using maplab server (Online)
+   :glob:
+
+   pages/tutorials-maplab-server/*
+
+
+.. toctree::
+   :maxdepth: 1
    :caption: Hardware integration and sensor calibration
    :glob:
 
@@ -82,13 +90,6 @@
    :glob:
 
    pages/additional-formats/*
-
-.. toctree::
-   :maxdepth: 3
-   :caption: API
-   :glob:
-
-   api/library_root
 
 
 

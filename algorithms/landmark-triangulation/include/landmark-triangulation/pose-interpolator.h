@@ -39,6 +39,12 @@ struct StateLinearizationPoint {
 
 typedef std::unordered_map<pose_graph::VertexId, int64_t> VertexToTimeStampMap;
 
+// Interpolate position using linear approximation between two vertices.
+// Much faster than the IMU based one of the PoseInterpolator, but less precise
+bool interpolateLinear(
+    const vi_map::VIMap& map, const vi_map::Vertex& vertex,
+    int64_t offset_ns, aslam::Transformation* T_inter);
+
 class PoseInterpolator {
  public:
   // Returns interpolated poses for the mission specified by mission_id.
@@ -55,7 +61,7 @@ class PoseInterpolator {
       std::vector<Eigen::Vector3d>* accel_biases = nullptr) const;
 
   // Returns interpolated poses and their associated timestamps across an entire
-  // mission specified by emission_id.  Timestamps begin at the earliest IMU
+  // mission specified by mission_id. Timestamps begin at the earliest IMU
   // measurement, then continue every timestep_seconds until the last possible
   // timestep in the mission is reached.
   void getPosesEveryNSeconds(
@@ -72,7 +78,7 @@ class PoseInterpolator {
       int64_t* min_timestamp_ns = nullptr,
       int64_t* max_timestamp_ns = nullptr) const;
 
-  // Returns a vector if vertex timestamps based on the first frame timestamp.
+  // Returns a vector of vertex timestamps based on the first frame timestamp.
   void getVertexTimeStampVector(
       const vi_map::VIMap& map, const vi_map::MissionId& mission_id,
       std::vector<int64_t>* vertex_timestamps_nanoseconds) const;

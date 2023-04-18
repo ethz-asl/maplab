@@ -1,7 +1,6 @@
 #include "maplab-node/map-builder-flow.h"
 
 #include <functional>
-
 #include <landmark-triangulation/landmark-triangulation.h>
 #include <localization-summary-map/localization-summary-map-creation.h>
 #include <localization-summary-map/localization-summary-map.h>
@@ -49,7 +48,7 @@ DEFINE_bool(
     map_remove_bad_landmarks, false,
     "If enabled, the bad landmarks will be removed before saving. IMPORTANT: "
     "if keyframing is enabled it is highly recommended to set "
-    "--vi_map_landmark_quality_min_observers to 2.");
+    "--elq_min_observers to 2.");
 
 DEFINE_int32(
     map_add_odometry_edges_if_less_than_n_common_landmarks, -1,
@@ -57,6 +56,8 @@ DEFINE_int32(
     "poses, but only if there are less common landmarks than this threshold. "
     "If set to 0, edges are added between all vertices, if set to -1, no "
     "odometry edges are added.");
+
+DECLARE_int64(vio_nframe_sync_tolerance_ns);
 
 namespace maplab {
 MapBuilderFlow::MapBuilderFlow(
@@ -87,6 +88,12 @@ MapBuilderFlow::MapBuilderFlow(
           external_resource_folder_);
     }
   }
+
+  if (sensor_manager.hasSensorOfType(vi_map::SensorType::kExternalFeatures)) {
+    stream_map_builder_.setExternalFeaturesSyncToleranceNs(
+        FLAGS_vio_nframe_sync_tolerance_ns);
+  }
+
   CHECK(!last_vertex_of_previous_map_saving_.isValid());
 }
 
@@ -222,6 +229,25 @@ void MapBuilderFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
 
           VLOG(3) << "[MaplabNode-MapBuilder] Attached point cloud map "
                   << "to map.";
+        }
+      });
+
+  flow->registerSubscriber<message_flow_topics::SYNCED_EXTERNAL_FEATURES>(
+      kSubscriberNodeName, delivery_options,
+      [this](const vi_map::ExternalFeaturesMeasurement::ConstPtr&
+                 external_features_measurement) {
+        CHECK(external_features_measurement);
+        {
+          std::lock_guard<std::mutex> lock(map_with_mutex_->mutex);
+          if (mapping_terminated_) {
+            return;
+          }
+
+          stream_map_builder_.bufferExternalFeaturesMeasurement(
+              external_features_measurement);
+
+          VLOG(4)
+              << "[MaplabNode-MapBuilder] Attached external features to map.";
         }
       });
 

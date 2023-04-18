@@ -30,15 +30,6 @@ DEFINE_int32(
     "Outlier rejection in absolute constraints: Sets the maximum number of "
     "iterations for mission baseframe RANSAC.");
 
-DEFINE_double(
-    map_anchoring_min_medial_inlier_ratio, 0.20,
-    "Minimum median inlier ration required for a successful (rigid) map "
-    "alignment/anchoring.");
-DEFINE_int32(
-    map_anchoring_min_num_vertex_links, 10,
-    "Minimum number of vertex links for a successful (rigid) map "
-    "alignment/anchoring.");
-
 namespace map_anchoring {
 
 void setMissionBaseframeToKnownIfHasAbs6DoFConstraints(vi_map::VIMap* map) {
@@ -274,18 +265,25 @@ bool anchorMissionUsingProvidedLoopDetector(
   CHECK(map->hasMission(mission_id));
 
   VLOG(1) << "Matching mission " << mission_id << " to database.";
-  // Probe.
-  ProbeResult probe_result;
-  probeMissionAnchoring(mission_id, loop_detector, map, &probe_result);
 
-  if (probe_result.wasSuccessful()) {
+  // Probe aligning mission.
+  pose::Transformation T_G_M;
+  static constexpr bool kMergeLandmarks = false;
+  static constexpr bool kAddLoopclosureEdges = false;
+
+  vi_map::LoopClosureConstraintVector inlier_constraints;
+  const bool success = loop_detector.detectLoopClosuresMissionToDatabase(
+      mission_id, kMergeLandmarks, kAddLoopclosureEdges, map, &T_G_M,
+      &inlier_constraints);
+
+  if (success) {
     VLOG(1) << "Probe successful, will anchor mission " << mission_id;
 
     vi_map::VIMission& mission = map->getMission(mission_id);
     vi_map::MissionBaseFrame& mission_baseframe =
         map->getMissionBaseFrame(mission.getBaseFrameId());
     // Prealign.
-    mission_baseframe.set_T_G_M(probe_result.T_G_M);
+    mission_baseframe.set_T_G_M(T_G_M);
 
     // Mark as anchored.
     constexpr bool kIsMissionAnchored = true;
@@ -297,34 +295,6 @@ bool anchorMissionUsingProvidedLoopDetector(
   VLOG(1) << "Probe did not meet criteria, will not anchor mission "
           << mission_id;
   return false;
-}
-
-ProbeResult::ProbeResult()
-    : num_vertex_candidate_links(0), average_landmark_match_inlier_ratio(0.) {}
-
-bool ProbeResult::wasSuccessful() const {
-  return num_vertex_candidate_links >=
-             FLAGS_map_anchoring_min_num_vertex_links &&
-         average_landmark_match_inlier_ratio >=
-             FLAGS_map_anchoring_min_medial_inlier_ratio;
-}
-
-void probeMissionAnchoring(
-    const vi_map::MissionId& mission_id,
-    const loop_detector_node::LoopDetectorNode& loop_detector,
-    vi_map::VIMap* map, ProbeResult* result) {
-  CHECK_NOTNULL(map);
-  CHECK_NOTNULL(result);
-
-  static constexpr bool kMergeLandmarksOnProbe = false;
-  static constexpr bool kAddLoopclosureEdgesOnProbe = false;
-
-  vi_map::LoopClosureConstraintVector inlier_constraints;
-  loop_detector.detectLoopClosuresMissionToDatabase(
-      mission_id, kMergeLandmarksOnProbe, kAddLoopclosureEdgesOnProbe,
-      &result->num_vertex_candidate_links,
-      &result->average_landmark_match_inlier_ratio, map, &result->T_G_M,
-      &inlier_constraints);
 }
 
 void removeOutliersInAbsolute6DoFConstraints(vi_map::VIMap* map) {

@@ -1,6 +1,6 @@
-#include "maplab-node/feature-tracking.h"
-
 #include <maplab-common/conversions.h>
+
+#include "maplab-node/feature-tracking.h"
 
 DEFINE_bool(
     descriptor_rotation_invariance, true,
@@ -19,9 +19,10 @@ FeatureTracking::FeatureTracking(
   const feature_tracking::FeatureTrackingDetectorSettings detector_settings;
   feature_tracking::FeatureTrackingExtractorSettings extractor_settings;
   extractor_settings.rotation_invariant = FLAGS_descriptor_rotation_invariance;
+  const feature_tracking::FeatureTrackingOutlierSettings outlier_settings;
 
   tracker_.reset(new feature_tracking::VOFeatureTrackingPipeline(
-      camera_system_, extractor_settings, detector_settings));
+      camera_system_, extractor_settings, detector_settings, outlier_settings));
 }
 
 bool FeatureTracking::trackSynchronizedNFrameCallback(
@@ -35,6 +36,9 @@ bool FeatureTracking::trackSynchronizedNFrameCallback(
   // The first frame will not contain any tracking information on the first
   // call, but it will be added in the second call.
   if (!previous_synced_nframe_) {
+    // Perform only feature detection
+    tracker_->initializeFirstNFrame(synced_nframe->nframe.get());
+    // Mark it as the previous frame
     previous_synced_nframe_ = synced_nframe;
     previous_nframe_timestamp_ns_ = current_nframe_timestamp_ns;
     return false;

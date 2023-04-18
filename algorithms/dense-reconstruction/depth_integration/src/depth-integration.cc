@@ -1,11 +1,7 @@
 #include "depth-integration/depth-integration.h"
 
-#include <algorithm>
-#include <type_traits>
-#include <unordered_map>
-#include <utility>
-
 #include <Eigen/Core>
+#include <algorithm>
 #include <aslam/common/pose-types.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -15,6 +11,9 @@
 #include <maplab-common/progress-bar.h>
 #include <maplab-common/sigint-breaker.h>
 #include <posegraph/unique-id.h>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
 #include <vi-map/landmark.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vertex.h>
@@ -90,6 +89,15 @@ void integratePointCloud(
 }
 
 template <>
+void integratePointCloud(
+    const int64_t ts_ns, const aslam::Transformation& T_G_C,
+    const resources::PointCloud& points_C,
+    IntegrationFunctionPointCloudMaplabWithTs integration_function) {
+  CHECK(integration_function);
+  integration_function(ts_ns, T_G_C, points_C);
+}
+
+template <>
 void integrateDepthMap(
     const int64_t /*timestamp*/, const aslam::Transformation& T_G_C,
     const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
@@ -149,6 +157,26 @@ void integrateDepthMap(
 }
 
 template <>
+void integrateDepthMap(
+    const int64_t ts_ns, const aslam::Transformation& T_G_C,
+    const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
+    IntegrationFunctionPointCloudMaplabWithTs integration_function) {
+  CHECK(integration_function);
+  CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
+  CHECK_EQ(CV_MAT_TYPE(image.type()), CV_8UC1);
+
+  resources::PointCloud point_cloud;
+  if (image.empty()) {
+    backend::convertDepthMapToPointCloud(depth_map, camera, &point_cloud);
+  } else {
+    backend::convertDepthMapToPointCloud(
+        depth_map, image, camera, &point_cloud);
+  }
+
+  integration_function(ts_ns, T_G_C, point_cloud);
+}
+
+template <>
 bool isSupportedResourceType<IntegrationFunctionPointCloudMaplab>(
     const backend::ResourceType& resource_type) {
   return kIntegrationFunctionPointCloudSupportedTypes.count(resource_type) > 0u;
@@ -164,6 +192,12 @@ template <>
 bool isSupportedResourceType<IntegrationFunctionDepthImage>(
     const backend::ResourceType& resource_type) {
   return kIntegrationFunctionDepthImageSupportedTypes.count(resource_type) > 0u;
+}
+
+template <>
+bool isSupportedResourceType<IntegrationFunctionPointCloudMaplabWithTs>(
+    const backend::ResourceType& resource_type) {
+  return kIntegrationFunctionPointCloudSupportedTypes.count(resource_type) > 0u;
 }
 
 }  // namespace depth_integration

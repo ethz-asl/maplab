@@ -6,12 +6,8 @@ catkin_simple()
 
 set(LIBRARY_NAME ${PROJECT_NAME})
 
-set(PROTO_DEFNS proto/inverted-multi-index/inverted_multi_index.proto)
-PROTOBUF_CATKIN_GENERATE_CPP2("proto" PROTO_SRCS PROTO_HDRS ${PROTO_DEFNS})
-
 cs_add_library(${LIBRARY_NAME} src/inverted-multi-index.cc
-                               src/inverted-multi-product-quantization-index.cc
-                               ${PROTO_SRCS})
+                               src/inverted-multi-product-quantization-index.cc)
 
 catkin_add_gtest(test_inverted_multi_index test/test_inverted-multi-index.cc
                  WORKING_DIRECTORY ${CMAKE_BINARY_DIR})

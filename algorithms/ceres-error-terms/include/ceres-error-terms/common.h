@@ -9,26 +9,30 @@
 #include <ceres/problem.h>
 #include <glog/logging.h>
 
-#include "ceres-error-terms/visual-error-term-base.h"
-
 namespace ceres_error_terms {
 
-namespace visual {
-enum VisualErrorType { kLocalKeyframe, kLocalMission, kGlobal };
-
-inline bool isValidVisualErrorTermType(VisualErrorType type) {
+enum LandmarkErrorType { kLocalKeyframe, kLocalMission, kGlobal };
+inline bool isValidLandmarkErrorTermType(LandmarkErrorType type) {
   static const bool value =
-      (type == VisualErrorType::kLocalKeyframe ||
-       type == VisualErrorType::kLocalMission ||
-       type == VisualErrorType::kGlobal);
+      (type == LandmarkErrorType::kLocalKeyframe ||
+       type == LandmarkErrorType::kLocalMission ||
+       type == LandmarkErrorType::kGlobal);
   return value;
 }
 
+namespace visual {
 static const int kResidualSize = 2;
 static const int kOrientationBlockSize = 4;
 static const int kPositionBlockSize = 3;
 static const int kPoseBlockSize = 7;
 }  // namespace visual
+
+namespace lidar {
+static const int kResidualSize = 3;
+static const int kOrientationBlockSize = 4;
+static const int kPositionBlockSize = 3;
+static const int kPoseBlockSize = 7;
+}  // namespace lidar
 
 namespace poseblocks {
 static const int kResidualSize = 6;

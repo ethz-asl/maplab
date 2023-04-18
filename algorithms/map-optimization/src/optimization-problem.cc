@@ -122,9 +122,7 @@ void OptimizationProblem::applyGaugeFixesForInitialVertices(
         first_vertex_id_in_problem = current_vertex_id;
         break;
       }
-    } while (map_->getNextVertex(
-        current_vertex_id, map_->getGraphTraversalEdgeType(first_mission_id),
-        &current_vertex_id));
+    } while (map_->getNextVertex(current_vertex_id, &current_vertex_id));
     CHECK(first_vertex_id_in_problem.isValid());
     fixOpenDoFOfInitialVertex(
         state_buffer_.get_vertex_q_IM__M_p_MI_JPL(first_vertex_id_in_problem),

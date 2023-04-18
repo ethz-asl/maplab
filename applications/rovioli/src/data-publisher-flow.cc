@@ -1,3 +1,4 @@
+#include "rovioli/data-publisher-flow.h"
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <maplab-common/conversions.h>
@@ -5,7 +6,6 @@
 #include <maplab_msgs/OdometryWithImuBiases.h>
 #include <minkindr_conversions/kindr_msg.h>
 #include <nav_msgs/Odometry.h>
-#include "rovioli/data-publisher-flow.h"
 #include "rovioli/ros-helpers.h"
 
 DEFINE_double(
@@ -145,30 +145,25 @@ void DataPublisherFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
     std::shared_ptr<common::FileLogger> file_logger =
         std::make_shared<common::FileLogger>(
             FLAGS_export_estimated_poses_to_csv);
-    constexpr char kDelimiter[] = ", ";
+    constexpr char kDelimiter[] = " ";
     file_logger->writeDataWithDelimiterAndNewLine(
-        kDelimiter, "# Timestamp [s]", "t_G_M x [m]", "t_G_M y [m]",
-        "t_G_M z [m]", "q_G_M x", "q_G_M y", "q_G_M z", "q_G_M w",
-        "t_M_I x [m]", "t_M_I y [m]", "t_M_I z [m]", "q_M_I x", "q_M_I y",
-        "q_M_I z", "q_M_I w", "has T_G_M");
+        kDelimiter, "# Timestamp [s]", "p_G_Ix", "p_G_Iy", "p_G_Iz", "q_G_Ix",
+        "q_G_Iy", "q_G_Iz", "q_G_Iw");
     CHECK(file_logger != nullptr);
-    flow->registerSubscriber<message_flow_topics::MAP_UPDATES>(
+    flow->registerSubscriber<message_flow_topics::ROVIO_ESTIMATES>(
         kSubscriberNodeName, message_flow::DeliveryOptions(),
-        [file_logger, kDelimiter,
-         this](const vio::MapUpdate::ConstPtr& vio_update) {
-          CHECK(vio_update != nullptr);
-          const bool has_T_G_M = vio_update->localization_state ==
-                                 common::LocalizationState::kLocalized;
-          if (has_T_G_M) {
-            latest_T_G_M_ = vio_update->T_G_M;
+        [file_logger, kDelimiter, this](const RovioEstimate::ConstPtr& state) {
+          CHECK(state != nullptr);
+          aslam::Transformation T_M_I = state->vinode.get_T_M_I();
+
+          if (state->has_T_G_M) {
+            T_M_I = state->T_G_M * T_M_I;
           }
-          const aslam::Transformation T_M_I = vio_update->vinode.get_T_M_I();
 
           file_logger->writeDataWithDelimiterAndNewLine(
               kDelimiter,
-              aslam::time::nanoSecondsToSeconds(vio_update->timestamp_ns),
-              latest_T_G_M_.getPosition(), latest_T_G_M_.getEigenQuaternion(),
-              T_M_I.getPosition(), T_M_I.getEigenQuaternion(), has_T_G_M);
+              aslam::time::nanoSecondsToSeconds(state->timestamp_ns),
+              T_M_I.getPosition(), T_M_I.getEigenQuaternion());
         });
   }
 }

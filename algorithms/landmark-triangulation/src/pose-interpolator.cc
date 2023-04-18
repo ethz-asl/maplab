@@ -8,6 +8,33 @@
 #include <maplab-common/macros.h>
 
 namespace landmark_triangulation {
+
+bool interpolateLinear(
+    const vi_map::VIMap& map, const vi_map::Vertex& vertex,
+    int64_t offset_ns, aslam::Transformation* T_inter) {
+  CHECK_NOTNULL(T_inter);
+  // TODO(smauq): Implement interpolation also backwards
+  CHECK_GT(offset_ns, 0);
+
+  // We can not interpolate for the last vertex
+  pose_graph::VertexId next_vertex_id;
+  if (!map.getNextVertex(vertex.id(), &next_vertex_id)) {
+    return false;
+  }
+
+  const vi_map::Vertex& next_vertex = map.getVertex(next_vertex_id);
+
+  const int64_t t1 = vertex.getMinTimestampNanoseconds();
+  const int64_t t2 = next_vertex.getMinTimestampNanoseconds();
+  const double lambda =
+      static_cast<double>(offset_ns) / static_cast<double>(t2 - t1);
+
+  *T_inter = kindr::minimal::interpolateComponentwise(
+      vertex.get_T_M_I(), next_vertex.get_T_M_I(), lambda);
+
+  return true;
+}
+
 void PoseInterpolator::buildListOfAllRequiredIMUMeasurements(
     const vi_map::VIMap& map, const std::vector<int64_t>& timestamps,
     const pose_graph::EdgeId& imu_edge_id, int start_index, int end_index,

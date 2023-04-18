@@ -11,6 +11,7 @@
 #include <ceres-error-terms/parameterization/quaternion-param-jpl.h>
 #include <ceres-error-terms/problem-information.h>
 #include <maplab-common/macros.h>
+#include <sensors/external-features.h>
 #include <vi-map-helpers/mission-clustering-coobservation.h>
 #include <vi-map/vi-map.h>
 

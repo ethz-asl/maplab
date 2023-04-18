@@ -7,12 +7,14 @@
 
 namespace map_optimization {
 
-int addVisualTerms(
+int addLandmarkTerms(
+    const vi_map::FeatureType use_feature_type,
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
     const size_t min_landmarks_per_frame, OptimizationProblem* problem);
 
-int addVisualTermsForVertices(
+int addLandmarkTermsForVertices(
+    const vi_map::FeatureType use_feature_type,
     const bool fix_landmark_positions, const bool fix_intrinsics,
     const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
     const size_t min_landmarks_per_frame,
@@ -23,10 +25,11 @@ int addVisualTermsForVertices(
         camera_parameterization,
     const pose_graph::VertexIdList& vertices, OptimizationProblem* problem);
 
-void addVisualTermForKeypoint(
-    const int keypoint_idx, const int frame_idx,
-    const bool fix_landmark_positions, const bool fix_intrinsics,
-    const bool fix_extrinsics_rotation, const bool fix_extrinsics_translation,
+void addLandmarkTermForKeypoint(
+    const vi_map::FeatureType feature_type, const int keypoint_idx,
+    const int frame_idx, const bool fix_landmark_positions,
+    const bool fix_intrinsics, const bool fix_extrinsics_rotation,
+    const bool fix_extrinsics_translation,
     const std::shared_ptr<ceres::LocalParameterization>& pose_parameterization,
     const std::shared_ptr<ceres::LocalParameterization>&
         baseframe_parameterization,

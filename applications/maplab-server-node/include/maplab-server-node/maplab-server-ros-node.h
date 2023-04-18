@@ -85,7 +85,7 @@ class MaplabServerRosNode {
   // One node to rule them all.
   std::unique_ptr<MaplabServerNode> maplab_server_node_;
 
-  ros::Subscriber map_update_notification_sub_;
+  std::vector<ros::Subscriber> map_update_notification_sub_;
 
   ros::Publisher T_G_curr_M_curr_pub_;
   ros::Publisher T_G_curr_B_curr_pub_;

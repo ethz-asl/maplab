@@ -27,17 +27,6 @@ void deserializeVisualNFrame(
     const aslam::proto::VisualNFrame& proto,
     const aslam::NCamera::Ptr& n_camera, aslam::VisualNFrame::Ptr* n_frame);
 
-namespace internal {
-
-void serializeDescriptors(
-    const aslam::VisualFrame::DescriptorsT& descriptors,
-    aslam::proto::VisualFrame* proto);
-void deserializeDescriptors(
-    const aslam::proto::VisualFrame& proto,
-    aslam::VisualFrame::DescriptorsT* descriptors);
-
-}  // namespace internal
-
 }  // namespace serialization
 }  // namespace aslam
 

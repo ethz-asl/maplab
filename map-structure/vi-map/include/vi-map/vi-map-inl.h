@@ -818,24 +818,15 @@ pose_graph::Edge::EdgeType VIMap::getEdgeType(
 
 bool VIMap::getNextVertex(
     const pose_graph::VertexId& current_vertex_id,
-    pose_graph::Edge::EdgeType edge_type,
     pose_graph::VertexId* next_vertex_id) const {
   CHECK_NOTNULL(next_vertex_id);
-  CHECK(hasVertex(current_vertex_id))
-      << "No vertex with id " << current_vertex_id.hexString() << ".";
 
   std::unordered_set<pose_graph::EdgeId> outgoing_edges;
   const vi_map::Vertex& vertex = getVertex(current_vertex_id);
   vertex.getOutgoingEdges(&outgoing_edges);
 
-  const pose_graph::Edge::EdgeType traversal_edge_type =
+  const pose_graph::Edge::EdgeType edge_type =
       getGraphTraversalEdgeType(vertex.getMissionId());
-  CHECK(edge_type == traversal_edge_type)
-      << "Cannot call getNextVertex with an edge type that is not the "
-      << "traversal_type of that mission! edge-type '"
-      << pose_graph::Edge::edgeTypeToString(edge_type)
-      << "' vs traversal-edge-type: '"
-      << pose_graph::Edge::edgeTypeToString(traversal_edge_type) << "'";
 
   bool edge_found = false;
   for (const pose_graph::EdgeId& edge_id : outgoing_edges) {
@@ -856,21 +847,31 @@ bool VIMap::getNextVertex(
 
 bool VIMap::getPreviousVertex(
     const pose_graph::VertexId& current_vertex_id,
-    pose_graph::Edge::EdgeType edge_type,
     pose_graph::VertexId* previous_vertex_id) const {
   CHECK_NOTNULL(previous_vertex_id);
 
   std::unordered_set<pose_graph::EdgeId> incoming_edges;
-  getVertex(current_vertex_id).getIncomingEdges(&incoming_edges);
+  const vi_map::Vertex& vertex = getVertex(current_vertex_id);
+  vertex.getIncomingEdges(&incoming_edges);
 
+  const pose_graph::Edge::EdgeType edge_type =
+      getGraphTraversalEdgeType(vertex.getMissionId());
+
+  bool edge_found = false;
   for (const pose_graph::EdgeId& edge_id : incoming_edges) {
     const pose_graph::Edge* edge = posegraph.getEdgePtr(edge_id);
     if (edge->getType() == edge_type) {
+      CHECK(!edge_found)
+          << "There is more than one outgoing edge of type '"
+          << pose_graph::Edge::edgeTypeToString(edge_type) << "' from vertex "
+          << current_vertex_id
+          << "! The map is either inconsistent or this edge type cannot be "
+             "used to traverse the pose graph in a unique way.";
       *previous_vertex_id = edge->from();
-      return true;
+      edge_found = true;
     }
   }
-  return false;
+  return edge_found;
 }
 
 void VIMap::removeVertex(pose_graph::VertexId vertex_id) {

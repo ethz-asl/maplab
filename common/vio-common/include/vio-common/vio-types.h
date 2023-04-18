@@ -159,8 +159,6 @@ class ViNodeState {
         gyro_bias_(Eigen::Vector3d::Zero()),
         pose_covariance_(Eigen::Matrix<double, 6, 6>::Zero()),
         twist_covariance_(Eigen::Matrix<double, 6, 6>::Zero()) {
-    T_UTM_B_.setIdentity();
-    T_UTM_I_.setIdentity();
   }
 
   ViNodeState()
@@ -171,8 +169,6 @@ class ViNodeState {
         pose_covariance_(Eigen::Matrix<double, 6, 6>::Zero()),
         twist_covariance_(Eigen::Matrix<double, 6, 6>::Zero()) {
     T_M_I_.setIdentity();
-    T_UTM_B_.setIdentity();
-    T_UTM_I_.setIdentity();
   }
 
   ViNodeState(
@@ -186,8 +182,6 @@ class ViNodeState {
         gyro_bias_(gyro_bias),
         pose_covariance_(Eigen::Matrix<double, 6, 6>::Zero()),
         twist_covariance_(Eigen::Matrix<double, 6, 6>::Zero()) {
-    T_UTM_B_.setIdentity();
-    T_UTM_I_.setIdentity();
   }
 
   ViNodeState(
@@ -202,8 +196,6 @@ class ViNodeState {
         pose_covariance_(Eigen::Matrix<double, 6, 6>::Zero()),
         twist_covariance_(Eigen::Matrix<double, 6, 6>::Zero()) {
     CHECK(aslam::time::isValidTime(timestamp_ns));
-    T_UTM_B_.setIdentity();
-    T_UTM_I_.setIdentity();
   }
 
   ViNodeState(
@@ -220,8 +212,6 @@ class ViNodeState {
         pose_covariance_(pose_covariance),
         twist_covariance_(twist_covariance) {
     CHECK(aslam::time::isValidTime(timestamp_ns));
-    T_UTM_B_.setIdentity();
-    T_UTM_I_.setIdentity();
   }
 
   virtual ~ViNodeState() {}
@@ -232,15 +222,6 @@ class ViNodeState {
   inline void setTimestamp(int64_t timestamp_ns) {
     CHECK_GE(timestamp_ns, 0);
     timestamp_ns_ = timestamp_ns;
-  }
-
-  inline int64_t getSequenceNumber() const {
-    return sequence_number_;
-  }
-
-  inline void setSequenceNumber(int64_t sequence_number) {
-    CHECK_GE(sequence_number, 0);
-    sequence_number_ = sequence_number;
   }
 
   inline const aslam::Transformation& get_T_M_I() const {
@@ -268,12 +249,6 @@ class ViNodeState {
     return (Eigen::Matrix<double, 6, 1>() << getAccBias(), getGyroBias())
         .finished();
   }
-  inline const aslam::Transformation& get_T_UTM_I() const {
-    return T_UTM_I_;
-  }
-  inline const aslam::Transformation& get_T_UTM_B() const {
-    return T_UTM_B_;
-  }
 
   inline void set_T_M_I(const aslam::Transformation& T_M_I) {
     T_M_I_ = T_M_I;
@@ -294,12 +269,6 @@ class ViNodeState {
   inline void setTwistCovariance(
       const Eigen::Matrix<double, 6, 6>& twist_covariance) {
     twist_covariance_ = twist_covariance;
-  }
-  inline void set_T_UTM_I(const aslam::Transformation& T_UTM_I) {
-    T_UTM_I_ = T_UTM_I;
-  }
-  inline void set_T_UTM_B(const aslam::Transformation& T_UTM_B) {
-    T_UTM_B_ = T_UTM_B;
   }
 
   /// The first 12x12 sub-matrix of the rovio state contains both
@@ -323,9 +292,6 @@ class ViNodeState {
  private:
   int64_t timestamp_ns_;
 
-  /// To keep track of the number of measurements we have received
-  int64_t sequence_number_;
-
   /// The pose taking points from the body frame to the world frame.
   aslam::Transformation T_M_I_;
   /// The velocity (m/s).
@@ -339,11 +305,6 @@ class ViNodeState {
   Eigen::Matrix<double, 6, 6> pose_covariance_;
   /// The 6DoF twist covariance matrix
   Eigen::Matrix<double, 6, 6> twist_covariance_;
-
-  /// Transformation of IMU wrt UTM reference frame.
-  aslam::Transformation T_UTM_I_;
-  /// Transformation of the body frame wrt the UTM reference frame.
-  aslam::Transformation T_UTM_B_;
 };
 
 typedef std::pair<aslam::NFramesId, ViNodeState> NFrameIdViNodeStatePair;
@@ -387,18 +348,6 @@ struct LinearInterpolationFunctor<Time, vio::ViNodeState> {
         t1, x1.getGyroBias(), t2, x2.getGyroBias(), t_interpolated,
         &gyro_bias_interpolated);
     x_interpolated->setGyroBias(gyro_bias_interpolated);
-
-    aslam::Transformation T_UTM_I_interpolated;
-    interpolateTransformation(
-        t1, x1.get_T_UTM_I(), t2, x2.get_T_UTM_I(), t_interpolated,
-        &T_UTM_I_interpolated);
-    x_interpolated->set_T_UTM_I(T_UTM_I_interpolated);
-
-    aslam::Transformation T_UTM_B_interpolated;
-    interpolateTransformation(
-        t1, x1.get_T_UTM_B(), t2, x2.get_T_UTM_B(), t_interpolated,
-        &T_UTM_B_interpolated);
-    x_interpolated->set_T_UTM_B(T_UTM_B_interpolated);
   }
 };
 

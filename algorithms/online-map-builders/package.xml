@@ -16,4 +16,5 @@
   <depend>vi_map</depend>
   <depend>vi_map_helpers</depend>
   <depend>vio_common</depend>
+  <depend>feature_tracking</depend>
 </package>

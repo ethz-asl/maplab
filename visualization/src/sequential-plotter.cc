@@ -228,10 +228,7 @@ void SequentialPlotter::publishMissionsSequentially(
         publishVertexPoseAsTFSmoothed(map, viwls_vertex.id());
 
         pose_graph::VertexId prev_vertex_id = vertices[mission_index];
-        if (map.getNextVertex(
-                prev_vertex_id,
-                map.getGraphTraversalEdgeType(viwls_vertex.getMissionId()),
-                &vertices[mission_index])) {
+        if (map.getNextVertex(prev_vertex_id, &vertices[mission_index])) {
           double distance =
               (map.getVertex(vertices[mission_index]).get_p_M_I() -
                map.getVertex(prev_vertex_id).get_p_M_I())

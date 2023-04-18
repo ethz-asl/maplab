@@ -1,15 +1,13 @@
 #include "vi-map/vertex.h"
 
-#include <string>
-#include <unordered_set>
-
-#include <glog/logging.h>
-
 #include <aslam-serialization/visual-frame-serialization.h>
 #include <aslam/common/hash-id.h>
 #include <aslam/common/stl-helpers.h>
+#include <glog/logging.h>
 #include <maplab-common/eigen-proto.h>
 #include <maplab-common/quaternion-math.h>
+#include <string>
+#include <unordered_set>
 
 #include "vi-map/vi_map.pb.h"
 
@@ -227,7 +225,6 @@ Vertex* Vertex::cloneWithVisualNFrame(
   cloned_vertex->observed_landmark_ids_ = observed_landmark_ids_;
   cloned_vertex->landmarks_ = landmarks_;
   cloned_vertex->resource_map_ = resource_map_;
-
   cloned_vertex->absolute_6dof_measurements_ = absolute_6dof_measurements_;
 
   // Verify that the camera of the other vertex and the new one are the same.
@@ -274,7 +271,11 @@ Vertex* Vertex::cloneWithVisualNFrame(
       cloned_frame->setKeypointScales(this_frame.getKeypointScales());
     }
     if (this_frame.hasDescriptors()) {
-      cloned_frame->setDescriptors(this_frame.getDescriptors());
+      const Eigen::VectorXi& descriptor_types = this_frame.getDescriptorTypes();
+      for (int index = 0; index < descriptor_types.size(); ++index) {
+        cloned_frame->extendDescriptors(
+            this_frame.getDescriptors(index), descriptor_types.coeff(index));
+      }
     }
     if (this_frame.hasTrackIds()) {
       cloned_frame->setTrackIds(this_frame.getTrackIds());
@@ -694,6 +695,26 @@ void Vertex::removeObservedLandmarkIdList(const LandmarkId& landmark_id) {
   updateIdInObservedLandmarkIdList(landmark_id, invalid_id);
 }
 
+void Vertex::expandVisualObservationContainersIfNecessary() {
+  CHECK_EQ(n_frame_->getNumFrames(), observed_landmark_ids_.size());
+  CHECK_EQ(n_frame_->getNumFrames(), n_frame_->getNumCameras());
+
+  for (unsigned int frame_idx = 0; frame_idx < n_frame_->getNumFrames();
+       ++frame_idx) {
+    if (n_frame_->isFrameSet(frame_idx)) {
+      const aslam::VisualFrame& frame = n_frame_->getFrame(frame_idx);
+      const size_t old_size = observed_landmark_ids_[frame_idx].size();
+      const size_t new_size = frame.getNumKeypointMeasurements();
+      if (new_size != old_size) {
+        VLOG(4) << "Resizing visual observation container from " << old_size
+                << " to " << new_size << " for VisualFrame " << frame_idx
+                << " of Vertex " << id() << " ...";
+        observed_landmark_ids_[frame_idx].resize(new_size);
+      }
+    }
+  }
+}
+
 size_t Vertex::discardUntrackedObservations() {
   size_t num_removed = 0u;
   const size_t num_frames = numFrames();
@@ -740,8 +761,8 @@ void Vertex::checkConsistencyOfVisualObservationContainers() const {
       }
       if (frame.hasDescriptors()) {
         CHECK_EQ(
-            frame.getDescriptors().cols(),
-            static_cast<int>(observed_landmark_ids_[frame_idx].size()));
+            frame.getNumDescriptors(),
+            observed_landmark_ids_[frame_idx].size());
       }
       if (frame.hasKeypointMeasurementUncertainties()) {
         CHECK_EQ(
@@ -811,7 +832,9 @@ int Vertex::numValidObservedLandmarkIdsInAllFrames() const {
 
 void Vertex::getFrameObservedLandmarkIds(
     unsigned int frame_idx, LandmarkIdList* landmark_ids) const {
-  CHECK_NOTNULL(landmark_ids);
+  CHECK_NOTNULL(landmark_ids)->clear();
+  CHECK_LT(frame_idx, numFrames());
+  CHECK_LT(frame_idx, observed_landmark_ids_.size());
   landmark_ids->clear();
   *landmark_ids = observed_landmark_ids_[frame_idx];
 }
@@ -821,6 +844,30 @@ const LandmarkIdList& Vertex::getFrameObservedLandmarkIds(
   CHECK_LT(frame_idx, numFrames());
   CHECK_LT(frame_idx, observed_landmark_ids_.size());
   return observed_landmark_ids_[frame_idx];
+}
+
+void Vertex::getFrameObservedLandmarkIdsOfType(
+    unsigned int frame_idx, LandmarkIdList* landmark_ids,
+    int feature_type) const {
+  CHECK_NOTNULL(landmark_ids)->clear();
+  CHECK_LT(frame_idx, numFrames());
+  CHECK_LT(frame_idx, observed_landmark_ids_.size());
+
+  const aslam::VisualFrame& frame = getVisualFrame(frame_idx);
+  if (!frame.hasDescriptorType(feature_type)) {
+    return;
+  }
+
+  // Filter out landmarks that are not the target type.
+  // This works since the ordering of vertex landmark ids is the same
+  // as the ordering of keypoints in the visual frame.
+  size_t block_start, block_size;
+  frame.getDescriptorBlockTypeStartAndSize(
+      feature_type, &block_start, &block_size);
+  landmark_ids->insert(
+      landmark_ids->end(),
+      observed_landmark_ids_[frame_idx].begin() + block_start,
+      observed_landmark_ids_[frame_idx].begin() + block_start + block_size);
 }
 
 void Vertex::getAllObservedLandmarkIds(LandmarkIdList* landmark_ids) const {
@@ -836,6 +883,19 @@ void Vertex::getAllObservedLandmarkIds(
     std::vector<LandmarkIdList>* landmark_ids) const {
   CHECK_NOTNULL(landmark_ids)->clear();
   *landmark_ids = observed_landmark_ids_;
+}
+
+void Vertex::getAllObservedLandmarkIdsOfType(
+    std::vector<LandmarkIdList>* landmark_ids_all, int feature_type) const {
+  CHECK_NOTNULL(landmark_ids_all)->clear();
+
+  const aslam::VisualNFrame& n_frame = getVisualNFrame();
+  for (size_t frame_idx = 0; frame_idx < n_frame.getNumFrames(); frame_idx++) {
+    vi_map::LandmarkIdList landmark_ids;
+    getFrameObservedLandmarkIdsOfType(
+        frame_idx, &landmark_ids, feature_type);
+    landmark_ids_all->emplace_back(landmark_ids);
+  }
 }
 
 size_t Vertex::getNumLandmarkObservations(const LandmarkId& landmark_id) const {

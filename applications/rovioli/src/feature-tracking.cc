@@ -1,6 +1,6 @@
-#include "rovioli/feature-tracking.h"
-
 #include <maplab-common/conversions.h>
+
+#include "rovioli/feature-tracking.h"
 
 DEFINE_bool(
     rovioli_descriptor_rotation_invariance, true,
@@ -21,10 +21,10 @@ FeatureTracking::FeatureTracking(
   feature_tracking::FeatureTrackingExtractorSettings extractor_settings;
   extractor_settings.rotation_invariant =
       FLAGS_rovioli_descriptor_rotation_invariance;
+  const feature_tracking::FeatureTrackingOutlierSettings outlier_settings;
 
-  tracker_.reset(
-      new feature_tracking::VOFeatureTrackingPipeline(
-          camera_system_, extractor_settings, detector_settings));
+  tracker_.reset(new feature_tracking::VOFeatureTrackingPipeline(
+      camera_system_, extractor_settings, detector_settings, outlier_settings));
 }
 
 bool FeatureTracking::trackSynchronizedNFrameImuCallback(
@@ -34,7 +34,10 @@ bool FeatureTracking::trackSynchronizedNFrameImuCallback(
 
   // The first frame will not contain any tracking information on the first
   // call, but it will be added in the second call.
-  if (previous_synced_nframe_imu_ == nullptr) {
+  if (!previous_synced_nframe_imu_) {
+    // Perform only feature detection
+    tracker_->initializeFirstNFrame(synced_nframe_imu->nframe.get());
+    // Mark it as the previous frame
     previous_synced_nframe_imu_ = synced_nframe_imu;
     previous_nframe_timestamp_ns_ =
         synced_nframe_imu->nframe->getMinTimestampNanoseconds();

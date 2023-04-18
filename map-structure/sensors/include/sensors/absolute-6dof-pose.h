@@ -209,7 +209,7 @@ class Absolute6DoFMeasurement : public Measurement {
   aslam::Transformation T_M_B_cached_;
 };
 
-DEFINE_MEAUREMENT_CONTAINERS(Absolute6DoFMeasurement)
+DEFINE_MEASUREMENT_CONTAINERS(Absolute6DoFMeasurement)
 
 }  // namespace vi_map
 

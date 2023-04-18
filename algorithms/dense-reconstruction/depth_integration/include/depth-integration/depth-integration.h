@@ -3,7 +3,6 @@
 
 #include <functional>
 #include <unordered_set>
-
 #include <vi-map/vi-map.h>
 #include <voxblox/core/common.h>
 
@@ -24,6 +23,11 @@ typedef std::function<void(
     const aslam::Transformation /*T_G_S*/&,
     const resources::PointCloud& /*points_S*/)>
     IntegrationFunctionPointCloudMaplab;
+
+typedef std::function<void(
+    const int64_t /*ts_ns*/, const aslam::Transformation /*T_G_S*/&,
+    const resources::PointCloud& /*points_S*/)>
+    IntegrationFunctionPointCloudMaplabWithTs;
 
 // Set of supported resource types when using the depth integrator with the
 // point cloud integration function.

@@ -4,23 +4,18 @@
 #include <ceres/ceres.h>
 #include <gflags/gflags.h>
 #include <maplab-common/parallel-process.h>
-#include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
+#include <vi-map/landmark-quality-metrics.h>
 
 DEFINE_int32(
     ba_outlier_rejection_reject_every_n_iters, 3,
     "Reject outliers every n iterations of the optimizer.");
 
 DEFINE_bool(
-    ba_outlier_rejection_reject_using_reprojection_error, false,
+    ba_outlier_rejection_use_reprojection_error, false,
     "Use reprojection error to reject outliers.");
 DEFINE_double(
-    ba_outlier_rejection_reprojection_error_same_mission_px, 50,
-    "Reprojection error threshold in pixels for observations from a mission"
-    "the landmark is stored in.");
-DEFINE_double(
-    ba_outlier_rejection_reprojection_error_other_mission_px, 400,
-    "Reprojection error threshold in pixels for observations from missions"
-    "the landmark is NOT stored in.");
+    ba_outlier_rejection_max_reprojection_error_px, 50,
+    "Reprojection error threshold in pixels for observations.");
 DEFINE_bool(
     ba_hide_iterations_console_output, false,
     "Define whether iterations should have output on verbosity level 0 or "
@@ -32,16 +27,12 @@ namespace {
 
 void findOutlierLandmarks(
     const vi_map::VIMap& map, const vi_map::LandmarkIdSet& landmark_ids_set,
-    const bool use_reprojection_error,
-    const double same_mission_reprojection_error_px,
-    const double other_mission_reprojection_error_px,
+    const bool use_reprojection_error, const double max_reprojection_error_px,
     vi_map::LandmarkIdList* outlier_landmarks) {
   CHECK_NOTNULL(outlier_landmarks)->clear();
 
-  const double same_mission_reproj_error_px_sq =
-      same_mission_reprojection_error_px * same_mission_reprojection_error_px;
-  const double other_mission_reproj_error_px_sq =
-      other_mission_reprojection_error_px * other_mission_reprojection_error_px;
+  const double max_reprojection_error_px_sq =
+      max_reprojection_error_px * max_reprojection_error_px;
 
   vi_map::LandmarkIdList landmark_ids(
       landmark_ids_set.begin(), landmark_ids_set.end());
@@ -54,8 +45,11 @@ void findOutlierLandmarks(
           const vi_map::LandmarkId& landmark_id = landmark_ids[item];
           const vi_map::Landmark& landmark = map.getLandmark(landmark_id);
 
-          const vi_map::MissionId& landmark_store_mission_id =
-              map.getLandmarkStoreVertex(landmark_id).getMissionId();
+          // For now skip LiDAR landmarks from outlier rejection.
+          // TODO(smauq): Implement LiDAR outlier rejection
+          if (vi_map::isLidarFeature(landmark.getFeatureType())) {
+            continue;
+          }
 
           // Iterate over all the observations
           const vi_map::KeypointIdentifierList& keypoint_ids =
@@ -82,20 +76,11 @@ void findOutlierLandmarks(
             }
 
             if (use_reprojection_error) {
-              const double reprojection_error_sq =
-                  vi_map_helpers::computeSquaredReprojectionError(
+              const double reprojection_error_px_sq =
+                  vi_map::computeSquaredReprojectionError(
                       observer_vertex, frame_idx, keypoint_id.keypoint_index,
                       p_C_fi);
-              if (observer_vertex.getMissionId() == landmark_store_mission_id &&
-                  reprojection_error_sq > same_mission_reproj_error_px_sq) {
-                // The landmarks is in the same mission so we use the same
-                // mission reprojection error threshold.
-                local_outlier_landmarks.emplace_back(landmark_id);
-                break;
-              } else if (
-                  reprojection_error_sq > other_mission_reproj_error_px_sq) {
-                // The observation is coming from a different mission than the
-                // one where the landmark is stored.
+              if (reprojection_error_px_sq > max_reprojection_error_px_sq) {
                 local_outlier_landmarks.emplace_back(landmark_id);
                 break;
               }
@@ -139,6 +124,7 @@ ceres::TerminationType solveStep(
   }
 
   // Disable the default Ceres output.
+  local_options.logging_type = ceres::SILENT;
   local_options.minimizer_progress_to_stdout = false;
   local_options.max_num_iterations = num_iters;
   local_options.update_state_every_iteration = true;
@@ -176,11 +162,8 @@ void rejectOutliers(
 
   vi_map::LandmarkIdList outlier_landmarks;
   findOutlierLandmarks(
-      map, present_landmarks,
-      rejection_options.reject_landmarks_based_on_reprojection_errors,
-      rejection_options.reprojection_error_same_mission_px,
-      rejection_options.reprojection_error_other_mission_px,
-      &outlier_landmarks);
+      map, present_landmarks, rejection_options.use_reprojection_error,
+      rejection_options.max_reprojection_error_px, &outlier_landmarks);
 
   for (const vi_map::LandmarkId& landmark_id : outlier_landmarks) {
     const auto range = landmarks_in_problem.equal_range(landmark_id);
@@ -204,12 +187,10 @@ OutlierRejectionSolverOptions OutlierRejectionSolverOptions::initFromFlags() {
   options.reject_outliers_every_n_iters =
       FLAGS_ba_outlier_rejection_reject_every_n_iters;
 
-  options.reject_landmarks_based_on_reprojection_errors =
-      FLAGS_ba_outlier_rejection_reject_using_reprojection_error;
-  options.reprojection_error_same_mission_px =
-      FLAGS_ba_outlier_rejection_reprojection_error_same_mission_px;
-  options.reprojection_error_other_mission_px =
-      FLAGS_ba_outlier_rejection_reprojection_error_other_mission_px;
+  options.use_reprojection_error =
+      FLAGS_ba_outlier_rejection_use_reprojection_error;
+  options.max_reprojection_error_px =
+      FLAGS_ba_outlier_rejection_max_reprojection_error_px;
   return options;
 }
 

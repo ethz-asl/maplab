@@ -27,17 +27,12 @@ cs_add_library(${PROJECT_NAME}_lib
 	src/datasource-rostopic.cc
 	src/datasource.cc
 	src/feature-tracking.cc
-  src/synchronizer.cc
-	src/localization-handler-flow.cc
-	src/localization-handler.cc
+    src/synchronizer.cc
 	src/map-builder-flow.cc
 	src/maplab-node.cc
 	src/maplab-ros-node.cc
 	src/ros-helpers.cc
-  src/map-update-builder.cc
-	src/visual-localizer-flow.cc
-	src/visual-localizer-helpers.cc
-	src/visual-localizer.cc)
+    src/map-update-builder.cc)
 
 
 #######
@@ -51,10 +46,6 @@ target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib)
 ##########
 # GTESTS #
 ##########
-catkin_add_gtest(test_localizer test/test-localizer.cc)
-target_link_libraries(test_localizer ${PROJECT_NAME}_lib)
-maplab_import_test_maps(test_localizer)
-
 catkin_add_gtest(test_feature_tracking test/test-feature-tracking.cc)
 target_link_libraries(test_feature_tracking ${PROJECT_NAME}_lib)
 maplab_import_test_maps(test_feature_tracking)

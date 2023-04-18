@@ -1,7 +1,7 @@
 ## Compilation and Debugging
 
 ### Use ccache
-ccache is a fast compiler cache. It is a program that is sitting in front of gcc and monitors what is being compiled. If a file was compiled before in the exact same state, then ccache will serve a compilation request from cache and thus lead to "instant" compilation.
+ccache is a fast compiler cache. It is a program that sits in front of gcc and monitors what is being compiled. If a file was compiled before in the exact same state, then ccache will serve a compilation request from cache and thus lead to "instant" compilation.
 
 To install ccache:
 ```bash
@@ -22,10 +22,6 @@ catkin build maplab
 If you only changed a single package you can also restrict the build process to this single package:
 ```
 catkin build maplab --no-deps
-```
-Even more efficient is invoking ```make -j8``` in the build folder of the package
-```
-cd ~/catkin_ws/build/maplab && make -j8
 ```
 
 ### Compile in Release/Debug mode
@@ -82,87 +78,4 @@ gdb --ex run --args ~/devel/lib/maplab/maplab --use_external_memory=false
 ```
 Where ```--use_external_memory=false``` is just an example flag.
 
-### Clang on Ubuntu 14.04
-Clang 3.5 can be installed with
-```
-sudo apt-get install clang-3.5
-```
-and set as the default compiler with:
-```
-sudo update-alternatives --config c++
-sudo update-alternatives --config cc
-```
-
-If you are using clang together with ccache on Ubuntu 14.04 you should consider updating the system's ccache version.
-
-### Compile clang with openmp support on Ubuntu 14.04
-
-Get the sources:
-
-```
-mkdir -p /tmp/llvm-clang-omp
-cd /tmp/llvm-clang-omp
-git clone https://github.com/clang-omp/llvm
-git clone https://github.com/clang-omp/compiler-rt llvm/projects/compiler-rt
-git clone -b clang-omp https://github.com/clang-omp/clang llvm/tools/clang
-```
-
-Build and time for several coffees:
-
-```
-mkdir -p /tmp/llvm-clang-omp/build
-cd /tmp/llvm-clang-omp/build
-cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ../llvm
-make -j8
-```
-
-Remove old packages and install the compiler and Intel runtime.
-
-```
-sudo apt-get install checkinstall libiomp-dev
-sudo apt-get remove clang-* llvm-* libclang*
-
-cd /tmp/llvm-clang-omp/build
-checkinstall
-```
-Set a meaningful name for the package and let it conflict with the system's clang packages if you want to exclude the possibility of different versions conflicting.
-
-Set as default compiler:
-
-```
-sudo rm /etc/alternatives/cc
-sudo rm /etc/alternatives/c++
-
-sudo ln -s /usr/local/bin/clang-3.5 /etc/alternatives/cc
-sudo ln -s /usr/local/bin/clang++ /etc/alternatives/c++
-```
-
-### Upgrade ccache on Ubuntu 14.04
-Ubuntu 14.04 delivers ccache 3.1.9 that has no official clang support. A manual update to a version of ccache >= 3.2.0 is recommended when using clang. The following steps can be used to perform this update:
-
-```
-sudo apt-get install devscripts
-mkdir -p /tmp/ccache
-```
-
-Get the current distro source package:
-```
-cd /tmp/ccache
-apt-get build-dep ccache
-apt-get source ccache
-```
-
-Upgrade the distro source package with the recent upstream source:
-```
-cd /tmp/ccache
-wget http://samba.org/ftp/ccache/ccache-3.2.1.tar.gz
-cd ccache-3.1.9
-uupdate ../ccache-3.2.1.tar.gz
-```
-
-Build binary package and install:
-```
-cd /tmp/ccache/ccache-3.2.1
-dpkg-buildpackage -us -uc -nc
-sudo dpkg -i ../ccache_3.2.1-0ubuntu1_amd64.deb
-```
+For adding gdb or valgrind to ROS launch files see examples [here](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20Nodes%20in%20Valgrind%20or%20GDB).
