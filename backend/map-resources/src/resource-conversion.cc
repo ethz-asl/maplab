@@ -1,5 +1,3 @@
-#include "map-resources/resource-conversion.h"
-
 #include <aslam/cameras/camera-factory.h>
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/camera-unified-projection.h>
@@ -14,6 +12,7 @@
 #include <voxblox/core/common.h>
 
 #include "map-resources/resource-common.h"
+#include "map-resources/resource-conversion.h"
 
 namespace backend {
 
