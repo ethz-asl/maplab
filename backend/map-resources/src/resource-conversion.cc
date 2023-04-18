@@ -371,32 +371,23 @@ void getColorFromPointCloud(
       }
     }
 
+    sensor_msgs::PointCloud2ConstIterator<uint8_t> it_r(
+        point_cloud, kPointCloud2ColorR);
+    sensor_msgs::PointCloud2ConstIterator<uint8_t> it_g(
+        point_cloud, kPointCloud2ColorG);
+    sensor_msgs::PointCloud2ConstIterator<uint8_t> it_b(
+        point_cloud, kPointCloud2ColorB);
+
+    color_out[0] = *(it_r + index);
+    color_out[1] = *(it_g + index);
+    color_out[2] = *(it_b + index);
+
     if (has_rgba) {
-      sensor_msgs::PointCloud2ConstIterator<uint8_t> it_r(
-          point_cloud, kPointCloud2ColorR);
-      sensor_msgs::PointCloud2ConstIterator<uint8_t> it_g(
-          point_cloud, kPointCloud2ColorG);
-      sensor_msgs::PointCloud2ConstIterator<uint8_t> it_b(
-          point_cloud, kPointCloud2ColorB);
       sensor_msgs::PointCloud2ConstIterator<uint8_t> it_a(
           point_cloud, kPointCloud2ColorA);
-
-      color_out[0] = *(it_r + index);
-      color_out[1] = *(it_g + index);
-      color_out[2] = *(it_b + index);
       color_out[3] = *(it_a + index);
     } else {
-      // only RGB info present
-      sensor_msgs::PointCloud2ConstIterator<uint8_t> it_r(
-          point_cloud, kPointCloud2ColorR);
-      sensor_msgs::PointCloud2ConstIterator<uint8_t> it_g(
-          point_cloud, kPointCloud2ColorG);
-      sensor_msgs::PointCloud2ConstIterator<uint8_t> it_b(
-          point_cloud, kPointCloud2ColorB);
-
-      color_out[0] = *(it_r + index);
-      color_out[1] = *(it_g + index);
-      color_out[2] = *(it_b + index);
+      // Only RGB info present, so default to no transparency.
       color_out[3] = 255;
     }
   } else if (hasScalarInformation(point_cloud)) {
@@ -827,9 +818,8 @@ bool hasColorInformation(const resources::PointCloud& point_cloud) {
 template <>
 bool hasColorInformation(const sensor_msgs::PointCloud2& point_cloud) {
   for (const sensor_msgs::PointField& field : point_cloud.fields) {
-    if (field.name == kPointCloud2ColorRGBA) {
-      return true;
-    } else if (field.name == kPointCloud2ColorRGB) {
+    if (field.name == kPointCloud2ColorRGBA ||
+        field.name == kPointCloud2ColorRGB) {
       return true;
     }
   }
