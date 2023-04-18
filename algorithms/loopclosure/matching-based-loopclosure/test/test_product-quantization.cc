@@ -1,10 +1,9 @@
-#include <cstdint>
-
 #include <Eigen/Core>
+#include <cstdint>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
 
-#include <product-quantization/product-quantization.h>
+#include "matching-based-loopclosure/imilib/product-quantization.h"
 
 namespace product_quantization {
 

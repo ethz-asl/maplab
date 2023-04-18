@@ -1,21 +1,20 @@
 #ifndef INVERTED_MULTI_INDEX_INVERTED_MULTI_INDEX_COMMON_H_
 #define INVERTED_MULTI_INDEX_INVERTED_MULTI_INDEX_COMMON_H_
 
+#include <Eigen/Core>
 #include <algorithm>
+#include <aslam/common/memory.h>
 #include <functional>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
 #include <limits>
+#include <loopclosure-common/flags.h>
+#include <nabo/nabo.h>
 #include <queue>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#include <Eigen/Core>
-#include <aslam/common/memory.h>
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <loopclosure-common/flags.h>
-#include <nabo/nabo.h>
 
 namespace loop_closure {
 namespace inverted_multi_index {
@@ -101,9 +100,9 @@ inline void MultiSequenceAlgorithm(
   // a tuple (d, i1, i2), where d is the squared distance to the query.
   // indices_1[i1] and indices_2[i2] are the indices of the corresponding word
   // from the two lower dimensional dictionaries that form the product word.
-  std::priority_queue<std::tuple<float, int, int>,
-                      std::vector<std::tuple<float, int, int> >,
-                      std::greater<std::tuple<float, int, int> > >
+  std::priority_queue<
+      std::tuple<float, int, int>, std::vector<std::tuple<float, int, int> >,
+      std::greater<std::tuple<float, int, int> > >
       pqueue;
   pqueue.emplace(distances_1(0, 0) + distances_2(0, 0), 0, 0);
 

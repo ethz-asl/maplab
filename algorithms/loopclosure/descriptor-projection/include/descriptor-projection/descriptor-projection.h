@@ -257,12 +257,6 @@ void ProjectDescriptorBlock(
     const Eigen::MatrixXf& projection_matrix, int target_dimensions,
     Eigen::MatrixXf* projected_descriptors);
 
-void ProjectDescriptorBlock(
-    const std::vector<aslam::common::FeatureDescriptorConstRef>&
-        raw_descriptors,
-    const Eigen::MatrixXf& projection_matrix, int target_dimensions,
-    Eigen::MatrixXf* projected_descriptors);
-
 template <typename DerivedIn>
 inline void ProjectDescriptor(
     const Eigen::MatrixBase<DerivedIn>& descriptor,
@@ -282,7 +276,5 @@ inline void ProjectDescriptor(
           0, 0, target_dimensions, projection_matrix.cols()) *
       descriptor.block(0, 0, projection_matrix.cols(), 1);
 }
-
-bool LoadprojectionMatrix(Eigen::MatrixXf* projection_matrix);
 }  // namespace descriptor_projection
 #endif  // DESCRIPTOR_PROJECTION_DESCRIPTOR_PROJECTION_H_

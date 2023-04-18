@@ -1,17 +1,15 @@
-#include <utility>
-#include <vector>
-
 #include <Eigen/Core>
 #include <aslam/common/memory.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
+#include <utility>
+#include <vector>
 
-#include <inverted-multi-index/inverted-multi-index-common.h>
-#include <inverted-multi-index/inverted-multi-product-quantization-index.h>
+#include "matching-based-loopclosure/imilib/inverted-multi-index-common.h"
+#include "matching-based-loopclosure/imilib/inverted-multi-product-quantization-index.h"
 
 namespace loop_closure {
 namespace inverted_multi_index {
-namespace {
 class TestableInvertedMultiPQIndex
     : public InvertedMultiProductQuantizationIndex<int, 4, 1, 2> {
  public:
@@ -28,8 +26,8 @@ class TestableInvertedMultiPQIndex
   using InvertedMultiProductQuantizationIndex<int, 4, 1, 2>::words_2_index_;
   using InvertedMultiProductQuantizationIndex<int, 4, 1, 2>::word_index_map_;
   using InvertedMultiProductQuantizationIndex<int, 4, 1, 2>::inverted_files_;
-  using InvertedMultiProductQuantizationIndex<int, 4, 1,
-                                              2>::max_db_descriptor_index_;
+  using InvertedMultiProductQuantizationIndex<
+      int, 4, 1, 2>::max_db_descriptor_index_;
 };
 
 class InvertedMultiProductQuantizationIndexTest : public ::testing::Test {
@@ -66,8 +64,6 @@ class InvertedMultiProductQuantizationIndexTest : public ::testing::Test {
   Eigen::MatrixXf quantizer_centers_1_;
   Eigen::MatrixXf quantizer_centers_2_;
 };
-
-using ::testing::ContainerEq;
 
 TEST_F(InvertedMultiProductQuantizationIndexTest, AddDescriptorsWorks) {
   TestableInvertedMultiPQIndex index(
@@ -108,14 +104,9 @@ TEST_F(InvertedMultiProductQuantizationIndexTest, AddDescriptorsWorks) {
         index.inverted_files_[i].descriptors_.size());
     for (int j = 0; j < expected_num_entries_per_inverted_file[i]; ++j) {
       EXPECT_EQ(counter, index.inverted_files_[i].indices_[j]);
-      EXPECT_TRUE(
-          ::common::MatricesEqual(
-              expected_quantized_descriptors[counter],
-              index.inverted_files_[i].descriptors_[j]))
-          << "The quantized representation for descriptor " << counter << " ( "
-          << index.inverted_files_[i].descriptors_[j].transpose()
-          << " ) does not match the expected quantized representation ( "
-          << expected_quantized_descriptors[counter].transpose() << " ).";
+      EXPECT_NEAR_EIGEN(
+          expected_quantized_descriptors[counter],
+          index.inverted_files_[i].descriptors_[j], 0.0);
       ++counter;
     }
   }
@@ -150,15 +141,11 @@ TEST_F(InvertedMultiProductQuantizationIndexTest, GetNNearestNeighborsWorks) {
   std::vector<float> actual_distances;
 
   for (int i = 0; i < kNumNeighbors; ++i) {
-    actual_distances.push_back(distances[i]);
-    actual_indices.push_back(indices[i]);
+    EXPECT_EQ(indices[i], expected_indices[i]);
+    EXPECT_FLOAT_EQ(distances[i], expected_distances[i]);
   }
-
-  EXPECT_THAT(actual_distances, ContainerEq(expected_distances));
-  EXPECT_THAT(actual_indices, ContainerEq(expected_indices));
 }
-}  // namespace
 }  // namespace inverted_multi_index
 }  // namespace loop_closure
 
-MAPLAB_MOCKTEST_ENTRYPOINT
+MAPLAB_UNITTEST_ENTRYPOINT

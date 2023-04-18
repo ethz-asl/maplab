@@ -43,7 +43,7 @@ struct hash<std::pair<vi_map::KeypointIdentifier, vi_map::LandmarkId>> {
 namespace matching_based_loopclosure {
 
 template <typename IdType>
-void MatchingBasedLoopDetector::doCovisibilityFiltering(
+void LoopDetector::doCovisibilityFiltering(
     const loop_closure::IdToMatches<IdType>& id_to_matches_map,
     const bool make_matches_unique,
     loop_closure::FrameToMatches* frame_matches_ptr,
@@ -184,7 +184,7 @@ void MatchingBasedLoopDetector::doCovisibilityFiltering(
 
 template <>
 typename loop_closure::FrameToMatches::const_iterator
-MatchingBasedLoopDetector::getIteratorForMatch(
+LoopDetector::getIteratorForMatch(
     const loop_closure::FrameToMatches& frame_to_matches,
     const loop_closure::Match& match) const {
   return frame_to_matches.find(match.keyframe_id_result);
@@ -192,14 +192,14 @@ MatchingBasedLoopDetector::getIteratorForMatch(
 
 template <>
 typename loop_closure::VertexToMatches::const_iterator
-MatchingBasedLoopDetector::getIteratorForMatch(
+LoopDetector::getIteratorForMatch(
     const loop_closure::VertexToMatches& vertex_to_matches,
     const loop_closure::Match& match) const {
   return vertex_to_matches.find(match.keyframe_id_result.vertex_id);
 }
 
 template <>
-bool MatchingBasedLoopDetector::skipMatch(
+bool LoopDetector::skipMatch(
     const IdToScoreMap<loop_closure::KeyframeId>& frame_to_score_map,
     const loop_closure::Match& match) const {
   const typename IdToScoreMap<loop_closure::KeyframeId>::const_iterator iter =
@@ -208,7 +208,7 @@ bool MatchingBasedLoopDetector::skipMatch(
 }
 
 template <>
-bool MatchingBasedLoopDetector::skipMatch(
+bool LoopDetector::skipMatch(
     const IdToScoreMap<loop_closure::VertexId>& /* vertex_to_score_map */,
     const loop_closure::Match& /* match */) const {
   // We do not skip vertices because we want to consider all keyframes that
@@ -217,7 +217,7 @@ bool MatchingBasedLoopDetector::skipMatch(
 }
 
 template <>
-void MatchingBasedLoopDetector::computeRelevantIdsForFiltering(
+void LoopDetector::computeRelevantIdsForFiltering(
     const loop_closure::FrameToMatches& frame_to_matches,
     IdToScoreMap<loop_closure::KeyframeId>* frame_to_score_map) const {
   CHECK_NOTNULL(frame_to_score_map)->clear();
@@ -254,7 +254,7 @@ void MatchingBasedLoopDetector::computeRelevantIdsForFiltering(
 }
 
 template <>
-void MatchingBasedLoopDetector::computeRelevantIdsForFiltering(
+void LoopDetector::computeRelevantIdsForFiltering(
     const loop_closure::VertexToMatches& /* vertex_to_matches */,
     IdToScoreMap<loop_closure::VertexId>* /* vertex_to_score_map */) const {
   // We do not have to score vertices to filter unlikely matches because this
