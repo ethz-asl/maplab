@@ -115,10 +115,14 @@ class HSNWIndexInterface : public IndexInterface {
   virtual void GetNNearestNeighborsForFeatures(
       const Eigen::MatrixXf& query_features, int num_neighbors,
       Eigen::MatrixXi* indices, Eigen::MatrixXf* distances) {
-    CHECK(initialized_);
+    CHECK(initialized_) << "The index has to be initialized before queries.";
+    CHECK_EQ(new_descriptors_.size(), 0u)
+        << "The initialization function has to be called after adding new "
+        << "descriptors to the index.";
     CHECK_NOTNULL(indices);
     CHECK_NOTNULL(distances);
     CHECK_EQ(descriptor_size_, query_features.rows());
+    CHECK_LT(num_neighbors, ef_query_);
 
     CHECK_EQ(indices->rows(), num_neighbors)
         << "The indices parameter must be pre-allocated to hold all results.";
