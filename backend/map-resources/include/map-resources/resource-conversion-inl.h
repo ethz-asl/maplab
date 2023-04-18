@@ -2,11 +2,14 @@
 #define MAP_RESOURCES_RESOURCE_CONVERSION_INL_H_
 
 #include <algorithm>
+#include <limits>
+#include <thread>
+#include <vector>
+
 #include <aslam/cameras/camera.h>
 #include <aslam/cameras/distortion.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <limits>
 #include <maplab-common/parallel-process.h>
 #include <maplab-common/pose_types.h>
 #include <maplab-common/threading-helpers.h>
@@ -15,13 +18,12 @@
 #include <pcl_ros/point_cloud.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensors/lidar.h>
-#include <thread>
-#include <vector>
 #include <voxblox/core/common.h>
 
 #include "map-resources/resource-typedefs.h"
 
 namespace backend {
+
 // Adds a point to a point cloud at a specific index. This function assumes
 // that the point cloud has already been resized to allow for direct insertion
 // at this index.
@@ -382,8 +384,8 @@ bool convertDepthMapToPointCloud(
     return false;
   }
 
-  // If the camera associated with this depth map is a 3D lidar camera, this
-  // is not a depth map, but a range image.
+  // If the camera associated with this depth map is a 3D lidar camera, this is
+  // not a depth map, but a range image.
   bool treat_as_range_image = false;
   if (camera.getType() == aslam::Camera::Type::kLidar3D) {
     treat_as_range_image = true;
@@ -478,8 +480,7 @@ bool convertPointCloudToDepthMap(
     const bool use_openni_format, const bool create_range_image,
     cv::Mat* depth_map, cv::Mat* image) {
   CHECK(camera.getType() != aslam::Camera::Type::kLidar3D || create_range_image)
-      << "When projecting point clouds using the Camera3DLidar camera "
-         "models, "
+      << "When projecting point clouds using the Camera3DLidar camera models, "
       << "only range images (vs depth maps) are a maningful representation, "
       << "since the points are not projected onto an image plange, but a "
       << "cylinder.";
@@ -536,8 +537,8 @@ bool convertPointCloudToDepthMap(
         for (size_t idx : batch) {
           getPointFromPointCloud(point_cloud_C, idx, &point_3d);
           points_3D.col(idx) = point_3d;
-          // Either retrieve the ray length (range image) or the Z
-          // coordinate (depth map).
+          // Either retrieve the ray length (range image) or the Z coordinate
+          // (depth map).
           if (create_range_image) {
             depth_value = std::min(point_3d.norm(), max_valid_depth_value);
           } else {
