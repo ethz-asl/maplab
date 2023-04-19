@@ -111,12 +111,9 @@ catkin_add_gtest(
     test_edge_merging test/test_edge_merging.cc)
 target_link_libraries(test_edge_merging ${PROJECT_NAME})
 
-##############
-# BENCHMARKS #
-##############
-add_benchmark(benchmark_map_serialization test/benchmark-vi-map-serialization.cc)
-target_link_libraries(benchmark_map_serialization ${PROJECT_NAME})
-maplab_import_test_maps(benchmark_map_serialization)
+##########
+# EXPORT #
+##########
 
 cs_install()
 cs_export()
