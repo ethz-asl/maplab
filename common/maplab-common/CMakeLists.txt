@@ -116,10 +116,6 @@ catkin_add_gtest(test_string_tools
   test/test_string_tools.cc)
 target_link_libraries(test_string_tools ${PROJECT_NAME})
 
-catkin_add_gtest(test_thread_safe_queue
-  test/test_threadsafe_queue.cc)
-target_link_libraries(test_thread_safe_queue ${PROJECT_NAME})
-
 catkin_add_gtest(test_monitor test/test_monitor.cc)
 target_link_libraries(test_monitor ${PROJECT_NAME})
 
