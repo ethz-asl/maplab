@@ -8,6 +8,7 @@
 
 #include <aslam/cameras/camera.h>
 #include <aslam/cameras/distortion.h>
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <maplab-common/parallel-process.h>
 #include <maplab-common/pose_types.h>
@@ -23,9 +24,9 @@
 
 namespace backend {
 
-// Adds a point to a point cloud at a specific index. This function assumes that
-// the point cloud has already been resized to allow for direct insertion at
-// this index.
+// Adds a point to a point cloud at a specific index. This function assumes
+// that the point cloud has already been resized to allow for direct insertion
+// at this index.
 template <typename PointCloudType>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
@@ -137,9 +138,9 @@ void addPointToPointCloud(
   CHECK_LT(index, point_cloud->points.size());
   PointType& point = point_cloud->points[index];
 
-  // NOTE: There are PCL point types that do not have x,y and z, but if someone
-  // ever uses one of those this should not compile anymore, so this should be
-  // safe.
+  // NOTE: There are PCL point types that do not have x,y and z, but if
+  // someone ever uses one of those this should not compile anymore, so this
+  // should be safe.
   point.x = static_cast<float>(point_C(0));
   point.y = static_cast<float>(point_C(1));
   point.z = static_cast<float>(point_C(2));
@@ -269,9 +270,9 @@ void getPointFromPointCloud(
   DCHECK_GT(point_cloud.size(), index);
   const PointType& point = point_cloud.points[index];
 
-  // NOTE: There are PCL point types that do not have x,y and z, but if someone
-  // ever uses one of those this should not compile anymore, so this should be
-  // safe.
+  // NOTE: There are PCL point types that do not have x,y and z, but if
+  // someone ever uses one of those this should not compile anymore, so this
+  // should be safe.
   point_C->x() = point.x;
   point_C->y() = point.y;
   point_C->z() = point.z;
