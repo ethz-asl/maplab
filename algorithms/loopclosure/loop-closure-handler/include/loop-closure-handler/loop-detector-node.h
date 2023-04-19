@@ -14,7 +14,6 @@
 #include <descriptor-projection/descriptor-projection.h>
 #include <localization-summary-map/unique-id.h>
 #include <loopclosure-common/types.h>
-#include <maplab-common/file-serializable.h>
 #include <sensors/external-features.h>
 #include <vi-map/mission-baseframe.h>
 #include <vi-map/unique-id.h>

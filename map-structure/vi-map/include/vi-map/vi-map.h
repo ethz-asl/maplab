@@ -8,7 +8,6 @@
 #include <aslam/common/unique-id.h>
 #include <map-resources/resource-common.h>
 #include <map-resources/resource-map.h>
-#include <maplab-common/file-serializable.h>
 #include <maplab-common/macros.h>
 #include <maplab-common/map-manager-config.h>
 #include <maplab-common/map-traits.h>

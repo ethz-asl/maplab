@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
-#include <maplab-common/vector-window-operations.h>
+#include <numeric>
 #include <vi-map-helpers/vi-map-partitioner.h>
 #include <vi-mapping-test-app/vi-mapping-test-app.h>
 
@@ -89,10 +89,16 @@ class ViMappingTest : public ::testing::Test {
         landmark_ids.size());
 
     constexpr size_t kInvalidValue = -1;
-    const size_t avg_observers_kept = common::window_vec_ops::computeAverage(
-        nums_observations_kept_landmarks, kInvalidValue);
-    const size_t avg_observers_removed = common::window_vec_ops::computeAverage(
-        nums_observations_removed_landmarks, kInvalidValue);
+    const size_t avg_observers_kept =
+        std::accumulate(
+            nums_observations_kept_landmarks.begin(),
+            nums_observations_kept_landmarks.end(), 0.0) /
+        nums_observations_kept_landmarks.size();
+    const size_t avg_observers_removed =
+        std::accumulate(
+            nums_observations_removed_landmarks.begin(),
+            nums_observations_removed_landmarks.end(), 0.0) /
+        nums_observations_removed_landmarks.size();
 
     // Make sure the difference between kept and removed landmarks is
     // reasonably large.

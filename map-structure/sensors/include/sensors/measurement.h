@@ -6,7 +6,7 @@
 #include <Eigen/Core>
 #include <aslam/common/time.h>
 #include <aslam/common/unique-id.h>
-#include <maplab-common/threadsafe-temporal-buffer.h>
+#include <maplab-common/temporal-buffer.h>
 
 #include "sensors/sensor-types.h"
 
@@ -24,8 +24,6 @@
   typedef AlignedUnorderedSet<measurement> measurement##Set;   \
   typedef Aligned<std::vector, measurement> measurement##List; \
   typedef MeasurementBuffer<measurement> measurement##Buffer;  \
-  typedef ThreadsafeMeasurementBuffer<measurement>             \
-      measurement##ThreadsafeBuffer;
 
 namespace vi_map {
 
@@ -106,10 +104,6 @@ class Measurement {
 
 template <class MeasurementType>
 using MeasurementBuffer = common::TemporalBuffer<
-    MeasurementType,
-    Eigen::aligned_allocator<std::pair<const int64_t, MeasurementType>>>;
-template <class MeasurementType>
-using ThreadsafeMeasurementBuffer = common::ThreadsafeTemporalBuffer<
     MeasurementType,
     Eigen::aligned_allocator<std::pair<const int64_t, MeasurementType>>>;
 }  // namespace vi_map

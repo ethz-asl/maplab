@@ -16,7 +16,6 @@
 #include <landmark-triangulation/pose-interpolator.h>
 #include <maplab-common/accessors.h>
 #include <maplab-common/file-system-tools.h>
-#include <maplab-common/vector-window-operations.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
