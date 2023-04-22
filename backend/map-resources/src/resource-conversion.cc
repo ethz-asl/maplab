@@ -530,15 +530,6 @@ void addScalarToPointCloud(
 }
 
 template <>
-void addScalarToPointCloud(
-    const float scalar, const size_t index,
-    pcl::PointCloud<pcl::OusterPointType>* point_cloud) {
-  CHECK_LT(index, point_cloud->points.size());
-  pcl::OusterPointType& point = point_cloud->points[index];
-  point.intensity = scalar;
-}
-
-template <>
 void getScalarFromPointCloud(
     const resources::PointCloud& point_cloud, const size_t index,
     float* scalar) {
@@ -578,16 +569,6 @@ void getScalarFromPointCloud(
   CHECK_NOTNULL(scalar);
   DCHECK_GT(point_cloud.size(), index);
   const pcl::PointXYZINormal& point = point_cloud.points[index];
-  *scalar = point.intensity;
-}
-
-template <>
-void getScalarFromPointCloud(
-    const pcl::PointCloud<pcl::OusterPointType>& point_cloud,
-    const size_t index, float* scalar) {
-  CHECK_NOTNULL(scalar);
-  DCHECK_GT(point_cloud.size(), index);
-  const pcl::OusterPointType& point = point_cloud.points[index];
   *scalar = point.intensity;
 }
 
@@ -874,12 +855,6 @@ bool hasScalarInformation(
 template <>
 bool hasScalarInformation(
     const pcl::PointCloud<pcl::PointXYZINormal>& /*point_cloud*/) {
-  return true;
-}
-
-template <>
-bool hasScalarInformation(
-    const pcl::PointCloud<pcl::OusterPointType>& /*point_cloud*/) {
   return true;
 }
 

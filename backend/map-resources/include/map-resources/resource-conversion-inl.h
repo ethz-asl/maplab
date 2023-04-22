@@ -89,10 +89,6 @@ template <>
 void addScalarToPointCloud(
     const float scalar, const size_t index,
     pcl::PointCloud<pcl::PointXYZINormal>* point_cloud);
-template <>
-void addScalarToPointCloud(
-    const float scalar, const size_t index,
-    pcl::PointCloud<pcl::OusterPointType>* point_cloud);
 
 template <typename PointCloudType>
 void addLabelToPointCloud(
@@ -188,9 +184,6 @@ bool hasScalarInformation(const pcl::PointCloud<pcl::PointXYZI>& point_cloud);
 template <>
 bool hasScalarInformation(
     const pcl::PointCloud<pcl::PointXYZINormal>& point_cloud);
-template <>
-bool hasScalarInformation(
-    const pcl::PointCloud<pcl::OusterPointType>& point_cloud);
 
 template <typename PointCloudType>
 bool hasLabelInformation(const PointCloudType& /*point_cloud*/) {
@@ -332,10 +325,6 @@ void getScalarFromPointCloud(
 template <>
 void getScalarFromPointCloud(
     const pcl::PointCloud<pcl::PointXYZINormal>& point_cloud,
-    const size_t index, float* scalar);
-template <>
-void getScalarFromPointCloud(
-    const pcl::PointCloud<pcl::OusterPointType>& point_cloud,
     const size_t index, float* scalar);
 
 template <typename PointCloudType>

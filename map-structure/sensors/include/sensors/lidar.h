@@ -113,51 +113,17 @@ class LidarMeasurement : public Measurement {
 
 }  // namespace vi_map
 
-// Adds a new Ouster LIDAR point type to PCL.
-namespace pcl {
-struct OusterPointType {
-  PCL_ADD_POINT4D
-  int time_offset_us;
-  uint16_t reflectivity;
-  uint16_t signal;
-  uint8_t ring;
-  float intensity;
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-} EIGEN_ALIGN16;
-}  // namespace pcl
-
-#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
-// clang-format off
-POINT_CLOUD_REGISTER_POINT_STRUCT(
-    pcl::OusterPointType,
-    (float, x, x)
-    (float, y, y)
-    (float, z, z)
-    (int, time_offset_us, time_offset_us)
-    (uint16_t, reflectivity, reflectivity)
-    (uint16_t, signal, intensity)
-    (uint8_t, ring, ring))
-// clang-format on
-#endif // DOXYGEN_SHOULD_SKIP_THIS
- 
 namespace vi_map {
 
 typedef LidarMeasurement<resources::PointCloud> MaplabLidarMeasurement;
-typedef LidarMeasurement<pcl::PointCloud<pcl::PointXYZI>> PclLidarMeasurement;
-typedef LidarMeasurement<pcl::PointCloud<pcl::OusterPointType>>
-    OusterLidarMeasurement;
 typedef LidarMeasurement<sensor_msgs::PointCloud2> RosLidarMeasurement;
 
 DEFINE_MEASUREMENT_CONTAINERS(MaplabLidarMeasurement);
-DEFINE_MEASUREMENT_CONTAINERS(PclLidarMeasurement);
 DEFINE_MEASUREMENT_CONTAINERS(RosLidarMeasurement);
-DEFINE_MEASUREMENT_CONTAINERS(OusterLidarMeasurement);
 
 }  // namespace vi_map
 
 DEFINE_MEASUREMENT_HASH(MaplabLidarMeasurement)
-DEFINE_MEASUREMENT_HASH(PclLidarMeasurement)
 DEFINE_MEASUREMENT_HASH(RosLidarMeasurement)
-DEFINE_MEASUREMENT_HASH(OusterLidarMeasurement)
 
 #endif  // SENSORS_LIDAR_H_

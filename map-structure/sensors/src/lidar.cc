@@ -80,19 +80,6 @@ bool LidarMeasurement<resources::PointCloud>::isValidImpl() const {
 }
 
 template <>
-void LidarMeasurement<pcl::PointCloud<pcl::PointXYZI>>::setRandomImpl() {
-  // TODO(mfehr): implement or remove. We could use the
-  // general point cloud conversion tools to make one
-  // function to fill all point cloud types randomly.
-  LOG(FATAL) << "NOT IMPLEMENTED!";
-}
-
-template <>
-bool LidarMeasurement<pcl::PointCloud<pcl::PointXYZI>>::isValidImpl() const {
-  return true;
-}
-
-template <>
 void LidarMeasurement<sensor_msgs::PointCloud2>::setRandomImpl() {
   // TODO(mfehr): implement or remove. We could use the
   // general point cloud conversion tools to make one
@@ -102,20 +89,6 @@ void LidarMeasurement<sensor_msgs::PointCloud2>::setRandomImpl() {
 
 template <>
 bool LidarMeasurement<sensor_msgs::PointCloud2>::isValidImpl() const {
-  return true;
-}
-
-template <>
-void LidarMeasurement<pcl::PointCloud<pcl::OusterPointType>>::setRandomImpl() {
-  // TODO(mfehr): implement or remove. We could use the
-  // general point cloud conversion tools to make one
-  // function to fill all point cloud types randomly.
-  LOG(FATAL) << "NOT IMPLEMENTED!";
-}
-
-template <>
-bool LidarMeasurement<pcl::PointCloud<pcl::OusterPointType>>::isValidImpl()
-    const {
   return true;
 }
 
