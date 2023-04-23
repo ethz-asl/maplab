@@ -1,10 +1,7 @@
 #include "visualization/resource-visualization.h"
 
 #include <Eigen/Dense>
-#include <aslam/cameras/camera-factory.h>
-#include <aslam/cameras/camera-pinhole.h>
-#include <aslam/cameras/camera-unified-projection.h>
-#include <aslam/cameras/distortion-null.h>
+#include <aslam/cameras/ncamera.h>
 #include <aslam/common/time.h>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>

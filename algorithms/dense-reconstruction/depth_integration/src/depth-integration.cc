@@ -57,7 +57,7 @@ void integratePointCloud(
   voxblox_point_cloud.colors = &tmp_colors;
   CHECK(backend::convertPointCloudType(points_C, &voxblox_point_cloud));
 
-  // If there is no color, create an empty vector of matchin size.
+  // If there is no color, create an empty vector of matching size.
   if (tmp_colors.empty()) {
     tmp_colors.resize(tmp_points_C.size());
   }

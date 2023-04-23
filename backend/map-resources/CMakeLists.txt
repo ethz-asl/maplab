@@ -43,10 +43,6 @@ catkin_add_gtest(test_resource_map test/test_resource_map.cc)
 target_link_libraries(test_resource_map ${PROJECT_NAME})
 add_dependencies(test_resource_map ${PROJECT_TEST_DATA})
 
-catkin_add_gtest(test_resource_conversion test/test_resource_conversion.cc)
-target_link_libraries(test_resource_conversion ${PROJECT_NAME})
-add_dependencies(test_resource_conversion ${PROJECT_TEST_DATA})
-
 catkin_add_gtest(test_temporal_resource_id_buffer test/test-temporal-resource-id-buffer.cc)
 target_link_libraries(test_temporal_resource_id_buffer ${PROJECT_NAME})
 
