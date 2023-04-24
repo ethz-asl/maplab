@@ -78,8 +78,9 @@ inline PointCloud2ConstIteratorVariant getPointCloudFieldIterator(
       return sensor_msgs::PointCloud2ConstIterator<float>(msg, field);
     case sensor_msgs::PointField::FLOAT64:
       return sensor_msgs::PointCloud2ConstIterator<double>(msg, field);
+    default:
+      LOG(FATAL) << "Unknown field type for PointCloud2 message.";
   }
-  return sensor_msgs::PointCloud2ConstIterator<float>(msg, field);
 }
 
 bool convertDepthMapToPointCloud(
