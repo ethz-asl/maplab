@@ -134,6 +134,21 @@ void addPointToPointCloud(
 }
 
 template <typename PointCloudType>
+void addTimeToPointCloud(
+    const uint32_t time, const size_t index, PointCloudType* point_cloud) {
+  LOG(FATAL) << "This point cloud either does not support times"
+             << "or it is not implemented!";
+}
+template <>
+void addTimeToPointCloud(
+    const uint32_t time, const size_t index,
+    resources::PointCloud* point_cloud);
+template <>
+void addTimeToPointCloud(
+    const uint32_t time, const size_t index,
+    sensor_msgs::PointCloud2* point_cloud);
+
+template <typename PointCloudType>
 bool hasColorInformation(const PointCloudType& /*point_cloud*/) {
   return false;
 }
@@ -187,31 +202,41 @@ bool hasLabelInformation(const resources::PointCloud& point_cloud);
 template <>
 bool hasLabelInformation(const pcl::PointCloud<pcl::PointXYZL>& point_cloud);
 
+template <typename PointCloudType>
+bool hasTimeInformation(const PointCloudType& /*point_cloud*/) {
+  return false;
+}
+template <>
+bool hasTimeInformation(const resources::PointCloud& point_cloud);
+template <>
+bool hasTimeInformation(const sensor_msgs::PointCloud2& point_cloud);
+
 template <>
 void resizePointCloud(
     const size_t size, const bool /*has_color*/, const bool /*has_normals*/,
     const bool /*has_scalar*/, const bool /*has_labels*/,
-    voxblox::Pointcloud* point_cloud);
+    const bool /*has_times*/, voxblox::Pointcloud* point_cloud);
 template <>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool /*has_normals*/,
     const bool /*has_scalar*/, const bool /*has_labels*/,
-    resources::VoxbloxColorPointCloud* point_cloud);
+    const bool /*has_times*/, resources::VoxbloxColorPointCloud* point_cloud);
 template <>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool has_normals,
-    const bool has_scalar, const bool /*has_labels*/,
+    const bool has_scalar, const bool has_labels, const bool has_times,
     resources::PointCloud* point_cloud);
 template <>
 void resizePointCloud(
     const size_t num_points, const bool has_color, const bool /*has_normals*/,
-    const bool has_scalar, const bool /*has_labels*/,
+    const bool has_scalar, const bool has_labels, const bool has_times,
     sensor_msgs::PointCloud2* point_cloud);
 template <typename PointType>
 void resizePointCloud(
     const size_t num_points, const bool /*has_color*/,
     const bool /*has_normals*/, const bool /*has_scalar*/,
-    const bool /*has_labels*/, pcl::PointCloud<PointType>* point_cloud) {
+    const bool /*has_labels*/, const bool /*has_times*/,
+    pcl::PointCloud<PointType>* point_cloud) {
   CHECK_NOTNULL(point_cloud);
   CHECK_GT(num_points, 0u);
   point_cloud->points.resize(num_points);
@@ -339,6 +364,24 @@ void getLabelFromPointCloud(
     uint32_t* label);
 
 template <typename PointCloudType>
+void getTimeFromPointCloud(
+    const PointCloudType& /*point_cloud*/, const size_t /*index*/,
+    uint32_t* /*time*/, const uint32_t /*convert_to_ns*/,
+    const int64_t /*time_offset_ns*/) {
+  LOG(FATAL) << "This point cloud either does not support times of the "
+             << "requested type or it is not implemented!";
+}
+template <>
+void getTimeFromPointCloud(
+    const resources::PointCloud& point_cloud, const size_t index,
+    uint32_t* time, const uint32_t /*convert_to_ns*/,
+    const int64_t /*time_offset_ns*/);
+template <>
+void getTimeFromPointCloud(
+    const sensor_msgs::PointCloud2& point_cloud, const size_t index,
+    uint32_t* time, const uint32_t convert_to_ns, const int64_t time_offset_ns);
+
+template <typename PointCloudType>
 bool convertDepthMapToPointCloud(
     const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
     PointCloudType* point_cloud) {
@@ -375,10 +418,11 @@ bool convertDepthMapToPointCloud(
   constexpr bool kHasNormals = false;
   constexpr bool kHasScalar = false;
   constexpr bool kHasLabels = false;
+  constexpr bool kHasTimes = false;
 
   resizePointCloud(
       valid_depth_entries, has_color, kHasNormals, kHasScalar, kHasLabels,
-      point_cloud);
+      kHasTimes, point_cloud);
 
   constexpr double kMillimetersToMeters = 1e-3;
   constexpr double kEpsilon = 1e-6;
@@ -444,7 +488,8 @@ bool convertDepthMapToPointCloud(
 
   // Shrink pointcloud if necessary.
   resizePointCloud(
-      point_index, has_color, kHasNormals, kHasScalar, kHasLabels, point_cloud);
+      point_index, has_color, kHasNormals, kHasScalar, kHasLabels, kHasTimes,
+      point_cloud);
 
   if (point_index == 0u) {
     VLOG(3) << "Depth map has no valid depth measurements!";
@@ -456,7 +501,8 @@ bool convertDepthMapToPointCloud(
 
 template <typename InputPointCloud, typename OutputPointCloud>
 bool convertPointCloudType(
-    const InputPointCloud& input_cloud, OutputPointCloud* output_cloud) {
+    const InputPointCloud& input_cloud, OutputPointCloud* output_cloud,
+    bool with_timestamps, uint32_t convert_to_ns, int64_t time_offset_ns) {
   CHECK_NOTNULL(output_cloud);
 
   const bool input_has_normals = hasNormalsInformation(input_cloud);
@@ -464,16 +510,23 @@ bool convertPointCloudType(
   const bool input_has_color = hasColorInformation(input_cloud);
   const bool input_has_labels = hasLabelInformation(input_cloud);
 
+  if (with_timestamps) {
+    CHECK(hasTimeInformation(input_cloud))
+        << "Requesting conversion of pointcloud with timestamps, but time "
+        << "information is not included.";
+  }
+
   const size_t num_points = getPointCloudSize(input_cloud);
 
   resizePointCloud(
       num_points, input_has_color, input_has_normals, input_has_scalars,
-      input_has_labels, output_cloud);
+      input_has_labels, with_timestamps, output_cloud);
   CHECK_EQ(getPointCloudSize(*output_cloud), num_points);
 
   const bool output_has_scalars = hasScalarInformation(*output_cloud);
   const bool output_has_color = hasColorInformation(*output_cloud);
   const bool output_has_labels = hasLabelInformation(*output_cloud);
+  const bool output_has_times = hasTimeInformation(*output_cloud);
 
   for (size_t point_idx = 0u; point_idx < num_points; ++point_idx) {
     Eigen::Vector3d point_C;
@@ -496,6 +549,13 @@ bool convertPointCloudType(
       uint32_t label;
       getLabelFromPointCloud(input_cloud, point_idx, &label);
       addLabelToPointCloud(label, point_idx, output_cloud);
+    }
+
+    if (with_timestamps && output_has_times) {
+      uint32_t time;
+      getTimeFromPointCloud(
+          input_cloud, point_idx, &time, convert_to_ns, time_offset_ns);
+      addTimeToPointCloud(time, point_idx, output_cloud);
     }
   }
 

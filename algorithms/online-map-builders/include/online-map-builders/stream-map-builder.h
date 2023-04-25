@@ -219,8 +219,23 @@ void StreamMapBuilder::attachLidarMeasurement(
          "not yet present in the map's sensor manager!";
 
   resources::PointCloud point_cloud;
-  backend::convertPointCloudType<PointCloudType, resources::PointCloud>(
-      lidar_measurement.getPointCloud(), &point_cloud);
+
+  const vi_map::Lidar& lidar_sensor =
+      map_->getSensorManager().getSensor<vi_map::Lidar>(lidar_sensor_id);
+
+  if (lidar_sensor.hasPointTimestamps()) {
+    const uint32_t convert_to_ns = lidar_sensor.getTimestampConversionToNs();
+    const int64_t time_offset_ns =
+        lidar_sensor.hasRelativePointTimestamps()
+            ? lidar_measurement.getTimestampNanoseconds()
+            : 0;
+    backend::convertPointCloudType<PointCloudType, resources::PointCloud>(
+        lidar_measurement.getPointCloud(), &point_cloud, true, convert_to_ns,
+        time_offset_ns);
+  } else {
+    backend::convertPointCloudType<PointCloudType, resources::PointCloud>(
+        lidar_measurement.getPointCloud(), &point_cloud, false);
+  }
 
   backend::ResourceType point_cloud_type =
       backend::getResourceTypeForPointCloud(point_cloud);
