@@ -311,8 +311,8 @@ bool MaplabServerRosNode::anchorMissionServiceCallback(
 
   const std::string& partial_mission_id_string =
       request.mission_id_to_anchor.data;
-  const aslam::Transformation T_G_M_anchor =
-      tf::transformMsgToKindr(request.T_G_M);
+  const aslam::Transformation T_G_M_anchor;
+  tf::poseMsgToKindr(request.T_G_M, &T_G_M_anchor);
 
   response.success.data = maplab_server_node_->anchorMissionManually(
       partial_mission_id_string, T_G_M_anchor, &response.message.data);
