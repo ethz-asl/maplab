@@ -232,13 +232,6 @@ void visualizeReprojectedDepthResource(
       [&accumulated_point_cloud_G, &point_cloud_counter](
           const aslam::Transformation& T_G_S,
           const resources::PointCloud& points_S) {
-        if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
-            (point_cloud_counter % FLAGS_vis_pointcloud_visualize_every_nth !=
-             0u)) {
-          ++point_cloud_counter;
-          return;
-        }
-
         uint8_t r = 0u, g = 0u, b = 0u;
         if (FLAGS_vis_pointcloud_color_random) {
           uint32_t seed = time(NULL);
@@ -296,10 +289,23 @@ void visualizeReprojectedDepthResource(
             FLAGS_vis_pointcloud_sleep_between_point_clouds_ms));
       };
 
+  depth_integration::ResourceSelectionFunction selection_function =
+      [&point_cloud_counter](
+          const int64_t /*timestamp_ns*/,
+          const aslam::Transformation& /*T_G_S*/) {
+        const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
+        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
+          ++point_cloud_counter;
+          return false;
+        }
+
+        return true;
+      };
+
   depth_integration::integrateAllDepthResourcesOfType(
       mission_ids, input_resource_type,
       FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
-      integration_function);
+      integration_function, selection_function);
 
   // If we are done and we did not accumulate the point cloud there is nothing
   // left to do.
@@ -341,13 +347,6 @@ static void createAndAppendAccumulatedPointCloudMessageForMission(
       [&accumulated_point_cloud_G, &point_cloud_counter](
           const aslam::Transformation& T_G_S,
           const resources::PointCloud& points_S) {
-        if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
-            (point_cloud_counter % FLAGS_vis_pointcloud_visualize_every_nth !=
-             0u)) {
-          ++point_cloud_counter;
-          return;
-        }
-
         uint8_t r = 0u, g = 0u, b = 0u;
         if (FLAGS_vis_pointcloud_color_random) {
           uint32_t seed = time(NULL);
@@ -369,12 +368,25 @@ static void createAndAppendAccumulatedPointCloudMessageForMission(
         return;
       };
 
+  depth_integration::ResourceSelectionFunction selection_function =
+      [&point_cloud_counter](
+          const int64_t /*timestamp_ns*/,
+          const aslam::Transformation& /*T_G_S*/) {
+        const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
+        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
+          ++point_cloud_counter;
+          return false;
+        }
+
+        return true;
+      };
+
   vi_map::MissionIdList mission_ids;
   mission_ids.emplace_back(mission_id);
   depth_integration::integrateAllDepthResourcesOfType(
       mission_ids, input_resource_type,
       FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
-      integration_function);
+      integration_function, selection_function);
 }
 
 void visualizeReprojectedDepthResourcePerRobot(
@@ -445,13 +457,6 @@ void createPointCloudMessageVectorForMission(
                                  const int64_t ts_ns,
                                  const aslam::Transformation& T_G_S,
                                  const resources::PointCloud& points_S) {
-        if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
-            (point_cloud_counter % FLAGS_vis_pointcloud_visualize_every_nth !=
-             0u)) {
-          ++point_cloud_counter;
-          return;
-        }
-
         // Transform points to G
         resources::PointCloud points_G;
         points_G.appendTransformed(points_S, T_G_S);
@@ -486,12 +491,25 @@ void createPointCloudMessageVectorForMission(
         return;
       };
 
+  depth_integration::ResourceSelectionFunction selection_function =
+      [&point_cloud_counter](
+          const int64_t /*timestamp_ns*/,
+          const aslam::Transformation& /*T_G_S*/) {
+        const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
+        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
+          ++point_cloud_counter;
+          return false;
+        }
+
+        return true;
+      };
+
   vi_map::MissionIdList mission_ids;
   mission_ids.emplace_back(mission_id);
   depth_integration::integrateAllDepthResourcesOfType(
       mission_ids, input_resource_type,
       FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
-      integration_function);
+      integration_function, selection_function);
 }
 
 void visualizeReprojectedDepthResourceFromMission(
@@ -505,8 +523,7 @@ void visualizeReprojectedDepthResourceFromMission(
       input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G);
 
   sensor_msgs::PointCloud2 ros_point_cloud_G;
-  backend::convertPointCloudType(
-      accumulated_point_cloud_G, &ros_point_cloud_G);
+  backend::convertPointCloudType(accumulated_point_cloud_G, &ros_point_cloud_G);
   publishPointCloudInGlobalFrame(
       FLAGS_vis_pointcloud_mission_id_topic, &ros_point_cloud_G);
 }
