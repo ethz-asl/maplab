@@ -1388,8 +1388,9 @@ void MaplabServerNode::publishDenseMap() {
       robot_to_mission_id_map, *map);
 }
 
-bool MaplabServerNode::deleteMission(
-    const std::string& partial_mission_id_string, std::string* status_message) {
+bool MaplabServerNode::resolvePartialMissionId(
+    const std::string& partial_mission_id_string, vi_map::MissionId* mission_id,
+    std::string* status_message) const {
   CHECK_NOTNULL(status_message);
 
   std::lock_guard<std::mutex> lock(mutex_);
@@ -1411,7 +1412,6 @@ bool MaplabServerNode::deleteMission(
 
   // Retrieve full mission id.
   uint32_t num_matching_missions = 0u;
-  vi_map::MissionId mission_to_delete;
   std::string robot_name_of_mission;
   {
     std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
@@ -1419,7 +1419,7 @@ bool MaplabServerNode::deleteMission(
       const std::string mission_id_string = kv.first.hexString();
       if (mission_id_string.substr(0, partial_mission_id_string_size) ==
           partial_mission_id_string) {
-        mission_to_delete = kv.first;
+        *mission_id = kv.first;
         robot_name_of_mission = kv.second;
         ++num_matching_missions;
       }
@@ -1443,11 +1443,27 @@ bool MaplabServerNode::deleteMission(
     return false;
   }
   CHECK_EQ(num_matching_missions, 1u);
-  CHECK(mission_to_delete.isValid());
+  CHECK(mission_id->isValid());
+  return true;
+}
 
+bool MaplabServerNode::deleteMission(
+    const std::string& partial_mission_id_string, std::string* status_message) {
+  vi_map::MissionId mission_to_delete;
+  const bool success = resolvePartialMissionId(
+      partial_mission_id_string, &mission_to_delete, status_message);
+  if (!success) {
+    return false;
+  }
   // Blacklist the mission, this will delete it at the end of the merging
   // iteration and prevent subsequent submap updates of this mission from
   // being merged.
+  std::string robot_name_of_mission;
+  std::stringstream ss;
+  {
+    std::lock_guard<std::mutex> lock(robot_to_mission_id_map_mutex_);
+    robot_name_of_mission = mission_id_to_robot_map_.at(mission_to_delete);
+  }
   {
     std::lock_guard<std::mutex> lock(blacklisted_missions_mutex_);
     blacklisted_missions_[mission_to_delete] = robot_name_of_mission;
@@ -1457,6 +1473,32 @@ bool MaplabServerNode::deleteMission(
     LOG(INFO) << "[MaplabServerNode] " << *status_message;
     return true;
   }
+}
+
+bool MaplabServerNode::anchorMissionManually(
+    const std::string& partial_mission_id_string,
+    const aslam::Transformation& T_G_M, std::string* status_message) {
+  // first check if merged map is available
+  if (!map_manager_.hasMap(kMergedMapKey)) {
+    *status_message = "Merged map is not available.";
+    LOG(ERROR) << "[MaplabServerNode] manual mission achoring: "
+               << *status_message;
+    return false;
+  }
+
+  vi_map::MissionId mission_to_anchor;
+  const bool success = resolvePartialMissionId(
+      partial_mission_id_string, &mission_to_anchor, status_message);
+  if (!success) {
+    return false;
+  }
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager_.getMapWriteAccess(kMergedMapKey);
+
+  // vi_map::VIMission& mission = map->getMission(mission_to_anchor);
+  map->getMissionBaseFrameForMission(mission_to_anchor).set_T_G_M(T_G_M);
+  map->getMissionBaseFrameForMission(mission_to_anchor).set_is_T_G_M_known(true);
+  return true;
 }
 
 bool MaplabServerNode::deleteAllRobotMissions(

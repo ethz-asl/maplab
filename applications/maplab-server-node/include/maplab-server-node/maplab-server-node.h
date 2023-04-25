@@ -101,6 +101,10 @@ class MaplabServerNode final {
     return total_num_merged_submaps_;
   }
 
+  bool anchorMissionManually(
+      const std::string& partial_mission_id_string,
+      const aslam::Transformation& T_G_M, std::string* status_message);
+
   void visualizeMap();
 
   void registerPoseCorrectionPublisherCallback(
@@ -130,6 +134,10 @@ class MaplabServerNode final {
   bool appendAvailableSubmaps();
 
   void saveMapEveryInterval();
+
+  bool resolvePartialMissionId(
+      const std::string& partial_mission_id_string,
+      vi_map::MissionId* mission_id, std::string* status_message) const;
 
   void runOneIterationOfMapMergingAlgorithms();
 

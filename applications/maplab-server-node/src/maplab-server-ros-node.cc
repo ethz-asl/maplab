@@ -79,6 +79,14 @@ MaplabServerRosNode::MaplabServerRosNode(
       "delete_all_robot_missions", delete_all_robot_missions_callback);
 
   boost::function<bool(
+      maplab_msgs::AnchorMission::Request&,
+      maplab_msgs::AnchorMission::Response&)>
+      anchor_mission_service_callback = boost::bind(
+          &MaplabServerRosNode::anchorMissionServiceCallback, this, _1, _2);
+  anchor_mission_srv_ =
+      nh_.advertiseService("anchor_mission", anchor_mission_service_callback);
+
+  boost::function<bool(
       maplab_msgs::GetDenseMapInRange::Request&,
       maplab_msgs::GetDenseMapInRange::Response&)>
       get_dense_map_in_range_callback = boost::bind(
@@ -293,6 +301,21 @@ bool MaplabServerRosNode::deleteAllRobotMissionsCallback(
 
   response.success.data = maplab_server_node_->deleteAllRobotMissions(
       robot_name, &response.message.data);
+
+  return true;
+}
+
+bool MaplabServerRosNode::anchorMissionServiceCallback(
+    maplab_msgs::AnchorMission::Request& request,      // NOLINT
+    maplab_msgs::AnchorMission::Response& response) {  // NOLINT
+
+  const std::string& partial_mission_id_string =
+      request.mission_id_to_anchor.data;
+  const aslam::Transformation T_G_M_anchor =
+      tf::transformMsgToKindr(request.T_G_M);
+
+  response.success.data = maplab_server_node_->anchorMissionManually(
+      partial_mission_id_string, T_G_M_anchor, &response.message.data);
 
   return true;
 }
