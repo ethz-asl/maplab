@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>grid_map_amo</name>
+  <version>0.0.1</version>
+  <description>grid-map-amo</description>
+  <maintainer email="acfloria@ethz.ch">Florian Achermann</maintainer>
+  <license>Apache 2.0</license>
+
+  <!--Not sure about the needed buildtools and dependencies yet.-->
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>aslam_cv_frames</depend>
+  <depend>eigen_catkin</depend>
+  <depend>grid_map_core</depend>
+  <depend>grid_map_cv</depend>
+  <!--<depend>sliding_window_estimator</depend>-->
+
+</package>
