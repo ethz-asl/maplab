@@ -56,10 +56,6 @@ DEFINE_double(
     vis_resource_visualization_frequency, 8,
     "Frequency of the image resources visualization in Hz.");
 
-DEFINE_bool(
-    vis_pointcloud_color_random, false,
-    "If enabled, every point cloud receives a random color.");
-
 DEFINE_string(
     vis_pointcloud_mission_id_topic, "/mission_point_cloud",
     "Specifies the topic for the mission specific dense map.");
@@ -232,50 +228,22 @@ void visualizeReprojectedDepthResource(
       [&accumulated_point_cloud_G, &point_cloud_counter](
           const aslam::Transformation& T_G_S,
           const resources::PointCloud& points_S) {
-        uint8_t r = 0u, g = 0u, b = 0u;
-        if (FLAGS_vis_pointcloud_color_random) {
-          uint32_t seed = time(NULL);
-          r = rand_r(&seed) % 256;
-          g = rand_r(&seed) % 256;
-          b = rand_r(&seed) % 256;
-        }
-
         ++point_cloud_counter;
 
         // If we just accumulate, transform to global frame and append.
         if (FLAGS_vis_pointcloud_accumulated_before_publishing) {
-          const size_t previous_size = accumulated_point_cloud_G.size();
           accumulated_point_cloud_G.appendTransformed(points_S, T_G_S);
-          const size_t new_size = accumulated_point_cloud_G.size();
-
-          if (FLAGS_vis_pointcloud_color_random) {
-            accumulated_point_cloud_G.colorizePointCloud(
-                previous_size, new_size, r, g, b);
-          }
           return;
         }
 
         // Either publish in local frame with a tf or in global frame.
         if (FLAGS_vis_pointcloud_publish_in_sensor_frame_with_tf) {
-          if (FLAGS_vis_pointcloud_color_random) {
-            resources::PointCloud points_C_colorized = points_S;
-            accumulated_point_cloud_G.colorizePointCloud(r, g, b);
-            sensor_msgs::PointCloud2 ros_point_cloud_S;
-            backend::convertPointCloudType(
-                points_C_colorized, &ros_point_cloud_S);
-            publishPointCloudInLocalFrameWithTf(T_G_S, &ros_point_cloud_S);
-          } else {
             sensor_msgs::PointCloud2 ros_point_cloud_S;
             backend::convertPointCloudType(points_S, &ros_point_cloud_S);
             publishPointCloudInLocalFrameWithTf(T_G_S, &ros_point_cloud_S);
-          }
         } else {
           resources::PointCloud points_G;
           points_G.appendTransformed(points_S, T_G_S);
-
-          if (FLAGS_vis_pointcloud_color_random) {
-            accumulated_point_cloud_G.colorizePointCloud(r, g, b);
-          }
 
           sensor_msgs::PointCloud2 ros_point_cloud_G;
           backend::convertPointCloudType(points_G, &ros_point_cloud_G);
@@ -347,24 +315,8 @@ static void createAndAppendAccumulatedPointCloudMessageForMission(
       [&accumulated_point_cloud_G, &point_cloud_counter](
           const aslam::Transformation& T_G_S,
           const resources::PointCloud& points_S) {
-        uint8_t r = 0u, g = 0u, b = 0u;
-        if (FLAGS_vis_pointcloud_color_random) {
-          uint32_t seed = time(NULL);
-          r = rand_r(&seed) % 256;
-          g = rand_r(&seed) % 256;
-          b = rand_r(&seed) % 256;
-        }
-
         ++point_cloud_counter;
-
-        const size_t previous_size = accumulated_point_cloud_G->size();
         accumulated_point_cloud_G->appendTransformed(points_S, T_G_S);
-        const size_t new_size = accumulated_point_cloud_G->size();
-
-        if (FLAGS_vis_pointcloud_color_random) {
-          accumulated_point_cloud_G->colorizePointCloud(
-              previous_size, new_size, r, g, b);
-        }
         return;
       };
 
