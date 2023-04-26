@@ -7,7 +7,9 @@ catkin_simple(ALL_DEPS_REQUIRED)
 #############
 # LIBRARIES #
 #############
-cs_add_library(libtinyply  src/tinyply/tinyply.cc)
+cs_add_library(libtinyply
+               src/point-cloud.cc
+               src/tinyply/tinyply.cc)
 
 
 ############
