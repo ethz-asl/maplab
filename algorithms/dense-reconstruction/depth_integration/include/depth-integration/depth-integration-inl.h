@@ -498,6 +498,56 @@ void integrateAllSensorDepthResourcesOfType(
                          << "timestamp " << timestamp_ns << "ns!";
             }
 
+            // If we have timing information for the points undistort the point
+            // cloud, based on the current poses.
+            if (point_cloud.hasTimes()) {
+              int32_t min_time_ns, max_time_ns;
+              point_cloud.getMinMaxTimeNanoseconds(&min_time_ns, &max_time_ns);
+
+              // The undistortion might take us outside the posegraph range
+              if (timestamp_ns + min_time_ns < min_timestamp_ns ||
+                  timestamp_ns + max_time_ns > max_timestamp_ns) {
+                VLOG(3) << "The optional depth resource at " << timestamp_ns
+                        << "ns is outside of the time range of the pose graph, "
+                        << "skipping.";
+                continue;
+              }
+
+              // We only use the IMU to interpolate a limited number of poses,
+              // and then resort to linear interpolation in between for each
+              // point. This is a significant speedup.
+              const int64_t kNumInterpolationPoints = 100;
+              Eigen::Matrix<int64_t, 1, Eigen::Dynamic> interpolated_timestamps(
+                  kNumInterpolationPoints);
+              // Evenly space the interpolation poses, while making sure the
+              // start and end are included so the entire scan time covered.
+              const int64_t time_step =
+                  (max_time_ns - min_time_ns) / (kNumInterpolationPoints - 1);
+              for (int64_t i = 0; i < kNumInterpolationPoints - 1; ++i) {
+                interpolated_timestamps[i] =
+                    timestamp_ns + min_time_ns + i * time_step;
+              }
+              // Last one manually to avoid integer rounding errors
+              interpolated_timestamps[kNumInterpolationPoints - 1] =
+                  timestamp_ns + max_time_ns;
+                  
+              aslam::TransformationVector interpolated_poses;
+              pose_interpolator.getPosesAtTime(
+                  vi_map, mission_id, interpolated_timestamps,
+                  &interpolated_poses);
+
+              // The interpolated poses are now from IMU to MAP frame. Bring
+              // them and the timestamps into the LIDAR start frame.
+              for (int64_t i = 0; i < kNumInterpolationPoints; ++i) {
+                interpolated_timestamps[i] -= timestamp_ns;
+                interpolated_poses[i] = T_B_S.inverse() * T_M_B.inverse() *
+                                        interpolated_poses[i] * T_B_S;
+              }
+
+              point_cloud.undistort(
+                  interpolated_timestamps, interpolated_poses);
+            }
+
             VLOG(3) << "Found point cloud at timestamp " << timestamp_ns
                     << "ns";
             integratePointCloud(

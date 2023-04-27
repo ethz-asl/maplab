@@ -3,6 +3,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <maplab-common/multi-threaded-progress-bar.h>
+#include <maplab-common/threading-helpers.h>
 #include <registration-toolbox/common/base-controller.h>
 #include <registration-toolbox/mock-controller.h>
 #include <registration-toolbox/model/registration-result.h>

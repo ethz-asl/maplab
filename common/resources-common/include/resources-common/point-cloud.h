@@ -22,7 +22,7 @@ class PointCloud {
   void resize(
       const size_t size, const bool has_normals = true,
       const bool has_colors = true, const bool has_scalars = true,
-      const bool has_labels = true, const bool has_times_ns = true);
+      const bool has_labels = true, const bool has_times = true);
 
   size_t size() const {
     CHECK_EQ(xyz.size() % 3, 0u);
@@ -49,7 +49,7 @@ class PointCloud {
     return (labels.size() == xyz.size() / 3u) && !labels.empty();
   }
 
-  bool hasTimesNs() const {
+  bool hasTimes() const {
     return (times_ns.size() == xyz.size() / 3u) && !times_ns.empty();
   }
 
@@ -69,6 +69,17 @@ class PointCloud {
   // the other point cloud is in B frame.
   void appendTransformed(
       const PointCloud& other, const aslam::Transformation& T_A_B);
+
+  // Get the min and max timestamps for all the points. Useful for undistortion.
+  void getMinMaxTimeNanoseconds(
+      int32_t* min_time_ns, int32_t* max_time_ns) const;
+
+  // Undistort the point cloud given a set of initial high accuracy poses
+  // from the start to the end of the scan. Linear interpolation will be used
+  // to get poses in between the intial ones.
+  void undistort(
+      const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& timestamps,
+      const aslam::TransformationVector& poses);
 
   void removeInvalidPoints();
 
@@ -90,7 +101,7 @@ class PointCloud {
   std::vector<unsigned char> colors;
   std::vector<float> scalars;
   std::vector<uint32_t> labels;
-  std::vector<uint32_t> times_ns;
+  std::vector<int32_t> times_ns;
 };
 
 }  // namespace resources
