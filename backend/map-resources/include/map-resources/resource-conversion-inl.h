@@ -60,7 +60,6 @@ void addScalarToPointCloud(
   LOG(FATAL) << "This point cloud either does not support scalars/intensities "
              << "or it is not implemented!";
 }
-
 template <>
 void addScalarToPointCloud(
     const float scalar, const size_t index, resources::PointCloud* point_cloud);
@@ -83,11 +82,10 @@ void addScalarToPointCloud(
 
 template <typename PointCloudType>
 void addLabelToPointCloud(
-    const uint32_t scalar, const size_t index, PointCloudType* point_cloud) {
+    const uint32_t label, const size_t index, PointCloudType* point_cloud) {
   LOG(FATAL) << "This point cloud either does not support labels"
              << "or it is not implemented!";
 }
-
 template <>
 void addLabelToPointCloud(
     const uint32_t label, const size_t index,
@@ -135,17 +133,17 @@ void addPointToPointCloud(
 
 template <typename PointCloudType>
 void addTimeToPointCloud(
-    const uint32_t time, const size_t index, PointCloudType* point_cloud) {
+    const int32_t time, const size_t index, PointCloudType* point_cloud) {
   LOG(FATAL) << "This point cloud either does not support times"
              << "or it is not implemented!";
 }
 template <>
 void addTimeToPointCloud(
-    const uint32_t time, const size_t index,
+    const int32_t time, const size_t index,
     resources::PointCloud* point_cloud);
 template <>
 void addTimeToPointCloud(
-    const uint32_t time, const size_t index,
+    const int32_t time, const size_t index,
     sensor_msgs::PointCloud2* point_cloud);
 
 template <typename PointCloudType>
@@ -366,7 +364,7 @@ void getLabelFromPointCloud(
 template <typename PointCloudType>
 void getTimeFromPointCloud(
     const PointCloudType& /*point_cloud*/, const size_t /*index*/,
-    uint32_t* /*time*/, const uint32_t /*convert_to_ns*/,
+    int32_t* /*time*/, const int32_t /*convert_to_ns*/,
     const int64_t /*time_offset_ns*/) {
   LOG(FATAL) << "This point cloud either does not support times of the "
              << "requested type or it is not implemented!";
@@ -374,12 +372,12 @@ void getTimeFromPointCloud(
 template <>
 void getTimeFromPointCloud(
     const resources::PointCloud& point_cloud, const size_t index,
-    uint32_t* time, const uint32_t /*convert_to_ns*/,
+    int32_t* time, const int32_t /*convert_to_ns*/,
     const int64_t /*time_offset_ns*/);
 template <>
 void getTimeFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
-    uint32_t* time, const uint32_t convert_to_ns, const int64_t time_offset_ns);
+    int32_t* time, const int32_t convert_to_ns, const int64_t time_offset_ns);
 
 template <typename PointCloudType>
 bool convertDepthMapToPointCloud(
@@ -502,7 +500,7 @@ bool convertDepthMapToPointCloud(
 template <typename InputPointCloud, typename OutputPointCloud>
 bool convertPointCloudType(
     const InputPointCloud& input_cloud, OutputPointCloud* output_cloud,
-    bool with_timestamps, uint32_t convert_to_ns, int64_t time_offset_ns) {
+    bool with_timestamps, int32_t convert_to_ns, int64_t time_offset_ns) {
   CHECK_NOTNULL(output_cloud);
 
   const bool input_has_normals = hasNormalsInformation(input_cloud);
@@ -552,7 +550,7 @@ bool convertPointCloudType(
     }
 
     if (with_timestamps && output_has_times) {
-      uint32_t time;
+      int32_t time;
       getTimeFromPointCloud(
           input_cloud, point_idx, &time, convert_to_ns, time_offset_ns);
       addTimeToPointCloud(time, point_idx, output_cloud);

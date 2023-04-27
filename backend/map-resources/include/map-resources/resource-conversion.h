@@ -22,7 +22,7 @@ bool convertDepthMapToPointCloud(
 template <typename InputPointCloud, typename OutputPointCloud>
 bool convertPointCloudType(
     const InputPointCloud& input_cloud, OutputPointCloud* output_cloud,
-    bool with_timestamps = false, uint32_t convert_to_ns = 1,
+    bool with_timestamps = false, int32_t convert_to_ns = 1,
     int64_t time_offset_ns = 0);
 
 bool convertDepthMapToPointCloud(
@@ -64,7 +64,7 @@ void addColorToPointCloud(
     PointCloudType* point_cloud);
 template <typename PointCloudType>
 void addTimeToPointCloud(
-    const uint32_t time, const size_t index, PointCloudType* point_cloud);
+    const int32_t time, const size_t index, PointCloudType* point_cloud);
 
 template <typename PointCloudType>
 void getPointFromPointCloud(
@@ -82,8 +82,8 @@ void getColorFromPointCloud(
     resources::RgbaColor* color);
 template <typename PointCloudType>
 void getTimeFromPointCloud(
-    const PointCloudType& point_cloud, const size_t index, uint32_t* time,
-    const uint32_t convert_to_ns, const int64_t time_offset_ns);
+    const PointCloudType& point_cloud, const size_t index, int32_t* time,
+    const int32_t convert_to_ns, const int64_t time_offset_ns);
 
 template <typename PointCloudType>
 size_t getPointCloudSize(const PointCloudType& point_cloud);

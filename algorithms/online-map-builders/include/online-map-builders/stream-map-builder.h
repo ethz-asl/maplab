@@ -224,7 +224,8 @@ void StreamMapBuilder::attachLidarMeasurement(
       map_->getSensorManager().getSensor<vi_map::Lidar>(lidar_sensor_id);
 
   if (lidar_sensor.hasPointTimestamps()) {
-    const uint32_t convert_to_ns = lidar_sensor.getTimestampConversionToNs();
+    const uint32_t convert_to_ns =
+        lidar_sensor.getTimestampConversionToNanoseconds();
     const int64_t time_offset_ns =
         lidar_sensor.hasRelativePointTimestamps()
             ? lidar_measurement.getTimestampNanoseconds()

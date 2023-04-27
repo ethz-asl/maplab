@@ -78,7 +78,7 @@ class Lidar final : public aslam::Sensor {
 
   // Get conversion factor between the LiDAR timestamps for points
   // and nanoseconds. This is LiDAR model and driver specific.
-  uint32_t getTimestampConversionToNs() const;
+  int32_t getTimestampConversionToNanoseconds() const;
 
  private:
   bool loadFromYamlNodeImpl(const YAML::Node& sensor_node) override;

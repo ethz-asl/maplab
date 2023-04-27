@@ -34,7 +34,7 @@ Lidar::Lidar(const aslam::SensorId& sensor_id, const std::string& topic)
   timestamp_unit_ = TimestampUnit::kNanoSeconds;
 }
 
-uint32_t Lidar::getTimestampConversionToNs() const {
+int32_t Lidar::getTimestampConversionToNanoseconds() const {
   switch (timestamp_unit_) {
     case TimestampUnit::kNanoSeconds:
       return 1;
