@@ -91,7 +91,7 @@ class Imu final : public aslam::Sensor {
 
   Imu();
   explicit Imu(const aslam::SensorId& sensor_id);
-  explicit Imu(const aslam::SensorId& sensor_id, const std::string& topic);
+  Imu(const aslam::SensorId& sensor_id, const std::string& topic);
 
   void operator=(const Imu& other) {
     aslam::Sensor::operator=(other);

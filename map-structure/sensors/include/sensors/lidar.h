@@ -25,9 +25,28 @@ class Lidar final : public aslam::Sensor {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MAPLAB_POINTER_TYPEDEFS(Lidar);
-  Lidar() = default;
+
+  enum class TimestampUnit {
+    kNanoSeconds = 0,
+    kMicroSeconds = 1,
+    kMilliSeconds = 2,
+    kSeconds = 3,
+  };
+
+  Lidar();
   explicit Lidar(const aslam::SensorId& sensor_id);
   Lidar(const aslam::SensorId& sensor_id, const std::string& topic);
+
+  void operator=(const Lidar& other) {
+    aslam::Sensor::operator=(other);
+    has_point_timestamps_ = other.has_point_timestamps_;
+    has_relative_point_timestamps_ = other.has_relative_point_timestamps_;
+    timestamp_unit_ = other.timestamp_unit_;
+    min_range_m_ = other.min_range_m_;
+    max_range_m_ = other.max_range_m_;
+    has_robot_filter_ = other.has_robot_filter_;
+    robot_filter_ = other.robot_filter_;
+  }
 
   Sensor::Ptr cloneAsSensor() const {
     return std::dynamic_pointer_cast<Sensor>(aligned_shared<Lidar>(*this));
@@ -50,7 +69,40 @@ class Lidar final : public aslam::Sensor {
     return static_cast<std::string>(kLidarIdentifier);
   }
 
+  // Whether the LiDAR publishes timing information for individual points.
+  bool hasPointTimestamps() const {
+    return has_point_timestamps_;
+  }
+
+  // Whether the timestamps for the points are relative to the message
+  // timestamp, or in absolute times (e.g. Hesai LiDARs do this).
+  bool hasRelativePointTimestamps() const {
+    return has_relative_point_timestamps_;
+  };
+
+  // Get conversion factor between the LiDAR timestamps for points
+  // and nanoseconds. This is LiDAR model and driver specific.
+  int32_t getTimestampConversionToNanoseconds() const;
+
+  double getMinRangeM() const {
+    return min_range_m_;
+  }
+
+  double getMaxRangeM() const {
+    return max_range_m_;
+  }
+
+  bool hasRobotFilter() const {
+    return has_robot_filter_;
+  }
+
+  const resources::BoundingBox3D* getRobotFilterPtr() const {
+    return &robot_filter_;
+  }
+
  private:
+  void init_default();
+
   bool loadFromYamlNodeImpl(const YAML::Node& sensor_node) override;
   void saveToYamlNodeImpl(YAML::Node* sensor_node) const override;
 
@@ -60,10 +112,70 @@ class Lidar final : public aslam::Sensor {
 
   void setRandomImpl() override {}
 
-  bool isEqualImpl(
-      const Sensor& /*other*/, const bool /*verbose*/) const override {
+  bool isEqualImpl(const Sensor& other, const bool verbose) const override {
+    const Lidar* other_lidar = dynamic_cast<const Lidar*>(&other);
+    if (other_lidar == nullptr) {
+      LOG_IF(WARNING, verbose) << "Other sensor is not a LiDAR!";
+      return false;
+    }
+
+    bool is_equal = true;
+    is_equal &= has_point_timestamps_ == other_lidar->has_point_timestamps_;
+    is_equal &= has_relative_point_timestamps_ ==
+                other_lidar->has_relative_point_timestamps_;
+    is_equal &= timestamp_unit_ == other_lidar->timestamp_unit_;
+    is_equal &= min_range_m_ == other_lidar->min_range_m_;
+    is_equal &= max_range_m_ == other_lidar->max_range_m_;
+    is_equal &= has_robot_filter_ == other_lidar->has_robot_filter_;
+
+    // Only compare the robot filters if one exists in both. Otherwise
+    // we rely on the previous equality check for has_robot_filter_.
+    if (has_robot_filter_ && other_lidar->has_robot_filter_) {
+      is_equal &= robot_filter_ == other_lidar->robot_filter_;
+    }
+
+    if (!is_equal) {
+      LOG_IF(WARNING, verbose)
+          << "This LiDAR sensor " << id_
+          << "\n has_point_timestamps_: " << has_point_timestamps_
+          << "\n has_relative_point_timestamps_: "
+          << has_relative_point_timestamps_ << "\n timestamp_unit_: "
+          << static_cast<std::underlying_type<TimestampUnit>::type>(
+                 timestamp_unit_)
+          << "\n min_range_m_: " << min_range_m_
+          << "\n max_range_m_: " << max_range_m_
+          << "\n has_robot_filter_: " << has_robot_filter_;
+
+      LOG_IF(WARNING, verbose)
+          << "Other LiDAR sensor " << other_lidar->id_
+          << "\n has_point_timestamps_: " << other_lidar->has_point_timestamps_
+          << "\n has_relative_point_timestamps_: "
+          << other_lidar->has_relative_point_timestamps_
+          << "\n timestamp_unit_: "
+          << static_cast<std::underlying_type<TimestampUnit>::type>(
+                 other_lidar->timestamp_unit_)
+          << "\n min_range_m_: " << other_lidar->min_range_m_
+          << "\n max_range_m_: " << other_lidar->max_range_m_
+          << "\n has_robot_filter_: " << other_lidar->has_robot_filter_;
+
+      if (has_robot_filter_ && other_lidar->has_robot_filter_) {
+        LOG_IF(WARNING, verbose) << "LiDARs have different robot filters";
+      }
+
+      return false;
+    }
+
     return true;
   }
+
+  bool has_point_timestamps_;
+  bool has_relative_point_timestamps_;
+  TimestampUnit timestamp_unit_;
+
+  double max_range_m_;
+  double min_range_m_;
+  bool has_robot_filter_;
+  resources::BoundingBox3D robot_filter_;
 };
 
 template <typename PointCloudType>
@@ -113,51 +225,17 @@ class LidarMeasurement : public Measurement {
 
 }  // namespace vi_map
 
-// Adds a new Ouster LIDAR point type to PCL.
-namespace pcl {
-struct OusterPointType {
-  PCL_ADD_POINT4D
-  int time_offset_us;
-  uint16_t reflectivity;
-  uint16_t signal;
-  uint8_t ring;
-  float intensity;
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-} EIGEN_ALIGN16;
-}  // namespace pcl
-
-#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
-// clang-format off
-POINT_CLOUD_REGISTER_POINT_STRUCT(
-    pcl::OusterPointType,
-    (float, x, x)
-    (float, y, y)
-    (float, z, z)
-    (int, time_offset_us, time_offset_us)
-    (uint16_t, reflectivity, reflectivity)
-    (uint16_t, signal, intensity)
-    (uint8_t, ring, ring))
-// clang-format on
-#endif // DOXYGEN_SHOULD_SKIP_THIS
- 
 namespace vi_map {
 
 typedef LidarMeasurement<resources::PointCloud> MaplabLidarMeasurement;
-typedef LidarMeasurement<pcl::PointCloud<pcl::PointXYZI>> PclLidarMeasurement;
-typedef LidarMeasurement<pcl::PointCloud<pcl::OusterPointType>>
-    OusterLidarMeasurement;
 typedef LidarMeasurement<sensor_msgs::PointCloud2> RosLidarMeasurement;
 
 DEFINE_MEASUREMENT_CONTAINERS(MaplabLidarMeasurement);
-DEFINE_MEASUREMENT_CONTAINERS(PclLidarMeasurement);
 DEFINE_MEASUREMENT_CONTAINERS(RosLidarMeasurement);
-DEFINE_MEASUREMENT_CONTAINERS(OusterLidarMeasurement);
 
 }  // namespace vi_map
 
 DEFINE_MEASUREMENT_HASH(MaplabLidarMeasurement)
-DEFINE_MEASUREMENT_HASH(PclLidarMeasurement)
 DEFINE_MEASUREMENT_HASH(RosLidarMeasurement)
-DEFINE_MEASUREMENT_HASH(OusterLidarMeasurement)
 
 #endif  // SENSORS_LIDAR_H_

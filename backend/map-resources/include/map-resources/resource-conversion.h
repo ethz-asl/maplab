@@ -1,13 +1,10 @@
 #ifndef MAP_RESOURCES_RESOURCE_CONVERSION_H_
 #define MAP_RESOURCES_RESOURCE_CONVERSION_H_
 
-#include <vector>
-
 #include <aslam/cameras/camera.h>
 #include <maplab-common/pose_types.h>
 #include <opencv2/core.hpp>
 #include <resources-common/point-cloud.h>
-#include <voxblox/core/common.h>
 
 #include "map-resources/resource-common.h"
 #include "map-resources/resource-typedefs.h"
@@ -22,36 +19,11 @@ bool convertDepthMapToPointCloud(
     const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
     PointCloudType* point_cloud_C);
 
-/// Converts a point cloud to a depth map + optionally an intensity image.
-/// @param[in]    point_cloud_C         Point cloud in camera coordinate frame,
-///                                     which is x-right, z-front, y-down
-/// @param[in]    camera                Camera model of the desired depth map
-/// @param[in]    use_openni_format     If enabled, the depth map will be in the
-///                                     OpenNI format ()[mm], uint16_t),
-///                                     otherwise in floating point format [m].
-/// @param[in]    create_range_image    If enabled, the depth map will not
-///                                     contain the Z coordinate of the 3D point
-///                                     but the actual ray length from the
-///                                     camera center to the 3D point.
-///                                     NOTE This is required for cameras of
-///                                     type Camera3DLidar!
-/// @param[out]   depth_map             OpenCV depth map, will be set to either
-///                                     CV_32FC1 (depth in m) or CV_U16C1 (depth
-///                                     in mm)
-/// @param[out]   image                 OpenCV intensity image, will be set to
-///                                     CV_8UC1 or CV_8UC3, depending on the
-///                                     availablility of intensity vs color.It
-///                                     will be unallocated if no intensity or
-///                                     color is available.
-template <typename PointCloudType>
-bool convertPointCloudToDepthMap(
-    const PointCloudType& point_cloud_C, const aslam::Camera& camera,
-    const bool use_openni_format, const bool create_range_image,
-    cv::Mat* depth_map, cv::Mat* image);
-
 template <typename InputPointCloud, typename OutputPointCloud>
 bool convertPointCloudType(
-    const InputPointCloud& input_cloud, OutputPointCloud* output_cloud);
+    const InputPointCloud& input_cloud, OutputPointCloud* output_cloud,
+    bool with_timestamps = false, int32_t convert_to_ns = 1,
+    int64_t time_offset_ns = 0);
 
 bool convertDepthMapToPointCloud(
     const cv::Mat& depth_map, const aslam::Camera& camera,
@@ -90,6 +62,9 @@ template <typename PointCloudType>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
     PointCloudType* point_cloud);
+template <typename PointCloudType>
+void addTimeToPointCloud(
+    const int32_t time, const size_t index, PointCloudType* point_cloud);
 
 template <typename PointCloudType>
 void getPointFromPointCloud(
@@ -105,6 +80,10 @@ template <typename PointCloudType>
 void getColorFromPointCloud(
     const PointCloudType& point_cloud, const size_t index,
     resources::RgbaColor* color);
+template <typename PointCloudType>
+void getTimeFromPointCloud(
+    const PointCloudType& point_cloud, const size_t index, int32_t* time,
+    const int32_t convert_to_ns, const int64_t time_offset_ns);
 
 template <typename PointCloudType>
 size_t getPointCloudSize(const PointCloudType& point_cloud);
@@ -122,11 +101,14 @@ template <typename PointCloudType>
 bool hasLabelInformation(const PointCloudType& point_cloud);
 template <typename PointCloudType>
 bool hasScalarInformation(const PointCloudType& point_cloud);
+template <typename PointCloudType>
+bool hasTimeInformation(const PointCloudType& point_cloud);
 
 template <typename PointCloudType>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool has_normals,
-    const bool has_scalar, const bool has_labels, PointCloudType* point_cloud);
+    const bool has_scalar, const bool has_labels, const bool has_times,
+    PointCloudType* point_cloud);
 
 }  // namespace backend
 

@@ -1,10 +1,7 @@
 #include "visualization/resource-visualization.h"
 
 #include <Eigen/Dense>
-#include <aslam/cameras/camera-factory.h>
-#include <aslam/cameras/camera-pinhole.h>
-#include <aslam/cameras/camera-unified-projection.h>
-#include <aslam/cameras/distortion-null.h>
+#include <aslam/cameras/ncamera.h>
 #include <aslam/common/time.h>
 #include <aslam/frames/visual-frame.h>
 #include <aslam/frames/visual-nframe.h>
@@ -58,10 +55,6 @@ DEFINE_int32(
 DEFINE_double(
     vis_resource_visualization_frequency, 8,
     "Frequency of the image resources visualization in Hz.");
-
-DEFINE_bool(
-    vis_pointcloud_color_random, false,
-    "If enabled, every point cloud receives a random color.");
 
 DEFINE_string(
     vis_pointcloud_mission_id_topic, "/mission_point_cloud",
@@ -225,67 +218,27 @@ void visualizeReprojectedDepthResource(
       !(FLAGS_vis_pointcloud_accumulated_before_publishing &&
         FLAGS_vis_pointcloud_publish_in_sensor_frame_with_tf));
 
-  resources::PointCloud accumulated_point_cloud_G;
-
-  size_t point_cloud_counter = 0u;
-
   srand(time(NULL));
 
+  resources::PointCloud accumulated_point_cloud_G;
   depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
-      [&accumulated_point_cloud_G, &point_cloud_counter](
+      [&accumulated_point_cloud_G](
           const aslam::Transformation& T_G_S,
           const resources::PointCloud& points_S) {
-        if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
-            (point_cloud_counter % FLAGS_vis_pointcloud_visualize_every_nth !=
-             0u)) {
-          ++point_cloud_counter;
-          return;
-        }
-
-        uint8_t r = 0u, g = 0u, b = 0u;
-        if (FLAGS_vis_pointcloud_color_random) {
-          uint32_t seed = time(NULL);
-          r = rand_r(&seed) % 256;
-          g = rand_r(&seed) % 256;
-          b = rand_r(&seed) % 256;
-        }
-
-        ++point_cloud_counter;
-
         // If we just accumulate, transform to global frame and append.
         if (FLAGS_vis_pointcloud_accumulated_before_publishing) {
-          const size_t previous_size = accumulated_point_cloud_G.size();
           accumulated_point_cloud_G.appendTransformed(points_S, T_G_S);
-          const size_t new_size = accumulated_point_cloud_G.size();
-
-          if (FLAGS_vis_pointcloud_color_random) {
-            accumulated_point_cloud_G.colorizePointCloud(
-                previous_size, new_size, r, g, b);
-          }
           return;
         }
 
         // Either publish in local frame with a tf or in global frame.
         if (FLAGS_vis_pointcloud_publish_in_sensor_frame_with_tf) {
-          if (FLAGS_vis_pointcloud_color_random) {
-            resources::PointCloud points_C_colorized = points_S;
-            accumulated_point_cloud_G.colorizePointCloud(r, g, b);
-            sensor_msgs::PointCloud2 ros_point_cloud_S;
-            backend::convertPointCloudType(
-                points_C_colorized, &ros_point_cloud_S);
-            publishPointCloudInLocalFrameWithTf(T_G_S, &ros_point_cloud_S);
-          } else {
-            sensor_msgs::PointCloud2 ros_point_cloud_S;
-            backend::convertPointCloudType(points_S, &ros_point_cloud_S);
-            publishPointCloudInLocalFrameWithTf(T_G_S, &ros_point_cloud_S);
-          }
+          sensor_msgs::PointCloud2 ros_point_cloud_S;
+          backend::convertPointCloudType(points_S, &ros_point_cloud_S);
+          publishPointCloudInLocalFrameWithTf(T_G_S, &ros_point_cloud_S);
         } else {
           resources::PointCloud points_G;
           points_G.appendTransformed(points_S, T_G_S);
-
-          if (FLAGS_vis_pointcloud_color_random) {
-            accumulated_point_cloud_G.colorizePointCloud(r, g, b);
-          }
 
           sensor_msgs::PointCloud2 ros_point_cloud_G;
           backend::convertPointCloudType(points_G, &ros_point_cloud_G);
@@ -299,10 +252,25 @@ void visualizeReprojectedDepthResource(
             FLAGS_vis_pointcloud_sleep_between_point_clouds_ms));
       };
 
+  size_t point_cloud_counter = 0u;
+  depth_integration::ResourceSelectionFunction selection_function =
+      [&point_cloud_counter](
+          const int64_t /*timestamp_ns*/,
+          const aslam::Transformation& /*T_G_S*/) {
+        const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
+        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
+          ++point_cloud_counter;
+          return false;
+        } else {
+          ++point_cloud_counter;
+          return true;
+        }
+      };
+
   depth_integration::integrateAllDepthResourcesOfType(
       mission_ids, input_resource_type,
       FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
-      integration_function);
+      integration_function, selection_function);
 
   // If we are done and we did not accumulate the point cloud there is nothing
   // left to do.
@@ -336,40 +304,29 @@ static void createAndAppendAccumulatedPointCloudMessageForMission(
   CHECK(mission_id.isValid());
   CHECK(vi_map.hasMission(mission_id));
 
-  uint32_t point_cloud_counter = 0u;
-
   srand(time(NULL));
 
   depth_integration::IntegrationFunctionPointCloudMaplab integration_function =
-      [&accumulated_point_cloud_G, &point_cloud_counter](
+      [&accumulated_point_cloud_G](
           const aslam::Transformation& T_G_S,
           const resources::PointCloud& points_S) {
-        if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
-            (point_cloud_counter % FLAGS_vis_pointcloud_visualize_every_nth !=
-             0u)) {
-          ++point_cloud_counter;
-          return;
-        }
-
-        uint8_t r = 0u, g = 0u, b = 0u;
-        if (FLAGS_vis_pointcloud_color_random) {
-          uint32_t seed = time(NULL);
-          r = rand_r(&seed) % 256;
-          g = rand_r(&seed) % 256;
-          b = rand_r(&seed) % 256;
-        }
-
-        ++point_cloud_counter;
-
-        const size_t previous_size = accumulated_point_cloud_G->size();
         accumulated_point_cloud_G->appendTransformed(points_S, T_G_S);
-        const size_t new_size = accumulated_point_cloud_G->size();
-
-        if (FLAGS_vis_pointcloud_color_random) {
-          accumulated_point_cloud_G->colorizePointCloud(
-              previous_size, new_size, r, g, b);
-        }
         return;
+      };
+
+  size_t point_cloud_counter = 0u;
+  depth_integration::ResourceSelectionFunction selection_function =
+      [&point_cloud_counter](
+          const int64_t /*timestamp_ns*/,
+          const aslam::Transformation& /*T_G_S*/) {
+        const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
+        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
+          ++point_cloud_counter;
+          return false;
+        } else {
+          ++point_cloud_counter;
+          return true;
+        }
       };
 
   vi_map::MissionIdList mission_ids;
@@ -377,7 +334,7 @@ static void createAndAppendAccumulatedPointCloudMessageForMission(
   depth_integration::integrateAllDepthResourcesOfType(
       mission_ids, input_resource_type,
       FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
-      integration_function);
+      integration_function, selection_function);
 }
 
 void visualizeReprojectedDepthResourcePerRobot(
@@ -438,55 +395,60 @@ void createPointCloudMessageVectorForMission(
   CHECK(mission_id.isValid());
   CHECK(vi_map.hasMission(mission_id));
 
-  uint32_t point_cloud_counter = 0u;
-
   srand(time(NULL));
+
   int64_t previous_ts_ns = 0;
   depth_integration::IntegrationFunctionPointCloudMaplabWithTs
-      integration_function = [&color, &mission_counter, &resources,
-                              &previous_ts_ns, &point_cloud_counter](
-                                 const int64_t ts_ns,
-                                 const aslam::Transformation& T_G_S,
-                                 const resources::PointCloud& points_S) {
-        if (FLAGS_vis_pointcloud_visualize_every_nth > 0 &&
-            (point_cloud_counter % FLAGS_vis_pointcloud_visualize_every_nth !=
-             0u)) {
+      integration_function =
+          [&color, &mission_counter, &resources, &previous_ts_ns](
+              const int64_t ts_ns, const aslam::Transformation& T_G_S,
+              const resources::PointCloud& points_S) {
+            // Transform points to G
+            resources::PointCloud points_G;
+            points_G.appendTransformed(points_S, T_G_S);
+
+            LineSegment line_segment;
+            const Eigen::Vector3d cur_pos = T_G_S.getPosition();
+            line_segment.from = cur_pos;
+            line_segment.to = cur_pos;
+            line_segment.color = color;
+            line_segment.scale = 0.4;
+            line_segment.alpha = 1.0;
+
+            Pose pose;
+            pose.G_p_B = T_G_S.getPosition();
+            pose.G_q_B = T_G_S.getRotation().vector();
+            pose.id = 0;
+            pose.scale = 1.8;
+            pose.line_width = 0.5;
+            pose.alpha = 1.0;
+
+            if (!resources->empty()) {
+              line_segment.from = (*resources)[previous_ts_ns].edge.to;
+            }
+            SequentialPointCloud& cur = (*resources)[ts_ns];
+            cur.point_cloud = std::move(points_G);
+            cur.edge = std::move(line_segment);
+            cur.pose = std::move(pose);
+            cur.mission = mission_counter;
+
+            previous_ts_ns = ts_ns;
+            return;
+          };
+
+  uint32_t point_cloud_counter = 0u;
+  depth_integration::ResourceSelectionFunction selection_function =
+      [&point_cloud_counter](
+          const int64_t /*timestamp_ns*/,
+          const aslam::Transformation& /*T_G_S*/) {
+        const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
+        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
           ++point_cloud_counter;
-          return;
+          return false;
+        } else {
+          ++point_cloud_counter;
+          return true;
         }
-
-        // Transform points to G
-        resources::PointCloud points_G;
-        points_G.appendTransformed(points_S, T_G_S);
-        ++point_cloud_counter;
-
-        LineSegment line_segment;
-        const Eigen::Vector3d cur_pos = T_G_S.getPosition();
-        line_segment.from = cur_pos;
-        line_segment.to = cur_pos;
-        line_segment.color = color;
-        line_segment.scale = 0.4;
-        line_segment.alpha = 1.0;
-
-        Pose pose;
-        pose.G_p_B = T_G_S.getPosition();
-        pose.G_q_B = T_G_S.getRotation().vector();
-        pose.id = 0;
-        pose.scale = 1.8;
-        pose.line_width = 0.5;
-        pose.alpha = 1.0;
-
-        if (point_cloud_counter > 1) {
-          line_segment.from = (*resources)[previous_ts_ns].edge.to;
-        }
-        SequentialPointCloud& cur = (*resources)[ts_ns];
-        cur.point_cloud = std::move(points_G);
-        cur.edge = std::move(line_segment);
-        cur.pose = std::move(pose);
-        cur.mission = mission_counter;
-
-        previous_ts_ns = ts_ns;
-        return;
       };
 
   vi_map::MissionIdList mission_ids;
@@ -494,7 +456,7 @@ void createPointCloudMessageVectorForMission(
   depth_integration::integrateAllDepthResourcesOfType(
       mission_ids, input_resource_type,
       FLAGS_vis_pointcloud_reproject_depth_maps_with_undistorted_camera, vi_map,
-      integration_function);
+      integration_function, selection_function);
 }
 
 void visualizeReprojectedDepthResourceFromMission(
@@ -508,8 +470,7 @@ void visualizeReprojectedDepthResourceFromMission(
       input_resource_type, mission_id, vi_map, &accumulated_point_cloud_G);
 
   sensor_msgs::PointCloud2 ros_point_cloud_G;
-  backend::convertPointCloudType(
-      accumulated_point_cloud_G, &ros_point_cloud_G);
+  backend::convertPointCloudType(accumulated_point_cloud_G, &ros_point_cloud_G);
   publishPointCloudInGlobalFrame(
       FLAGS_vis_pointcloud_mission_id_topic, &ros_point_cloud_G);
 }

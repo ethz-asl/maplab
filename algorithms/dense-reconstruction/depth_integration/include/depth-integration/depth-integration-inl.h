@@ -318,27 +318,50 @@ void integrateAllSensorDepthResourcesOfType(
       // Get transformation between reference (e.g. IMU) and sensor.
       aslam::Transformation T_B_S = sensor_manager.getSensor_T_B_S(sensor_id);
 
+      // Get the sensor type, as cameras and LiDARs are treated differently.
+      vi_map::SensorType sensor_type = sensor_manager.getSensorType(sensor_id);
+
       // If the sensor is a camera and the resource type is a depth map we will
-      // need the camera model to reproject them.
-      aslam::NCamera::Ptr ncamera_ptr;
+      // need the camera model to reproject with the correct model / distortion.
       aslam::Camera::Ptr camera_ptr;
-      if (sensor_manager.getSensorType(sensor_id) ==
-          vi_map::SensorType::kNCamera) {
-        ncamera_ptr = sensor_manager.getSensorPtr<aslam::NCamera>(sensor_id);
+      if (sensor_type == vi_map::SensorType::kNCamera) {
+        aslam::NCamera::Ptr ncamera_ptr =
+            sensor_manager.getSensorPtr<aslam::NCamera>(sensor_id);
         CHECK(ncamera_ptr);
+
+        // TODO(smauq): This seems to be a strong assumption.
         CHECK_EQ(ncamera_ptr->getNumCameras(), 1u);
         camera_ptr = ncamera_ptr->getCameraShared(0);
-        // Need to update the sensor extrinsics, since ncameras have an
-        // additiona extrinsics between ncamera frame and camera frame.
-        T_B_S = T_B_S * ncamera_ptr->get_T_C_B(0).inverse();
+        CHECK(camera_ptr);
+
+        // Optionally, remove distortion from camera.
+        if (use_undistorted_camera_for_depth_maps) {
+          aslam::Camera::Ptr camera_no_distortion;
+          backend::createCameraWithoutDistortion(
+              *camera_ptr, &camera_no_distortion);
+          CHECK(camera_no_distortion);
+          camera_ptr = camera_no_distortion;
+        }
       }
-      // Optionally, remove distortion from camera.
-      if (use_undistorted_camera_for_depth_maps && camera_ptr) {
-        aslam::Camera::Ptr camera_no_distortion;
-        backend::createCameraWithoutDistortion(
-            *camera_ptr, &camera_no_distortion);
-        CHECK(camera_no_distortion);
-        camera_ptr = camera_no_distortion;
+
+      // Pick defaults that do nothing so we don't have to check later on
+      // if it's a LiDAR or camera. Like this by default we will only remove
+      // invalid points and no other filtering.
+      double min_range_m = 0.0;
+      double max_range_m = std::numeric_limits<double>::infinity();
+      const resources::BoundingBox3D* robot_filter = nullptr;
+
+      if (sensor_type == vi_map::SensorType::kLidar) {
+        vi_map::Lidar::Ptr lidar_ptr =
+            sensor_manager.getSensorPtr<vi_map::Lidar>(sensor_id);
+
+        min_range_m = lidar_ptr->getMinRangeM();
+        max_range_m = lidar_ptr->getMaxRangeM();
+
+        // The robot filter is optional.
+        if (lidar_ptr->hasRobotFilter()) {
+          robot_filter = lidar_ptr->getRobotFilterPtr();
+        }
       }
 
       size_t num_resources = resource_buffer_ptr->size();
@@ -498,8 +521,63 @@ void integrateAllSensorDepthResourcesOfType(
                          << "timestamp " << timestamp_ns << "ns!";
             }
 
+            // If we have timing information for the points undistort the point
+            // cloud, based on the current poses.
+            if (point_cloud.hasTimes()) {
+              int32_t min_time_ns, max_time_ns;
+              point_cloud.getMinMaxTimeNanoseconds(&min_time_ns, &max_time_ns);
+
+              // The undistortion might take us outside the posegraph range
+              if (timestamp_ns + min_time_ns < min_timestamp_ns ||
+                  timestamp_ns + max_time_ns > max_timestamp_ns) {
+                VLOG(3) << "The optional depth resource at " << timestamp_ns
+                        << "ns is outside of the time range of the pose graph, "
+                        << "skipping.";
+                continue;
+              }
+
+              // We only use the IMU to interpolate a limited number of poses,
+              // and then resort to linear interpolation in between for each
+              // point. This is a significant speedup.
+              const int64_t kNumInterpolationPoints = 100;
+              Eigen::Matrix<int64_t, 1, Eigen::Dynamic> interpolated_timestamps(
+                  kNumInterpolationPoints);
+              // Evenly space the interpolation poses, while making sure the
+              // start and end are included so the entire scan time covered.
+              const int64_t time_step =
+                  (max_time_ns - min_time_ns) / (kNumInterpolationPoints - 1);
+              for (int64_t i = 0; i < kNumInterpolationPoints - 1; ++i) {
+                interpolated_timestamps[i] =
+                    timestamp_ns + min_time_ns + i * time_step;
+              }
+              // Last one manually to avoid integer rounding errors
+              interpolated_timestamps[kNumInterpolationPoints - 1] =
+                  timestamp_ns + max_time_ns;
+
+              aslam::TransformationVector interpolated_poses;
+              pose_interpolator.getPosesAtTime(
+                  vi_map, mission_id, interpolated_timestamps,
+                  &interpolated_poses);
+
+              // The interpolated poses are now from IMU to MAP frame. Bring
+              // them and the timestamps into the LIDAR start frame.
+              for (int64_t i = 0; i < kNumInterpolationPoints; ++i) {
+                interpolated_timestamps[i] -= timestamp_ns;
+                interpolated_poses[i] = T_B_S.inverse() * T_M_B.inverse() *
+                                        interpolated_poses[i] * T_B_S;
+              }
+
+              point_cloud.undistort(
+                  interpolated_timestamps, interpolated_poses);
+            }
+
+            size_t num_removed_points = point_cloud.filterValidMinMaxBox(
+                min_range_m, max_range_m, robot_filter);
+
             VLOG(3) << "Found point cloud at timestamp " << timestamp_ns
-                    << "ns";
+                    << "ns. With " << point_cloud.size() << " points, and "
+                    << num_removed_points << " points removed after filter "
+                    << "conditions from the sensor yaml.";
             integratePointCloud(
                 timestamp_ns, T_G_S, point_cloud, integration_function);
             continue;

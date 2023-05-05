@@ -93,23 +93,15 @@ class PointCloudMapSensorMeasurement final
 
 typedef PointCloudMapSensorMeasurement<resources::PointCloud>
     MaplabPointCloudMapSensorMeasurement;
-typedef PointCloudMapSensorMeasurement<pcl::PointCloud<pcl::PointXYZI>>
-    PclPointCloudMapSensorMeasurement;
-typedef PointCloudMapSensorMeasurement<pcl::PointCloud<pcl::OusterPointType>>
-    OusterPointCloudMapSensorMeasurement;
 typedef PointCloudMapSensorMeasurement<sensor_msgs::PointCloud2>
     RosPointCloudMapSensorMeasurement;
 
 DEFINE_MEASUREMENT_CONTAINERS(MaplabPointCloudMapSensorMeasurement);
-DEFINE_MEASUREMENT_CONTAINERS(PclPointCloudMapSensorMeasurement);
 DEFINE_MEASUREMENT_CONTAINERS(RosPointCloudMapSensorMeasurement);
-DEFINE_MEASUREMENT_CONTAINERS(OusterPointCloudMapSensorMeasurement);
 
 }  // namespace vi_map
 
 DEFINE_MEASUREMENT_HASH(MaplabPointCloudMapSensorMeasurement)
-DEFINE_MEASUREMENT_HASH(PclPointCloudMapSensorMeasurement)
 DEFINE_MEASUREMENT_HASH(RosPointCloudMapSensorMeasurement)
-DEFINE_MEASUREMENT_HASH(OusterPointCloudMapSensorMeasurement)
 
 #endif  // SENSORS_POINTCLOUD_MAP_SENSOR_H_

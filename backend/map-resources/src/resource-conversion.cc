@@ -22,6 +22,9 @@ static const std::string kPointCloud2IntensityV2 = "intensities";
 static const std::string kPointCloud2IntensityV3 = "i";
 static const std::string kPointCloud2LabelV1 = "label";
 static const std::string kPointCloud2LabelV2 = "labels";
+static const std::string kPointCloud2TimeV1 = "time";
+static const std::string kPointCloud2TimeV2 = "timestamp";
+static const std::string kPointCloud2TimeV3 = "t";
 static const std::string kPointCloud2PointX = "x";
 static const std::string kPointCloud2PointY = "y";
 static const std::string kPointCloud2PointZ = "z";
@@ -34,6 +37,8 @@ static const std::string kPointCloud2ColorA = "a";
 
 static PointCloud2Visitor<float> intensity_visitor;
 static PointCloud2Visitor<uint32_t> label_visitor;
+static PointCloud2Visitor<int64_t> time_visitor_int64;
+static PointCloud2Visitor<double> time_visitor_double;
 
 inline sensor_msgs::PointField getScalarField(
     const sensor_msgs::PointCloud2& point_cloud) {
@@ -52,6 +57,17 @@ inline sensor_msgs::PointField getLabelField(
   for (const sensor_msgs::PointField& field : point_cloud.fields) {
     if (field.name == kPointCloud2LabelV1 ||
         field.name == kPointCloud2LabelV2) {
+      return field;
+    }
+  }
+  return sensor_msgs::PointField{};
+}
+
+inline sensor_msgs::PointField getTimeField(
+    const sensor_msgs::PointCloud2& point_cloud) {
+  for (const sensor_msgs::PointField& field : point_cloud.fields) {
+    if (field.name == kPointCloud2TimeV1 || field.name == kPointCloud2TimeV2 ||
+        field.name == kPointCloud2TimeV3) {
       return field;
     }
   }
@@ -78,8 +94,9 @@ inline PointCloud2ConstIteratorVariant getPointCloudFieldIterator(
       return sensor_msgs::PointCloud2ConstIterator<float>(msg, field);
     case sensor_msgs::PointField::FLOAT64:
       return sensor_msgs::PointCloud2ConstIterator<double>(msg, field);
+    default:
+      LOG(FATAL) << "Unknown field type for PointCloud2 message.";
   }
-  return sensor_msgs::PointCloud2ConstIterator<float>(msg, field);
 }
 
 bool convertDepthMapToPointCloud(
@@ -507,7 +524,6 @@ void addScalarToPointCloud(
       *point_cloud, kPointCloud2IntensityV1);
 
   it_intensity += index;
-
   *it_intensity = scalar;
 }
 
@@ -526,15 +542,6 @@ void addScalarToPointCloud(
     pcl::PointCloud<pcl::PointXYZINormal>* point_cloud) {
   CHECK_LT(index, point_cloud->points.size());
   pcl::PointXYZINormal& point = point_cloud->points[index];
-  point.intensity = scalar;
-}
-
-template <>
-void addScalarToPointCloud(
-    const float scalar, const size_t index,
-    pcl::PointCloud<pcl::OusterPointType>* point_cloud) {
-  CHECK_LT(index, point_cloud->points.size());
-  pcl::OusterPointType& point = point_cloud->points[index];
   point.intensity = scalar;
 }
 
@@ -582,16 +589,6 @@ void getScalarFromPointCloud(
 }
 
 template <>
-void getScalarFromPointCloud(
-    const pcl::PointCloud<pcl::OusterPointType>& point_cloud,
-    const size_t index, float* scalar) {
-  CHECK_NOTNULL(scalar);
-  DCHECK_GT(point_cloud.size(), index);
-  const pcl::OusterPointType& point = point_cloud.points[index];
-  *scalar = point.intensity;
-}
-
-template <>
 void addLabelToPointCloud(
     const uint32_t label, const size_t index,
     resources::PointCloud* point_cloud) {
@@ -608,7 +605,6 @@ void addLabelToPointCloud(
       *point_cloud, kPointCloud2LabelV1);
 
   it_label += index;
-
   *it_label = label;
 }
 
@@ -655,10 +651,74 @@ void getLabelFromPointCloud(
 }
 
 template <>
+void addTimeToPointCloud(
+    const int32_t time, const size_t index,
+    resources::PointCloud* point_cloud) {
+  CHECK_NOTNULL(point_cloud);
+  DCHECK_LT(index, point_cloud->times_ns.size());
+  point_cloud->times_ns[index] = time;
+}
+
+template <>
+void addTimeToPointCloud(
+    const int32_t time, const size_t index,
+    sensor_msgs::PointCloud2* point_cloud) {
+  sensor_msgs::PointCloud2Iterator<int32_t> it_time(
+      *point_cloud, kPointCloud2TimeV1);
+
+  it_time += index;
+  *it_time = time;
+}
+
+template <>
+void getTimeFromPointCloud(
+    const resources::PointCloud& point_cloud, const size_t index,
+    int32_t* time, const int32_t /*convert_to_ns*/,
+    const int64_t /*time_offset_ns*/) {
+  CHECK_NOTNULL(time);
+
+  DCHECK_GT(point_cloud.times_ns.size(), index);
+  *time = point_cloud.times_ns[index];
+}
+
+template <>
+void getTimeFromPointCloud(
+    const sensor_msgs::PointCloud2& point_cloud, const size_t index,
+    int32_t* time, const int32_t convert_to_ns,
+    const int64_t time_offset_ns) {
+  CHECK_NOTNULL(time);
+  sensor_msgs::PointField field = getTimeField(point_cloud);
+  CHECK(!field.name.empty());
+
+  PointCloud2ConstIteratorVariant var =
+      getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
+
+  switch (field.datatype) {
+    case sensor_msgs::PointField::FLOAT32:
+    case sensor_msgs::PointField::FLOAT64: {
+      double time_f =
+          boost::apply_visitor(time_visitor_double.setIndex(index), var);
+      *time = static_cast<int32_t>(time_f * convert_to_ns - time_offset_ns);
+      break;
+    }
+    case sensor_msgs::PointField::INT32:
+    case sensor_msgs::PointField::UINT32: {
+      int64_t time_i =
+          boost::apply_visitor(time_visitor_int64.setIndex(index), var);
+      *time = static_cast<int32_t>(time_i * convert_to_ns - time_offset_ns);
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unsupported type for time field in PointCloud2.";
+    }
+  }
+}
+
+template <>
 void resizePointCloud(
     const size_t size, const bool /*has_color*/, const bool /*has_normals*/,
     const bool /*has_scalar*/, const bool /*has_labels*/,
-    voxblox::Pointcloud* point_cloud) {
+    const bool /*has_times*/, voxblox::Pointcloud* point_cloud) {
   CHECK_NOTNULL(point_cloud);
   point_cloud->resize(size);
 }
@@ -667,7 +727,7 @@ template <>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool /*has_normals*/,
     const bool /*has_scalar*/, const bool /*has_labels*/,
-    resources::VoxbloxColorPointCloud* point_cloud) {
+    const bool /*has_times*/, resources::VoxbloxColorPointCloud* point_cloud) {
   CHECK_NOTNULL(point_cloud);
   CHECK_NOTNULL(point_cloud->colors)->clear();
   CHECK_NOTNULL(point_cloud->points_C)->clear();
@@ -681,16 +741,17 @@ void resizePointCloud(
 template <>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool has_normals,
-    const bool has_scalar, const bool has_labels,
+    const bool has_scalar, const bool has_labels, const bool has_times,
     resources::PointCloud* point_cloud) {
   CHECK_NOTNULL(point_cloud);
-  point_cloud->resize(size, has_normals, has_color, has_scalar, has_labels);
+  point_cloud->resize(
+      size, has_normals, has_color, has_scalar, has_labels, has_times);
 }
 
 template <>
 void resizePointCloud(
     const size_t num_points, const bool has_color, const bool /*has_normals*/,
-    const bool has_scalar, const bool has_labels,
+    const bool has_scalar, const bool has_labels, const bool has_times,
     sensor_msgs::PointCloud2* point_cloud) {
   CHECK_NOTNULL(point_cloud);
   assert(sizeof(float) == 4u);
@@ -748,6 +809,16 @@ void resizePointCloud(
     offset += 3 * sizeOfPointField(sensor_msgs::PointField::UINT32);
   }
 
+  if (has_times) {
+    offset = addPointField(
+        *point_cloud, kPointCloud2TimeV1, 1, sensor_msgs::PointField::UINT32,
+        offset);
+
+    // The offset adds 3x 4bytes for padding, to get a better memory
+    // alignment.
+    offset += 3 * sizeOfPointField(sensor_msgs::PointField::UINT32);
+  }
+
   point_cloud->point_step = offset;
   point_cloud->row_step = point_cloud->width * point_cloud->point_step;
   point_cloud->data.resize(point_cloud->height * point_cloud->row_step);
@@ -755,6 +826,7 @@ void resizePointCloud(
   CHECK_EQ(hasScalarInformation(*point_cloud), has_scalar);
   CHECK_EQ(hasColorInformation(*point_cloud), has_color);
   CHECK_EQ(hasLabelInformation(*point_cloud), has_labels);
+  CHECK_EQ(hasTimeInformation(*point_cloud), has_times);
 }
 
 void createCameraWithoutDistortion(
@@ -878,12 +950,6 @@ bool hasScalarInformation(
 }
 
 template <>
-bool hasScalarInformation(
-    const pcl::PointCloud<pcl::OusterPointType>& /*point_cloud*/) {
-  return true;
-}
-
-template <>
 bool hasLabelInformation(const sensor_msgs::PointCloud2& point_cloud) {
   return !getLabelField(point_cloud).name.empty();
 }
@@ -897,6 +963,16 @@ template <>
 bool hasLabelInformation(
     const pcl::PointCloud<pcl::PointXYZL>& /*point_cloud*/) {
   return true;
+}
+
+template <>
+bool hasTimeInformation(const resources::PointCloud& point_cloud) {
+  return !point_cloud.times_ns.empty();
+}
+
+template <>
+bool hasTimeInformation(const sensor_msgs::PointCloud2& point_cloud) {
+  return !getTimeField(point_cloud).name.empty();
 }
 
 }  // namespace backend

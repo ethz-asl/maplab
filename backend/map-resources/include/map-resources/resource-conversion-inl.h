@@ -1,18 +1,9 @@
 #ifndef MAP_RESOURCES_RESOURCE_CONVERSION_INL_H_
 #define MAP_RESOURCES_RESOURCE_CONVERSION_INL_H_
 
-#include <algorithm>
-#include <limits>
-#include <thread>
-#include <vector>
-
-#include <aslam/cameras/camera.h>
-#include <aslam/cameras/distortion.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <maplab-common/parallel-process.h>
 #include <maplab-common/pose_types.h>
-#include <maplab-common/threading-helpers.h>
 #include <opencv2/core.hpp>
 #include <pcl/point_types.h>
 #include <pcl_ros/point_cloud.h>
@@ -69,7 +60,6 @@ void addScalarToPointCloud(
   LOG(FATAL) << "This point cloud either does not support scalars/intensities "
              << "or it is not implemented!";
 }
-
 template <>
 void addScalarToPointCloud(
     const float scalar, const size_t index, resources::PointCloud* point_cloud);
@@ -89,18 +79,13 @@ template <>
 void addScalarToPointCloud(
     const float scalar, const size_t index,
     pcl::PointCloud<pcl::PointXYZINormal>* point_cloud);
-template <>
-void addScalarToPointCloud(
-    const float scalar, const size_t index,
-    pcl::PointCloud<pcl::OusterPointType>* point_cloud);
 
 template <typename PointCloudType>
 void addLabelToPointCloud(
-    const uint32_t scalar, const size_t index, PointCloudType* point_cloud) {
+    const uint32_t label, const size_t index, PointCloudType* point_cloud) {
   LOG(FATAL) << "This point cloud either does not support labels"
              << "or it is not implemented!";
 }
-
 template <>
 void addLabelToPointCloud(
     const uint32_t label, const size_t index,
@@ -147,6 +132,21 @@ void addPointToPointCloud(
 }
 
 template <typename PointCloudType>
+void addTimeToPointCloud(
+    const int32_t time, const size_t index, PointCloudType* point_cloud) {
+  LOG(FATAL) << "This point cloud either does not support times"
+             << "or it is not implemented!";
+}
+template <>
+void addTimeToPointCloud(
+    const int32_t time, const size_t index,
+    resources::PointCloud* point_cloud);
+template <>
+void addTimeToPointCloud(
+    const int32_t time, const size_t index,
+    sensor_msgs::PointCloud2* point_cloud);
+
+template <typename PointCloudType>
 bool hasColorInformation(const PointCloudType& /*point_cloud*/) {
   return false;
 }
@@ -188,9 +188,6 @@ bool hasScalarInformation(const pcl::PointCloud<pcl::PointXYZI>& point_cloud);
 template <>
 bool hasScalarInformation(
     const pcl::PointCloud<pcl::PointXYZINormal>& point_cloud);
-template <>
-bool hasScalarInformation(
-    const pcl::PointCloud<pcl::OusterPointType>& point_cloud);
 
 template <typename PointCloudType>
 bool hasLabelInformation(const PointCloudType& /*point_cloud*/) {
@@ -203,31 +200,41 @@ bool hasLabelInformation(const resources::PointCloud& point_cloud);
 template <>
 bool hasLabelInformation(const pcl::PointCloud<pcl::PointXYZL>& point_cloud);
 
+template <typename PointCloudType>
+bool hasTimeInformation(const PointCloudType& /*point_cloud*/) {
+  return false;
+}
+template <>
+bool hasTimeInformation(const resources::PointCloud& point_cloud);
+template <>
+bool hasTimeInformation(const sensor_msgs::PointCloud2& point_cloud);
+
 template <>
 void resizePointCloud(
     const size_t size, const bool /*has_color*/, const bool /*has_normals*/,
     const bool /*has_scalar*/, const bool /*has_labels*/,
-    voxblox::Pointcloud* point_cloud);
+    const bool /*has_times*/, voxblox::Pointcloud* point_cloud);
 template <>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool /*has_normals*/,
     const bool /*has_scalar*/, const bool /*has_labels*/,
-    resources::VoxbloxColorPointCloud* point_cloud);
+    const bool /*has_times*/, resources::VoxbloxColorPointCloud* point_cloud);
 template <>
 void resizePointCloud(
     const size_t size, const bool has_color, const bool has_normals,
-    const bool has_scalar, const bool /*has_labels*/,
+    const bool has_scalar, const bool has_labels, const bool has_times,
     resources::PointCloud* point_cloud);
 template <>
 void resizePointCloud(
     const size_t num_points, const bool has_color, const bool /*has_normals*/,
-    const bool has_scalar, const bool /*has_labels*/,
+    const bool has_scalar, const bool has_labels, const bool has_times,
     sensor_msgs::PointCloud2* point_cloud);
 template <typename PointType>
 void resizePointCloud(
     const size_t num_points, const bool /*has_color*/,
     const bool /*has_normals*/, const bool /*has_scalar*/,
-    const bool /*has_labels*/, pcl::PointCloud<PointType>* point_cloud) {
+    const bool /*has_labels*/, const bool /*has_times*/,
+    pcl::PointCloud<PointType>* point_cloud) {
   CHECK_NOTNULL(point_cloud);
   CHECK_GT(num_points, 0u);
   point_cloud->points.resize(num_points);
@@ -333,10 +340,6 @@ template <>
 void getScalarFromPointCloud(
     const pcl::PointCloud<pcl::PointXYZINormal>& point_cloud,
     const size_t index, float* scalar);
-template <>
-void getScalarFromPointCloud(
-    const pcl::PointCloud<pcl::OusterPointType>& point_cloud,
-    const size_t index, float* scalar);
 
 template <typename PointCloudType>
 void getLabelFromPointCloud(
@@ -357,6 +360,24 @@ template <>
 void getLabelFromPointCloud(
     const pcl::PointCloud<pcl::PointXYZL>& point_cloud, const size_t index,
     uint32_t* label);
+
+template <typename PointCloudType>
+void getTimeFromPointCloud(
+    const PointCloudType& /*point_cloud*/, const size_t /*index*/,
+    int32_t* /*time*/, const int32_t /*convert_to_ns*/,
+    const int64_t /*time_offset_ns*/) {
+  LOG(FATAL) << "This point cloud either does not support times of the "
+             << "requested type or it is not implemented!";
+}
+template <>
+void getTimeFromPointCloud(
+    const resources::PointCloud& point_cloud, const size_t index,
+    int32_t* time, const int32_t /*convert_to_ns*/,
+    const int64_t /*time_offset_ns*/);
+template <>
+void getTimeFromPointCloud(
+    const sensor_msgs::PointCloud2& point_cloud, const size_t index,
+    int32_t* time, const int32_t convert_to_ns, const int64_t time_offset_ns);
 
 template <typename PointCloudType>
 bool convertDepthMapToPointCloud(
@@ -395,10 +416,11 @@ bool convertDepthMapToPointCloud(
   constexpr bool kHasNormals = false;
   constexpr bool kHasScalar = false;
   constexpr bool kHasLabels = false;
+  constexpr bool kHasTimes = false;
 
   resizePointCloud(
       valid_depth_entries, has_color, kHasNormals, kHasScalar, kHasLabels,
-      point_cloud);
+      kHasTimes, point_cloud);
 
   constexpr double kMillimetersToMeters = 1e-3;
   constexpr double kEpsilon = 1e-6;
@@ -464,7 +486,8 @@ bool convertDepthMapToPointCloud(
 
   // Shrink pointcloud if necessary.
   resizePointCloud(
-      point_index, has_color, kHasNormals, kHasScalar, kHasLabels, point_cloud);
+      point_index, has_color, kHasNormals, kHasScalar, kHasLabels, kHasTimes,
+      point_cloud);
 
   if (point_index == 0u) {
     VLOG(3) << "Depth map has no valid depth measurements!";
@@ -474,227 +497,10 @@ bool convertDepthMapToPointCloud(
   return true;
 }
 
-template <typename PointCloudType>
-bool convertPointCloudToDepthMap(
-    const PointCloudType& point_cloud_C, const aslam::Camera& camera,
-    const bool use_openni_format, const bool create_range_image,
-    cv::Mat* depth_map, cv::Mat* image) {
-  CHECK(camera.getType() != aslam::Camera::Type::kLidar3D || create_range_image)
-      << "When projecting point clouds using the Camera3DLidar camera models, "
-      << "only range images (vs depth maps) are a maningful representation, "
-      << "since the points are not projected onto an image plange, but a "
-      << "cylinder.";
-  CHECK_NOTNULL(depth_map);
-
-  static constexpr bool kAlwaysParallelize = false;
-  const size_t num_threads = common::getNumHardwareThreads();
-
-  // Determine what data is available in the point cloud.
-  const size_t num_points = getPointCloudSize(point_cloud_C);
-  const bool has_color = hasColorInformation(point_cloud_C) && image != nullptr;
-  const bool has_intensity =
-      hasScalarInformation(point_cloud_C) && image != nullptr;
-
-  // Initialize depth map / range image depdening on format.
-  Eigen::Matrix3Xd points_3D = Eigen::Matrix3Xd::Zero(3, num_points);
-  Eigen::VectorXd depth_values = Eigen::VectorXd::Zero(num_points);
-  Eigen::Matrix2Xd projections_2D = Eigen::Matrix2Xd::Zero(2, num_points);
-  double max_valid_depth_value = 0.;
-  if (use_openni_format) {
-    *depth_map = cv::Mat(
-        camera.imageHeight(), camera.imageWidth(), CV_16UC1, cv::Scalar(0u));
-    max_valid_depth_value =
-        static_cast<double>(std::numeric_limits<uint16_t>::max());
-  } else {
-    *depth_map = cv::Mat(
-        camera.imageHeight(), camera.imageWidth(), CV_32FC1, cv::Scalar(0.f));
-    max_valid_depth_value =
-        static_cast<double>(std::numeric_limits<float>::max());
-  }
-  CHECK(!depth_map->empty());
-
-  // Initialize color/intensity image depending on availablility.
-  Eigen::Matrix<uint8_t, 3, Eigen::Dynamic> colors;
-  Eigen::VectorXf intensities;
-  if (has_color) {
-    *image = cv::Mat(
-        camera.imageHeight(), camera.imageWidth(), CV_8UC3,
-        cv::Scalar(0u, 0u, 0u));
-    colors = Eigen::Matrix<uint8_t, 3, Eigen::Dynamic>::Zero(3, num_points);
-  } else if (has_intensity) {
-    *image = cv::Mat(
-        camera.imageHeight(), camera.imageWidth(), CV_8UC1, cv::Scalar(0u));
-    intensities = Eigen::VectorXf::Zero(num_points);
-  }
-
-  // Parse data from point cloud.
-  std::function<void(const std::vector<size_t>&)> point_cloud_parsing_function =
-      [&points_3D, &depth_values, &point_cloud_C, &max_valid_depth_value,
-       &colors, &intensities, &create_range_image, &use_openni_format,
-       &has_intensity, &has_color](const std::vector<size_t>& batch) {
-        Eigen::Vector3d point_3d = Eigen::Vector3d::Zero();
-        double depth_value = 0;
-        for (size_t idx : batch) {
-          getPointFromPointCloud(point_cloud_C, idx, &point_3d);
-          points_3D.col(idx) = point_3d;
-          // Either retrieve the ray length (range image) or the Z coordinate
-          // (depth map).
-          if (create_range_image) {
-            depth_value = std::min(point_3d.norm(), max_valid_depth_value);
-          } else {
-            depth_value = point_3d.z();
-          }
-
-          // Scale to mm if OpenNI format.
-          if (use_openni_format) {
-            depth_value = std::min(depth_value * 1e3, max_valid_depth_value);
-          }
-
-          depth_values(idx) = depth_value;
-        }
-
-        if (has_color) {
-          resources::RgbaColor rgba;
-          for (size_t idx : batch) {
-            getColorFromPointCloud(point_cloud_C, idx, &rgba);
-            colors.col(idx).x() = rgba.z();
-            colors.col(idx).y() = rgba.y();
-            colors.col(idx).z() = rgba.x();
-          }
-        } else if (has_intensity) {
-          float intensity = 0;
-          for (size_t idx : batch) {
-            getScalarFromPointCloud(point_cloud_C, idx, &intensity);
-            intensities(idx) = intensity;
-          }
-        }
-      };
-  common::ParallelProcess(
-      num_points, point_cloud_parsing_function, kAlwaysParallelize,
-      num_threads);
-
-  // Actually do the projection work.
-  std::vector<aslam::ProjectionResult> projection_results;
-  camera.project3Vectorized(points_3D, &projections_2D, &projection_results);
-  CHECK_EQ(projection_results.size(), num_points);
-  const Eigen::Matrix2Xd image_coordinates = projections_2D.array().round();
-
-  // Normalize and scale intensity to fit 8bit range.
-  if (has_intensity) {
-    const float max_intensity = intensities.maxCoeff();
-    const float min_intensity = intensities.minCoeff();
-    Eigen::VectorXf min_intensity_vec;
-    min_intensity_vec.setConstant(num_points, min_intensity);
-    intensities = (intensities - min_intensity_vec) *
-                  (255. / (max_intensity - min_intensity));
-  }
-
-  // Write depth values to the depth/range map and set color/intensity.
-  std::function<void(
-      const Eigen::Ref<const Eigen::Matrix<int32_t, 2, 1>>, const size_t)>
-      depth_function;
-  std::function<void(
-      const Eigen::Ref<const Eigen::Matrix<int32_t, 2, 1>>, const size_t)>
-      color_function;
-
-  // Define the function that should be executed to write the depth into
-  // the depth map.
-  if (use_openni_format) {
-    depth_function =
-        [&depth_values, &depth_map](
-            const Eigen::Ref<const Eigen::Matrix<int32_t, 2, 1>> projection_2D,
-            const size_t idx) {
-          const uint16_t previous_depth =
-              depth_map->at<uint16_t>(projection_2D.y(), projection_2D.x());
-
-          if (previous_depth > 0u) {
-            depth_map->at<uint16_t>(projection_2D.y(), projection_2D.x()) =
-                std::min(
-                    previous_depth, static_cast<uint16_t>(depth_values(idx)));
-          } else {
-            depth_map->at<uint16_t>(projection_2D.y(), projection_2D.x()) =
-                depth_values(idx);
-          }
-
-          depth_map->at<uint16_t>(projection_2D.y(), projection_2D.x()) =
-              static_cast<uint16_t>(depth_values(idx));
-        };
-  } else {
-    depth_function =
-        [&depth_values, &depth_map](
-            const Eigen::Ref<const Eigen::Matrix<int32_t, 2, 1>> projection_2D,
-            const size_t idx) {
-          const float previous_depth =
-              depth_map->at<float>(projection_2D.y(), projection_2D.x());
-
-          if (previous_depth > 0.f) {
-            depth_map->at<float>(projection_2D.y(), projection_2D.x()) =
-                std::min(previous_depth, static_cast<float>(depth_values(idx)));
-          } else {
-            depth_map->at<float>(projection_2D.y(), projection_2D.x()) =
-                depth_values(idx);
-          }
-        };
-  }
-  CHECK(depth_function);
-
-  // Define the function that should be executed to write
-  // color/intensity into the image.
-  if (has_color) {
-    color_function =
-        [&colors, &image](
-            const Eigen::Ref<const Eigen::Matrix<int32_t, 2, 1>> projection_2D,
-            const size_t idx) {
-          cv::Vec3b& bgr =
-              image->at<cv::Vec3b>(projection_2D.y(), projection_2D.x());
-          const Eigen::Ref<const Eigen::Matrix<uint8_t, 3, 1>> bgr_eigen =
-              colors.col(idx);
-          bgr[0] = bgr_eigen.x();
-          bgr[1] = bgr_eigen.y();
-          bgr[2] = bgr_eigen.z();
-        };
-
-  } else if (has_intensity) {
-    color_function =
-        [&intensities, &image](
-            const Eigen::Ref<const Eigen::Matrix<int32_t, 2, 1>> projection_2D,
-            const size_t idx) {
-          const float scaled_intensity = intensities(idx);
-          image->at<uint8_t>(projection_2D.y(), projection_2D.x()) =
-              static_cast<uint8_t>(scaled_intensity);
-        };
-  } else {
-    color_function = [&intensities, &image](
-                         const Eigen::Ref<const Eigen::Matrix<int32_t, 2, 1>>
-                         /*projection_2D*/,
-                         const size_t /*idx*/) {
-      // Do nothing.
-    };
-  }
-  CHECK(color_function);
-
-  // Actually do the work.
-  std::function<void(const std::vector<size_t>&)> result_function =
-      [&image_coordinates, &camera, &depth_function,
-       &color_function](const std::vector<size_t>& batch) {
-        for (size_t idx : batch) {
-          const Eigen::Ref<const Eigen::Matrix<int32_t, 2, 1>> projection_2D =
-              image_coordinates.col(idx).cast<int32_t>();
-          if (camera.isKeypointVisible(projection_2D)) {
-            depth_function(projection_2D, idx);
-            color_function(projection_2D, idx);
-          }
-        }
-      };
-  common::ParallelProcess(
-      num_points, result_function, kAlwaysParallelize, num_threads);
-
-  return true;
-}
-
 template <typename InputPointCloud, typename OutputPointCloud>
 bool convertPointCloudType(
-    const InputPointCloud& input_cloud, OutputPointCloud* output_cloud) {
+    const InputPointCloud& input_cloud, OutputPointCloud* output_cloud,
+    bool with_timestamps, int32_t convert_to_ns, int64_t time_offset_ns) {
   CHECK_NOTNULL(output_cloud);
 
   const bool input_has_normals = hasNormalsInformation(input_cloud);
@@ -702,16 +508,23 @@ bool convertPointCloudType(
   const bool input_has_color = hasColorInformation(input_cloud);
   const bool input_has_labels = hasLabelInformation(input_cloud);
 
+  if (with_timestamps) {
+    CHECK(hasTimeInformation(input_cloud))
+        << "Requesting conversion of pointcloud with timestamps, but time "
+        << "information is not included.";
+  }
+
   const size_t num_points = getPointCloudSize(input_cloud);
 
   resizePointCloud(
       num_points, input_has_color, input_has_normals, input_has_scalars,
-      input_has_labels, output_cloud);
+      input_has_labels, with_timestamps, output_cloud);
   CHECK_EQ(getPointCloudSize(*output_cloud), num_points);
 
   const bool output_has_scalars = hasScalarInformation(*output_cloud);
   const bool output_has_color = hasColorInformation(*output_cloud);
   const bool output_has_labels = hasLabelInformation(*output_cloud);
+  const bool output_has_times = hasTimeInformation(*output_cloud);
 
   for (size_t point_idx = 0u; point_idx < num_points; ++point_idx) {
     Eigen::Vector3d point_C;
@@ -734,6 +547,13 @@ bool convertPointCloudType(
       uint32_t label;
       getLabelFromPointCloud(input_cloud, point_idx, &label);
       addLabelToPointCloud(label, point_idx, output_cloud);
+    }
+
+    if (with_timestamps && output_has_times) {
+      int32_t time;
+      getTimeFromPointCloud(
+          input_cloud, point_idx, &time, convert_to_ns, time_offset_ns);
+      addTimeToPointCloud(time, point_idx, output_cloud);
     }
   }
 
