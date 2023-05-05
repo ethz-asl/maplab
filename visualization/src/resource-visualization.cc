@@ -257,14 +257,14 @@ void visualizeReprojectedDepthResource(
       [&point_cloud_counter](
           const int64_t /*timestamp_ns*/,
           const aslam::Transformation& /*T_G_S*/) {
-        ++point_cloud_counter;
-
         const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
-        if (every_nth > 0 && (point_cloud_counter % every_nth != 1u)) {
+        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
+          ++point_cloud_counter;
           return false;
+        } else {
+          ++point_cloud_counter;
+          return true;
         }
-
-        return true;
       };
 
   depth_integration::integrateAllDepthResourcesOfType(
@@ -314,19 +314,19 @@ static void createAndAppendAccumulatedPointCloudMessageForMission(
         return;
       };
 
-  uint32_t point_cloud_counter = 0u;
+  size_t point_cloud_counter = 0u;
   depth_integration::ResourceSelectionFunction selection_function =
       [&point_cloud_counter](
           const int64_t /*timestamp_ns*/,
           const aslam::Transformation& /*T_G_S*/) {
-        ++point_cloud_counter;
-
         const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
-        if (every_nth > 0 && (point_cloud_counter % every_nth != 1u)) {
+        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
+          ++point_cloud_counter;
           return false;
+        } else {
+          ++point_cloud_counter;
+          return true;
         }
-
-        return true;
       };
 
   vi_map::MissionIdList mission_ids;
@@ -399,56 +399,56 @@ void createPointCloudMessageVectorForMission(
 
   int64_t previous_ts_ns = 0;
   depth_integration::IntegrationFunctionPointCloudMaplabWithTs
-      integration_function = [&color, &mission_counter, &resources](
-                                 const int64_t ts_ns,
-                                 const aslam::Transformation& T_G_S,
-                                 const resources::PointCloud& points_S) {
-        // Transform points to G
-        resources::PointCloud points_G;
-        points_G.appendTransformed(points_S, T_G_S);
+      integration_function =
+          [&color, &mission_counter, &resources, &previous_ts_ns](
+              const int64_t ts_ns, const aslam::Transformation& T_G_S,
+              const resources::PointCloud& points_S) {
+            // Transform points to G
+            resources::PointCloud points_G;
+            points_G.appendTransformed(points_S, T_G_S);
 
-        LineSegment line_segment;
-        const Eigen::Vector3d cur_pos = T_G_S.getPosition();
-        line_segment.from = cur_pos;
-        line_segment.to = cur_pos;
-        line_segment.color = color;
-        line_segment.scale = 0.4;
-        line_segment.alpha = 1.0;
+            LineSegment line_segment;
+            const Eigen::Vector3d cur_pos = T_G_S.getPosition();
+            line_segment.from = cur_pos;
+            line_segment.to = cur_pos;
+            line_segment.color = color;
+            line_segment.scale = 0.4;
+            line_segment.alpha = 1.0;
 
-        Pose pose;
-        pose.G_p_B = T_G_S.getPosition();
-        pose.G_q_B = T_G_S.getRotation().vector();
-        pose.id = 0;
-        pose.scale = 1.8;
-        pose.line_width = 0.5;
-        pose.alpha = 1.0;
+            Pose pose;
+            pose.G_p_B = T_G_S.getPosition();
+            pose.G_q_B = T_G_S.getRotation().vector();
+            pose.id = 0;
+            pose.scale = 1.8;
+            pose.line_width = 0.5;
+            pose.alpha = 1.0;
 
-        if (!resources->empty()) {
-          line_segment.from = (*resources)[previous_ts_ns].edge.to;
-        }
-        SequentialPointCloud& cur = (*resources)[ts_ns];
-        cur.point_cloud = std::move(points_G);
-        cur.edge = std::move(line_segment);
-        cur.pose = std::move(pose);
-        cur.mission = mission_counter;
+            if (!resources->empty()) {
+              line_segment.from = (*resources)[previous_ts_ns].edge.to;
+            }
+            SequentialPointCloud& cur = (*resources)[ts_ns];
+            cur.point_cloud = std::move(points_G);
+            cur.edge = std::move(line_segment);
+            cur.pose = std::move(pose);
+            cur.mission = mission_counter;
 
-        previous_ts_ns = ts_ns;
-        return;
-      };
+            previous_ts_ns = ts_ns;
+            return;
+          };
 
   uint32_t point_cloud_counter = 0u;
   depth_integration::ResourceSelectionFunction selection_function =
       [&point_cloud_counter](
           const int64_t /*timestamp_ns*/,
           const aslam::Transformation& /*T_G_S*/) {
-        ++point_cloud_counter;
-
         const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
-        if (every_nth > 0 && (point_cloud_counter % every_nth != 1u)) {
+        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
+          ++point_cloud_counter;
           return false;
+        } else {
+          ++point_cloud_counter;
+          return true;
         }
-
-        return true;
       };
 
   vi_map::MissionIdList mission_ids;
