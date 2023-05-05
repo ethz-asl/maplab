@@ -1,4 +1,7 @@
+#include "dense-reconstruction/balm/bavoxel.h"
+#include "dense-reconstruction/balm/tools.h"
 #include "dense-reconstruction/dense-reconstruction-plugin.h"
+#include "dense-reconstruction/voxblox-params.h"
 
 #include <chrono>
 #include <cstring>
@@ -14,6 +17,7 @@
 #include <depth-integration/depth-integration.h>
 #include <gflags/gflags.h>
 #include <map-manager/map-manager.h>
+#include <maplab-common/conversions.h>
 #include <maplab-common/file-system-tools.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vi-map.h>
@@ -28,8 +32,6 @@
 #include <voxblox/mesh/mesh_integrator.h>
 #include <voxblox_ros/esdf_server.h>
 #include <voxblox_ros/mesh_vis.h>
-
-#include "dense-reconstruction/voxblox-params.h"
 
 DECLARE_string(map_mission_list);
 DECLARE_bool(overwrite);
@@ -68,6 +70,47 @@ DEFINE_int32(
     "PointCloudXYZRGBN = 17, kPointCloudXYZI = 21");
 
 namespace dense_reconstruction {
+
+template <typename T>
+void pub_pl_func(T& pl, ros::Publisher& pub) {
+  pl.height = 1;
+  pl.width = pl.size();
+  sensor_msgs::PointCloud2 output;
+  pcl::toROSMsg(pl, output);
+  output.header.frame_id = "map";
+  output.header.stamp = ros::Time::now();
+  pub.publish(output);
+}
+
+void data_show(
+    std::vector<IMUST> x_buf,
+    std::vector<pcl::PointCloud<PointType>::Ptr>& pl_fulls,
+    ros::Publisher& pub_path, ros::Publisher& pub_show) {
+  pcl::PointCloud<PointType> pl_send, pl_path;
+  int winsize = x_buf.size();
+  for (int i = 0; i < winsize; i++) {
+    pcl::PointCloud<PointType> pl_tem = *pl_fulls[i];
+    down_sampling_voxel(pl_tem, 0.05);
+    pl_transform(pl_tem, x_buf[i]);
+    pl_send += pl_tem;
+
+    if ((i % 10 == 0 && i != 0) || i == winsize - 1) {
+      pub_pl_func(pl_send, pub_show);
+      pl_send.clear();
+      sleep(0.5);
+    }
+
+    PointType ap;
+    ap.x = x_buf[i].p.x();
+    ap.y = x_buf[i].p.y();
+    ap.z = x_buf[i].p.z();
+    ap.curvature = i;
+    pl_path.push_back(ap);
+  }
+
+  pub_pl_func(pl_path, pub_path);
+}
+
 bool parseMultipleMissionIds(
     const vi_map::VIMap& vi_map, vi_map::MissionIdList* mission_ids) {
   CHECK_NOTNULL(mission_ids);
@@ -309,13 +352,14 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         size_t num_pointclouds_integrated = 0u;
         size_t num_points_integrated = 0u;
 
-        depth_integration::IntegrationFunctionPointCloudVoxblox integration_function =
-            [&integrator, &icp, &T_G_C_icp_correction, &tsdf_map,
-             &num_pointclouds_integrated, &color_mode, &mesh_layer,
-             &mesh_integrator, &num_points_integrated](
-                const voxblox::Transformation& T_G_C,
-                const voxblox::Pointcloud& points,
-                const voxblox::Colors& colors) {
+        depth_integration::IntegrationFunctionPointCloudVoxblox
+            integration_function = [&integrator, &icp, &T_G_C_icp_correction,
+                                    &tsdf_map, &num_pointclouds_integrated,
+                                    &color_mode, &mesh_layer, &mesh_integrator,
+                                    &num_points_integrated](
+                                       const voxblox::Transformation& T_G_C,
+                                       const voxblox::Pointcloud& points,
+                                       const voxblox::Colors& colors) {
               if (FLAGS_dense_tsdf_integrate_every_nth > 1 &&
                   (static_cast<int>(num_pointclouds_integrated) %
                        FLAGS_dense_tsdf_integrate_every_nth ==
@@ -516,12 +560,12 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
 
         size_t num_pointcloud_integrated = 0u;
 
-        depth_integration::IntegrationFunctionPointCloudVoxblox integration_function =
-            [&esdf_server, &icp, &T_G_C_icp_correction, &tsdf_map,
-             &num_pointcloud_integrated](
-                const voxblox::Transformation& T_G_C,
-                const voxblox::Pointcloud& points,
-                const voxblox::Colors& colors) {
+        depth_integration::IntegrationFunctionPointCloudVoxblox
+            integration_function = [&esdf_server, &icp, &T_G_C_icp_correction,
+                                    &tsdf_map, &num_pointcloud_integrated](
+                                       const voxblox::Transformation& T_G_C,
+                                       const voxblox::Pointcloud& points,
+                                       const voxblox::Colors& colors) {
               CHECK_EQ(points.size(), colors.size());
 
               voxblox::Transformation T_G_C_refined = T_G_C;
@@ -685,6 +729,131 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
       "Compute mesh of the Voxblox TSDF grid resource associated with "
       "the selected missions.",
       common::Processing::Sync);
+
+  addCommand(
+      {"bundle_adjust_lidar_map", "balm"},
+      [this]() -> int {
+        // Select map.
+        std::string selected_map_key;
+        if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+          return common::kStupidUserError;
+        }
+        vi_map::VIMapManager map_manager;
+        vi_map::VIMapManager::MapWriteAccess map =
+            map_manager.getMapWriteAccess(selected_map_key);
+
+        vi_map::MissionIdList mission_ids;
+        if (!parseMultipleMissionIds(*(map.get()), &mission_ids)) {
+          return common::kStupidUserError;
+        }
+
+        // If no mission were selected, use all missions.
+        if (mission_ids.empty()) {
+          map.get()->getAllMissionIdsSortedByTimestamp(&mission_ids);
+        }
+
+        // Setting up BALM variables
+        std::vector<IMUST> pose_buffer;
+        std::vector<pcl::PointCloud<PointType>::Ptr> pcl_pointclouds;
+
+        ros::NodeHandle nh;
+        ros::Publisher pub_path0, pub_path1, pub_show0, pub_show1, pub_cute;
+        pub_path0 = nh.advertise<sensor_msgs::PointCloud2>("/map_path0", 100);
+        pub_path1 = nh.advertise<sensor_msgs::PointCloud2>("/map_path1", 100);
+        pub_show0 = nh.advertise<sensor_msgs::PointCloud2>("/map_show0", 100);
+        pub_show1 = nh.advertise<sensor_msgs::PointCloud2>("/map_show1", 100);
+        pub_cute = nh.advertise<sensor_msgs::PointCloud2>("/map_cute", 100);
+
+        // Accumulate point cloud into BALM format
+        depth_integration::IntegrationFunctionPointCloudMaplabWithTs
+            integration_function = [&pose_buffer, &pcl_pointclouds](
+                                       const int64_t ts_ns,
+                                       const aslam::Transformation& T_G_S,
+                                       const resources::PointCloud& points_S) {
+              IMUST curr;
+              curr.R = T_G_S.getRotationMatrix();
+              curr.p = T_G_S.getPosition();
+              curr.t = static_cast<double>(ts_ns) * kNanosecondsToSeconds;
+              pose_buffer.emplace_back(curr);
+
+              pcl::PointCloud<PointType>* pcl_pointcloud(
+                  new pcl::PointCloud<PointType>());
+              backend::convertPointCloudType(points_S, pcl_pointcloud);
+              pcl_pointclouds.emplace_back(pcl_pointcloud);
+            };
+
+        size_t point_cloud_counter = 0u;
+        depth_integration::ResourceSelectionFunction selection_function =
+            [&point_cloud_counter](
+                const int64_t /*timestamp_ns*/,
+                const aslam::Transformation& /*T_G_S*/) {
+              const int32_t every_nth = 20;
+              if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
+                ++point_cloud_counter;
+                return false;
+              } else {
+                ++point_cloud_counter;
+                return true;
+              }
+            };
+
+        const backend::ResourceType input_resource_type =
+            static_cast<backend::ResourceType>(
+                FLAGS_dense_depth_resource_input_type);
+
+        depth_integration::integrateAllDepthResourcesOfType(
+            mission_ids, input_resource_type,
+            FLAGS_dense_depth_map_reprojection_use_undistorted_camera, *map,
+            integration_function, selection_function);
+
+        IMUST es0 = pose_buffer[0];
+        for (uint i = 0; i < pose_buffer.size(); i++) {
+          pose_buffer[i].p = es0.R.transpose() * (pose_buffer[i].p - es0.p);
+          pose_buffer[i].R = es0.R.transpose() * pose_buffer[i].R;
+        }
+
+        win_size = pose_buffer.size();
+        LOG(INFO) << "Window size: " << win_size;
+        data_show(pose_buffer, pcl_pointclouds, pub_path0, pub_show0);
+
+        pcl::PointCloud<PointType> pl_send;
+        std::unordered_map<VOXEL_LOC, OCTO_TREE_ROOT*> surf_map;
+
+        for (int i = 0; i < win_size; i++) {
+          cut_voxel(surf_map, *pcl_pointclouds[i], pose_buffer[i], i);
+        }
+
+        VOX_HESS voxhess;
+        for (auto iter = surf_map.begin(); iter != surf_map.end(); iter++) {
+          iter->second->recut(win_size);
+          iter->second->tras_opt(voxhess, win_size);
+          iter->second->tras_display(pl_send, win_size);
+        }
+
+        pub_pl_func(pl_send, pub_cute);
+
+        const size_t num_constraints = voxhess.plvec_voxels.size();
+        if (voxhess.plvec_voxels.size() < 3 * win_size) {
+          LOG(WARNING) << "Initial error too large. Loose plane determination "
+                       << "criteria or optimize futher with maplab. Got only "
+                       << num_constraints << " planes versus a minimum of "
+                       << 3 * win_size << ".";
+        }
+
+        BALM2 opt_lsv;
+        opt_lsv.damping_iter(pose_buffer, voxhess);
+
+        for (auto iter = surf_map.begin(); iter != surf_map.end();) {
+          delete iter->second;
+          surf_map.erase(iter++);
+        }
+        surf_map.clear();
+
+        data_show(pose_buffer, pcl_pointclouds, pub_path1, pub_show1);
+
+        return common::kSuccess;
+      },
+      "Use BALM for point cloud alignment.", common::Processing::Sync);
 }
 
 }  // namespace dense_reconstruction
