@@ -179,76 +179,100 @@ void PointCloud::undistort(
   }
 }
 
-void PointCloud::removeInvalidPoints() {
-  auto it_xyz = xyz.begin();
-  auto it_normals = normals.begin();
-  auto it_colors = colors.begin();
-  auto it_scalars = scalars.begin();
-  auto it_labels = labels.begin();
-  auto it_times_ns = times_ns.begin();
+size_t PointCloud::filterValidMinMaxBox(
+    double min_range_m, double max_range_m, const BoundingBox3D* box_filter) {
+  std::vector<float> xyz_new;
+  std::vector<float> normals_new;
+  std::vector<unsigned char> colors_new;
+  std::vector<float> scalars_new;
+  std::vector<uint32_t> labels_new;
+  std::vector<int32_t> times_ns_new;
 
-  size_t removed_points = 0u;
-  const size_t initial_number_of_points = xyz.size() / 3u;
+  // We guess that we are on average not going to remove that many points.
+  xyz_new.reserve(xyz.size());
+  normals_new.reserve(normals.size());
+  colors_new.reserve(colors.size());
+  scalars_new.reserve(scalars.size());
+  labels_new.reserve(labels.size());
+  times_ns_new.reserve(times_ns.size());
 
-  while (it_xyz != xyz.end()) {
-    const float x = *it_xyz;
-    const float y = *(it_xyz + 1);
-    const float z = *(it_xyz + 2);
+  // Precompute min and max range squares to avoid having to sqrt
+  double min_range_m2 = min_range_m * min_range_m;
+  double max_range_m2 = max_range_m * max_range_m;
 
-    if (((x * x + y * y + z * z) < 1e-10) || !std::isfinite(x) ||
-        !std::isfinite(y) || !std::isfinite(z)) {
-      ++removed_points;
+  size_t num_removed = 0;
+  for (size_t i = 0; i < size(); ++i) {
+    const size_t i0 = 3 * i;
+    const size_t i1 = i0 + 1;
+    const size_t i2 = i1 + 1;
 
-      it_xyz = xyz.erase(it_xyz, it_xyz + 3);
+    const float x = xyz[i0];
+    const float y = xyz[i1];
+    const float z = xyz[i2];
 
-      if (!normals.empty()) {
-        it_normals = normals.erase(it_normals, it_normals + 3);
-      }
+    // Check the values are valid
+    if ((std::isinf(x) || std::isinf(y) || std::isinf(z)) ||
+        (std::isnan(x) || std::isnan(y) || std::isnan(z))) {
+      ++num_removed;
+      continue;
+    }
 
-      if (!colors.empty()) {
-        it_colors = colors.erase(it_colors, it_colors + 3);
-      }
+    // Check if the point is too close or far
+    const double range2 = (x * x) + (y * y) + (z * z);
+    if (range2 < min_range_m2 || range2 > max_range_m2) {
+      ++num_removed;
+      continue;
+    }
 
-      if (!scalars.empty()) {
-        it_scalars = scalars.erase(it_scalars);
-      }
-
-      if (!labels.empty()) {
-        it_labels = labels.erase(it_labels);
-      }
-
-      if (!times_ns.empty()) {
-        it_times_ns = times_ns.erase(it_times_ns);
-      }
-    } else {
-      it_xyz += 3;
-
-      if (!normals.empty()) {
-        it_normals += 3;
-      }
-
-      if (!colors.empty()) {
-        it_colors += 3;
-      }
-
-      if (!scalars.empty()) {
-        ++it_scalars;
-      }
-
-      if (!labels.empty()) {
-        ++it_labels;
-      }
-
-      if (!times_ns.empty()) {
-        ++it_times_ns;
+    // Apply box filter if one was given
+    if (box_filter != nullptr) {
+      if ((x > box_filter->x_min && x < box_filter->x_max) &&
+          (y > box_filter->y_min && y < box_filter->y_max) &&
+          (z > box_filter->z_min && z < box_filter->z_max)) {
+        ++num_removed;
+        continue;
       }
     }
+
+    xyz_new.emplace_back(x);
+    xyz_new.emplace_back(y);
+    xyz_new.emplace_back(z);
+
+    if (hasNormals()) {
+      normals_new.emplace_back(normals[i0]);
+      normals_new.emplace_back(normals[i1]);
+      normals_new.emplace_back(normals[i2]);
+    }
+
+    if (hasColor()) {
+      colors_new.emplace_back(colors[i0]);
+      colors_new.emplace_back(colors[i1]);
+      colors_new.emplace_back(colors[i2]);
+    }
+
+    if (hasScalars()) {
+      scalars_new.emplace_back(scalars[i]);
+    }
+
+    if (hasLabels()) {
+      labels_new.emplace_back(labels[i]);
+    }
+
+    if (hasTimes()) {
+      times_ns_new.emplace_back(times_ns[i]);
+    }
   }
-  LOG_IF(WARNING, removed_points > 0)
-      << "Removed " << removed_points << "/" << initial_number_of_points
-      << " invalid points from point cloud!";
+
+  xyz.swap(xyz_new);
+  normals.swap(normals_new);
+  colors.swap(colors_new);
+  scalars.swap(scalars_new);
+  labels.swap(labels_new);
+  times_ns.swap(times_ns_new);
 
   CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
+
+  return num_removed;
 }
 
 void PointCloud::writeToFile(const std::string& file_path) const {

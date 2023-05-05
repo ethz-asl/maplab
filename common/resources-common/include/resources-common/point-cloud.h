@@ -17,6 +17,18 @@ namespace resources {
 
 typedef Eigen::Matrix<uint8_t, 4, 1> RgbaColor;
 
+struct BoundingBox3D {
+  double x_min, x_max;
+  double y_min, y_max;
+  double z_min, z_max;
+
+  bool operator==(const BoundingBox3D& other) const {
+    return (x_min == other.x_min) && (x_max == other.x_max) &&
+           (y_min == other.y_min) && (y_max == other.y_max) &&
+           (z_min == other.z_min) && (z_max == other.z_max);
+  }
+};
+
 class PointCloud {
  public:
   void resize(
@@ -81,7 +93,14 @@ class PointCloud {
       const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& timestamps,
       const aslam::TransformationVector& poses);
 
-  void removeInvalidPoints();
+  // Removes points that are invalid (0, inf, nan), outside the sensor range
+  // (too far or too close), or inside a predefined 3D bounding box. The box
+  // filter is optional, pass a nullptr to skip.
+  size_t filterValidMinMaxBox(
+      double min_range_m, double max_range_m, const BoundingBox3D* box_filter);
+
+  // Removes points inside a 3D bounding box.
+  void filterBoundingBox3D(BoundingBox3D box_filter);
 
   void writeToFile(const std::string& file_path) const;
   bool loadFromFile(const std::string& file_path);

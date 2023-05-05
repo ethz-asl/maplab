@@ -1,5 +1,6 @@
 #include "sensors/lidar.h"
 
+#include <Eigen/Core>
 #include <aslam/common/yaml-serialization.h>
 #include <maplab-common/eigen-proto.h>
 
@@ -9,29 +10,38 @@ constexpr char kYamlFieldNameHasPointTimestamps[] = "has_point_timestamps";
 constexpr char kYamlFieldNameHasRelativePointTimestamps[] =
     "has_relative_point_timestamps";
 constexpr char kYamlFieldNameTimestampUnit[] = "point_timestamp_unit";
+constexpr char kYamlFieldNameMinRange[] = "min_range_m";
+constexpr char kYamlFieldNameMaxRange[] = "max_range_m";
+constexpr char kYamlFieldNameRobotFilter[] = "robot_filter";
 
 constexpr char kTimeStampUnitNanoSeconds[] = "NANO";
 constexpr char kTimeStampUnitMicroSeconds[] = "MICRO";
 constexpr char kTimeStampUnitMilliSeconds[] = "MILLI";
 constexpr char kTimeStampUnitSeconds[] = "SECONDS";
 
-Lidar::Lidar() : Sensor() {
+constexpr double kDefaultMinRange = 0.1;
+constexpr double kDefaultMaxRange = 100.0;
+
+void Lidar::init_default() {
   has_point_timestamps_ = false;
   has_relative_point_timestamps_ = true;
   timestamp_unit_ = TimestampUnit::kNanoSeconds;
+  min_range_m_ = kDefaultMinRange;
+  max_range_m_ = kDefaultMaxRange;
+  has_robot_filter_ = false;
+}
+
+Lidar::Lidar() : Sensor() {
+  init_default();
 }
 
 Lidar::Lidar(const aslam::SensorId& sensor_id) : Sensor(sensor_id) {
-  has_point_timestamps_ = false;
-  has_relative_point_timestamps_ = true;
-  timestamp_unit_ = TimestampUnit::kNanoSeconds;
+  init_default();
 }
 
 Lidar::Lidar(const aslam::SensorId& sensor_id, const std::string& topic)
     : Sensor(sensor_id, topic) {
-  has_point_timestamps_ = false;
-  has_relative_point_timestamps_ = true;
-  timestamp_unit_ = TimestampUnit::kNanoSeconds;
+  init_default();
 }
 
 int32_t Lidar::getTimestampConversionToNanoseconds() const {
@@ -56,6 +66,7 @@ bool Lidar::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
     return std::strcmp(lhs, rhs) == 0;
   };
 
+  // Get information about timestamps.
   if (!YAML::safeGet(
           sensor_node,
           static_cast<std::string>(kYamlFieldNameHasPointTimestamps),
@@ -101,6 +112,83 @@ bool Lidar::loadFromYamlNodeImpl(const YAML::Node& sensor_node) {
     }
   }
 
+  // LiDAR minimum and maximum range.
+  if (sensor_node[static_cast<std::string>(kYamlFieldNameMinRange)]) {
+    if (!YAML::safeGet(
+            sensor_node, static_cast<std::string>(kYamlFieldNameMinRange),
+            &min_range_m_)) {
+      return false;
+    }
+  } else {
+    LOG(WARNING) << "Min range not specified for LiDAR " << id_ << ". "
+                 << "Defaulting to " << kDefaultMinRange << " m.";
+  }
+
+  if (sensor_node[static_cast<std::string>(kYamlFieldNameMaxRange)]) {
+    if (!YAML::safeGet(
+            sensor_node, static_cast<std::string>(kYamlFieldNameMaxRange),
+            &max_range_m_)) {
+      return false;
+    }
+  } else {
+    LOG(WARNING) << "Max range not specified for LiDAR " << id_ << ". "
+                 << "Defaulting to " << kDefaultMaxRange << " m.";
+  }
+
+  // Parse potential box filter around robot.
+  const YAML::Node& filter_node =
+      sensor_node[static_cast<std::string>(kYamlFieldNameRobotFilter)];
+  if (filter_node) {
+    has_robot_filter_ = true;
+
+    if (!filter_node.IsMap()) {
+      LOG(ERROR) << "Robot filter for LiDAR " << id_ << " is not a map.";
+      return false;
+    }
+
+    if (!YAML::safeGet(filter_node, "x_min", &robot_filter_.x_min)) {
+      LOG(ERROR) << "Robot filter for LiDAR " << id_
+                 << "must have x_min defined.";
+      return false;
+    }
+
+    if (!YAML::safeGet(filter_node, "x_max", &robot_filter_.x_max)) {
+      LOG(ERROR) << "Robot filter for LiDAR " << id_
+                 << "must have x_max defined.";
+      return false;
+    }
+
+    if (!YAML::safeGet(filter_node, "y_min", &robot_filter_.y_min)) {
+      LOG(ERROR) << "Robot filter for LiDAR " << id_
+                 << "must have y_min defined.";
+      return false;
+    }
+
+    if (!YAML::safeGet(filter_node, "y_max", &robot_filter_.y_max)) {
+      LOG(ERROR) << "Robot filter for LiDAR " << id_
+                 << "must have y_max defined.";
+      return false;
+    }
+
+    if (!YAML::safeGet(filter_node, "z_min", &robot_filter_.z_min)) {
+      LOG(ERROR) << "Robot filter for LiDAR " << id_
+                 << "must have z_min defined.";
+      return false;
+    }
+
+    if (!YAML::safeGet(filter_node, "z_max", &robot_filter_.z_max)) {
+      LOG(ERROR) << "Robot filter for LiDAR " << id_
+                 << "must have z_max defined.";
+      return false;
+    }
+
+    CHECK_LT(robot_filter_.x_min, robot_filter_.x_max);
+    CHECK_LT(robot_filter_.y_min, robot_filter_.y_max);
+    CHECK_LT(robot_filter_.z_min, robot_filter_.z_max);
+  } else {
+    has_robot_filter_ = false;
+  }
+
   return true;
 }
 
@@ -108,6 +196,7 @@ void Lidar::saveToYamlNodeImpl(YAML::Node* sensor_node) const {
   CHECK_NOTNULL(sensor_node);
   YAML::Node& node = *sensor_node;
 
+  // Save information on timestamps.
   node[static_cast<std::string>(kYamlFieldNameHasPointTimestamps)] =
       has_point_timestamps_;
   if (has_point_timestamps_) {
@@ -128,19 +217,35 @@ void Lidar::saveToYamlNodeImpl(YAML::Node* sensor_node) const {
           kTimeStampUnitSeconds;
     }
   }
+
+  // Save LiDAR min and max range.
+  node[static_cast<std::string>(kYamlFieldNameMinRange)] = min_range_m_;
+  node[static_cast<std::string>(kYamlFieldNameMaxRange)] = max_range_m_;
+
+  // Save the robot filter if one is present.
+  if (has_robot_filter_) {
+    YAML::Node filter_node;
+    filter_node["x_min"] = robot_filter_.x_min;
+    filter_node["x_max"] = robot_filter_.x_max;
+    filter_node["y_min"] = robot_filter_.y_min;
+    filter_node["y_max"] = robot_filter_.y_max;
+    filter_node["z_min"] = robot_filter_.z_min;
+    filter_node["z_max"] = robot_filter_.z_max;
+    node[static_cast<std::string>(kYamlFieldNameRobotFilter)] = filter_node;
+  }
 }
 
 template <>
 void LidarMeasurement<resources::PointCloud>::setRandomImpl() {
-  static constexpr double kMinDistanceMeters = 0.0;
-  static constexpr double kMaxDistanceMeters = 1e3;
+  static constexpr double kMinRangeMeters = 0.0;
+  static constexpr double kMaxRangeMeters = 1e3;
   static constexpr double kMinIntensity = 0.0;
   static constexpr double kMaxIntensity = 255.0;
 
   std::random_device random_device;
   std::default_random_engine random_engine(random_device());
-  std::uniform_real_distribution<float> distance_distribution(
-      kMinDistanceMeters, kMaxDistanceMeters);
+  std::uniform_real_distribution<float> range_distribution(
+      kMinRangeMeters, kMaxRangeMeters);
 
   constexpr double kMinNormal = -1.0;
   constexpr double kMaxNormal = 1.0;
@@ -164,8 +269,8 @@ void LidarMeasurement<resources::PointCloud>::setRandomImpl() {
   point_cloud_.resize(kNumPoints);
 
   for (size_t idx = 0u; idx < 3u * kNumPoints; ++idx) {
-    const float distance_value = distance_distribution(random_engine);
-    point_cloud_.xyz[idx] = distance_value;
+    const float range_value = range_distribution(random_engine);
+    point_cloud_.xyz[idx] = range_value;
 
     const float normal_value = normal_distribution(random_engine);
     point_cloud_.normals[idx] = normal_value;

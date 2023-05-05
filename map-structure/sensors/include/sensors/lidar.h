@@ -42,6 +42,10 @@ class Lidar final : public aslam::Sensor {
     has_point_timestamps_ = other.has_point_timestamps_;
     has_relative_point_timestamps_ = other.has_relative_point_timestamps_;
     timestamp_unit_ = other.timestamp_unit_;
+    min_range_m_ = other.min_range_m_;
+    max_range_m_ = other.max_range_m_;
+    has_robot_filter_ = other.has_robot_filter_;
+    robot_filter_ = other.robot_filter_;
   }
 
   Sensor::Ptr cloneAsSensor() const {
@@ -80,7 +84,25 @@ class Lidar final : public aslam::Sensor {
   // and nanoseconds. This is LiDAR model and driver specific.
   int32_t getTimestampConversionToNanoseconds() const;
 
+  double getMinRangeM() const {
+    return min_range_m_;
+  }
+
+  double getMaxRangeM() const {
+    return max_range_m_;
+  }
+
+  bool hasRobotFilter() const {
+    return has_robot_filter_;
+  }
+
+  const resources::BoundingBox3D* getRobotFilterPtr() const {
+    return &robot_filter_;
+  }
+
  private:
+  void init_default();
+
   bool loadFromYamlNodeImpl(const YAML::Node& sensor_node) override;
   void saveToYamlNodeImpl(YAML::Node* sensor_node) const override;
 
@@ -102,6 +124,15 @@ class Lidar final : public aslam::Sensor {
     is_equal &= has_relative_point_timestamps_ ==
                 other_lidar->has_relative_point_timestamps_;
     is_equal &= timestamp_unit_ == other_lidar->timestamp_unit_;
+    is_equal &= min_range_m_ == other_lidar->min_range_m_;
+    is_equal &= max_range_m_ == other_lidar->max_range_m_;
+    is_equal &= has_robot_filter_ == other_lidar->has_robot_filter_;
+
+    // Only compare the robot filters if one exists in both. Otherwise
+    // we rely on the previous equality check for has_robot_filter_.
+    if (has_robot_filter_ && other_lidar->has_robot_filter_) {
+      is_equal &= robot_filter_ == other_lidar->robot_filter_;
+    }
 
     if (!is_equal) {
       LOG_IF(WARNING, verbose)
@@ -110,7 +141,10 @@ class Lidar final : public aslam::Sensor {
           << "\n has_relative_point_timestamps_: "
           << has_relative_point_timestamps_ << "\n timestamp_unit_: "
           << static_cast<std::underlying_type<TimestampUnit>::type>(
-                 timestamp_unit_);
+                 timestamp_unit_)
+          << "\n min_range_m_: " << min_range_m_
+          << "\n max_range_m_: " << max_range_m_
+          << "\n has_robot_filter_: " << has_robot_filter_;
 
       LOG_IF(WARNING, verbose)
           << "Other LiDAR sensor " << other_lidar->id_
@@ -119,7 +153,15 @@ class Lidar final : public aslam::Sensor {
           << other_lidar->has_relative_point_timestamps_
           << "\n timestamp_unit_: "
           << static_cast<std::underlying_type<TimestampUnit>::type>(
-                 other_lidar->timestamp_unit_);
+                 other_lidar->timestamp_unit_)
+          << "\n min_range_m_: " << other_lidar->min_range_m_
+          << "\n max_range_m_: " << other_lidar->max_range_m_
+          << "\n has_robot_filter_: " << other_lidar->has_robot_filter_;
+
+      if (has_robot_filter_ && other_lidar->has_robot_filter_) {
+        LOG_IF(WARNING, verbose) << "LiDARs have different robot filters";
+      }
+
       return false;
     }
 
@@ -129,6 +171,11 @@ class Lidar final : public aslam::Sensor {
   bool has_point_timestamps_;
   bool has_relative_point_timestamps_;
   TimestampUnit timestamp_unit_;
+
+  double max_range_m_;
+  double min_range_m_;
+  bool has_robot_filter_;
+  resources::BoundingBox3D robot_filter_;
 };
 
 template <typename PointCloudType>
