@@ -83,7 +83,7 @@ void pub_pl_func(T& pl, ros::Publisher& pub) {
 }
 
 void data_show(
-    std::vector<IMUST> x_buf,
+    aslam::TransformationVector x_buf,
     std::vector<pcl::PointCloud<PointType>::Ptr>& pl_fulls,
     ros::Publisher& pub_path, ros::Publisher& pub_show) {
   pcl::PointCloud<PointType> pl_send, pl_path;
@@ -101,9 +101,9 @@ void data_show(
     }
 
     PointType ap;
-    ap.x = x_buf[i].p.x();
-    ap.y = x_buf[i].p.y();
-    ap.z = x_buf[i].p.z();
+    ap.x = x_buf[i].getPosition().x();
+    ap.y = x_buf[i].getPosition().y();
+    ap.z = x_buf[i].getPosition().z();
     ap.curvature = i;
     pl_path.push_back(ap);
   }
@@ -753,7 +753,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         }
 
         // Setting up BALM variables
-        std::vector<IMUST> pose_buffer;
+        aslam::TransformationVector poses_G_S;
         std::vector<pcl::PointCloud<PointType>::Ptr> pcl_pointclouds;
 
         ros::NodeHandle nh;
@@ -766,15 +766,11 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
 
         // Accumulate point cloud into BALM format
         depth_integration::IntegrationFunctionPointCloudMaplabWithTs
-            integration_function = [&pose_buffer, &pcl_pointclouds](
+            integration_function = [&poses_G_S, &pcl_pointclouds](
                                        const int64_t ts_ns,
                                        const aslam::Transformation& T_G_S,
                                        const resources::PointCloud& points_S) {
-              IMUST curr;
-              curr.R = T_G_S.getRotationMatrix();
-              curr.p = T_G_S.getPosition();
-              curr.t = static_cast<double>(ts_ns) * kNanosecondsToSeconds;
-              pose_buffer.emplace_back(curr);
+              poses_G_S.emplace_back(T_G_S);
 
               pcl::PointCloud<PointType>* pcl_pointcloud(
                   new pcl::PointCloud<PointType>());
@@ -806,21 +802,20 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
             FLAGS_dense_depth_map_reprojection_use_undistorted_camera, *map,
             integration_function, selection_function);
 
-        IMUST es0 = pose_buffer[0];
-        for (uint i = 0; i < pose_buffer.size(); i++) {
-          pose_buffer[i].p = es0.R.transpose() * (pose_buffer[i].p - es0.p);
-          pose_buffer[i].R = es0.R.transpose() * pose_buffer[i].R;
+        aslam::Transformation T_S0_G = poses_G_S[0].inverse();
+        for (uint i = 0; i < poses_G_S.size(); i++) {
+          poses_G_S[i] = T_S0_G * poses_G_S[i];
         }
 
-        win_size = pose_buffer.size();
+        win_size = poses_G_S.size();
         LOG(INFO) << "Window size: " << win_size;
-        data_show(pose_buffer, pcl_pointclouds, pub_path0, pub_show0);
+        data_show(poses_G_S, pcl_pointclouds, pub_path0, pub_show0);
 
         pcl::PointCloud<PointType> pl_send;
         std::unordered_map<VOXEL_LOC, OCTO_TREE_NODE*> surf_map;
 
         for (int i = 0; i < win_size; i++) {
-          cut_voxel(surf_map, *pcl_pointclouds[i], pose_buffer[i], i);
+          cut_voxel(surf_map, *pcl_pointclouds[i], poses_G_S[i], i);
         }
 
         VOX_HESS voxhess;
@@ -841,7 +836,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         }
 
         BALM2 opt_lsv;
-        opt_lsv.damping_iter(pose_buffer, voxhess);
+        opt_lsv.damping_iter(poses_G_S, voxhess);
 
         for (auto iter = surf_map.begin(); iter != surf_map.end();) {
           delete iter->second;
@@ -849,7 +844,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         }
         surf_map.clear();
 
-        data_show(pose_buffer, pcl_pointclouds, pub_path1, pub_show1);
+        data_show(poses_G_S, pcl_pointclouds, pub_path1, pub_show1);
 
         return common::kSuccess;
       },

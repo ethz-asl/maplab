@@ -3,7 +3,9 @@
 
 #include "dense-reconstruction/balm/tools.h"
 
-#include <Eigen/Eigenvalues>
+#include <Eigen/Core>
+#include <aslam/common/pose-types.h>
+#include <kindr/minimal/common.h>
 #include <thread>
 
 int layer_limit = 2;
@@ -46,8 +48,8 @@ class VOX_HESS {
   }
 
   void acc_evaluate2(
-      const vector<IMUST>& xs, int head, int end, Eigen::MatrixXd& Hess,
-      Eigen::VectorXd& JacT, double& residual) {
+      const aslam::TransformationVector& xs, int head, int end,
+      Eigen::MatrixXd& Hess, Eigen::VectorXd& JacT, double& residual) {
     Hess.setZero();
     JacT.setZero();
     residual = 0;
@@ -94,20 +96,18 @@ class VOX_HESS {
         if (sig_orig[i].N != 0) {
           Eigen::Matrix3d Pi = sig_orig[i].P;
           Eigen::Vector3d vi = sig_orig[i].v;
-          Eigen::Matrix3d Ri = xs[i].R;
+          Eigen::Matrix3d Ri = xs[i].getRotationMatrix();
           double ni = sig_orig[i].N;
 
-          Eigen::Matrix3d vihat;
-          vihat << SKEW_SYM_MATRX(vi);
+          Eigen::Matrix3d vihat = kindr::minimal::skewMatrix(vi);
           Eigen::Vector3d RiTuk = Ri.transpose() * uk;
-          Eigen::Matrix3d RiTukhat;
-          RiTukhat << SKEW_SYM_MATRX(RiTuk);
+          Eigen::Matrix3d RiTukhat = kindr::minimal::skewMatrix(RiTuk);
 
           Eigen::Vector3d PiRiTuk = Pi * RiTuk;
           viRiTuk[i] = vihat * RiTuk;
           viRiTukukT[i] = viRiTuk[i] * uk.transpose();
 
-          Eigen::Vector3d ti_v = xs[i].p - vBar;
+          Eigen::Vector3d ti_v = xs[i].getPosition() - vBar;
           double ukTti_v = uk.dot(ti_v);
 
           Eigen::Matrix3d combo1 = hat(PiRiTuk) + vihat * ukTti_v;
@@ -115,7 +115,8 @@ class VOX_HESS {
           Auk[i].block<3, 3>(0, 0) =
               (Ri * Pi + ti_v * vi.transpose()) * RiTukhat - Ri * combo1;
           Auk[i].block<3, 3>(0, 3) =
-              combo2 * uk.transpose() + combo2.dot(uk) * I33;
+              combo2 * uk.transpose() +
+              combo2.dot(uk) * Eigen::Matrix3d::Identity();
           Auk[i] /= NN;
 
           const Eigen::Matrix<double, 6, 1>& jjt = Auk[i].transpose() * uk;
@@ -163,7 +164,8 @@ class VOX_HESS {
             Hess.block<6, 6>(6 * j, 6 * i).transpose();
   }
 
-  void evaluate_only_residual(const vector<IMUST>& xs, double& residual) {
+  void evaluate_only_residual(
+      const aslam::TransformationVector& xs, double& residual) {
     residual = 0;
     vector<PointCluster> sig_tran(win_size);
     int kk = 0;  // The kk-th lambda value
@@ -191,10 +193,6 @@ class VOX_HESS {
 
       ress[a] = lmbd[kk];
     }
-  }
-
-  ~VOX_HESS() {
-    int vsize = sig_vecs.size();
   }
 };
 
@@ -384,8 +382,8 @@ class BALM2 {
   BALM2() {}
 
   double divide_thread(
-      const vector<IMUST>& x_stats, VOX_HESS& voxhess, Eigen::MatrixXd& Hess,
-      Eigen::VectorXd& JacT) {
+      const aslam::TransformationVector& x_stats, VOX_HESS& voxhess,
+      Eigen::MatrixXd& Hess, Eigen::VectorXd& JacT) {
     int thd_num = 4;
     double residual = 0;
     Hess.setZero();
@@ -422,17 +420,18 @@ class BALM2 {
     return residual;
   }
 
-  double only_residual(const vector<IMUST>& x_stats, VOX_HESS& voxhess) {
+  double only_residual(
+      const aslam::TransformationVector& x_stats, VOX_HESS& voxhess) {
     double residual = 0;
 
     voxhess.evaluate_only_residual(x_stats, residual);
     return residual;
   }
 
-  void damping_iter(vector<IMUST>& x_stats, VOX_HESS& voxhess) {
+  void damping_iter(aslam::TransformationVector& x_stats, VOX_HESS& voxhess) {
     vector<int> planes(x_stats.size(), 0);
-    for (int i = 0; i < voxhess.plvec_voxels.size(); i++) {
-      for (int j = 0; j < voxhess.plvec_voxels[i]->size(); j++)
+    for (size_t i = 0; i < voxhess.plvec_voxels.size(); i++) {
+      for (size_t j = 0; j < voxhess.plvec_voxels[i]->size(); j++)
         if (voxhess.plvec_voxels[i]->at(j).N != 0)
           planes[j]++;
     }
@@ -452,24 +451,22 @@ class BALM2 {
     D.setIdentity();
     double residual1, residual2, q;
     bool is_calc_hess = true;
-    vector<IMUST> x_stats_temp = x_stats;
+    aslam::TransformationVector x_stats_temp = x_stats;
 
     for (int i = 0; i < 10; i++) {
-      if (is_calc_hess)
+      if (is_calc_hess) {
         residual1 = divide_thread(x_stats, voxhess, Hess, JacT);
+      }
 
       D.diagonal() = Hess.diagonal();
       dxi = (Hess + u * D).ldlt().solve(-JacT);
 
       for (int j = 0; j < win_size; j++) {
-        x_stats_temp[j].R = x_stats[j].R * Exp(dxi.block<3, 1>(DVEL * j, 0));
-        x_stats_temp[j].p = x_stats[j].p + dxi.block<3, 1>(DVEL * j + 3, 0);
-        // x_stats_temp[j].p = x_stats[j].p + x_stats[j].R * dxi.block<3,
-        // 1>(DVEL*j+3, 0);
-
-        // Eigen::Matrix3d dR = Exp(dxi.block<3, 1>(DVEL*j, 0));
-        // x_stats_temp[j].R = dR * x_stats[j].R;
-        // x_stats_temp[j].p = dR * x_stats[j].p + dxi.block<3, 1>(DVEL*j+3, 0);
+        x_stats_temp[j].getRotation() =
+            x_stats[j].getRotation() *
+            aslam::Quaternion::exp(dxi.block<3, 1>(6 * j, 0));
+        x_stats_temp[j].getPosition() =
+            x_stats[j].getPosition() + dxi.block<3, 1>(6 * j + 3, 0);
       }
       double q1 = 0.5 * dxi.dot(u * D * dxi - JacT);
 
@@ -498,21 +495,21 @@ class BALM2 {
         break;
     }
 
-    IMUST es0 = x_stats[0];
+    aslam::Transformation es0 = x_stats[0].inverse();
     for (uint i = 0; i < x_stats.size(); i++) {
-      x_stats[i].p = es0.R.transpose() * (x_stats[i].p - es0.p);
-      x_stats[i].R = es0.R.transpose() * x_stats[i].R;
+      x_stats[i] = es0 * x_stats[i];
     }
   }
 };
 
 void cut_voxel(
     unordered_map<VOXEL_LOC, OCTO_TREE_NODE*>& feat_map,
-    pcl::PointCloud<PointType>& pl_feat, const IMUST& x_key, int fnum) {
+    pcl::PointCloud<PointType>& pl_feat, const aslam::Transformation& T,
+    int fnum) {
   float loc_xyz[3];
   for (PointType& p_c : pl_feat.points) {
     Eigen::Vector3d pvec_orig(p_c.x, p_c.y, p_c.z);
-    Eigen::Vector3d pvec_tran = x_key.R * pvec_orig + x_key.p;
+    Eigen::Vector3d pvec_tran = T * pvec_orig;
 
     for (int j = 0; j < 3; j++) {
       loc_xyz[j] = pvec_tran[j] / voxel_size;

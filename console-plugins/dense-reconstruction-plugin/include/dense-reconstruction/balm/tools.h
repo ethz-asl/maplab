@@ -2,13 +2,13 @@
 #define TOOLS_HPP
 
 #include <Eigen/Core>
+#include <aslam/common/pose-types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <unordered_map>
 
 #define HASH_P 116101
 #define MAX_N 10000000000
-#define SKEW_SYM_MATRX(v) 0.0, -v[2], v[1], v[2], 0.0, -v[0], -v[1], v[0], 0.0
 #define PLM(a)                     \
   vector<                          \
       Eigen::Matrix<double, a, a>, \
@@ -18,13 +18,8 @@
       Eigen::Matrix<double, a, 1>, \
       Eigen::aligned_allocator<Eigen::Matrix<double, a, 1>>>
 
-#define NMATCH 5
-#define DVEL 6
-
 typedef pcl::PointXYZINormal PointType;
 using namespace std;
-
-Eigen::Matrix3d I33(Eigen::Matrix3d::Identity());
 
 class VOXEL_LOC {
  public:
@@ -50,46 +45,11 @@ struct hash<VOXEL_LOC> {
 };
 }  // namespace std
 
-Eigen::Matrix3d Exp(const Eigen::Vector3d& ang) {
-  double ang_norm = ang.norm();
-  // if (ang_norm >= 0.0000001)
-  if (ang_norm >= 1e-11) {
-    Eigen::Vector3d r_axis = ang / ang_norm;
-    Eigen::Matrix3d K;
-    K << SKEW_SYM_MATRX(r_axis);
-    /// Roderigous Tranformation
-    return I33 + std::sin(ang_norm) * K + (1.0 - std::cos(ang_norm)) * K * K;
-  }
-
-  return I33;
-}
-
 Eigen::Matrix3d hat(const Eigen::Vector3d& v) {
   Eigen::Matrix3d Omega;
   Omega << 0, -v(2), v(1), v(2), 0, -v(0), -v(1), v(0), 0;
   return Omega;
 }
-
-struct IMUST {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  double t;
-  Eigen::Matrix3d R;
-  Eigen::Vector3d p;
-
-  IMUST() {
-    R.setIdentity();
-    p.setZero();
-    t = 0;
-  }
-
-  IMUST& operator=(const IMUST& b) {
-    this->R = b.R;
-    this->p = b.p;
-    this->t = b.t;
-    return *this;
-  }
-};
 
 void down_sampling_voxel(
     pcl::PointCloud<PointType>& pl_feat, double voxel_size) {
@@ -129,13 +89,14 @@ void down_sampling_voxel(
     pl_feat.push_back(iter->second);
 }
 
-void pl_transform(pcl::PointCloud<PointType>& pl1, const IMUST& xx) {
+void pl_transform(
+    pcl::PointCloud<PointType>& pl1, const aslam::Transformation& T) {
   for (PointType& ap : pl1.points) {
-    Eigen::Vector3d pvec(ap.x, ap.y, ap.z);
-    pvec = xx.R * pvec + xx.p;
-    ap.x = pvec[0];
-    ap.y = pvec[1];
-    ap.z = pvec[2];
+    Eigen::Vector3d point(ap.x, ap.y, ap.z);
+    point = T * point;
+    ap.x = point[0];
+    ap.y = point[1];
+    ap.z = point[2];
   }
 }
 
@@ -176,12 +137,15 @@ class PointCluster {
     return *this;
   }
 
-  void transform(const PointCluster& sigv, const IMUST& stat) {
+  void transform(const PointCluster& sigv, const aslam::Transformation& T) {
+    const Eigen::Matrix3d R = T.getRotationMatrix();
+    const Eigen::Vector3d p = T.getPosition();
+    const Eigen::Matrix3d rp = R * sigv.v * p.transpose();
+
     N = sigv.N;
-    v = stat.R * sigv.v + N * stat.p;
-    Eigen::Matrix3d rp = stat.R * sigv.v * stat.p.transpose();
-    P = stat.R * sigv.P * stat.R.transpose() + rp + rp.transpose() +
-        N * stat.p * stat.p.transpose();
+    v = R * sigv.v + N * p;
+    P = R * sigv.P * R.transpose() + rp + rp.transpose() +
+        N * p * p.transpose();
   }
 };
 
