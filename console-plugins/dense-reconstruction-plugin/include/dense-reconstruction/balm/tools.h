@@ -7,8 +7,6 @@
 #include <pcl/point_types.h>
 #include <unordered_map>
 
-#define HASH_P 116101
-#define MAX_N 10000000000
 #define PLM(a)                     \
   vector<                          \
       Eigen::Matrix<double, a, a>, \
@@ -37,10 +35,20 @@ namespace std {
 template <>
 struct hash<VOXEL_LOC> {
   size_t operator()(const VOXEL_LOC& s) const {
-    return (((hash<int64_t>()(s.z) * HASH_P) % MAX_N + hash<int64_t>()(s.y)) *
-            HASH_P) %
-               MAX_N +
-           hash<int64_t>()(s.x);
+    // Szudzik triplet pairing function taken from and unrolled
+    // https://drhagen.com/blog/multidimensional-pairing-functions/
+    // with modifications to support negative values
+    const size_t xx = (s.x >= 0) ? 2 * s.x : -2 * s.x - 1;
+    const size_t yy = (s.y >= 0) ? 2 * s.y : -2 * s.y - 1;
+    const size_t zz = (s.z >= 0) ? 2 * s.z : -2 * s.z - 1;
+
+    if (xx >= yy && xx >= zz) {
+      return ((xx + 1) * (xx + 1) * xx) + zz * (xx + 1) + yy;
+    } else if (yy >= xx && yy >= zz) {
+      return (yy * yy * yy) + ((yy + 1) * (yy + 1) - yy * yy) * xx + yy + zz;
+    } else {
+      return (zz * zz * zz) + ((zz + 1) * (zz + 1) - zz * zz) * xx + yy;
+    }
   }
 };
 }  // namespace std
