@@ -817,7 +817,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         data_show(pose_buffer, pcl_pointclouds, pub_path0, pub_show0);
 
         pcl::PointCloud<PointType> pl_send;
-        std::unordered_map<VOXEL_LOC, OCTO_TREE_ROOT*> surf_map;
+        std::unordered_map<VOXEL_LOC, OCTO_TREE_NODE*> surf_map;
 
         for (int i = 0; i < win_size; i++) {
           cut_voxel(surf_map, *pcl_pointclouds[i], pose_buffer[i], i);
