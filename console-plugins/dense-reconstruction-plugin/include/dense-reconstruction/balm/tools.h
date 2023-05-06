@@ -42,10 +42,6 @@ namespace std {
 template <>
 struct hash<VOXEL_LOC> {
   size_t operator()(const VOXEL_LOC& s) const {
-    using std::hash;
-    using std::size_t;
-    // return ((hash<int64_t>()(s.x) ^ (hash<int64_t>()(s.y) << 1)) >> 1) ^
-    // (hash<int64_t>()(s.z) << 1);
     return (((hash<int64_t>()(s.z) * HASH_P) % MAX_N + hash<int64_t>()(s.y)) *
             HASH_P) %
                MAX_N +

@@ -20,33 +20,29 @@ class VOX_HESS {
  public:
   vector<const PointCluster*> sig_vecs;
   vector<const vector<PointCluster>*> plvec_voxels;
-  vector<double> coeffs, coeffs_back;
-
-  vector<pcl::PointCloud<PointType>::Ptr> plptrs;
+  vector<double> coeffs;
 
   void push_voxel(
-      const vector<PointCluster>* vec_orig, const PointCluster* fix,
-      double feat_eigen, int layer) {
+      const vector<PointCluster>* vec_orig, const PointCluster* fix) {
     int process_size = 0;
-    for (int i = 0; i < win_size; i++)
-      if ((*vec_orig)[i].N != 0)
+    for (int i = 0; i < win_size; i++) {
+      if ((*vec_orig)[i].N != 0) {
         process_size++;
+      }
+    }
 
-    if (process_size < 2)
-      return;  // 改
+    if (process_size < 2) {
+      return;
+    }
 
-    double coe = 1 - feat_eigen / eigen_value_array[layer];
-    coe = coe * coe;
-    coe = 1;
-    coe = 0;
-    for (int j = 0; j < win_size; j++)
-      coe += (*vec_orig)[j].N;
+    double coe = 0;
+    for (int i = 0; i < win_size; i++) {
+      coe += (*vec_orig)[i].N;
+    }
 
     plvec_voxels.push_back(vec_orig);
     sig_vecs.push_back(fix);
     coeffs.push_back(coe);
-    pcl::PointCloud<PointType>::Ptr plptr(new pcl::PointCloud<PointType>());
-    plptrs.push_back(plptr);
   }
 
   void acc_evaluate2(
@@ -95,7 +91,6 @@ class VOX_HESS {
           umumT += 2.0 / (lmbd[kk] - lmbd[i]) * u[i] * u[i].transpose();
 
       for (int i = 0; i < win_size; i++)
-        // for(int i=1; i<win_size; i++)
         if (sig_orig[i].N != 0) {
           Eigen::Matrix3d Pi = sig_orig[i].P;
           Eigen::Vector3d vi = sig_orig[i].v;
@@ -141,7 +136,6 @@ class VOX_HESS {
         }
 
       for (int i = 0; i < win_size - 1; i++)
-        // for(int i=1; i<win_size-1; i++)
         if (sig_orig[i].N != 0) {
           double ni = sig_orig[i].N;
           for (int j = i + 1; j < win_size; j++)
@@ -217,7 +211,7 @@ class OCTO_TREE_NODE {
   float voxel_center[3];
   float quater_length;
 
-  double decision, ref;
+  double ref;
 
   OCTO_TREE_NODE() {
     octo_state = 0;
@@ -244,7 +238,7 @@ class OCTO_TREE_NODE {
     }
 
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> saes(covMat.cov());
-    decision = saes.eigenvalues()[0] / saes.eigenvalues()[1];
+    double decision = saes.eigenvalues()[0] / saes.eigenvalues()[1];
 
     return (decision < eigen_value_array[layer]);
   }
@@ -288,20 +282,24 @@ class OCTO_TREE_NODE {
   void recut(int win_count) {
     if (octo_state != 1) {
       int point_size = fix_point.N;
-      for (int i = 0; i < win_count; i++)
+      for (int i = 0; i < win_count; i++) {
         point_size += sig_orig[i].N;
+      }
 
       push_state = 0;
-      if (point_size <= min_ps)
+      if (point_size <= min_ps) {
         return;
+      }
 
       if (judge_eigen(win_count)) {
-        if (octo_state == 0 && point_size > layer_size[layer])
+        if (octo_state == 0 && point_size > layer_size[layer]) {
           octo_state = 2;
+        }
 
         point_size -= fix_point.N;
-        if (point_size > min_ps)
+        if (point_size > min_ps) {
           push_state = 1;
+        }
         return;
       } else if (layer == layer_limit) {
         octo_state = 2;
@@ -311,20 +309,26 @@ class OCTO_TREE_NODE {
       octo_state = 1;
       vector<PointCluster>().swap(sig_orig);
       vector<PointCluster>().swap(sig_tran);
-      for (int i = 0; i < win_count; i++)
+      for (int i = 0; i < win_count; i++) {
         cut_func(i);
-    } else
+      }
+    } else {
       cut_func(win_count - 1);
+    }
 
-    for (int i = 0; i < 8; i++)
-      if (leaves[i] != nullptr)
+    for (int i = 0; i < 8; i++) {
+      if (leaves[i] != nullptr) {
         leaves[i]->recut(win_count);
+      }
+    }
   }
 
   ~OCTO_TREE_NODE() {
-    for (int i = 0; i < 8; i++)
-      if (leaves[i] != nullptr)
+    for (int i = 0; i < 8; i++) {
+      if (leaves[i] != nullptr) {
         delete leaves[i];
+      }
+    }
   }
 
   void tras_display(pcl::PointCloud<PointType>& pl_feat, int win_count) {
@@ -366,7 +370,7 @@ class OCTO_TREE_NODE {
         return;
 
       if (push_state == 1)
-        vox_opt.push_voxel(&sig_orig, &fix_point, decision, layer);
+        vox_opt.push_voxel(&sig_orig, &fix_point);
     } else {
       for (int i = 0; i < 8; i++)
         if (leaves[i] != nullptr)
@@ -380,8 +384,8 @@ class BALM2 {
   BALM2() {}
 
   double divide_thread(
-      vector<IMUST>& x_stats, VOX_HESS& voxhess, vector<IMUST>& x_ab,
-      Eigen::MatrixXd& Hess, Eigen::VectorXd& JacT) {
+      const vector<IMUST>& x_stats, VOX_HESS& voxhess, Eigen::MatrixXd& Hess,
+      Eigen::VectorXd& JacT) {
     int thd_num = 4;
     double residual = 0;
     Hess.setZero();
@@ -418,12 +422,11 @@ class BALM2 {
     return residual;
   }
 
-  double only_residual(
-      vector<IMUST>& x_stats, VOX_HESS& voxhess, vector<IMUST>& x_ab) {
-    double residual1 = 0, residual2 = 0;
+  double only_residual(const vector<IMUST>& x_stats, VOX_HESS& voxhess) {
+    double residual = 0;
 
-    voxhess.evaluate_only_residual(x_stats, residual2);
-    return (residual1 + residual2);
+    voxhess.evaluate_only_residual(x_stats, residual);
+    return residual;
   }
 
   void damping_iter(vector<IMUST>& x_stats, VOX_HESS& voxhess) {
@@ -451,17 +454,9 @@ class BALM2 {
     bool is_calc_hess = true;
     vector<IMUST> x_stats_temp = x_stats;
 
-    vector<IMUST> x_ab(win_size);
-    x_ab[0] = x_stats[0];
-    for (int i = 1; i < win_size; i++) {
-      x_ab[i].p =
-          x_stats[i - 1].R.transpose() * (x_stats[i].p - x_stats[i - 1].p);
-      x_ab[i].R = x_stats[i - 1].R.transpose() * x_stats[i].R;
-    }
-
     for (int i = 0; i < 10; i++) {
       if (is_calc_hess)
-        residual1 = divide_thread(x_stats, voxhess, x_ab, Hess, JacT);
+        residual1 = divide_thread(x_stats, voxhess, Hess, JacT);
 
       D.diagonal() = Hess.diagonal();
       dxi = (Hess + u * D).ldlt().solve(-JacT);
@@ -478,7 +473,7 @@ class BALM2 {
       }
       double q1 = 0.5 * dxi.dot(u * D * dxi - JacT);
 
-      residual2 = only_residual(x_stats_temp, voxhess, x_ab);
+      residual2 = only_residual(x_stats_temp, voxhess);
 
       q = (residual1 - residual2);
       printf(
@@ -550,7 +545,7 @@ void cut_voxel(
       ot->voxel_center[2] = (0.5 + position.z) * voxel_size;
       ot->quater_length = voxel_size / 4.0;
       ot->layer = 0;
-      
+
       feat_map[position] = ot;
     }
   }
