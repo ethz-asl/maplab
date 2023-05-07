@@ -1,5 +1,4 @@
 #include "dense-reconstruction/balm/bavoxel.h"
-#include "dense-reconstruction/balm/tools.h"
 #include "dense-reconstruction/dense-reconstruction-plugin.h"
 #include "dense-reconstruction/voxblox-params.h"
 
@@ -72,44 +71,35 @@ DEFINE_int32(
 
 namespace dense_reconstruction {
 
-template <typename T>
-void pub_pl_func(T& pl, ros::Publisher& pub) {
-  pl.height = 1;
-  pl.width = pl.size();
-  sensor_msgs::PointCloud2 output;
-  pcl::toROSMsg(pl, output);
-  output.header.frame_id = "map";
-  output.header.stamp = ros::Time::now();
-  pub.publish(output);
-}
+void publishMapFromBALM(
+    aslam::TransformationVector poses_G,
+    const std::vector<resources::PointCloud>& pointclouds_S,
+    const std::string& path_topic, const visualization::Color& path_color,
+    const std::string& cloud_topic) {
 
-void data_show(
-    aslam::TransformationVector x_buf,
-    std::vector<pcl::PointCloud<PointType>::Ptr>& pl_fulls,
-    ros::Publisher& pub_path, ros::Publisher& pub_show) {
-  pcl::PointCloud<PointType> pl_send, pl_path;
-  int winsize = x_buf.size();
-  for (int i = 0; i < winsize; i++) {
-    pcl::PointCloud<PointType> pl_tem = *pl_fulls[i];
-    down_sampling_voxel(pl_tem, 0.05);
-    pl_transform(pl_tem, x_buf[i]);
-    pl_send += pl_tem;
+  const size_t count = pointclouds_S.size();
+  const size_t kPublishEvery = count / 10;
+  resources::PointCloud points_G;
+  Eigen::Matrix3Xd positions_G(3, count);
+  for (size_t i = 0; i < count; ++i) {
+    resources::PointCloud voxelized_S;
+    pointclouds_S[i].downsampleVoxelized(0.05, &voxelized_S);
+    points_G.appendTransformed(voxelized_S, poses_G[i]);
 
-    if ((i % 10 == 0 && i != 0) || i == winsize - 1) {
-      pub_pl_func(pl_send, pub_show);
-      pl_send.clear();
-      sleep(0.5);
+    if ((i % kPublishEvery == 0 && i != 0) || i == count - 1) {
+      sensor_msgs::PointCloud2 ros_points_G;
+      backend::convertPointCloudType(points_G, &ros_points_G);
+      ros_points_G.header.frame_id = FLAGS_tf_map_frame;
+      visualization::RVizVisualizationSink::publish(cloud_topic, ros_points_G);
+      points_G.clear();
     }
 
-    PointType ap;
-    ap.x = x_buf[i].getPosition().x();
-    ap.y = x_buf[i].getPosition().y();
-    ap.z = x_buf[i].getPosition().z();
-    ap.curvature = i;
-    pl_path.push_back(ap);
+    positions_G.col(i) = poses_G[i].getPosition();
   }
 
-  pub_pl_func(pl_path, pub_path);
+  visualization::publish3DPointsAsPointCloud(
+      positions_G, path_color, 1.0, FLAGS_tf_map_frame, path_topic);
+
 }
 
 bool parseMultipleMissionIds(
@@ -755,28 +745,16 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
 
         // Setting up BALM variables
         aslam::TransformationVector poses_G_S;
-        std::vector<pcl::PointCloud<PointType>::Ptr> pcl_pointclouds;
-
-        ros::NodeHandle nh;
-        ros::Publisher pub_path0, pub_path1, pub_show0, pub_show1, pub_cute;
-        pub_path0 = nh.advertise<sensor_msgs::PointCloud2>("/map_path0", 100);
-        pub_path1 = nh.advertise<sensor_msgs::PointCloud2>("/map_path1", 100);
-        pub_show0 = nh.advertise<sensor_msgs::PointCloud2>("/map_show0", 100);
-        pub_show1 = nh.advertise<sensor_msgs::PointCloud2>("/map_show1", 100);
-        pub_cute = nh.advertise<sensor_msgs::PointCloud2>("/map_cute", 100);
+        std::vector<resources::PointCloud> pointclouds;
 
         // Accumulate point cloud into BALM format
         depth_integration::IntegrationFunctionPointCloudMaplabWithTs
-            integration_function = [&poses_G_S, &pcl_pointclouds](
+            integration_function = [&poses_G_S, &pointclouds](
                                        const int64_t ts_ns,
                                        const aslam::Transformation& T_G_S,
                                        const resources::PointCloud& points_S) {
               poses_G_S.emplace_back(T_G_S);
-
-              pcl::PointCloud<PointType>* pcl_pointcloud(
-                  new pcl::PointCloud<PointType>());
-              backend::convertPointCloudType(points_S, pcl_pointcloud);
-              pcl_pointclouds.emplace_back(pcl_pointcloud);
+              pointclouds.emplace_back(points_S);
             };
 
         size_t point_cloud_counter = 0u;
@@ -810,28 +788,39 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
 
         win_size = poses_G_S.size();
         LOG(INFO) << "Window size: " << win_size;
-        data_show(poses_G_S, pcl_pointclouds, pub_path0, pub_show0);
 
-        pcl::PointCloud<PointType> pl_send;
-        std::unordered_map<VOXEL_LOC, OCTO_TREE_NODE*> surf_map;
+        publishMapFromBALM(
+            poses_G_S, pointclouds, "balm_path_before",
+            visualization::kCommonRed, "balm_map_before");
+
+        SurfaceMap surface_map;
 
         for (size_t i = 0; i < win_size; ++i) {
-          cut_voxel(surf_map, *pcl_pointclouds[i], poses_G_S[i], i, win_size);
+          cut_voxel(surface_map, pointclouds[i], poses_G_S[i], i, win_size);
         }
 
-        VOX_HESS voxhess;
-        for (auto iter = surf_map.begin(); iter != surf_map.end();) {
+        VoxHess voxhess;
+        resources::PointCloud planes_G;
+        for (auto iter = surface_map.begin(); iter != surface_map.end();) {
           if (iter->second->recut()) {
             iter->second->tras_opt(voxhess);
-            iter->second->tras_display(pl_send);
+            iter->second->tras_display(&planes_G);
             ++iter;
           } else {
             delete iter->second;
-            iter = surf_map.erase(iter);
+            iter = surface_map.erase(iter);
           }
         }
 
-        pub_pl_func(pl_send, pub_cute);
+        // Display planes computed by BALM.
+        sensor_msgs::PointCloud2 ros_planes_G;
+        backend::convertPointCloudType(planes_G, &ros_planes_G);
+        ros_planes_G.header.frame_id = FLAGS_tf_map_frame;
+        visualization::RVizVisualizationSink::publish(
+            "balm_planes", ros_planes_G);
+
+        // Be careful to deallocate memory as that is a limiting factor.
+        planes_G = resources::PointCloud();
 
         const size_t num_constraints = voxhess.plvec_voxels.size();
         if (voxhess.plvec_voxels.size() < 3 * win_size) {
@@ -844,14 +833,16 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         BALM2 opt_lsv;
         opt_lsv.damping_iter(poses_G_S, voxhess);
 
-        for (auto iter = surf_map.begin(); iter != surf_map.end();) {
+        for (auto iter = surface_map.begin(); iter != surface_map.end();) {
           delete iter->second;
-          surf_map.erase(iter++);
+          surface_map.erase(iter++);
         }
-        surf_map.clear();
+        surface_map.clear();
         malloc_trim(0);
 
-        data_show(poses_G_S, pcl_pointclouds, pub_path1, pub_show1);
+        publishMapFromBALM(
+            poses_G_S, pointclouds, "balm_path_after",
+            visualization::kCommonGreen, "balm_map_after");
 
         return common::kSuccess;
       },
