@@ -14,7 +14,65 @@
 #include "resources-common/tinyply/tinyply.h"
 
 namespace resources {
+struct VoxelPosition {
+  int64_t x, y, z;
 
+  VoxelPosition(const Eigen::Vector3f& xyz, float voxel_size)
+      : VoxelPosition(xyz[0], xyz[1], xyz[2], voxel_size) {}
+
+  VoxelPosition(float _x, float _y, float _z, float voxel_size) {
+    _x /= voxel_size;
+    _y /= voxel_size;
+    _z /= voxel_size;
+    x = static_cast<int64_t>((_x >= 0) ? _x : _x - 1.0);
+    y = static_cast<int64_t>((_y >= 0) ? _y : _y - 1.0);
+    z = static_cast<int64_t>((_z >= 0) ? _z : _z - 1.0);
+  }
+
+  bool operator==(const VoxelPosition& other) const {
+    return (x == other.x && y == other.y && z == other.z);
+  }
+};
+
+struct Voxel {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  Eigen::Vector3f xyz;
+  size_t count;
+
+  Voxel(const Eigen::Vector3f& _xyz) : xyz(_xyz), count(1) {}
+
+  Voxel& operator+=(const Eigen::Vector3f& new_xyz) {
+    xyz = (xyz * count + new_xyz) / (count + 1);
+    ++count;
+
+    return *this;
+  }
+};
+}  // namespace resources
+
+namespace std {
+template <>
+struct hash<resources::VoxelPosition> {
+  size_t operator()(const resources::VoxelPosition& s) const {
+    // Szudzik triplet pairing function taken from and unrolled
+    // https://drhagen.com/blog/multidimensional-pairing-functions/
+    // with modifications to support negative values
+    const size_t xx = (s.x >= 0) ? 2 * s.x : -2 * s.x - 1;
+    const size_t yy = (s.y >= 0) ? 2 * s.y : -2 * s.y - 1;
+    const size_t zz = (s.z >= 0) ? 2 * s.z : -2 * s.z - 1;
+
+    if (xx >= yy && xx >= zz) {
+      return ((xx + 1) * (xx + 1) * xx) + zz * (xx + 1) + yy;
+    } else if (yy >= xx && yy >= zz) {
+      return (yy * yy * yy) + ((yy + 1) * (yy + 1) - yy * yy) * xx + yy + zz;
+    } else {
+      return (zz * zz * zz) + ((zz + 1) * (zz + 1) - zz * zz) * xx + yy;
+    }
+  }
+};
+}  // namespace std
+
+namespace resources {
 typedef Eigen::Matrix<uint8_t, 4, 1> RgbaColor;
 
 struct BoundingBox3D {
@@ -43,6 +101,15 @@ class PointCloud {
 
   bool empty() const {
     return xyz.empty();
+  }
+
+  void clear() {
+    xyz.clear();
+    normals.clear();
+    colors.clear();
+    scalars.clear();
+    labels.clear();
+    times_ns.clear();
   }
 
   bool hasNormals() const {
@@ -101,6 +168,10 @@ class PointCloud {
 
   // Removes points inside a 3D bounding box.
   void filterBoundingBox3D(BoundingBox3D box_filter);
+
+  // Downsample using a voxel grid. The returned point cloud will only
+  // have xyz coordinates, all other information is stripped away.
+  void downsampleVoxelized(float voxel_size, PointCloud* voxelized) const;
 
   void writeToFile(const std::string& file_path) const;
   bool loadFromFile(const std::string& file_path);

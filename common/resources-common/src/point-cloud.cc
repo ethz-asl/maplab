@@ -1,7 +1,8 @@
+#include "resources-common/point-cloud.h"
+
 #include <limits>
 #include <numeric>
-
-#include "resources-common/point-cloud.h"
+#include <unordered_map>
 
 namespace resources {
 void PointCloud::resize(
@@ -79,20 +80,17 @@ void PointCloud::applyTransformation(
 
   CHECK_LT(start_point, size());
 
-  // Convert the transformation matrix from double to float, since the point
-  // coordinates and normals are stored in float vectors
-  kindr::minimal::QuatTransformationTemplate<float> T_A_B_float =
-      T_A_B.cast<float>();
-
-  // Remap to Eigen to avoid copies and leverage vectorization
+  // Remap to Eigen to leverage vectorization
   Eigen::Map<Eigen::Matrix3Xf> eigen_xyz(
       xyz.data() + 3 * start_point, 3, size() - start_point);
-  eigen_xyz = T_A_B_float.transformVectorized(eigen_xyz);
+  eigen_xyz = T_A_B.transformVectorized(eigen_xyz.cast<double>()).cast<float>();
 
   if (hasNormals()) {
     Eigen::Map<Eigen::Matrix3Xf> eigen_normals(
         normals.data() + 3 * start_point, 3, size() - start_point);
-    eigen_normals = T_A_B_float.getRotation().rotateVectorized(eigen_normals);
+    eigen_normals = T_A_B.getRotation()
+                        .rotateVectorized(eigen_normals.cast<double>())
+                        .cast<float>();
   }
 }
 
@@ -147,7 +145,7 @@ void PointCloud::undistort(
       << "Timestamps for intermediary poses do not cover the entire point "
          "cloud time range. Can't interpolate.";
 
-  // Map the points to Eigen for faster inplace operations
+  // Map the points to Eigen for vectorization
   Eigen::Map<Eigen::Matrix3Xf> eigen_xyz(xyz.data(), 3, size());
 
   // Initialize the two poses between which we interpolate. By sorting the
@@ -155,10 +153,8 @@ void PointCloud::undistort(
   int64_t intermediary_index = 1;
   int32_t time_A = timestamps[0];
   int32_t time_B = timestamps[1];
-  kindr::minimal::QuatTransformationTemplate<float> pose_A =
-      poses[0].cast<float>();
-  kindr::minimal::QuatTransformationTemplate<float> pose_B =
-      poses[1].cast<float>();
+  aslam::Transformation pose_A = poses[0];
+  aslam::Transformation pose_B = poses[1];
 
   for (size_t i = 0; i < size(); ++i) {
     const size_t point_idx = point_idxs[i];
@@ -168,14 +164,15 @@ void PointCloud::undistort(
       time_A = time_B;
       pose_A = pose_B;
       time_B = timestamps[intermediary_index];
-      pose_B = poses[intermediary_index].cast<float>();
+      pose_B = poses[intermediary_index];
     }
 
     double lambda = static_cast<double>(times_ns[point_idx] - time_A) /
                     static_cast<double>(time_B - time_A);
-    kindr::minimal::QuatTransformationTemplate<float> T =
+    aslam::Transformation T =
         kindr::minimal::interpolateComponentwise(pose_A, pose_B, lambda);
-    eigen_xyz.col(point_idx) = T.transform(eigen_xyz.col(point_idx));
+    eigen_xyz.col(point_idx) =
+        T.transform(eigen_xyz.col(point_idx).cast<double>()).cast<float>();
   }
 }
 
@@ -273,6 +270,40 @@ size_t PointCloud::filterValidMinMaxBox(
   CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
 
   return num_removed;
+}
+
+void PointCloud::downsampleVoxelized(
+    float voxel_size, PointCloud* voxelized) const {
+  CHECK_GT(voxel_size, 1e-3) << "Voxel size is too small.";
+  CHECK_NOTNULL(voxelized)->clear();
+  
+  // Map the points to Eigen for vectorization
+  Eigen::Map<const Eigen::Matrix3Xf> eigen_xyz(xyz.data(), 3, size());
+
+  // Assign points to voxels
+  std::unordered_map<VoxelPosition, Voxel> voxel_grid;
+  for (int i = 0; i < size(); ++i) {
+    const Eigen::Vector3f point = eigen_xyz.col(i);
+    VoxelPosition position(point, voxel_size);
+
+    auto iter = voxel_grid.find(position);
+    if (iter == voxel_grid.end()) {
+      voxel_grid.emplace(position, point);
+    } else {
+      iter->second += point;
+    }
+  }
+
+  // Assign memory and pull xyz points from voxel grid
+  voxelized->xyz.resize(3 * voxel_grid.size());
+  Eigen::Map<Eigen::Matrix3Xf> voxelized_xyz(
+      voxelized->xyz.data(), 3, voxelized->size());
+
+  int index = 0;
+  for (auto iter = voxel_grid.begin(); iter != voxel_grid.end(); ++iter) {
+    voxelized_xyz.col(index) = iter->second.xyz;
+    ++index;
+  }
 }
 
 void PointCloud::writeToFile(const std::string& file_path) const {
