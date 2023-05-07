@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <cstring>
+#include <malloc.h>
 #include <string>
 #include <vector>
 
@@ -814,15 +815,20 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         pcl::PointCloud<PointType> pl_send;
         std::unordered_map<VOXEL_LOC, OCTO_TREE_NODE*> surf_map;
 
-        for (int i = 0; i < win_size; i++) {
-          cut_voxel(surf_map, *pcl_pointclouds[i], poses_G_S[i], i);
+        for (size_t i = 0; i < win_size; ++i) {
+          cut_voxel(surf_map, *pcl_pointclouds[i], poses_G_S[i], i, win_size);
         }
 
         VOX_HESS voxhess;
-        for (auto iter = surf_map.begin(); iter != surf_map.end(); iter++) {
-          iter->second->recut(win_size);
-          iter->second->tras_opt(voxhess, win_size);
-          iter->second->tras_display(pl_send, win_size);
+        for (auto iter = surf_map.begin(); iter != surf_map.end();) {
+          if (iter->second->recut()) {
+            iter->second->tras_opt(voxhess);
+            iter->second->tras_display(pl_send);
+            ++iter;
+          } else {
+            delete iter->second;
+            iter = surf_map.erase(iter);
+          }
         }
 
         pub_pl_func(pl_send, pub_cute);
@@ -843,6 +849,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
           surf_map.erase(iter++);
         }
         surf_map.clear();
+        malloc_trim(0);
 
         data_show(poses_G_S, pcl_pointclouds, pub_path1, pub_show1);
 

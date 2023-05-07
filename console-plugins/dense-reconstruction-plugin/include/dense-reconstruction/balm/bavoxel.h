@@ -8,11 +8,9 @@
 #include <kindr/minimal/common.h>
 #include <thread>
 
-int layer_limit = 2;
-int layer_size[] = {30, 30, 30, 30};
-// float eigen_value_array[] = {1.0/4.0, 1.0/4.0, 1.0/4.0};
+size_t layer_limit = 2;
 float eigen_value_array[4] = {1.0 / 16, 1.0 / 16, 1.0 / 16, 1.0 / 16};
-int min_ps = 15;
+size_t min_ps = 15;
 double one_three = (1.0 / 3.0);
 
 double voxel_size = 1;
@@ -198,9 +196,8 @@ class VOX_HESS {
 
 class OCTO_TREE_NODE {
  public:
-  int octo_state;  // 0(unknown), 1(mid node), 2(plane)
-  int push_state;
-  int layer;
+  int octo_state;  // 0(unknown), 1(node), 2(leaf)
+  size_t layer;
   vector<PLV(3)> vec_orig, vec_tran;
   vector<PointCluster> sig_orig, sig_tran;
   PointCluster fix_point;
@@ -209,30 +206,25 @@ class OCTO_TREE_NODE {
   float voxel_center[3];
   float quater_length;
 
-  double ref;
-
-  OCTO_TREE_NODE() {
+  OCTO_TREE_NODE(size_t num_scans) {
     octo_state = 0;
-    push_state = 0;
     layer = 0;
 
-    vec_orig.resize(win_size);
-    vec_tran.resize(win_size);
+    vec_orig.resize(num_scans);
+    vec_tran.resize(num_scans);
 
-    sig_orig.resize(win_size);
-    sig_tran.resize(win_size);
+    sig_orig.resize(num_scans);
+    sig_tran.resize(num_scans);
 
-    for (int i = 0; i < 8; i++) {
+    for (size_t i = 0; i < 8; ++i) {
       leaves[i] = nullptr;
     }
-
-    ref = 255.0 * rand() / (RAND_MAX + 1.0f);
   }
 
-  bool judge_eigen(int win_count) {
+  bool judge_eigen() {
     PointCluster covMat = fix_point;
-    for (int i = 0; i < win_count; i++) {
-      covMat += sig_tran[i];
+    for (const PointCluster& p : sig_tran) {
+      covMat += p;
     }
 
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> saes(covMat.cov());
@@ -241,138 +233,117 @@ class OCTO_TREE_NODE {
     return (decision < eigen_value_array[layer]);
   }
 
-  void cut_func(int ci) {
+  void cut_func(size_t ci) {
     PLV(3)& pvec_orig = vec_orig[ci];
     PLV(3)& pvec_tran = vec_tran[ci];
 
-    uint a_size = pvec_tran.size();
-    for (uint j = 0; j < a_size; j++) {
-      int xyz[3] = {0, 0, 0};
-      for (uint k = 0; k < 3; k++)
-        if (pvec_tran[j][k] > voxel_center[k])
-          xyz[k] = 1;
-      int leafnum = 4 * xyz[0] + 2 * xyz[1] + xyz[2];
+    const size_t num_scans = vec_orig.size();
+    for (size_t j = 0; j < pvec_tran.size(); ++j) {
+      const int x = pvec_tran[j][0] > voxel_center[0];
+      const int y = pvec_tran[j][1] > voxel_center[1];
+      const int z = pvec_tran[j][2] > voxel_center[2];
+      const int leafnum = (x << 2) + (y << 1) + z;
+
       if (leaves[leafnum] == nullptr) {
-        leaves[leafnum] = new OCTO_TREE_NODE();
+        leaves[leafnum] = new OCTO_TREE_NODE(num_scans);
         leaves[leafnum]->voxel_center[0] =
-            voxel_center[0] + (2 * xyz[0] - 1) * quater_length;
+            voxel_center[0] + (2 * x - 1) * quater_length;
         leaves[leafnum]->voxel_center[1] =
-            voxel_center[1] + (2 * xyz[1] - 1) * quater_length;
+            voxel_center[1] + (2 * y - 1) * quater_length;
         leaves[leafnum]->voxel_center[2] =
-            voxel_center[2] + (2 * xyz[2] - 1) * quater_length;
+            voxel_center[2] + (2 * z - 1) * quater_length;
         leaves[leafnum]->quater_length = quater_length / 2;
         leaves[leafnum]->layer = layer + 1;
       }
 
       leaves[leafnum]->vec_orig[ci].push_back(pvec_orig[j]);
       leaves[leafnum]->vec_tran[ci].push_back(pvec_tran[j]);
-
-      if (leaves[leafnum]->octo_state != 1) {
-        leaves[leafnum]->sig_orig[ci].push(pvec_orig[j]);
-        leaves[leafnum]->sig_tran[ci].push(pvec_tran[j]);
-      }
+      leaves[leafnum]->sig_orig[ci].push(pvec_orig[j]);
+      leaves[leafnum]->sig_tran[ci].push(pvec_tran[j]);
     }
 
     PLV(3)().swap(pvec_orig);
     PLV(3)().swap(pvec_tran);
   }
 
-  void recut(int win_count) {
-    if (octo_state != 1) {
-      int point_size = fix_point.N;
-      for (int i = 0; i < win_count; i++) {
-        point_size += sig_orig[i].N;
-      }
-
-      push_state = 0;
-      if (point_size <= min_ps) {
-        return;
-      }
-
-      if (judge_eigen(win_count)) {
-        if (octo_state == 0 && point_size > layer_size[layer]) {
-          octo_state = 2;
-        }
-
-        point_size -= fix_point.N;
-        if (point_size > min_ps) {
-          push_state = 1;
-        }
-        return;
-      } else if (layer == layer_limit) {
-        octo_state = 2;
-        return;
-      }
-
-      octo_state = 1;
-      vector<PointCluster>().swap(sig_orig);
-      vector<PointCluster>().swap(sig_tran);
-      for (int i = 0; i < win_count; i++) {
-        cut_func(i);
-      }
-    } else {
-      cut_func(win_count - 1);
+  bool recut() {
+    size_t point_size = 0;
+    for (const PointCluster& p : sig_orig) {
+      point_size += p.N;
     }
 
-    for (int i = 0; i < 8; i++) {
+    if (point_size <= min_ps) {
+      return false;
+    }
+
+    if (judge_eigen()) {
+      octo_state = 2;
+      return true;
+    } else if (layer == layer_limit) {
+      return false;
+    }
+
+    octo_state = 1;
+    vector<PointCluster>().swap(sig_orig);
+    vector<PointCluster>().swap(sig_tran);
+    for (size_t i = 0; i < vec_orig.size(); ++i) {
+      cut_func(i);
+    }
+
+    bool keep = false;
+    for (size_t i = 0; i < 8; ++i) {
       if (leaves[i] != nullptr) {
-        leaves[i]->recut(win_count);
+        if (leaves[i]->recut()) {
+          keep = true;
+        } else {
+          delete leaves[i];
+          leaves[i] = nullptr;
+        }
       }
     }
+
+    return keep;
   }
 
   ~OCTO_TREE_NODE() {
-    for (int i = 0; i < 8; i++) {
+    for (size_t i = 0; i < 8; ++i) {
       if (leaves[i] != nullptr) {
         delete leaves[i];
       }
     }
   }
 
-  void tras_display(pcl::PointCloud<PointType>& pl_feat, int win_count) {
+  void tras_display(pcl::PointCloud<PointType>& pl_feat) {
     if (octo_state != 1) {
-      if (push_state != 1)
-        return;
-
       PointType ap;
-      ap.intensity = ref;
+      ap.intensity = 255.0 * rand() / (RAND_MAX + 1.0f);
 
-      int tsize = 0;
-      for (int i = 0; i < win_count; i++)
-        tsize += vec_tran[i].size();
-      if (tsize < 100)
-        return;
-
-      for (int i = 0; i < win_count; i++)
+      for (size_t i = 0; i < vec_tran.size(); ++i) {
         for (Eigen::Vector3d pvec : vec_tran[i]) {
           ap.x = pvec.x();
           ap.y = pvec.y();
           ap.z = pvec.z();
           pl_feat.push_back(ap);
         }
-
+      }
     } else {
-      for (int i = 0; i < 8; i++)
-        if (leaves[i] != nullptr)
-          leaves[i]->tras_display(pl_feat, win_count);
+      for (size_t i = 0; i < 8; ++i) {
+        if (leaves[i] != nullptr) {
+          leaves[i]->tras_display(pl_feat);
+        }
+      }
     }
   }
 
-  void tras_opt(VOX_HESS& vox_opt, int win_count) {
+  void tras_opt(VOX_HESS& vox_opt) {
     if (octo_state != 1) {
-      int points_size = 0;
-      for (int i = 0; i < win_count; i++)
-        points_size += sig_orig[i].N;
-
-      if (points_size < min_ps)
-        return;
-
-      if (push_state == 1)
-        vox_opt.push_voxel(&sig_orig, &fix_point);
+      vox_opt.push_voxel(&sig_orig, &fix_point);
     } else {
-      for (int i = 0; i < 8; i++)
-        if (leaves[i] != nullptr)
-          leaves[i]->tras_opt(vox_opt, win_count);
+      for (size_t i = 0; i < 8; ++i) {
+        if (leaves[i] != nullptr) {
+          leaves[i]->tras_opt(vox_opt);
+        }
+      }
     }
   }
 };
@@ -505,7 +476,7 @@ class BALM2 {
 void cut_voxel(
     unordered_map<VOXEL_LOC, OCTO_TREE_NODE*>& feat_map,
     pcl::PointCloud<PointType>& pl_feat, const aslam::Transformation& T,
-    int fnum) {
+    size_t fnum, size_t num_scans) {
   float loc_xyz[3];
   for (PointType& p_c : pl_feat.points) {
     Eigen::Vector3d pvec_orig(p_c.x, p_c.y, p_c.z);
@@ -531,7 +502,7 @@ void cut_voxel(
         iter->second->sig_tran[fnum].push(pvec_tran);
       }
     } else {
-      OCTO_TREE_NODE* ot = new OCTO_TREE_NODE();
+      OCTO_TREE_NODE* ot = new OCTO_TREE_NODE(num_scans);
       ot->vec_orig[fnum].push_back(pvec_orig);
       ot->vec_tran[fnum].push_back(pvec_tran);
       ot->sig_orig[fnum].push(pvec_orig);
