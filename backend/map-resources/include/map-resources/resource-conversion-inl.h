@@ -119,8 +119,8 @@ template <typename PointType>
 void addPointToPointCloud(
     const Eigen::Vector3d& point_C, const size_t index,
     pcl::PointCloud<PointType>* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
-  CHECK_LT(index, point_cloud->points.size());
+  DCHECK_NOTNULL(point_cloud);
+  DCHECK_LT(index, point_cloud->points.size());
   PointType& point = point_cloud->points[index];
 
   // NOTE: There are PCL point types that do not have x,y and z, but if
@@ -273,7 +273,7 @@ template <typename PointType>
 void getPointFromPointCloud(
     const pcl::PointCloud<PointType>& point_cloud, const size_t index,
     Eigen::Vector3d* point_C) {
-  CHECK_NOTNULL(point_C);
+  DCHECK_NOTNULL(point_C);
   DCHECK_GT(point_cloud.size(), index);
   const PointType& point = point_cloud.points[index];
 

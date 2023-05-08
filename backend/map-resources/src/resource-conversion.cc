@@ -145,8 +145,8 @@ template <>
 void addPointToPointCloud(
     const Eigen::Vector3d& point_C, const size_t index,
     voxblox::Pointcloud* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
-  CHECK_GT(point_cloud->size(), index);
+  DCHECK_NOTNULL(point_cloud);
+  DCHECK_GT(point_cloud->size(), index);
 
   voxblox::Point& point = (*point_cloud)[index];
   point = point_C.cast<voxblox::FloatingPoint>();
@@ -156,9 +156,9 @@ template <>
 void addPointToPointCloud(
     const Eigen::Vector3d& point_C, const size_t index,
     resources::VoxbloxColorPointCloud* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
-  CHECK_NOTNULL(point_cloud->points_C);
-  CHECK_GT(point_cloud->points_C->size(), index);
+  DCHECK_NOTNULL(point_cloud);
+  DCHECK_NOTNULL(point_cloud->points_C);
+  DCHECK_GT(point_cloud->points_C->size(), index);
 
   voxblox::Point& point = (*point_cloud->points_C)[index];
   point = point_C.cast<voxblox::FloatingPoint>();
@@ -168,20 +168,20 @@ template <>
 void addPointToPointCloud(
     const Eigen::Vector3d& point_C, const size_t index,
     resources::PointCloud* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
+  DCHECK_NOTNULL(point_cloud);
   const size_t start_index = 3u * index;
-  CHECK_LT(start_index + 2u, point_cloud->xyz.size());
+  DCHECK_LT(start_index + 2u, point_cloud->xyz.size());
 
-  point_cloud->xyz[start_index] = static_cast<float>(point_C.x());
-  point_cloud->xyz[start_index + 1u] = static_cast<float>(point_C.y());
-  point_cloud->xyz[start_index + 2u] = static_cast<float>(point_C.z());
+  point_cloud->xyz[start_index] = point_C.x();
+  point_cloud->xyz[start_index + 1u] = point_C.y();
+  point_cloud->xyz[start_index + 2u] = point_C.z();
 }
 
 template <>
 void addPointToPointCloud(
     const Eigen::Vector3d& point_C, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
+  DCHECK_NOTNULL(point_cloud);
   sensor_msgs::PointCloud2Iterator<float> it_x(
       *point_cloud, kPointCloud2PointX);
   sensor_msgs::PointCloud2Iterator<float> it_y(
@@ -202,7 +202,7 @@ template <>
 void getPointFromPointCloud(
     const voxblox::Pointcloud& point_cloud, const size_t index,
     Eigen::Vector3d* point_C) {
-  CHECK_NOTNULL(point_C);
+  DCHECK_NOTNULL(point_C);
   Eigen::Vector3d& point_C_out = *point_C;
   DCHECK_GT(point_cloud.size(), index);
   const voxblox::Point& point_C_in = point_cloud[index];
@@ -213,8 +213,8 @@ template <>
 void getPointFromPointCloud(
     const resources::VoxbloxColorPointCloud& point_cloud, const size_t index,
     Eigen::Vector3d* point_C) {
-  CHECK_NOTNULL(point_C);
-  CHECK_NOTNULL(point_cloud.points_C);
+  DCHECK_NOTNULL(point_C);
+  DCHECK_NOTNULL(point_cloud.points_C);
 
   DCHECK_GT(point_cloud.points_C->size(), index);
   *point_C = (*point_cloud.points_C)[index].cast<double>();
@@ -224,22 +224,22 @@ template <>
 void getPointFromPointCloud(
     const resources::PointCloud& point_cloud, const size_t index,
     Eigen::Vector3d* point_C) {
-  CHECK_NOTNULL(point_C);
+  DCHECK_NOTNULL(point_C);
 
   Eigen::Vector3d& point_C_out = *point_C;
 
   const size_t real_index = index * 3u;
   DCHECK_GT(point_cloud.xyz.size(), real_index + 2u);
-  point_C_out[0] = static_cast<double>(point_cloud.xyz[real_index]);
-  point_C_out[1] = static_cast<double>(point_cloud.xyz[real_index + 1u]);
-  point_C_out[2] = static_cast<double>(point_cloud.xyz[real_index + 2u]);
+  point_C_out[0] = point_cloud.xyz[real_index];
+  point_C_out[1] = point_cloud.xyz[real_index + 1u];
+  point_C_out[2] = point_cloud.xyz[real_index + 2u];
 }
 
 template <>
 void getPointFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     Eigen::Vector3d* point_C) {
-  CHECK_NOTNULL(point_C);
+  DCHECK_NOTNULL(point_C);
 
   sensor_msgs::PointCloud2ConstIterator<float> it_x(
       point_cloud, kPointCloud2PointX);
@@ -257,10 +257,10 @@ template <>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
     resources::PointCloud* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
+  DCHECK_NOTNULL(point_cloud);
   const size_t start_index = 3u * index;
 
-  CHECK_LT(start_index + 2, point_cloud->colors.size());
+  DCHECK_LT(start_index + 2, point_cloud->colors.size());
   point_cloud->colors[start_index] = color[0];
   point_cloud->colors[start_index + 1] = color[1];
   point_cloud->colors[start_index + 2] = color[2];
@@ -277,9 +277,9 @@ template <>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
     resources::VoxbloxColorPointCloud* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
-  CHECK_NOTNULL(point_cloud->colors);
-  CHECK_GT(point_cloud->colors->size(), index);
+  DCHECK_NOTNULL(point_cloud);
+  DCHECK_NOTNULL(point_cloud->colors);
+  DCHECK_GT(point_cloud->colors->size(), index);
 
   voxblox::Color& voxblox_color = (*point_cloud->colors)[index];
   voxblox_color.r = color[0];
@@ -300,7 +300,7 @@ template <>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
+  DCHECK_NOTNULL(point_cloud);
 
   sensor_msgs::PointCloud2Iterator<uint8_t> it_r(
       *point_cloud, kPointCloud2ColorR);
@@ -326,7 +326,7 @@ template <>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
     pcl::PointCloud<pcl::PointXYZRGB>* point_cloud) {
-  CHECK_LT(index, point_cloud->points.size());
+  DCHECK_LT(index, point_cloud->points.size());
   pcl::PointXYZRGB& point = point_cloud->points[index];
   point.r = color[0];
   point.g = color[1];
@@ -337,7 +337,7 @@ template <>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
     pcl::PointCloud<pcl::PointXYZRGBA>* point_cloud) {
-  CHECK_LT(index, point_cloud->points.size());
+  DCHECK_LT(index, point_cloud->points.size());
   pcl::PointXYZRGBA& point = point_cloud->points[index];
   point.r = color[0];
   point.g = color[1];
@@ -349,7 +349,7 @@ template <>
 void addColorToPointCloud(
     const resources::RgbaColor& color, const size_t index,
     pcl::PointCloud<pcl::PointXYZRGBNormal>* point_cloud) {
-  CHECK_LT(index, point_cloud->points.size());
+  DCHECK_LT(index, point_cloud->points.size());
   pcl::PointXYZRGBNormal& point = point_cloud->points[index];
   point.r = color[0];
   point.g = color[1];
@@ -360,8 +360,8 @@ template <>
 void getColorFromPointCloud(
     const resources::VoxbloxColorPointCloud& point_cloud, const size_t index,
     resources::RgbaColor* color) {
-  CHECK_NOTNULL(color);
-  CHECK_NOTNULL(point_cloud.points_C);
+  DCHECK_NOTNULL(color);
+  DCHECK_NOTNULL(point_cloud.points_C);
 
   DCHECK_GT(point_cloud.colors->size(), index);
   const voxblox::Color& color_in = (*point_cloud.colors)[index];
@@ -377,7 +377,7 @@ template <>
 void getColorFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     resources::RgbaColor* color) {
-  CHECK_NOTNULL(color);
+  DCHECK_NOTNULL(color);
   resources::RgbaColor& color_out = *color;
   if (hasColorInformation(point_cloud)) {
     // check which kind of color field
@@ -409,7 +409,7 @@ void getColorFromPointCloud(
     }
   } else if (hasScalarInformation(point_cloud)) {
     sensor_msgs::PointField field = getScalarField(point_cloud);
-    CHECK(!field.name.empty());
+    DCHECK(!field.name.empty());
 
     PointCloud2ConstIteratorVariant var =
         getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
@@ -431,7 +431,7 @@ template <>
 void getColorFromPointCloud(
     const resources::PointCloud& point_cloud, const size_t index,
     resources::RgbaColor* color) {
-  CHECK_NOTNULL(color);
+  DCHECK_NOTNULL(color);
   resources::RgbaColor& color_out = *color;
 
   if (hasColorInformation(point_cloud)) {
@@ -460,7 +460,7 @@ template <>
 void getColorFromPointCloud(
     const pcl::PointCloud<pcl::PointXYZRGB>& point_cloud, const size_t index,
     resources::RgbaColor* color) {
-  CHECK_NOTNULL(color);
+  DCHECK_NOTNULL(color);
   DCHECK_GT(point_cloud.size(), index);
   const pcl::PointXYZRGB& point = point_cloud.points[index];
   resources::RgbaColor& color_out = *color;
@@ -474,7 +474,7 @@ template <>
 void getColorFromPointCloud(
     const pcl::PointCloud<pcl::PointXYZRGBA>& point_cloud, const size_t index,
     resources::RgbaColor* color) {
-  CHECK_NOTNULL(color);
+  DCHECK_NOTNULL(color);
   DCHECK_GT(point_cloud.size(), index);
   const pcl::PointXYZRGBA& point = point_cloud.points[index];
   resources::RgbaColor& color_out = *color;
@@ -488,7 +488,7 @@ template <>
 void getColorFromPointCloud(
     const pcl::PointCloud<pcl::PointXYZRGBNormal>& point_cloud,
     const size_t index, resources::RgbaColor* color) {
-  CHECK_NOTNULL(color);
+  DCHECK_NOTNULL(color);
   DCHECK_GT(point_cloud.size(), index);
   const pcl::PointXYZRGBNormal& point = point_cloud.points[index];
   resources::RgbaColor& color_out = *color;
@@ -502,8 +502,8 @@ template <>
 void addScalarToPointCloud(
     const float scalar, const size_t index,
     resources::PointCloud* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
-  CHECK_LT(index, point_cloud->scalars.size());
+  DCHECK_NOTNULL(point_cloud);
+  DCHECK_LT(index, point_cloud->scalars.size());
   point_cloud->scalars[index] = scalar;
 }
 
@@ -518,7 +518,7 @@ template <>
 void addScalarToPointCloud(
     const float scalar, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
+  DCHECK_NOTNULL(point_cloud);
 
   sensor_msgs::PointCloud2Iterator<float> it_intensity(
       *point_cloud, kPointCloud2IntensityV1);
@@ -531,7 +531,7 @@ template <>
 void addScalarToPointCloud(
     const float scalar, const size_t index,
     pcl::PointCloud<pcl::PointXYZI>* point_cloud) {
-  CHECK_LT(index, point_cloud->points.size());
+  DCHECK_LT(index, point_cloud->points.size());
   pcl::PointXYZI& point = point_cloud->points[index];
   point.intensity = scalar;
 }
@@ -540,7 +540,7 @@ template <>
 void addScalarToPointCloud(
     const float scalar, const size_t index,
     pcl::PointCloud<pcl::PointXYZINormal>* point_cloud) {
-  CHECK_LT(index, point_cloud->points.size());
+  DCHECK_LT(index, point_cloud->points.size());
   pcl::PointXYZINormal& point = point_cloud->points[index];
   point.intensity = scalar;
 }
@@ -549,7 +549,7 @@ template <>
 void getScalarFromPointCloud(
     const resources::PointCloud& point_cloud, const size_t index,
     float* scalar) {
-  CHECK_NOTNULL(scalar);
+  DCHECK_NOTNULL(scalar);
 
   DCHECK_GT(point_cloud.scalars.size(), index);
   *scalar = point_cloud.scalars[index];
@@ -559,9 +559,9 @@ template <>
 void getScalarFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     float* scalar) {
-  CHECK_NOTNULL(scalar);
+  DCHECK_NOTNULL(scalar);
   sensor_msgs::PointField field = getScalarField(point_cloud);
-  CHECK(!field.name.empty());
+  DCHECK(!field.name.empty());
 
   PointCloud2ConstIteratorVariant var =
       getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
@@ -572,7 +572,7 @@ template <>
 void getScalarFromPointCloud(
     const pcl::PointCloud<pcl::PointXYZI>& point_cloud, const size_t index,
     float* scalar) {
-  CHECK_NOTNULL(scalar);
+  DCHECK_NOTNULL(scalar);
   DCHECK_GT(point_cloud.size(), index);
   const pcl::PointXYZI& point = point_cloud.points[index];
   *scalar = point.intensity;
@@ -582,7 +582,7 @@ template <>
 void getScalarFromPointCloud(
     const pcl::PointCloud<pcl::PointXYZINormal>& point_cloud,
     const size_t index, float* scalar) {
-  CHECK_NOTNULL(scalar);
+  DCHECK_NOTNULL(scalar);
   DCHECK_GT(point_cloud.size(), index);
   const pcl::PointXYZINormal& point = point_cloud.points[index];
   *scalar = point.intensity;
@@ -592,7 +592,7 @@ template <>
 void addLabelToPointCloud(
     const uint32_t label, const size_t index,
     resources::PointCloud* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
+  DCHECK_NOTNULL(point_cloud);
   DCHECK_LT(index, point_cloud->labels.size());
   point_cloud->labels[index] = label;
 }
@@ -621,7 +621,7 @@ template <>
 void getLabelFromPointCloud(
     const resources::PointCloud& point_cloud, const size_t index,
     uint32_t* label) {
-  CHECK_NOTNULL(label);
+  DCHECK_NOTNULL(label);
 
   DCHECK_GT(point_cloud.labels.size(), index);
   *label = point_cloud.labels[index];
@@ -631,9 +631,9 @@ template <>
 void getLabelFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     uint32_t* label) {
-  CHECK_NOTNULL(label);
+  DCHECK_NOTNULL(label);
   sensor_msgs::PointField field = getLabelField(point_cloud);
-  CHECK(!field.name.empty());
+  DCHECK(!field.name.empty());
 
   PointCloud2ConstIteratorVariant var =
       getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
@@ -644,7 +644,7 @@ template <>
 void getLabelFromPointCloud(
     const pcl::PointCloud<pcl::PointXYZL>& point_cloud, const size_t index,
     uint32_t* label) {
-  CHECK_NOTNULL(label);
+  DCHECK_NOTNULL(label);
   DCHECK_GT(point_cloud.size(), index);
   const pcl::PointXYZL& point = point_cloud.points[index];
   *label = point.label;
@@ -654,7 +654,7 @@ template <>
 void addTimeToPointCloud(
     const int32_t time, const size_t index,
     resources::PointCloud* point_cloud) {
-  CHECK_NOTNULL(point_cloud);
+  DCHECK_NOTNULL(point_cloud);
   DCHECK_LT(index, point_cloud->times_ns.size());
   point_cloud->times_ns[index] = time;
 }
@@ -675,7 +675,7 @@ void getTimeFromPointCloud(
     const resources::PointCloud& point_cloud, const size_t index,
     int32_t* time, const int32_t /*convert_to_ns*/,
     const int64_t /*time_offset_ns*/) {
-  CHECK_NOTNULL(time);
+  DCHECK_NOTNULL(time);
 
   DCHECK_GT(point_cloud.times_ns.size(), index);
   *time = point_cloud.times_ns[index];
@@ -686,9 +686,9 @@ void getTimeFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
     int32_t* time, const int32_t convert_to_ns,
     const int64_t time_offset_ns) {
-  CHECK_NOTNULL(time);
+  DCHECK_NOTNULL(time);
   sensor_msgs::PointField field = getTimeField(point_cloud);
-  CHECK(!field.name.empty());
+  DCHECK(!field.name.empty());
 
   PointCloud2ConstIteratorVariant var =
       getPointCloudFieldIterator(point_cloud, field.name, field.datatype);
