@@ -81,16 +81,14 @@ void PointCloud::applyTransformation(
   CHECK_LT(start_point, size());
 
   // Remap to Eigen to leverage vectorization
-  Eigen::Map<Eigen::Matrix3Xf> eigen_xyz(
+  Eigen::Map<Eigen::Matrix3Xd> eigen_xyz(
       xyz.data() + 3 * start_point, 3, size() - start_point);
-  eigen_xyz = T_A_B.transformVectorized(eigen_xyz.cast<double>()).cast<float>();
+  eigen_xyz = T_A_B.transformVectorized(eigen_xyz);
 
   if (hasNormals()) {
-    Eigen::Map<Eigen::Matrix3Xf> eigen_normals(
+    Eigen::Map<Eigen::Matrix3Xd> eigen_normals(
         normals.data() + 3 * start_point, 3, size() - start_point);
-    eigen_normals = T_A_B.getRotation()
-                        .rotateVectorized(eigen_normals.cast<double>())
-                        .cast<float>();
+    eigen_normals = T_A_B.getRotation().rotateVectorized(eigen_normals);
   }
 }
 
@@ -123,7 +121,7 @@ void PointCloud::undistort(
     const Eigen::Matrix<int64_t, 1, Eigen::Dynamic>& timestamps,
     const aslam::TransformationVector& poses) {
   CHECK_EQ(static_cast<size_t>(timestamps.cols()), poses.size());
-  CHECK_GE(poses.size(), 2) << "Need at least two poses to interpolate.";
+  CHECK_GE(poses.size(), 2u) << "Need at least two poses to interpolate.";
   for (int64_t i = 0; i < timestamps.cols() - 1; ++i) {
     CHECK_LT(timestamps[i], timestamps[i + 1])
         << "Timestamps for poses should be strictly increasing to speed "
@@ -146,7 +144,7 @@ void PointCloud::undistort(
          "cloud time range. Can't interpolate.";
 
   // Map the points to Eigen for vectorization
-  Eigen::Map<Eigen::Matrix3Xf> eigen_xyz(xyz.data(), 3, size());
+  Eigen::Map<Eigen::Matrix3Xd> eigen_xyz(xyz.data(), 3, size());
 
   // Initialize the two poses between which we interpolate. By sorting the
   // points by timestamp beforehand, we never need to go back afterward.
@@ -171,15 +169,14 @@ void PointCloud::undistort(
                     static_cast<double>(time_B - time_A);
     aslam::Transformation T =
         kindr::minimal::interpolateComponentwise(pose_A, pose_B, lambda);
-    eigen_xyz.col(point_idx) =
-        T.transform(eigen_xyz.col(point_idx).cast<double>()).cast<float>();
+    eigen_xyz.col(point_idx) = T.transform(eigen_xyz.col(point_idx));
   }
 }
 
 size_t PointCloud::filterValidMinMaxBox(
     double min_range_m, double max_range_m, const BoundingBox3D* box_filter) {
-  std::vector<float> xyz_new;
-  std::vector<float> normals_new;
+  std::vector<double> xyz_new;
+  std::vector<double> normals_new;
   std::vector<unsigned char> colors_new;
   std::vector<float> scalars_new;
   std::vector<uint32_t> labels_new;
@@ -203,9 +200,9 @@ size_t PointCloud::filterValidMinMaxBox(
     const size_t i1 = i0 + 1;
     const size_t i2 = i1 + 1;
 
-    const float x = xyz[i0];
-    const float y = xyz[i1];
-    const float z = xyz[i2];
+    const double x = xyz[i0];
+    const double y = xyz[i1];
+    const double z = xyz[i2];
 
     // Check the values are valid
     if ((std::isinf(x) || std::isinf(y) || std::isinf(z)) ||
@@ -273,17 +270,17 @@ size_t PointCloud::filterValidMinMaxBox(
 }
 
 void PointCloud::downsampleVoxelized(
-    float voxel_size, PointCloud* voxelized) const {
+    double voxel_size, PointCloud* voxelized) const {
   CHECK_GT(voxel_size, 1e-3) << "Voxel size is too small.";
   CHECK_NOTNULL(voxelized)->clear();
-  
+
   // Map the points to Eigen for vectorization
-  Eigen::Map<const Eigen::Matrix3Xf> eigen_xyz(xyz.data(), 3, size());
+  Eigen::Map<const Eigen::Matrix3Xd> eigen_xyz(xyz.data(), 3, size());
 
   // Assign points to voxels
   std::unordered_map<VoxelPosition, Voxel> voxel_grid;
   for (int i = 0; i < size(); ++i) {
-    const Eigen::Vector3f point = eigen_xyz.col(i);
+    const Eigen::Vector3d point = eigen_xyz.col(i);
     VoxelPosition position(point, voxel_size);
 
     auto iter = voxel_grid.find(position);
@@ -296,7 +293,7 @@ void PointCloud::downsampleVoxelized(
 
   // Assign memory and pull xyz points from voxel grid
   voxelized->xyz.resize(3 * voxel_grid.size());
-  Eigen::Map<Eigen::Matrix3Xf> voxelized_xyz(
+  Eigen::Map<Eigen::Matrix3Xd> voxelized_xyz(
       voxelized->xyz.data(), 3, voxelized->size());
 
   int index = 0;
@@ -317,13 +314,19 @@ void PointCloud::writeToFile(const std::string& file_path) const {
   tinyply::PlyFile ply_file;
 
   // Const-casting is necessary as tinyply requires non-const access to the
-  // vectors for reading.
+  // vectors for reading. Additionally cast points and normals to float for
+  // storage to save space.
+  std::vector<float> xyz_float(xyz.begin(), xyz.end());
   ply_file.add_properties_to_element(
-      "vertex", {"x", "y", "z"}, const_cast<std::vector<float>&>(xyz));
+      "vertex", {"x", "y", "z"}, const_cast<std::vector<float>&>(xyz_float));
+
   if (!normals.empty()) {
+    std::vector<float> normals_float(normals.begin(), normals.end());
     ply_file.add_properties_to_element(
-        "vertex", {"nx", "ny", "nz"}, const_cast<std::vector<float>&>(normals));
+        "vertex", {"nx", "ny", "nz"},
+        const_cast<std::vector<float>&>(normals_float));
   }
+
   if (!colors.empty()) {
     ply_file.add_properties_to_element(
         "vertex", {"red", "green", "blue"},
@@ -359,12 +362,19 @@ bool PointCloud::loadFromFile(const std::string& file_path) {
   std::ifstream stream_ply(file_path);
   if (stream_ply.is_open()) {
     tinyply::PlyFile ply_file(stream_ply);
+
+    // Points are stored as floats, but then internally manipulated as doubles.
+    std::vector<float> xyz_float;
     const int xyz_point_count = ply_file.request_properties_from_element(
-        "vertex", {"x", "y", "z"}, xyz);
-    const int colors_count = ply_file.request_properties_from_element(
-        "vertex", {"nx", "ny", "nz"}, normals);
+        "vertex", {"x", "y", "z"}, xyz_float);
+
+    // Normals are stored as floats, but then internally manipulated as doubles.
+    std::vector<float> normals_float;
     const int normals_count = ply_file.request_properties_from_element(
-        "vertex", {"red", "green", "blue"}, colors);
+        "vertex", {"red", "green", "blue"}, normals_float);
+
+    const int colors_count = ply_file.request_properties_from_element(
+        "vertex", {"nx", "ny", "nz"}, colors);
     const int scalars_count =
         ply_file.request_properties_from_element("vertex", {"scalar"}, scalars);
     const int labels_count =
@@ -392,8 +402,14 @@ bool PointCloud::loadFromFile(const std::string& file_path) {
       }
 
       ply_file.read(stream_ply);
+
+      // Convert to internal representation.
+      xyz.insert(xyz.end(), xyz_float.begin(), xyz_float.end());
+      normals.insert(normals.end(), normals_float.begin(), normals_float.end());
     }
+
     stream_ply.close();
+    checkConsistency();
     return true;
   }
   return false;

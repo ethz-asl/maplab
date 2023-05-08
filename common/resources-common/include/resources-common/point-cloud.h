@@ -17,10 +17,10 @@ namespace resources {
 struct VoxelPosition {
   int64_t x, y, z;
 
-  VoxelPosition(const Eigen::Vector3f& xyz, float voxel_size)
+  VoxelPosition(const Eigen::Vector3d& xyz, double voxel_size)
       : VoxelPosition(xyz[0], xyz[1], xyz[2], voxel_size) {}
 
-  VoxelPosition(float _x, float _y, float _z, float voxel_size) {
+  VoxelPosition(double _x, double _y, double _z, double voxel_size) {
     _x /= voxel_size;
     _y /= voxel_size;
     _z /= voxel_size;
@@ -36,12 +36,12 @@ struct VoxelPosition {
 
 struct Voxel {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  Eigen::Vector3f xyz;
+  Eigen::Vector3d xyz;
   size_t count;
 
-  Voxel(const Eigen::Vector3f& _xyz) : xyz(_xyz), count(1) {}
+  Voxel(const Eigen::Vector3d& _xyz) : xyz(_xyz), count(1) {}
 
-  Voxel& operator+=(const Eigen::Vector3f& new_xyz) {
+  Voxel& operator+=(const Eigen::Vector3d& new_xyz) {
     xyz = (xyz * count + new_xyz) / (count + 1);
     ++count;
 
@@ -171,7 +171,7 @@ class PointCloud {
 
   // Downsample using a voxel grid. The returned point cloud will only
   // have xyz coordinates, all other information is stripped away.
-  void downsampleVoxelized(float voxel_size, PointCloud* voxelized) const;
+  void downsampleVoxelized(double voxel_size, PointCloud* voxelized) const;
 
   void writeToFile(const std::string& file_path) const;
   bool loadFromFile(const std::string& file_path);
@@ -186,8 +186,8 @@ class PointCloud {
     return is_same;
   }
 
-  std::vector<float> xyz;
-  std::vector<float> normals;
+  std::vector<double> xyz;
+  std::vector<double> normals;
   std::vector<unsigned char> colors;
   std::vector<float> scalars;
   std::vector<uint32_t> labels;
