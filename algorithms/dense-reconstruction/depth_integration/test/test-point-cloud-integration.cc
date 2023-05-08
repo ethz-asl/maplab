@@ -111,7 +111,10 @@ TEST_F(
   depth_integration::ResourceSelectionFunction one_function_to_select_them_all =
       [&selection_counter](
           const int64_t /*timestamp_ns*/,
-          const aslam::Transformation& /*T_G_S*/) {
+          const aslam::Transformation& /*T_G_S*/,
+          const vi_map::MissionId& /*mission_id*/,
+          const size_t _selection_counter) {
+        EXPECT_EQ(selection_counter, _selection_counter);
         ++selection_counter;
         return true;
       };
@@ -135,7 +138,10 @@ TEST_F(
   depth_integration::ResourceSelectionFunction one_function_to_shun_them_all =
       [&selection_counter](
           const int64_t /*timestamp_ns*/,
-          const aslam::Transformation& /*T_G_S*/) {
+          const aslam::Transformation& /*T_G_S*/,
+          const vi_map::MissionId& /*mission_id*/,
+          const size_t _selection_counter) {
+        EXPECT_EQ(selection_counter, _selection_counter);
         ++selection_counter;
         return false;
       };
@@ -180,10 +186,13 @@ TEST_F(
       one_function_to_find_the_chosen_ones =
           [&selection_counter, &G_p_center, &radius_m](
               const int64_t /*timestamp_ns*/,
-              const aslam::Transformation& T_G_S) -> bool {
-    ++selection_counter;
-    return (T_G_S.getPosition() - G_p_center).norm() < radius_m;
-  };
+              const aslam::Transformation& T_G_S,
+              const vi_map::MissionId& /*mission_id*/,
+              const size_t _selection_counter) {
+            EXPECT_EQ(selection_counter, _selection_counter);
+            ++selection_counter;
+            return (T_G_S.getPosition() - G_p_center).norm() < radius_m;
+          };
 
   depth_integration::integrateAllDepthResourcesOfType(
       mission_ids, backend::ResourceType::kPointCloudXYZI,

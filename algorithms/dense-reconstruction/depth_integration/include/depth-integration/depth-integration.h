@@ -48,8 +48,10 @@ typedef std::function<void(
 
 // Function to determine which resource should be integrated, this can be done
 // based on the information about the resource provided to this function.
+// The counter resets at the beginning of each sensor recording session.
 typedef std::function<bool(
-    const int64_t /*timestamp_ns*/, const aslam::Transformation& /*T_G_S*/)>
+    const int64_t /*timestamp_ns*/, const aslam::Transformation& /*T_G_S*/,
+    const vi_map::MissionId& /*mission_id*/, const size_t /*counter*/)>
     ResourceSelectionFunction;
 
 // Set of supported resource types when using the depth integrator with the

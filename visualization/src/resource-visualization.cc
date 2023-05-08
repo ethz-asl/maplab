@@ -252,17 +252,13 @@ void visualizeReprojectedDepthResource(
             FLAGS_vis_pointcloud_sleep_between_point_clouds_ms));
       };
 
-  size_t point_cloud_counter = 0u;
   depth_integration::ResourceSelectionFunction selection_function =
-      [&point_cloud_counter](
-          const int64_t /*timestamp_ns*/,
-          const aslam::Transformation& /*T_G_S*/) {
+      [](const int64_t /*timestamp_ns*/, const aslam::Transformation& /*T_G_S*/,
+         const vi_map::MissionId& /*mission_id*/, const size_t counter) {
         const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
-        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
-          ++point_cloud_counter;
+        if (every_nth > 0 && (counter % every_nth != 0u)) {
           return false;
         } else {
-          ++point_cloud_counter;
           return true;
         }
       };
@@ -314,17 +310,13 @@ static void createAndAppendAccumulatedPointCloudMessageForMission(
         return;
       };
 
-  size_t point_cloud_counter = 0u;
   depth_integration::ResourceSelectionFunction selection_function =
-      [&point_cloud_counter](
-          const int64_t /*timestamp_ns*/,
-          const aslam::Transformation& /*T_G_S*/) {
+      [](const int64_t /*timestamp_ns*/, const aslam::Transformation& /*T_G_S*/,
+         const vi_map::MissionId& /*mission_id*/, const size_t counter) {
         const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
-        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
-          ++point_cloud_counter;
+        if (every_nth > 0 && (counter % every_nth != 0u)) {
           return false;
         } else {
-          ++point_cloud_counter;
           return true;
         }
       };
@@ -436,17 +428,13 @@ void createPointCloudMessageVectorForMission(
             return;
           };
 
-  uint32_t point_cloud_counter = 0u;
   depth_integration::ResourceSelectionFunction selection_function =
-      [&point_cloud_counter](
-          const int64_t /*timestamp_ns*/,
-          const aslam::Transformation& /*T_G_S*/) {
+      [](const int64_t /*timestamp_ns*/, const aslam::Transformation& /*T_G_S*/,
+         const vi_map::MissionId& /*mission_id*/, const size_t counter) {
         const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
-        if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
-          ++point_cloud_counter;
+        if (every_nth > 0 && (counter % every_nth != 0u)) {
           return false;
         } else {
-          ++point_cloud_counter;
           return true;
         }
       };

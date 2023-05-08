@@ -121,7 +121,6 @@ void integrateAllFrameDepthResourcesOfType(
       }
 
       const vi_map::Vertex& vertex = vi_map.getVertex(vertex_id);
-
       const aslam::Transformation T_G_B = T_G_M * vertex.get_T_M_I();
 
       // Get number of frames for this vertex
@@ -144,7 +143,8 @@ void integrateAllFrameDepthResourcesOfType(
 
         // If we have a resource selection function, use it to abort here.
         if (resource_selection_function != nullptr) {
-          if (!resource_selection_function(timestamp_ns, T_G_C)) {
+          if (!resource_selection_function(
+                  timestamp_ns, T_G_C, mission_id, vertex_counter)) {
             continue;
           }
         }
@@ -395,7 +395,8 @@ void integrateAllSensorDepthResourcesOfType(
       }
       CHECK_NOTNULL(resource_buffer_ptr);
 
-      // Collect all timestamps that need to be interpolated.
+      // Collect all timestamps that need to be interpolated. Skip the ones that
+      // can't be interpolated and duplicate the behavior in subsequent loops.
       Eigen::Matrix<int64_t, 1, Eigen::Dynamic> resource_timestamps(
           num_resources);
       size_t idx = 0u;
@@ -405,22 +406,21 @@ void integrateAllSensorDepthResourcesOfType(
             stamped_resource_id.first + timestamp_shift_ns;
 
         // If the resource timestamp does not lie within the min and max
-        // timestamp of the vertices, we cannot interpolate the position. To
-        // keep this efficient, we simply replace timestamps outside the range
-        // with the min or max. Since their transformation will not be used
-        // later, that's fine.
-        resource_timestamps[idx] = std::max(
-            min_timestamp_ns,
-            std::min(max_timestamp_ns, timestamp_resource_ns));
+        // timestamp of the vertices, we cannot interpolate the position.
+        if (timestamp_resource_ns < min_timestamp_ns ||
+            timestamp_resource_ns > max_timestamp_ns) {
+          continue;
+        }
 
+        resource_timestamps[idx] = timestamp_resource_ns;
         ++idx;
       }
+      resource_timestamps.conservativeResize(Eigen::NoChange, idx);
+
       // Interpolate poses for every resource.
       aslam::TransformationVector poses_M_B;
       pose_interpolator.getPosesAtTime(
           vi_map, mission_id, resource_timestamps, &poses_M_B);
-      CHECK_EQ(static_cast<int>(poses_M_B.size()), resource_timestamps.size());
-      CHECK_EQ(poses_M_B.size(), num_resources);
 
       // Retrieve and integrate all resources.
       idx = 0u;
@@ -437,18 +437,8 @@ void integrateAllSensorDepthResourcesOfType(
           }
         }
 
-        const aslam::Transformation& T_M_B = poses_M_B[idx];
-        const aslam::Transformation T_G_S = T_G_M * T_M_B * T_B_S;
-        ++idx;
-
-        const int64_t timestamp_ns = stamped_resource_id.first;
-
-        // If we have a resource selection function, use it to abort here.
-        if (resource_selection_function != nullptr) {
-          if (!resource_selection_function(timestamp_ns, T_G_S)) {
-            continue;
-          }
-        }
+        const int64_t timestamp_ns =
+            stamped_resource_id.first + timestamp_shift_ns;
 
         // If the resource timestamp does not lie within the min and max
         // timestamp of the vertices, we cannot interpolate the position.
@@ -458,6 +448,22 @@ void integrateAllSensorDepthResourcesOfType(
                   << "ns is outside of the time range of the pose graph, "
                   << "skipping.";
           continue;
+        }
+
+        CHECK_LT(idx, poses_M_B.size());
+        CHECK_EQ(timestamp_ns, resource_timestamps[idx]);
+        const aslam::Transformation& T_M_B = poses_M_B[idx];
+        const aslam::Transformation T_G_S = T_G_M * T_M_B * T_B_S;
+
+        // Increment here already since we might not get the change later.
+        ++idx;
+
+        // If we have a resource selection function, use it to abort here.
+        if (resource_selection_function != nullptr) {
+          if (!resource_selection_function(
+                  timestamp_ns, T_G_S, mission_id, idx - 1)) {
+            continue;
+          }
         }
 
         switch (input_resource_type) {
