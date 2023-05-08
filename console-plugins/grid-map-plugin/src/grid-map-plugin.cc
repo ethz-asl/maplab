@@ -1,6 +1,12 @@
 #include "grid-map-plugin/grid-map-plugin.h"
 
 #include <iostream>  //NOLINT
+#include <algorithm>
+#include <limits>
+#include <map>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
 
 // Yet again, not sure about these.
 #include <aslam/common/statistics/statistics.h>
@@ -23,6 +29,8 @@
 #include <vi-map/landmark.h>
 
 #include <grid-map-amo/elevation-mapping.h>
+#include <grid-map-amo/grid-map-filtering.h>
+#include <grid-map-amo/orthomosaic.h>
 
 #include <grid_map_core/grid_map_core.hpp>
 #include <Eigen/Core>
@@ -31,7 +39,22 @@
 
 #include <grid_map_ros/grid_map_ros.hpp>
 
+#include <aslam/common/memory.h>
+#include <aslam/common/pose-types.h>
+#include <eigen-checks/glog.h>
+#include <map-resources/resource-common.h>
+#include <map-resources/resource-map.h>
+#include <map-resources/temporal-resource-id-buffer.h>
+
+#include "vi-map/vertex.h"
+#include "vi-map/vi-map.h"
+#include "vi-map/vi_map.pb.h"
+
+#include <vi-mapping-test-app/vi-mapping-test-app.h>
+
 DEFINE_double(grid_map_res, 20.0, "The resolution of the grid map in meters.");
+
+DEFINE_double(inp_rad, 20.0, "The radius of the grid maps elevation fill in meters.");
 
 namespace grid_map_plugin {
 
@@ -55,6 +78,18 @@ GridMapPlugin::GridMapPlugin(common::Console* console)
       [this]() -> int { return createElevationMapping(); },
       "Create elevation mapping needed for grid map. Use --grid_map_res to set the grid maps resolution.",
       common::Processing::Sync);
+
+  addCommand(
+      {"elevation_fill", "ef"},
+      [this]() -> int { return createElevationFill(); },
+      "Fill the created elevation mapping needed for grid map. Use --inp_rad to set the fill radius.",
+      common::Processing::Sync);
+
+  addCommand(
+      {"orthomosaic", "orth"},
+      [this]() -> int { return createOrthomosaic(); },
+      "Create orthomosaic of the filled elevation layer.",
+      common::Processing::Sync);
 }
 
 int GridMapPlugin::createElevationMapping() {
@@ -74,31 +109,25 @@ int GridMapPlugin::createElevationMapping() {
   Eigen::Matrix<double, 3, Eigen::Dynamic> all_landmarks;
   all_landmarks.resize(Eigen::NoChange, all_landmark_ids.size());
 
-  LOG(INFO) << all_landmark_ids.size();
-  LOG(INFO) << all_landmarks.cols() << " " << all_landmarks.rows();
   size_t iter = 0;
   for (const vi_map::LandmarkId& landmark_id : all_landmark_ids) {
     const vi_map::Landmark& landmark = map->getLandmark(landmark_id);
     if (landmark.getQuality() != vi_map::Landmark::Quality::kGood) {
       continue;
     }
-
     // add landmark vector to all_landmarks matrix
-    //LOG(INFO) << iter;
-    
-    all_landmarks.col(iter) = map->getLandmark_G_p_fi(landmark_id);//landmark.get_p_B(); // SEGMENTATION ERROR
+    all_landmarks.col(iter) = map->getLandmark_G_p_fi(landmark_id);
     iter++;
-    //test successful, problem is, landmark doesnt get added to all_landmarks: std::cout << landmark.get_p_B() << std::endl;
   }
 
-  all_landmarks.resize(Eigen::NoChange, iter);
+  all_landmarks.conservativeResize(Eigen::NoChange, iter);
   
   //set the resolution to 20 meters by default
-  /*map_resolution_ = FLAGS_grid_map_res;
+  map_resolution_ = FLAGS_grid_map_res;
   if (map_resolution_ <= 0.0) {
     LOG(ERROR) << "Please specify a positive value for the grid map resolution.";
     return common::kStupidUserError;
-  }*/
+  }
 
   // initialize the grid map
   grid_map_.reset(new grid_map::GridMap({"elevation", "elevation_filled", "uncertainty", "temperature", "obs_angle_temp", "orthomosaic", "obs_angle_ortho"}));
@@ -109,71 +138,29 @@ int GridMapPlugin::createElevationMapping() {
   grid_map::Position position(0.0, 0.0);
   grid_map::Length length(map_resolution_, map_resolution_);
   grid_map_->setGeometry(length, map_resolution_, position);
-  //offset_map_ = nullptr;
-  //landmarks_uncertainty;
-
-  //set map offset to zero (or rather, make it point to zero)
-  /*grid_map::Position3 off_val {
-    {0},{0},{0}
-  };
-  offset_map_ = &off_val;*/
-
-  /*
-  if (!offset_map_) {
-    // initialize the map offset to the first gps measurement
-    GpsLlhMeasurement gps_oldest;
-    gps_buffer_->getOldestValue(&gps_oldest);
-
-    double northing, easting;
-    char utm_zone[10];
-    UTM::LLtoUTM(gps_oldest.gps_position_lat_lon_alt_deg_m(0), gps_oldest.gps_position_lat_lon_alt_deg_m(1),
-        northing, easting, utm_zone);
-
-    offset_map_.reset(new grid_map::Position3(easting, northing, gps_oldest.gps_position_lat_lon_alt_deg_m(2)));
-  }
-  */
   
   // resize the map to incorporate the new measurements
-  const double east_max = all_landmarks.row(0).maxCoeff() + 0.5 * grid_map_->getResolution();
-  std::cout << "east_max: " << east_max << std::endl;
-  std::cout << "all_landmarks.row(0).maxCoeff(): " << all_landmarks.row(0).maxCoeff() << std::endl;
-  LOG(INFO) << all_landmarks;
-  const double east_min = all_landmarks.row(0).minCoeff() - 0.5 * grid_map_->getResolution();
-  std::cout << "east_min: " << east_min << std::endl;
-  const double north_max = all_landmarks.row(1).maxCoeff() + 0.5 * grid_map_->getResolution();
-  std::cout << "north_max: " << north_max << std::endl;
-  const double north_min = all_landmarks.row(1).minCoeff() - 0.5 * grid_map_->getResolution();
-  std::cout << "north_min: " << north_min << std::endl;
+  const double east_max = all_landmarks.row(0).maxCoeff() + 0.5 * map_resolution_;
+  const double east_min = all_landmarks.row(0).minCoeff() - 0.5 * map_resolution_;
+  const double north_max = all_landmarks.row(1).maxCoeff() + 0.5 * map_resolution_;
+  const double north_min = all_landmarks.row(1).minCoeff() - 0.5 * map_resolution_;
 
   grid_map::GridMap map_tmp({"tmp"});
-  position = grid_map::Position((east_max - east_min) * 0.5 + east_min /*- (*offset_map_)(0)*/,
-                                (north_max - north_min) * 0.5 + north_min /*- (*offset_map_)(1)*/);
-  length = grid_map::Length(std::ceil((east_max - east_min) / grid_map_->getResolution()) * grid_map_->getResolution(),
-                            std::ceil((north_max - north_min) / grid_map_->getResolution()) * grid_map_->getResolution());
-  map_tmp.setGeometry(length, grid_map_->getResolution(), position);
+  position = grid_map::Position((east_max - east_min) * 0.5 + east_min,
+                                (north_max - north_min) * 0.5 + north_min);
+  length = grid_map::Length(std::ceil((east_max - east_min) / map_resolution_) * map_resolution_,
+                            std::ceil((north_max - north_min) / map_resolution_) * map_resolution_);
+
+  map_tmp.setGeometry(length, map_resolution_, position);
 
   grid_map_->extendToInclude(map_tmp);
-  std::cout << "getRes: " << grid_map_->getResolution() << std::endl;
-  std::cout << "Res: " << map_resolution_ << std::endl;
 
-  // set landmarks_uncertainty to 1
-  /*landmarks_uncertainty.resize(Eigen::NoChange, all_landmarks.cols());
-  for(int i = 0; i < all_landmarks.cols(); i++) {
-    landmarks_uncertainty.col(i) = 1;
-    std::cout << i << std::endl;
-  }*/
-
-  std::cout << "pos: " << position << " len: " << length << std::endl;
-
+  //set uncertainty to 1 everywhere
   landmarks_uncertainty.resize(Eigen::NoChange, all_landmarks.cols());
   landmarks_uncertainty.setConstant(1);
 
-  std::cout << "all_landmarks.cols(): " << all_landmarks.cols() << " all_landmarks.rows(): " << all_landmarks.rows() << std::endl; // just for testing something, never actually gets output. so i guess the error is between the all_landmarks initialization and this line
-
   // pass the empty grid map instead of the maplab map
-  grid_map_amo::update_elevation_layer(grid_map_, all_landmarks, landmarks_uncertainty/*, offset_map_*/);
-
-  std::cout << "Did we pass?" << std::endl;
+  grid_map_amo::update_elevation_layer(grid_map_, all_landmarks, landmarks_uncertainty);
 
   // publish the map
   grid_map_msgs::GridMap message;
@@ -184,6 +171,76 @@ int GridMapPlugin::createElevationMapping() {
   visualization::RVizVisualizationSink::publish(map_topic_, message);
   
   return common::kSuccess;
+}
+
+int GridMapPlugin::createElevationFill() {
+
+  inpaint_radius_ = FLAGS_inp_rad;
+  if (inpaint_radius_ <= 0.0) {
+    LOG(ERROR) << "Please specify a positive value for the inpaint radius.";
+    return common::kStupidUserError;
+  }
+
+  grid_map_amo::inpaint_layer(grid_map_, "elevation", "elevation_filled", inpaint_radius_);
+
+  // publish the map
+  grid_map_msgs::GridMap message;
+  grid_map::GridMapRosConverter::toMessage(*grid_map_, message);
+  message.info.header.stamp = ros::Time::now();
+  message.info.header.frame_id = map_frame_id_;
+
+  visualization::RVizVisualizationSink::publish(map_topic_, message);
+
+  return common::kSuccess;
+
+}
+
+int GridMapPlugin::createOrthomosaic() {
+
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  // get map
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);
+
+  //const vi_map::VIMap& vi_map = VIMap(selected_map_key);
+  vi_map::VIMap* vi_map = map.get();
+
+  int optical_camera_index_ = -1; //for now, as in amo worker
+
+  aslam::VisualNFrame::PtrVector nframes;
+  pose_graph::VertexIdList all_vertex_ids;
+  vi_map->getAllVertexIds(&all_vertex_ids);
+  for (const pose_graph::VertexId& vertex_id : all_vertex_ids) {
+    const vi_map::MissionBaseFrame& mission_frame =
+        vi_map->getMissionBaseFrameForVertex(vertex_id);
+    vi_map::Vertex& vertex = vi_map->getVertex(vertex_id);
+    //size_t num_frames = vertex.numFrames();
+    //for (size_t i = 0; i < num_frames; ++i) {
+      aslam::VisualNFrame& frame = vertex.getVisualNFrame();
+      nframes.push_back(&frame);
+    //}
+  }
+
+  //aslam::VisualNFrame::PtrVector nframes = getNFrames(nframes_imu_);
+
+  amo::update_ortho_layer(grid_map_, "orthomosaic", "obs_angle_ortho", "elevation_filled",
+          nframes, *vi_map, optical_camera_index_);
+
+  // publish the map
+  grid_map_msgs::GridMap message;
+  grid_map::GridMapRosConverter::toMessage(*grid_map_, message);
+  message.info.header.stamp = ros::Time::now();
+  message.info.header.frame_id = map_frame_id_;
+
+  visualization::RVizVisualizationSink::publish(map_topic_, message);
+
+  return common::kSuccess;
+
 }
 
 // Currently just a copy from another plug-in. Can be used as a template for the grid map.

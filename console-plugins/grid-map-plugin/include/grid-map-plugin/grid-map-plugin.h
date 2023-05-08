@@ -26,13 +26,18 @@ class GridMapPlugin : public common::ConsolePluginBase {
  private:
   int createElevationMapping();
 
-  double map_resolution_=20; // for now
+  int createElevationFill();
+
+  int createOrthomosaic();
+
+  double map_resolution_;
   std::unique_ptr<grid_map::GridMap> grid_map_;
-  //std::unique_ptr<grid_map::Position3> offset_map_;
   Eigen::Matrix<double, 1, Eigen::Dynamic> landmarks_uncertainty;
 
   std::string map_topic_ = "grid_map";
   std::string map_frame_id_ = "map";
+
+  double inpaint_radius_;
 };
 
 }  // namespace grid_map_plugin

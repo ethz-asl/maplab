@@ -44,7 +44,7 @@ map_save_every_n_sec: 0
 map_split_map_into_submaps_when_saving_periodically: true
 
 # ATTACHING RESOURCES TO MAP
-map_builder_save_image_as_resources:                                    false
+map_builder_save_image_as_resources:                                    true
 map_builder_save_point_clouds_as_resources:                             false
 map_builder_save_point_clouds_as_range_image_camera_id:                 ""
 map_builder_save_point_clouds_as_range_image_including_intensity_image: false

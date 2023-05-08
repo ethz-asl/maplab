@@ -11,7 +11,7 @@
 #include <grid_map_cv/grid_map_cv.hpp>
 #include <opencv2/opencv.hpp>
 
-namespace amo {
+namespace grid_map_amo {
 
 void inpaint_layer(std::unique_ptr<grid_map::GridMap>& map,
     std::string input_layer,
@@ -41,6 +41,7 @@ void inpaint_layer(std::unique_ptr<grid_map::GridMap>& map,
 
   grid_map::GridMapCvConverter::addLayerFromImage<float, 1>(filledImage, output_layer, *map, minValue, maxValue);
   map->erase("inpaint_mask");
+
 }
 
-}  // namespace amo
+}  // namespace grid_map_amo

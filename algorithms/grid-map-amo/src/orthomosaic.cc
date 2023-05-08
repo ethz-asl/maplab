@@ -2,31 +2,33 @@
  *    Filename: orthomosaic.cc
  *  Created on: May 19, 2021
  *      Author: Florian Achermann (acfloria@ethz.ch)
+ *    Modified: Luka Dragomirovic (lukavuk01@sunrise.ch)
  *   Institute: ETH Zurich, Autonomous Systems Lab
  */
-/*
+
 #include "grid-map-amo/orthomosaic.h"
 
 #include <math.h>
-
+#include <memory>
 #include <Eigen/Core>
 #include <glog/logging.h>
 #include <opencv2/imgcodecs.hpp>
+#include <vi-map/vi-map.h>
 
-
-namespace amo {
+namespace grid_map_amo {
 
 void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
     std::string orthomosaic_layer,
     std::string observation_angle_layer,
     std::string elevation_layer,
-    const std::unique_ptr<grid_map::Position3>& map_offset,
+    //const std::unique_ptr<grid_map::Position3>& map_offset,
     const aslam::VisualNFrame::PtrVector& nframes_in,
-    const swe::NFrameIdViNodeStateMap& vi_map,
+    //const swe::NFrameIdViNodeStateMap& vi_map,
+    const vi_map::VIMap& vi_map,
     int optical_cam_idx) {
   CHECK_NOTNULL(map);
-  CHECK_NOTNULL(map_offset);
-  CHECK_EQ(vi_map.size(), nframes_in.size());
+  //CHECK_NOTNULL(map_offset);
+  CHECK_EQ(vi_map.numVertices(), nframes_in.size());//had to change the size call for vi_map, might still give an error
   CHECK(map->exists(orthomosaic_layer));
   CHECK(map->exists(observation_angle_layer));
   CHECK(map->exists(elevation_layer));
@@ -61,11 +63,21 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
     }
     CHECK_EQ(im.depth(), CV_8U);
     CHECK_EQ(im.channels(), 1);
+    pose_graph::VertexId vert_idx;
+    pose_graph::VertexIdList all_vertex_ids;
+    vi_map.getAllVertexIds(&all_vertex_ids);
+    for (const pose_graph::VertexId& vertex_id : all_vertex_ids) {
+      const vi_map::Vertex& vertex_sample = vi_map.getVertex(vertex_id);
+      if(vertex_sample.getVisualNFrame() == *nframes_in[frame_idx]) {
+        vert_idx = vertex_id;
+        break;
+      }
+    }
 
-    const aslam::Transformation T_C_W = T_C_B * vi_map.at(nframes_in[frame_idx]->getId()).get_T_M_I().inverse();
+    const aslam::Transformation T_C_W = T_C_B * (vi_map.getVertex(vert_idx)).get_T_M_I().inverse();//also had to change vi_map call, might as well give an error still
     const aslam::Transformation T_W_C = T_C_W.inverse();
-    const aslam::Position3D p_C_map = T_C_W.inverse().getPosition() - *map_offset;
-
+    const aslam::Position3D p_C_map = T_C_W.inverse().getPosition();// - *map_offset;
+    //simplify for maplab
     for (size_t i = 0u; i < 4; i++) {
       const Eigen::Vector3d ray_rotated = T_W_C.getRotation().rotate(corner_ray[i]);
       const double multiplier = (min_height - p_C_map[2]) / ray_rotated[2];
@@ -83,8 +95,8 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
     for (grid_map::PolygonIterator it(*map, polygon);
           !it.isPastEnd(); ++it) {
       grid_map::Position3 position;
-      map->getPosition3(elevation_layer, *it, position);
-      position += *map_offset;
+      map->getPosition3(elevation_layer, *it, position);//use infill layer
+      //position += *map_offset;
       const grid_map::Index index(*it);
       const double x = index(0);
       const double y = index(1);
@@ -114,5 +126,4 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
   }
 }
 
-}  // namespace amo
-*/
+}  // namespace grid_map_amo

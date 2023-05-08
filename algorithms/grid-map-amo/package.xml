@@ -14,6 +14,7 @@
   <depend>eigen_catkin</depend>
   <depend>grid_map_core</depend>
   <depend>grid_map_cv</depend>
+  <depend>vi_map</depend>
   <!--<depend>sliding_window_estimator</depend>-->
 
 </package>
