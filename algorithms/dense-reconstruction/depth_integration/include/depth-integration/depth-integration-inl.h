@@ -144,7 +144,7 @@ void integrateAllFrameDepthResourcesOfType(
         // If we have a resource selection function, use it to abort here.
         if (resource_selection_function != nullptr) {
           if (!resource_selection_function(
-                  timestamp_ns, T_G_C, mission_id, vertex_counter)) {
+                  T_G_C, timestamp_ns, mission_id, vertex_counter)) {
             continue;
           }
         }
@@ -186,8 +186,8 @@ void integrateAllFrameDepthResourcesOfType(
 
             // Integrate with or without intensity information.
             integrateDepthMap(
-                timestamp_ns, T_G_C, depth_map, image, *cameras[frame_idx],
-                integration_function);
+                T_G_C, timestamp_ns, mission_id, vertex_counter, depth_map,
+                image, *cameras[frame_idx], integration_function);
 
             continue;
           }
@@ -206,7 +206,8 @@ void integrateAllFrameDepthResourcesOfType(
 
             VLOG(3) << "Found point cloud.";
             integratePointCloud(
-                timestamp_ns, T_G_C, point_cloud, integration_function);
+                T_G_C, timestamp_ns, mission_id, vertex_counter, point_cloud,
+                integration_function);
             continue;
           }
           default:
@@ -456,12 +457,13 @@ void integrateAllSensorDepthResourcesOfType(
         const aslam::Transformation T_G_S = T_G_M * T_M_B * T_B_S;
 
         // Increment here already since we might not get the change later.
+        const size_t counter = idx;
         ++idx;
 
         // If we have a resource selection function, use it to abort here.
         if (resource_selection_function != nullptr) {
           if (!resource_selection_function(
-                  timestamp_ns, T_G_S, mission_id, idx - 1)) {
+                  T_G_S, timestamp_ns, mission_id, counter)) {
             continue;
           }
         }
@@ -508,8 +510,8 @@ void integrateAllSensorDepthResourcesOfType(
 
             // Integrate with or without intensity information.
             integrateDepthMap(
-                timestamp_ns, T_G_S, depth_map, image, camera,
-                integration_function);
+                T_G_S, timestamp_ns, mission_id, counter, depth_map, image,
+                camera, integration_function);
 
             continue;
           }
@@ -585,7 +587,8 @@ void integrateAllSensorDepthResourcesOfType(
                     << num_removed_points << " points removed after filter "
                     << "conditions from the sensor yaml.";
             integratePointCloud(
-                timestamp_ns, T_G_S, point_cloud, integration_function);
+                T_G_S, timestamp_ns, mission_id, counter, point_cloud,
+                integration_function);
             continue;
           }
           default:

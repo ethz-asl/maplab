@@ -1636,11 +1636,10 @@ bool MaplabServerNode::getDenseMapInRange(
   // Select within a radius.
   depth_integration::ResourceSelectionFunction get_resources_in_radius =
       [&radius_m, &center_G](
-          const int64_t /*timestamp_ns*/, const aslam::Transformation& T_G_S,
-          const vi_map::MissionId& /*mission_id*/,
-          const size_t /*counter*/) -> bool {
-    return (T_G_S.getPosition() - center_G).norm() < radius_m;
-  };
+          const aslam::Transformation& T_G_S, const int64_t /*timestamp_ns*/,
+          const vi_map::MissionId& /*mission_id*/, const size_t /*counter*/) {
+        return (T_G_S.getPosition() - center_G).norm() < radius_m;
+      };
 
   vi_map::VIMapManager::MapReadAccess map =
       map_manager_.getMapReadAccess(kMergedMapKey);

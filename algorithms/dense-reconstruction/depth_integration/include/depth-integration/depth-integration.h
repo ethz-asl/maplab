@@ -20,14 +20,15 @@ typedef std::function<void(
     IntegrationFunctionPointCloudVoxblox;
 
 typedef std::function<void(
-    const aslam::Transformation /*T_G_S*/&,
+    const aslam::Transformation& /*T_G_S*/,
     const resources::PointCloud& /*points_S*/)>
     IntegrationFunctionPointCloudMaplab;
 
 typedef std::function<void(
-    const int64_t /*ts_ns*/, const aslam::Transformation /*T_G_S*/&,
+    const aslam::Transformation& /*T_G_S*/, const int64_t /*ts_ns*/,
+    const vi_map::MissionId& /*mission_id*/, const size_t /*counter*/,
     const resources::PointCloud& /*points_S*/)>
-    IntegrationFunctionPointCloudMaplabWithTs;
+    IntegrationFunctionPointCloudMaplabWithExtras;
 
 // Set of supported resource types when using the depth integrator with the
 // point cloud integration function.
@@ -50,7 +51,7 @@ typedef std::function<void(
 // based on the information about the resource provided to this function.
 // The counter resets at the beginning of each sensor recording session.
 typedef std::function<bool(
-    const int64_t /*timestamp_ns*/, const aslam::Transformation& /*T_G_S*/,
+    const aslam::Transformation& /*T_G_S*/, const int64_t /*timestamp_ns*/,
     const vi_map::MissionId& /*mission_id*/, const size_t /*counter*/)>
     ResourceSelectionFunction;
 
@@ -98,7 +99,8 @@ void integrateAllDepthResourcesOfType(
 // the integration function and calls it.
 template <typename IntegrationFunctionType>
 void integratePointCloud(
-    const int64_t timestamp_ns, const aslam::Transformation& T_G_C,
+    const aslam::Transformation& T_G_C, const int64_t timestamp_ns,
+    const vi_map::MissionId& mission_id, const size_t counter,
     const resources::PointCloud& points_C,
     IntegrationFunctionType integration_function);
 
@@ -106,7 +108,8 @@ void integratePointCloud(
 // integration function and calls it.
 template <typename IntegrationFunctionType>
 void integrateDepthMap(
-    const int64_t timestamp_ns, const aslam::Transformation& T_G_C,
+    const aslam::Transformation& T_G_C, const int64_t timestamp_ns,
+    const vi_map::MissionId& mission_id, const size_t counter,
     const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
     IntegrationFunctionType integration_function);
 

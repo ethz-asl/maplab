@@ -44,7 +44,8 @@ namespace depth_integration {
 
 template <>
 void integratePointCloud(
-    const int64_t /*timestamp*/, const aslam::Transformation& T_G_C,
+    const aslam::Transformation& T_G_C, const int64_t /*timestamp*/,
+    const vi_map::MissionId& /*mission_id*/, const size_t /*counter*/,
     const resources::PointCloud& points_C,
     IntegrationFunctionPointCloudVoxblox integration_function) {
   CHECK(integration_function);
@@ -72,7 +73,8 @@ void integratePointCloud(
 
 template <>
 void integratePointCloud(
-    const int64_t /*timestamp*/, const aslam::Transformation& T_G_C,
+    const aslam::Transformation& T_G_C, const int64_t /*timestamp*/,
+    const vi_map::MissionId& /*mission_id*/, const size_t /*counter*/,
     const resources::PointCloud& points_C,
     IntegrationFunctionPointCloudMaplab integration_function) {
   CHECK(integration_function);
@@ -81,7 +83,8 @@ void integratePointCloud(
 
 template <>
 void integratePointCloud(
-    const int64_t /*timestamp*/, const aslam::Transformation& /*T_G_C*/,
+    const aslam::Transformation& /*T_G_C*/, const int64_t /*timestamp*/,
+    const vi_map::MissionId& /*mission_id*/, const size_t /*counter*/,
     const resources::PointCloud& /*points_C*/,
     IntegrationFunctionDepthImage /*integration_function*/) {
   LOG(WARNING) << "Cannot integrate point cloud type resources using the depth "
@@ -90,16 +93,18 @@ void integratePointCloud(
 
 template <>
 void integratePointCloud(
-    const int64_t ts_ns, const aslam::Transformation& T_G_C,
+    const aslam::Transformation& T_G_C, const int64_t ts_ns,
+    const vi_map::MissionId& mission_id, const size_t counter,
     const resources::PointCloud& points_C,
-    IntegrationFunctionPointCloudMaplabWithTs integration_function) {
+    IntegrationFunctionPointCloudMaplabWithExtras integration_function) {
   CHECK(integration_function);
-  integration_function(ts_ns, T_G_C, points_C);
+  integration_function(T_G_C, ts_ns, mission_id, counter, points_C);
 }
 
 template <>
 void integrateDepthMap(
-    const int64_t /*timestamp*/, const aslam::Transformation& T_G_C,
+    const aslam::Transformation& T_G_C, const int64_t /*timestamp*/,
+    const vi_map::MissionId& /*mission_id*/, const size_t /*counter*/,
     const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
     IntegrationFunctionPointCloudVoxblox integration_function) {
   CHECK(integration_function);
@@ -126,7 +131,8 @@ void integrateDepthMap(
 
 template <>
 void integrateDepthMap(
-    const int64_t /*timestamp*/, const aslam::Transformation& T_G_C,
+    const aslam::Transformation& T_G_C, const int64_t /*timestamp*/,
+    const vi_map::MissionId& /*mission_id*/, const size_t /*counter*/,
     const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
     IntegrationFunctionPointCloudMaplab integration_function) {
   CHECK(integration_function);
@@ -146,7 +152,8 @@ void integrateDepthMap(
 
 template <>
 void integrateDepthMap(
-    const int64_t /*timestamp*/, const aslam::Transformation& T_G_C,
+    const aslam::Transformation& T_G_C, const int64_t /*timestamp*/,
+    const vi_map::MissionId& /*mission_id*/, const size_t /*counter*/,
     const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
     IntegrationFunctionDepthImage integration_function) {
   CHECK(integration_function);
@@ -158,9 +165,10 @@ void integrateDepthMap(
 
 template <>
 void integrateDepthMap(
-    const int64_t ts_ns, const aslam::Transformation& T_G_C,
+    const aslam::Transformation& T_G_C, const int64_t ts_ns,
+    const vi_map::MissionId& mission_id, const size_t counter,
     const cv::Mat& depth_map, const cv::Mat& image, const aslam::Camera& camera,
-    IntegrationFunctionPointCloudMaplabWithTs integration_function) {
+    IntegrationFunctionPointCloudMaplabWithExtras integration_function) {
   CHECK(integration_function);
   CHECK_EQ(CV_MAT_TYPE(depth_map.type()), CV_16UC1);
   CHECK_EQ(CV_MAT_TYPE(image.type()), CV_8UC1);
@@ -173,7 +181,7 @@ void integrateDepthMap(
         depth_map, image, camera, &point_cloud);
   }
 
-  integration_function(ts_ns, T_G_C, point_cloud);
+  integration_function(T_G_C, ts_ns, mission_id, counter, point_cloud);
 }
 
 template <>
@@ -195,7 +203,7 @@ bool isSupportedResourceType<IntegrationFunctionDepthImage>(
 }
 
 template <>
-bool isSupportedResourceType<IntegrationFunctionPointCloudMaplabWithTs>(
+bool isSupportedResourceType<IntegrationFunctionPointCloudMaplabWithExtras>(
     const backend::ResourceType& resource_type) {
   return kIntegrationFunctionPointCloudSupportedTypes.count(resource_type) > 0u;
 }

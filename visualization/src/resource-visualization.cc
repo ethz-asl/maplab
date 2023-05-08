@@ -253,7 +253,7 @@ void visualizeReprojectedDepthResource(
       };
 
   depth_integration::ResourceSelectionFunction selection_function =
-      [](const int64_t /*timestamp_ns*/, const aslam::Transformation& /*T_G_S*/,
+      [](const aslam::Transformation& /*T_G_S*/, const int64_t /*timestamp_ns*/,
          const vi_map::MissionId& /*mission_id*/, const size_t counter) {
         const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
         if (every_nth > 0 && (counter % every_nth != 0u)) {
@@ -311,7 +311,7 @@ static void createAndAppendAccumulatedPointCloudMessageForMission(
       };
 
   depth_integration::ResourceSelectionFunction selection_function =
-      [](const int64_t /*timestamp_ns*/, const aslam::Transformation& /*T_G_S*/,
+      [](const aslam::Transformation& /*T_G_S*/, const int64_t /*timestamp_ns*/,
          const vi_map::MissionId& /*mission_id*/, const size_t counter) {
         const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
         if (every_nth > 0 && (counter % every_nth != 0u)) {
@@ -390,10 +390,11 @@ void createPointCloudMessageVectorForMission(
   srand(time(NULL));
 
   int64_t previous_ts_ns = 0;
-  depth_integration::IntegrationFunctionPointCloudMaplabWithTs
+  depth_integration::IntegrationFunctionPointCloudMaplabWithExtras
       integration_function =
           [&color, &mission_counter, &resources, &previous_ts_ns](
-              const int64_t ts_ns, const aslam::Transformation& T_G_S,
+              const aslam::Transformation& T_G_S, const int64_t ts_ns,
+              const vi_map::MissionId& /*mission_id*/, const size_t /*counter*/,
               const resources::PointCloud& points_S) {
             // Transform points to G
             resources::PointCloud points_G;
@@ -429,7 +430,7 @@ void createPointCloudMessageVectorForMission(
           };
 
   depth_integration::ResourceSelectionFunction selection_function =
-      [](const int64_t /*timestamp_ns*/, const aslam::Transformation& /*T_G_S*/,
+      [](const aslam::Transformation& /*T_G_S*/, const int64_t /*timestamp_ns*/,
          const vi_map::MissionId& /*mission_id*/, const size_t counter) {
         const int32_t every_nth = FLAGS_vis_pointcloud_visualize_every_nth;
         if (every_nth > 0 && (counter % every_nth != 0u)) {

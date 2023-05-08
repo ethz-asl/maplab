@@ -86,9 +86,11 @@ TEST_F(VoxbloxDepthIntegrationTest, TestIntegrateDepthMap) {
         integrator->integratePointCloud(T_G_C, points, colors);
       };
 
+  vi_map::MissionId mission_id;
+  aslam::generateId(&mission_id);
   depth_integration::integrateDepthMap(
-      0 /*timestamp*/, T_G_C_, depth_map_openni_, image_,
-      *camera_without_distortion_, integration_function);
+      T_G_C_, 0 /*timestamp*/, mission_id, 0 /*counter*/, depth_map_openni_,
+      image_, *camera_without_distortion_, integration_function);
 
   EXPECT_EQ(tsdf_map.getTsdfLayer().getNumberOfAllocatedBlocks(), 20u);
   EXPECT_NEAR(tsdf_map.getTsdfLayer().getMemorySize(), 984040u, 10u);
