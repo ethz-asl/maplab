@@ -530,11 +530,6 @@ class BALM2 {
       if (fabs(residual1 - residual2) / residual1 < 1e-6)
         break;
     }
-
-    aslam::Transformation es0 = x_stats[0].inverse();
-    for (uint i = 0; i < x_stats.size(); i++) {
-      x_stats[i] = es0 * x_stats[i];
-    }
   }
 };
 
@@ -544,17 +539,16 @@ void cut_voxel(
   resources::PointCloud points_G;
   points_G.appendTransformed(points_S, T_G_S);
 
-  Eigen::Map<const Eigen::Matrix3Xf> xyz_S(
+  Eigen::Map<const Eigen::Matrix3Xd> xyz_S(
       points_S.xyz.data(), 3, points_S.size());
-  Eigen::Map<const Eigen::Matrix3Xf> xyz_G(
+  Eigen::Map<const Eigen::Matrix3Xd> xyz_G(
       points_G.xyz.data(), 3, points_G.size());
 
   for (size_t i = 0; i < points_S.size(); ++i) {
-    const Eigen::Vector3d pvec_orig = xyz_S.col(i).cast<double>();
-    const Eigen::Vector3d pvec_tran = xyz_G.col(i).cast<double>();
+    const Eigen::Vector3d pvec_orig = xyz_S.col(i);
+    const Eigen::Vector3d pvec_tran = xyz_G.col(i);
 
-    resources::VoxelPosition position(
-        pvec_tran[0], pvec_tran[1], pvec_tran[2], voxel_size);
+    resources::VoxelPosition position(pvec_tran, voxel_size);
     auto iter = surface_map.find(position);
     if (iter != surface_map.end()) {
       if (iter->second->octo_state != 2) {

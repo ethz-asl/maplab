@@ -69,6 +69,21 @@ DEFINE_int32(
     "RawDepthMap = 8, OptimizedDepthMap = 9, PointCloudXYZ = 16, "
     "PointCloudXYZRGBN = 17, kPointCloudXYZI = 21");
 
+DEFINE_double(
+    balm_kf_distance_threshold_m, 0.5,
+    "BALM distance threshold to add a new keyframe [m].");
+DEFINE_double(
+    balm_kf_rotation_threshold_deg, 10.0,
+    "BALM rotation threshold to add a new keyframe [deg].");
+DEFINE_double(
+    balm_kf_time_threshold_s, 1.0,
+    "BALM force a keyframe at fixed time intervals [s].");
+
+DEFINE_double(
+    balm_vis_voxel_size, 0.2,
+    "Voxel size to use for visualization when publishing pointclouds from "
+    "BALM. This does not affect the accuracy of the optimization itself.");
+
 namespace dense_reconstruction {
 
 void publishMapFromBALM(
@@ -76,30 +91,25 @@ void publishMapFromBALM(
     const std::vector<resources::PointCloud>& pointclouds_S,
     const std::string& path_topic, const visualization::Color& path_color,
     const std::string& cloud_topic) {
+  CHECK_EQ(poses_G.size(), pointclouds_S.size());
 
-  const size_t count = pointclouds_S.size();
-  const size_t kPublishEvery = count / 10;
   resources::PointCloud points_G;
-  Eigen::Matrix3Xd positions_G(3, count);
-  for (size_t i = 0; i < count; ++i) {
+  Eigen::Matrix3Xd positions_G(3, poses_G.size());
+  for (size_t i = 0; i < poses_G.size(); ++i) {
     resources::PointCloud voxelized_S;
-    pointclouds_S[i].downsampleVoxelized(0.05, &voxelized_S);
+    pointclouds_S[i].downsampleVoxelized(
+        FLAGS_balm_vis_voxel_size, &voxelized_S);
     points_G.appendTransformed(voxelized_S, poses_G[i]);
-
-    if ((i % kPublishEvery == 0 && i != 0) || i == count - 1) {
-      sensor_msgs::PointCloud2 ros_points_G;
-      backend::convertPointCloudType(points_G, &ros_points_G);
-      ros_points_G.header.frame_id = FLAGS_tf_map_frame;
-      visualization::RVizVisualizationSink::publish(cloud_topic, ros_points_G);
-      points_G.clear();
-    }
-
     positions_G.col(i) = poses_G[i].getPosition();
   }
 
+  sensor_msgs::PointCloud2 ros_points_G;
+  backend::convertPointCloudType(points_G, &ros_points_G);
+  ros_points_G.header.frame_id = FLAGS_tf_map_frame;
+  visualization::RVizVisualizationSink::publish(cloud_topic, ros_points_G);
+
   visualization::publish3DPointsAsPointCloud(
       positions_G, path_color, 1.0, FLAGS_tf_map_frame, path_topic);
-
 }
 
 bool parseMultipleMissionIds(
@@ -734,42 +744,67 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
             map_manager.getMapWriteAccess(selected_map_key);
 
         vi_map::MissionIdList mission_ids;
-        if (!parseMultipleMissionIds(*(map.get()), &mission_ids)) {
-          return common::kStupidUserError;
-        }
-
-        // If no mission were selected, use all missions.
-        if (mission_ids.empty()) {
-          map.get()->getAllMissionIdsSortedByTimestamp(&mission_ids);
-        }
+        map.get()->getAllMissionIdsSortedByTimestamp(&mission_ids);
 
         // Setting up BALM variables
         aslam::TransformationVector poses_G_S;
         std::vector<resources::PointCloud> pointclouds;
 
-        // Accumulate point cloud into BALM format
-        depth_integration::IntegrationFunctionPointCloudMaplabWithTs
-            integration_function = [&poses_G_S, &pointclouds](
-                                       const int64_t ts_ns,
-                                       const aslam::Transformation& T_G_S,
-                                       const resources::PointCloud& points_S) {
-              poses_G_S.emplace_back(T_G_S);
-              pointclouds.emplace_back(points_S);
-            };
+        // Keyframe the point clouds, otherwise the memory blows up.
+        // Base logic on motion and at fixed time intervals otherwise.
+        int64_t time_last_kf;
+        vi_map::MissionId last_mission_id;
+        last_mission_id.setInvalid();
 
-        size_t point_cloud_counter = 0u;
+        // Accumulate point cloud into BALM format
+        depth_integration::IntegrationFunctionPointCloudMaplabWithExtras
+            integration_function =
+                [&poses_G_S, &time_last_kf, &last_mission_id, &pointclouds](
+                    const aslam::Transformation& T_G_S,
+                    const int64_t timestamp_ns,
+                    const vi_map::MissionId& mission_id,
+                    const size_t /*counter*/,
+                    const resources::PointCloud& points_S) {
+                  poses_G_S.emplace_back(T_G_S);
+                  time_last_kf = timestamp_ns;
+                  last_mission_id = mission_id;
+                  pointclouds.emplace_back(points_S);
+                };
+
+        const int64_t time_threshold_ns =
+            FLAGS_balm_kf_time_threshold_s * kSecondsToNanoSeconds;
+        const double distance_threshold = FLAGS_balm_kf_distance_threshold_m;
+        const double rotation_threshold =
+            FLAGS_balm_kf_rotation_threshold_deg * kDegToRad;
+
         depth_integration::ResourceSelectionFunction selection_function =
-            [&point_cloud_counter](
-                const int64_t /*timestamp_ns*/,
-                const aslam::Transformation& /*T_G_S*/) {
-              const int32_t every_nth = 20;
-              if (every_nth > 0 && (point_cloud_counter % every_nth != 0u)) {
-                ++point_cloud_counter;
-                return false;
-              } else {
-                ++point_cloud_counter;
+            [&poses_G_S, &time_last_kf, &last_mission_id, &time_threshold_ns,
+             &distance_threshold, &rotation_threshold](
+                const aslam::Transformation& T_G_S, const int64_t timestamp_ns,
+                const vi_map::MissionId& mission_id, const size_t /*counter*/) {
+              // We started another mission, so insert a keyframe and
+              // re-initialize the other keyframe metrics we keep track of.
+              if (!last_mission_id.isValid() || mission_id != last_mission_id) {
                 return true;
               }
+
+              // Keyframe if enough time has elapsed since the last keyframe.
+              if (timestamp_ns - time_last_kf >= time_threshold_ns) {
+                return true;
+              }
+
+              // Finally keyframe based on travelled distance or rotation.
+              const aslam::Transformation& T_G_Skf = poses_G_S.back();
+              const aslam::Transformation T_Skf_S = T_G_Skf.inverse() * T_G_S;
+              const double distance_to_last_kf_m = T_Skf_S.getPosition().norm();
+              const double rotation_to_last_kf_rad =
+                  aslam::AngleAxis(T_Skf_S.getRotation()).angle();
+              if (distance_to_last_kf_m > distance_threshold ||
+                  rotation_to_last_kf_rad > rotation_threshold) {
+                return true;
+              }
+
+              return false;
             };
 
         const backend::ResourceType input_resource_type =
@@ -781,13 +816,9 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
             FLAGS_dense_depth_map_reprojection_use_undistorted_camera, *map,
             integration_function, selection_function);
 
-        aslam::Transformation T_S0_G = poses_G_S[0].inverse();
-        for (uint i = 0; i < poses_G_S.size(); i++) {
-          poses_G_S[i] = T_S0_G * poses_G_S[i];
-        }
-
         win_size = poses_G_S.size();
-        LOG(INFO) << "Window size: " << win_size;
+        LOG(INFO) << "Selected a total of " << poses_G_S.size()
+                  << " LiDAR scans as keyframes.";
 
         publishMapFromBALM(
             poses_G_S, pointclouds, "balm_path_before",
@@ -818,9 +849,6 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         ros_planes_G.header.frame_id = FLAGS_tf_map_frame;
         visualization::RVizVisualizationSink::publish(
             "balm_planes", ros_planes_G);
-
-        // Be careful to deallocate memory as that is a limiting factor.
-        planes_G = resources::PointCloud();
 
         const size_t num_constraints = voxhess.plvec_voxels.size();
         if (voxhess.plvec_voxels.size() < 3 * win_size) {
