@@ -16,8 +16,9 @@ void ResourceLoader::addResource(
     const DataType& resource) {
   CHECK(!folder.empty());
 
-  if (cache_.getConfig().cache_newest_resource) {
-    cache_.putResource<DataType>(id, type, resource);
+  // Check if the newest resource should be added to the map.
+  if (always_cache_newest_resource_) {
+    putCacheResource<DataType>(id, type, resource);
   }
 
   std::string file_path;
@@ -31,7 +32,7 @@ void ResourceLoader::getResource(
     DataType* resource) const {
   CHECK(!folder.empty());
   CHECK_NOTNULL(resource);
-  if (cache_.getResource<DataType>(id, type, resource)) {
+  if (getCacheResource<DataType>(id, type, resource)) {
     return;
   } else {
     std::string file_path;
@@ -40,7 +41,7 @@ void ResourceLoader::getResource(
         << "Failed to load " << ResourceTypeNames[static_cast<size_t>(type)]
         << " resource with id " << id.hexString()
         << " from file: " << file_path;
-    cache_.putResource<DataType>(id, type, *resource);
+    putCacheResource<DataType>(id, type, *resource);
   }
 }
 
@@ -60,7 +61,7 @@ void ResourceLoader::replaceResource(
     const ResourceId& id, const ResourceType& type, const std::string& folder,
     const DataType& resource) {
   CHECK(!folder.empty());
-  cache_.deleteResource<DataType>(id, type);
+  deleteCacheResource<DataType>(id, type);
   deleteResourceFile(id, type, folder);
   addResource<DataType>(id, type, folder, resource);
 }
@@ -93,7 +94,7 @@ void ResourceLoader::deleteResource(
   // This is more expensive than the templated deleteResource function, because
   // it needs to check all caches, but at least we don't need to template this
   // function.
-  cache_.deleteResource<DataType>(id, type);
+  deleteCacheResource<DataType>(id, type);
   deleteResourceFile(id, type, folder);
 }
 

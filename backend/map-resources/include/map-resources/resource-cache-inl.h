@@ -6,8 +6,8 @@
 namespace backend {
 
 template <typename DataType>
-bool ResourceCache::getResource(
-    const ResourceId& id, const ResourceType& type, DataType* resource) {
+bool ResourceCache::getCacheResource(
+    const ResourceId& id, const ResourceType& type, DataType* resource) const {
   CHECK_NOTNULL(resource);
   typename Cache<DataType>::ResourceDeque* cache = getCache<DataType>(type);
 
@@ -21,22 +21,21 @@ bool ResourceCache::getResource(
     if (it != cache->end()) {
       *resource = it->second;
       found = true;
-
-      // TODO(mfehr): Do something to the cache depending on the strategy.
     }
   }
 
-  if (!found) {
-    ++(statistic_.miss[static_cast<size_t>(type)]);
-  } else {
+  if (found) {
     ++(statistic_.hit[static_cast<size_t>(type)]);
+  } else {
+    ++(statistic_.miss[static_cast<size_t>(type)]);
   }
   return found;
 }
 
 template <typename DataType>
-void ResourceCache::putResource(
-    const ResourceId& id, const ResourceType& type, const DataType& resource) {
+void ResourceCache::putCacheResource(
+    const ResourceId& id, const ResourceType& type,
+    const DataType& resource) const {
   typename Cache<DataType>::ResourceDeque* cache = getCache<DataType>(type);
   if (cache == nullptr) {
     cache = initCache<DataType>(type);
@@ -52,7 +51,7 @@ void ResourceCache::putResource(
       << "Cannot put same resource in the cache twice! Id: " << id.hexString();
 
   cache->emplace_back(id, resource);
-  if (cache->size() > config_.max_cache_size) {
+  while (cache->size() > max_cache_size_) {
     cache->pop_front();
   }
 
@@ -60,8 +59,8 @@ void ResourceCache::putResource(
 }
 
 template <typename DataType>
-bool ResourceCache::deleteResource(
-    const ResourceId& id, const ResourceType& type) {
+bool ResourceCache::deleteCacheResource(
+    const ResourceId& id, const ResourceType& type) const {
   typename Cache<DataType>::ResourceDeque* cache = getCache<DataType>(type);
   if (cache != nullptr) {
     typename Cache<DataType>::Iterator it = std::find_if(
@@ -81,19 +80,19 @@ bool ResourceCache::deleteResource(
 
 template <typename DataType>
 typename ResourceCache::Cache<DataType>::ResourceDequePtr&
-ResourceCache::getCachePtr(const ResourceType& /*type*/) {
+ResourceCache::getCachePtr(const ResourceType& /*type*/) const {
   LOG(FATAL) << "Implement ResourceCache::getCachePtr for your DataType!";
 }
 
 template <typename DataType>
 typename ResourceCache::Cache<DataType>::ResourceDeque* ResourceCache::getCache(
-    const ResourceType& type) {
+    const ResourceType& type) const {
   return getCachePtr<DataType>(type).get();
 }
 
 template <typename DataType>
 typename ResourceCache::Cache<DataType>::ResourceDeque*
-ResourceCache::initCache(const ResourceType& type) {
+ResourceCache::initCache(const ResourceType& type) const {
   typename ResourceCache::Cache<DataType>::ResourceDequePtr& cache_ptr =
       getCachePtr<DataType>(type);
   cache_ptr.reset(new typename ResourceCache::Cache<DataType>::ResourceDeque);

@@ -2,39 +2,69 @@
 
 namespace backend {
 
+ResourceCache::ResourceCache() {
+  // Set the default cache size to very small to not waste memory through
+  // default behavior. Individual modules can increase it when necessary.
+  max_cache_size_ = 10u;
+
+  // Disable caching a resource when added. This is useful only in very
+  // particular cases during map building when performing other online
+  // tasks. Let those modules separately enable this behavior.
+  always_cache_newest_resource_ = false;
+}
+
+size_t ResourceCache::getMaxCacheSize() const {
+  return max_cache_size_;
+}
+
+void ResourceCache::setMaxCacheSize(size_t max_cache_size) const {
+  max_cache_size_ = max_cache_size;
+}
+
+bool ResourceCache::getAlwaysCacheNewestResource() const {
+  return always_cache_newest_resource_;
+}
+
+void ResourceCache::setAlwaysCacheNewestResource(
+    bool always_cache_newest_resource) const {
+  always_cache_newest_resource_ = always_cache_newest_resource;
+}
+
 template <>
 typename ResourceCache::Cache<cv::Mat>::ResourceDequePtr&
-ResourceCache::getCachePtr<cv::Mat>(const ResourceType& type) {
+ResourceCache::getCachePtr<cv::Mat>(const ResourceType& type) const {
   return image_cache_[type];
 }
 
 template <>
 typename ResourceCache::Cache<std::string>::ResourceDequePtr&
-ResourceCache::getCachePtr<std::string>(const ResourceType& type) {
+ResourceCache::getCachePtr<std::string>(const ResourceType& type) const {
   return text_cache_[type];
 }
 
 template <>
 typename ResourceCache::Cache<resources::PointCloud>::ResourceDequePtr&
-ResourceCache::getCachePtr<resources::PointCloud>(const ResourceType& type) {
+ResourceCache::getCachePtr<resources::PointCloud>(
+    const ResourceType& type) const {
   return pointcloud_cache_[type];
 }
 
 template <>
 typename ResourceCache::Cache<voxblox::TsdfMap>::ResourceDequePtr&
-ResourceCache::getCachePtr<voxblox::TsdfMap>(const ResourceType& type) {
+ResourceCache::getCachePtr<voxblox::TsdfMap>(const ResourceType& type) const {
   return voxblox_tsdf_map_cache_[type];
 }
 
 template <>
 typename ResourceCache::Cache<voxblox::EsdfMap>::ResourceDequePtr&
-ResourceCache::getCachePtr<voxblox::EsdfMap>(const ResourceType& type) {
+ResourceCache::getCachePtr<voxblox::EsdfMap>(const ResourceType& type) const {
   return voxblox_esdf_map_cache_[type];
 }
 
 template <>
 typename ResourceCache::Cache<voxblox::OccupancyMap>::ResourceDequePtr&
-ResourceCache::getCachePtr<voxblox::OccupancyMap>(const ResourceType& type) {
+ResourceCache::getCachePtr<voxblox::OccupancyMap>(
+    const ResourceType& type) const {
   return voxblox_occupancy_map_cache_[type];
 }
 
@@ -42,18 +72,18 @@ template <>
 typename ResourceCache::Cache<
     resources::ObjectInstanceBoundingBoxes>::ResourceDequePtr&
 ResourceCache::getCachePtr<resources::ObjectInstanceBoundingBoxes>(
-    const ResourceType& type) {
-  return bounding_boxes_map_cache_[type];
+    const ResourceType& type) const {
+  return bounding_boxes_cache_[type];
 }
 
-void ResourceCache::resetStatistic() {
+void ResourceCache::resetCacheStatistic() const {
   statistic_.reset();
 }
 
 // NOTE: [ADD_RESOURCE_DATA_TYPE] [ADD_RESOURCE_TYPE] Make sure the cache of the
 // new data type is also listed here.
-void ResourceCache::deleteResourceNoDataType(
-    const ResourceId& id, const ResourceType& type) {
+void ResourceCache::deleteCacheResourceNoDataType(
+    const ResourceId& id, const ResourceType& type) const {
   switch (type) {
     case ResourceType::kRawImage:
     case ResourceType::kUndistortedImage:
@@ -67,32 +97,32 @@ void ResourceCache::deleteResourceNoDataType(
     case ResourceType::kOptimizedDepthMap:
     case ResourceType::kDisparityMap:
     case ResourceType::kObjectInstanceMasks:
-      deleteResource<cv::Mat>(id, type);
+      deleteCacheResource<cv::Mat>(id, type);
       break;
     case ResourceType::kText:
     case ResourceType::kPmvsReconstructionPath:
     case ResourceType::kTsdfGridPath:
     case ResourceType::kEsdfGridPath:
     case ResourceType::kOccupancyGridPath:
-      deleteResource<std::string>(id, type);
+      deleteCacheResource<std::string>(id, type);
       break;
     case ResourceType::kPointCloudXYZ:
     case ResourceType::kPointCloudXYZRGBN:
     case ResourceType::kPointCloudXYZI:
     case ResourceType::kPointCloudXYZL:
-      deleteResource<resources::PointCloud>(id, type);
+      deleteCacheResource<resources::PointCloud>(id, type);
       break;
     case ResourceType::kVoxbloxTsdfMap:
-      deleteResource<voxblox::TsdfMap>(id, type);
+      deleteCacheResource<voxblox::TsdfMap>(id, type);
       break;
     case ResourceType::kVoxbloxEsdfMap:
-      deleteResource<voxblox::EsdfMap>(id, type);
+      deleteCacheResource<voxblox::EsdfMap>(id, type);
       break;
     case ResourceType::kVoxbloxOccupancyMap:
-      deleteResource<voxblox::OccupancyMap>(id, type);
+      deleteCacheResource<voxblox::OccupancyMap>(id, type);
       break;
     case ResourceType::kObjectInstanceBoundingBoxes:
-      deleteResource<resources::ObjectInstanceBoundingBoxes>(id, type);
+      deleteCacheResource<resources::ObjectInstanceBoundingBoxes>(id, type);
       break;
     default:
       LOG(FATAL) << "Removing a resource from this cache is not implemented "
@@ -101,7 +131,7 @@ void ResourceCache::deleteResourceNoDataType(
   }
 }
 
-const CacheStatistic& ResourceCache::getStatistic() const {
+const CacheStatistic& ResourceCache::getCacheStatistic() const {
   return statistic_;
 }
 
@@ -140,10 +170,6 @@ std::string CacheStatistic::print() const {
        << " miss: " << miss[type_idx] << std::endl;
   }
   return ss.str();
-}
-
-const ResourceCache::Config& ResourceCache::getConfig() const {
-  return config_;
 }
 
 }  // namespace backend

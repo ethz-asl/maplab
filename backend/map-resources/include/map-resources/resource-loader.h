@@ -8,7 +8,7 @@
 
 namespace backend {
 
-class ResourceLoader {
+class ResourceLoader : public ResourceCache {
  public:
   ResourceLoader() {}
 
@@ -46,10 +46,6 @@ class ResourceLoader {
       const ResourceId& id, const ResourceType& type, const std::string& folder,
       const DataType& resource);
 
-  const CacheStatistic& getCacheStatistic() const;
-
-  const ResourceCache::Config& getCacheConfig() const;
-
   bool resourceFileExists(
       const ResourceId& id, const ResourceType& type,
       const std::string& folder) const;
@@ -73,9 +69,6 @@ class ResourceLoader {
   bool loadResourceFromFile(
       const std::string& file_path, const ResourceType& type,
       DataType* resource) const;
-
- private:
-  mutable ResourceCache cache_;
 };
 
 // Implementation for cv::Mat resources.

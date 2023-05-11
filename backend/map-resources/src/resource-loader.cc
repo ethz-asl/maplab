@@ -3,9 +3,9 @@
 #include <cstdio>
 #include <fstream>  // NOLINT
 #include <map-resources/resource_object_instance_bbox.pb.h>
+#include <maplab-common/eigen-proto.h>
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/proto-serialization-helper.h>
-#include <maplab-common/eigen-proto.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <voxblox/io/layer_io.h>
@@ -309,8 +309,8 @@ template <>
 void ResourceLoader::saveResourceToFile(
     const std::string& file_path, const ResourceType& /*type*/,
     const resources::PointCloud& resource) const {
-  CHECK(!common::fileExists(file_path)) << "Resource in path: " << file_path
-                                        << "already exists.";
+  CHECK(!common::fileExists(file_path))
+      << "Resource in path: " << file_path << "already exists.";
   resource.writeToFile(file_path);
 }
 
@@ -342,8 +342,7 @@ void ResourceLoader::saveResourceToFile(
 
   const size_t n_bboxes = resource.size();
   resources::proto::ObjectInstanceBoundingBoxes object_instance_bboxes;
-  object_instance_bboxes.mutable_object_instance_bbox()->Reserve(
-      n_bboxes);
+  object_instance_bboxes.mutable_object_instance_bbox()->Reserve(n_bboxes);
 
   for (size_t idx = 0u; idx < n_bboxes; ++idx) {
     const resources::ObjectInstanceBoundingBox bbox = resource[idx];
@@ -402,8 +401,8 @@ bool ResourceLoader::loadResourceFromFile(
     return false;
   }
 
-  const size_t n_bboxes = static_cast<size_t>(
-      object_instance_bboxes.object_instance_bbox_size());
+  const size_t n_bboxes =
+      static_cast<size_t>(object_instance_bboxes.object_instance_bbox_size());
   resource->resize(n_bboxes);
 
   for (size_t idx = 0u; idx < n_bboxes; ++idx) {
@@ -433,16 +432,8 @@ void ResourceLoader::deleteResourceNoDataType(
   // This is more expensive than the templated deleteResource function, because
   // it needs to check all caches, but at least we don't need to template this
   // function.
-  cache_.deleteResourceNoDataType(id, type);
+  deleteCacheResourceNoDataType(id, type);
   deleteResourceFile(id, type, folder);
-}
-
-const CacheStatistic& ResourceLoader::getCacheStatistic() const {
-  return cache_.getStatistic();
-}
-
-const ResourceCache::Config& ResourceLoader::getCacheConfig() const {
-  return cache_.getConfig();
 }
 
 }  // namespace backend

@@ -651,6 +651,27 @@ void ResourceMap::printCacheStatisticsToLog(int verbosity) const {
   getResourceCacheStatisticCopy().printToLog(verbosity);
 }
 
+size_t ResourceMap::getMaxCacheSize() const {
+  aslam::ScopedReadLock lock(&resource_mutex_);
+  return resource_loader_.getMaxCacheSize();
+}
+
+void ResourceMap::setMaxCacheSize(size_t max_cache_size) const {
+  aslam::ScopedReadLock lock(&resource_mutex_);
+  resource_loader_.setMaxCacheSize(max_cache_size);
+}
+
+bool ResourceMap::getAlwaysCacheNewestResource() const {
+  aslam::ScopedReadLock lock(&resource_mutex_);
+  return resource_loader_.getAlwaysCacheNewestResource();
+}
+
+void ResourceMap::setAlwaysCacheNewestResource(
+    bool always_cache_newest_resource) const {
+  aslam::ScopedReadLock lock(&resource_mutex_);
+  resource_loader_.setAlwaysCacheNewestResource(always_cache_newest_resource);
+}
+
 void ResourceMap::printResourceStatisticsToLog(int verbosity) const {
   VLOG(verbosity) << printResourceStatistics();
 }

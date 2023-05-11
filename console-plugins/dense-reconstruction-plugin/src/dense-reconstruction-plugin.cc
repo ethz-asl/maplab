@@ -744,7 +744,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
             map_manager.getMapWriteAccess(selected_map_key);
 
         vi_map::MissionIdList mission_ids;
-        map.get()->getAllMissionIdsSortedByTimestamp(&mission_ids);
+        map->getAllMissionIdsSortedByTimestamp(&mission_ids);
 
         // Setting up BALM variables
         aslam::TransformationVector poses_G_S;
@@ -756,10 +756,14 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         vi_map::MissionId last_mission_id;
         last_mission_id.setInvalid();
 
-        // Accumulate point cloud into BALM format
+        // Accumulate point cloud into BALM format. Play with vi_map cache size
+        // to facilitate multiple iterations over the same resources as we do
+        // that for the undistortion.
+        const size_t original_cache_size = map->getMaxCacheSize();
+        map->setMaxCacheSize(1);
         depth_integration::IntegrationFunctionPointCloudMaplabWithExtras
             integration_function =
-                [&poses_G_S, &time_last_kf, &last_mission_id, &pointclouds](
+                [&map, &poses_G_S, &time_last_kf, &last_mission_id, &pointclouds](
                     const aslam::Transformation& T_G_S,
                     const int64_t timestamp_ns,
                     const vi_map::MissionId& mission_id,
@@ -769,6 +773,9 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
                   time_last_kf = timestamp_ns;
                   last_mission_id = mission_id;
                   pointclouds.emplace_back(points_S);
+
+                  // Increase cache size by one
+                  map->setMaxCacheSize(map->getMaxCacheSize() + 1u);
                 };
 
         const int64_t time_threshold_ns =

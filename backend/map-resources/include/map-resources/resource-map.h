@@ -157,6 +157,12 @@ class ResourceMap {
   std::string printCacheStatistics() const;
   void printCacheStatisticsToLog(int verbosity) const;
 
+  size_t getMaxCacheSize() const;
+  void setMaxCacheSize(size_t max_cache_size) const;
+
+  bool getAlwaysCacheNewestResource() const;
+  void setAlwaysCacheNewestResource(bool always_cache_newest_resource) const;
+
   std::string printResourceStatistics() const;
   void printResourceStatisticsToLog(int verbosity) const;
   size_t getNumResourcesOfType(const ResourceType& resource_type) const;

@@ -1141,8 +1141,7 @@ TEST_F(ResourceLoaderTest, TestResourceCache) {
   // Add a lot of different resources to fill up cache, make sure maximum cache
   // size is reached and
   // both resource A and B are kicked out of the cache.
-  const size_t max_num_cache_entries_per_type =
-      loader.getCacheConfig().max_cache_size;
+  const size_t max_num_cache_entries_per_type = loader.getMaxCacheSize();
 
   for (size_t resource_counter = 0u;
        resource_counter < max_num_cache_entries_per_type; ++resource_counter) {

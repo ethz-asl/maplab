@@ -33,38 +33,38 @@ class ResourceCache {
   friend struct CacheStatistic;
 
  public:
-  ResourceCache() {}
+  ResourceCache();
 
-  enum class Strategy { kFIFO = 0u };
+  size_t getMaxCacheSize() const;
+  void setMaxCacheSize(size_t max_cache_size) const;
 
-  struct Config {
-    size_t allocated_cache_size = 0u;
-    size_t max_cache_size = 100u;
-    bool cache_newest_resource = false;
-    Strategy strategy = Strategy::kFIFO;
-  };
+  bool getAlwaysCacheNewestResource() const;
+  void setAlwaysCacheNewestResource(bool always_cache_newest_resource) const;
 
-  explicit ResourceCache(const Config& cache_config) : config_(cache_config) {}
+  const CacheStatistic& getCacheStatistic() const;
+
+ protected:
+  template <typename DataType>
+  bool getCacheResource(
+      const ResourceId& id, const ResourceType& type, DataType* resource) const;
 
   template <typename DataType>
-  bool getResource(
-      const ResourceId& id, const ResourceType& type, DataType* resource);
+  void putCacheResource(
+      const ResourceId& id, const ResourceType& type,
+      const DataType& resource) const;
 
   template <typename DataType>
-  void putResource(
-      const ResourceId& id, const ResourceType& type, const DataType& resource);
+  bool deleteCacheResource(
+      const ResourceId& id, const ResourceType& type) const;
+  void deleteCacheResourceNoDataType(
+      const ResourceId& id, const ResourceType& type) const;
 
-  template <typename DataType>
-  bool deleteResource(const ResourceId& id, const ResourceType& type);
+  void resetCacheStatistic() const;
 
-  void deleteResourceNoDataType(const ResourceId& id, const ResourceType& type);
+  mutable size_t max_cache_size_;
+  mutable bool always_cache_newest_resource_;
 
-  void resetStatistic();
-
-  const CacheStatistic& getStatistic() const;
-
-  const Config& getConfig() const;
-
+ private:
   template <typename DataType>
   struct Cache {
     typedef std::pair<ResourceId, DataType> Element;
@@ -77,62 +77,64 @@ class ResourceCache {
     typedef typename ResourceDeque::iterator Iterator;
   };
 
- private:
   template <typename DataType>
-  typename Cache<DataType>::ResourceDeque* getCache(const ResourceType& type);
+  typename Cache<DataType>::ResourceDeque* getCache(
+      const ResourceType& type) const;
 
   template <typename DataType>
-  typename Cache<DataType>::ResourceDeque* initCache(const ResourceType& type);
+  typename Cache<DataType>::ResourceDeque* initCache(
+      const ResourceType& type) const;
 
   // NOTE: [ADD_RESOURCE_DATA_TYPE] Implement and add declaration below.
   template <typename DataType>
   typename Cache<DataType>::ResourceDequePtr& getCachePtr(
-      const ResourceType& type);
+      const ResourceType& type) const;
 
   // NOTE: [ADD_RESOURCE_DATA_TYPE] Add member.
-  Cache<cv::Mat>::ResourceTypeMap image_cache_;
-  Cache<std::string>::ResourceTypeMap text_cache_;
-  Cache<resources::PointCloud>::ResourceTypeMap pointcloud_cache_;
-  Cache<voxblox::TsdfMap>::ResourceTypeMap voxblox_tsdf_map_cache_;
-  Cache<voxblox::EsdfMap>::ResourceTypeMap voxblox_esdf_map_cache_;
-  Cache<voxblox::OccupancyMap>::ResourceTypeMap voxblox_occupancy_map_cache_;
-  Cache<resources::ObjectInstanceBoundingBoxes>::ResourceTypeMap
-      bounding_boxes_map_cache_;
+  mutable Cache<cv::Mat>::ResourceTypeMap image_cache_;
+  mutable Cache<std::string>::ResourceTypeMap text_cache_;
+  mutable Cache<resources::PointCloud>::ResourceTypeMap pointcloud_cache_;
+  mutable Cache<voxblox::TsdfMap>::ResourceTypeMap voxblox_tsdf_map_cache_;
+  mutable Cache<voxblox::EsdfMap>::ResourceTypeMap voxblox_esdf_map_cache_;
+  mutable Cache<voxblox::OccupancyMap>::ResourceTypeMap
+      voxblox_occupancy_map_cache_;
+  mutable Cache<resources::ObjectInstanceBoundingBoxes>::ResourceTypeMap
+      bounding_boxes_cache_;
 
-  CacheStatistic statistic_;
-
-  Config config_;
+  mutable CacheStatistic statistic_;
 };
 
 template <>
 typename ResourceCache::Cache<cv::Mat>::ResourceDequePtr&
-ResourceCache::getCachePtr<cv::Mat>(const ResourceType& type);
+ResourceCache::getCachePtr<cv::Mat>(const ResourceType& type) const;
 
 template <>
 typename ResourceCache::Cache<std::string>::ResourceDequePtr&
-ResourceCache::getCachePtr<std::string>(const ResourceType& type);
+ResourceCache::getCachePtr<std::string>(const ResourceType& type) const;
 
 template <>
 typename ResourceCache::Cache<resources::PointCloud>::ResourceDequePtr&
-ResourceCache::getCachePtr<resources::PointCloud>(const ResourceType& type);
+ResourceCache::getCachePtr<resources::PointCloud>(
+    const ResourceType& type) const;
 
 template <>
 typename ResourceCache::Cache<voxblox::TsdfMap>::ResourceDequePtr&
-ResourceCache::getCachePtr<voxblox::TsdfMap>(const ResourceType& type);
+ResourceCache::getCachePtr<voxblox::TsdfMap>(const ResourceType& type) const;
 
 template <>
 typename ResourceCache::Cache<voxblox::EsdfMap>::ResourceDequePtr&
-ResourceCache::getCachePtr<voxblox::EsdfMap>(const ResourceType& type);
+ResourceCache::getCachePtr<voxblox::EsdfMap>(const ResourceType& type) const;
 
 template <>
 typename ResourceCache::Cache<voxblox::OccupancyMap>::ResourceDequePtr&
-ResourceCache::getCachePtr<voxblox::OccupancyMap>(const ResourceType& type);
+ResourceCache::getCachePtr<voxblox::OccupancyMap>(
+    const ResourceType& type) const;
 
 template <>
 typename ResourceCache::Cache<
     resources::ObjectInstanceBoundingBoxes>::ResourceDequePtr&
 ResourceCache::getCachePtr<resources::ObjectInstanceBoundingBoxes>(
-    const ResourceType& type);
+    const ResourceType& type) const;
 
 template <typename DataType>
 void updateCacheSizeStatistic(
