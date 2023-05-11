@@ -35,9 +35,9 @@ bool PointCloud::checkConsistency(const bool verbose) const {
   bool consistent = true;
   consistent &= (normals.size() == xyz.size()) || normals.empty();
   consistent &= (colors.size() == xyz.size()) || colors.empty();
-  consistent &= (scalars.size() == xyz.size() / 3u) || scalars.empty();
-  consistent &= (labels.size() == xyz.size() / 3u) || labels.empty();
-  consistent &= (times_ns.size() == xyz.size() / 3u) || times_ns.empty();
+  consistent &= (3u * scalars.size() == xyz.size()) || scalars.empty();
+  consistent &= (3u * labels.size() == xyz.size()) || labels.empty();
+  consistent &= (3u * times_ns.size() == xyz.size()) || times_ns.empty();
 
   LOG_IF(ERROR, verbose && !consistent)
       << "\nInconsistent point cloud:"
@@ -371,10 +371,10 @@ bool PointCloud::loadFromFile(const std::string& file_path) {
     // Normals are stored as floats, but then internally manipulated as doubles.
     std::vector<float> normals_float;
     const int normals_count = ply_file.request_properties_from_element(
-        "vertex", {"red", "green", "blue"}, normals_float);
+        "vertex", {"nx", "ny", "nz"}, normals_float);
 
     const int colors_count = ply_file.request_properties_from_element(
-        "vertex", {"nx", "ny", "nz"}, colors);
+        "vertex", {"red", "green", "blue"}, colors);
     const int scalars_count =
         ply_file.request_properties_from_element("vertex", {"scalar"}, scalars);
     const int labels_count =
@@ -409,7 +409,7 @@ bool PointCloud::loadFromFile(const std::string& file_path) {
     }
 
     stream_ply.close();
-    checkConsistency();
+    CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
     return true;
   }
   return false;

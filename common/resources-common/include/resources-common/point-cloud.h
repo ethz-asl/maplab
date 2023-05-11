@@ -121,15 +121,15 @@ class PointCloud {
   }
 
   bool hasScalars() const {
-    return (scalars.size() == xyz.size() / 3u) && !scalars.empty();
+    return (3u * scalars.size() == xyz.size()) && !scalars.empty();
   }
 
   bool hasLabels() const {
-    return (labels.size() == xyz.size() / 3u) && !labels.empty();
+    return (3u * labels.size() == xyz.size()) && !labels.empty();
   }
 
   bool hasTimes() const {
-    return (times_ns.size() == xyz.size() / 3u) && !times_ns.empty();
+    return (3u * times_ns.size() == xyz.size()) && !times_ns.empty();
   }
 
   bool checkConsistency(const bool verbose = false) const;
