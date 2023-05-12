@@ -207,29 +207,11 @@ int GridMapPlugin::createOrthomosaic() {
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
 
-  //const vi_map::VIMap& vi_map = VIMap(selected_map_key);
   vi_map::VIMap* vi_map = map.get();
 
-  int optical_camera_index_ = -1; //for now, as in amo worker
+  int optical_camera_index_ = 0; //for now, as in amo worker
 
-  aslam::VisualNFrame::PtrVector nframes;
-  pose_graph::VertexIdList all_vertex_ids;
-  vi_map->getAllVertexIds(&all_vertex_ids);
-  for (const pose_graph::VertexId& vertex_id : all_vertex_ids) {
-    const vi_map::MissionBaseFrame& mission_frame =
-        vi_map->getMissionBaseFrameForVertex(vertex_id);
-    vi_map::Vertex& vertex = vi_map->getVertex(vertex_id);
-    //size_t num_frames = vertex.numFrames();
-    //for (size_t i = 0; i < num_frames; ++i) {
-      aslam::VisualNFrame& frame = vertex.getVisualNFrame();
-      nframes.push_back(&frame);
-    //}
-  }
-
-  //aslam::VisualNFrame::PtrVector nframes = getNFrames(nframes_imu_);
-
-  amo::update_ortho_layer(grid_map_, "orthomosaic", "obs_angle_ortho", "elevation_filled",
-          nframes, *vi_map, optical_camera_index_);
+  grid_map_amo::update_ortho_layer(grid_map_, "orthomosaic", "obs_angle_ortho", "elevation_filled", *vi_map, optical_camera_index_);
 
   // publish the map
   grid_map_msgs::GridMap message;
@@ -243,20 +225,6 @@ int GridMapPlugin::createOrthomosaic() {
 
 }
 
-// Currently just a copy from another plug-in. Can be used as a template for the grid map.
-/*
-int GridMapPlugin::createGridMap() {
-  std::string selected_map_key;
-  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
-    return common::kStupidUserError;
-  }
-
-  
-
-  vi_map_helpers::evaluateLandmarkQuality(mission_ids_to_process, map.get());
-  return common::kSuccess;
-}
-*/
 }  // namespace grid_map_plugin
 
 MAPLAB_CREATE_CONSOLE_PLUGIN(grid_map_plugin::GridMapPlugin);

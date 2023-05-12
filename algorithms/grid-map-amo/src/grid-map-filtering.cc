@@ -2,6 +2,7 @@
  *    Filename: dird-map-filtering.cc
  *  Created on: April 12, 2021
  *      Author: Florian Achermann (acfloria@ethz.ch)
+ *    Modified: Luka Dragomirovic (lukavuk01@sunrise.ch)
  *   Institute: ETH Zurich, Autonomous Systems Lab
  */
 
