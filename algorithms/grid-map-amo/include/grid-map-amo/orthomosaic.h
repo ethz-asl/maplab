@@ -22,7 +22,7 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
     std::string observation_angle_layer,
     std::string elevation_layer,
     const vi_map::VIMap& vi_map,
-    int thermal_cam_idx);
+    int optical_cam_idx);
 
 }  // namespace grid_map_amo
 #endif  // AMO_LIB_GRID_MAP_ORTHOMOSAIC_H_

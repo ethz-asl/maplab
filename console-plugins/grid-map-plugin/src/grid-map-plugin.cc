@@ -90,6 +90,12 @@ GridMapPlugin::GridMapPlugin(common::Console* console)
       [this]() -> int { return createOrthomosaic(); },
       "Create orthomosaic of the filled elevation layer.",
       common::Processing::Sync);
+  
+  addCommand(
+      {"amo_grid_map", "amo"},
+      [this]() -> int { return createAmoGridMap(); },
+      "Create whole amo grid map with em, ef and ortho layers. The --grid_map_res sets both the resolution and the fill radius.",
+      common::Processing::Sync);
 }
 
 int GridMapPlugin::createElevationMapping() {
@@ -212,6 +218,99 @@ int GridMapPlugin::createOrthomosaic() {
   int optical_camera_index_ = 0; //for now, as in amo worker
 
   grid_map_amo::update_ortho_layer(grid_map_, "orthomosaic", "obs_angle_ortho", "elevation_filled", *vi_map, optical_camera_index_);
+
+  // publish the map
+  grid_map_msgs::GridMap message;
+  grid_map::GridMapRosConverter::toMessage(*grid_map_, message);
+  message.info.header.stamp = ros::Time::now();
+  message.info.header.frame_id = map_frame_id_;
+
+  visualization::RVizVisualizationSink::publish(map_topic_, message);
+
+  return common::kSuccess;
+
+}
+
+int GridMapPlugin::createAmoGridMap() {
+
+  //start of em
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  // get map
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);
+
+  // first get landmark ids to then get landmarks
+  vi_map::LandmarkIdSet all_landmark_ids;
+  map->getAllLandmarkIds(&all_landmark_ids);
+  Eigen::Matrix<double, 3, Eigen::Dynamic> all_landmarks;
+  all_landmarks.resize(Eigen::NoChange, all_landmark_ids.size());
+
+  size_t iter = 0;
+  for (const vi_map::LandmarkId& landmark_id : all_landmark_ids) {
+    const vi_map::Landmark& landmark = map->getLandmark(landmark_id);
+    if (landmark.getQuality() != vi_map::Landmark::Quality::kGood) {
+      continue;
+    }
+    // add landmark vector to all_landmarks matrix
+    all_landmarks.col(iter) = map->getLandmark_G_p_fi(landmark_id);
+    iter++;
+  }
+
+  all_landmarks.conservativeResize(Eigen::NoChange, iter);
+  
+  //set the resolution to 20 meters by default
+  map_resolution_ = FLAGS_grid_map_res;
+  if (map_resolution_ <= 0.0) {
+    LOG(ERROR) << "Please specify a positive value for the grid map resolution.";
+    return common::kStupidUserError;
+  }
+
+  // initialize the grid map
+  grid_map_.reset(new grid_map::GridMap({"elevation", "elevation_filled", "uncertainty", "temperature", "obs_angle_temp", "orthomosaic", "obs_angle_ortho"}));
+  grid_map_->get("elevation").setConstant(NAN);
+  grid_map_->get("elevation_filled").setConstant(NAN);
+  grid_map_->get("temperature").setConstant(NAN);
+  grid_map_->get("uncertainty").setConstant(NAN);
+  grid_map::Position position(0.0, 0.0);
+  grid_map::Length length(map_resolution_, map_resolution_);
+  grid_map_->setGeometry(length, map_resolution_, position);
+  
+  // resize the map to incorporate the new measurements
+  const double east_max = all_landmarks.row(0).maxCoeff() + 0.5 * map_resolution_;
+  const double east_min = all_landmarks.row(0).minCoeff() - 0.5 * map_resolution_;
+  const double north_max = all_landmarks.row(1).maxCoeff() + 0.5 * map_resolution_;
+  const double north_min = all_landmarks.row(1).minCoeff() - 0.5 * map_resolution_;
+
+  grid_map::GridMap map_tmp({"tmp"});
+  position = grid_map::Position((east_max - east_min) * 0.5 + east_min,
+                                (north_max - north_min) * 0.5 + north_min);
+  length = grid_map::Length(std::ceil((east_max - east_min) / map_resolution_) * map_resolution_,
+                            std::ceil((north_max - north_min) / map_resolution_) * map_resolution_);
+
+  map_tmp.setGeometry(length, map_resolution_, position);
+
+  grid_map_->extendToInclude(map_tmp);
+
+  //set uncertainty to 1 everywhere
+  landmarks_uncertainty.resize(Eigen::NoChange, all_landmarks.cols());
+  landmarks_uncertainty.setConstant(1);
+  //end of em
+  //start of ef
+  inpaint_radius_ = map_resolution_;
+  //end of ef
+  //start of orth
+  vi_map::VIMap* vi_map = map.get();
+
+  int optical_camera_index_ = 0; //for now, as in amo worker
+  //end of orth
+  //function call
+  grid_map_amo::update_whole_grid_map(grid_map_, all_landmarks, landmarks_uncertainty, "elevation", "elevation_filled",
+                inpaint_radius_, "orthomosaic", "obs_angle_ortho", "elevation_filled", *vi_map, optical_camera_index_);
 
   // publish the map
   grid_map_msgs::GridMap message;

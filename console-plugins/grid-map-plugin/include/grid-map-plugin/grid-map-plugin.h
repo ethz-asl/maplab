@@ -30,6 +30,8 @@ class GridMapPlugin : public common::ConsolePluginBase {
 
   int createOrthomosaic();
 
+  int createAmoGridMap();
+
   double map_resolution_;
   std::unique_ptr<grid_map::GridMap> grid_map_;
   Eigen::Matrix<double, 1, Eigen::Dynamic> landmarks_uncertainty;

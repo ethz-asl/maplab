@@ -1,30 +1,101 @@
 /*
- *    Filename: orthomosaic.cc
- *  Created on: May 19, 2021
+ *    Filename: amo-combined.cc
+ *  Created on: April 4, 2021
  *      Author: Florian Achermann (acfloria@ethz.ch)
+ *              Timo Hinzmann (hitimo@ethz.ch)
  *    Modified: Luka Dragomirovic (lukavuk01@sunrise.ch)
  *   Institute: ETH Zurich, Autonomous Systems Lab
  */
 
-#include "grid-map-amo/orthomosaic.h"
+#include "grid-map-amo/amo-combined.h"
+
+#include <glog/logging.h>
+
+#include <iostream> // for debugging
 
 #include <math.h>
 #include <memory>
 #include <Eigen/Core>
-#include <glog/logging.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/opencv.hpp>
 #include <vi-map/vi-map.h>
 
+#include <grid_map_cv/grid_map_cv.hpp>
+
 namespace grid_map_amo {
 
-void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
+void update_whole_grid_map(std::unique_ptr<grid_map::GridMap>& map,
+    const Eigen::Matrix<double, 3, Eigen::Dynamic>& landmarks,
+    const Eigen::Matrix<double, 1, Eigen::Dynamic>& landmarks_uncertainty,
+    std::string input_layer,
+    std::string output_layer,
+    double radius,
     std::string orthomosaic_layer,
     std::string observation_angle_layer,
     std::string elevation_layer,
     const vi_map::VIMap& vi_map,
     int optical_cam_idx) {
 
+  //start of em
+  CHECK_NOTNULL(map);
+  CHECK_EQ(landmarks.cols(), landmarks_uncertainty.cols());
+
+  for (size_t i = 0; i < landmarks.cols(); ++i) {
+    const grid_map::Position position(landmarks.col(i)(0), landmarks.col(i)(1));
+    grid_map::Index index;
+    if (!map->getIndex(position, index)) {
+      // the point lies outside the current map
+      // TODO print warning
+      //std::cout << "Point outside of map" << std::endl;
+      continue;
+    }
+
+    if (!map->isValid(index)) {
+      // directly insert the measurements in previously unseen cells
+      map->at("elevation", index) = landmarks.col(i)(2);
+      map->at("uncertainty", index) = landmarks_uncertainty.col(i)(0);
+    } else {
+
+      // ekf update
+      auto height_prior = map->at("elevation", index);
+      auto var_prior = map->at("uncertainty", index);
+      const float var_meas = landmarks_uncertainty.col(i)(0);
+      const float height_meas = landmarks.col(i)(2);
+      map->at("elevation", index) =
+          (height_prior * var_meas + height_meas * var_prior) /
+          (var_meas + var_prior);
+      map->at("uncertainty", index) =
+          (var_meas * var_prior) / (var_meas + var_prior);
+    }
+  }
+  //end of em
+  //start of ef
+  CHECK_NOTNULL(map);
+  CHECK_GT(radius, 0.0);
+
+  map->add("inpaint_mask", 0.0);
+
+  for (grid_map::GridMapIterator iterator(*map); !iterator.isPastEnd(); ++iterator) {
+    if (!map->isValid(*iterator, input_layer)) {
+      map->at("inpaint_mask", *iterator) = 1.0;
+    }
+  }
+
+  cv::Mat originalImage, mask, filledImage;
+  const float minValue = map->get(input_layer).minCoeffOfFinites();
+  const float maxValue = map->get(input_layer).maxCoeffOfFinites();
+
+  grid_map::GridMapCvConverter::toImage<float, 1>(*map, input_layer, CV_32FC1, minValue, maxValue,
+                                                          originalImage);
+  grid_map::GridMapCvConverter::toImage<unsigned char, 1>(*map, "inpaint_mask", CV_8UC1, mask);
+
+  const double radiusInPixels = radius / map->getResolution();
+  cv::inpaint(originalImage, mask, filledImage, radiusInPixels, cv::INPAINT_NS);
+
+  grid_map::GridMapCvConverter::addLayerFromImage<float, 1>(filledImage, output_layer, *map, minValue, maxValue);
+  map->erase("inpaint_mask");
+  //end of ef
+  //start of orth
   grid_map::Matrix& ortho_layer = (*map)[orthomosaic_layer];
   grid_map::Matrix& obs_angle_layer = (*map)[observation_angle_layer];
 
@@ -89,9 +160,9 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
         LOG(ERROR) << "No images have been found.";
       }
 
-      //LOG(INFO) << im;//debugging
-      //cv::imshow("1st image", im);//debugging
-      //cv::waitKey(0);//debugging
+      LOG(INFO) << im;//debugging
+      cv::imshow("1st image", im);//debugging
+      cv::waitKey(0);//debugging
       //cv::imwrite("/saved_data/im1.bmp", im);//debugging
       for (size_t i = 0u; i < 4; i++) {
         const Eigen::Vector3d ray_rotated = T_G_C.getRotation().rotate(corner_ray[i]);
@@ -138,9 +209,10 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
             }
           }
         }
-      } //im_counter++; if(im_counter == 100){ break;}//only one image for debugging purposes
+      } im_counter++; if(im_counter == 1){ break;}//only one image for debugging purposes
     }
   }
+  //end of orth
 }
 
 }  // namespace grid_map_amo

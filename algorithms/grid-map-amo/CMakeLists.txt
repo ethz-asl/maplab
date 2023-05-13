@@ -14,6 +14,7 @@ cs_add_library(${PROJECT_NAME}
   src/grid-map-filtering.cc
   src/orthomosaic.cc
   src/temperature-mapping.cc
+  src/amo-combined.cc
 )
 
 #############
