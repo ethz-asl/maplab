@@ -62,15 +62,17 @@ class PointCluster {
     return *this;
   }
 
-  void transform(const PointCluster& sigv, const aslam::Transformation& T) {
+  PointCluster transform(const aslam::Transformation& T) const {
     const Eigen::Matrix3d R = T.getRotationMatrix();
     const Eigen::Vector3d p = T.getPosition();
-    const Eigen::Matrix3d rp = R * sigv.v * p.transpose();
+    const Eigen::Matrix3d rp = R * v * p.transpose();
 
-    N = sigv.N;
-    v = R * sigv.v + N * p;
-    P = R * sigv.P * R.transpose() + rp + rp.transpose() +
-        N * p * p.transpose();
+    PointCluster sigv;
+    sigv.N = N;
+    sigv.v = R * v + N * p;
+    sigv.P =
+        R * P * R.transpose() + rp + rp.transpose() + N * p * p.transpose();
+    return sigv;
   }
 };
 
@@ -95,10 +97,10 @@ class VoxHess {
       coe += p.N;
     }
 
-    indices.push_back(index);
-    sig_vecs.push_back(fix);
-    plvec_voxels.push_back(sig_orig);
-    coeffs.push_back(coe);
+    indices.emplace_back(index);
+    sig_vecs.emplace_back(fix);
+    plvec_voxels.emplace_back(sig_orig);
+    coeffs.emplace_back(coe);
   }
 
   void acc_evaluate2(
@@ -125,10 +127,8 @@ class VoxHess {
 
       PointCluster sig = *sig_vecs[a];
       for (size_t sig_i = 0; sig_i < sig_orig.size(); ++sig_i) {
-        PointCluster aux;
         const size_t i = index[sig_i];
-        aux.transform(sig_orig[sig_i], xs[i]);
-        sig += aux;
+        sig += sig_orig[sig_i].transform(xs[i]);
       }
 
       const Eigen::Vector3d& vBar = sig.v / sig.N;
@@ -227,20 +227,14 @@ class VoxHess {
     residual = 0;
     int kk = 0;  // The kk-th lambda value
 
-    int gps_size = plvec_voxels.size();
-
-    std::vector<double> ress(gps_size);
-
-    for (int a = 0; a < gps_size; a++) {
+    for (int a = 0; a < plvec_voxels.size(); a++) {
       const std::vector<PointCluster>& sig_orig = *plvec_voxels[a];
       const std::vector<size_t>& index = *indices[a];
 
       PointCluster sig = *sig_vecs[a];
       for (size_t sig_i = 0; sig_i < sig_orig.size(); ++sig_i) {
-        PointCluster aux;
         const size_t i = index[sig_i];
-        aux.transform(sig_orig[sig_i], xs[i]);
-        sig += aux;
+        sig += sig_orig[sig_i].transform(xs[i]);
       }
 
       Eigen::Vector3d vBar = sig.v / sig.N;
@@ -250,8 +244,6 @@ class VoxHess {
       Eigen::Vector3d lmbd = saes.eigenvalues();
 
       residual += coeffs[a] * lmbd[kk];
-
-      ress[a] = lmbd[kk];
     }
   }
 };
@@ -260,7 +252,6 @@ class OctoTreeNode {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  int octo_state;  // 0(unknown), 1(node), 2(leaf)
   size_t layer;
   std::vector<size_t> index;
   std::vector<PLV(3)> vec_orig, vec_tran;
@@ -270,10 +261,8 @@ class OctoTreeNode {
   OctoTreeNode* leaves[8];
   float voxel_center[3];
   float quater_length;
-  Eigen::Vector3d normal;
 
   OctoTreeNode() {
-    octo_state = 0;
     layer = 0;
 
     vec_orig.resize(1);
@@ -286,23 +275,7 @@ class OctoTreeNode {
     }
   }
 
-  /*void get_normals(std::vector<PLV(3)>* normals) {
-    if (octo_state != 1) {
-      for (size_t i = 0; i < win_size; ++i) {
-        if (sig_orig[i].N != 0) {
-          (*normals)[i].push_back(normal);
-        }
-      }
-    } else {
-      for (size_t i = 0; i < 8; ++i) {
-        if (leaves[i] != nullptr) {
-          leaves[i]->get_normals(normals);
-        }
-      }
-    }
-  }*/
-
-  bool judge_eigen() {
+  bool judge_eigen(Eigen::Vector3d& normal) {
     PointCluster covMat;
     for (const PointCluster& p : sig_tran) {
       covMat += p;
@@ -347,13 +320,15 @@ class OctoTreeNode {
         leaves[leafnum]->sig_orig.back().push(vec_orig[i][j]);
         leaves[leafnum]->sig_tran.back().push(vec_tran[i][j]);
       }
-
-      PLV(3)().swap(vec_orig[i]);
-      PLV(3)().swap(vec_tran[i]);
     }
+
+    vec_orig = std::vector<PLV(3)>();
+    vec_tran = std::vector<PLV(3)>();
   }
 
-  bool recut() {
+  bool recut(
+      VoxHess* vox_opt, std::vector<PLV(3)>* normals,
+      resources::PointCloud* points_G) {
     size_t point_size = 0;
     for (const PointCluster& p : sig_tran) {
       point_size += p.N;
@@ -364,22 +339,48 @@ class OctoTreeNode {
       return false;
     }
 
-    if (judge_eigen()) {
-      octo_state = 2;
+    Eigen::Vector3d normal;
+    if (judge_eigen(normal)) {
+      // Push planes into visualization if requested.
+      if (points_G != nullptr) {
+        const float intensity = 255.0 * rand() / (RAND_MAX + 1.0f);
+
+        for (size_t i = 0; i < vec_tran.size(); ++i) {
+          for (Eigen::Vector3d point : vec_tran[i]) {
+            points_G->xyz.emplace_back(point.x());
+            points_G->xyz.emplace_back(point.y());
+            points_G->xyz.emplace_back(point.z());
+            points_G->scalars.emplace_back(intensity);
+          }
+        }
+      }
+
+      // Deallocate unnecessary memory.
+      vec_orig = std::vector<PLV(3)>();
+      vec_tran = std::vector<PLV(3)>();
+      sig_tran = std::vector<PointCluster>();
+
+      // Return the normal of the plane we found.
+      for (const size_t i : index) {
+        (*normals)[i].emplace_back(normal);
+      }
+
+      // Push plane into optimization.
+      vox_opt->push_voxel(&index, &sig_orig, &fix_point);
+
       return true;
     } else if (layer == layer_limit) {
       return false;
     }
 
-    octo_state = 1;
-    std::vector<PointCluster>().swap(sig_orig);
-    std::vector<PointCluster>().swap(sig_tran);
+    sig_orig = std::vector<PointCluster>();
+    sig_tran = std::vector<PointCluster>();
     cut_func();
 
     bool keep = false;
     for (size_t i = 0; i < 8; ++i) {
       if (leaves[i] != nullptr) {
-        if (leaves[i]->recut()) {
+        if (leaves[i]->recut(vox_opt, normals, points_G)) {
           keep = true;
         } else {
           delete leaves[i];
@@ -395,39 +396,6 @@ class OctoTreeNode {
     for (size_t i = 0; i < 8; ++i) {
       if (leaves[i] != nullptr) {
         delete leaves[i];
-      }
-    }
-  }
-
-  void tras_display(resources::PointCloud* points_G) {
-    if (octo_state != 1) {
-      const float intensity = 255.0 * rand() / (RAND_MAX + 1.0f);
-
-      for (size_t i = 0; i < vec_tran.size(); ++i) {
-        for (Eigen::Vector3d point : vec_tran[i]) {
-          points_G->xyz.emplace_back(point.x());
-          points_G->xyz.emplace_back(point.y());
-          points_G->xyz.emplace_back(point.z());
-          points_G->scalars.emplace_back(intensity);
-        }
-      }
-    } else {
-      for (size_t i = 0; i < 8; ++i) {
-        if (leaves[i] != nullptr) {
-          leaves[i]->tras_display(points_G);
-        }
-      }
-    }
-  }
-
-  void tras_opt(VoxHess& vox_opt) {
-    if (octo_state != 1) {
-      vox_opt.push_voxel(&index, &sig_orig, &fix_point);
-    } else {
-      for (size_t i = 0; i < 8; ++i) {
-        if (leaves[i] != nullptr) {
-          leaves[i]->tras_opt(vox_opt);
-        }
       }
     }
   }

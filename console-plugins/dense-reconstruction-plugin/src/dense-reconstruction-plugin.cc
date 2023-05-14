@@ -762,21 +762,21 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         const size_t original_cache_size = map->getMaxCacheSize();
         map->setMaxCacheSize(1);
         depth_integration::IntegrationFunctionPointCloudMaplabWithExtras
-            integration_function =
-                [&map, &poses_G_S, &time_last_kf, &last_mission_id, &pointclouds](
-                    const aslam::Transformation& T_G_S,
-                    const int64_t timestamp_ns,
-                    const vi_map::MissionId& mission_id,
-                    const size_t /*counter*/,
-                    const resources::PointCloud& points_S) {
-                  poses_G_S.emplace_back(T_G_S);
-                  time_last_kf = timestamp_ns;
-                  last_mission_id = mission_id;
-                  pointclouds.emplace_back(points_S);
+            integration_function = [&map, &poses_G_S, &time_last_kf,
+                                    &last_mission_id, &pointclouds](
+                                       const aslam::Transformation& T_G_S,
+                                       const int64_t timestamp_ns,
+                                       const vi_map::MissionId& mission_id,
+                                       const size_t /*counter*/,
+                                       const resources::PointCloud& points_S) {
+              poses_G_S.emplace_back(T_G_S);
+              time_last_kf = timestamp_ns;
+              last_mission_id = mission_id;
+              pointclouds.emplace_back(points_S);
 
-                  // Increase cache size by one
-                  map->setMaxCacheSize(map->getMaxCacheSize() + 1u);
-                };
+              // Increase cache size by one
+              map->setMaxCacheSize(map->getMaxCacheSize() + 1u);
+            };
 
         const int64_t time_threshold_ns =
             FLAGS_balm_kf_time_threshold_s * kSecondsToNanoSeconds;
@@ -829,20 +829,18 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
 
         publishMapFromBALM(
             poses_G_S, pointclouds, "balm_path_before",
-            visualization::kCommonRed, "balm_map_before");
+            visualization::kCommonYellow, "balm_map_before");
 
         SurfaceMap surface_map;
-
         for (size_t i = 0; i < win_size; ++i) {
           cut_voxel(surface_map, pointclouds[i], poses_G_S[i], i, win_size);
         }
 
         VoxHess voxhess;
+        std::vector<PLV(3)> normals(win_size);
         resources::PointCloud planes_G;
         for (auto iter = surface_map.begin(); iter != surface_map.end();) {
-          if (iter->second->recut()) {
-            iter->second->tras_opt(voxhess);
-            iter->second->tras_display(&planes_G);
+          if (iter->second->recut(&voxhess, &normals, &planes_G)) {
             ++iter;
           } else {
             delete iter->second;
@@ -850,29 +848,79 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
           }
         }
 
-        // Display planes computed by BALM.
+        // Check if all poses are well constrained.
+        size_t num_under_constrained = 0;
+        std::vector<bool> under_constrained(win_size);
+        for (size_t i = 0; i < win_size; ++i) {
+          under_constrained[i] = false;
+          // First check we have enough planes.
+          if (normals[i].size() < FLAGS_balm_min_plane_count) {
+            ++num_under_constrained;
+            under_constrained[i] = true;
+            continue;
+          }
+
+          // Perform SVD on the normals that constrain one point cloud.
+          Eigen::Matrix3Xd index_normals(3, normals[i].size());
+          // index_normals.resize(Eigen::NoChange, normals[i].size());
+          for (size_t j = 0; j < normals[i].size(); ++j) {
+            index_normals.col(j) = normals[i][j];
+          }
+
+          Eigen::JacobiSVD<Eigen::Matrix3Xd> svd;
+          svd.compute(index_normals, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+          // If one singular value is very small it means that direction is not
+          // well constrained. If the ratio of singular values is very
+          // imbalanced it means one direction is much better constrained and
+          // might cause the optimization to ignore the other ones.
+          const double sv0 = svd.singularValues()[0];
+          const double sv1 = svd.singularValues()[1];
+          const double sv2 = svd.singularValues()[2];
+          if ((sv2 < FLAGS_balm_min_normal_svd) ||
+              (sv2 < sv1 / FLAGS_balm_min_normal_svd_ratio) ||
+              (sv1 < sv0 / FLAGS_balm_min_normal_svd_ratio)) {
+            ++num_under_constrained;
+            under_constrained[i] = true;
+          }
+        }
+
+        LOG(INFO) << "Found " << num_under_constrained << " poses that are "
+                  << "under constrained. Removing them from the optimization "
+                  << "and proceeding.";
+
+        // Visualize the under constrained poses.
+        {
+          Eigen::Matrix3Xd positions_G(3, num_under_constrained);
+          int eigen_i = 0;
+          for (size_t i = 0; i < under_constrained.size(); ++i) {
+            if (under_constrained[i]) {
+              positions_G.col(eigen_i++) = poses_G_S[i].getPosition();
+            }
+          }
+          visualization::publish3DPointsAsPointCloud(
+              positions_G, visualization::kCommonRed, 0.7, FLAGS_tf_map_frame,
+              "balm_path_under_constrained");
+        }
+
+        // Publish planes computed by BALM ro rviz.
         sensor_msgs::PointCloud2 ros_planes_G;
         backend::convertPointCloudType(planes_G, &ros_planes_G);
         ros_planes_G.header.frame_id = FLAGS_tf_map_frame;
         visualization::RVizVisualizationSink::publish(
             "balm_planes", ros_planes_G);
 
-        const size_t num_constraints = voxhess.plvec_voxels.size();
-        if (voxhess.plvec_voxels.size() < 3 * win_size) {
-          LOG(WARNING) << "Initial error too large. Loose plane determination "
-                       << "criteria or optimize futher with maplab. Got only "
-                       << num_constraints << " planes versus a minimum of "
-                       << 3 * win_size << ".";
-        }
-
+        // Optimize the planes together
         BALM2 opt_lsv;
         opt_lsv.damping_iter(poses_G_S, voxhess);
 
-        for (auto iter = surface_map.begin(); iter != surface_map.end();) {
+
+        // Free up the memory
+        for (auto iter = surface_map.begin(); iter != surface_map.end();
+             ++iter) {
           delete iter->second;
-          surface_map.erase(iter++);
         }
-        surface_map.clear();
+        surface_map = SurfaceMap();
         malloc_trim(0);
 
         publishMapFromBALM(
