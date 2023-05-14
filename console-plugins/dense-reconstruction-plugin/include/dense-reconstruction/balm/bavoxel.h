@@ -4,6 +4,7 @@
 #include <Eigen/Core>
 #include <aslam/common/pose-types.h>
 #include <kindr/minimal/common.h>
+#include <maplab-common/threading-helpers.h>
 #include <resources-common/point-cloud.h>
 
 #include <thread>
@@ -18,10 +19,9 @@
       Eigen::Matrix<double, a, 1>, \
       Eigen::aligned_allocator<Eigen::Matrix<double, a, 1>>>
 
-size_t layer_limit = 2;
-float eigen_value_array[4] = {1.0 / 16, 1.0 / 16, 1.0 / 16, 1.0 / 16};
+size_t layer_limit = 3;
+float eigen_value_array[4] = {1.0 / 40, 1.0 / 40, 1.0 / 40, 1.0 / 40};
 size_t min_ps = 15;
-double one_three = (1.0 / 3.0);
 
 double voxel_size = 1;
 int win_size = 20;
@@ -35,7 +35,7 @@ class PointCluster {
 
   Eigen::Matrix3d P;
   Eigen::Vector3d v;
-  int N;
+  size_t N;
 
   PointCluster() {
     P.setZero();
@@ -82,30 +82,22 @@ Eigen::Matrix3d hat(const Eigen::Vector3d& v) {
 
 class VoxHess {
  public:
+  std::vector<const std::vector<size_t>*> indices;
   std::vector<const PointCluster*> sig_vecs;
   std::vector<const std::vector<PointCluster>*> plvec_voxels;
   std::vector<double> coeffs;
 
   void push_voxel(
-      const std::vector<PointCluster>* vec_orig, const PointCluster* fix) {
-    int process_size = 0;
-    for (int i = 0; i < win_size; i++) {
-      if ((*vec_orig)[i].N != 0) {
-        process_size++;
-      }
-    }
-
-    if (process_size < 2) {
-      return;
-    }
-
+      const std::vector<size_t>* index,
+      const std::vector<PointCluster>* sig_orig, const PointCluster* fix) {
     double coe = 0;
-    for (int i = 0; i < win_size; i++) {
-      coe += (*vec_orig)[i].N;
+    for (const PointCluster& p : *sig_orig) {
+      coe += p.N;
     }
 
-    plvec_voxels.push_back(vec_orig);
+    indices.push_back(index);
     sig_vecs.push_back(fix);
+    plvec_voxels.push_back(sig_orig);
     coeffs.push_back(coe);
   }
 
@@ -115,7 +107,6 @@ class VoxHess {
     Hess.setZero();
     JacT.setZero();
     residual = 0;
-    std::vector<PointCluster> sig_tran(win_size);
     const int kk = 0;
 
     PLV(3) viRiTuk(win_size);
@@ -129,14 +120,16 @@ class VoxHess {
 
     for (int a = head; a < end; a++) {
       const std::vector<PointCluster>& sig_orig = *plvec_voxels[a];
+      const std::vector<size_t>& index = *indices[a];
       double coe = coeffs[a];
 
       PointCluster sig = *sig_vecs[a];
-      for (int i = 0; i < win_size; i++)
-        if (sig_orig[i].N != 0) {
-          sig_tran[i].transform(sig_orig[i], xs[i]);
-          sig += sig_tran[i];
-        }
+      for (size_t sig_i = 0; sig_i < sig_orig.size(); ++sig_i) {
+        PointCluster aux;
+        const size_t i = index[sig_i];
+        aux.transform(sig_orig[sig_i], xs[i]);
+        sig += aux;
+      }
 
       const Eigen::Vector3d& vBar = sig.v / sig.N;
       Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> saes(
@@ -150,86 +143,88 @@ class VoxHess {
       const Eigen::Vector3d& uk = u[kk];
       Eigen::Matrix3d ukukT = uk * uk.transpose();
       umumT.setZero();
-      for (int i = 0; i < 3; i++)
-        if (i != kk)
+      for (int i = 0; i < 3; i++) {
+        if (i != kk) {
           umumT += 2.0 / (lmbd[kk] - lmbd[i]) * u[i] * u[i].transpose();
+        }
+      }
 
-      for (int i = 0; i < win_size; i++)
-        if (sig_orig[i].N != 0) {
-          Eigen::Matrix3d Pi = sig_orig[i].P;
-          Eigen::Vector3d vi = sig_orig[i].v;
-          Eigen::Matrix3d Ri = xs[i].getRotationMatrix();
-          double ni = sig_orig[i].N;
+      for (size_t sig_i = 0; sig_i < sig_orig.size(); ++sig_i) {
+        Eigen::Matrix3d Pi = sig_orig[sig_i].P;
+        Eigen::Vector3d vi = sig_orig[sig_i].v;
+        double ni = sig_orig[sig_i].N;
 
-          Eigen::Matrix3d vihat = kindr::minimal::skewMatrix(vi);
-          Eigen::Vector3d RiTuk = Ri.transpose() * uk;
-          Eigen::Matrix3d RiTukhat = kindr::minimal::skewMatrix(RiTuk);
+        const size_t i = index[sig_i];
+        Eigen::Matrix3d Ri = xs[i].getRotationMatrix();
 
-          Eigen::Vector3d PiRiTuk = Pi * RiTuk;
-          viRiTuk[i] = vihat * RiTuk;
-          viRiTukukT[i] = viRiTuk[i] * uk.transpose();
+        Eigen::Matrix3d vihat = kindr::minimal::skewMatrix(vi);
+        Eigen::Vector3d RiTuk = Ri.transpose() * uk;
+        Eigen::Matrix3d RiTukhat = kindr::minimal::skewMatrix(RiTuk);
 
-          Eigen::Vector3d ti_v = xs[i].getPosition() - vBar;
-          double ukTti_v = uk.dot(ti_v);
+        Eigen::Vector3d PiRiTuk = Pi * RiTuk;
+        viRiTuk[i] = vihat * RiTuk;
+        viRiTukukT[i] = viRiTuk[i] * uk.transpose();
 
-          Eigen::Matrix3d combo1 = hat(PiRiTuk) + vihat * ukTti_v;
-          Eigen::Vector3d combo2 = Ri * vi + ni * ti_v;
-          Auk[i].block<3, 3>(0, 0) =
-              (Ri * Pi + ti_v * vi.transpose()) * RiTukhat - Ri * combo1;
-          Auk[i].block<3, 3>(0, 3) =
-              combo2 * uk.transpose() +
-              combo2.dot(uk) * Eigen::Matrix3d::Identity();
-          Auk[i] /= NN;
+        Eigen::Vector3d ti_v = xs[i].getPosition() - vBar;
+        double ukTti_v = uk.dot(ti_v);
 
-          const Eigen::Matrix<double, 6, 1>& jjt = Auk[i].transpose() * uk;
-          JacT.block<6, 1>(6 * i, 0) += coe * jjt;
+        Eigen::Matrix3d combo1 = hat(PiRiTuk) + vihat * ukTti_v;
+        Eigen::Vector3d combo2 = Ri * vi + ni * ti_v;
+        Auk[i].block<3, 3>(0, 0) =
+            (Ri * Pi + ti_v * vi.transpose()) * RiTukhat - Ri * combo1;
+        Auk[i].block<3, 3>(0, 3) = combo2 * uk.transpose() +
+                                   combo2.dot(uk) * Eigen::Matrix3d::Identity();
+        Auk[i] /= NN;
 
-          const Eigen::Matrix3d& HRt =
-              2.0 / NN * (1.0 - ni / NN) * viRiTukukT[i];
-          Eigen::Matrix<double, 6, 6> Hb = Auk[i].transpose() * umumT * Auk[i];
+        const Eigen::Matrix<double, 6, 1>& jjt = Auk[i].transpose() * uk;
+        JacT.block<6, 1>(6 * i, 0) += coe * jjt;
+
+        const Eigen::Matrix3d& HRt = 2.0 / NN * (1.0 - ni / NN) * viRiTukukT[i];
+        Eigen::Matrix<double, 6, 6> Hb = Auk[i].transpose() * umumT * Auk[i];
+        Hb.block<3, 3>(0, 0) +=
+            2.0 / NN * (combo1 - RiTukhat * Pi) * RiTukhat -
+            2.0 / NN / NN * viRiTuk[i] * viRiTuk[i].transpose() -
+            0.5 * hat(jjt.block<3, 1>(0, 0));
+        Hb.block<3, 3>(0, 3) += HRt;
+        Hb.block<3, 3>(3, 0) += HRt.transpose();
+        Hb.block<3, 3>(3, 3) += 2.0 / NN * (ni - ni * ni / NN) * ukukT;
+
+        Hess.block<6, 6>(6 * i, 6 * i) += coe * Hb;
+      }
+
+      for (int sig_i = 0; sig_i < sig_orig.size() - 1; sig_i++) {
+        const double ni = sig_orig[sig_i].N;
+        const size_t i = index[sig_i];
+        for (int sig_j = sig_i + 1; sig_j < sig_orig.size(); sig_j++) {
+          const double nj = sig_orig[sig_j].N;
+          const size_t j = index[sig_j];
+
+          Eigen::Matrix<double, 6, 6> Hb = Auk[i].transpose() * umumT * Auk[j];
           Hb.block<3, 3>(0, 0) +=
-              2.0 / NN * (combo1 - RiTukhat * Pi) * RiTukhat -
-              2.0 / NN / NN * viRiTuk[i] * viRiTuk[i].transpose() -
-              0.5 * hat(jjt.block<3, 1>(0, 0));
-          Hb.block<3, 3>(0, 3) += HRt;
-          Hb.block<3, 3>(3, 0) += HRt.transpose();
-          Hb.block<3, 3>(3, 3) += 2.0 / NN * (ni - ni * ni / NN) * ukukT;
+              -2.0 / NN / NN * viRiTuk[i] * viRiTuk[j].transpose();
+          Hb.block<3, 3>(0, 3) += -2.0 * nj / NN / NN * viRiTukukT[i];
+          Hb.block<3, 3>(3, 0) +=
+              -2.0 * ni / NN / NN * viRiTukukT[j].transpose();
+          Hb.block<3, 3>(3, 3) += -2.0 * ni * nj / NN / NN * ukukT;
 
-          Hess.block<6, 6>(6 * i, 6 * i) += coe * Hb;
+          Hess.block<6, 6>(6 * i, 6 * j) += coe * Hb;
         }
-
-      for (int i = 0; i < win_size - 1; i++)
-        if (sig_orig[i].N != 0) {
-          double ni = sig_orig[i].N;
-          for (int j = i + 1; j < win_size; j++)
-            if (sig_orig[j].N != 0) {
-              double nj = sig_orig[j].N;
-              Eigen::Matrix<double, 6, 6> Hb =
-                  Auk[i].transpose() * umumT * Auk[j];
-              Hb.block<3, 3>(0, 0) +=
-                  -2.0 / NN / NN * viRiTuk[i] * viRiTuk[j].transpose();
-              Hb.block<3, 3>(0, 3) += -2.0 * nj / NN / NN * viRiTukukT[i];
-              Hb.block<3, 3>(3, 0) +=
-                  -2.0 * ni / NN / NN * viRiTukukT[j].transpose();
-              Hb.block<3, 3>(3, 3) += -2.0 * ni * nj / NN / NN * ukukT;
-
-              Hess.block<6, 6>(6 * i, 6 * j) += coe * Hb;
-            }
-        }
+      }
 
       residual += coe * lmbd[kk];
     }
 
-    for (int i = 1; i < win_size; i++)
-      for (int j = 0; j < i; j++)
+    for (int i = 1; i < win_size; i++) {
+      for (int j = 0; j < i; j++) {
         Hess.block<6, 6>(6 * i, 6 * j) =
             Hess.block<6, 6>(6 * j, 6 * i).transpose();
+      }
+    }
   }
 
   void evaluate_only_residual(
       const aslam::TransformationVector& xs, double& residual) {
     residual = 0;
-    std::vector<PointCluster> sig_tran(win_size);
     int kk = 0;  // The kk-th lambda value
 
     int gps_size = plvec_voxels.size();
@@ -238,11 +233,14 @@ class VoxHess {
 
     for (int a = 0; a < gps_size; a++) {
       const std::vector<PointCluster>& sig_orig = *plvec_voxels[a];
-      PointCluster sig = *sig_vecs[a];
+      const std::vector<size_t>& index = *indices[a];
 
-      for (int i = 0; i < win_size; i++) {
-        sig_tran[i].transform(sig_orig[i], xs[i]);
-        sig += sig_tran[i];
+      PointCluster sig = *sig_vecs[a];
+      for (size_t sig_i = 0; sig_i < sig_orig.size(); ++sig_i) {
+        PointCluster aux;
+        const size_t i = index[sig_i];
+        aux.transform(sig_orig[sig_i], xs[i]);
+        sig += aux;
       }
 
       Eigen::Vector3d vBar = sig.v / sig.N;
@@ -264,6 +262,7 @@ class OctoTreeNode {
 
   int octo_state;  // 0(unknown), 1(node), 2(leaf)
   size_t layer;
+  std::vector<size_t> index;
   std::vector<PLV(3)> vec_orig, vec_tran;
   std::vector<PointCluster> sig_orig, sig_tran;
   PointCluster fix_point;
@@ -271,74 +270,97 @@ class OctoTreeNode {
   OctoTreeNode* leaves[8];
   float voxel_center[3];
   float quater_length;
+  Eigen::Vector3d normal;
 
-  OctoTreeNode(size_t num_scans) {
+  OctoTreeNode() {
     octo_state = 0;
     layer = 0;
 
-    vec_orig.resize(num_scans);
-    vec_tran.resize(num_scans);
-
-    sig_orig.resize(num_scans);
-    sig_tran.resize(num_scans);
+    vec_orig.resize(1);
+    vec_tran.resize(1);
+    sig_orig.resize(1);
+    sig_tran.resize(1);
 
     for (size_t i = 0; i < 8; ++i) {
       leaves[i] = nullptr;
     }
   }
 
+  /*void get_normals(std::vector<PLV(3)>* normals) {
+    if (octo_state != 1) {
+      for (size_t i = 0; i < win_size; ++i) {
+        if (sig_orig[i].N != 0) {
+          (*normals)[i].push_back(normal);
+        }
+      }
+    } else {
+      for (size_t i = 0; i < 8; ++i) {
+        if (leaves[i] != nullptr) {
+          leaves[i]->get_normals(normals);
+        }
+      }
+    }
+  }*/
+
   bool judge_eigen() {
-    PointCluster covMat = fix_point;
+    PointCluster covMat;
     for (const PointCluster& p : sig_tran) {
       covMat += p;
     }
 
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> saes(covMat.cov());
     double decision = saes.eigenvalues()[0] / saes.eigenvalues()[1];
+    normal = saes.eigenvectors().col(0);
 
     return (decision < eigen_value_array[layer]);
   }
 
-  void cut_func(size_t ci) {
-    PLV(3)& pvec_orig = vec_orig[ci];
-    PLV(3)& pvec_tran = vec_tran[ci];
+  void cut_func() {
+    for (size_t i = 0; i < index.size(); ++i) {
+      for (size_t j = 0; j < vec_tran[i].size(); ++j) {
+        const int x = vec_tran[i][j][0] > voxel_center[0];
+        const int y = vec_tran[i][j][1] > voxel_center[1];
+        const int z = vec_tran[i][j][2] > voxel_center[2];
+        const int leafnum = (x << 2) + (y << 1) + z;
 
-    const size_t num_scans = vec_orig.size();
-    for (size_t j = 0; j < pvec_tran.size(); ++j) {
-      const int x = pvec_tran[j][0] > voxel_center[0];
-      const int y = pvec_tran[j][1] > voxel_center[1];
-      const int z = pvec_tran[j][2] > voxel_center[2];
-      const int leafnum = (x << 2) + (y << 1) + z;
+        if (leaves[leafnum] == nullptr) {
+          leaves[leafnum] = new OctoTreeNode();
+          leaves[leafnum]->voxel_center[0] =
+              voxel_center[0] + (2 * x - 1) * quater_length;
+          leaves[leafnum]->voxel_center[1] =
+              voxel_center[1] + (2 * y - 1) * quater_length;
+          leaves[leafnum]->voxel_center[2] =
+              voxel_center[2] + (2 * z - 1) * quater_length;
+          leaves[leafnum]->quater_length = quater_length / 2;
+          leaves[leafnum]->layer = layer + 1;
+          leaves[leafnum]->index.emplace_back(index[i]);
+        } else if (leaves[leafnum]->index.back() != index[i]) {
+          leaves[leafnum]->index.emplace_back(index[i]);
+          leaves[leafnum]->vec_orig.emplace_back(PLV(3)());
+          leaves[leafnum]->vec_tran.emplace_back(PLV(3)());
+          leaves[leafnum]->sig_orig.emplace_back(PointCluster());
+          leaves[leafnum]->sig_tran.emplace_back(PointCluster());
+        }
 
-      if (leaves[leafnum] == nullptr) {
-        leaves[leafnum] = new OctoTreeNode(num_scans);
-        leaves[leafnum]->voxel_center[0] =
-            voxel_center[0] + (2 * x - 1) * quater_length;
-        leaves[leafnum]->voxel_center[1] =
-            voxel_center[1] + (2 * y - 1) * quater_length;
-        leaves[leafnum]->voxel_center[2] =
-            voxel_center[2] + (2 * z - 1) * quater_length;
-        leaves[leafnum]->quater_length = quater_length / 2;
-        leaves[leafnum]->layer = layer + 1;
+        leaves[leafnum]->vec_orig.back().emplace_back(vec_orig[i][j]);
+        leaves[leafnum]->vec_tran.back().emplace_back(vec_tran[i][j]);
+        leaves[leafnum]->sig_orig.back().push(vec_orig[i][j]);
+        leaves[leafnum]->sig_tran.back().push(vec_tran[i][j]);
       }
 
-      leaves[leafnum]->vec_orig[ci].push_back(pvec_orig[j]);
-      leaves[leafnum]->vec_tran[ci].push_back(pvec_tran[j]);
-      leaves[leafnum]->sig_orig[ci].push(pvec_orig[j]);
-      leaves[leafnum]->sig_tran[ci].push(pvec_tran[j]);
+      PLV(3)().swap(vec_orig[i]);
+      PLV(3)().swap(vec_tran[i]);
     }
-
-    PLV(3)().swap(pvec_orig);
-    PLV(3)().swap(pvec_tran);
   }
 
   bool recut() {
     size_t point_size = 0;
-    for (const PointCluster& p : sig_orig) {
+    for (const PointCluster& p : sig_tran) {
       point_size += p.N;
     }
 
-    if (point_size <= min_ps) {
+    const size_t num_pointclouds = index.size();
+    if (num_pointclouds < 2 || point_size <= min_ps) {
       return false;
     }
 
@@ -352,9 +374,7 @@ class OctoTreeNode {
     octo_state = 1;
     std::vector<PointCluster>().swap(sig_orig);
     std::vector<PointCluster>().swap(sig_tran);
-    for (size_t i = 0; i < vec_orig.size(); ++i) {
-      cut_func(i);
-    }
+    cut_func();
 
     bool keep = false;
     for (size_t i = 0; i < 8; ++i) {
@@ -402,7 +422,7 @@ class OctoTreeNode {
 
   void tras_opt(VoxHess& vox_opt) {
     if (octo_state != 1) {
-      vox_opt.push_voxel(&sig_orig, &fix_point);
+      vox_opt.push_voxel(&index, &sig_orig, &fix_point);
     } else {
       for (size_t i = 0; i < 8; ++i) {
         if (leaves[i] != nullptr) {
@@ -420,32 +440,33 @@ class BALM2 {
   double divide_thread(
       const aslam::TransformationVector& x_stats, VoxHess& voxhess,
       Eigen::MatrixXd& Hess, Eigen::VectorXd& JacT) {
-    int thd_num = 4;
-    double residual = 0;
+    size_t thd_num = common::getNumHardwareThreads();
     Hess.setZero();
     JacT.setZero();
     PLM(-1) hessians(thd_num);
     PLV(-1) jacobins(thd_num);
 
-    for (int i = 0; i < thd_num; i++) {
+    for (size_t i = 0; i < thd_num; ++i) {
       hessians[i].resize(6 * win_size, 6 * win_size);
       jacobins[i].resize(6 * win_size);
     }
 
-    int tthd_num = thd_num;
-    std::vector<double> resis(tthd_num, 0);
-    int g_size = voxhess.plvec_voxels.size();
-    if (g_size < tthd_num)
-      tthd_num = 1;
+    size_t g_size = voxhess.plvec_voxels.size();
+    if (g_size < thd_num) {
+      thd_num = 1;
+    }
 
-    std::vector<std::thread*> mthreads(tthd_num);
-    double part = 1.0 * g_size / tthd_num;
-    for (int i = 0; i < tthd_num; i++)
+    std::vector<double> resis(thd_num, 0);
+    std::vector<std::thread*> mthreads(thd_num);
+    double part = 1.0 * g_size / thd_num;
+    for (size_t i = 0; i < thd_num; ++i) {
       mthreads[i] = new std::thread(
           &VoxHess::acc_evaluate2, &voxhess, x_stats, part * i, part * (i + 1),
           std::ref(hessians[i]), std::ref(jacobins[i]), std::ref(resis[i]));
+    }
 
-    for (int i = 0; i < tthd_num; i++) {
+    double residual = 0;
+    for (size_t i = 0; i < thd_num; ++i) {
       mthreads[i]->join();
       Hess += hessians[i];
       JacT += jacobins[i];
@@ -465,7 +486,7 @@ class BALM2 {
   }
 
   void damping_iter(aslam::TransformationVector& x_stats, VoxHess& voxhess) {
-    std::vector<int> planes(x_stats.size(), 0);
+    /*std::vector<int> planes(x_stats.size(), 0);
     for (size_t i = 0; i < voxhess.plvec_voxels.size(); i++) {
       for (size_t j = 0; j < voxhess.plvec_voxels[i]->size(); j++)
         if (voxhess.plvec_voxels[i]->at(j).N != 0)
@@ -477,7 +498,7 @@ class BALM2 {
       printf("Please loose plane determination criteria for more planes.\n");
       printf("The optimization is terminated.\n");
       exit(0);
-    }
+    }*/
 
     double u = 0.01, v = 2;
     Eigen::MatrixXd D(6 * win_size, 6 * win_size),
@@ -519,7 +540,8 @@ class BALM2 {
         q = q / q1;
         v = 2;
         q = 1 - pow(2 * q - 1, 3);
-        u *= (q < one_three ? one_three : q);
+        constexpr double kOneThird = 1.0 / 3.0;
+        u *= (q < kOneThird ? kOneThird : q);
         is_calc_hess = true;
       } else {
         u = u * v;
@@ -551,21 +573,26 @@ void cut_voxel(
     resources::VoxelPosition position(pvec_tran, voxel_size);
     auto iter = surface_map.find(position);
     if (iter != surface_map.end()) {
-      if (iter->second->octo_state != 2) {
-        iter->second->vec_orig[index].push_back(pvec_orig);
-        iter->second->vec_tran[index].push_back(pvec_tran);
+      if (iter->second->index.back() != index) {
+        iter->second->index.emplace_back(index);
+        iter->second->vec_orig.emplace_back(PLV(3)());
+        iter->second->vec_tran.emplace_back(PLV(3)());
+        iter->second->sig_orig.emplace_back(PointCluster());
+        iter->second->sig_tran.emplace_back(PointCluster());
       }
 
-      if (iter->second->octo_state != 1) {
-        iter->second->sig_orig[index].push(pvec_orig);
-        iter->second->sig_tran[index].push(pvec_tran);
-      }
+      iter->second->vec_orig.back().emplace_back(pvec_orig);
+      iter->second->vec_tran.back().emplace_back(pvec_tran);
+      iter->second->sig_orig.back().push(pvec_orig);
+      iter->second->sig_tran.back().push(pvec_tran);
     } else {
-      OctoTreeNode* node = new OctoTreeNode(num_scans);
-      node->vec_orig[index].push_back(pvec_orig);
-      node->vec_tran[index].push_back(pvec_tran);
-      node->sig_orig[index].push(pvec_orig);
-      node->sig_tran[index].push(pvec_tran);
+      OctoTreeNode* node = new OctoTreeNode();
+
+      node->index.emplace_back(index);
+      node->vec_orig.back().emplace_back(pvec_orig);
+      node->vec_tran.back().emplace_back(pvec_tran);
+      node->sig_orig.back().push(pvec_orig);
+      node->sig_tran.back().push(pvec_tran);
 
       node->voxel_center[0] = (0.5 + position.x) * voxel_size;
       node->voxel_center[1] = (0.5 + position.y) * voxel_size;
