@@ -80,6 +80,20 @@ DEFINE_double(
     "BALM force a keyframe at fixed time intervals [s].");
 
 DEFINE_double(
+    balm_voxel_size, 1.0, "BALM voxel size to use to look for planes in.");
+DEFINE_uint32(
+    balm_max_layers, 3,
+    "BALM maximum number of subdividing of a voxel when looking for a plane.");
+DEFINE_uint32(
+    balm_min_plane_points, 15,
+    "BALM minimum number of points needed when looking for a plane.");
+DEFINE_double(
+    balm_max_eigen_value, 0.05,
+    "BALM maximum least significant eigen value, when looking for a plane in a "
+    "voxel. Smaller values will result in flatter planes, but will need better "
+    "initial poses.");
+
+DEFINE_double(
     balm_vis_voxel_size, 0.2,
     "Voxel size to use for visualization when publishing pointclouds from "
     "BALM. This does not affect the accuracy of the optimization itself.");
@@ -837,10 +851,9 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         }
 
         VoxHess voxhess;
-        std::vector<PLV(3)> normals(win_size);
         resources::PointCloud planes_G;
         for (auto iter = surface_map.begin(); iter != surface_map.end();) {
-          if (iter->second->recut(&voxhess, &normals, &planes_G)) {
+          if (iter->second->recut(&voxhess, &planes_G)) {
             ++iter;
           } else {
             delete iter->second;
@@ -848,62 +861,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
           }
         }
 
-        // Check if all poses are well constrained.
-        size_t num_under_constrained = 0;
-        std::vector<bool> under_constrained(win_size);
-        for (size_t i = 0; i < win_size; ++i) {
-          under_constrained[i] = false;
-          // First check we have enough planes.
-          if (normals[i].size() < FLAGS_balm_min_plane_count) {
-            ++num_under_constrained;
-            under_constrained[i] = true;
-            continue;
-          }
-
-          // Perform SVD on the normals that constrain one point cloud.
-          Eigen::Matrix3Xd index_normals(3, normals[i].size());
-          // index_normals.resize(Eigen::NoChange, normals[i].size());
-          for (size_t j = 0; j < normals[i].size(); ++j) {
-            index_normals.col(j) = normals[i][j];
-          }
-
-          Eigen::JacobiSVD<Eigen::Matrix3Xd> svd;
-          svd.compute(index_normals, Eigen::ComputeThinU | Eigen::ComputeThinV);
-
-          // If one singular value is very small it means that direction is not
-          // well constrained. If the ratio of singular values is very
-          // imbalanced it means one direction is much better constrained and
-          // might cause the optimization to ignore the other ones.
-          const double sv0 = svd.singularValues()[0];
-          const double sv1 = svd.singularValues()[1];
-          const double sv2 = svd.singularValues()[2];
-          if ((sv2 < FLAGS_balm_min_normal_svd) ||
-              (sv2 < sv1 / FLAGS_balm_min_normal_svd_ratio) ||
-              (sv1 < sv0 / FLAGS_balm_min_normal_svd_ratio)) {
-            ++num_under_constrained;
-            under_constrained[i] = true;
-          }
-        }
-
-        LOG(INFO) << "Found " << num_under_constrained << " poses that are "
-                  << "under constrained. Removing them from the optimization "
-                  << "and proceeding.";
-
-        // Visualize the under constrained poses.
-        {
-          Eigen::Matrix3Xd positions_G(3, num_under_constrained);
-          int eigen_i = 0;
-          for (size_t i = 0; i < under_constrained.size(); ++i) {
-            if (under_constrained[i]) {
-              positions_G.col(eigen_i++) = poses_G_S[i].getPosition();
-            }
-          }
-          visualization::publish3DPointsAsPointCloud(
-              positions_G, visualization::kCommonRed, 0.7, FLAGS_tf_map_frame,
-              "balm_path_under_constrained");
-        }
-
-        // Publish planes computed by BALM ro rviz.
+        // Publish planes computed by BALM to rviz.
         sensor_msgs::PointCloud2 ros_planes_G;
         backend::convertPointCloudType(planes_G, &ros_planes_G);
         ros_planes_G.header.frame_id = FLAGS_tf_map_frame;

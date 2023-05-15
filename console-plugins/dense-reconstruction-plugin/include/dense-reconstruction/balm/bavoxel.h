@@ -3,6 +3,7 @@
 
 #include <Eigen/Core>
 #include <aslam/common/pose-types.h>
+#include <gflags/gflags.h>
 #include <kindr/minimal/common.h>
 #include <maplab-common/threading-helpers.h>
 #include <resources-common/point-cloud.h>
@@ -19,12 +20,12 @@
       Eigen::Matrix<double, a, 1>, \
       Eigen::aligned_allocator<Eigen::Matrix<double, a, 1>>>
 
-size_t layer_limit = 3;
-float eigen_value_array[4] = {1.0 / 40, 1.0 / 40, 1.0 / 40, 1.0 / 40};
-size_t min_ps = 15;
+DECLARE_double(balm_voxel_size);
+DECLARE_uint32(balm_max_layers);
+DECLARE_uint32(balm_min_plane_points);
+DECLARE_double(balm_max_eigen_value);
 
-double voxel_size = 1;
-int win_size = 20;
+int win_size;
 
 class OctoTreeNode;
 typedef std::unordered_map<resources::VoxelPosition, OctoTreeNode*> SurfaceMap;
@@ -275,7 +276,7 @@ class OctoTreeNode {
     }
   }
 
-  bool judge_eigen(Eigen::Vector3d& normal) {
+  bool judge_eigen() {
     PointCluster covMat;
     for (const PointCluster& p : sig_tran) {
       covMat += p;
@@ -283,9 +284,8 @@ class OctoTreeNode {
 
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> saes(covMat.cov());
     double decision = saes.eigenvalues()[0] / saes.eigenvalues()[1];
-    normal = saes.eigenvectors().col(0);
 
-    return (decision < eigen_value_array[layer]);
+    return (decision < FLAGS_balm_max_eigen_value);
   }
 
   void cut_func() {
@@ -326,21 +326,18 @@ class OctoTreeNode {
     vec_tran = std::vector<PLV(3)>();
   }
 
-  bool recut(
-      VoxHess* vox_opt, std::vector<PLV(3)>* normals,
-      resources::PointCloud* points_G) {
+  bool recut(VoxHess* vox_opt, resources::PointCloud* points_G) {
     size_t point_size = 0;
     for (const PointCluster& p : sig_tran) {
       point_size += p.N;
     }
 
     const size_t num_pointclouds = index.size();
-    if (num_pointclouds < 2 || point_size <= min_ps) {
+    if (num_pointclouds < 2 || point_size <= FLAGS_balm_min_plane_points) {
       return false;
     }
 
-    Eigen::Vector3d normal;
-    if (judge_eigen(normal)) {
+    if (judge_eigen()) {
       // Push planes into visualization if requested.
       if (points_G != nullptr) {
         const float intensity = 255.0 * rand() / (RAND_MAX + 1.0f);
@@ -360,16 +357,11 @@ class OctoTreeNode {
       vec_tran = std::vector<PLV(3)>();
       sig_tran = std::vector<PointCluster>();
 
-      // Return the normal of the plane we found.
-      for (const size_t i : index) {
-        (*normals)[i].emplace_back(normal);
-      }
-
       // Push plane into optimization.
       vox_opt->push_voxel(&index, &sig_orig, &fix_point);
 
       return true;
-    } else if (layer == layer_limit) {
+    } else if (layer == FLAGS_balm_max_layers) {
       return false;
     }
 
@@ -380,7 +372,7 @@ class OctoTreeNode {
     bool keep = false;
     for (size_t i = 0; i < 8; ++i) {
       if (leaves[i] != nullptr) {
-        if (leaves[i]->recut(vox_opt, normals, points_G)) {
+        if (leaves[i]->recut(vox_opt, points_G)) {
           keep = true;
         } else {
           delete leaves[i];
@@ -454,20 +446,6 @@ class BALM2 {
   }
 
   void damping_iter(aslam::TransformationVector& x_stats, VoxHess& voxhess) {
-    /*std::vector<int> planes(x_stats.size(), 0);
-    for (size_t i = 0; i < voxhess.plvec_voxels.size(); i++) {
-      for (size_t j = 0; j < voxhess.plvec_voxels[i]->size(); j++)
-        if (voxhess.plvec_voxels[i]->at(j).N != 0)
-          planes[j]++;
-    }
-    sort(planes.begin(), planes.end());
-    if (planes[0] < 20) {
-      printf("Initial error too large.\n");
-      printf("Please loose plane determination criteria for more planes.\n");
-      printf("The optimization is terminated.\n");
-      exit(0);
-    }*/
-
     double u = 0.01, v = 2;
     Eigen::MatrixXd D(6 * win_size, 6 * win_size),
         Hess(6 * win_size, 6 * win_size);
@@ -538,7 +516,7 @@ void cut_voxel(
     const Eigen::Vector3d pvec_orig = xyz_S.col(i);
     const Eigen::Vector3d pvec_tran = xyz_G.col(i);
 
-    resources::VoxelPosition position(pvec_tran, voxel_size);
+    resources::VoxelPosition position(pvec_tran, FLAGS_balm_voxel_size);
     auto iter = surface_map.find(position);
     if (iter != surface_map.end()) {
       if (iter->second->index.back() != index) {
@@ -562,10 +540,10 @@ void cut_voxel(
       node->sig_orig.back().push(pvec_orig);
       node->sig_tran.back().push(pvec_tran);
 
-      node->voxel_center[0] = (0.5 + position.x) * voxel_size;
-      node->voxel_center[1] = (0.5 + position.y) * voxel_size;
-      node->voxel_center[2] = (0.5 + position.z) * voxel_size;
-      node->quater_length = voxel_size / 4.0;
+      node->voxel_center[0] = (0.5 + position.x) * FLAGS_balm_voxel_size;
+      node->voxel_center[1] = (0.5 + position.y) * FLAGS_balm_voxel_size;
+      node->voxel_center[2] = (0.5 + position.z) * FLAGS_balm_voxel_size;
+      node->quater_length = FLAGS_balm_voxel_size / 4.0;
       node->layer = 0;
 
       surface_map[position] = node;
