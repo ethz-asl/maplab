@@ -76,9 +76,6 @@
 [submodule "dependencies/internal/plotty"]
 	path = dependencies/internal/plotty
 	url = git@github.com:ethz-asl/plotty.git
-[submodule "dependencies/3rdparty/benchmark_catkin"]
-	path = dependencies/3rdparty/benchmark_catkin
-	url = git@github.com:ethz-asl/benchmark_catkin.git
 [submodule "dependencies/internal/ros-system-monitor"]
 	path = dependencies/internal/ros-system-monitor
 	url = git@github.com:ethz-asl/ros-system-monitor

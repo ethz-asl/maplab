@@ -140,10 +140,6 @@ class SynchronizerFlow {
     synchronizer_.registerLoopClosureMeasurementCallback(
         message_flow_
             ->registerPublisher<message_flow_topics::SYNCED_LOOP_CLOSURE>());
-
-    synchronizer_.registerLocalizationResultMeasurementCallback(
-        message_flow_
-            ->registerPublisher<message_flow_topics::LOCALIZATION_RESULT>());
   }
 
   void initializePointCloudMapData() {

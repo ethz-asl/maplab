@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 
 import urllib
 
@@ -58,6 +59,7 @@ def test_maplab_node_end_to_end():
     ape_metric = metrics.APE(metrics.PoseRelation.translation_part)
     ape_metric.process_data((traj_ref_sync, traj_est_aligned))
     ape_stats = ape_metric.get_all_statistics()
+    print("RMSE RAW", ape_stats['rmse'])
     assert ape_stats['rmse'] < MAX_POSITION_RMSE_RAW_M
 
     # Check map consistency and test basic maplab console commands on the map
@@ -102,6 +104,7 @@ def test_maplab_node_end_to_end():
     ape_metric = metrics.APE(metrics.PoseRelation.translation_part)
     ape_metric.process_data((traj_ref_sync, traj_est_aligned))
     ape_stats = ape_metric.get_all_statistics()
+    print("RMSE OPT", ape_stats['rmse'])
     assert ape_stats['rmse'] < MAX_POSITION_RMSE_OPT_M
 
     # Run rovioli in localization mode with optimized map
@@ -134,6 +137,7 @@ def test_maplab_node_end_to_end():
     ape_metric = metrics.APE(metrics.PoseRelation.translation_part)
     ape_metric.process_data((traj_ref_sync, traj_est_aligned))
     ape_stats = ape_metric.get_all_statistics()
+    print("RMSE VIL", ape_stats['rmse'])
     assert ape_stats['rmse'] < MAX_POSITION_RMSE_VIL_M
 
     # We don't need the ros stuff anymore -> kill it

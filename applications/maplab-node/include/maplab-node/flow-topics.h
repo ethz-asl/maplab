@@ -1,6 +1,5 @@
 #ifndef MAPLAB_NODE_FLOW_TOPICS_H_
 #define MAPLAB_NODE_FLOW_TOPICS_H_
-#include <maplab-common/localization-result.h>
 #include <message-flow/message-topic-registration.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -9,11 +8,11 @@
 #include <sensors/odometry-6dof-pose.h>
 #include <sensors/pointcloud-map-sensor.h>
 #include <sensors/wheel-odometry-sensor.h>
-
 #include <vi-map/vi-map.h>
 #include <vio-common/map-update.h>
 #include <vio-common/vio-types.h>
 #include <vio-common/vio-update.h>
+
 #include "maplab-node/odometry-estimate.h"
 #include "maplab-node/vi-map-with-mutex.h"
 
@@ -69,14 +68,6 @@ MESSAGE_FLOW_TOPIC(
     EXTERNAL_FEATURES, vi_map::ExternalFeaturesMeasurement::ConstPtr);
 MESSAGE_FLOW_TOPIC(
     SYNCED_EXTERNAL_FEATURES, vi_map::ExternalFeaturesMeasurement::ConstPtr);
-
-// Output of the localizer.
-MESSAGE_FLOW_TOPIC(LOCALIZATION_RESULT, common::LocalizationResult::ConstPtr);
-
-// Output of the localization handler, fused localization results from all
-// sources.
-MESSAGE_FLOW_TOPIC(
-    FUSED_LOCALIZATION_RESULT, common::LocalizationResult::ConstPtr);
 
 // Raw estimate of the VINS.
 MESSAGE_FLOW_TOPIC(MAP_UPDATES, vio::MapUpdate::ConstPtr);

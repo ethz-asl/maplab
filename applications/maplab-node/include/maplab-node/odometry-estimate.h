@@ -7,6 +7,7 @@
 #include <maplab-common/macros.h>
 #include <vio-common/vio-types.h>
 
+// TODO(smauq): Fix this up, this is a completely useless duplication
 namespace maplab {
 struct OdometryEstimate {
   MAPLAB_POINTER_TYPEDEFS(OdometryEstimate);
@@ -14,10 +15,6 @@ struct OdometryEstimate {
 
   int64_t timestamp_ns;
   vio::ViNodeState vinode;
-
-  // Mapping maplab camera index to the estimated camera extrinsics.
-  AlignedUnorderedMap<size_t, aslam::Transformation>
-      maplab_camera_index_to_T_C_B;
 };
 }  // namespace maplab
 #endif  // MAPLAB_NODE_ODOMETRY_ESTIMATE_H_

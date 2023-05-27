@@ -5,7 +5,6 @@
 #include <vector>
 
 #include <maplab-common/map-manager-config.h>
-#include <maplab-common/network-common.h>
 
 #include "vi-map/vi-map-metadata.h"
 #include "vi-map/vi_map.pb.h"
@@ -15,6 +14,9 @@ namespace vi_map {
 class VIMap;
 
 namespace serialization {
+
+typedef std::pair<void*, size_t> RawMessageData;  // Raw byte array and length.
+typedef std::vector<RawMessageData> RawMessageDataList;
 
 namespace internal {
 
@@ -66,7 +68,7 @@ void serializeLandmarkIndex(
     const vi_map::VIMap& map, vi_map::proto::VIMap* proto);
 
 void serializeSensorManagerToArray(
-    const vi_map::VIMap& map, network::RawMessageData* raw_data);
+    const vi_map::VIMap& map, RawMessageData* raw_data);
 
 // Note: Missions have to be deserialized before vertices.
 void deserializeVertices(const vi_map::proto::VIMap& proto, vi_map::VIMap* map);
@@ -77,7 +79,7 @@ void deserializeLandmarkIndex(
     const vi_map::proto::VIMap& proto, vi_map::VIMap* map);
 
 void deserializeSensorManagerFromArray(
-    const network::RawMessageData& raw_data, vi_map::VIMap* map);
+    const RawMessageData& raw_data, vi_map::VIMap* map);
 
 // Serializes the proto part of the map (everything without the sensor system)
 // into individual protos, then calls the given function for further processing
@@ -113,9 +115,9 @@ bool saveMapToFolder(
 // NETWORKING
 // ==========
 void serializeToRawArray(
-    const vi_map::VIMap& map, network::RawMessageDataList* raw_data);
+    const vi_map::VIMap& map, RawMessageDataList* raw_data);
 void deserializeFromRawArray(
-    const network::RawMessageDataList& raw_data, const size_t start_index,
+    const RawMessageDataList& raw_data, const size_t start_index,
     vi_map::VIMap* map);
 
 }  // namespace serialization

@@ -11,7 +11,8 @@ cs_add_library(${PROJECT_NAME}
   src/feature-detection-extraction.cc
   src/feature-tracking-pipeline.cc
   src/feature-tracking-types.cc
-  src/vo-feature-tracking-pipeline.cc)
+  src/vo-feature-tracking-pipeline.cc
+  src/vo-outlier-rejection-pipeline.cc)
 
 ##########
 # GTESTS #

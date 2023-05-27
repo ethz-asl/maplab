@@ -1,14 +1,18 @@
-#include "matching-based-loopclosure/detector-settings.h"
-
 #include <descriptor-projection/flags.h>
 #include <glog/logging.h>
 #include <loopclosure-common/flags.h>
 #include <loopclosure-common/types.h>
 
+#include "matching-based-loopclosure/detector-settings.h"
+
 DEFINE_string(
     lc_detector_engine,
-    matching_based_loopclosure::kMatchingLDInvertedMultiIndexString,
-    "Which loop-closure engine to use");
+    matching_based_loopclosure::kMatchingInvertedMultiIndexString,
+    "Which loop-closure engine to use. Options are:"
+    " - imi:   inverted multi index (binary)"
+    " - imipq: inverted multi index with product quantization (binary)"
+    " - hsnw:  hierarchical navigable small world graphs (float)"
+    "The default options for binary descriptors is \"imi\".");
 DEFINE_string(
     lc_scoring_function, matching_based_loopclosure::kAccumulationString,
     "Type of scoring function to be used for scoring keyframes.");
@@ -29,8 +33,20 @@ DEFINE_int32(
     lc_num_words_for_nn_search, 10,
     "Number of nearest words to retrieve in the inverted index.");
 
-namespace matching_based_loopclosure {
+DEFINE_int32(
+    lc_hnsw_m, 12,
+    "Number of bidirectional links in the HNSW search index. Ideal is "
+    "somewhere between 8-64. See the readme for more details.");
+DEFINE_int32(
+    lc_hnsw_ef_construction, 50,
+    "Parameter in HNSW that controls the time used during construction versus "
+    "accuracy. After a point increasing this will have no effect.");
+DEFINE_int32(
+    lc_hnsw_ef_query, 50,
+    "Parameter in HNSW that trades off between time and accuracy when "
+    "querying. Must be bigger than the number of neighbours queried.");
 
+namespace matching_based_loopclosure {
 MatchingBasedEngineSettings::MatchingBasedEngineSettings()
     : projection_matrix_filename(FLAGS_lc_projection_matrix_filename),
       projected_quantizer_filename(FLAGS_lc_projected_quantizer_filename),
@@ -38,13 +54,21 @@ MatchingBasedEngineSettings::MatchingBasedEngineSettings()
       min_image_time_seconds(FLAGS_lc_min_image_time_seconds),
       min_verify_matches_num(FLAGS_lc_min_verify_matches_num),
       fraction_best_scores(FLAGS_lc_fraction_best_scores),
-      num_nearest_neighbors(FLAGS_lc_num_neighbors) {
+      num_nearest_neighbors(FLAGS_lc_num_neighbors),
+      hnsw_m(FLAGS_lc_hnsw_m),
+      hnsw_ef_construction(FLAGS_lc_hnsw_ef_construction),
+      hnsw_ef_query(FLAGS_lc_hnsw_ef_query) {
   CHECK_GT(num_closest_words_for_nn_search, 0);
   CHECK_GE(min_image_time_seconds, 0.0);
   CHECK_GE(min_verify_matches_num, 0u);
   CHECK_GT(fraction_best_scores, 0.f);
   CHECK_LT(fraction_best_scores, 1.f);
   CHECK_GE(num_nearest_neighbors, -1);
+
+  // HNSW index specific parameters
+  CHECK_GT(hnsw_m, 0u);
+  CHECK_GT(hnsw_ef_construction, 0u);
+  CHECK_GT(hnsw_ef_query, 0u);
 
   setKeyframeScoringFunctionType(FLAGS_lc_scoring_function);
   setDetectorEngineType(FLAGS_lc_detector_engine);
@@ -95,19 +119,12 @@ void MatchingBasedEngineSettings::setKeyframeScoringFunctionType(
 void MatchingBasedEngineSettings::setDetectorEngineType(
     const std::string& detector_engine_string) {
   detector_engine_type_string = detector_engine_string;
-  if (detector_engine_string == kMatchingLDKdTreeString) {
-    detector_engine_type = DetectorEngineType::kMatchingLDKdTree;
-  } else if (detector_engine_string == kMatchingLDInvertedIndexString) {
-    detector_engine_type = DetectorEngineType::kMatchingLDInvertedIndex;
-  } else if (detector_engine_string == kMatchingLDInvertedMultiIndexString) {
-    detector_engine_type = DetectorEngineType::kMatchingLDInvertedMultiIndex;
-  } else if (
-      detector_engine_string ==
-      kMatchingLDInvertedMultiIndexProductQuantizationString) {
-    detector_engine_type =
-        DetectorEngineType::kMatchingLDInvertedMultiIndexProductQuantization;
-  } else if (detector_engine_string == kMatchingLDFLANNString) {
-    detector_engine_type = DetectorEngineType::kMatchingLDFLANN;
+  if (detector_engine_string == kMatchingInvertedMultiIndexString) {
+    detector_engine_type = DetectorEngineType::kMatchingInvertedMultiIndex;
+  } else if (detector_engine_string == kMatchingInvertedMultiIndexPQString) {
+    detector_engine_type = DetectorEngineType::kMatchingInvertedMultiIndexPQ;
+  } else if (detector_engine_string == kMatchingHNSWString) {
+    detector_engine_type = DetectorEngineType::kMatchingHNSW;
   } else {
     LOG(FATAL) << "Unknown loop detector engine type: "
                << detector_engine_string;

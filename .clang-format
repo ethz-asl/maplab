@@ -8,6 +8,7 @@ AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 AlignAfterOpenBracket: AlwaysBreak
+IncludeBlocks:       Preserve
 IncludeCategories:
   - Regex:           '^<.*'
     Priority:        1
