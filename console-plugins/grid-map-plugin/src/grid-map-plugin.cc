@@ -31,6 +31,7 @@
 #include <grid-map-amo/elevation-mapping.h>
 #include <grid-map-amo/grid-map-filtering.h>
 #include <grid-map-amo/orthomosaic.h>
+#include <grid-map-amo/amo-combined.h>
 
 #include <grid_map_core/grid_map_core.hpp>
 #include <Eigen/Core>
@@ -299,18 +300,23 @@ int GridMapPlugin::createAmoGridMap() {
   //set uncertainty to 1 everywhere
   landmarks_uncertainty.resize(Eigen::NoChange, all_landmarks.cols());
   landmarks_uncertainty.setConstant(1);
+
+  grid_map_amo::update_elevation_layer(grid_map_, all_landmarks, landmarks_uncertainty);//first call
   //end of em
   //start of ef
   inpaint_radius_ = map_resolution_;
+  grid_map_amo::inpaint_layer(grid_map_, "elevation", "elevation_filled", inpaint_radius_);//second call
   //end of ef
   //start of orth
   vi_map::VIMap* vi_map = map.get();
 
   int optical_camera_index_ = 0; //for now, as in amo worker
+  grid_map_amo::update_ortho_layer(grid_map_, "orthomosaic", "obs_angle_ortho",
+                            "elevation_filled", *vi_map, optical_camera_index_);//third call
   //end of orth
   //function call
-  grid_map_amo::update_whole_grid_map(grid_map_, all_landmarks, landmarks_uncertainty, "elevation", "elevation_filled",
-                inpaint_radius_, "orthomosaic", "obs_angle_ortho", "elevation_filled", *vi_map, optical_camera_index_);
+  /*grid_map_amo::update_whole_grid_map(grid_map_, all_landmarks, landmarks_uncertainty, "elevation", "elevation_filled",
+                inpaint_radius_, "orthomosaic", "obs_angle_ortho", "elevation_filled", *vi_map, optical_camera_index_);*/
 
   // publish the map
   grid_map_msgs::GridMap message;

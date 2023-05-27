@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <limits>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -28,7 +29,7 @@ DEFINE_int32(
     "CLAHE histogram equalization parameter: grid size.");
 
 DEFINE_double(
-    image_16_bit_to_8_bit_scale_factor, 1,
+    image_16_bit_to_8_bit_scale_factor, 1, //255. / 65535.,
     "Scale factor applied to 16bit images when converting them to 8bit "
     "images.");
 DEFINE_double(
@@ -67,6 +68,51 @@ void applyHistogramEqualization(
   clahe->apply(input_image, *output_image);
 }
 
+inline void thermalImageRescale(
+    const cv::Mat& thermal_image_16_bit, bool do_outlier_rejection,
+    cv::Mat* thermal_image_rescaled) {
+  CHECK_NOTNULL(thermal_image_rescaled);
+
+  // determine the range which is represented in the normalized image
+  // if do_outlier_rejection is true the range is set from the 1 percentile
+  // to the 99 percentile, else the min/max values are used
+  double cut_top, cut_bottom;
+  if (do_outlier_rejection) {
+    uint16_t min_value = std::numeric_limits<uint16_t>::max();
+    uint16_t max_value = std::numeric_limits<uint16_t>::min();
+
+    unsigned int histogram[std::numeric_limits<uint16_t>::max() + 1] = {0};
+    for (auto j = thermal_image_16_bit.rows; j--;) {
+      for (auto i = thermal_image_16_bit.cols; i--;) {
+        const uint16_t val = thermal_image_16_bit.at<uint16_t>(j,i);
+        ++histogram[val];
+        min_value = std::min(min_value, val);
+        max_value = std::min(max_value, val);
+      }
+    }
+
+    uint16_t cutoff = std::floor(thermal_image_16_bit.rows * thermal_image_16_bit.cols *0.01);
+    uint16_t percentile_1 = min_value;
+    uint16_t percentile_99 = max_value;
+
+    for (auto index = cutoff; index > histogram[percentile_1]; percentile_1++)
+      index -= histogram[percentile_1];
+
+    for (auto index = cutoff; index > histogram[percentile_99]; percentile_99--)
+      index -= histogram[percentile_99];
+
+    cut_bottom = static_cast<double>(percentile_1);
+    cut_top = static_cast<double>(percentile_99);
+
+  }  else {
+    cv::minMaxLoc(thermal_image_16_bit, &cut_bottom, &cut_top);
+  }
+
+  const double scale = std::numeric_limits<uint16_t>::max() / (cut_top - cut_bottom) / 255.;
+  const double shift = (-scale * cut_bottom) / 255.;
+  thermal_image_16_bit.convertTo(*thermal_image_rescaled, CV_8U, scale, shift);
+}
+
 vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
     const sensor_msgs::ImageConstPtr& image_message, size_t camera_idx) {
   CHECK(image_message);
@@ -87,9 +133,10 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
         processed_image = cv_ptr->image;
       }
       processed_image.convertTo(
-          image_measurement->image, CV_8U,
+          image_measurement->image, CV_16U, //CV_8U,
           FLAGS_image_16_bit_to_8_bit_scale_factor,
           FLAGS_image_16_bit_to_8_bit_shift);
+      //thermalImageRescale(cv_ptr->image, true, &(image_measurement->image));
     } else {
       if (image_message->encoding == sensor_msgs::image_encodings::TYPE_8UC1) {
         // NOTE: we assume all 8UC1 type images are monochrome images.

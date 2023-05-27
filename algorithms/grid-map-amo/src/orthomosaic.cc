@@ -51,8 +51,8 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
 
     int im_counter = 0;//debugging
     //LOG(INFO) << ortho_layer.rows() << " " << ortho_layer.cols();//debugging
-    for(int r = 0;r < 825;r++) {
-      for(int c = 0;c < 661;c++) {
+    for(int r = 0;r < ortho_layer.rows();r++) {
+      for(int c = 0;c < ortho_layer.cols();c++) {
         ortho_layer(r,c) = 0;
       }
     }
@@ -65,7 +65,7 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
 
       const aslam::Position3D p_C_map = T_G_C/*.inverse()*/.getPosition();
 
-      //LOG(INFO) << T_G_B;//debugging
+      //LOG(INFO) << p_C_map;//debugging
 
       //in case of grayscale images
       cv::Mat im;
@@ -82,6 +82,18 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
           VLOG(5) << "Found raw color image.";
           cv::Mat im;
           cv::cvtColor(color_image, im, cv::COLOR_RGB2GRAY);
+      }
+
+      //in case of thermal images (raw depth maps)
+      else if(vi_map.getFrameResource(
+          vertex, optical_cam_idx, backend::ResourceType::kRawDepthMap, &im)) {
+          VLOG(5) << "Found raw depth map.";
+      }
+
+      //in case of thermal images (raw depth maps)
+      else if(vi_map.getFrameResource(
+          vertex, optical_cam_idx, backend::ResourceType::kImageForDepthMap, &im)) {
+          VLOG(5) << "Found raw image for depth map.";
       }
 
       //in case of no image resource
@@ -107,6 +119,10 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
       polygon.addVertex(grid_map::Position(position_corners[3][0], position_corners[3][1]));
       polygon.addVertex(grid_map::Position(position_corners[0][0], position_corners[0][1]));
 
+      double x_min = 1000;//debugging
+      double x_max = 0;//debugging
+      double y_min = 1000;//debugging
+      double y_max = 0;//debugging
       for (grid_map::PolygonIterator it(*map, polygon);
             !it.isPastEnd(); ++it) {
         grid_map::Position3 position;
@@ -115,14 +131,26 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
         const double x = index(0);
         const double y = index(1);
 
+        if(x < x_min) {x_min = x;}//debugging
+        if(x > x_max) {x_max = x;}//debugging
+        if(y < y_min) {y_min = y;}//debugging
+        if(y > y_max) {y_max = y;}//debugging
+
         //LOG(INFO) << "x: " << x << " y: " << y;//debugging
 
-        const Eigen::Vector3d position_transformed = T_G_C * position;
+        const Eigen::Vector3d position_transformed = T_G_C.inverse() * position;
+
+        //LOG(INFO) << "T_G_C: " << T_G_C << " position: " << position;//debugging
+
+        //LOG(INFO) << position_transformed;//debugging
 
         Eigen::Vector2d kp;
         const aslam::ProjectionResult result = cam.project3(position_transformed, &kp);
 
+        //LOG(INFO) << result;//debugging
+
         if (result == aslam::ProjectionResult::KEYPOINT_VISIBLE) {
+          //LOG(INFO) << "keypoint is visible(we entered the if bracket)";//debugging
           const double observation_angle = asin(std::fabs(position_transformed[2]) / position_transformed.norm());
           CHECK(observation_angle > 0.0);
 
@@ -138,7 +166,13 @@ void update_ortho_layer(std::unique_ptr<grid_map::GridMap>& map,
             }
           }
         }
-      } //im_counter++; if(im_counter == 100){ break;}//only one image for debugging purposes
+      }
+      /*im_counter++;
+      if(im_counter == 1) {
+        LOG(INFO) << "x_min: " << x_min << " x_max: " << x_max << "y_min: " << y_min << " y_max: " << y_max;
+
+        break;
+      }//only one image for debugging purposes*/
     }
   }
 }

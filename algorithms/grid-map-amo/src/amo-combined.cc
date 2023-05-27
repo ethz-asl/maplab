@@ -188,7 +188,7 @@ void update_whole_grid_map(std::unique_ptr<grid_map::GridMap>& map,
 
         //LOG(INFO) << "x: " << x << " y: " << y;//debugging
 
-        const Eigen::Vector3d position_transformed = T_G_C * position;
+        const Eigen::Vector3d position_transformed = T_G_C.inverse() * position;
 
         Eigen::Vector2d kp;
         const aslam::ProjectionResult result = cam.project3(position_transformed, &kp);

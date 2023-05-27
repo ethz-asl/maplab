@@ -1,7 +1,7 @@
 # SENSORS
 sensor_calibration_file:                 ""
 imu_to_camera_time_offset_ns:            0
-vio_camera_topic_suffix:                 "/image_raw"
+vio_camera_topic_suffix:                 "" #"/image_raw"
 vio_nframe_sync_tolerance_ns:            500000
 vio_nframe_sync_max_output_frequency_hz: 10
 
@@ -19,7 +19,10 @@ datasource_rosbag: ""
 
 # DATA PREPROCESSING
 zero_initial_timestamps:                  false
-image_apply_clahe_histogram_equalization: false
+image_apply_clahe_histogram_equalization: true
+image_clahe_clip_limit: 2
+image_clahe_grid_size:  16
+feature_tracking_detector_orb_fast_threshold: 4
 image_resize_factor:                      1.0
 gyro_matcher_small_search_distance_px:    60
 gyro_matcher_large_search_distance_px:    100

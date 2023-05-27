@@ -317,7 +317,7 @@ pose_graph::VertexId StreamMapBuilder::addViwlsVertex(
       if (nframe->isFrameSet(frame_idx)) {
         map_->storeFrameResource(
             nframe->getFrame(frame_idx).getRawImage(), frame_idx,
-            backend::ResourceType::kRawImage, map_vertex);
+            backend::ResourceType::kRawDepthMap, map_vertex);//change ResourceType from kRawImage to kRawDepthMap
       }
     }
   }

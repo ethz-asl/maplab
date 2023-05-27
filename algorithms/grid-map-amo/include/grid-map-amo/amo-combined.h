@@ -7,8 +7,8 @@
  *   Institute: ETH Zurich, Autonomous Systems Lab
  */
 
-#ifndef AMO_LIB_ELEVATION_MAPPER_ELEVATION_MAPPING_H_
-#define AMO_LIB_ELEVATION_MAPPER_ELEVATION_MAPPING_H_
+#ifndef AMO_LIB_COMBINED_ELEVATION_MAPPING_H_
+#define AMO_LIB_COMBINED_ELEVATION_MAPPING_H_
 
 #include <grid_map_core/grid_map_core.hpp>
 #include <Eigen/Core>
@@ -33,4 +33,4 @@ void update_whole_grid_map(std::unique_ptr<grid_map::GridMap>& map,
     int optical_cam_idx);
 
 }  // namespace grid_map_amo
-#endif  // AMO_LIB_ELEVATION_MAPPER_ELEVATION_MAPPING_H_
+#endif  // AMO_LIB_COMBINED_ELEVATION_MAPPING_H_
