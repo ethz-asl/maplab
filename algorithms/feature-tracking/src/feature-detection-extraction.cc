@@ -11,7 +11,6 @@
 #include <opencv/highgui.h>
 #include <opencv2/core/version.hpp>
 #include <opencv2/features2d.hpp>
-#include <opencv2/xfeatures2d.hpp>
 
 #include "feature-tracking/gridded-detector.h"
 
@@ -52,23 +51,9 @@ void FeatureDetectorExtractor::initialize() {
       detector_settings_.orb_detector_patch_size,
       detector_settings_.orb_detector_fast_threshold);
 
-  switch (extractor_settings_.descriptor_type) {
-    case FeatureTrackingExtractorSettings::DescriptorType::kBrisk:
-      extractor_ = new brisk::BriskDescriptorExtractor(
-          extractor_settings_.rotation_invariant,
-          extractor_settings_.scale_invariant);
-      break;
-    case FeatureTrackingExtractorSettings::DescriptorType::kOcvFreak:
-      extractor_ = cv::xfeatures2d::FREAK::create(
-          extractor_settings_.rotation_invariant,
-          extractor_settings_.scale_invariant,
-          extractor_settings_.freak_pattern_scale,
-          detector_settings_.orb_detector_pyramid_levels);
-      break;
-    default:
-      LOG(FATAL) << "Unknown descriptor type.";
-      break;
-  }
+  extractor_ = new brisk::BriskDescriptorExtractor(
+      extractor_settings_.rotation_invariant,
+      extractor_settings_.scale_invariant);
 }
 
 cv::Ptr<cv::DescriptorExtractor> FeatureDetectorExtractor::getExtractorPtr()

@@ -6,6 +6,7 @@
 namespace feature_tracking {
 
 struct FeatureTrackingExtractorSettings {
+  // TODO(smauq): Completely move away from internal Freak
   enum class DescriptorType { kOcvFreak, kBrisk };
   FeatureTrackingExtractorSettings();
   DescriptorType convertStringToDescriptorType(
