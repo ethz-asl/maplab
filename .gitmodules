@@ -73,9 +73,6 @@
 [submodule "dependencies/internal/linter"]
 	path = dependencies/internal/linter
 	url = git@github.com:ethz-asl/linter.git
-[submodule "dependencies/internal/maplab_tools"]
-	path = dependencies/internal/maplab_tools
-	url = git@github.com:ethz-asl/maplab_tools.git
 [submodule "dependencies/internal/maplab_msgs"]
 	path = dependencies/internal/maplab_msgs
 	url = git@github.com:ethz-asl/maplab_msgs.git
