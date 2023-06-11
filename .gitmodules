@@ -49,9 +49,6 @@
 [submodule "dependencies/internal/ethzasl_brisk"]
 	path = dependencies/internal/ethzasl_brisk
 	url = git@github.com:ethz-asl/ethzasl_brisk.git
-[submodule "dependencies/internal/ethzasl_apriltag2"]
-	path = dependencies/internal/ethzasl_apriltag2
-	url = git@github.com:ethz-asl/ethzasl_apriltag2.git
 [submodule "dependencies/internal/eigen_checks"]
 	path = dependencies/internal/eigen_checks
 	url = git@github.com:ethz-asl/eigen_checks.git
