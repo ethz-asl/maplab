@@ -31,9 +31,6 @@
 [submodule "dependencies/3rdparty/opencv3_catkin"]
 	path = dependencies/3rdparty/opencv3_catkin
 	url = git@github.com:ethz-asl/opencv3_catkin.git
-[submodule "dependencies/3rdparty/vision_opencv"]
-	path = dependencies/3rdparty/vision_opencv
-	url = git@github.com:ethz-asl/vision_opencv.git
 [submodule "dependencies/3rdparty/opengv"]
 	path = dependencies/3rdparty/opengv
 	url = git@github.com:ethz-asl/opengv.git
