@@ -1,28 +1,13 @@
 #!/bin/bash -e
 echo "Running the prepare script for maplab.";
 
-if [[ $(uname) == "Linux" ]]; then
-  sudo apt-get install -y doxygen liblapack-dev libblas-dev autotools-dev \
-    dh-autoreconf libboost-all-dev python-setuptools git g++ cppcheck \
-    default-jre libreadline-dev libgtest-dev libglew-dev python-git pylint \
-    checkstyle python-termcolor liblog4cplus-dev cimg-dev python-wstool \
-    python-catkin-tools libssh2-1-dev libatlas3-base libv4l-dev python-scipy
+sudo apt install -y autotools-dev ccache doxygen dh-autoreconf git \
+                  liblapack-dev libblas-dev libgtest-dev libreadline-dev \
+                  libssh2-1-dev libatlas3-base libv4l-dev libjpeg-dev \
+                  python3 python3-catkin-tools python3-pip python-git-doc \
+                  python3-setuptools python3-termcolor python3-wstool
 
-  # Python package for end to end test
-  pip2 install evo
+# Python package for end to end test
+pip3 install --user --upgrade pip
+pip3 install --user requests evo
 
-  if lsb_release -c 2> /dev/null | grep xenial > /dev/null ; then
-    # Ubuntu 16.04 / ROS Kinetic.
-    sudo apt-get install -y clang-format-3.8 ros-kinetic-camera-info-manager* \
-      ros-kinetic-octomap-ros
-  elif lsb_release -c 2> /dev/null | grep bionic > /dev/null ; then
-    # Ubuntu 18.04 / ROS Melodic.
-    sudo apt-get install -y clang-format-6.0 ros-melodic-camera-info-manager* \
-      ros-melodic-octomap
-  else
-    echo "Unknown Ubuntu version. Couldn't install all necessary dependencies."
-  fi
-else
-  echo "Platform not supported by the prepare script."
-  echo "Please ensure that all necessary dependencies are installed."
-fi
