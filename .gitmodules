@@ -67,9 +67,6 @@
 [submodule "dependencies/internal/plotty"]
 	path = dependencies/internal/plotty
 	url = git@github.com:ethz-asl/plotty.git
-[submodule "dependencies/internal/ros-system-monitor"]
-	path = dependencies/internal/ros-system-monitor
-	url = git@github.com:ethz-asl/ros-system-monitor
 [submodule "dependencies/internal/linter"]
 	path = dependencies/internal/linter
 	url = git@github.com:ethz-asl/linter.git
