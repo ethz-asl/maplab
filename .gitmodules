@@ -73,9 +73,3 @@
 [submodule "dependencies/internal/maplab_msgs"]
 	path = dependencies/internal/maplab_msgs
 	url = git@github.com:ethz-asl/maplab_msgs.git
-[submodule "dependencies/3rdparty/pointmatcher-ros"]
-	path = dependencies/3rdparty/pointmatcher-ros
-	url = git@github.com:ANYbotics/pointmatcher-ros.git
-[submodule "dependencies/3rdparty/libpointmatcher"]
-	path = dependencies/3rdparty/libpointmatcher
-	url = git@github.com:ANYbotics/libpointmatcher.git
