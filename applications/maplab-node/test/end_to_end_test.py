@@ -1,7 +1,5 @@
-#!/usr/bin/env python
-from __future__ import print_function
-
-import urllib
+#!/usr/bin/env python3
+import urllib.request
 
 from evo.core import sync, metrics, trajectory
 from evo.tools import file_interface
@@ -10,9 +8,8 @@ import maplab_common.bash_utils
 from maplab_common.roscore_handling import Roscore
 
 MAX_POSITION_RMSE_RAW_M = 0.105
-MAX_POSITION_RMSE_OPT_M = 0.050
-MAX_POSITION_RMSE_VIL_M = 0.065
-
+MAX_POSITION_RMSE_OPT_M = 0.045
+MAX_POSITION_RMSE_VIL_M = 0.055
 
 def test_maplab_node_end_to_end():
     sensor_config_file = "end_to_end_test/euroc-mono.yaml"
@@ -21,7 +18,7 @@ def test_maplab_node_end_to_end():
     rosbag_local_path = "dataset.bag"
     download_url = \
         "http://robotics.ethz.ch/~asl-datasets/maplab/test_data/V1_01_easy.bag"
-    urllib.urlretrieve(download_url, rosbag_local_path)
+    urllib.request.urlretrieve(download_url, rosbag_local_path)
 
     roscore = Roscore()
     roscore.run()
@@ -49,15 +46,12 @@ def test_maplab_node_end_to_end():
 
     traj_ref_sync, traj_est_sync = sync.associate_trajectories(
         traj_ref, traj_est, 0.01)
-    traj_est_aligned = trajectory.align_trajectory(
-        traj_est_sync,
-        traj_ref_sync,
-        correct_scale=False,
-        correct_only_scale=False)
+    traj_est_sync.align(
+        traj_ref_sync, correct_scale=False, correct_only_scale=False)
 
     # Calculate the metrics
     ape_metric = metrics.APE(metrics.PoseRelation.translation_part)
-    ape_metric.process_data((traj_ref_sync, traj_est_aligned))
+    ape_metric.process_data((traj_ref_sync, traj_est_sync))
     ape_stats = ape_metric.get_all_statistics()
     print("RMSE RAW", ape_stats['rmse'])
     assert ape_stats['rmse'] < MAX_POSITION_RMSE_RAW_M
@@ -69,7 +63,7 @@ def test_maplab_node_end_to_end():
                     "check_map_consistency\n"
                     "itl\n"
                     "rtl\n"
-                    "kfh\n"
+                    "kfh --kf_distance_threshold_m=0.1 --kf_rotation_threshold_deg=5 --kf_every_nth_vertex=5\n"
                     "check_map_consistency\n"
                     "optvi --ba_num_iterations=20\n"
                     "check_map_consistency\n"
@@ -94,15 +88,12 @@ def test_maplab_node_end_to_end():
 
     traj_ref_sync, traj_est_sync = sync.associate_trajectories(
         traj_ref, traj_est, 0.01)
-    traj_est_aligned = trajectory.align_trajectory(
-        traj_est_sync,
-        traj_ref_sync,
-        correct_scale=False,
-        correct_only_scale=False)
+    traj_est_sync.align(
+        traj_ref_sync, correct_scale=False, correct_only_scale=False)
 
     # Calculate the metrics
     ape_metric = metrics.APE(metrics.PoseRelation.translation_part)
-    ape_metric.process_data((traj_ref_sync, traj_est_aligned))
+    ape_metric.process_data((traj_ref_sync, traj_est_sync))
     ape_stats = ape_metric.get_all_statistics()
     print("RMSE OPT", ape_stats['rmse'])
     assert ape_stats['rmse'] < MAX_POSITION_RMSE_OPT_M
@@ -115,7 +106,7 @@ def test_maplab_node_end_to_end():
                                  "_datasource_type:=rosbag "
                                  "_datasource_rosbag:=\"%s\" "
                                  "_export_estimated_poses_to_csv:=\"%s\" "
-                                 "_rovioli_run_map_builder:=true "
+                                 "_rovioli_run_map_builder:=false "
                                  "_vio_localization_map_folder:=\"%s\" "
                                  "_rovioli_zero_initial_timestamps:=false "
                                  "_rovio_enable_frame_visualization:=false " %
@@ -127,15 +118,12 @@ def test_maplab_node_end_to_end():
 
     traj_ref_sync, traj_est_sync = sync.associate_trajectories(
         traj_ref, traj_est, 0.01)
-    traj_est_aligned = trajectory.align_trajectory(
-        traj_est_sync,
-        traj_ref_sync,
-        correct_scale=False,
-        correct_only_scale=False)
+    traj_est_sync.align(
+        traj_ref_sync, correct_scale=False, correct_only_scale=False)
 
     # Calculate the metrics
     ape_metric = metrics.APE(metrics.PoseRelation.translation_part)
-    ape_metric.process_data((traj_ref_sync, traj_est_aligned))
+    ape_metric.process_data((traj_ref_sync, traj_est_sync))
     ape_stats = ape_metric.get_all_statistics()
     print("RMSE VIL", ape_stats['rmse'])
     assert ape_stats['rmse'] < MAX_POSITION_RMSE_VIL_M
