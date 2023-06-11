@@ -20,7 +20,7 @@ void drawKeypoints(
   for (int i = 0; i < keypoints.cols(); ++i) {
     cv::circle(
         *image, cv::Point(keypoints(0, i), keypoints(1, i)), 1,
-        cv::Scalar(0, 255, 255), 1, CV_AA);
+        cv::Scalar(0, 255, 255), 1, cv::LINE_AA);
   }
 }
 

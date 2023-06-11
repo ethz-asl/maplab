@@ -44,7 +44,7 @@ void LineSegmentDetector::drawLines(const Lines& lines, cv::Mat* image) {
     cv::Point2d end_point(lines[idx].end_point(0), lines[idx].end_point(1));
 
     cv::Scalar color(rng.uniform(0,255), rng.uniform(0, 255), rng.uniform(0, 255));
-    cv::line(*image, start_point, end_point, color, 2, CV_AA);
+    cv::line(*image, start_point, end_point, color, 2, cv::LINE_AA);
   }
 }
 

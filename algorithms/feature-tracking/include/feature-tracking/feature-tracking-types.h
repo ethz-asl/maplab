@@ -1,6 +1,8 @@
 #ifndef FEATURE_TRACKING_FEATURE_TRACKING_TYPES_H_
 #define FEATURE_TRACKING_FEATURE_TRACKING_TYPES_H_
 
+#include <opencv2/features2d/features2d.hpp>
+
 #include <string>
 
 namespace feature_tracking {
@@ -45,7 +47,7 @@ struct FeatureTrackingDetectorSettings {
   // The default HARRIS_SCORE means that Harris algorithm is used to rank
   // features. FAST_SCORE is alternative value of the parameter that produces
   // slightly less stable keypoints, but it is a little faster to compute.
-  int orb_detector_score_type;
+  cv::ORB::ScoreType orb_detector_score_type;
   // Size of the patch used by the oriented BRIEF descriptor. Of course, on
   // smaller pyramid layers the perceived image area covered by a feature will
   // be larger.

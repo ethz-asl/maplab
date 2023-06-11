@@ -8,8 +8,7 @@
 #include <aslam/tracker/tracking-helpers.h>
 #include <brisk/brisk.h>
 #include <gflags/gflags.h>
-#include <opencv/highgui.h>
-#include <opencv2/core/version.hpp>
+#include <opencv2/core.hpp>
 #include <opencv2/features2d.hpp>
 
 #include "feature-tracking/gridded-detector.h"

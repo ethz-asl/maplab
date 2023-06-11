@@ -318,7 +318,7 @@ cv::Mat WeightedOccupancyGrid<PointType>::getOccupancyMask(
       // Mask out the individual keypoints in the cell.
       for (const PointType& point : cell) {
         cv::circle(mask, cv::Point(point.v_cols, point.u_rows), radius_mask_around_points,
-                   cv::Scalar(0), CV_FILLED);
+                   cv::Scalar(0), cv::FILLED);
       }
 
       // Mask the entire cell if the cell is full.
@@ -326,7 +326,7 @@ cv::Mat WeightedOccupancyGrid<PointType>::getOccupancyMask(
         cv::Point top_left(j_col * cell_size_cols_, i_row * cell_size_rows_);
         cv::Point bottom_right((j_col + 1) * cell_size_cols_ - 1,
                                (i_row + 1) * cell_size_rows_ - 1);
-        cv::rectangle(mask, top_left, bottom_right, cv::Scalar(0), CV_FILLED);
+        cv::rectangle(mask, top_left, bottom_right, cv::Scalar(0), cv::FILLED);
       }
     }
   }

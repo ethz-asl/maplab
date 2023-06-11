@@ -53,15 +53,15 @@ class ResourceTest : public ::testing::Test {
   void loadTestResources() {
     // Read all the test resources.
     depth_cvmat_resource_ =
-        cv::imread(kTestDataBaseFolder + "/16bit.pgm", CV_LOAD_IMAGE_UNCHANGED);
+        cv::imread(kTestDataBaseFolder + "/16bit.pgm", cv::IMREAD_UNCHANGED);
     CHECK_EQ(CV_MAT_TYPE(depth_cvmat_resource_.type()), CV_16U);
 
     grayscale_cvmat_resource_ =
-        cv::imread(kTestDataBaseFolder + "/8bit.pgm", CV_LOAD_IMAGE_GRAYSCALE);
+        cv::imread(kTestDataBaseFolder + "/8bit.pgm", cv::IMREAD_GRAYSCALE);
     CHECK_EQ(CV_MAT_TYPE(grayscale_cvmat_resource_.type()), CV_8U);
 
     color_cv_mat_resource_ =
-        cv::imread(kTestDataBaseFolder + "/color.png", CV_LOAD_IMAGE_COLOR);
+        cv::imread(kTestDataBaseFolder + "/color.png", cv::IMREAD_COLOR);
     CHECK_EQ(CV_MAT_TYPE(color_cv_mat_resource_.type()), CV_8UC3);
 
     loadPointcloud(

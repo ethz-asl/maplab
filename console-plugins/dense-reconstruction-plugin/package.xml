@@ -16,7 +16,7 @@
   <depend>glog_catkin</depend>
   <depend>map_manager</depend>
   <depend>maplab_common</depend>
-  <depend>pmvs_interface</depend>
+  <!-- depend>pmvs_interface</depend -->
   <depend>stereo_dense_reconstruction</depend>
   <depend>vi_map</depend>
   <depend>visualization</depend>
