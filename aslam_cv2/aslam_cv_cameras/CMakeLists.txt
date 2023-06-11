@@ -23,8 +23,6 @@ set(SOURCES
 
 cs_add_library(${PROJECT_NAME} ${SOURCES})
 
-add_doxygen(NOT_AUTOMATIC)
-
 ##########
 # GTESTS #
 ##########

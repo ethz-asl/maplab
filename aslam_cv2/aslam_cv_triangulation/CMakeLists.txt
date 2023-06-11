@@ -21,8 +21,6 @@ cs_add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 # cs_add_executable(triangulation-benchmark benchmark/triangulation-benchmark.cc)
 # target_link_libraries(triangulation-benchmark ${PROJECT_NAME} gtest pthread)
 
-add_doxygen(NOT_AUTOMATIC)
-
 SET(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -lpthread")
 
 ##########

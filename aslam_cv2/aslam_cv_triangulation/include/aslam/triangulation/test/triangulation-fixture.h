@@ -10,9 +10,7 @@
 #include <eigen-checks/gtest.h>
 
 constexpr double kDoubleTolerance = 1e-9;
-#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 const Eigen::Vector3d kGPoint(0, 0, 5);
-#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 typedef Aligned<std::vector, Eigen::Vector2d> Vector2dList;
 

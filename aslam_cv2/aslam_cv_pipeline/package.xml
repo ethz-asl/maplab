@@ -13,7 +13,6 @@
   <depend>aslam_cv_common</depend>
   <depend>aslam_cv_frames</depend>
   <depend>brisk</depend>
-  <depend>doxygen_catkin</depend>
   <depend>eigen_catkin</depend>
   <depend>eigen_checks</depend>
   <depend>gflags_catkin</depend>

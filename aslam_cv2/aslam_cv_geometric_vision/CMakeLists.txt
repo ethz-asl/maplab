@@ -18,7 +18,6 @@ set(SOURCES
 )
 
 cs_add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
-add_doxygen(NOT_AUTOMATIC)
 
 add_definitions(-std=c++11)
 SET(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -lpthread")

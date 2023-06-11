@@ -34,9 +34,6 @@
 [submodule "dependencies/3rdparty/opengv"]
 	path = dependencies/3rdparty/opengv
 	url = git@github.com:ethz-asl/opengv.git
-[submodule "dependencies/3rdparty/doxygen_catkin"]
-	path = dependencies/3rdparty/doxygen_catkin
-	url = git@github.com:ethz-asl/doxygen_catkin.git
 [submodule "dependencies/3rdparty/catkin_simple"]
 	path = dependencies/3rdparty/catkin_simple
 	url = git@github.com:catkin/catkin_simple.git
