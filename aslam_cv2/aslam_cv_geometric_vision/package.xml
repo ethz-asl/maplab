@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package format="2">
+  <name>aslam_cv_geometric_vision</name>
+  <version>0.0.0</version>
+  <description>aslam_cv_geometric_vision</description>
+  <maintainer email="schneith@ethz.ch">schneith</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin_simple</buildtool_depend>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>aslam_cv_cameras</depend>
+  <depend>aslam_cv_common</depend>
+  <depend>aslam_cv_frames</depend>
+  <depend>aslam_cv_matcher</depend>
+  <depend>doxygen_catkin</depend>
+  <depend>eigen_catkin</depend>
+  <depend>eigen_checks</depend>
+  <depend>gflags_catkin</depend>
+  <depend>glog_catkin</depend>
+  <depend>minkindr</depend>
+  <depend>opencv3_catkin</depend>
+  <depend>opengv</depend>
+  <depend>yaml_cpp_catkin</depend>
+</package>
