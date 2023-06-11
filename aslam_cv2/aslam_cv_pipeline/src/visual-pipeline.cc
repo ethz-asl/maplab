@@ -2,7 +2,6 @@
 
 #include <aslam/cameras/camera.h>
 #include <aslam/frames/visual-frame.h>
-#include <aslam/pipeline/undistorter.h>
 
 #include <opencv2/core/core.hpp>
 
@@ -14,15 +13,6 @@ VisualPipeline::VisualPipeline(const Camera::ConstPtr& input_camera,
   copy_images_(copy_images) {
   CHECK(input_camera);
   CHECK(output_camera);
-}
-
-
-VisualPipeline::VisualPipeline(std::unique_ptr<Undistorter>& preprocessing, bool copy_images)
-: preprocessing_(std::move(preprocessing)),
-  copy_images_(copy_images) {
-  CHECK_NOTNULL(preprocessing_.get());
-  input_camera_ = preprocessing_->getInputCameraShared();
-  output_camera_ = preprocessing_->getOutputCameraShared();
 }
 
 std::shared_ptr<VisualFrame> VisualPipeline::processImage(const cv::Mat& raw_image,
@@ -44,14 +34,8 @@ std::shared_ptr<VisualFrame> VisualPipeline::processImage(const cv::Mat& raw_ima
     frame->setRawImage(raw_image);
   }
 
-  cv::Mat image;
-  if(preprocessing_) {
-    preprocessing_->processImage(raw_image, &image);
-  } else {
-    image = raw_image;
-  }
   /// Send the image to the derived class for processing
-  processFrameImpl(image, frame.get());
+  processFrameImpl(raw_image, frame.get());
 
   return frame;
 }

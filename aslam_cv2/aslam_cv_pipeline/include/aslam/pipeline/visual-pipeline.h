@@ -7,7 +7,6 @@
 
 #include <aslam/cameras/camera.h>
 #include <aslam/common/macros.h>
-#include <aslam/pipeline/undistorter.h>
 #include <aslam/frames/visual-frame.h>
 
 namespace aslam {
@@ -43,12 +42,6 @@ public:
   /// \param[in] copy_images    Should we copy the image before storing it in the frame?
   VisualPipeline(const Camera::ConstPtr& input_camera, const Camera::ConstPtr& output_camera,
                  bool copy_images);
-
-  /// \brief Construct a visual pipeline from the input and output cameras
-  ///
-  /// \param[in] preprocessing Preprocessing to apply to the image before sending to the pipeline.
-  /// \param[in] copy_images    Should we copy the image before storing it in the frame?
-  VisualPipeline(std::unique_ptr<Undistorter>& preprocessing, bool copy_images);
 
   virtual ~VisualPipeline() {};
 
@@ -101,8 +94,6 @@ protected:
   virtual void processFrameImpl(const cv::Mat& image,
                                 VisualFrame* frame) const = 0;
 
-  /// \brief Preprocessing for the image. Can be null.
-  const std::unique_ptr<Undistorter> preprocessing_;
   /// \brief The intrinsics of the raw image.
   std::shared_ptr<const Camera> input_camera_;
   /// \brief The intrinsics of the raw image.
