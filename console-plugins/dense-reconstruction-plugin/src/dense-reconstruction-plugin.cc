@@ -11,7 +11,8 @@
 // TODO(smauq): Fix undistortion in pmvs
 //#include <dense-reconstruction/pmvs-file-utils.h>
 //#include <dense-reconstruction/pmvs-interface.h>
-#include <dense-reconstruction/stereo-dense-reconstruction.h>
+// TODO(smauq): Fix stereo reconstruction
+//#include <dense-reconstruction/stereo-dense-reconstruction.h>
 #include <depth-integration/depth-integration.h>
 #include <gflags/gflags.h>
 #include <map-manager/map-manager.h>
@@ -201,7 +202,8 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
       "input format, such that we can reconstruct the whole map.",
       common::Processing::Sync);*/
 
-  addCommand(
+  // TODO(smauq): Fix stereo reconstruction
+  /*addCommand(
       {"stereo_dense_reconstruction", "stereo_dense", "sdr"},
       [this]() -> int {
         // Select map.
@@ -237,7 +239,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
       "flags for configuration of the stereo matcher. Currently only the "
       "pinhole camera model is supported. The depth output type can be set "
       "using --dense_depth_resource_output_type",
-      common::Processing::Sync);
+      common::Processing::Sync);*/
 
   addCommand(
       {"convert_all_depth_maps_to_point_clouds"},
