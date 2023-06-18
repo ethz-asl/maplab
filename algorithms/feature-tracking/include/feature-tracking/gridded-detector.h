@@ -10,7 +10,6 @@
 #include <maplab-common/threading-helpers.h>
 #include <opencv2/core/version.hpp>
 #include <opencv2/features2d.hpp>
-#include <opencv2/xfeatures2d.hpp>
 
 namespace feature_tracking {
 
