@@ -2,16 +2,16 @@ version: "3"
 
 services:
   maplab:
-    image: maplab
-    build:
-      context: ./docker_ctx
-      dockerfile: ../Dockerfile
-    runtime: nvidia
+    build: .
     environment:
       - DISPLAY=${DISPLAY}
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=all
+      - QT_X11_NO_MITSHM=1
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
-      - /tmp/maps:/tmp/maps
+      - ./maplab_ws:/maplab
+      - ./data:/data
+    devices:
+      - "/dev/dri:/dev/dri"
     network_mode: host
+    stdin_open: true
+    tty: true

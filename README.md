@@ -26,7 +26,7 @@ This repository contains **maplab 2.0**, an open research-oriented mapping frame
 <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/largescale.gif" width="400"> <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/cla.png" width="400">
 
 ### Multi-robot mapping and online operation
-<img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/arche.jpg" width="400"> <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/multirobot.gif" width="400">
+<img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/arche.png" width="400"> <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/multirobot.gif" width="400">
 
 ### Dense reconstruction
 <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/stereo.png" width="400"> <img src="https://raw.githubusercontent.com/ethz-asl/maplab/master/docs/pages/readme_images/pmvs.png" width="400">
@@ -82,7 +82,7 @@ Please cite the following papers [maplab](https://arxiv.org/abs/1711.10250) and 
 
 ### Additional Citations
 
-Certain components of maplab are directly based on [other publications](https://maplab.asl.ethz.ch/docs/master/pages/overview_and_introduction/B_Citing-Maplab).
+Certain components of maplab are directly based on [other publications](https://maplab.asl.ethz.ch/docs/master/pages/overview_and_introduction/B_Citing-Maplab#additional-citations).
 
 
 ## Credits
