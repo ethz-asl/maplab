@@ -25,7 +25,8 @@ class VOFeatureTrackingPipeline : public FeatureTrackingPipeline {
   VOFeatureTrackingPipeline(
       const aslam::NCamera::ConstPtr& ncamera,
       const FeatureTrackingExtractorSettings& extractor_settings,
-      const FeatureTrackingDetectorSettings& detector_settings);
+      const FeatureTrackingDetectorSettings& detector_settings,
+      const FeatureTrackingOutlierSettings& outlier_settings);
   virtual ~VOFeatureTrackingPipeline();
 
   void initializeFirstNFrame(aslam::VisualNFrame* nframe_k);
@@ -37,10 +38,10 @@ class VOFeatureTrackingPipeline : public FeatureTrackingPipeline {
       aslam::FrameToFrameMatchesList* outlier_matches_kp1_k);
 
  private:
-  void initialize(const aslam::NCamera::ConstPtr& ncamera) override;
+  void initialize(const aslam::NCamera::ConstPtr& ncamera);
   void trackFeaturesNFrame(
       const aslam::Transformation& T_Bk_Bkp1, aslam::VisualNFrame* nframe_k,
-      aslam::VisualNFrame* nframe_kp1) override;
+      aslam::VisualNFrame* nframe_kp1);
 
   void trackFeaturesSingleCamera(
       const aslam::Quaternion& q_Bkp1_Bk, const size_t camera_idx,
@@ -66,6 +67,7 @@ class VOFeatureTrackingPipeline : public FeatureTrackingPipeline {
 
   const FeatureTrackingExtractorSettings extractor_settings_;
   const FeatureTrackingDetectorSettings detector_settings_;
+  const FeatureTrackingOutlierSettings outlier_settings_;
 };
 
 }  // namespace feature_tracking

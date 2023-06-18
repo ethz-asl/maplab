@@ -31,20 +31,6 @@ inline void ProjectDescriptors(
   timer_proj.Stop();
 }
 
-inline void ProjectDescriptors(
-    const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
-    const Eigen::MatrixXf& projection_matrix, int target_dimensionality,
-    Eigen::MatrixXf* projected_descriptors) {
-  CHECK_NOTNULL(projected_descriptors);
-  projected_descriptors->resize(target_dimensionality, descriptors.size());
-
-  timing::Timer timer_proj("Loop Closure: Project descriptors");
-  descriptor_projection::ProjectDescriptorBlock(
-      descriptors, projection_matrix, target_dimensionality,
-      projected_descriptors);
-  timer_proj.Stop();
-}
-
 }  // namespace internal
 
 template <typename IdType>

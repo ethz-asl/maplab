@@ -1,9 +1,6 @@
 [submodule "tools/maplab_test_data"]
 	path = tools/maplab-test-data
 	url = git@github.com:ethz-asl/maplab_test_data.git
-[submodule "aslam_cv2"]
-	path = aslam_cv2
-	url = git@github.com:ethz-asl/aslam_cv2.git
 [submodule "dependencies/3rdparty/protobuf_catkin"]
 	path = dependencies/3rdparty/protobuf_catkin
 	url = git@github.com:ethz-asl/protobuf_catkin.git
@@ -34,15 +31,9 @@
 [submodule "dependencies/3rdparty/opencv3_catkin"]
 	path = dependencies/3rdparty/opencv3_catkin
 	url = git@github.com:ethz-asl/opencv3_catkin.git
-[submodule "dependencies/3rdparty/vision_opencv"]
-	path = dependencies/3rdparty/vision_opencv
-	url = git@github.com:ethz-asl/vision_opencv.git
 [submodule "dependencies/3rdparty/opengv"]
 	path = dependencies/3rdparty/opengv
 	url = git@github.com:ethz-asl/opengv.git
-[submodule "dependencies/3rdparty/doxygen_catkin"]
-	path = dependencies/3rdparty/doxygen_catkin
-	url = git@github.com:ethz-asl/doxygen_catkin.git
 [submodule "dependencies/3rdparty/catkin_simple"]
 	path = dependencies/3rdparty/catkin_simple
 	url = git@github.com:catkin/catkin_simple.git
@@ -52,9 +43,6 @@
 [submodule "dependencies/internal/ethzasl_brisk"]
 	path = dependencies/internal/ethzasl_brisk
 	url = git@github.com:ethz-asl/ethzasl_brisk.git
-[submodule "dependencies/internal/ethzasl_apriltag2"]
-	path = dependencies/internal/ethzasl_apriltag2
-	url = git@github.com:ethz-asl/ethzasl_apriltag2.git
 [submodule "dependencies/internal/eigen_checks"]
 	path = dependencies/internal/eigen_checks
 	url = git@github.com:ethz-asl/eigen_checks.git
@@ -76,27 +64,9 @@
 [submodule "dependencies/internal/plotty"]
 	path = dependencies/internal/plotty
 	url = git@github.com:ethz-asl/plotty.git
-[submodule "dependencies/3rdparty/benchmark_catkin"]
-	path = dependencies/3rdparty/benchmark_catkin
-	url = git@github.com:ethz-asl/benchmark_catkin.git
-[submodule "dependencies/internal/ros-system-monitor"]
-	path = dependencies/internal/ros-system-monitor
-	url = git@github.com:ethz-asl/ros-system-monitor
 [submodule "dependencies/internal/linter"]
 	path = dependencies/internal/linter
 	url = git@github.com:ethz-asl/linter.git
-[submodule "dependencies/internal/maplab_tools"]
-	path = dependencies/internal/maplab_tools
-	url = git@github.com:ethz-asl/maplab_tools.git
 [submodule "dependencies/internal/maplab_msgs"]
 	path = dependencies/internal/maplab_msgs
 	url = git@github.com:ethz-asl/maplab_msgs.git
-[submodule "dependencies/3rdparty/pointmatcher-ros"]
-	path = dependencies/3rdparty/pointmatcher-ros
-	url = git@github.com:ANYbotics/pointmatcher-ros.git
-[submodule "dependencies/3rdparty/libpointmatcher"]
-	path = dependencies/3rdparty/libpointmatcher
-	url = git@github.com:ANYbotics/libpointmatcher.git
-[submodule "dependencies/internal/maplab_features"]
-	path = dependencies/internal/maplab_features
-	url = git@github.com:ethz-asl/maplab_features.git

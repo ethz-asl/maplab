@@ -1,19 +1,13 @@
-#include "maplab-node/maplab-node.h"
-
+#include <aslam/cameras/ncamera.h>
 #include <atomic>
-#include <memory>
-#include <signal.h>
-#include <string>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
-#include <aslam/cameras/ncamera.h>
 #include <localization-summary-map/localization-summary-map-creation.h>
 #include <localization-summary-map/localization-summary-map.h>
 #include <maplab-common/file-system-tools.h>
 #include <maplab-common/sigint-breaker.h>
 #include <maplab-common/threading-helpers.h>
+#include <memory>
 #include <message-flow/message-dispatcher-fifo.h>
 #include <message-flow/message-flow.h>
 #include <message-flow/message-topic-registration.h>
@@ -23,6 +17,8 @@
 #include <sensors/odometry-6dof-pose.h>
 #include <sensors/pointcloud-map-sensor.h>
 #include <sensors/wheel-odometry-sensor.h>
+#include <signal.h>
+#include <string>
 #include <vi-map/sensor-utils.h>
 #include <vi-map/vi-map-serialization.h>
 #include <vio-common/vio-types.h>
@@ -30,18 +26,8 @@
 #include "maplab-node/data-publisher-flow.h"
 #include "maplab-node/datasource-flow.h"
 #include "maplab-node/feature-tracking-flow.h"
+#include "maplab-node/maplab-node.h"
 #include "maplab-node/synchronizer-flow.h"
-#include "maplab-node/visual-localizer-flow.h"
-
-DEFINE_bool(
-    run_map_builder, true,
-    "When set to false, the map builder will be deactivated and no map will be "
-    "built.");
-
-DEFINE_int64(
-    visual_localization_enable_visualization, true,
-    "Enable visualization of the visual localization observations and inliers "
-    "as ROS message.");
 
 DECLARE_double(image_resize_factor);
 
@@ -142,11 +128,9 @@ MaplabNode::MaplabNode(
   data_publisher_flow_->attachToMessageFlow(message_flow_);
 
   // === MAP BUILDER ====
-  if (FLAGS_run_map_builder) {
-    map_builder_flow_.reset(new MapBuilderFlow(
-        *sensor_manager_, save_map_folder, synchronizer_flow_->T_M_B_buffer()));
-    map_builder_flow_->attachToMessageFlow(message_flow_);
-  }
+  map_builder_flow_.reset(new MapBuilderFlow(
+      *sensor_manager_, save_map_folder, synchronizer_flow_->T_M_B_buffer()));
+  map_builder_flow_->attachToMessageFlow(message_flow_);
 
   // === ENABLE MAPPING COMPONENTS ===
   initializeOdometrySource();
@@ -282,9 +266,6 @@ void MaplabNode::initializeAbsolute6DoFSource() {
   if (absolute_6dof_sensor) {
     synchronizer_flow_->initializeAbsolute6DoFData();
 
-    // TODO(mfehr): initialize absolute pose to localization result conversion
-    // block here.
-
     LOG(INFO) << "[MaplabNode] External absolute 6DoF pose sensor is ENABLED!";
   } else {
     LOG(WARNING)
@@ -341,68 +322,6 @@ void MaplabNode::initializePointCloudMapSource() {
   }
 }
 
-void MaplabNode::initializeLocalizationHandler() {
-  if (!localization_handler_flow) {
-    localization_handler_flow.reset(new LocalizationHandlerFlow(
-        *sensor_manager_, synchronizer_flow_->T_M_B_buffer()));
-    localization_handler_flow->attachToMessageFlow(message_flow_);
-  }
-}
-
-void MaplabNode::enableVisualLocalization(
-    std::unique_ptr<summary_map::LocalizationSummaryMap> localization_map) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  CHECK(!is_running_) << "Cannot configure node after it started running!";
-
-  aslam::NCamera::Ptr ncamera = vi_map::getSelectedNCamera(*sensor_manager_);
-  CHECK(ncamera) << "[MaplabNode] NCamera required for visual localization";
-
-  CHECK(ncamera->has_T_G_B_fixed_localization_covariance())
-      << "[MaplabNode] Currently, a fixed 6DoF covariance estimate is needed "
-      << "for visual localization fusion. Please provide it as "
-      << "T_G_B_fixed_covariance in the NCamera config file.";
-
-  localizer_flow_.reset(new VisualLocalizerFlow(
-      *sensor_manager_, synchronizer_flow_->T_M_B_buffer(),
-      FLAGS_visual_localization_enable_visualization));
-
-  if (localization_map != nullptr) {
-    LOG(INFO) << "[MaplabNode] Enable visual localization with prior map...";
-    localizer_flow_->setLocalizationMap(std::move(localization_map));
-  }
-  localizer_flow_->attachToMessageFlow(message_flow_);
-
-  initializeLocalizationHandler();
-}
-
-void MaplabNode::enableVisualLocalization() {
-  LOG(INFO) << "[MaplabNode] Enable visual localization without prior map...";
-  // Since we don't have a prior localization map, we pass in a nullptr to avoid
-  // copy/paste code.
-  enableVisualLocalization(nullptr /*localization_map*/);
-}
-
-void MaplabNode::enableLidarLocalization() {
-  std::lock_guard<std::mutex> lock(mutex_);
-  LOG(INFO) << "[MaplabNode] Enable lidar localization without prior map...";
-  CHECK(!is_running_) << "Cannot configure node after it started running!";
-
-  // TODO(LBern): Add lidar localization initialization here, this includes
-  // loading the localization map and setting up the blocks.
-
-  LOG(FATAL) << "NOT IMPLEMENTED!";
-
-  initializeLocalizationHandler();
-}
-
-void MaplabNode::enableOnlineMapping() {
-  std::lock_guard<std::mutex> lock(mutex_);
-  LOG(INFO) << "[MaplabNode] Enable online mapping...";
-  CHECK(!is_running_) << "Cannot configure node after it started running!";
-
-  LOG(FATAL) << "NOT IMPLEMENTED!";
-}
-
 void MaplabNode::start() {
   std::lock_guard<std::mutex> lock(mutex_);
   LOG(INFO) << "[MaplabNode] Starting...";
@@ -420,6 +339,7 @@ void MaplabNode::start() {
 
   is_running_ = true;
 }
+
 void MaplabNode::shutdown() {
   std::lock_guard<std::mutex> lock(mutex_);
   LOG(INFO) << "[MaplabNode] Shutting down...";

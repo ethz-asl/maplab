@@ -1,8 +1,8 @@
-#include "feature-tracking/feature-tracking-types.h"
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <opencv2/features2d/features2d.hpp>
+#include <maplab-common/conversions.h>
+
+#include "feature-tracking/feature-tracking-types.h"
 
 DEFINE_string(
     feature_tracking_descriptor_type, "brisk",
@@ -95,6 +95,19 @@ DEFINE_uint64(
     feature_tracking_gridded_detection_num_threads_per_image, 0u,
     "Number of hardware threads used for detection (0 means N_cell/2).");
 
+DEFINE_double(
+    feature_tracker_two_pt_ransac_threshold, 1.0 - cos(0.5 * kDegToRad),
+    "Threshold for the 2-pt RANSAC used for feature tracking outlier "
+    "removal. The error is defined as (1 - cos(alpha)) where alpha is "
+    "the angle between the predicted and measured bearing vectors.");
+DEFINE_uint64(
+    feature_tracker_two_pt_ransac_max_iterations, 200,
+    "Max iterations for the 2-pt RANSAC used for feature tracking "
+    "outlier removal.");
+DEFINE_bool(
+    feature_tracker_deterministic, false,
+    "If true, deterministic RANSAC outlier rejection is used.");
+
 namespace feature_tracking {
 
 FeatureTrackingExtractorSettings::FeatureTrackingExtractorSettings()
@@ -141,7 +154,7 @@ FeatureTrackingDetectorSettings::FeatureTrackingDetectorSettings()
           FLAGS_feature_tracking_detector_orb_pyramid_levels),
       orb_detector_first_level(0),
       orb_detector_WTA_K(2),
-      orb_detector_score_type(cv::ORB::HARRIS_SCORE),
+      orb_detector_score_type(cv::ORB::ScoreType::HARRIS_SCORE),
       orb_detector_patch_size(FLAGS_feature_tracking_detector_orb_patch_size),
       orb_detector_score_lower_bound(
           FLAGS_feature_tracking_detector_orb_score_lower_bound),
@@ -179,6 +192,15 @@ FeatureTrackingDetectorSettings::FeatureTrackingDetectorSettings()
   CHECK_GE(gridded_detector_cell_num_features, 0u);
   CHECK_GE(gridded_detector_num_grid_cols, 1u);
   CHECK_GE(gridded_detector_num_grid_rows, 1u);
+}
+
+FeatureTrackingOutlierSettings::FeatureTrackingOutlierSettings()
+    : two_pt_ransac_threshold(FLAGS_feature_tracker_two_pt_ransac_threshold),
+      two_pt_ransac_max_iterations(
+          FLAGS_feature_tracker_two_pt_ransac_max_iterations),
+      deterministic(FLAGS_feature_tracker_deterministic) {
+  CHECK_GE(two_pt_ransac_threshold, 0.0);
+  CHECK_LE(two_pt_ransac_threshold, 1.0);
 }
 
 }  // namespace feature_tracking

@@ -27,12 +27,12 @@ class VoxbloxDepthIntegrationTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
     depth_map_openni_ = cv::imread(
-        kTestDataBaseFolder + "/depth_map_OpenNI.pgm", CV_LOAD_IMAGE_UNCHANGED);
+        kTestDataBaseFolder + "/depth_map_OpenNI.pgm", cv::IMREAD_UNCHANGED);
     CHECK_EQ(CV_MAT_TYPE(depth_map_openni_.type()), CV_16U);
 
     image_ = cv::imread(
         kTestDataBaseFolder + "/intensities_depth_map.pgm",
-        CV_LOAD_IMAGE_GRAYSCALE);
+        cv::IMREAD_GRAYSCALE);
     CHECK_EQ(CV_MAT_TYPE(image_.type()), CV_8UC1);
     CHECK_GT(image_.rows, 0);
     CHECK_GT(image_.cols, 0);

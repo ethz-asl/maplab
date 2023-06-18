@@ -90,7 +90,7 @@ void writeObserverPosesAndImagesToFileSystem(
         // PMVS expects color images, therefore we convert the grayscale image
         // to a pseudo color image.
         VLOG(2) << "Convert grayscale image to pseudo color image.";
-        cv::cvtColor(image, color_image, CV_GRAY2RGB);
+        cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
       }
       // Save to visualize folder.
       cv::imwrite(std::string(image_name), color_image);

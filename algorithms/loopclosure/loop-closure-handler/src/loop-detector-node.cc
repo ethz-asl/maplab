@@ -16,7 +16,6 @@
 #include <maplab-common/parallel-process.h>
 #include <maplab-common/progress-bar.h>
 #include <matching-based-loopclosure/detector-settings.h>
-#include <matching-based-loopclosure/loop-detector-interface.h>
 #include <matching-based-loopclosure/matching-based-engine.h>
 #include <matching-based-loopclosure/scoring.h>
 #include <mutex>
@@ -64,7 +63,7 @@ LoopDetectorNode::LoopDetectorNode()
   matching_based_loopclosure::MatchingBasedEngineSettings
       matching_engine_settings;
   loop_detector_ =
-      std::make_shared<matching_based_loopclosure::MatchingBasedLoopDetector>(
+      std::make_shared<matching_based_loopclosure::LoopDetector>(
           matching_engine_settings);
   feature_type_ =
       static_cast<int>(vi_map::StringToFeatureType(FLAGS_lc_feature_type));
@@ -152,7 +151,7 @@ void LoopDetectorNode::convertFrameToProjectedImageOnlyUsingProvidedLandmarkIds(
       static_cast<int>(observed_landmark_ids.size()),
       frame.getDescriptorsOfType(feature_type_).cols());
 
-  const Eigen::Matrix2Xd& original_measurements =
+  const Eigen::Block<const Eigen::Matrix2Xd> original_measurements =
       frame.getKeypointMeasurementsOfType(feature_type_);
   const aslam::VisualFrame::DescriptorsT& original_descriptors =
       frame.getDescriptorsOfType(feature_type_);
@@ -426,6 +425,10 @@ void LoopDetectorNode::addLocalizationSummaryMapToDatabase(
     }
     loop_detector_->Insert(projected_image_ptr);
   }
+
+  // Initialize the search index here if needed, since we will not be adding
+  // more observations to the summary map once it's loaded.
+  loop_detector_->Initialize();
 }
 
 bool LoopDetectorNode::findNFrameInSummaryMapDatabase(
@@ -798,6 +801,10 @@ bool LoopDetectorNode::detectLoopClosuresVerticesToDatabase(
 
   VLOG(1) << "Searching for loop closures in missions " << ss.str();
 
+  // Initialize the search index if needed.
+  loop_detector_->Initialize();
+
+  // Then search for all in the database.
   std::vector<double> inlier_counts;
   aslam::TransformationVector T_G_M_vector;
 
@@ -808,9 +815,7 @@ bool LoopDetectorNode::detectLoopClosuresVerticesToDatabase(
       landmark_pairs_merged;
   vi_map::LoopClosureConstraintVector raw_constraints;
 
-  // Then search for all in the database.
   common::MultiThreadedProgressBar progress_bar(1);
-
   std::function<void(const std::vector<size_t>&)> query_helper =
       [&](const std::vector<size_t>& range) {
         int num_processed = 0;

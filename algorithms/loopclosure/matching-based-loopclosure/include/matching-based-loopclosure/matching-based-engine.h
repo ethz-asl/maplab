@@ -1,56 +1,59 @@
 #ifndef MATCHING_BASED_LOOPCLOSURE_MATCHING_BASED_ENGINE_H_
 #define MATCHING_BASED_LOOPCLOSURE_MATCHING_BASED_ENGINE_H_
 
+#include <Eigen/Dense>
+#include <aslam/common/reader-writer-lock.h>
+#include <descriptor-projection/descriptor-projection.h>
 #include <memory>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include <Eigen/Dense>
-#include <aslam/common/reader-writer-lock.h>
-#include <descriptor-projection/descriptor-projection.h>
-
 #include "matching-based-loopclosure/detector-settings.h"
 #include "matching-based-loopclosure/index-interface.h"
-#include "matching-based-loopclosure/loop-detector-interface.h"
 #include "matching-based-loopclosure/scoring.h"
 
 namespace matching_based_loopclosure {
 
-class MatchingBasedLoopDetector : public loop_detector::LoopDetector {
+class LoopDetector {
  public:
-  explicit MatchingBasedLoopDetector(
-      const MatchingBasedEngineSettings& settings);
+  explicit LoopDetector(const MatchingBasedEngineSettings& settings);
 
-  virtual ~MatchingBasedLoopDetector() = default;
+  virtual ~LoopDetector() = default;
+
+  // Initialize the underlying search index. Must be called after adding new
+  // descriptors to the loop detector.
+  virtual void Initialize();
 
   // Find a set of provided images (consisting of projected descriptors), that
   // belong to the same vertex, in the database.
   void Find(
       const loop_closure::ProjectedImagePtrList& projected_image_ptr_list,
       const bool parallelize_if_possible,
-      loop_closure::FrameToMatches* frame_matches) const override;
+      loop_closure::FrameToMatches* frame_matches) const;
 
   // Add the provided image (consisting of projected descriptors) to the
   // descriptor index backend.
-  void Insert(
-      const loop_closure::ProjectedImage::Ptr& projected_image_ptr) override;
+  void Insert(const loop_closure::ProjectedImage::Ptr& projected_image_ptr);
 
   // Transforms an image into a set of projected descriptors.
   void ProjectDescriptors(
       const loop_closure::DescriptorContainer& descriptors,
-      Eigen::MatrixXf* projected_descriptors) const override;
+      Eigen::MatrixXf* projected_descriptors) const;
 
-  // Transforms an image into a set of projected descriptors.
-  void ProjectDescriptors(
-      const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
-      Eigen::MatrixXf* projected_descriptors) const override;
+  void Clear();
 
-  void Clear() override;
+  size_t NumEntries() const {
+    return database_.size();
+  }
+
+  int NumDescriptors() const {
+    return index_interface_->GetNumDescriptorsInIndex();
+  }
 
  private:
-  typedef std::unordered_map<loop_closure::KeyframeId,
-                             loop_closure::ProjectedImage::Ptr>
+  typedef std::unordered_map<
+      loop_closure::KeyframeId, loop_closure::ProjectedImage::Ptr>
       Database;
   typedef loop_closure::IdToNumDescriptors<loop_closure::KeyframeId>
       KeyframeIdToNumDescriptorsMap;
@@ -67,14 +70,6 @@ class MatchingBasedLoopDetector : public loop_detector::LoopDetector {
 
   void setKeyframeScoringFunction();
   void setDetectorEngine();
-
-  size_t NumEntries() const override {
-    return database_.size();
-  }
-
-  int NumDescriptors() const override {
-    return index_interface_->GetNumDescriptorsInIndex();
-  }
 
   // Find the largest connected subgraph of keyframes or vertices and landmarks
   // to be passed to RANSAC. This is just a plain BFS over landmarks and

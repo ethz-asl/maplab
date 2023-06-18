@@ -134,9 +134,7 @@ class StereoDenseReconstructionTest : public ::testing::Test {
     CHECK_EQ(img_right_.type(), CV_8UC1);
 
     if (!kRecomputeComparisonResults) {
-      if (!kRecomputeComparisonResults) {
-        loadSolution("bike");
-      }
+      loadSolution("bike");
     }
 
     T_C2_G_(0, 3) = -0.178089;
@@ -378,12 +376,12 @@ class StereoDenseReconstructionTest : public ::testing::Test {
 
 TEST_F(StereoDenseReconstructionTest, TestStereoDenseReconstructionBike) {
   setupBikeStereoDataset();
-  computeStereoReconstruction("bike", 3607446u);
+  computeStereoReconstruction("bike", 3608636u);
 }
 
 TEST_F(StereoDenseReconstructionTest, TestStereoDenseReconstructionKitti) {
   setupKittiStereoDataset();
-  computeStereoReconstruction("kitti", 560229u);
+  computeStereoReconstruction("kitti", 559200u);
 }
 
 }  // namespace stereo

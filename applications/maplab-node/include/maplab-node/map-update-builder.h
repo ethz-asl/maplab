@@ -9,7 +9,6 @@
 #include <utility>
 
 #include <aslam/common/memory.h>
-#include <maplab-common/localization-result.h>
 #include <vio-common/map-update.h>
 #include <vio-common/pose-lookup-buffer.h>
 #include <vio-common/vio-types.h>

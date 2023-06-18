@@ -1,5 +1,4 @@
 #include <loopclosure-common/types.h>
-#include <maplab-common/feature-descriptor-ref.h>
 #include <maplab-common/test/testing-entrypoint.h>
 
 #include "vocabulary-tree/distance.h"
