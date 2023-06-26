@@ -11,8 +11,6 @@
 #include <grid_map_core/grid_map_core.hpp>
 #include <Eigen/Core>
 
-//#include <grid-map-amo/elevation-mapping.h>
-
 namespace grid_map_plugin {
 
 class GridMapPlugin : public common::ConsolePluginBase {

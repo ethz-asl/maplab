@@ -68,12 +68,6 @@ GridMapPlugin::GridMapPlugin(common::Console* console)
         return common::kSuccess;
       },
       "Print test.", common::Processing::Sync);
-  /*
-  addCommand(
-      {"grid_map", "gm"},
-      [this]() -> int { return createGridMap(); },
-      "Create grid map.", common::Processing::Sync);
-  */
   addCommand(
       {"elevation_mapping", "em"},
       [this]() -> int { return createElevationMapping(); },
@@ -314,9 +308,6 @@ int GridMapPlugin::createAmoGridMap() {
   grid_map_amo::update_ortho_layer(grid_map_, "orthomosaic", "obs_angle_ortho",
                             "elevation_filled", *vi_map, optical_camera_index_);//third call
   //end of orth
-  //function call
-  /*grid_map_amo::update_whole_grid_map(grid_map_, all_landmarks, landmarks_uncertainty, "elevation", "elevation_filled",
-                inpaint_radius_, "orthomosaic", "obs_angle_ortho", "elevation_filled", *vi_map, optical_camera_index_);*/
 
   // publish the map
   grid_map_msgs::GridMap message;

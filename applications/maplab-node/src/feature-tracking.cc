@@ -37,7 +37,7 @@ bool FeatureTracking::trackSynchronizedNFrameCallback(
   // call, but it will be added in the second call.
   if (!previous_synced_nframe_) {
     // Perform only feature detection
-    //tracker_->initializeFirstNFrame(synced_nframe->nframe.get());//COMMENTED OUT FOR 16BIT CONVERSION
+    tracker_->initializeFirstNFrame(synced_nframe->nframe.get());//COMMENTED OUT FOR 16BIT CONVERSION
     // Mark it as the previous frame
     previous_synced_nframe_ = synced_nframe;
     previous_nframe_timestamp_ns_ = current_nframe_timestamp_ns;
@@ -60,12 +60,12 @@ bool FeatureTracking::trackSynchronizedNFrameCallback(
     return false;
   }
 
-  /*aslam::FrameToFrameMatchesList inlier_matches_kp1_k;
+  aslam::FrameToFrameMatchesList inlier_matches_kp1_k;
   aslam::FrameToFrameMatchesList outlier_matches_kp1_k;
   tracker_->trackFeaturesNFrame(
       q_Ikp1_Ik, synced_nframe->nframe.get(),
       previous_synced_nframe_->nframe.get(), &inlier_matches_kp1_k,
-      &outlier_matches_kp1_k);*/ //COMMENTED OUT FOR 16BIT CONVERSION
+      &outlier_matches_kp1_k); //COMMENTED OUT FOR 16BIT CONVERSION*/
 
   previous_synced_nframe_ = synced_nframe;
   previous_nframe_timestamp_ns_ = current_nframe_timestamp_ns;

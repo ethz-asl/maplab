@@ -69,21 +69,17 @@ void update_temperature_layer(std::unique_ptr<grid_map::GridMap>& map,
 
           if (std::fabs(observation_angle) > obs_angle_layer(x, y) || std::isnan(obs_angle_layer(x, y))) {
 
-            //in case of grayscale images
             cv::Mat im;
-            cv::Mat color_image;
+            //in case of thermal images (raw depth maps)
             if(vi_map.getFrameResource(
-                vertex, thermal_cam_idx, backend::ResourceType::kRawImage, &im)) {
-                VLOG(5) << "Found raw grayscale image.";
+                vertex, thermal_cam_idx, backend::ResourceType::kRawDepthMap, &im)) {
+                VLOG(5) << "Found raw depth map.";
             }
 
-            //in case of color images
+            //in case of thermal images (raw depth maps)
             else if(vi_map.getFrameResource(
-                vertex, thermal_cam_idx, backend::ResourceType::kRawColorImage,
-                &color_image)) {
-                VLOG(5) << "Found raw color image.";
-                cv::Mat im;
-                cv::cvtColor(color_image, im, cv::COLOR_RGB2GRAY);
+                vertex, thermal_cam_idx, backend::ResourceType::kImageForDepthMap, &im)) {
+                VLOG(5) << "Found raw image for depth map.";
             }
 
             //in case of no image resource
@@ -159,21 +155,17 @@ void update_temperature_layer_projection(std::unique_ptr<grid_map::GridMap>& map
 
       const aslam::Position3D p_C_map = T_G_C.getPosition();
 
-      //in case of grayscale images
       cv::Mat im;
-      cv::Mat color_image;
+      //in case of thermal images (raw depth maps)
       if(vi_map.getFrameResource(
-          vertex, thermal_cam_idx, backend::ResourceType::kRawImage, &im)) {
-          VLOG(5) << "Found raw grayscale image.";
+          vertex, thermal_cam_idx, backend::ResourceType::kRawDepthMap, &im)) {
+          VLOG(5) << "Found raw depth map.";
       }
 
-      //in case of color images
+      //in case of thermal images (raw depth maps)
       else if(vi_map.getFrameResource(
-          vertex, thermal_cam_idx, backend::ResourceType::kRawColorImage,
-          &color_image)) {
-          VLOG(5) << "Found raw color image.";
-          cv::Mat im;
-          cv::cvtColor(color_image, im, cv::COLOR_RGB2GRAY);
+          vertex, thermal_cam_idx, backend::ResourceType::kImageForDepthMap, &im)) {
+          VLOG(5) << "Found raw image for depth map.";
       }
 
       //in case of no image resource

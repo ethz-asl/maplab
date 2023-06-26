@@ -133,7 +133,7 @@ vio::ImageMeasurement::Ptr convertRosImageToMaplabImage(
         processed_image = cv_ptr->image;
       }
       processed_image.convertTo(
-          image_measurement->image, CV_16U, //CV_8U,
+          image_measurement->image, CV_8U, //CV_16U for IR, //CV_8U for RGB,
           FLAGS_image_16_bit_to_8_bit_scale_factor,
           FLAGS_image_16_bit_to_8_bit_shift);
       //thermalImageRescale(cv_ptr->image, true, &(image_measurement->image));

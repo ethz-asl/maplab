@@ -12,7 +12,7 @@
 		<!-- ROBOT SPECIFIC PARAMS -->
 		<!-- SENSORS -->
 		<param name="sensor_calibration_file" value="$(find maplab_node)/launch/fixed/calib/fixed.yaml"/>
-		<param name="imu_to_camera_time_offset_ns" value="-4000000"/><!-- used to be 1ms for RGB, for IR it is -4ms -->
+		<param name="imu_to_camera_time_offset_ns" value="1000000"/><!-- 1ms for RGB, for IR it is -4ms (MINUS) -->
 		<param name="vio_camera_topic_suffix" value=""/>
 
 		<!-- MAPLAB_NODE_CONFIG -->

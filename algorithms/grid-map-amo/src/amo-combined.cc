@@ -6,6 +6,7 @@
  *    Modified: Luka Dragomirovic (lukavuk01@sunrise.ch)
  *   Institute: ETH Zurich, Autonomous Systems Lab
  */
+ //obsolete file, since everything is called separately and in order
 
 #include "grid-map-amo/amo-combined.h"
 
@@ -120,8 +121,6 @@ void update_whole_grid_map(std::unique_ptr<grid_map::GridMap>& map,
     cam.backProject3(Eigen::Vector2d(cam.imageWidth() - 1, cam.imageHeight() - 1), &corner_ray[2]);
     cam.backProject3(Eigen::Vector2d(cam.imageWidth() - 1, 0), &corner_ray[3]);
 
-    int im_counter = 0;//debugging
-    //LOG(INFO) << ortho_layer.rows() << " " << ortho_layer.cols();//debugging
     for(int r = 0;r < 825;r++) {
       for(int c = 0;c < 661;c++) {
         ortho_layer(r,c) = 0;
@@ -134,9 +133,7 @@ void update_whole_grid_map(std::unique_ptr<grid_map::GridMap>& map,
       const aslam::Transformation T_G_B = vi_map.getVertex_T_G_I(vertex_id);
       const aslam::Transformation T_G_C = T_G_B * T_C_B.inverse();
 
-      const aslam::Position3D p_C_map = T_G_C/*.inverse()*/.getPosition();
-
-      //LOG(INFO) << T_G_B;//debugging
+      const aslam::Position3D p_C_map = T_G_C.getPosition();
 
       //in case of grayscale images
       cv::Mat im;
@@ -160,10 +157,6 @@ void update_whole_grid_map(std::unique_ptr<grid_map::GridMap>& map,
         LOG(ERROR) << "No images have been found.";
       }
 
-      LOG(INFO) << im;//debugging
-      cv::imshow("1st image", im);//debugging
-      cv::waitKey(0);//debugging
-      //cv::imwrite("/saved_data/im1.bmp", im);//debugging
       for (size_t i = 0u; i < 4; i++) {
         const Eigen::Vector3d ray_rotated = T_G_C.getRotation().rotate(corner_ray[i]);
         const double multiplier = (min_height - p_C_map[2]) / ray_rotated[2];
@@ -186,8 +179,6 @@ void update_whole_grid_map(std::unique_ptr<grid_map::GridMap>& map,
         const double x = index(0);
         const double y = index(1);
 
-        //LOG(INFO) << "x: " << x << " y: " << y;//debugging
-
         const Eigen::Vector3d position_transformed = T_G_C.inverse() * position;
 
         Eigen::Vector2d kp;
@@ -209,7 +200,7 @@ void update_whole_grid_map(std::unique_ptr<grid_map::GridMap>& map,
             }
           }
         }
-      } im_counter++; if(im_counter == 1){ break;}//only one image for debugging purposes
+      }
     }
   }
   //end of orth

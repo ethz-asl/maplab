@@ -96,7 +96,7 @@ void VOOutlierRejectionPipeline::rejectMatchesFrame(
     }
   }
 
-  VLOG_IF(10, kp1_outlier_track_ids.size() > 0)
+  VLOG_IF(1, kp1_outlier_track_ids.size() > 0) //used to be 10, instead of 1
       << "Removed " << kp1_outlier_track_ids.size() << " matches on camera "
       << cam_idx_ << " with feature type " << feature_type_string_
       << " because the tracks were previously disconnected by an outlier.";
@@ -117,7 +117,7 @@ void VOOutlierRejectionPipeline::rejectMatchesFrame(
       << "Match outlier rejection RANSAC failed on camera " << cam_idx_
       << " with feature type " << feature_type_string_ << ".";
   const size_t num_outliers = outlier_matches_kp1_k.size();
-  VLOG_IF(5, num_outliers > 0)
+  VLOG_IF(1, num_outliers > 0) //used to be 5 instead of 1
       << "Removed " << num_outliers << " outliers of " << matches_kp1_k.size()
       << " matches on camera " << cam_idx_ << " with feature type "
       << feature_type_string_ << ".";

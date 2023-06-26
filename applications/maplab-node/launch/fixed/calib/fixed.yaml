@@ -29,58 +29,58 @@ sensors:
     description: "Fixed winged camera setup"
     topic: ""
     cameras:
+      # - camera:
+      #     id: 54812562fa109c40fe90b29a59dd7798
+      #     sensor_type: CAMERA
+      #     description: "IR"
+      #     topic: /image_republisher/ir/image_mono16 #/thermalgrabber_ros/image_mono16 #/camera #temporary change from rgb to thermal cam
+      #     line-delay-nanoseconds: 0
+      #     image_height: 512
+      #     image_width: 640
+      #     type: pinhole
+      #     intrinsics:
+      #       cols: 1
+      #       rows: 4
+      #       data: [1084.9535657298866, 1083.0048765216013, 375.5097660066839, 265.5222906206614]
+      #     distortion:
+      #       type: radial-tangential #radial-tangential #equidistant
+      #       parameters:
+      #         cols: 1
+      #         rows: 4
+      #         data: [0.3326379734897008, 0.026975281161041056, 0.006511409220812673, 0.02342692134502042]
+      #   T_B_C:
+      #     cols: 4
+      #     rows: 4
+      #     data: [0.0157333518471005,	-0.999682037068821,	0.0197052045439312,	0.0123446602171460,
+      #           -0.999332082926378,	-0.0163718280248474,	-0.0326703268867095,	0.0228440669955060,
+      #            0.0329825483854181,	-0.0191780308379420,	-0.999271915276156,	-0.0292017051340479,
+      #            0.0,	0.0,	0.0,	1.0]
       - camera:
           id: 54812562fa109c40fe90b29a59dd7798
           sensor_type: CAMERA
-          description: "IR" #"RGB"
-          topic: /thermalgrabber_ros/image_mono16 #/camera #temporary change from rgb to thermal cam
+          description: "RGB"
+          topic: /image_republisher/rgb/image_raw #/camera/image_raw
           line-delay-nanoseconds: 0
-          image_height: 512 #1216
-          image_width: 640 #1936
+          image_height: 1216
+          image_width: 1936
           type: pinhole
           intrinsics:
             cols: 1
             rows: 4
-            data: [1086.17909357, 1088.93602564, 339.41686244, 258.29964349] #[2730.487024895857, 2726.6078970909707, 966.7108401323537, 612.3483844249646]
+            data: [2730.487024895857, 2726.6078970909707, 966.7108401323537, 612.3483844249646]
           distortion:
             type: equidistant
             parameters:
               cols: 1
               rows: 4
-              data: [0.73605538, -3.08887228, 88.0550926, -621.37989286] #[0.21554321005051225, 0.0709646723383754, -0.450855641602387, 13.052459045574953]
+              data: [0.21554321005051225, 0.0709646723383754, -0.450855641602387, 13.052459045574953]
         T_B_C:
           cols: 4
           rows: 4
-          data: [-0.01500233,  0.99981408,  0.01211368,  0.06627806, #[-0.01500233,  0.99981408,  0.01211368,  0.06681088,
-                  0.9998871,   0.01501146, -0.00066282,  -0.0304703, #  0.9998871,   0.01501146, -0.00066282,  0.023655,
-                 -0.00084454,  0.01210237, -0.99992641, -0.02816772, # -0.00084454,  0.01210237, -0.99992641, -0.04676751,
-                  0.0, 0.0, 0.0, 1.0] #  0.0, 0.0, 0.0, 1.0]
-      # - camera:
-      #     id: 54812562fa109c40fe90b29a59dd7798
-      #     sensor_type: CAMERA #CAMERA
-      #     description: "RGB"
-      #     topic: /camera/image_raw
-      #     line-delay-nanoseconds: 0
-      #     image_height: 1216
-      #     image_width: 1936
-      #     type: pinhole
-      #     intrinsics:
-      #       cols: 1
-      #       rows: 4
-      #       data: [2730.487024895857, 2726.6078970909707, 966.7108401323537, 612.3483844249646]
-      #     distortion:
-      #       type: equidistant
-      #       parameters:
-      #         cols: 1
-      #         rows: 4
-      #         data: [0.21554321005051225, 0.0709646723383754, -0.450855641602387, 13.052459045574953]
-      #   T_B_C:
-      #     cols: 4
-      #     rows: 4
-      #     data: [-0.01500233,  0.99981408,  0.01211368,  0.06681088,
-      #            0.9998871,   0.01501146, -0.00066282,  0.023655,
-      #            -0.00084454,  0.01210237, -0.99992641, -0.04676751,
-      #            0.0, 0.0, 0.0, 1.0]
+          data: [-0.01500233,  0.99981408,  0.01211368,  0.06681088,
+                 0.9998871,   0.01501146, -0.00066282,  0.023655,
+                 -0.00084454,  0.01210237, -0.99992641, -0.04676751,
+                 0.0, 0.0, 0.0, 1.0]
 
 extrinsics:
   - sensor_id: 412eab8e4058621f7036b5e765dfe812
