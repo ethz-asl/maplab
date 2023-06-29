@@ -11,6 +11,7 @@
 #include <maplab_msgs/DeleteAllRobotMissions.h>
 #include <maplab_msgs/DeleteMission.h>
 #include <maplab_msgs/GetDenseMapInRange.h>
+#include <maplab_msgs/AnchorMission.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 #include <std_srvs/Empty.h>
@@ -59,6 +60,10 @@ class MaplabServerRosNode {
       maplab_msgs::GetDenseMapInRange::Request& request,     // NOLINT
       maplab_msgs::GetDenseMapInRange::Response& response);  // NOLINT
 
+  bool anchorMissionServiceCallback(
+      maplab_msgs::AnchorMission::Request& request,     // NOLINT
+      maplab_msgs::AnchorMission::Response& response);  // NOLINT
+
   bool publishPoseCorrection(
       const int64_t timestamp_ns, const std::string& robot_name,
       const aslam::Transformation& T_G_curr_B_curr,
@@ -78,6 +83,7 @@ class MaplabServerRosNode {
   ros::ServiceServer delete_mission_srv_;
   ros::ServiceServer delete_all_robot_missions_srv_;
   ros::ServiceServer get_dense_map_in_range_srv_;
+  ros::ServiceServer anchor_mission_srv_;
 
   // State for running for maplab.
   ros::AsyncSpinner maplab_spinner_;
