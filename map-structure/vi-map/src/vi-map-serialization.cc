@@ -436,7 +436,7 @@ bool saveMapToFolder(
 }
 
 void serializeSensorManagerToArray(
-    const vi_map::VIMap& map, network::RawMessageData* raw_data) {
+    const vi_map::VIMap& map, RawMessageData* raw_data) {
   CHECK_NOTNULL(raw_data);
   YAML::Node sensors_yaml_node;
   map.getSensorManager().serialize(&sensors_yaml_node);
@@ -473,7 +473,7 @@ MetadataNameToIndexMap createMetadataNameToIndexInverseMap(
 }  // namespace
 
 void serializeToRawArray(
-    const vi_map::VIMap& map, network::RawMessageDataList* raw_data) {
+    const vi_map::VIMap& map, RawMessageDataList* raw_data) {
   CHECK_NOTNULL(raw_data);
 
   // Use default number of vertices per proto.
@@ -494,7 +494,7 @@ void serializeToRawArray(
   const VIMapMetadata metadata = createMetadataForVIMap(map);
   const size_t num_files = metadata.size() + internal::kRegularMapFilesOffset;
 
-  raw_data->insert(raw_data->end(), num_files, network::RawMessageData());
+  raw_data->insert(raw_data->end(), num_files, RawMessageData());
   CHECK_EQ(begin_index + num_files, raw_data->size());
 
   // Build an inverse map of name -> index.
@@ -504,7 +504,7 @@ void serializeToRawArray(
   // Insert metadata and sensor manager.
   {
     // Metadata always comes first.
-    network::RawMessageData& raw_data_element =
+    RawMessageData& raw_data_element =
         (*raw_data)[begin_index + internal::kMetadataIndexOffset];
 
     proto::VIMapMetadata metadata_proto;
@@ -513,7 +513,7 @@ void serializeToRawArray(
         metadata_proto, &raw_data_element.first, &raw_data_element.second);
   }
   {
-    network::RawMessageData& raw_data_element =
+    RawMessageData& raw_data_element =
         (*raw_data)[begin_index + internal::kSensorsYamlIndexOffset];
     serializeSensorManagerToArray(map, &raw_data_element);
   }
@@ -528,7 +528,7 @@ void serializeToRawArray(
           return false;
         }
         const size_t index = begin_index + name_to_index_iterator->second;
-        network::RawMessageData& raw_data_element = (*raw_data)[index];
+        RawMessageData& raw_data_element = (*raw_data)[index];
         LOG(INFO) << "Serializing proto at index " << index << '.';
         common::proto_serialization_helper::serializeToArray(
             proto, &raw_data_element.first, &raw_data_element.second);
@@ -537,7 +537,7 @@ void serializeToRawArray(
 }
 
 void deserializeSensorManagerFromArray(
-    const network::RawMessageData& raw_data, vi_map::VIMap* map) {
+    const RawMessageData& raw_data, vi_map::VIMap* map) {
   CHECK_NOTNULL(map);
   const size_t num_bytes = raw_data.second;
   CHECK_GT(num_bytes, 0u);
@@ -561,7 +561,7 @@ void deserializeSensorManagerFromArray(
 }
 
 void deserializeFromRawArray(
-    const network::RawMessageDataList& raw_data, const size_t start_index,
+    const RawMessageDataList& raw_data, const size_t start_index,
     vi_map::VIMap* map) {
   // Example layout:
   // Index
@@ -579,7 +579,7 @@ void deserializeFromRawArray(
   const size_t metadata_index = start_index + internal::kMetadataIndexOffset;
   CHECK_GT(raw_data.size(), metadata_index);
   proto::VIMapMetadata metadata_proto;
-  const network::RawMessageData& metadata_raw_data_pair =
+  const RawMessageData& metadata_raw_data_pair =
       raw_data[metadata_index];
   common::proto_serialization_helper::deserializeFromArray(
       metadata_raw_data_pair.first, metadata_raw_data_pair.second,
@@ -604,7 +604,7 @@ void deserializeFromRawArray(
       [&](const std::string& name, proto::VIMap* proto) -> bool {
         CHECK_NOTNULL(proto);
         const size_t index = common::getChecked(name_to_index_map, name);
-        const network::RawMessageData& raw_data_element =
+        const RawMessageData& raw_data_element =
             raw_data[start_index + index];
         common::proto_serialization_helper::deserializeFromArray(
             raw_data_element.first, raw_data_element.second, proto);

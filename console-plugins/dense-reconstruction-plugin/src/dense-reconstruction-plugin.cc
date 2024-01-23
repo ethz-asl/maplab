@@ -8,8 +8,9 @@
 #include <aslam/common/timer.h>
 #include <console-common/console.h>
 #include <dense-reconstruction/conversion-tools.h>
-#include <dense-reconstruction/pmvs-file-utils.h>
-#include <dense-reconstruction/pmvs-interface.h>
+// TODO(smauq): Fix undistortion in pmvs
+//#include <dense-reconstruction/pmvs-file-utils.h>
+//#include <dense-reconstruction/pmvs-interface.h>
 #include <dense-reconstruction/stereo-dense-reconstruction.h>
 #include <depth-integration/depth-integration.h>
 #include <gflags/gflags.h>
@@ -135,7 +136,8 @@ common::CommandStatus exportTsdfMeshToFile(
 DenseReconstructionPlugin::DenseReconstructionPlugin(
     common::Console* console, visualization::ViwlsGraphRvizPlotter* plotter)
     : common::ConsolePluginBaseWithPlotter(console, plotter) {
-  addCommand(
+  // TODO(smauq): Fix undistortion in pmvs
+  /*addCommand(
       {"export_timestamped_images"},
       [this]() -> int {
         // Select map.
@@ -197,7 +199,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
       },
       "Export the map and the associated image resources to the PMVS/CMVS "
       "input format, such that we can reconstruct the whole map.",
-      common::Processing::Sync);
+      common::Processing::Sync);*/
 
   addCommand(
       {"stereo_dense_reconstruction", "stereo_dense", "sdr"},
@@ -309,13 +311,14 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         size_t num_pointclouds_integrated = 0u;
         size_t num_points_integrated = 0u;
 
-        depth_integration::IntegrationFunctionPointCloudVoxblox integration_function =
-            [&integrator, &icp, &T_G_C_icp_correction, &tsdf_map,
-             &num_pointclouds_integrated, &color_mode, &mesh_layer,
-             &mesh_integrator, &num_points_integrated](
-                const voxblox::Transformation& T_G_C,
-                const voxblox::Pointcloud& points,
-                const voxblox::Colors& colors) {
+        depth_integration::IntegrationFunctionPointCloudVoxblox
+            integration_function = [&integrator, &icp, &T_G_C_icp_correction,
+                                    &tsdf_map, &num_pointclouds_integrated,
+                                    &color_mode, &mesh_layer, &mesh_integrator,
+                                    &num_points_integrated](
+                                       const voxblox::Transformation& T_G_C,
+                                       const voxblox::Pointcloud& points,
+                                       const voxblox::Colors& colors) {
               if (FLAGS_dense_tsdf_integrate_every_nth > 1 &&
                   (static_cast<int>(num_pointclouds_integrated) %
                        FLAGS_dense_tsdf_integrate_every_nth ==
@@ -516,12 +519,12 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
 
         size_t num_pointcloud_integrated = 0u;
 
-        depth_integration::IntegrationFunctionPointCloudVoxblox integration_function =
-            [&esdf_server, &icp, &T_G_C_icp_correction, &tsdf_map,
-             &num_pointcloud_integrated](
-                const voxblox::Transformation& T_G_C,
-                const voxblox::Pointcloud& points,
-                const voxblox::Colors& colors) {
+        depth_integration::IntegrationFunctionPointCloudVoxblox
+            integration_function = [&esdf_server, &icp, &T_G_C_icp_correction,
+                                    &tsdf_map, &num_pointcloud_integrated](
+                                       const voxblox::Transformation& T_G_C,
+                                       const voxblox::Pointcloud& points,
+                                       const voxblox::Colors& colors) {
               CHECK_EQ(points.size(), colors.size());
 
               voxblox::Transformation T_G_C_refined = T_G_C;

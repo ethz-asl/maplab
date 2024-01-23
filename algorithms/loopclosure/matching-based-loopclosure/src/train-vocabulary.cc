@@ -1,22 +1,19 @@
-#include "matching-based-loopclosure/train-vocabulary.h"
-
-#include <algorithm>
-#include <cstdio>
-#include <vector>
-
 #include <Eigen/Core>
 #include <Eigen/StdVector>
+#include <algorithm>
+#include <cstdio>
 #include <descriptor-projection/descriptor-projection.h>
 #include <descriptor-projection/map-track-extractor.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <loopclosure-common/types.h>
+#include <vector>
 #include <vi-map/vi-map.h>
 #include <vocabulary-tree/tree-builder.h>
 
 #include "matching-based-loopclosure/detector-settings.h"
-#include "matching-based-loopclosure/inverted-index-interface.h"
 #include "matching-based-loopclosure/inverted-multi-index-interface.h"
+#include "matching-based-loopclosure/train-vocabulary.h"
 
 DECLARE_string(data_directory);
 DEFINE_int32(
@@ -193,17 +190,13 @@ void MakeProductVocabularies(
   const unsigned int num_descriptors_per_training = num_pq_words * 200u;
 
   for (const DescriptorVector& word_descriptors : residuals) {
-    for (int component = 0;
-         component < FLAGS_lc_product_quantization_num_components;
-         ++component) {
+    for (int component = 0; component < num_components; ++component) {
       LOG(INFO) << "Training component " << num_components_stored << "/"
                 << num_imi_words * num_components;
       DescriptorVector dim_for_component;
       dim_for_component.reserve(word_descriptors.size());
-      const int start_block =
-          component * FLAGS_lc_product_quantization_num_dim_per_component;
-      const int block_size =
-          FLAGS_lc_product_quantization_num_dim_per_component;
+      const int start_block = component * num_dim_per_component;
+      const int block_size = num_dim_per_component;
       for (const ProjectedDescriptorType& descriptor : word_descriptors) {
         ProjectedDescriptorType sub_descriptor =
             descriptor.block(start_block, 0, block_size, 1);
@@ -215,8 +208,8 @@ void MakeProductVocabularies(
       LOG(INFO) << "Using " << dim_for_component.size() << " descriptors.";
       Eigen::MatrixXf words_product_vocabulary;
       MakeVocabulary(
-          FLAGS_lc_product_quantization_num_words, dim_for_component,
-          block_size, &words_product_vocabulary);
+          num_pq_words, dim_for_component, block_size,
+          &words_product_vocabulary);
       // Now store product vocabulary for component.
       CHECK_LE(
           num_components_stored * num_pq_words + num_pq_words,
@@ -243,115 +236,49 @@ void MakeVocabularies(
   typedef matching_based_loopclosure::MatchingBasedEngineSettings::
       DetectorEngineType DetectorEngineType;
 
+  if (matching_based_settings.detector_engine_type !=
+          DetectorEngineType::kMatchingInvertedMultiIndex &&
+      matching_based_settings.detector_engine_type !=
+          DetectorEngineType::kMatchingInvertedMultiIndexPQ) {
+    LOG(FATAL) << "Training for type is not supported.";
+  }
+
+  CHECK_EQ(FLAGS_lc_target_dimensionality % 2, 0)
+      << "Number of dimensions must be divisible by two.";
+  const int kHalfDescriptorLength = FLAGS_lc_target_dimensionality / 2;
+  // Split the descriptors in half:
+  DescriptorVector projected_descriptors_first_half;
+  DescriptorVector projected_descriptors_second_half;
+  projected_descriptors_first_half.reserve(projected_descriptors.size());
+  projected_descriptors_second_half.reserve(projected_descriptors.size());
+  for (size_t i = 0; i < projected_descriptors.size(); ++i) {
+    const ProjectedDescriptorType& projected_descriptor =
+        projected_descriptors[i];
+    ProjectedDescriptorType first_half =
+        projected_descriptor.block(0, 0, kHalfDescriptorLength, 1);
+    projected_descriptors_first_half.push_back(first_half);
+
+    ProjectedDescriptorType second_half = projected_descriptor.block(
+        kHalfDescriptorLength, 0, kHalfDescriptorLength, 1);
+    projected_descriptors_second_half.push_back(second_half);
+  }
+
   if (matching_based_settings.detector_engine_type ==
-          DetectorEngineType::kMatchingLDInvertedMultiIndex ||
-      matching_based_settings.detector_engine_type ==
-          DetectorEngineType::
-              kMatchingLDInvertedMultiIndexProductQuantization) {
-    CHECK_EQ(FLAGS_lc_target_dimensionality % 2, 0)
-        << "Number of dimensions must be divisible by two.";
-    const int kHalfDescriptorLength = FLAGS_lc_target_dimensionality / 2;
-    // Split the descriptors in half:
-    DescriptorVector projected_descriptors_first_half;
-    DescriptorVector projected_descriptors_second_half;
-    projected_descriptors_first_half.reserve(projected_descriptors.size());
-    projected_descriptors_second_half.reserve(projected_descriptors.size());
-    for (size_t i = 0; i < projected_descriptors.size(); ++i) {
-      const ProjectedDescriptorType& projected_descriptor =
-          projected_descriptors[i];
-      ProjectedDescriptorType first_half =
-          projected_descriptor.block(0, 0, kHalfDescriptorLength, 1);
-      projected_descriptors_first_half.push_back(first_half);
-
-      ProjectedDescriptorType second_half = projected_descriptor.block(
-          kHalfDescriptorLength, 0, kHalfDescriptorLength, 1);
-      projected_descriptors_second_half.push_back(second_half);
-    }
-
-    if (matching_based_settings.detector_engine_type ==
-        DetectorEngineType::kMatchingLDInvertedMultiIndex) {
-      loop_closure::InvertedMultiIndexVocabulary vocabulary;
-      vocabulary.projection_matrix_ = projection_matrix;
-      vocabulary.target_dimensionality_ = FLAGS_lc_target_dimensionality;
-
-      LOG(INFO) << "Creating first vocabulary.";
-      MakeVocabulary(
-          FLAGS_lc_number_of_vocabulary_words, projected_descriptors_first_half,
-          kHalfDescriptorLength, &vocabulary.words_first_half_);
-
-      LOG(INFO) << "Creating second vocabulary.";
-      MakeVocabulary(
-          FLAGS_lc_number_of_vocabulary_words,
-          projected_descriptors_second_half, kHalfDescriptorLength,
-          &vocabulary.words_second_half_);
-
-      std::ofstream out(
-          FLAGS_lc_projected_quantizer_filename.c_str(), std::ios_base::binary);
-      CHECK(out.is_open()) << "Failed to write quantizer file to "
-                           << FLAGS_lc_projected_quantizer_filename;
-
-      vocabulary.Save(&out);
-    } else if (
-        matching_based_settings.detector_engine_type ==
-        DetectorEngineType::kMatchingLDInvertedMultiIndexProductQuantization) {
-      // Trains a product quantizer from a given set of data points, resulting
-      // in a set of cluster centers that can be passed onto an instance of
-      // ProductQuantization using the SetClusterCenters function.
-      // The template parameters are the number of components to be used for
-      // product
-      // quantization, the number of dimensions for each component, and the
-      // number of
-      // cluster centers.
-
-      loop_closure::InvertedMultiIndexProductVocabulary vocabulary;
-      vocabulary.projection_matrix_ = projection_matrix;
-      vocabulary.target_dimensionality_ = FLAGS_lc_target_dimensionality;
-
-      LOG(INFO) << "Creating first vocabulary.";
-      MakeVocabulary(
-          FLAGS_lc_number_of_vocabulary_words, projected_descriptors_first_half,
-          kHalfDescriptorLength, &vocabulary.words_first_half_);
-
-      LOG(INFO) << "Creating second vocabulary.";
-      MakeVocabulary(
-          FLAGS_lc_number_of_vocabulary_words,
-          projected_descriptors_second_half, kHalfDescriptorLength,
-          &vocabulary.words_second_half_);
-
-      vocabulary.number_of_components =
-          FLAGS_lc_product_quantization_num_components;
-      vocabulary.number_of_centers = FLAGS_lc_product_quantization_num_words;
-      vocabulary.number_of_dimensions_per_component =
-          FLAGS_lc_product_quantization_num_dim_per_component;
-
-      MakeProductVocabularies(
-          projected_descriptors_first_half, vocabulary.words_first_half_,
-          &vocabulary.quantizer_centers_1);
-
-      MakeProductVocabularies(
-          projected_descriptors_second_half, vocabulary.words_second_half_,
-          &vocabulary.quantizer_centers_2);
-
-      std::ofstream out(
-          FLAGS_lc_projected_quantizer_filename.c_str(), std::ios_base::binary);
-      CHECK(out.is_open()) << "Failed to write quantizer file to "
-                           << FLAGS_lc_projected_quantizer_filename;
-
-      LOG(INFO) << "Storing " << FLAGS_lc_projected_quantizer_filename;
-      vocabulary.Save(&out);
-    } else {
-      LOG(FATAL) << "Training for this type is not supported.";
-    }
-  } else if (
-      matching_based_settings.detector_engine_type ==
-      DetectorEngineType::kMatchingLDInvertedIndex) {
-    loop_closure::InvertedIndexVocabulary vocabulary;
+      DetectorEngineType::kMatchingInvertedMultiIndex) {
+    loop_closure::InvertedMultiIndexVocabulary vocabulary;
     vocabulary.projection_matrix_ = projection_matrix;
     vocabulary.target_dimensionality_ = FLAGS_lc_target_dimensionality;
-    LOG(INFO) << "Creating vocabulary.";
+
+    LOG(INFO) << "Creating first vocabulary.";
     MakeVocabulary(
-        FLAGS_lc_number_of_vocabulary_words, projected_descriptors,
-        FLAGS_lc_target_dimensionality, &vocabulary.words_);
+        FLAGS_lc_number_of_vocabulary_words, projected_descriptors_first_half,
+        kHalfDescriptorLength, &vocabulary.words_first_half_);
+
+    LOG(INFO) << "Creating second vocabulary.";
+    MakeVocabulary(
+        FLAGS_lc_number_of_vocabulary_words, projected_descriptors_second_half,
+        kHalfDescriptorLength, &vocabulary.words_second_half_);
+
     std::ofstream out(
         FLAGS_lc_projected_quantizer_filename.c_str(), std::ios_base::binary);
     CHECK(out.is_open()) << "Failed to write quantizer file to "
@@ -359,7 +286,50 @@ void MakeVocabularies(
 
     vocabulary.Save(&out);
   } else {
-    LOG(FATAL) << "Training for type is not supported.";
+    // Trains a product quantizer from a given set of data points, resulting
+    // in a set of cluster centers that can be passed onto an instance of
+    // ProductQuantization using the SetClusterCenters function.
+    // The template parameters are the number of components to be used for
+    // product
+    // quantization, the number of dimensions for each component, and the
+    // number of
+    // cluster centers.
+
+    loop_closure::InvertedMultiIndexProductVocabulary vocabulary;
+    vocabulary.projection_matrix_ = projection_matrix;
+    vocabulary.target_dimensionality_ = FLAGS_lc_target_dimensionality;
+
+    LOG(INFO) << "Creating first vocabulary.";
+    MakeVocabulary(
+        FLAGS_lc_number_of_vocabulary_words, projected_descriptors_first_half,
+        kHalfDescriptorLength, &vocabulary.words_first_half_);
+
+    LOG(INFO) << "Creating second vocabulary.";
+    MakeVocabulary(
+        FLAGS_lc_number_of_vocabulary_words, projected_descriptors_second_half,
+        kHalfDescriptorLength, &vocabulary.words_second_half_);
+
+    vocabulary.number_of_components =
+        FLAGS_lc_product_quantization_num_components;
+    vocabulary.number_of_centers = FLAGS_lc_product_quantization_num_words;
+    vocabulary.number_of_dimensions_per_component =
+        FLAGS_lc_product_quantization_num_dim_per_component;
+
+    MakeProductVocabularies(
+        projected_descriptors_first_half, vocabulary.words_first_half_,
+        &vocabulary.quantizer_centers_1);
+
+    MakeProductVocabularies(
+        projected_descriptors_second_half, vocabulary.words_second_half_,
+        &vocabulary.quantizer_centers_2);
+
+    std::ofstream out(
+        FLAGS_lc_projected_quantizer_filename.c_str(), std::ios_base::binary);
+    CHECK(out.is_open()) << "Failed to write quantizer file to "
+                         << FLAGS_lc_projected_quantizer_filename;
+
+    LOG(INFO) << "Storing " << FLAGS_lc_projected_quantizer_filename;
+    vocabulary.Save(&out);
   }
 }
 

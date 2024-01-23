@@ -32,7 +32,7 @@ map_builder_save_point_cloud_maps_as_resources:                         false
 ###############
 publish_debug_markers:                                                  false
 vis_default_namespace:                                                  maplab_rviz
-detection_visualize_keypoints:                                          false
+feature_tracker_visualize_keypoint_detections:                          false
 feature_tracker_visualize_keypoint_matches:                             true
 
 # DEBUGGING AND LOGGING

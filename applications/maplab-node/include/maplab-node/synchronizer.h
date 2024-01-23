@@ -111,10 +111,6 @@ class Synchronizer {
       const std::function<
           void(const vi_map::WheelOdometryMeasurement::ConstPtr&)>& callback);
 
-  void registerLocalizationResultMeasurementCallback(
-      const std::function<void(const common::LocalizationResult::ConstPtr&)>&
-          callback);
-
   void registerPointCloudMapSensorMeasurementCallback(
       const std::function<
           void(const vi_map::RosPointCloudMapSensorMeasurement::ConstPtr&)>&
@@ -265,10 +261,6 @@ class Synchronizer {
       std::function<void(const vi_map::WheelOdometryMeasurement::ConstPtr&)>>
       wheel_odometry_callbacks_;
   std::mutex wheel_odometry_callback_mutex_;
-
-  std::vector<std::function<void(const common::LocalizationResult::ConstPtr&)>>
-      localization_result_callbacks_;
-  std::mutex localization_result_callback_mutex_;
 
   std::vector<
       std::function<void(const vi_map::LoopClosureMeasurement::ConstPtr&)>>

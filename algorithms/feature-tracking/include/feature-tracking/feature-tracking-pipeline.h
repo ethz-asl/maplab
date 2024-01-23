@@ -21,13 +21,8 @@ class FeatureTrackingPipeline {
 
  protected:
   const std::string feature_tracking_ros_base_topic_;
+  const bool visualize_keypoint_detections_;
   const bool visualize_keypoint_matches_;
-
- private:
-  virtual void initialize(const aslam::NCamera::ConstPtr& ncamera) = 0;
-  virtual void trackFeaturesNFrame(
-      const aslam::Transformation& T_Bk_Bkp1, aslam::VisualNFrame* nframe_k,
-      aslam::VisualNFrame* nframe_kp1) = 0;
 };
 
 }  // namespace feature_tracking

@@ -4,9 +4,8 @@
 // Gflags that are used solely in your package or the packages
 // depending on it define it there.
 
-#include <string>
-
 #include <gflags/gflags.h>
+#include <string>
 
 DEFINE_string(map_key, "", "The map key for a console command.");
 DEFINE_string(

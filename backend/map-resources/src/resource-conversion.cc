@@ -1,5 +1,3 @@
-#include "map-resources/resource-conversion.h"
-
 #include <aslam/cameras/camera-factory.h>
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/camera-unified-projection.h>
@@ -14,6 +12,7 @@
 #include <voxblox/core/common.h>
 
 #include "map-resources/resource-common.h"
+#include "map-resources/resource-conversion.h"
 
 namespace backend {
 
@@ -27,6 +26,7 @@ static const std::string kPointCloud2PointX = "x";
 static const std::string kPointCloud2PointY = "y";
 static const std::string kPointCloud2PointZ = "z";
 static const std::string kPointCloud2ColorRGBA = "rgba";
+static const std::string kPointCloud2ColorRGB = "rgb";
 static const std::string kPointCloud2ColorR = "r";
 static const std::string kPointCloud2ColorG = "g";
 static const std::string kPointCloud2ColorB = "b";
@@ -363,20 +363,33 @@ void getColorFromPointCloud(
   CHECK_NOTNULL(color);
   resources::RgbaColor& color_out = *color;
   if (hasColorInformation(point_cloud)) {
+    // check which kind of color field
+    bool has_rgba = false;
+    for (const sensor_msgs::PointField& field : point_cloud.fields) {
+      if (field.name == kPointCloud2ColorRGBA) {
+        has_rgba = true;
+      }
+    }
+
     sensor_msgs::PointCloud2ConstIterator<uint8_t> it_r(
         point_cloud, kPointCloud2ColorR);
     sensor_msgs::PointCloud2ConstIterator<uint8_t> it_g(
         point_cloud, kPointCloud2ColorG);
     sensor_msgs::PointCloud2ConstIterator<uint8_t> it_b(
         point_cloud, kPointCloud2ColorB);
-    sensor_msgs::PointCloud2ConstIterator<uint8_t> it_a(
-        point_cloud, kPointCloud2ColorA);
 
     color_out[0] = *(it_r + index);
     color_out[1] = *(it_g + index);
     color_out[2] = *(it_b + index);
-    color_out[3] = *(it_a + index);
 
+    if (has_rgba) {
+      sensor_msgs::PointCloud2ConstIterator<uint8_t> it_a(
+          point_cloud, kPointCloud2ColorA);
+      color_out[3] = *(it_a + index);
+    } else {
+      // Only RGB info present, so default to no transparency.
+      color_out[3] = 255;
+    }
   } else if (hasScalarInformation(point_cloud)) {
     sensor_msgs::PointField field = getScalarField(point_cloud);
     CHECK(!field.name.empty());
@@ -805,7 +818,8 @@ bool hasColorInformation(const resources::PointCloud& point_cloud) {
 template <>
 bool hasColorInformation(const sensor_msgs::PointCloud2& point_cloud) {
   for (const sensor_msgs::PointField& field : point_cloud.fields) {
-    if (field.name == kPointCloud2ColorRGBA) {
+    if (field.name == kPointCloud2ColorRGBA ||
+        field.name == kPointCloud2ColorRGB) {
       return true;
     }
   }

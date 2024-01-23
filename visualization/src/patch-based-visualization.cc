@@ -82,7 +82,7 @@ void createColorImageFromImage(const cv::Mat& image, cv::Mat* color_image) {
 
   switch (image.type()) {
     case CV_8UC1:
-      cv::cvtColor(image, *color_image, CV_GRAY2BGR);
+      cv::cvtColor(image, *color_image, cv::COLOR_GRAY2BGR);
       break;
     case CV_8UC3:
       image.copyTo(*color_image);
@@ -436,7 +436,7 @@ void visualizePatchesOfLandmarkKeypointMatches(
         "Match Score: " + std::to_string(score) +
         ", Hamming Distance: " + std::to_string(hamming_distance);
     const cv::Scalar kWhite(255.0, 255.0, 255.0);
-    const int kFontFace = CV_FONT_NORMAL;
+    const int kFontFace = cv::FONT_HERSHEY_SIMPLEX;
     const double kFontScaling = 0.5;
     const int y_bottom_left =
         kRowHeightPixels - static_cast<int>(std::floor(

@@ -1,11 +1,14 @@
 #ifndef FEATURE_TRACKING_FEATURE_TRACKING_TYPES_H_
 #define FEATURE_TRACKING_FEATURE_TRACKING_TYPES_H_
 
+#include <opencv2/features2d/features2d.hpp>
+
 #include <string>
 
 namespace feature_tracking {
 
 struct FeatureTrackingExtractorSettings {
+  // TODO(smauq): Completely move away from internal Freak
   enum class DescriptorType { kOcvFreak, kBrisk };
   FeatureTrackingExtractorSettings();
   DescriptorType convertStringToDescriptorType(
@@ -44,7 +47,7 @@ struct FeatureTrackingDetectorSettings {
   // The default HARRIS_SCORE means that Harris algorithm is used to rank
   // features. FAST_SCORE is alternative value of the parameter that produces
   // slightly less stable keypoints, but it is a little faster to compute.
-  int orb_detector_score_type;
+  cv::ORB::ScoreType orb_detector_score_type;
   // Size of the patch used by the oriented BRIEF descriptor. Of course, on
   // smaller pyramid layers the perceived image area covered by a feature will
   // be larger.
@@ -74,6 +77,19 @@ struct FeatureTrackingDetectorSettings {
   size_t gridded_detector_num_grid_rows;
   size_t gridded_detector_num_threads_per_image;
 };
+
+struct FeatureTrackingOutlierSettings {
+  FeatureTrackingOutlierSettings();
+
+  // Threshold for the 2-pt RANSAC outlier rejection.
+  double two_pt_ransac_threshold;
+  // Maximum number of iterations for the outlier rejection RANSAC.
+  size_t two_pt_ransac_max_iterations;
+  // If the outlier rejection should be deterministic, (i.e. fixed seed).
+  // Useful for doing experiments with repeatable results.
+  bool deterministic;
+};
+
 
 }  // namespace feature_tracking
 

@@ -1,8 +1,7 @@
 #include <cstdlib>
 #include <future>
-
 #include <maplab-common/test/testing-entrypoint.h>
-#include <maplab-common/threadsafe-queue.h>
+#include <queue>
 
 #include "message-flow/message-dispatcher-fifo.h"
 #include "message-flow/message-flow.h"
@@ -54,9 +53,8 @@ TEST(MessageFlow, PublishSubscribeE2E) {
   //  - Publish a number on TopicA and TopicB
   //  - Subscribe to TopicA/TopicB and publish TopicA+TopicB on TopicX
   //  - Subscribe to TopicX
-  std::unique_ptr<MessageFlow> flow(
-      MessageFlow::create<MessageDispatcherFifo>(
-          std::thread::hardware_concurrency()));
+  std::unique_ptr<MessageFlow> flow(MessageFlow::create<MessageDispatcherFifo>(
+      std::thread::hardware_concurrency()));
 
   // Add an adder node to the flow network that adds the two number published
   // on TopicA and TopicB and publishes the result on TopicC.
@@ -99,16 +97,18 @@ TEST(MessageFlow, MessageDispatcherThreadedFifo_MessageDeliveryOrder) {
 
   std::function<void(const double&)> publish_on_topic_a =
       flow->registerPublisher<message_flow_topics::TopicA>();
-  common::ThreadSafeQueue<double> receive_queue;
+  std::queue<double> receive_queue;
+  std::mutex mutex;
 
   flow->registerSubscriber<message_flow_topics::TopicA>(
-      kSubscriberNode, DeliveryOptions(), [&receive_queue](double value) {
+      kSubscriberNode, DeliveryOptions(),
+      [&receive_queue, &mutex](double value) {
         // Let's wait a small random amount of time to check if the threads
         // respect the incoming order of the messages when being delivered
         // by multiple threads.
-        std::this_thread::sleep_for(
-            std::chrono::microseconds(rand() % 10));  // NOLINT
-        receive_queue.Push(value);
+        std::this_thread::sleep_for(std::chrono::microseconds(rand() % 10));
+        std::lock_guard<std::mutex> lock(mutex);
+        receive_queue.push(value);
       });
 
   // Publish a lot of number and wait until all message are delivered.
@@ -119,18 +119,19 @@ TEST(MessageFlow, MessageDispatcherThreadedFifo_MessageDeliveryOrder) {
   flow->waitUntilIdle();
 
   // Check order of the result queue.
-  ASSERT_EQ(receive_queue.Size(), kNumNumbers);
+  ASSERT_EQ(receive_queue.size(), kNumNumbers);
 
   size_t counter = 0u;
   double value;
-  while (receive_queue.PopNonBlocking(&value)) {
+  while (!receive_queue.empty()) {
+    const double value = receive_queue.front();
     EXPECT_EQ(static_cast<double>(counter), value);
+    receive_queue.pop();
     ++counter;
   }
   EXPECT_EQ(counter, kNumNumbers);
 
   LOG(INFO) << flow->printDeliveryQueueStatistics();
-  receive_queue.Shutdown();
   flow->shutdown();
   flow->waitUntilIdle();
 }
@@ -151,15 +152,16 @@ TEST(
       flow->registerPublisher<message_flow_topics::TopicA>();
   std::function<void(const double&)> publish_on_topic_b =
       flow->registerPublisher<message_flow_topics::TopicB>();
-  common::ThreadSafeQueue<double> receive_queue;
+  std::queue<double> receive_queue;
+  std::mutex mutex;
 
-  const auto receive_callback = [&receive_queue](double value) {
+  const auto receive_callback = [&receive_queue, &mutex](double value) {
     // Let's wait a small random amount of time to check if the threads
     // respect the incoming order of the messages when being delivered
     // by multiple threads.
-    std::this_thread::sleep_for(
-        std::chrono::microseconds(rand() % 10));  // NOLINT
-    receive_queue.Push(value);
+    std::this_thread::sleep_for(std::chrono::microseconds(rand() % 10));
+    std::lock_guard<std::mutex> lock(mutex);
+    receive_queue.push(value);
   };
 
   DeliveryOptions delivery_options;
@@ -181,18 +183,18 @@ TEST(
   flow->waitUntilIdle();
 
   // Check order of the result queue.
-  ASSERT_EQ(receive_queue.Size(), kNumNumbers);
+  ASSERT_EQ(receive_queue.size(), kNumNumbers);
 
   size_t counter = 0u;
-  double value;
-  while (receive_queue.PopNonBlocking(&value)) {
+  while (!receive_queue.empty()) {
+    const double value = receive_queue.front();
     EXPECT_EQ(static_cast<double>(counter), value);
+    receive_queue.pop();
     ++counter;
   }
   EXPECT_EQ(counter, kNumNumbers);
 
   LOG(INFO) << flow->printDeliveryQueueStatistics();
-  receive_queue.Shutdown();
   flow->shutdown();
   flow->waitUntilIdle();
 }

@@ -14,7 +14,6 @@
 #include <descriptor-projection/descriptor-projection.h>
 #include <localization-summary-map/unique-id.h>
 #include <loopclosure-common/types.h>
-#include <maplab-common/file-serializable.h>
 #include <sensors/external-features.h>
 #include <vi-map/mission-baseframe.h>
 #include <vi-map/unique-id.h>
@@ -24,10 +23,10 @@
 #include "loop-closure-handler/loop-closure-handler.h"
 #include "loop-closure-handler/visualization/loop-closure-visualizer.h"
 
-namespace loop_detector {
+namespace matching_based_loopclosure {
 class LoopDetector;
-struct LoopDetectorInitOptions;
-}  // namespace loop_detector
+}  // namespace matching_based_loopclosure
+
 namespace loop_closure {
 struct ProjectedImage;
 }  // namespace loop_closure
@@ -168,7 +167,7 @@ class LoopDetectorNode final {
       std::mutex* map_mutex) const;
 
   loop_closure_visualization::LoopClosureVisualizer::UniquePtr visualizer_;
-  std::shared_ptr<loop_detector::LoopDetector> loop_detector_;
+  std::shared_ptr<matching_based_loopclosure::LoopDetector> loop_detector_;
   vi_map::MissionIdSet missions_in_database_;
   summary_map::LocalizationSummaryMapIdSet summary_maps_in_database_;
   // The filename of the serialization file.

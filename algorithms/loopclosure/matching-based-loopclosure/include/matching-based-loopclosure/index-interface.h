@@ -1,14 +1,17 @@
 #ifndef MATCHING_BASED_LOOPCLOSURE_INDEX_INTERFACE_H_
 #define MATCHING_BASED_LOOPCLOSURE_INDEX_INTERFACE_H_
+#include <Eigen/Core>
 #include <vector>
 
-#include <Eigen/Core>
-#include <matching-based-loopclosure/helpers.h>
+#include "matching-based-loopclosure/helpers.h"
 
 namespace loop_closure {
 class IndexInterface {
  public:
   virtual ~IndexInterface() {}
+
+  // Initialize or re-initialize the index if necessary
+  virtual void Initialize() = 0;
 
   // Clear the underlying database from all descriptors.
   virtual void Clear() = 0;
@@ -21,12 +24,6 @@ class IndexInterface {
 
   // The number of individual descriptors in the index.
   virtual int GetNumDescriptorsInIndex() const = 0;
-
-  // Use the projection matrix specific to the used index to project the
-  // binary descriptors to a lower dimensional, real valued space.
-  virtual void ProjectDescriptors(
-      const std::vector<aslam::common::FeatureDescriptorConstRef>& descriptors,
-      Eigen::MatrixXf* projected_descriptors) const = 0;
 
   // Add descriptors to the index. Can be done lazily.
   virtual void AddDescriptors(const Eigen::MatrixXf& descriptors) = 0;

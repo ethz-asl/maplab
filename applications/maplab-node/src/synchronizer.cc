@@ -353,13 +353,7 @@ void Synchronizer::processOdometryMeasurement(
   VLOG_IF(1, !received_first_odometry_message_.exchange(true))
       << "[MaplabNode-Synchronizer] Received first odometry message!";
 
-  // To compute the odometry covariance for later filtering, it is necessary to
-  // keep track of the number of odometry measurements that were received over
-  // time.
-  ++odometry_measurement_counter_;
-  vio::ViNodeState odometry_copy = odometry;
-  odometry_copy.setSequenceNumber(odometry_measurement_counter_);
-  T_M_B_buffer_.bufferOdometryEstimate(odometry_copy);
+  T_M_B_buffer_.bufferOdometryEstimate(odometry);
 
   releaseData();
 }
@@ -590,58 +584,10 @@ void Synchronizer::releaseAbsolute6DoFData(
   for (const vi_map::Absolute6DoFMeasurement::Ptr& absolute_6dof_measurement :
        absolute_6dof_measurements) {
     CHECK(absolute_6dof_measurement);
-
-    vi_map::Absolute6DoFMeasurement::Ptr absolute_6dof_measurement_copy(
-        new vi_map::Absolute6DoFMeasurement(*absolute_6dof_measurement));
-    aslam::Transformation T_M_B_cached;
-    if (T_M_B_buffer_.getPoseAt(
-            absolute_6dof_measurement->getTimestampNanoseconds(),
-            &T_M_B_cached) <= vio_common::PoseLookupBuffer::ResultStatus::
-                                  kSuccessImuForwardPropagation) {
-      absolute_6dof_measurement_copy->set_T_M_B_cached(T_M_B_cached);
-
-      // The poses for which an odometry estimate is available are also released
-      // as localization results and subsequently fused with the localizations
-
-      common::LocalizationResult::Ptr absolute_6dof_localization =
-          std::make_shared<common::LocalizationResult>(
-              common::LocalizationType::kAbsolutePose);
-
-      absolute_6dof_localization->localization_mode =
-          common::LocalizationMode::kGlobal;
-      absolute_6dof_localization->timestamp_ns =
-          absolute_6dof_measurement_copy->getTimestampNanoseconds();
-      absolute_6dof_localization->sensor_id =
-          absolute_6dof_measurement_copy->getSensorId();
-
-      aslam::Transformation T_G_S = absolute_6dof_measurement_copy->get_T_G_S();
-      aslam::Transformation T_S_B =
-          sensor_manager_
-              .getSensor_T_B_S(absolute_6dof_measurement_copy->getSensorId())
-              .inverse();
-      absolute_6dof_localization->T_G_B = T_G_S * T_S_B;
-      absolute_6dof_localization->is_T_G_B_set = true;
-      const aslam::TransformationCovariance& T_G_S_covariance =
-          absolute_6dof_measurement_copy->get_T_G_S_covariance();
-      aslam::common::rotateCovariance(
-          T_S_B.inverse(), T_G_S_covariance,
-          &absolute_6dof_localization->T_G_B_covariance);
-
-      absolute_6dof_localization->is_T_G_M_set = false;
-
-      std::lock_guard<std::mutex> callback_lock(
-          localization_result_callback_mutex_);
-      for (const std::function<void(
-               const common::LocalizationResult::ConstPtr&)>& callback :
-           localization_result_callbacks_) {
-        callback(absolute_6dof_localization);
-      }
-    }
-
     std::lock_guard<std::mutex> callback_lock(absolute_6dof_callback_mutex_);
     for (const std::function<void(const vi_map::Absolute6DoFMeasurement::Ptr&)>&
              callback : absolute_6dof_callbacks_) {
-      callback(absolute_6dof_measurement_copy);
+      callback(absolute_6dof_measurement);
     }
   }
 }
@@ -877,14 +823,6 @@ void Synchronizer::registerLoopClosureMeasurementCallback(
   std::lock_guard<std::mutex> lock(loop_closure_callback_mutex_);
   CHECK(callback);
   loop_closure_callbacks_.push_back(callback);
-}
-
-void Synchronizer::registerLocalizationResultMeasurementCallback(
-    const std::function<void(const common::LocalizationResult::ConstPtr&)>&
-        callback) {
-  std::lock_guard<std::mutex> lock(localization_result_callback_mutex_);
-  CHECK(callback);
-  localization_result_callbacks_.push_back(callback);
 }
 
 void Synchronizer::registerPointCloudMapSensorMeasurementCallback(

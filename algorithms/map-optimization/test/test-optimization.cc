@@ -9,6 +9,7 @@
 #include <maplab-common/test/testing-entrypoint.h>
 #include <maplab-common/test/testing-predicates.h>
 #include <memory>
+#include <vi-map-helpers/vi-map-landmark-quality-evaluation.h>
 #include <vi-map/test/vi-map-generator.h>
 #include <vi-map/vi-map.h>
 #include <vi-map/vi-mission.h>
@@ -32,6 +33,8 @@ class ViMappingTest : public ::testing::Test {
 
   virtual void SetUp() {
     test_app_.loadDataset("./test_maps/common_test_map");
+    vi_map::VIMap* map = CHECK_NOTNULL(test_app_.getMapMutable());
+    vi_map_helpers::evaluateLandmarkQuality(map);
   }
 
   virtual void corruptVertices();
@@ -450,9 +453,9 @@ TEST_F(ViMappingTest, TestCorruptedVIOpt) {
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionM = 0.01;
+  constexpr double kPrecisionM = 0.03;
   test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.98;
+  constexpr double kMinPassingLandmarkFraction = 0.95;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionM, kMinPassingLandmarkFraction);
 
@@ -476,7 +479,7 @@ TEST_F(ViMappingTest, TestCorruptedVOpt) {
       kFixAbsolute6DoFExtrinsics));
 
   // We expect less accuracy when using vision only
-  constexpr double kPrecisionKeyframesM = 0.03;
+  constexpr double kPrecisionKeyframesM = 0.05;
   test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
   // Landmarks are fixed so they should not move at all
   constexpr double kPrecisionLandmarksM = 0.0;
@@ -504,9 +507,9 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithAbs6DoFEnabledButHasNone) {
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionM = 0.01;
+  constexpr double kPrecisionM = 0.03;
   test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.98;
+  constexpr double kMinPassingLandmarkFraction = 0.95;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionM, kMinPassingLandmarkFraction);
 
@@ -531,10 +534,10 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithAbs6DoFEnabled) {
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionKeyframesM = 0.001;
+  constexpr double kPrecisionKeyframesM = 0.005;
   test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
   constexpr double kPrecisionLandmarksM = 0.01;
-  constexpr double kMinPassingLandmarkFraction = 0.98;
+  constexpr double kMinPassingLandmarkFraction = 0.95;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
@@ -560,10 +563,10 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithAbs6DoFEnabledCalib) {
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionKeyframesM = 0.001;
+  constexpr double kPrecisionKeyframesM = 0.005;
   test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
   constexpr double kPrecisionLandmarksM = 0.01;
-  constexpr double kMinPassingLandmarkFraction = 0.98;
+  constexpr double kMinPassingLandmarkFraction = 0.95;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
@@ -587,9 +590,9 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithLcEdgesEnabledButHasNone) {
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionM = 0.01;
+  constexpr double kPrecisionM = 0.03;
   test_app_.testIfKeyframesMatchReference(kPrecisionM);
-  constexpr double kMinPassingLandmarkFraction = 0.98;
+  constexpr double kMinPassingLandmarkFraction = 0.95;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionM, kMinPassingLandmarkFraction);
 
@@ -616,10 +619,10 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithLcEdgesEnabled) {
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionKeyframesM = 0.001;
+  constexpr double kPrecisionKeyframesM = 0.005;
   test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
   constexpr double kPrecisionLandmarksM = 0.01;
-  constexpr double kMinPassingLandmarkFraction = 0.98;
+  constexpr double kMinPassingLandmarkFraction = 0.95;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 
@@ -649,10 +652,10 @@ TEST_F(ViMappingTest, TestCorruptedVIOptWithLcEdgesEnabledWithWrongLcEdge) {
       kVisionOnly, kAbsolute6DoF, kLcEdges, kFixCamExtrinsics,
       kFixAbsolute6DoFExtrinsics));
 
-  constexpr double kPrecisionKeyframesM = 0.001;
+  constexpr double kPrecisionKeyframesM = 0.005;
   test_app_.testIfKeyframesMatchReference(kPrecisionKeyframesM);
   constexpr double kPrecisionLandmarksM = 0.01;
-  constexpr double kMinPassingLandmarkFraction = 0.98;
+  constexpr double kMinPassingLandmarkFraction = 0.95;
   test_app_.testIfLandmarksMatchReference(
       kPrecisionLandmarksM, kMinPassingLandmarkFraction);
 

@@ -148,7 +148,7 @@ void ResourceTemplate<cv::Mat>::createUniqueResource(
     const cv::Mat& default_resource, const ResourceId& id,
     std::unique_ptr<cv::Mat>* unique_resource) {
   CHECK_NOTNULL(unique_resource)->reset(new cv::Mat(default_resource.clone()));
-  const int font = CV_FONT_HERSHEY_SIMPLEX;
+  const int font = cv::FONT_HERSHEY_SIMPLEX;
   cv::putText(
       *(*unique_resource), id.hexString(),
       cv::Point(0, (*unique_resource)->rows - 90), font, 2,
