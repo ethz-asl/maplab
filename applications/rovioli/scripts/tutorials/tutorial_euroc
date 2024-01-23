@@ -4,15 +4,13 @@
 
 LOCALIZATION_MAP_OUTPUT=$1
 ROSBAG=$2
-NCAMERA_CALIBRATION="$ROVIO_CONFIG_DIR/ncamera-euroc.yaml"
-IMU_PARAMETERS_MAPLAB="$ROVIO_CONFIG_DIR/imu-adis16488.yaml"
+SENSOR_CALIBRATION="$ROVIO_CONFIG_DIR/euroc-stereo.yaml"
 REST=$@
 
 rosrun rovioli rovioli \
   --alsologtostderr=1 \
   --v=2 \
-  --ncamera_calibration=$NCAMERA_CALIBRATION  \
-  --imu_parameters_maplab=$IMU_PARAMETERS_MAPLAB \
+  --sensor_calibration_file="$SENSOR_CALIBRATION" \
   --datasource_type="rosbag" \
   --save_map_folder="$LOCALIZATION_MAP_OUTPUT" \
   --optimize_map_to_localization_map=false \
