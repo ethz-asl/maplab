@@ -4,7 +4,7 @@
 catkin clean
 catkin config --merge-devel # for error 1
 
-catkin build maplab
+catkin build maplab -DPYTHON_EXECUTABLE=/usr/bin/python3 -DCMAKE_BUILD_TYPE=Release
 ```
 
 ## Error 1
