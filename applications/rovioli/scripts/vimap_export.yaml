@@ -1,0 +1,8 @@
+# Commands for exporting vi maps to csv files.
+# This script is passed as argument to batch-runner.
+# Yaml-format:
+vi_map_folder_paths:
+  - /home/jhuai/Desktop/temp/maplab2/euroc/V2_03_difficult
+commands:
+  - load --map_key dummy_vi --map_folder=<CURRENT_VIMAP_FOLDER>
+  - csv_export --csv_export_path <CURRENT_VIMAP_FOLDER>

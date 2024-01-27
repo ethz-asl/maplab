@@ -1,0 +1,16 @@
+# Commands for creating single session summary maps.
+# This script is passed as argument to batch-runner.
+# Yaml-format:
+vi_map_folder_paths:
+  - /home/jhuai/Desktop/temp/maplab2/euroc/MH_01_easy
+commands:
+  - load --map_key dummy_vi --map_folder=<CURRENT_VIMAP_FOLDER>
+  - csv_export --csv_export_path <CURRENT_VIMAP_FOLDER>
+  - v
+  - lc --feature_descriptor_type=brisk
+  - optvi --feature_descriptor_type=brisk
+  - lc --feature_descriptor_type=brisk
+  - optvi --feature_descriptor_type=brisk
+  - v
+  - csv_export --csv_export_path <CURRENT_VIMAP_FOLDER>_summary
+  - generate_summary_map_and_save_to_disk --summary_map_save_path <CURRENT_VIMAP_FOLDER>_summary --feature_descriptor_type=brisk

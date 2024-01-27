@@ -1,0 +1,112 @@
+sensors:
+  - id: c63aecb41bfdfd6b7e1fac37c7cbe7bf
+    topic: /imu0
+    description: "Bosch IMU (BMI160)"
+    sensor_type: IMU
+    sigmas:
+      acc_noise_density: 1.4e-2  # Allan std * 5
+      acc_bias_random_walk_noise_density: 8.6e-3  # Allan std * 10
+      gyro_noise_density: 8.0e-4  # Allan std * 5
+      gyro_bias_random_walk_noise_density: 2.2e-4  # Allan std * 10
+    saturation_accel_max_mps2: 150.0
+    saturation_gyro_max_radps: 7.5
+    gravity_magnitude_mps2: 9.81
+
+  - id: 412eab8e4058621f7036b5e765dfe812
+    sensor_type: NCAMERA
+    description: "Two uEye UI-3241LE-M-GL with Lensagon BF2M2020S23 lenses"
+    topic: ""
+    cameras:
+      - camera:
+          topic: /cam0
+          id: 54812562fa109c40fe90b29a59dd7798
+          description: "cam0"
+          sensor_type: CAMERA
+          line-delay-nanoseconds: 0
+          image_height: 512
+          image_width: 512
+          type: pinhole
+          intrinsics:
+            cols: 1
+            rows: 4
+            data: [190.97847715128717, 190.9733070521226, 254.93170605935475, 256.8974428996504]
+          distortion:
+            type: equidistant
+            parameters:
+              cols: 1
+              rows: 4
+              data: [0.0034823894022493434, 0.0007150348452162257, -0.0020532361418706202, 0.00020293673591811182]
+        T_B_C:
+          cols: 4
+          rows: 4
+          data: [-0.999525037869675, 0.00750191850740521, -0.0298901303164331, 0.0455748356496981,
+                 0.0296153438858632, -0.0343973606139315, -0.998969345370176, -0.0711618018379971,
+                -0.00852232821165475, -0.999380079249884,  0.0341588512738562, -0.0446812541171444,
+                 0.0, 0.0, 0.0, 1.0]
+
+      - camera:
+          topic: /cam1
+          id: 54812562fa109c40fe90b29a59dd7723
+          description: "cam1"
+          sensor_type: CAMERA
+          line-delay-nanoseconds: 0
+          image_height: 512
+          image_width: 512
+          type: pinhole
+          intrinsics:
+            cols: 1
+            rows: 4
+            data: [190.44236969414825, 190.4344384721956, 252.59949716835982, 254.91723064636983]
+          distortion:
+            type: equidistant
+            parameters:
+              cols: 1
+              rows: 4
+              data: [0.0034003170790442797, 0.001766278153469831, -0.00266312569781606, 0.0003299517423931039]
+        T_B_C:
+          cols: 4
+          rows: 4
+          data: [ -0.999511048497858, 0.00810407926382252, -0.0301991362458914, -0.0554563391425955,
+                  0.0302991163766006, 0.0125116437201924, -0.999462566741855, -0.0692500216422477,
+                 -0.00772188302873336, -0.999888885162099, -0.0127510725739409, -0.0474528648075134,
+                0.0, 0.0, 0.0, 1.0]
+
+  - id: aabb23479caf7592b35518478a2fe08f
+    sensor_type: ODOMETRY_6DOF
+    description: "ROVIOLI in Odometry mode"
+    topic: /maplab_odom_T_M_I
+
+extrinsics:
+
+  - sensor_id: 412eab8e4058621f7036b5e765dfe812
+    base_sensor_id: c63aecb41bfdfd6b7e1fac37c7cbe7bf
+    T_B_S:
+      cols: 4
+      rows: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: c63aecb41bfdfd6b7e1fac37c7cbe7bf
+    base_sensor_id: c63aecb41bfdfd6b7e1fac37c7cbe7bf
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]
+
+  - sensor_id: aabb23479caf7592b35518478a2fe08f
+    base_sensor_id: c63aecb41bfdfd6b7e1fac37c7cbe7bf
+    T_B_S:
+      rows: 4
+      cols: 4
+      data:
+        - [1,0,0,0]
+        - [0,1,0,0]
+        - [0,0,1,0]
+        - [0,0,0,1]

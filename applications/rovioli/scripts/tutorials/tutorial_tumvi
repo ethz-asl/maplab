@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Script to run ROVIOLI from a Euroc rosbag data source.
-# Usage: tutorial_euroc <output save folder> <rosbag path> [<additional rovioli flags>]
+# Script to run ROVIOLI from a TUMVI rosbag data source.
+# Usage: tutorial_tumvi <output save folder> <rosbag path> [<additional rovioli flags>]
 
 LOCALIZATION_MAP_OUTPUT=$1
 ROSBAG=$2
-SENSOR_CALIBRATION="$ROVIO_CONFIG_DIR/euroc-stereo.yaml"
+SENSOR_CALIBRATION="$ROVIO_CONFIG_DIR/tumvi-stereo.yaml"
 REST=$@
 
 rosrun rovioli rovioli \

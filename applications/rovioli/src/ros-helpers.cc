@@ -26,8 +26,9 @@ DEFINE_int32(
     rovioli_image_clahe_grid_size, 8,
     "CLAHE histogram equalization parameter: grid size.");
 
+// see line 173 in http://docs.ros.org/en/diamondback/api/cv_bridge/html/c++/cv__bridge_8cpp_source.html
 DEFINE_double(
-    rovioli_image_16_bit_to_8_bit_scale_factor, 1,
+    rovioli_image_16_bit_to_8_bit_scale_factor, 255. / 65535.,
     "Scale factor applied to 16bit images when converting them to 8bit "
     "images.");
 DEFINE_double(
