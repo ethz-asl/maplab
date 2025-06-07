@@ -149,9 +149,16 @@ class PointCloud {
   void appendTransformed(
       const PointCloud& other, const aslam::Transformation& T_A_B);
 
+  // Shifts the point cloud by a given offset in time. The offset is in
+  // nanoseconds.
+  void shiftTimestamps(int64_t offset_ns) {
+    for (size_t i = 0; i < times_ns.size(); ++i) {
+      times_ns[i] -= offset_ns;
+    }
+  }
   // Get the min and max timestamps for all the points. Useful for undistortion.
   void getMinMaxTimeNanoseconds(
-      int32_t* min_time_ns, int32_t* max_time_ns) const;
+      int64_t* min_time_ns, int64_t* max_time_ns) const;
 
   // Undistort the point cloud given a set of initial high accuracy poses
   // from the start to the end of the scan. Linear interpolation will be used
@@ -168,6 +175,14 @@ class PointCloud {
 
   // Removes points inside a 3D bounding box.
   void filterBoundingBox3D(BoundingBox3D box_filter);
+
+  // Splits the point cloud at the give time. If is_sorted is true, the point
+  // cloud is assumed to be sorted by timestamp. Otherwise, the point cloud will
+  // be sorted by timestamp first.
+  // Returns a new point cloud containing all points with timestamp <= time.
+  PointCloud splitAtTime(int64_t time, bool is_sorted);
+
+  void orderByTimestamp();
 
   // Downsample using a voxel grid. The returned point cloud will only
   // have xyz coordinates, all other information is stripped away.
@@ -191,7 +206,7 @@ class PointCloud {
   std::vector<unsigned char> colors;
   std::vector<float> scalars;
   std::vector<uint32_t> labels;
-  std::vector<int32_t> times_ns;
+  std::vector<int64_t> times_ns;
 };
 
 }  // namespace resources

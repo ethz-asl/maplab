@@ -532,7 +532,7 @@ void integrateAllSensorDepthResourcesOfType(
             // If we have timing information for the points undistort the point
             // cloud, based on the current poses.
             if (point_cloud.hasTimes()) {
-              int32_t min_time_ns, max_time_ns;
+              int64_t min_time_ns, max_time_ns;
               point_cloud.getMinMaxTimeNanoseconds(&min_time_ns, &max_time_ns);
 
               // The undistortion might take us outside the posegraph range

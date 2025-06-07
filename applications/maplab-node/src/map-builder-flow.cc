@@ -277,6 +277,8 @@ bool MapBuilderFlow::saveMapAndOptionallyOptimize(
 
   if (stop_mapping) {
     mapping_terminated_ = true;
+    // Finish mapping
+    stream_map_builder_.finishMapping();
   }
 
   // Early exit if the map is empty.

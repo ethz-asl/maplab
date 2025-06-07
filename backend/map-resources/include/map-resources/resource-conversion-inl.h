@@ -1,6 +1,7 @@
 #ifndef MAP_RESOURCES_RESOURCE_CONVERSION_INL_H_
 #define MAP_RESOURCES_RESOURCE_CONVERSION_INL_H_
 
+#include <cstdint>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <maplab-common/pose_types.h>
@@ -133,17 +134,17 @@ void addPointToPointCloud(
 
 template <typename PointCloudType>
 void addTimeToPointCloud(
-    const int32_t time, const size_t index, PointCloudType* point_cloud) {
+    const int64_t time, const size_t index, PointCloudType* point_cloud) {
   LOG(FATAL) << "This point cloud either does not support times"
              << "or it is not implemented!";
 }
 template <>
 void addTimeToPointCloud(
-    const int32_t time, const size_t index,
+    const int64_t time, const size_t index,
     resources::PointCloud* point_cloud);
 template <>
 void addTimeToPointCloud(
-    const int32_t time, const size_t index,
+    const int64_t time, const size_t index,
     sensor_msgs::PointCloud2* point_cloud);
 
 template <typename PointCloudType>
@@ -364,7 +365,7 @@ void getLabelFromPointCloud(
 template <typename PointCloudType>
 void getTimeFromPointCloud(
     const PointCloudType& /*point_cloud*/, const size_t /*index*/,
-    int32_t* /*time*/, const int32_t /*convert_to_ns*/,
+    int64_t* /*time*/, const int32_t /*convert_to_ns*/,
     const int64_t /*time_offset_ns*/) {
   LOG(FATAL) << "This point cloud either does not support times of the "
              << "requested type or it is not implemented!";
@@ -372,12 +373,12 @@ void getTimeFromPointCloud(
 template <>
 void getTimeFromPointCloud(
     const resources::PointCloud& point_cloud, const size_t index,
-    int32_t* time, const int32_t /*convert_to_ns*/,
+    int64_t* time, const int32_t /*convert_to_ns*/,
     const int64_t /*time_offset_ns*/);
 template <>
 void getTimeFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
-    int32_t* time, const int32_t convert_to_ns, const int64_t time_offset_ns);
+    int64_t* time, const int32_t convert_to_ns, const int64_t time_offset_ns);
 
 template <typename PointCloudType>
 bool convertDepthMapToPointCloud(
@@ -550,7 +551,7 @@ bool convertPointCloudType(
     }
 
     if (with_timestamps && output_has_times) {
-      int32_t time;
+      int64_t time;
       getTimeFromPointCloud(
           input_cloud, point_idx, &time, convert_to_ns, time_offset_ns);
       addTimeToPointCloud(time, point_idx, output_cloud);

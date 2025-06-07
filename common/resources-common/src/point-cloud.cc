@@ -104,13 +104,13 @@ void PointCloud::appendTransformed(
 }
 
 void PointCloud::getMinMaxTimeNanoseconds(
-    int32_t* min_time_ns, int32_t* max_time_ns) const {
+    int64_t* min_time_ns, int64_t* max_time_ns) const {
   CHECK_NOTNULL(min_time_ns);
   CHECK_NOTNULL(max_time_ns);
 
   // Initialize to the opposite ends and iterate over point times.
-  *min_time_ns = std::numeric_limits<int32_t>::max();
-  *max_time_ns = std::numeric_limits<int32_t>::min();
+  *min_time_ns = std::numeric_limits<int64_t>::max();
+  *max_time_ns = std::numeric_limits<int64_t>::min();
   for (size_t i = 0; i < size(); ++i) {
     *min_time_ns = std::min(*min_time_ns, times_ns[i]);
     *max_time_ns = std::max(*max_time_ns, times_ns[i]);
@@ -149,8 +149,8 @@ void PointCloud::undistort(
   // Initialize the two poses between which we interpolate. By sorting the
   // points by timestamp beforehand, we never need to go back afterward.
   int64_t intermediary_index = 1;
-  int32_t time_A = timestamps[0];
-  int32_t time_B = timestamps[1];
+  int64_t time_A = timestamps[0];
+  int64_t time_B = timestamps[1];
   aslam::Transformation pose_A = poses[0];
   aslam::Transformation pose_B = poses[1];
 
@@ -180,7 +180,7 @@ size_t PointCloud::filterValidMinMaxBox(
   std::vector<unsigned char> colors_new;
   std::vector<float> scalars_new;
   std::vector<uint32_t> labels_new;
-  std::vector<int32_t> times_ns_new;
+  std::vector<int64_t> times_ns_new;
 
   // We guess that we are on average not going to remove that many points.
   xyz_new.reserve(xyz.size());
@@ -269,6 +269,212 @@ size_t PointCloud::filterValidMinMaxBox(
   return num_removed;
 }
 
+PointCloud PointCloud::splitAtTime(const int64_t time, const bool is_sorted) {
+  CHECK(checkConsistency(true))
+      << "Point cloud is not consistent at the start of splitAtTime!";
+  if (!is_sorted) {
+    // Sorting is quite expensive, so we only do it if we actually need to.
+    orderByTimestamp();
+  }
+
+  PointCloud result;
+  if (!hasTimes() || times_ns.empty()) {
+    return result;
+  }
+
+  const auto split_iter =
+      std::upper_bound(times_ns.begin(), times_ns.end(), time);
+  const size_t split_idx = std::distance(times_ns.begin(), split_iter);
+
+  if (split_idx == 0) {
+    return result;
+  }
+  if (split_idx == times_ns.size()) {
+    result = *this;
+    // empty the current PC
+    clear();
+    return result;
+  }
+
+  // Ensure split_idx is not out of bounds (paranoid check, upper_bound behavior
+  // should prevent this for non-empty times_ns)
+  CHECK(split_idx <= times_ns.size())
+      << "split_idx calculated incorrectly or times_ns modified unexpectedly.";
+
+  // Create result cloud and reserve space
+  result.times_ns.reserve(split_idx);
+  result.xyz.reserve(split_idx * 3);
+  if (hasNormals()) {  // Check based on original 'this' state
+    result.normals.reserve(split_idx * 3);
+  }
+  if (hasColor()) {  // Check based on original 'this' state
+    result.colors.reserve(split_idx);
+  }
+  if (hasScalars()) {  // Check based on original 'this' state
+    result.scalars.reserve(split_idx);
+  }
+  if (hasLabels()) {  // Check based on original 'this' state
+    result.labels.reserve(split_idx);
+  }
+
+  // Copy data to result cloud
+  // These iterators are safe because split_idx <= times_ns.size() (and other
+  // vectors are consistent initially)
+  result.times_ns.assign(times_ns.begin(), times_ns.begin() + split_idx);
+  result.xyz.assign(xyz.begin(), xyz.begin() + (split_idx * 3));
+
+  if (hasNormals()) {
+    CHECK(normals.size() >= split_idx * 3)
+        << "Insufficient normals for assignment.";
+    result.normals.assign(normals.begin(), normals.begin() + (split_idx * 3));
+  }
+  if (hasColor()) {
+    CHECK(colors.size() >= split_idx) << "Insufficient colors for assignment.";
+    result.colors.assign(colors.begin(), colors.begin() + split_idx);
+  }
+  if (hasScalars()) {
+    CHECK(scalars.size() >= split_idx)
+        << "Insufficient scalars for assignment.";
+    result.scalars.assign(scalars.begin(), scalars.begin() + split_idx);
+  }
+  if (hasLabels()) {
+    CHECK(labels.size() >= split_idx) << "Insufficient labels for assignment.";
+    result.labels.assign(labels.begin(), labels.begin() + split_idx);
+  }
+
+  // modify the optional data first since hasX() methods depend on the size of
+  // the required vectors
+  if (hasNormals()) {
+    CHECK(normals.size() >= split_idx * 3) << "Insufficient normals for erase.";
+    normals.erase(normals.begin(), normals.begin() + (split_idx * 3));
+  }
+  if (hasColor()) {
+    CHECK(colors.size() >= split_idx) << "Insufficient colors for erase.";
+    colors.erase(colors.begin(), colors.begin() + split_idx);
+  }
+  if (hasScalars()) {
+    CHECK(scalars.size() >= split_idx) << "Insufficient scalars for erase.";
+    scalars.erase(scalars.begin(), scalars.begin() + split_idx);
+  }
+  if (hasLabels()) {
+    CHECK(labels.size() >= split_idx) << "Insufficient labels for erase.";
+    labels.erase(labels.begin(), labels.begin() + split_idx);
+  }
+
+  // Now erase primary data
+  // These iterators are safe because split_idx was determined from
+  // times_ns.begin() and times_ns hasn't been modified by other erasures yet.
+  CHECK(times_ns.size() >= split_idx) << "Insufficient times_ns for erase.";
+  times_ns.erase(times_ns.begin(), times_ns.begin() + split_idx);
+
+  CHECK(xyz.size() >= split_idx * 3) << "Insufficient xyz for erase.";
+  xyz.erase(xyz.begin(), xyz.begin() + (split_idx * 3));
+
+  // Final consistency checks
+  CHECK(checkConsistency(true))
+      << "Point cloud ('this') is not consistent after erase!";
+  CHECK(result.checkConsistency(true))
+      << "Resulting point cloud ('result') is not consistent!";
+
+  return result;
+}
+
+void PointCloud::orderByTimestamp() {
+  const size_t num_points = this->size();
+
+  if (num_points == 0) {
+    return;
+  }
+  if (!hasTimes()) {
+    LOG(WARNING) << "[PointCloud] Ordering by timestamp failed because "
+                    "timestamps are not available!";
+    return;
+  }
+
+  std::vector<size_t> p(num_points);
+  std::iota(p.begin(), p.end(), 0);
+
+  // Sort the index vector based on the timestamps.
+  std::sort(p.begin(), p.end(), [&](size_t idx1, size_t idx2) {
+    return times_ns[idx1] < times_ns[idx2];
+  });
+
+  // Create new vectors to store the sorted data.
+  std::vector<double> xyz_sorted(xyz.size());
+  std::vector<double> normals_sorted;
+  std::vector<unsigned char> colors_sorted;
+  std::vector<float> scalars_sorted;
+  std::vector<uint32_t> labels_sorted;
+  std::vector<int64_t> times_ns_sorted(num_points);
+
+  // Cache the presence of optional data fields.
+  const bool current_has_normals = hasNormals();
+  const bool current_has_colors = hasColor();
+  const bool current_has_scalars = hasScalars();
+  const bool current_has_labels = hasLabels();
+
+  // Resize sorted vectors for optional data if they are present.
+  if (current_has_normals) {
+    normals_sorted.resize(normals.size());
+  }
+  if (current_has_colors) {
+    colors_sorted.resize(colors.size());
+  }
+  if (current_has_scalars) {
+    scalars_sorted.resize(scalars.size());
+  }
+  if (current_has_labels) {
+    labels_sorted.resize(labels.size());
+  }
+
+  // Populate the sorted vectors using the sorted indices.
+  for (size_t i = 0; i < num_points; ++i) {
+    size_t original_idx = p[i];
+
+    xyz_sorted[i * 3 + 0] = xyz[original_idx * 3 + 0];
+    xyz_sorted[i * 3 + 1] = xyz[original_idx * 3 + 1];
+    xyz_sorted[i * 3 + 2] = xyz[original_idx * 3 + 2];
+
+    if (current_has_normals) {
+      normals_sorted[i * 3 + 0] = normals[original_idx * 3 + 0];
+      normals_sorted[i * 3 + 1] = normals[original_idx * 3 + 1];
+      normals_sorted[i * 3 + 2] = normals[original_idx * 3 + 2];
+    }
+    if (current_has_colors) {
+      colors_sorted[i * 3 + 0] = colors[original_idx * 3 + 0];
+      colors_sorted[i * 3 + 1] = colors[original_idx * 3 + 1];
+      colors_sorted[i * 3 + 2] = colors[original_idx * 3 + 2];
+    }
+
+    if (current_has_scalars) {
+      scalars_sorted[i] = scalars[original_idx];
+    }
+
+    if (current_has_labels) {
+      labels_sorted[i] = labels[original_idx];
+    }
+
+    times_ns_sorted[i] = times_ns[original_idx];
+  }
+
+  xyz = std::move(xyz_sorted);
+  times_ns = std::move(times_ns_sorted);
+
+  if (current_has_normals) {
+    normals = std::move(normals_sorted);
+  }
+  if (current_has_colors) {
+    colors = std::move(colors_sorted);
+  }
+  if (current_has_scalars) {
+    scalars = std::move(scalars_sorted);
+  }
+  if (current_has_labels) {
+    labels = std::move(labels_sorted);
+  }
+  CHECK(checkConsistency(true)) << "Point cloud is not consistent!";
+}
+
 void PointCloud::downsampleVoxelized(
     double voxel_size, PointCloud* voxelized) const {
   CHECK_GT(voxel_size, 1e-3) << "Voxel size is too small.";
@@ -345,7 +551,7 @@ void PointCloud::writeToFile(const std::string& file_path) const {
 
   if (!times_ns.empty()) {
     ply_file.add_properties_to_element(
-        "vertex", {"time_ns"}, const_cast<std::vector<int32_t>&>(times_ns));
+        "vertex", {"time_ns"}, const_cast<std::vector<int64_t>&>(times_ns));
   }
 
   ply_file.comments.push_back("generated by tinyply from maplab");

@@ -3,8 +3,12 @@
 
 #include <Eigen/Dense>
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <feature-tracking/vo-outlier-rejection-pipeline.h>
+#include <iostream>
 #include <landmark-triangulation/pose-interpolator.h>
+#include <limits>
 #include <map-resources/resource-conversion.h>
 #include <memory>
 #include <posegraph/unique-id.h>
@@ -46,6 +50,8 @@ class StreamMapBuilder {
   // Deep copies the nframe.
   void apply(const vio::MapUpdate& update);
   void apply(const vio::MapUpdate& update, bool deep_copy_nframe);
+
+  void finishMapping();
 
   vi_map::MissionId getMissionId() const {
     return mission_id_;
@@ -114,6 +120,10 @@ class StreamMapBuilder {
   void notifyLoopClosureConstraintBuffer();
   void notifyWheelOdometryConstraintBuffer();
   void notifyExternalFeaturesMeasurementBuffer();
+  // if dump_remaining_points is true, the buffer will be emptied into the best
+  // vertex available. Otherwise, the buffer will only be used to associate
+  // points to N-1 vertices.
+  void notifyLidarMeasurementBuffer(bool dump_remaining_points);
 
   void addRootViwlsVertex(
       const std::shared_ptr<aslam::VisualNFrame>& nframe,
@@ -198,6 +208,9 @@ class StreamMapBuilder {
       external_features_outlier_rejection_pipelines_;
 
   static constexpr size_t kKeepNMostRecentImages = 10u;
+
+  std::unordered_map<aslam::SensorId, resources::PointCloud>
+      lidar_point_cloud_buffer_;
 };
 
 template <typename PointCloudType>
@@ -226,24 +239,29 @@ void StreamMapBuilder::attachLidarMeasurement(
   if (lidar_sensor.hasPointTimestamps()) {
     const uint32_t convert_to_ns =
         lidar_sensor.getTimestampConversionToNanoseconds();
+
     const int64_t time_offset_ns =
         lidar_sensor.hasRelativePointTimestamps()
-            ? lidar_measurement.getTimestampNanoseconds()
-            : 0;
+            ? 0
+            : -lidar_measurement.getTimestampNanoseconds();
+    // The point cloud timestamps are absolute.
     backend::convertPointCloudType<PointCloudType, resources::PointCloud>(
         lidar_measurement.getPointCloud(), &point_cloud, true, convert_to_ns,
         time_offset_ns);
+    lidar_point_cloud_buffer_[lidar_sensor_id].append(point_cloud);
+    return;
   } else {
     backend::convertPointCloudType<PointCloudType, resources::PointCloud>(
         lidar_measurement.getPointCloud(), &point_cloud, false);
-  }
 
-  backend::ResourceType point_cloud_type =
-      backend::getResourceTypeForPointCloud(point_cloud);
-  vi_map::VIMission& mission = map_->getMission(mission_id_);
-  map_->addSensorResource(
-      point_cloud_type, lidar_sensor_id,
-      lidar_measurement.getTimestampNanoseconds(), point_cloud, &mission);
+    backend::ResourceType point_cloud_type =
+        backend::getResourceTypeForPointCloud(point_cloud);
+    vi_map::VIMission& mission = map_->getMission(mission_id_);
+    map_->addSensorResource(
+        point_cloud_type, lidar_sensor_id,
+        lidar_measurement.getTimestampNanoseconds(), point_cloud, &mission);
+    return;
+  }
 }
 
 template <typename PointCloudType>

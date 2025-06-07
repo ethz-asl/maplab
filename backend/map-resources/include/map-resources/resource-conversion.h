@@ -2,6 +2,7 @@
 #define MAP_RESOURCES_RESOURCE_CONVERSION_H_
 
 #include <aslam/cameras/camera.h>
+#include <cstdint>
 #include <maplab-common/pose_types.h>
 #include <opencv2/core.hpp>
 #include <resources-common/point-cloud.h>
@@ -64,7 +65,7 @@ void addColorToPointCloud(
     PointCloudType* point_cloud);
 template <typename PointCloudType>
 void addTimeToPointCloud(
-    const int32_t time, const size_t index, PointCloudType* point_cloud);
+    const int64_t time, const size_t index, PointCloudType* point_cloud);
 
 template <typename PointCloudType>
 void getPointFromPointCloud(
@@ -82,7 +83,7 @@ void getColorFromPointCloud(
     resources::RgbaColor* color);
 template <typename PointCloudType>
 void getTimeFromPointCloud(
-    const PointCloudType& point_cloud, const size_t index, int32_t* time,
+    const PointCloudType& point_cloud, const size_t index, int64_t* time,
     const int32_t convert_to_ns, const int64_t time_offset_ns);
 
 template <typename PointCloudType>

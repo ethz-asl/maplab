@@ -3,6 +3,7 @@
 #include <aslam/cameras/camera-unified-projection.h>
 #include <aslam/cameras/camera.h>
 #include <aslam/cameras/distortion.h>
+#include <cstdint>
 #include <glog/logging.h>
 #include <maplab-common/pose_types.h>
 #include <opencv2/core.hpp>
@@ -652,7 +653,7 @@ void getLabelFromPointCloud(
 
 template <>
 void addTimeToPointCloud(
-    const int32_t time, const size_t index,
+    const int64_t time, const size_t index,
     resources::PointCloud* point_cloud) {
   DCHECK_NOTNULL(point_cloud);
   DCHECK_LT(index, point_cloud->times_ns.size());
@@ -661,9 +662,9 @@ void addTimeToPointCloud(
 
 template <>
 void addTimeToPointCloud(
-    const int32_t time, const size_t index,
+    const int64_t time, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
-  sensor_msgs::PointCloud2Iterator<int32_t> it_time(
+  sensor_msgs::PointCloud2Iterator<int64_t> it_time(
       *point_cloud, kPointCloud2TimeV1);
 
   it_time += index;
@@ -673,7 +674,7 @@ void addTimeToPointCloud(
 template <>
 void getTimeFromPointCloud(
     const resources::PointCloud& point_cloud, const size_t index,
-    int32_t* time, const int32_t /*convert_to_ns*/,
+    int64_t* time, const int32_t /*convert_to_ns*/,
     const int64_t /*time_offset_ns*/) {
   DCHECK_NOTNULL(time);
 
@@ -684,7 +685,7 @@ void getTimeFromPointCloud(
 template <>
 void getTimeFromPointCloud(
     const sensor_msgs::PointCloud2& point_cloud, const size_t index,
-    int32_t* time, const int32_t convert_to_ns,
+    int64_t* time, const int32_t convert_to_ns,
     const int64_t time_offset_ns) {
   DCHECK_NOTNULL(time);
   sensor_msgs::PointField field = getTimeField(point_cloud);
@@ -698,14 +699,14 @@ void getTimeFromPointCloud(
     case sensor_msgs::PointField::FLOAT64: {
       double time_f =
           boost::apply_visitor(time_visitor_double.setIndex(index), var);
-      *time = static_cast<int32_t>(time_f * convert_to_ns - time_offset_ns);
+      *time = static_cast<int64_t>(time_f * convert_to_ns - time_offset_ns);
       break;
     }
     case sensor_msgs::PointField::INT32:
     case sensor_msgs::PointField::UINT32: {
       int64_t time_i =
           boost::apply_visitor(time_visitor_int64.setIndex(index), var);
-      *time = static_cast<int32_t>(time_i * convert_to_ns - time_offset_ns);
+      *time = static_cast<int64_t>(time_i * convert_to_ns - time_offset_ns);
       break;
     }
     default: {

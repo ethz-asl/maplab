@@ -164,6 +164,12 @@ void StreamMapBuilder::apply(
   notifyBuffers();
 }
 
+void StreamMapBuilder::finishMapping() {
+  LOG(INFO) << "[StreamMapBuilder] Mapping finished callbacks...";
+  // Dump lidar point cloud buffer
+  notifyLidarMeasurementBuffer(/*dump_remaining_points=*/true);
+}
+
 void StreamMapBuilder::addRootViwlsVertex(
     const aslam::VisualNFrame::Ptr& nframe,
     const vio::ViNodeState& vinode_state) {
@@ -465,6 +471,7 @@ void StreamMapBuilder::notifyBuffers() {
   notifyLoopClosureConstraintBuffer();
   notifyWheelOdometryConstraintBuffer();
   notifyExternalFeaturesMeasurementBuffer();
+  notifyLidarMeasurementBuffer(/*dump_remaining_points=*/false);
 }
 
 void StreamMapBuilder::notifyAbsolute6DoFConstraintBuffer() {
@@ -1141,6 +1148,112 @@ void StreamMapBuilder::notifyExternalFeaturesMeasurementBuffer() {
     // Make info message more verbose
     VLOG(3) << "[StreamMapBuilder] Attached a new external features "
             << "measurement for vertex " << closest_vertex_id;
+  }
+}
+
+void StreamMapBuilder::notifyLidarMeasurementBuffer(
+    const bool dump_remaining_points) {
+  if (map_->numVertices() < 1u || lidar_point_cloud_buffer_.empty()) {
+    return;
+  }
+  vi_map::VIMission& mission = map_->getMission(mission_id_);
+
+  for (auto& buffer_with_sensor_id : lidar_point_cloud_buffer_) {
+    const auto& lidar_sensor_id = buffer_with_sensor_id.first;
+    auto& point_cloud_buffer = buffer_with_sensor_id.second;
+
+    CHECK(std::is_sorted(
+        point_cloud_buffer.times_ns.begin(), point_cloud_buffer.times_ns.end()))
+        << "[StreamMapBuilder] The lidar point cloud buffer is not sorted!";
+
+    const backend::ResourceType point_cloud_type =
+        backend::getResourceTypeForPointCloud(point_cloud_buffer);
+
+    pose_graph::VertexId current_vertex_id;
+    pose_graph::VertexId next_vertex_id;
+
+    const auto initial_min_lidar_time = point_cloud_buffer.times_ns.front();
+
+    // Get the vertex with the timestamp closest to the min lidar time.
+    uint64_t delta_ns = 0;
+    // NOTE(gtonetti): We always want to include the lidar measurements, so we
+    // set the max interpolation time to the maximum possible value
+    // (tolerance_ns is cast to int64_t)
+    constexpr uint64_t kMaxInterpolationTimeNs =
+        static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+
+    if (!queries_.getClosestVertexIdByTimestamp(
+            initial_min_lidar_time, kMaxInterpolationTimeNs, &current_vertex_id,
+            &delta_ns)) {
+      LOG(FATAL)
+          << "[StreamMapBuilder] Could not find a vertex for the initial "
+             "lidar measurement!";
+    }
+
+    if (!map_->getNextVertex(current_vertex_id, &next_vertex_id)) {
+      CHECK(current_vertex_id == last_vertex_);
+    }
+    while (current_vertex_id != last_vertex_ && point_cloud_buffer.size() > 0) {
+      const auto current_vertex_ts =
+          map_->getVertex(current_vertex_id).getMinTimestampNanoseconds();
+      const auto next_vertex_ts =
+          map_->getVertex(next_vertex_id).getMinTimestampNanoseconds();
+      const auto midpoint_time =
+          current_vertex_ts + (next_vertex_ts - current_vertex_ts) / 2;
+
+      const auto min_lidar_time = point_cloud_buffer.times_ns.front();
+      const auto max_lidar_time = point_cloud_buffer.times_ns.back();
+
+      CHECK(midpoint_time >= min_lidar_time)
+          << "[StreamMapBuilder] Something went wrong! the the min_lidar_time "
+             "should always be closer to the current vertex than than the next "
+             "vertex!";
+
+      if (midpoint_time > max_lidar_time) {
+        // we should wait for the next lidar measurement to arrive before
+        // processing this vertex
+        break;
+      }
+
+      resources::PointCloud points_for_current_vertex =
+          point_cloud_buffer.splitAtTime(midpoint_time, /*is_sorted=*/true);
+      CHECK(points_for_current_vertex.times_ns.back() <= midpoint_time);
+      CHECK(point_cloud_buffer.times_ns.front() > midpoint_time);
+      CHECK(point_cloud_buffer.size() > 0)
+          << "[StreamMapBuilder] Split did not leave any points in the "
+             "buffer! "
+             "This is impossible!";
+
+      const auto num_points_split = points_for_current_vertex.size();
+
+      // Associate the split points with the current vertex.
+      CHECK(!map_->hasSensorResource(
+          mission, point_cloud_type, lidar_sensor_id, current_vertex_ts))
+          << "[StreamMapBuilder] There is already a point cloud resource at "
+             "the current vertex timestamp!";
+
+      // shift timestamps to the current vertex timestamp
+      points_for_current_vertex.shiftTimestamps(current_vertex_ts);
+      map_->addSensorResource(
+          point_cloud_type, lidar_sensor_id, current_vertex_ts,
+          points_for_current_vertex, &mission);
+      VLOG(3) << "[StreamMapBuilder] Associated " << num_points_split
+              << " points with vertex " << current_vertex_id << " (ts "
+              << current_vertex_ts << ")";
+      current_vertex_id = next_vertex_id;
+      map_->getNextVertex(current_vertex_id, &next_vertex_id);
+    }
+    if (dump_remaining_points) {
+      VLOG(3) << "[StreamMapBuilder] Dumping remaining points "
+              << point_cloud_buffer.size() << " into current "
+              << "vertex " << current_vertex_id;
+      // Dump the remaining points into the current vertex
+      map_->addSensorResource(
+          point_cloud_type, lidar_sensor_id,
+          map_->getVertex(current_vertex_id).getMinTimestampNanoseconds(),
+          point_cloud_buffer, &mission);
+      point_cloud_buffer.clear();
+    }
   }
 }
 

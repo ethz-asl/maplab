@@ -43,7 +43,8 @@ class PlyProperty {
     INT32,
     UINT32,
     FLOAT32,
-    FLOAT64
+    FLOAT64,
+    INT64
   };
 
   PlyProperty(std::istream& is);
@@ -105,6 +106,7 @@ static std::map<PlyProperty::Type, PropertyInfo> PropertyTable{
     {PlyProperty::Type::UINT16, {2, "ushort"}},
     {PlyProperty::Type::INT32, {4, "int"}},
     {PlyProperty::Type::UINT32, {4, "uint"}},
+    {PlyProperty::Type::INT64, {8, "long"}},
     {PlyProperty::Type::FLOAT32, {4, "float"}},
     {PlyProperty::Type::FLOAT64, {8, "double"}},
     {PlyProperty::Type::INVALID, {0, "INVALID"}}};
@@ -122,6 +124,8 @@ inline PlyProperty::Type property_type_from_string(const std::string& t) {
     return PlyProperty::Type::INT32;
   else if (t == "uint32" || t == "uint")
     return PlyProperty::Type::UINT32;
+  else if (t == "int64" || t == "long")
+    return PlyProperty::Type::INT64;
   else if (t == "float32" || t == "float")
     return PlyProperty::Type::FLOAT32;
   else if (t == "float64" || t == "double")
@@ -157,6 +161,8 @@ inline void resize_vector(
     case PlyProperty::Type::UINT32:
       ptr = resize<uint32_t>(v, newSize);
       break;
+    case PlyProperty::Type::INT64:
+      ptr = resize<int64_t>(v, newSize);
     case PlyProperty::Type::FLOAT32:
       ptr = resize<float>(v, newSize);
       break;
@@ -182,6 +188,8 @@ inline PlyProperty::Type property_type_for_type(std::vector<T>& /*theType*/) {
     return PlyProperty::Type::INT32;
   else if (std::is_same<T, uint32_t>::value)
     return PlyProperty::Type::UINT32;
+  else if (std::is_same<T, int64_t>::value)
+    return PlyProperty::Type::INT64;
   else if (std::is_same<T, float>::value)
     return PlyProperty::Type::FLOAT32;
   else if (std::is_same<T, double>::value)
@@ -241,8 +249,8 @@ class PlyFile {
       return 0;
 
     // count and verify large enough
-    auto instance_counter = [&](
-        const std::string& elementKey, const std::string& propertyKey) {
+    auto instance_counter = [&](const std::string& elementKey,
+                                const std::string& propertyKey) {
       for (auto e : get_elements()) {
         if (e.name != elementKey)
           continue;
@@ -403,6 +411,6 @@ class PlyFile {
   std::vector<std::string> requestedElements;
 };
 
-}  // namesapce tinyply
+}  // namespace tinyply
 
 #endif  // RESOURCES_COMMON_TINYPLY_TINYPLY_H_

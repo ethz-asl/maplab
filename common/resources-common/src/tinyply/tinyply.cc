@@ -5,6 +5,7 @@
 // https://github.com/ddiakopoulos/tinyply
 
 #include "resources-common/tinyply/tinyply.h"
+#include <cstdint>
 
 namespace tinyply {
 
@@ -156,6 +157,9 @@ void PlyFile::read_property_binary(
     case PlyProperty::Type::UINT32:
       ply_cast<uint32_t>(dest, src.data());
       break;
+    case PlyProperty::Type::INT64:
+      ply_cast<int64_t>(dest, src.data());
+      break;
     case PlyProperty::Type::FLOAT32:
       ply_cast_float<float>(dest, src.data());
       break;
@@ -189,6 +193,9 @@ void PlyFile::read_property_ascii(
     case PlyProperty::Type::UINT32:
       ply_cast_ascii<uint32_t>(dest, is);
       break;
+    case PlyProperty::Type::INT64:
+      ply_cast_ascii<int64_t>(dest, is);
+      break;
     case PlyProperty::Type::FLOAT32:
       ply_cast_ascii<float>(dest, is);
       break;
@@ -221,6 +228,9 @@ void PlyFile::write_property_ascii(
       break;
     case PlyProperty::Type::UINT32:
       os << *reinterpret_cast<uint32_t*>(src);
+      break;
+    case PlyProperty::Type::INT64:
+      os << *reinterpret_cast<int64_t*>(src);
       break;
     case PlyProperty::Type::FLOAT32:
       os << *reinterpret_cast<float*>(src);
